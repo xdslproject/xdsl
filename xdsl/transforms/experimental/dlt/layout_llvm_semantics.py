@@ -16,8 +16,6 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.experimental import dlt
 from xdsl.ir import Block, Operation, SSAValue
 
-T = typing.TypeVar("T", bound=dlt.Layout)
-
 
 class NumericResult:
     def __init__(
@@ -446,13 +444,15 @@ class PtrCarriedExtentGetter(ExtentGetter):
 
 class ExtentResolver:
 
-    def __init__(self, extent_map: dict[dlt.Extent, ExtentGetter], scope_op: dlt.LayoutScopeOp):
+    def __init__(
+        self, extent_map: dict[dlt.Extent, ExtentGetter], scope_op: dlt.LayoutScopeOp
+    ):
         self.scope_op = scope_op
-        map: dict[dlt.Extent, ExtentGetter] = {}
+        new_map: dict[dlt.Extent, ExtentGetter] = {}
         for i, scope_extent in enumerate(scope_op.extent_names):
-            map[scope_extent] = ScopeExtentGetter(scope_op.extent_values.data[i])
-        map.update(extent_map)
-        self.map: dict[dlt.Extent, ExtentGetter] = map
+            new_map[scope_extent] = ScopeExtentGetter(scope_op.extent_values.data[i])
+        new_map.update(extent_map)
+        self.map: dict[dlt.Extent, ExtentGetter] = new_map
 
     def resolve(self, extent: dlt.Extent) -> NumericResult1:
         if extent.is_static():
@@ -469,7 +469,9 @@ class ExtentResolver:
                 f"Cannot resolve Extent {extent} in ExtentResolver map {self.map}"
             )
 
-    def with_new(self, new_extent_mappings: dict[dlt.Extent, ExtentGetter]) -> typing.Self:
+    def with_new(
+        self, new_extent_mappings: dict[dlt.Extent, ExtentGetter]
+    ) -> typing.Self:
         return ExtentResolver(self.map | new_extent_mappings, self.scope_op)
 
 
@@ -592,7 +594,6 @@ class NoCallback(Callback):
         return [], [], False
 
 
-
 class DerivedCallback(Callback):
     def __init__(
         self,
@@ -634,6 +635,13 @@ class DerivedCallback(Callback):
             iter_args,
         )
         return ops, iter_args_out, exit_early
+
+
+FillValueGetter = Callable[[], tuple[list[Operation], SSAValue]]
+EnsureSpaceFunc = Callable[[FillValueGetter], tuple[list[Operation], SSAValue]]
+LinearIterCallbackFunc = Callable[
+    [Callback, bool | SSAValue], tuple[list[Operation], list[SSAValue], bool | SSAValue]
+]
 
 
 class SemanticsMapper:
@@ -707,7 +715,7 @@ class SemanticsMapper:
 
     def get_getter_for(
         self,
-        starting_layout: T,
+        starting_layout: dlt.DirectLayout,
         get_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
@@ -725,9 +733,39 @@ class SemanticsMapper:
         assert val.owner in ops
         return ops, val, found
 
+    def get_indexed_getter_for(
+        self,
+        starting_layout: dlt.IndexedLayout,
+        get_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index: SSAValue,
+        index_found: bool | SSAValue,
+    ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
+        assert isinstance(input_ptr.type, llvm.LLVMPointerType)
+        assert starting_layout.contents_type.has_selectable(
+            members, dim_mapping.keys(), get_type
+        )
+        assert index.type == starting_layout.indexed_by()
+        ops, val, found = self.get_indexed(starting_layout).get_getter_for(
+            starting_layout,
+            get_type,
+            members,
+            dim_mapping,
+            extent_resolver,
+            input_ptr,
+            index,
+            index_found,
+        )
+        assert val.type == get_type
+        assert val.owner in ops
+        return ops, val, found
+
     def get_setter_for(
         self,
-        starting_layout: T,
+        starting_layout: dlt.DirectLayout,
         set_val: SSAValue,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
@@ -745,9 +783,47 @@ class SemanticsMapper:
         )
         return ops
 
+    def get_indexed_setter_for(
+        self,
+        starting_layout: dlt.IndexedLayout,
+        set_val: SSAValue,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index: SSAValue,
+        index_found: bool | SSAValue,
+        ensure_space_func: EnsureSpaceFunc,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> list[Operation]:
+        if not isinstance(input_ptr.type, llvm.LLVMPointerType):
+            raise AssertionError()
+        if not starting_layout.contents_type.has_selectable(
+            members, dim_mapping.keys(), set_val.type
+        ):
+            raise AssertionError()
+        assert index.type == starting_layout.indexed_by()
+        ops = self.get_indexed(starting_layout).get_setter_for(
+            starting_layout,
+            set_val,
+            members,
+            dim_mapping,
+            extent_resolver,
+            input_ptr,
+            index,
+            index_found,
+            ensure_space_func,
+            direct_iterate_func,
+            direct_members,
+            direct_dim_mapping,
+        )
+        return ops
+
     def init_layout(
         self,
-        layout: dlt.Layout,
+        layout: dlt.DirectLayout,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
         initial_values: Initialiser,
@@ -782,9 +858,39 @@ class SemanticsMapper:
         ops.extend(init_ops)
         return ops, iter_args
 
+    def init_indexed_layout(
+        self,
+        layout: dlt.IndexedLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        initial_values: Initialiser,
+        init_callback: Callback,
+        callback_args: list[SSAValue],
+        is_last_element: bool | SSAValue,
+        direct_init_func: LinearIterCallbackFunc,
+        direct_iter_func: LinearIterCallbackFunc,
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        assert isinstance(
+            input_ptr.type, llvm.LLVMPointerType
+        ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
+        ops: list[Operation] = []
+        init_ops, iter_args = self.get_indexed(layout).init_layout(
+            layout,
+            extent_resolver,
+            input_ptr,
+            initial_values,
+            init_callback,
+            callback_args,
+            is_last_element,
+            direct_init_func,
+            direct_iter_func,
+        )
+        ops.extend(init_ops)
+        return ops, iter_args
+
     def dealloc_layout(
         self,
-        layout: dlt.Layout,
+        layout: dlt.DirectLayout,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> list[Operation]:
@@ -801,9 +907,30 @@ class SemanticsMapper:
         ops.extend(init_ops)
         return ops
 
+    def dealloc_indexed_layout(
+        self,
+        layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        direct_iter_func: LinearIterCallbackFunc,
+    ) -> list[Operation]:
+        assert isinstance(
+            input_ptr.type, llvm.LLVMPointerType
+        ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
+        ops: list[Operation] = []
+
+        init_ops = self.get_indexed(layout).dealloc_layout(
+            layout,
+            extent_resolver,
+            input_ptr,
+            direct_iter_func,
+        )
+        ops.extend(init_ops)
+        return ops
+
     def linear_iterate(
         self,
-        layout: dlt.Layout,
+        layout: dlt.DirectLayout,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
         callback: Callback,
@@ -838,13 +965,46 @@ class SemanticsMapper:
         ops.extend(init_ops)
         return ops, iter_args, exited_early
 
+
+    def linear_iterate_indexed(
+        self,
+        layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: Callback,
+        callback_args: list[SSAValue],
+        is_last_element: bool | SSAValue,
+        direct_iter_func: LinearIterCallbackFunc,
+        reversed_direction: bool = False,
+    ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+        assert isinstance(
+            input_ptr.type, llvm.LLVMPointerType
+        ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
+        # assert all(
+        #     isinstance(val.type, dlt.PtrType) and val.type.contents_type == t
+        #     for t, val in selected_data.items()
+        # )
+        ops: list[Operation] = []
+        init_ops, iter_args, exited_early = self.get_indexed(layout).linear_iterate(
+            layout,
+            extent_resolver,
+            input_ptr,
+            callback,
+            callback_args,
+            is_last_element,
+            direct_iter_func,
+            reversed_direction,
+        )
+        ops.extend(init_ops)
+        return ops, iter_args, exited_early
+
     def ensure_space(
         self,
-        layout: dlt.Layout,
+        layout: dlt.DirectLayout,
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -859,7 +1019,39 @@ class SemanticsMapper:
             input_ptr,
         )
 
-    def get_data_type_from_dlt_ptr(self, ptr_type: dlt.PtrType) -> llvm.LLVMStructType:
+    def ensure_indexed_space(
+        self,
+        layout: dlt.IndexedLayout,
+        base_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        fill_value_getter: FillValueGetter,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index: SSAValue,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> tuple[list[Operation], SSAValue]:
+        assert all(m not in members for m in direct_members)
+        assert all(d not in dim_mapping for d in direct_dim_mapping)
+        # Return Ops, Index to use, if_unknown - return true if we cannot decide the indexrange
+        return self.get_indexed(layout).ensure_space(
+            layout,
+            base_type,
+            members,
+            dim_mapping,
+            fill_value_getter,
+            extent_resolver,
+            input_ptr,
+            index,
+            direct_iterate_func,
+            direct_members,
+            direct_dim_mapping,
+        )
+
+    @staticmethod
+    def get_data_type_from_dlt_ptr(ptr_type: dlt.PtrType) -> llvm.LLVMStructType:
         return llvm.LLVMStructType.from_type_list(
             [llvm.LLVMPointerType.opaque()]
             + len(ptr_type.filled_dimensions.data) * [i64]
@@ -867,11 +1059,11 @@ class SemanticsMapper:
         )
 
     def generate_ptr_struct(
-            self,
-            output_type: dlt.PtrType,
-            allocated_ptr: SSAValue,
-            dim_map: dict[dlt.DimensionAttr, IndexGetter],
-            extent_resolver: ExtentResolver,
+        self,
+        output_type: dlt.PtrType,
+        allocated_ptr: SSAValue,
+        dim_map: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
     ) -> tuple[list[Operation], SSAValue]:
         ops = [undef_op := llvm.UndefOp(self.get_data_type_from_dlt_ptr(output_type))]
         ptr_struct_result = undef_op.res
@@ -901,18 +1093,29 @@ class SemanticsMapper:
             ops.extend(as_i64_ops)
             ops.append(
                 insert_op := llvm.InsertValueOp(
-                    DenseArrayBase.from_list(i64, [idx]), ptr_struct_result, extent_result
+                    DenseArrayBase.from_list(i64, [idx]),
+                    ptr_struct_result,
+                    extent_result,
                 )
             )
             idx += 1
             ptr_struct_result = insert_op.res
         return ops, ptr_struct_result
 
-    def extract_from_ptr_struct(self, dlt_ptr_type: dlt.PtrType, ptr: SSAValue) -> tuple[list[Operation], SSAValue, dict[dlt.DimensionAttr, IndexGetter], dict[dlt.Extent, ExtentGetter]]:
+    def extract_from_ptr_struct(
+        self, dlt_ptr_type: dlt.PtrType, ptr: SSAValue
+    ) -> tuple[
+        list[Operation],
+        SSAValue,
+        dict[dlt.DimensionAttr, IndexGetter],
+        dict[dlt.Extent, ExtentGetter],
+    ]:
         ops = []
         if ptr.type != self.get_data_type_from_dlt_ptr(dlt_ptr_type):
             assert ptr.type == dlt_ptr_type
-            cast = builtin.UnrealizedConversionCastOp.get([ptr], [self.get_data_type_from_dlt_ptr(dlt_ptr_type)])
+            cast = builtin.UnrealizedConversionCastOp.get(
+                [ptr], [self.get_data_type_from_dlt_ptr(dlt_ptr_type)]
+            )
             ops.append(cast)
             ptr = cast.outputs[0]
         index = 0
@@ -927,14 +1130,15 @@ class SemanticsMapper:
             for dim in dlt_ptr_type.filled_dimensions
         }
         extent_map = {
-            typing.cast(dlt.Extent, extent): PtrCarriedExtentGetter(ptr, dlt_ptr_type, extent=extent)
+            typing.cast(dlt.Extent, extent): PtrCarriedExtentGetter(
+                ptr, dlt_ptr_type, extent=extent
+            )
             for extent in dlt_ptr_type.filled_extents
         }
         return ops, data_ptr, dim_map, extent_map
 
 
-
-
+T = typing.TypeVar("T", bound=dlt.Layout)
 
 
 class LayoutNodeSemantics(abc.ABC, typing.Generic[T]):
@@ -944,20 +1148,6 @@ class LayoutNodeSemantics(abc.ABC, typing.Generic[T]):
 
     @abc.abstractmethod
     def get_size(self, layout: T, extent_resolver: ExtentResolver) -> NumericResult2:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def linear_iterate(
-        self,
-        layout: T,
-        extent_resolver: ExtentResolver,
-        input_ptr: SSAValue,
-        callback: Callback,
-        callback_args: list[SSAValue],
-        has_extra_space: SSAValue,
-        is_last_element: SSAValue,
-        reversed_direction: bool,
-    ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
         raise NotImplementedError
 
     @staticmethod
@@ -1061,15 +1251,121 @@ class DirectLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.A
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def linear_iterate(
+        self,
+        layout: T,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: Callback,
+        callback_args: list[SSAValue],
+        has_extra_space: SSAValue,
+        is_last_element: SSAValue,
+        reversed_direction: bool,
+    ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+        raise NotImplementedError
+
 
 class IndexedLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.ABC):
-    pass
+
+    @abc.abstractmethod
+    def get_getter_for(
+        self,
+        starting_layout: T,
+        get_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index: SSAValue,
+        index_found: bool | SSAValue,
+    ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
+        # Return ops, value (get_type), found (bool)
+        # assert isinstance(input_ptr.type, llvm.LLVMPointerType)
+        # assert starting_layout.contents_type.has_selectable(members, dim_mapping.keys(), get_type)
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_setter_for(
+        self,
+        starting_layout: T,
+        set_val: SSAValue,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index: SSAValue,
+        index_found: bool | SSAValue,
+        ensure_space_func: EnsureSpaceFunc,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> list[Operation]:
+        # assert isinstance(input_ptr.type, llvm.LLVMPointerType)
+        # assert starting_layout.contents_type.has_selectable(members, dim_mapping.keys(), set_val.type)
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def init_layout(
+        self,
+        layout: dlt.IndexedLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        initial_values: Initialiser,
+        init_callback: Callback,
+        callback_args: list[SSAValue],
+        is_last_element: bool | SSAValue,
+        direct_init_func: LinearIterCallbackFunc,
+        direct_iter_func: LinearIterCallbackFunc,
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def dealloc_layout(
+        self,
+        layout: T,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        direct_iter_func: LinearIterCallbackFunc,
+    ) -> list[Operation]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def ensure_space(
+        self,
+        layout: T,
+        base_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        fill_value_getter: FillValueGetter,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index_range: SSAValue,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> tuple[list[Operation], SSAValue]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def linear_iterate(
+        self,
+        layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: Callback,
+        callback_args: list[SSAValue],
+        is_last_element: bool | SSAValue,
+        direct_iter_func: LinearIterCallbackFunc,
+        reversed_direction: bool = False,
+    ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+        raise NotImplementedError
 
 
 class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
@@ -1153,7 +1449,6 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         has_extra_space: SSAValue,
         is_last_element: bool | SSAValue,
     ) -> tuple[list[Operation], list[SSAValue]]:
-        dlt_type = layout.contents_type
         ops: list[Operation] = []
 
         initialiser_ops, initial_value, initial_found = initial_values.get_value(
@@ -1228,7 +1523,7 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -1332,7 +1627,7 @@ class ConstantSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -1471,7 +1766,7 @@ class MemberSemantics(DirectLayoutNodeSemantics[dlt.MemberLayoutAttr]):
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -1586,7 +1881,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -2094,7 +2389,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -2386,7 +2681,7 @@ class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -2545,7 +2840,9 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> list[Operation]:
-        new_members, new_dim_mapping = self.get_selectors(starting_layout, members, dim_mapping)
+        new_members, new_dim_mapping = self.get_selectors(
+            starting_layout, members, dim_mapping
+        )
         child_ops = self.semantics.get_setter_for(
             starting_layout.child,
             set_val,
@@ -2562,7 +2859,7 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
         base_type: dlt.AcceptedTypes,
         members: set[dlt.MemberAttr],
         dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        fill_value_getter: FillValueGetter,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
@@ -2686,7 +2983,7 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
                 elif r_result is True:
                     for op in reversed(ops):
                         op.erase()
-                    return ops, True
+                    return [], True
                 else:
                     assert isinstance(r_result, SSAValue)
                     bool_ops, result = _make_bool_ssa(result)
@@ -2761,130 +3058,6 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
 
 class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
-    def get_size(
-        self, layout: dlt.IndexingLayoutAttr, extent_resolver: ExtentResolver
-    ) -> NumericResult2:
-        return (
-            self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
-            + self.semantics.get_size(layout.directChild, extent_resolver).sum()
-        ).extend(0)
-
-    def get_select_for(
-        self,
-        starting_layout: T,
-        ending_layout: dlt.Layout,
-        members: set[dlt.MemberAttr],
-        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        extent_resolver: ExtentResolver,
-        input_ptr: SSAValue,
-    ) -> tuple[list[Operation], SSAValue]:
-
-        # this is not allowed - because the data buffers might change...
-        # get index range from direct
-
-        # pass index range to UnpackedCOO to get value
-
-        raise NotImplementedError
-
-    def get_getter_for(
-        self,
-        starting_layout: dlt.IndexingLayoutAttr,
-        get_type: dlt.AcceptedTypes,
-        members: set[dlt.MemberAttr],
-        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        extent_resolver: ExtentResolver,
-        input_ptr: SSAValue,
-    ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
-        ops = []
-
-        direct_parts_ops, direct_members, direct_dim_mapping, direct_data_ptr = (
-            self._get_direct_parts(
-                starting_layout, extent_resolver, members, dim_mapping, input_ptr
-            )
-        )
-        ops.extend(direct_parts_ops)
-        direct_get_ops, index_range, index_range_found = self.semantics.get_getter_for(
-            starting_layout.directChild,
-            starting_layout.indexedChild.indexed_by(),
-            set(direct_members),
-            dict(direct_dim_mapping),
-            extent_resolver,
-            direct_data_ptr,
-        )
-        ops.extend(direct_get_ops)
-
-        extract_ops, start, end = _extract_indices_from_index_range(index_range)
-        ops.extend(extract_ops)
-
-        idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
-        ops.append(idx_buffer_ptr_op)
-
-        while_op, index_is_found, index = UnpackCOOSemantics.loop_to_find_index(
-            starting_layout.indexedChild,
-            start,
-            end,
-            idx_buffer_ptr_op.dereferenced_value,
-            dim_mapping,
-        )
-        ops.append(while_op)
-
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
-        data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
-            input_ptr
-        )
-        ops.extend(data_buffer_ptr_ops)
-        data_buffer_ptr_op = llvm.LoadOp(
-            data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque()
-        )
-        ops.append(data_buffer_ptr_op)
-        data_ptr_ops, child_elem_ptr = (
-            NumericResult.from_ssa(index)
-            * self.semantics.get_size(
-                starting_layout.indexedChild.child, extent_resolver
-            ).keep(1)
-        ).add_to_llvm_pointer(data_buffer_ptr_op.dereferenced_value)
-        ops.extend(data_ptr_ops)
-
-        # If index is found we can return it, else we return an appropriate zero element - non-zero sparse elements
-        # are not supported (yet)
-        if_found_true = []
-
-        child_dim_mapping = {
-            dim: val
-            for dim, val in dim_mapping.items()
-            if dim not in starting_layout.indexedChild.dimensions
-            and dim not in direct_dim_mapping
-        }
-        child_members = members - direct_members
-        child_ops, child_res, child_found = self.semantics.get_getter_for(
-            starting_layout.indexedChild.child,
-            get_type,
-            child_members,
-            child_dim_mapping,
-            extent_resolver,
-            child_elem_ptr,
-        )
-        if_found_true.extend(child_ops)
-        bool_ops, child_found = _make_bool_ssa(child_found)
-        if_found_true.extend(bool_ops)
-
-        if_found_true.append(scf.Yield(child_res, child_found))
-
-        if_found_false = []
-
-        zero_result_ops, zero_result = _get_packed_zero_for_accepted_type(get_type)
-        if_found_false.extend(zero_result_ops)
-
-        false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
-        if_found_false.append(false_op)
-        if_found_false.append(scf.Yield(zero_result, false_op.result))
-
-        if_found_op = scf.If(
-            index_is_found, [get_type, IntegerType(1)], if_found_true, if_found_false
-        )
-        ops.append(if_found_op)
-        return ops, if_found_op.output[0], if_found_op.output[1]
-
     def _get_direct_parts(
         self,
         layout: dlt.IndexingLayoutAttr,
@@ -2915,6 +3088,70 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         }
         return ops, direct_members, direct_dim_mapping, direct_data_ptr
 
+    def get_size(
+        self, layout: dlt.IndexingLayoutAttr, extent_resolver: ExtentResolver
+    ) -> NumericResult2:
+        return (
+            self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
+            + self.semantics.get_size(layout.directChild, extent_resolver).sum()
+        ).extend(0)
+
+    def get_select_for(
+        self,
+        starting_layout: T,
+        ending_layout: dlt.Layout,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> tuple[list[Operation], SSAValue]:
+
+        # this is not allowed - because the data buffers might change...
+        raise NotImplementedError
+
+    def get_getter_for(
+        self,
+        starting_layout: dlt.IndexingLayoutAttr,
+        get_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
+        ops = []
+
+        direct_parts_ops, direct_members, direct_dim_mapping, direct_data_ptr = (
+            self._get_direct_parts(
+                starting_layout, extent_resolver, members, dim_mapping, input_ptr
+            )
+        )
+        ops.extend(direct_parts_ops)
+        direct_get_ops, index_range, index_range_found = self.semantics.get_getter_for(
+            starting_layout.directChild,
+            starting_layout.indexedChild.indexed_by(),
+            set(direct_members),
+            dict(direct_dim_mapping),
+            extent_resolver,
+            direct_data_ptr,
+        )
+        ops.extend(direct_get_ops)
+
+        child_dim_mapping = {
+            d: v for d, v in dim_mapping.items() if d not in direct_dim_mapping
+        }
+        child_get_ops, get_res, get_found = self.semantics.get_indexed_getter_for(
+            starting_layout.indexedChild,
+            get_type,
+            members - direct_members,
+            child_dim_mapping,
+            extent_resolver,
+            input_ptr,
+            index_range,
+            index_range_found,
+        )
+        ops.extend(child_get_ops)
+        return ops, get_res, get_found
+
     def get_setter_for(
         self,
         starting_layout: dlt.IndexingLayoutAttr,
@@ -2925,8 +3162,8 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         input_ptr: SSAValue,
     ) -> list[Operation]:
         ops = []
-        zero_cmp_ops, is_non_zero = _compare_is_non_zero(set_val)
-        ops.extend(zero_cmp_ops)
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.append(true_op)
 
         # 1) Get the members and dim_mapping used in the direct child
         direct_parts_ops, direct_members, direct_dim_mapping, direct_data_ptr = (
@@ -2949,8 +3186,398 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         bool_ops, index_range_found = _make_bool_ssa(index_range_found)
         ops.extend(bool_ops)
 
+        child_dim_mapping = {
+            d: v for d, v in dim_mapping.items() if d not in direct_dim_mapping
+        }
+
+        def ensure_space_func(
+            fill_value_getter: FillValueGetter,
+        ) -> tuple[list[Operation], SSAValue]:
+            return self.semantics.ensure_space(
+                starting_layout.directChild,
+                starting_layout.indexedChild.indexed_by(),
+                set(direct_members),
+                dict(direct_dim_mapping),
+                fill_value_getter,
+                extent_resolver,
+                direct_data_ptr,
+            )
+
+        def direct_iter_func(
+            callback: Callback, is_last_element: bool | SSAValue,
+        ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+            return self.semantics.linear_iterate(
+                starting_layout.directChild,
+                extent_resolver,
+                direct_data_ptr,
+                callback,
+                callback.initial_iter_args(),
+                true_op.result,
+                is_last_element,
+            )
+
+        child_ops = self.semantics.get_indexed_setter_for(
+            starting_layout.indexedChild,
+            set_val,
+            members - direct_members,
+            child_dim_mapping,
+            extent_resolver,
+            input_ptr,
+            index_range,
+            index_range_found,
+            ensure_space_func,
+            direct_iter_func,
+            direct_members,
+            direct_dim_mapping,
+        )
+        ops.extend(child_ops)
+        return ops
+
+    def ensure_space(
+        self,
+        layout: dlt.IndexingLayoutAttr,
+        base_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        fill_value_getter: FillValueGetter,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> tuple[list[Operation], SSAValue]:
+        ops = []
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.append(true_op)
+        direct_parts_ops, direct_members, direct_dim_mapping, direct_data_ptr = (
+            self._get_direct_parts(
+                layout, extent_resolver, members, dim_mapping, input_ptr
+            )
+        )
+        ops.extend(direct_parts_ops)
+
+        direct_get_ops, index_range, index_range_found = self.semantics.get_getter_for(
+            layout.directChild,
+            layout.indexedChild.indexed_by(),
+            set(direct_members),
+            dict(direct_dim_mapping),
+            extent_resolver,
+            direct_data_ptr,
+        )
+        ops.extend(direct_get_ops)
+
+        if_index_range_found_true = [scf.Yield(index_range)]
+        if_index_range_found_false = []
+
+        def current_fill_value_getter() -> tuple[list[Operation], SSAValue]:
+            return _get_packed_zero_for_accepted_type(dlt.IndexRangeType())
+
+        ensure_space_ops, new_index_range = self.semantics.ensure_space(
+            layout.directChild,
+            layout.indexedChild.indexed_by(),
+            set(direct_members),
+            dict(direct_dim_mapping),
+            current_fill_value_getter,
+            extent_resolver,
+            direct_data_ptr,
+        )
+        if_index_range_found_false.extend(ensure_space_ops)
+
+        if_index_range_found_false.append(scf.Yield(new_index_range))
+        if_index_range_found_op = scf.If(
+            index_range_found,
+            [dlt.IndexRangeType()],
+            if_index_range_found_true,
+            if_index_range_found_false,
+        )
+        ops.append(if_index_range_found_op)
+        true_index_range = if_index_range_found_op.output[0]
+
+        child_dim_mapping = {
+            d: v for d, v in dim_mapping.items() if d not in direct_dim_mapping
+        }
+
+        def direct_iter_func(
+            callback: Callback, is_last_element: bool | SSAValue
+        ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+            return self.semantics.linear_iterate(
+                layout.directChild,
+                extent_resolver,
+                direct_data_ptr,
+                callback,
+                callback.initial_iter_args(),
+                true_op.result,
+                is_last_element,
+            )
+
+        child_ops, index_result = self.semantics.ensure_indexed_space(
+            layout.indexedChild,
+            base_type,
+            members - direct_members,
+            child_dim_mapping,
+            fill_value_getter,
+            extent_resolver,
+            input_ptr,
+            true_index_range,
+            direct_iter_func,
+            direct_members,
+            direct_dim_mapping,
+        )
+        ops.extend(child_ops)
+        return ops, index_result
+
+    def init_layout(
+        self,
+        layout: dlt.IndexingLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        initial_values: Initialiser,
+        init_callback: Callback,
+        callback_args: list[SSAValue],
+        has_extra_space: SSAValue,
+        is_last_element: bool | SSAValue,
+    ) -> tuple[list[Operation], list[SSAValue]]:
+
+        ops: list[Operation] = []
+        true_const = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        # true_const.attributes["debug"] = builtin.StringAttr(
+        #     "Indexing Semantics Init Layout start"
+        # )
+        ops.append(true_const)
+        ptr_space = self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
+        ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
+        ops.extend(ptr_ops)
+
+        def direct_init_func(
+            callback_arg: Callback, is_last_element_arg: bool | SSAValue,
+        ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+            direct_init_ops, total_size_iter_args = self.semantics.init_layout(
+            layout.directChild,
+            extent_resolver,
+            direct_data_ptr,
+            initial_values,
+            callback_arg,
+            callback_arg.initial_iter_args(),
+            true_const.result,
+            is_last_element_arg,
+            )
+            return direct_init_ops, total_size_iter_args, True
+
+        def direct_iter_func(
+            callback_arg: Callback, is_last_element_arg: bool | SSAValue,
+        ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+            return self.semantics.linear_iterate(
+                layout.directChild,
+                extent_resolver,
+                direct_data_ptr,
+                callback_arg,
+                callback_arg.initial_iter_args(),
+                true_const.result,
+                is_last_element_arg,
+            )
+
+
+
+        child_ops, child_iter_args = self.semantics.init_indexed_layout(layout.indexedChild,
+                                           extent_resolver,
+                                           input_ptr,
+                                           initial_values,
+                                           init_callback,
+                                           callback_args,
+                                           is_last_element,
+                                           direct_init_func,
+                                           direct_iter_func,
+                                           )
+        ops.extend(child_ops)
+        return ops, child_iter_args
+
+    def dealloc_layout(
+        self,
+        layout: dlt.IndexingLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+
+        ops = []
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+
+        ptr_space = self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
+        ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
+        ops.extend(ptr_ops)
+
+        def direct_iter_func(
+            callback: Callback, is_last_element: bool | SSAValue,
+        ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+            return self.semantics.linear_iterate(
+                layout.directChild,
+                extent_resolver,
+                direct_data_ptr,
+                callback,
+                callback.initial_iter_args(),
+                true_op.result,
+                is_last_element,
+            )
+
+        child_ops = self.semantics.dealloc_indexed_layout(layout.indexedChild, extent_resolver, input_ptr, direct_iter_func)
+        ops.extend(child_ops)
+
+        dealloc_direct_child = self.semantics.dealloc_layout(
+            layout.directChild, extent_resolver, direct_data_ptr
+        )
+        ops.extend(dealloc_direct_child)
+
+        return ops
+
+    def linear_iterate(
+        self,
+        layout: dlt.IndexingLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: Callback,
+        callback_args: list[SSAValue],
+        has_extra_space: SSAValue,
+        is_last_element: bool | SSAValue,
+        reversed_direction: bool,
+    ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+        indexed_side = self.semantics.get_size(
+            layout.indexedChild, extent_resolver
+        ).sum()
+        ops, direct_data_ptr = indexed_side.add_to_llvm_pointer(input_ptr)
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.append(true_op)
+
+        def direct_iter_func(
+            callback_arg: Callback, is_last_element_arg: bool | SSAValue,
+        ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+            return self.semantics.linear_iterate(
+                layout.directChild,
+                extent_resolver,
+                direct_data_ptr,
+                callback_arg,
+                callback_arg.initial_iter_args(),
+                true_op.result,
+                is_last_element_arg,
+                reversed_direction=reversed_direction,
+            )
+
+        child_ops, child_iter_args, child_exited_early = self.semantics.linear_iterate_indexed(layout.indexedChild,
+                                                                                               extent_resolver,
+                                                                                               input_ptr,
+                                                                                               callback,
+                                                                                               callback_args,
+                                                                                               is_last_element,
+                                                                                               direct_iter_func,
+                                                                                               reversed_direction,)
+        ops.extend(child_ops)
+        return ops, child_iter_args, child_exited_early
+
+
+class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
+
+    def get_size(
+        self, layout: dlt.UnpackedCOOLayoutAttr, extent_resolver: ExtentResolver
+    ) -> NumericResult2:
+        # [index_buffer, data_buffer]
+        return _get_accepted_type_size(IndexType()) * NumericResult.from_mixed([], 2)
+
+    def get_getter_for(
+        self,
+        starting_layout: dlt.UnpackedCOOLayoutAttr,
+        get_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index_range: SSAValue,
+        index_found: bool | SSAValue,
+    ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
+        ops = []
+
+        extract_ops, start, end = _extract_indices_from_index_range(index_range)
+        ops.extend(extract_ops)
+
+        idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
+        ops.append(idx_buffer_ptr_op)
+
+        while_op, index_is_found, index = self.loop_to_find_index(
+            starting_layout,
+            start,
+            end,
+            idx_buffer_ptr_op.dereferenced_value,
+            dim_mapping,
+        )
+        ops.append(while_op)
+        # If index is found we can use it, else we return an appropriate zero element
+        if_found_true = []
+
+        ptr_size = _get_accepted_type_size(IndexType()).sum()
+        data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
+            input_ptr
+        )
+        if_found_true.extend(data_buffer_ptr_ops)
+        data_buffer_ptr_op = llvm.LoadOp(
+            data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque()
+        )
+        if_found_true.append(data_buffer_ptr_op)
+        data_ptr_ops, child_elem_ptr = (
+            NumericResult.from_ssa(index)
+            * self.semantics.get_size(starting_layout.child, extent_resolver).keep(1)
+        ).add_to_llvm_pointer(data_buffer_ptr_op.dereferenced_value)
+        if_found_true.extend(data_ptr_ops)
+
+        child_dim_mapping = {
+            dim: val
+            for dim, val in dim_mapping.items()
+            if dim not in starting_layout.dimensions
+        }
+        child_members = members
+        child_ops, child_res, child_found = self.semantics.get_getter_for(
+            starting_layout.child,
+            get_type,
+            child_members,
+            child_dim_mapping,
+            extent_resolver,
+            child_elem_ptr,
+        )
+        if_found_true.extend(child_ops)
+        bool_ops, child_found = _make_bool_ssa(child_found)
+        if_found_true.extend(bool_ops)
+
+        if_found_true.append(scf.Yield(child_res, child_found))
+
+        if_found_false = []
+
+        zero_result_ops, zero_result = _get_packed_zero_for_accepted_type(get_type)
+        if_found_false.extend(zero_result_ops)
+
+        false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
+        if_found_false.append(false_op)
+        if_found_false.append(scf.Yield(zero_result, false_op.result))
+
+        if_found_op = scf.If(
+            index_is_found, [get_type, IntegerType(1)], if_found_true, if_found_false
+        )
+        ops.append(if_found_op)
+        return ops, if_found_op.output[0], if_found_op.output[1]
+
+    def get_setter_for(
+        self,
+        starting_layout: dlt.UnpackedCOOLayoutAttr,
+        set_val: SSAValue,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index_range: SSAValue,
+        index_range_found: bool | SSAValue,
+        ensure_space_func: EnsureSpaceFunc,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> list[Operation]:
+        ops = []
+        zero_cmp_ops, is_non_zero = _compare_is_non_zero(set_val)
+        ops.extend(zero_cmp_ops)
         must_start_set_cond_op = arith.OrI(index_range_found, is_non_zero)
         ops.append(must_start_set_cond_op)
+
         if_must_start_set_ops = []
 
         # 3) if the direct child doesn't have a range, we must ask it to make one.
@@ -2963,15 +3590,8 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             )
             return f_ops, zero_idx_range
 
-        ensure_space_ops, new_index_range = self.semantics.ensure_space(
-            starting_layout.directChild,
-            starting_layout.indexedChild.indexed_by(),
-            set(direct_members),
-            dict(direct_dim_mapping),
-            current_fill_value_getter,
-            extent_resolver,
-            direct_data_ptr,
-        )
+        ensure_space_ops, new_index_range = ensure_space_func(current_fill_value_getter)
+
         if_index_range_found_false.extend(ensure_space_ops)
         if_index_range_found_false.append(scf.Yield(new_index_range))
 
@@ -2992,8 +3612,8 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         if_must_start_set_ops.append(idx_buffer_ptr_op)
         idx_buffer_ptr = idx_buffer_ptr_op.dereferenced_value
 
-        while_op, index_is_found, index = UnpackCOOSemantics.loop_to_find_index(
-            starting_layout.indexedChild,
+        while_op, index_is_found, index = self.loop_to_find_index(
+            starting_layout,
             start,
             end,
             idx_buffer_ptr,
@@ -3027,9 +3647,7 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
         data_ptr_ops, child_elem_ptr = (
             NumericResult.from_ssa(index)
-            * self.semantics.get_size(
-                starting_layout.indexedChild.child, extent_resolver
-            ).keep(1)
+            * self.semantics.get_size(starting_layout.child, extent_resolver).keep(1)
         ).add_to_llvm_pointer(data_buffer_ptr)
         if_found_true.extend(data_ptr_ops)
 
@@ -3037,13 +3655,12 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         child_dim_mapping = {
             dim: val
             for dim, val in dim_mapping.items()
-            if dim not in starting_layout.indexedChild.dimensions
-            and dim not in direct_dim_mapping
+            if dim not in starting_layout.dimensions
         }
-        child_members = members - direct_members
+        child_members = members
         # and finally we can set the value in this child element
         child_setter_ops = self.semantics.get_setter_for(
-            starting_layout.indexedChild.child,
+            starting_layout.child,
             set_val,
             child_members,
             child_dim_mapping,
@@ -3072,17 +3689,10 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             zero_op.result,
         )
 
-        increment_ops, increment_results, _increment_exited = (
-            self.semantics.linear_iterate(
-                starting_layout.directChild,
-                extent_resolver,
-                direct_data_ptr,
-                increment_indices_callback,
-                increment_indices_callback.initial_iter_args(),
-                true_op.result,
-                True,
-            )
+        increment_ops, increment_results, _increment_exited = direct_iterate_func(
+            increment_indices_callback, True
         )
+
         if_found_false.extend(increment_ops)
         # index_found = increment_results[0] - unused as this is for iter-callback communication - not a result
         last_index = increment_results[1]
@@ -3094,11 +3704,9 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         # Malloc the new Unpacked COO index Buffer:
         malloc_ops, new_idx_buffer_ptr, new_data_buffer_ptr = (
             UnpackCOOSemantics.malloc_buffers(
-                starting_layout.indexedChild,
+                starting_layout,
                 last_index,
-                self.semantics.get_size(
-                    starting_layout.indexedChild.child, extent_resolver
-                ),
+                self.semantics.get_size(starting_layout.child, extent_resolver),
             )
         )
         if_found_false.extend(malloc_ops)
@@ -3107,7 +3715,7 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         # Starting with Index tuples
         index_tuple_size_ops, (index_tuple_size,) = (
             _get_accepted_type_size(IndexType()).keep(1)
-            * NumericResult.from_const(len(starting_layout.indexedChild.dimensions))
+            * NumericResult.from_const(len(starting_layout.dimensions))
         ).output()
         if_found_false.extend(index_tuple_size_ops)
 
@@ -3122,9 +3730,7 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         if_found_false.extend(idx_copy_ops)
 
         data_elem_size_ops, (data_elem_size, data_elem_size_extra) = (
-            self.semantics.get_size(
-                starting_layout.indexedChild.child, extent_resolver
-            ).output()
+            self.semantics.get_size(starting_layout.child, extent_resolver).output()
         )
         if_found_false.extend(data_elem_size_ops)
 
@@ -3141,7 +3747,7 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         # New we fill in the new index tuple and data elem
 
         running_idx_buffer_ptr = idx_elem_ptr
-        for dim in starting_layout.indexedChild.dimensions:
+        for dim in starting_layout.dimensions:
             idx_arg_ops, (idx_arg,) = dim_mapping[dim].get().output()
             if_found_false.extend(idx_arg_ops)
             if_found_false.append(llvm.StoreOp(idx_arg, running_idx_buffer_ptr))
@@ -3155,13 +3761,12 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         child_dim_mapping = {
             dim: val
             for dim, val in dim_mapping.items()
-            if dim not in starting_layout.indexedChild.dimensions
-            and dim not in direct_dim_mapping
+            if dim not in starting_layout.dimensions
         }
-        child_members = members - direct_members
+        child_members = members
         # this is a new data element and so it needs to be init-ed
         child_init_ops, _ = self.semantics.init_layout(
-            starting_layout.indexedChild.child,
+            starting_layout.child,
             extent_resolver,
             data_elem_ptr,
             SingletonInitialiser(set_val, child_members, child_dim_mapping),
@@ -3192,20 +3797,237 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         if_must_start_set_ops.append(if_must_do_set_op)
 
         if_must_start_set_ops.append(scf.Yield())
-        if_must_do_set_op = scf.If(must_start_set_cond_op.result, [], if_must_start_set_ops)
+        if_must_do_set_op = scf.If(
+            must_start_set_cond_op.result, [], if_must_start_set_ops
+        )
         ops.append(if_must_do_set_op)
         return ops
 
+    def ensure_space(
+        self,
+        layout: dlt.UnpackedCOOLayoutAttr,
+        base_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        fill_value_getter: FillValueGetter,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index_range: SSAValue,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> tuple[list[Operation], SSAValue]:
+
+        ops = []
+        extract_ops, start, end = _extract_indices_from_index_range(index_range)
+        ops.extend(extract_ops)
+
+        idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
+        ops.append(idx_buffer_ptr_op)
+        idx_buffer_ptr = idx_buffer_ptr_op.dereferenced_value
+
+        while_op, index_is_found, index = self.loop_to_find_index(
+            layout,
+            start,
+            end,
+            idx_buffer_ptr,
+            dim_mapping,
+        )
+        ops.append(while_op)
+
+        # now get the data buffer ptr
+        ptr_size = _get_accepted_type_size(IndexType()).sum()
+        data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
+            input_ptr
+        )
+        ops.extend(data_buffer_ptr_ops)
+        data_buffer_ptr_op = llvm.LoadOp(
+            data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque()
+        )
+        ops.append(data_buffer_ptr_op)
+        data_buffer_ptr = data_buffer_ptr_op.dereferenced_value
+
+        # get the members and dim_mapping that will eventually be needed by the recursive child get_setter_for
+        child_dim_mapping = {
+            dim: val for dim, val in dim_mapping.items() if dim not in layout.dimensions
+        }
+        child_members = members
+
+        data_elem_size_ops, (data_elem_size, data_elem_size_extra) = (
+            self.semantics.get_size(layout.child, extent_resolver).output()
+        )
+        ops.extend(data_elem_size_ops)
+
+        child_fill_value_getter = self._get_fill_value_getter(
+            layout.child,
+            extent_resolver,
+            fill_value_getter,
+            base_type,
+            data_buffer_ptr,
+            data_elem_size,
+            index,
+        )
+
+        # If index_is_found we can get the ptr to the child, else we need to reallocate and move lots of indices around
+        if_found_true = []
+
+        data_ptr_ops, child_elem_ptr = (
+            NumericResult.from_ssa(index) * NumericResult.from_ssa(data_elem_size)
+        ).add_to_llvm_pointer(data_buffer_ptr)
+        if_found_true.extend(data_ptr_ops)
+
+        # and finally we can set the ensure_space in this new child element
+        child_ops, child_result = self.semantics.ensure_space(
+            layout.child,
+            base_type,
+            child_members,
+            child_dim_mapping,
+            child_fill_value_getter,
+            extent_resolver,
+            child_elem_ptr,
+        )
+        if_found_true.extend(child_ops)
+        if_found_true.append(scf.Yield(child_result))
+
+        # If the value is not found we need to increment the indices of everything larger than this in the direct
+        # data, then allocate new buffers with extra size for the new element, and mem copy the data across leaving
+        # room for the new element. Then we can init the new element and can continue setting from there.
+        if_found_false = []
+
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
+        zero_op = arith.Constant(IntegerAttr(0, IndexType()))
+        one_op = arith.Constant(IntegerAttr(1, IndexType()))
+        if_found_false.extend([true_op, false_op, zero_op, one_op])
+
+        increment_indices_callback = self.SparseIndexIncrementCallback(
+            dict(direct_dim_mapping),
+            set(direct_members),
+            false_op.result,
+            zero_op.result,
+            zero_op.result,
+        )
+        increment_ops, increment_results, _increment_exited = direct_iterate_func(
+            increment_indices_callback, True
+        )
+
+        if_found_false.extend(increment_ops)
+        # index_found = increment_results[0]
+        # index_found (bool) is not used here as it is an internal check for inside the callback.
+        last_index = increment_results[1]
+        # last_index will be the number of non-zero elements now in the sparse buffer
+        # found_index = increment_results[2]
+        # found_index will be the index of the element we care about
+
+        # Malloc the new Unpacked COO index Buffer:
+        malloc_ops, new_idx_buffer_ptr, new_data_buffer_ptr = self.malloc_buffers(
+            layout,
+            last_index,
+            self.semantics.get_size(layout.child, extent_resolver),
+        )
+        if_found_false.extend(malloc_ops)
+
+        # Set up for lots of memory copies to move the sparse index tuples and child data into their new larger buffers
+        # Starting with Index tuples
+        # Get their size as it's used repeatedly lots.
+        index_tuple_size_ops, (index_tuple_size,) = (
+            _get_accepted_type_size(IndexType()).keep(1)
+            * NumericResult.from_const(len(layout.dimensions))
+        ).output()
+        if_found_false.extend(index_tuple_size_ops)
+
+        idx_copy_ops, new_idx_elem_ptr = self.copy_to_new_buffers(
+            idx_buffer_ptr,
+            new_idx_buffer_ptr,
+            index_tuple_size,
+            index,
+            last_index,
+            zero_op.result,
+        )
+        if_found_false.extend(idx_copy_ops)
+
+        data_copy_ops, new_data_elem_ptr = self.copy_to_new_buffers(
+            data_buffer_ptr,
+            new_data_buffer_ptr,
+            data_elem_size,
+            index,
+            last_index,
+            data_elem_size_extra,
+        )
+        if_found_false.extend(data_copy_ops)
+
+        # New we fill in the new index tuple and data elem
+
+        running_idx_buffer_ptr = new_idx_elem_ptr
+        for dim in layout.dimensions:
+            idx_arg_ops, (idx_arg,) = dim_mapping[dim].get().output()
+            if_found_false.extend(idx_arg_ops)
+            if_found_false.append(llvm.StoreOp(idx_arg, running_idx_buffer_ptr))
+            idx_size = _get_accepted_type_size(IndexType()).sum()
+            new_idx_ptr_ops, running_idx_buffer_ptr = idx_size.add_to_llvm_pointer(
+                running_idx_buffer_ptr
+            )
+            if_found_false.extend(new_idx_ptr_ops)
+
+        # This is a new data element and so it needs to be init-ed. we use a callback to write empty index range into
+        # the But first we need to find out what index we should be using to fill in the ranges. To do this we loop
+        # backwards over the data buffer children to find the first IndexRange, and failing that use the provided
+        # fill_value_getter_function
+        get_fill_value_ops, child_fill_value = child_fill_value_getter()
+        if_found_false.extend(get_fill_value_ops)
+
+        child_init_ops, _ = self.semantics.init_layout(
+            layout.child,
+            extent_resolver,
+            new_data_elem_ptr,
+            self.WriteEmptyRangeInitialiser(
+                child_fill_value, child_members, child_dim_mapping
+            ),
+            NoCallback(),
+            [],
+            false_op.result,
+            True,
+        )
+        if_found_false.extend(child_init_ops)
+
+        # The new buffers need to be put in the indexing struct and the old ones freed
+        if_found_false.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
+        if_found_false.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+        if_found_false.append(llvm.CallOp("free", idx_buffer_ptr))
+        if_found_false.append(llvm.CallOp("free", data_buffer_ptr))
+
+        # child_set_ops = self.semantics.get_setter_for(
+        #     layout.indexedChild.child,
+        #     child_fill_value,
+        #     child_members,
+        #     child_dim_mapping,
+        #     extent_resolver,
+        #     new_data_elem_ptr,
+        # )
+        # if_found_false.extend(child_set_ops)
+
+        if_found_false.append(scf.Yield(child_fill_value))
+
+        if_found_op = scf.If(
+            index_is_found,
+            [dlt.IndexRangeType()],
+            if_found_true,
+            if_found_false,
+        )
+        ops.append(if_found_op)
+
+        return ops, if_found_op.output[0]
+
     def _get_fill_value_getter(
         self,
-        indexed_child_layout: dlt.Layout,
+        indexed_child_layout: dlt.DirectLayout,
         extent_resolver: ExtentResolver,
-        parent_fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
+        parent_fill_value_getter: FillValueGetter,
         base_type: dlt.AcceptedTypes,
         data_buffer_ptr: SSAValue,
         data_elem_size: SSAValue,
         index: SSAValue,
-    ) -> Callable[[], tuple[list[Operation], SSAValue]]:
+    ) -> FillValueGetter:
 
         def getter() -> tuple[list[Operation], SSAValue]:
             ops = []
@@ -3300,341 +4122,57 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
         return getter
 
-    def ensure_space(
-        self,
-        layout: dlt.IndexingLayoutAttr,
-        base_type: dlt.AcceptedTypes,
-        members: set[dlt.MemberAttr],
-        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-        fill_value_getter: Callable[[], tuple[list[Operation], SSAValue]],
-        extent_resolver: ExtentResolver,
-        input_ptr: SSAValue,
-    ) -> tuple[list[Operation], SSAValue]:
-        ops = []
-        direct_parts_ops, direct_members, direct_dim_mapping, direct_data_ptr = (
-            self._get_direct_parts(
-                layout, extent_resolver, members, dim_mapping, input_ptr
-            )
-        )
-        ops.extend(direct_parts_ops)
-
-        direct_get_ops, index_range, index_range_found = self.semantics.get_getter_for(
-            layout.directChild,
-            layout.indexedChild.indexed_by(),
-            set(direct_members),
-            dict(direct_dim_mapping),
-            extent_resolver,
-            direct_data_ptr,
-        )
-        ops.extend(direct_get_ops)
-
-        if_index_range_found_true = [scf.Yield(index_range)]
-        if_index_range_found_false = []
-
-        def current_fill_value_getter() -> tuple[list[Operation], SSAValue]:
-            return _get_packed_zero_for_accepted_type(dlt.IndexRangeType())
-
-        ensure_space_ops, new_index_range = self.semantics.ensure_space(
-            layout.directChild,
-            layout.indexedChild.indexed_by(),
-            set(direct_members),
-            dict(direct_dim_mapping),
-            current_fill_value_getter,
-            extent_resolver,
-            direct_data_ptr,
-        )
-        if_index_range_found_false.extend(ensure_space_ops)
-
-        if_index_range_found_false.append(scf.Yield(new_index_range))
-        if_index_range_found_op = scf.If(
-            index_range_found,
-            [dlt.IndexRangeType()],
-            if_index_range_found_true,
-            if_index_range_found_false,
-        )
-        ops.append(if_index_range_found_op)
-        true_index_range = if_index_range_found_op.output[0]
-
-        extract_ops, start, end = _extract_indices_from_index_range(true_index_range)
-        ops.extend(extract_ops)
-
-        idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
-        ops.append(idx_buffer_ptr_op)
-        idx_buffer_ptr = idx_buffer_ptr_op.dereferenced_value
-
-        while_op, index_is_found, index = UnpackCOOSemantics.loop_to_find_index(
-            layout.indexedChild,
-            start,
-            end,
-            idx_buffer_ptr,
-            dim_mapping,
-        )
-        ops.append(while_op)
-
-        # now get the data buffer ptr
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
-        data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
-            input_ptr
-        )
-        ops.extend(data_buffer_ptr_ops)
-        data_buffer_ptr_op = llvm.LoadOp(
-            data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque()
-        )
-        ops.append(data_buffer_ptr_op)
-        data_buffer_ptr = data_buffer_ptr_op.dereferenced_value
-
-        # get the members and dim_mapping that will eventually be needed by the recursive child get_setter_for
-        child_dim_mapping = {
-            dim: val
-            for dim, val in dim_mapping.items()
-            if dim not in layout.indexedChild.dimensions
-            and dim not in direct_dim_mapping
-        }
-        child_members = members - direct_members
-
-        data_elem_size_ops, (data_elem_size, data_elem_size_extra) = (
-            self.semantics.get_size(layout.indexedChild.child, extent_resolver).output()
-        )
-        ops.extend(data_elem_size_ops)
-
-        child_fill_value_getter = self._get_fill_value_getter(
-            layout.indexedChild.child,
-            extent_resolver,
-            fill_value_getter,
-            base_type,
-            data_buffer_ptr,
-            data_elem_size,
-            index,
-        )
-
-        # If index_is_found we can get the ptr to the child, else we need to reallocate and move lots of indices around
-        if_found_true = []
-
-        data_ptr_ops, child_elem_ptr = (
-            NumericResult.from_ssa(index) * NumericResult.from_ssa(data_elem_size)
-        ).add_to_llvm_pointer(data_buffer_ptr)
-        if_found_true.extend(data_ptr_ops)
-
-        # and finally we can set the ensure_space in this new child element
-        child_ops, child_result = self.semantics.ensure_space(
-            layout.indexedChild.child,
-            base_type,
-            child_members,
-            child_dim_mapping,
-            child_fill_value_getter,
-            extent_resolver,
-            child_elem_ptr,
-        )
-        if_found_true.extend(child_ops)
-        if_found_true.append(scf.Yield(child_result))
-
-        # If the value is not found we need to increment the indices of everything larger than this in the direct
-        # data, then allocate new buffers with extra size for the new element, and mem copy the data across leaving
-        # room for the new element. Then we can init the new element and can continue setting from there.
-        if_found_false = []
-
-        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
-        false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
-        zero_op = arith.Constant(IntegerAttr(0, IndexType()))
-        one_op = arith.Constant(IntegerAttr(1, IndexType()))
-        if_found_false.extend([true_op, false_op, zero_op, one_op])
-
-        increment_indices_callback = UnpackCOOSemantics.SparseIndexIncrementCallback(
-            dict(direct_dim_mapping),
-            set(direct_members),
-            false_op.result,
-            zero_op.result,
-            zero_op.result,
-        )
-
-        increment_ops, increment_results, _increment_exited = (
-            self.semantics.linear_iterate(
-                layout.directChild,
-                extent_resolver,
-                direct_data_ptr,
-                increment_indices_callback,
-                increment_indices_callback.initial_iter_args(),
-                true_op.result,
-                True,
-            )
-        )
-        if_found_false.extend(increment_ops)
-        # index_found = increment_results[0]
-        # index_found (bool) is not used here as it is an internal check for inside the callback.
-        last_index = increment_results[1]
-        # last_index will be the number of non-zero elements now in the sparse buffer
-        # found_index = increment_results[2]
-        # found_index will be the index of the element we care about
-
-        # Malloc the new Unpacked COO index Buffer:
-        malloc_ops, new_idx_buffer_ptr, new_data_buffer_ptr = (
-            UnpackCOOSemantics.malloc_buffers(
-                layout.indexedChild,
-                last_index,
-                self.semantics.get_size(layout.indexedChild.child, extent_resolver),
-            )
-        )
-        if_found_false.extend(malloc_ops)
-
-        # Set up for lots of memory copies to move the sparse index tuples and child data into their new larger buffers
-        # Starting with Index tuples
-        # Get their size as it's used repeatedly lots.
-        index_tuple_size_ops, (index_tuple_size,) = (
-            _get_accepted_type_size(IndexType()).keep(1)
-            * NumericResult.from_const(len(layout.indexedChild.dimensions))
-        ).output()
-        if_found_false.extend(index_tuple_size_ops)
-
-        idx_copy_ops, new_idx_elem_ptr = UnpackCOOSemantics.copy_to_new_buffers(
-            idx_buffer_ptr,
-            new_idx_buffer_ptr,
-            index_tuple_size,
-            index,
-            last_index,
-            zero_op.result,
-        )
-        if_found_false.extend(idx_copy_ops)
-
-        data_copy_ops, new_data_elem_ptr = UnpackCOOSemantics.copy_to_new_buffers(
-            data_buffer_ptr,
-            new_data_buffer_ptr,
-            data_elem_size,
-            index,
-            last_index,
-            data_elem_size_extra,
-        )
-        if_found_false.extend(data_copy_ops)
-
-        # New we fill in the new index tuple and data elem
-
-        running_idx_buffer_ptr = new_idx_elem_ptr
-        for dim in layout.indexedChild.dimensions:
-            idx_arg_ops, (idx_arg,) = dim_mapping[dim].get().output()
-            if_found_false.extend(idx_arg_ops)
-            if_found_false.append(llvm.StoreOp(idx_arg, running_idx_buffer_ptr))
-            idx_size = _get_accepted_type_size(IndexType()).sum()
-            new_idx_ptr_ops, running_idx_buffer_ptr = idx_size.add_to_llvm_pointer(
-                running_idx_buffer_ptr
-            )
-            if_found_false.extend(new_idx_ptr_ops)
-
-        # This is a new data element and so it needs to be init-ed. we use a callback to write empty index range into
-        # the But first we need to find out what index we should be using to fill in the ranges. To do this we loop
-        # backwards over the data buffer children to find the first IndexRange, and failing that use the provided
-        # fill_value_getter_function
-        get_fill_value_ops, child_fill_value = child_fill_value_getter()
-        if_found_false.extend(get_fill_value_ops)
-
-        child_init_ops, _ = self.semantics.init_layout(
-            layout.indexedChild.child,
-            extent_resolver,
-            new_data_elem_ptr,
-            UnpackCOOSemantics.WriteEmptyRangeInitialiser(
-                child_fill_value, child_members, child_dim_mapping
-            ),
-            NoCallback(),
-            [],
-            false_op.result,
-            True,
-        )
-        if_found_false.extend(child_init_ops)
-
-        # The new buffers need to be put in the indexing struct and the old ones freed
-        if_found_false.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
-        if_found_false.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
-        if_found_false.append(llvm.CallOp("free", idx_buffer_ptr))
-        if_found_false.append(llvm.CallOp("free", data_buffer_ptr))
-
-        # child_set_ops = self.semantics.get_setter_for(
-        #     layout.indexedChild.child,
-        #     child_fill_value,
-        #     child_members,
-        #     child_dim_mapping,
-        #     extent_resolver,
-        #     new_data_elem_ptr,
-        # )
-        # if_found_false.extend(child_set_ops)
-
-        if_found_false.append(scf.Yield(child_fill_value))
-
-        if_found_op = scf.If(
-            index_is_found,
-            [dlt.IndexRangeType()],
-            if_found_true,
-            if_found_false,
-        )
-        ops.append(if_found_op)
-
-        return ops, if_found_op.output[0]
-
     def init_layout(
         self,
-        layout: dlt.IndexingLayoutAttr,
+        layout: dlt.UnpackedCOOLayoutAttr,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
         initial_values: Initialiser,
         init_callback: Callback,
         callback_args: list[SSAValue],
-        has_extra_space: SSAValue,
         is_last_element: bool | SSAValue,
+        direct_init_func: LinearIterCallbackFunc,
+        direct_iter_func: LinearIterCallbackFunc,
     ) -> tuple[list[Operation], list[SSAValue]]:
-
-        ops: list[Operation] = []
-        true_const = arith.Constant(IntegerAttr(1, IntegerType(1)))
-        # true_const.attributes["debug"] = builtin.StringAttr(
-        #     "Indexing Semantics Init Layout start"
-        # )
-        ops.append(true_const)
-        ptr_space = self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
-        ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
-        ops.extend(ptr_ops)
+        ops = []
 
         running_total_initial_zero = arith.Constant(IntegerAttr(0, IndexType()))
         ops.append(running_total_initial_zero)
-        set_idx_callback = UnpackCOOSemantics.SparseIndexWritingCallback(
-            layout.indexedChild.child.contents_type,
+
+        set_idx_callback = self.SparseIndexWritingCallback(
+            layout.child.contents_type,
             running_total_initial_zero.result,
             initial_values,
-            layout.indexedChild.dimensions,
+            list(layout.dimensions),
         )
-
-        direct_init_ops, total_size_iter_args = self.semantics.init_layout(
-            layout.directChild,
-            extent_resolver,
-            direct_data_ptr,
-            initial_values,
-            set_idx_callback,
-            [running_total_initial_zero.result],
-            true_const.result,
-            False,
-        )
+        direct_init_ops, total_size_iter_args, _exited_early = direct_init_func(set_idx_callback, True)
         ops.extend(direct_init_ops)
         total_size = total_size_iter_args[0]
 
-        malloc_ops, idx_buffer_ptr, data_buffer_ptr = UnpackCOOSemantics.malloc_buffers(
-            layout.indexedChild,
+        malloc_ops, idx_buffer_ptr, data_buffer_ptr = self.malloc_buffers(
+            layout,
             total_size,
-            self.semantics.get_size(layout.indexedChild.child, extent_resolver),
+            self.semantics.get_size(layout.child, extent_resolver),
         )
         ops.extend(malloc_ops)
 
         idx_buffer_ptr_ptr = input_ptr
         ops.append(llvm.StoreOp(idx_buffer_ptr, idx_buffer_ptr_ptr))
-
         ptr_size = _get_accepted_type_size(IndexType()).sum()
         ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(input_ptr)
         ops.extend(ptr_ops)
         ops.append(llvm.StoreOp(data_buffer_ptr, data_buffer_ptr_ptr))
+
         data_element_size_ops, (data_element_size,) = (
-            self.semantics.get_size(layout.indexedChild.child, extent_resolver)
+            self.semantics.get_size(layout.child, extent_resolver)
             .keep(1)
             .output()
         )
         ops.extend(data_element_size_ops)
 
-        set_data_callback = UnpackCOOSemantics.SparseDataWritingCallback(
+        set_data_callback = self.SparseDataWritingCallback(
             self.semantics,
-            layout.indexedChild,
+            layout,
             idx_buffer_ptr,
             data_buffer_ptr,
             running_total_initial_zero.result,
@@ -3644,40 +4182,22 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             init_callback,
             callback_args,
         )
-
-        set_data_ops, iter_args, _exited = self.semantics.linear_iterate(
-            layout.directChild,
-            extent_resolver,
-            direct_data_ptr,
-            set_data_callback,
-            set_data_callback.initial_iter_args(),
-            true_const.result,
-            is_last_element,
-        )
+        set_data_ops, iter_args, _exited = direct_iter_func(set_data_callback, is_last_element)
         ops.extend(set_data_ops)
 
-        # debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
-        # debug_const.attributes["debug"] = builtin.StringAttr(
-        #     "Indexing Semantics Init Layout end"
-        # )
-        # ops.append(debug_const)
-
-        return ops, []
+        return ops, iter_args
 
     def dealloc_layout(
         self,
-        layout: dlt.IndexingLayoutAttr,
+        layout: T,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
+        direct_iter_func: LinearIterCallbackFunc,
     ) -> list[Operation]:
 
         ops = []
         true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
         ops.append(true_op)
-
-        ptr_space = self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
-        ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
-        ops.extend(ptr_ops)
 
         idx_buffer_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
         idx_buffer_ptr = idx_buffer_op.dereferenced_value
@@ -3701,88 +4221,13 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             data_buffer_ptr,
             data_elem_size,
         )
-        iter_ops, _, _ = self.semantics.linear_iterate(
-            layout.directChild,
-            extent_resolver,
-            direct_data_ptr,
-            dealloc_callback,
-            dealloc_callback.initial_iter_args(),
-            true_op.result,
-            true_op.result,
-            False,
-        )
+        iter_ops, _, _ = direct_iter_func(dealloc_callback, True)
         ops.extend(iter_ops)
 
-        dealloc_direct_child = self.semantics.dealloc_layout(
-            layout.directChild, extent_resolver, direct_data_ptr
-        )
-        ops.extend(dealloc_direct_child)
+        ops.append(llvm.CallOp("free", idx_buffer_ptr))
+        ops.append(llvm.CallOp("free", data_buffer_ptr))
 
         return ops
-
-    def linear_iterate(
-        self,
-        layout: dlt.IndexingLayoutAttr,
-        extent_resolver: ExtentResolver,
-        input_ptr: SSAValue,
-        callback: Callback,
-        callback_args: list[SSAValue],
-        has_extra_space: SSAValue,
-        is_last_element: bool | SSAValue,
-        reversed_direction: bool,
-    ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
-        indexed_side = self.semantics.get_size(
-            layout.indexedChild, extent_resolver
-        ).sum()
-        ops, direct_data_ptr = indexed_side.add_to_llvm_pointer(input_ptr)
-        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
-        ops.append(true_op)
-
-        idx_buffer_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
-        idx_buffer_ptr = idx_buffer_op.dereferenced_value
-        ops.append(idx_buffer_op)
-        data_buffer_ops, data_buffer_ptr = (
-            _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
-        )
-        ops.extend(data_buffer_ops)
-
-        data_elem_size_ops, (data_elem_size,) = (
-            self.semantics.get_size(layout.indexedChild.child, extent_resolver)
-            .keep(1)
-            .output()
-        )
-        ops.extend(data_elem_size_ops)
-
-        linear_iter_callback: Callback = UnpackCOOSemantics.SparseLinearIterCallback(
-            self.semantics,
-            layout.indexedChild,
-            idx_buffer_ptr,
-            data_buffer_ptr,
-            data_elem_size,
-            callback,
-            callback_args,
-            is_last_element,
-            reversed_direction,
-        )
-        return self.semantics.linear_iterate(
-            layout.directChild,
-            extent_resolver,
-            direct_data_ptr,
-            linear_iter_callback,
-            linear_iter_callback.initial_iter_args(),
-            true_op.result,
-            true_op.result,
-            reversed_direction,
-        )
-
-
-class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
-
-    def get_size(
-        self, layout: dlt.UnpackedCOOLayoutAttr, extent_resolver: ExtentResolver
-    ) -> NumericResult2:
-        # [index_buffer, data_buffer]
-        return _get_accepted_type_size(IndexType()) * NumericResult.from_mixed([], 2)
 
     def linear_iterate(
         self,
@@ -3791,11 +4236,43 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         input_ptr: SSAValue,
         callback: Callback,
         callback_args: list[SSAValue],
-        has_extra_space: SSAValue,
         is_last_element: bool | SSAValue,
-        reversed_direction,
-    ) -> tuple[list[Operation], list[SSAValue]]:
-        raise NotImplementedError
+        direct_iter_func: LinearIterCallbackFunc,
+        reversed_direction: bool = False,
+    ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+        ops = []
+        idx_buffer_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
+        idx_buffer_ptr = idx_buffer_op.dereferenced_value
+        ops.append(idx_buffer_op)
+        data_buffer_ops, data_buffer_ptr_ptr = (
+            _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
+        )
+        ops.extend(data_buffer_ops)
+        data_buffer_op = llvm.LoadOp(data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque())
+        ops.append(data_buffer_op)
+        data_buffer_ptr = data_buffer_op.dereferenced_value
+
+        data_elem_size_ops, (data_elem_size,) = (
+            self.semantics.get_size(layout.child, extent_resolver)
+            .keep(1)
+            .output()
+        )
+        ops.extend(data_elem_size_ops)
+
+        linear_iter_callback: Callback = self.SparseLinearIterCallback(
+            self.semantics,
+            layout,
+            idx_buffer_ptr,
+            data_buffer_ptr,
+            data_elem_size,
+            callback,
+            callback_args,
+            is_last_element,
+            reversed_direction,
+        )
+        child_ops, child_iter_args, child_exited_early = direct_iter_func(linear_iter_callback, True)
+        ops.extend(child_ops)
+        return ops, child_iter_args, child_exited_early
 
     @staticmethod
     def loop_to_find_index(
@@ -4143,77 +4620,6 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             return ops, [new_running_total], False
 
-    #
-    # @staticmethod
-    # def _check_for_non_zeros(
-    #     ptrs: list[SSAValue], extent_resolver: ExtentResolver
-    # ) -> tuple[list[Operation], SSAValue]:
-    #     ops: list[Operation] = []
-    #     false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
-    #     false_op.attributes["debug"] = builtin.StringAttr("_check_for_non_zeros Start")
-    #     ops.append(false_op)
-    #     true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
-    #     ops.append(true_op)
-    #     true = true_op.result
-    #
-    #     has_non_zero = false_op.result
-    #
-    #     for inner_ptr in ptrs:
-    #         assert isinstance(inner_ptr.type, dlt.PtrType)
-    #         inner_ptr_type = inner_ptr.type
-    #         inner_elem = inner_ptr_type.contents_type.get_single_element()
-    #         # We can assume each input is a single element ptr, but still need to remove extra member specifiers as
-    #         # it doesn't matter what member a non-zero is from
-    #         inner_members = inner_elem.member_specifiers
-    #         inner_select = dlt.SelectOp(inner_ptr, inner_members, [], [])
-    #         ops.append(inner_select)
-    #         inner_dims = list(inner_elem.dimensions)
-    #         # Now loop over all the inner dimensions and for each terminal/base_type detect non-zeros
-    #         iter_ops, inner_iter_op = _make_iterate(
-    #             inner_dims, extent_resolver, [inner_select.res], [has_non_zero]
-    #         )
-    #         ops.extend(iter_ops)
-    #         inner_block = inner_iter_op.body.block
-    #         inner_block.erase_op(
-    #             inner_block.last_op
-    #         )  # remove yield as we will add our own
-    #
-    #         inner_has_non_zero = inner_iter_op.get_block_arg_for_iter_arg_idx(0)
-    #         ptr = inner_iter_op.get_block_args_for_tensor_args()[0]
-    #         assert isinstance(ptr.type, dlt.PtrType)
-    #         elem = ptr.type.contents_type.get_single_element()
-    #         assert isinstance(elem, dlt.ElementAttr)
-    #         base_type = elem.base_type
-    #         get_op = dlt.GetOp(ptr, base_type)
-    #         inner_block.add_op(get_op)
-    #         # non-zero condition:
-    #         if isinstance(base_type, builtin.AnyFloat):
-    #             zero = arith.Constant(builtin.FloatAttr(0.0, base_type))
-    #             cond_op = arith.Cmpf(zero.result, get_op.res, "oeq")
-    #             inner_block.add_op(zero)
-    #             inner_block.add_op(cond_op)
-    #         elif isinstance(base_type, builtin.AnySignlessIntegerOrIndexType):
-    #             zero = arith.Constant(builtin.IntegerAttr(0, base_type))
-    #             cond_op = arith.Cmpi(zero.result, get_op.res, "eq")
-    #             inner_block.add_op(zero)
-    #             inner_block.add_op(cond_op)
-    #         else:
-    #             raise NotImplementedError()
-    #
-    #         inner_if_op = scf.If(
-    #             cond_op.result,
-    #             [IntegerType(1)],
-    #             [scf.Yield(inner_has_non_zero)],
-    #             [scf.Yield(true)],
-    #         )
-    #         inner_block.add_op(inner_if_op)
-    #         inner_block.add_op(dlt.IterateYieldOp(inner_if_op.output[0]))
-    #         has_non_zero = inner_iter_op.res[0]
-    #
-    #         ops[-1].attributes["debug"] = builtin.StringAttr("_check_for_non_zeros End")
-    #
-    #     return ops, has_non_zero
-
     class SparseDataWritingCallback(Callback):
         def __init__(
             self,
@@ -4353,10 +4759,10 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             #     sparse_iter_ptrs, extent_resolver
             # )
             # sparse_iter_block.add_ops(check_non_zero_ops)
-            get_non_zeros, found_non_zeros = derived_initialiser.get_non_zero(
-                set(), block_dim_map, None
+            get_non_zeros_ops, found_non_zeros = derived_initialiser.get_non_zero(
+                set(), block_dim_map, self.unpack_coo_layout.child.contents_type
             )
-            sparse_iter_block.add_ops(get_non_zeros)
+            sparse_iter_block.add_ops(get_non_zeros_ops)
             bool_ssa_ops, has_non_zero = _make_bool_ssa(found_non_zeros)
             sparse_iter_block.add_ops(bool_ssa_ops)
 
@@ -4885,24 +5291,19 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             self,
             members: set[dlt.MemberAttr],
             dim_map: dict[dlt.DimensionAttr, None | IndexGetter],
-            base_type: dlt.AcceptedTypes,
+            type_type: dlt.TypeType,
         ) -> tuple[list[Operation], bool | SSAValue]:
-            if (
-                self.members != members
-                or set(self.dim_map.keys()) != set(dim_map.keys())
-                or self.fill_value.type != base_type
-            ):
+            full_type = type_type.add_members(members).add_dimensions(dim_map.keys())
+            if dlt.ElementAttr(self.members, self.dim_map.keys(), dlt.IndexRangeType()) not in full_type.elements:
                 return [], False
-            if len([v for v in dim_map.values() if v is not None]) == 0:
-                return [], True
             ops = []
             true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
             found = true_op.result
             for dim in dim_map:
                 if dim_map[dim] is not None:
-                    other_get_ops, (other_index,) = dim_map[dim].get()
+                    other_get_ops, (other_index,) = dim_map[dim].get().output()
                     ops.extend(other_get_ops)
-                    self_get_ops, (self_index,) = self.dim_map[dim].get()
+                    self_get_ops, (self_index,) = self.dim_map[dim].get().output()
                     ops.extend(self_get_ops)
                     compare = arith.Cmpi(other_index, self_index, "eq")
                     ops.append(compare)
@@ -4931,9 +5332,7 @@ class ValueMapInitialiser(Initialiser):
         base_type: dlt.AcceptedTypes,
     ) -> tuple[list[Operation], None | SSAValue, bool | SSAValue]:
         for dlt_type, dlt_ptr in self.value_map.items():
-            if dlt_type.has_selectable(
-                members, dim_map.keys(), base_type
-            ):
+            if dlt_type.has_selectable(members, dim_map.keys(), base_type):
                 dlt_ptr_type = dlt_ptr.type
                 assert isinstance(dlt_ptr_type, dlt.PtrType)
                 dlt_ptr_type = typing.cast(dlt.PtrType, dlt_ptr_type)
@@ -4943,7 +5342,9 @@ class ValueMapInitialiser(Initialiser):
                 cast_op = builtin.UnrealizedConversionCastOp.get([dlt_ptr], [data_type])
                 ops.append(cast_op)
                 data_struct = cast_op.outputs[0]
-                extract_ops, data_ptr, ptr_dim_map, ptr_extent_map = self.semantics.extract_from_ptr_struct(dlt_ptr_type, data_struct)
+                extract_ops, data_ptr, ptr_dim_map, ptr_extent_map = (
+                    self.semantics.extract_from_ptr_struct(dlt_ptr_type, data_struct)
+                )
                 ops.extend(extract_ops)
                 inner_members = set(dlt_ptr_type.filled_members) | members
                 inner_dim_map = ptr_dim_map | dim_map
@@ -4967,73 +5368,118 @@ class ValueMapInitialiser(Initialiser):
         dim_map: dict[dlt.DimensionAttr, None | IndexGetter],
         type_type: dlt.TypeType,
     ) -> tuple[list[Operation], bool | SSAValue]:
+        full_type = type_type.add_members(members).add_dimensions(dim_map.keys())
+
+        # Loop through all stored values - these are expected to be mutually exclusive - so we only check the first that can have the value we're looking for
         for dlt_type, dlt_ptr in self.value_map.items():
-            if dlt_type.has_selectable(
-                    members, dim_map.keys()
-            ):
-                dlt_ptr_type = dlt_ptr.type
-                assert isinstance(dlt_ptr_type, dlt.PtrType)
-                dlt_ptr_type = typing.cast(dlt.PtrType, dlt_ptr_type)
+            possible_selections = dlt_type.has_selectable_type(full_type)
+            if (dlt.SetAttr([]), dlt.SetAttr([])) not in possible_selections:
+                continue
+                # continue to check the next dlt_ptr in this ValueMapInitialiser
 
-                left_over_type = dlt_ptr_type.contents_type.with_selection(members, dim_map.keys())
-                possible_selections = left_over_type.has_selectable_type(type_type)
-                if (dlt.SetAttr([]), dlt.SetAttr([])) in possible_selections:
+            # set up ops list with some useful consts
+            ops = []
+            true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+            ops.append(true_op)
+            false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
+            ops.append(false_op)
 
-                    ops = []
-                    outer_loop_dims = [dim for dim, idx in dim_map.items() if idx is None]
-                    false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
-                    ops.append(false_op)
-                    true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
-                    ops.append(true_op)
-                    found_non_zero = false_op.result
-                    make_iter_ops, outer_dim_iter_op = _make_iterate(outer_loop_dims, self.extent_resolver, [dlt_ptr], [found_non_zero])
-                    ops.extend(make_iter_ops)
+            # collect the dims that are known to select them - along with the known members
+            known_dims = []
+            known_vals = []
+            unknown_dims = []
+            for d, v in dim_map.items():
+                if v is None:
+                    unknown_dims.append(d)
+                else:
+                    known_dims.append(d)
+                    v_ops, (v_val,) = v.get().output()
+                    ops.extend(v_ops)
+                    known_vals.append(v_val)
+            select_op = dlt.SelectOp(dlt_ptr, members, known_dims, known_vals)
+            ops.append(select_op)
 
-                    outer_dim_loop_block = outer_dim_iter_op.body.block
-                    outer_dim_loop_block.erase_op(outer_dim_loop_block.last_op)  # remove yield as we will add our own
-                    outer_dim_tensor_arg = outer_dim_iter_op.get_block_arg_for_tensor_arg_idx(0)
-                    outer_dim_tensor_arg_type = typing.cast(dlt.PtrType, outer_dim_tensor_arg.type)
-                    outer_dim_loop_found_non_zero = outer_dim_iter_op.get_block_arg_for_iter_arg_idx(0)
+            # generate 'search space' TypeType
+            per_elem_type_type = type_type.add_dimensions(unknown_dims)
 
-                    outer_dim_if_found = outer_dim_loop_found_non_zero
-                    for elem in outer_dim_tensor_arg_type.contents_type.elements:
-                        if_not_found_ops = []
-                        select_op = dlt.SelectOp(outer_dim_tensor_arg, elem.member_specifiers,  [], [])
-                        if_not_found_ops.append(select_op)
-                        selected_ptr_type = typing.cast(dlt.PtrType, select_op.res.type)
-                        extract_ops, data_ptr, selected_dim_map, selected_extent_map = self.semantics.extract_from_ptr_struct(selected_ptr_type, select_op.res)
-                        if_not_found_ops.extend(extract_ops)
-                        inner_dims = list(elem.dimensions)
-                        make_inner_iter_ops, inner_iter_op = _make_iterate(inner_dims, self.extent_resolver.with_new(selected_extent_map), [select_op.res], [outer_dim_if_found])
-                        if_not_found_ops.extend(make_inner_iter_ops)
+            assert (dlt.SetAttr([]), dlt.SetAttr([])) in typing.cast(dlt.PtrType, select_op.res.type).contents_type.has_selectable_type(per_elem_type_type)
+            # now search through each element of the tensor
+            elem_loop_found_non_zero = false_op.result
+            for elem in per_elem_type_type.elements:
+                # only do the work if we haven't already found a non-zero:
+                per_elem_if_not_found_non_zero_ops = []
+                # select all the members in the elem
+                inner_select_op = dlt.SelectOp(
+                    select_op.res, elem.member_specifiers, [], []
+                )
+                per_elem_if_not_found_non_zero_ops.append(inner_select_op)
 
-                        inner_loop_block = inner_iter_op.body.block
-                        inner_loop_block.erase_op(inner_loop_block.last_op)  # remove yield as we will add our own
-                        inner_loop_tensor_arg = inner_iter_op.get_block_arg_for_tensor_arg_idx(0)
-                        inner_loop_if_found_non_zero = inner_iter_op.get_block_arg_for_iter_arg_idx(0)
+                # iterate over all the unknown dimensions:
+                # first collect extents from the dlt_ptr that may not exist in self.extent_map
+                extract_ops, data_ptr, selected_dim_map, filled_extent_map = (
+                    self.semantics.extract_from_ptr_struct(
+                        typing.cast(dlt.PtrType, inner_select_op.res.type), inner_select_op.res
+                    )
+                )
+                per_elem_if_not_found_non_zero_ops.extend(extract_ops)
+                inner_dims = list(elem.dimensions)
+                # make iterate op
+                make_inner_iter_ops, inner_iter_op = _make_iterate(
+                    inner_dims,
+                    self.extent_resolver.with_new(filled_extent_map),
+                    [inner_select_op.res],
+                    [elem_loop_found_non_zero],
+                )
+                per_elem_if_not_found_non_zero_ops.extend(make_inner_iter_ops)
+                # collect iterate op variables
+                inner_loop_block = inner_iter_op.body.block
+                inner_loop_block.erase_op(
+                    inner_loop_block.last_op
+                )  # remove yield as we will add our own
+                inner_loop_tensor_arg = (
+                    inner_iter_op.get_block_arg_for_tensor_arg_idx(0)
+                )
+                inner_loop_if_found_non_zero = (
+                    inner_iter_op.get_block_arg_for_iter_arg_idx(0)
+                )
 
-                        inner_if_not_found = []
-                        base_type = elem.base_type
-                        get_op = dlt.GetOp(inner_loop_tensor_arg, base_type)
-                        inner_if_not_found.append(get_op)
-                        # non-zero condition:
-                        zero_cmp_ops, is_non_zero = _compare_is_non_zero(get_op.res)
-                        inner_if_not_found.extend(zero_cmp_ops)
+                # Now we check if the value is actually non-zero - if a non=zero hasn't been found yet.
+                inner_if_not_found_ops = []
+                base_type = elem.base_type
+                get_op = dlt.GetOp(inner_loop_tensor_arg, base_type)
+                inner_if_not_found_ops.append(get_op)
+                # non-zero condition:
+                zero_cmp_ops, is_non_zero = _compare_is_non_zero(get_op.res)
+                inner_if_not_found_ops.extend(zero_cmp_ops)
 
-                        inner_if_not_found.append(scf.Yield(is_non_zero))
-                        inner_if_op = scf.If(inner_loop_if_found_non_zero, [IntegerType(1)], [scf.Yield(true_op.result)], inner_if_not_found)
-                        inner_loop_block.add_op(inner_if_op)
-                        inner_loop_block.add_op(dlt.IterateYieldOp(inner_if_op.output[0]))
-
-                        if_not_found_ops.append(scf.Yield(inner_iter_op.get_result_for_iter_arg_idx(0)))
-
-                        elem_if_op = scf.If(outer_dim_if_found, [IntegerType(1)], [scf.Yield(true_op.result)], if_not_found_ops)
-                        outer_dim_loop_block.add_op(elem_if_op)
-                        outer_dim_if_found = elem_if_op.output[0]
-                    outer_dim_loop_block.add_op(dlt.IterateYieldOp(outer_dim_if_found))
-
-                    found_non_zero = outer_dim_iter_op.get_result_for_iter_arg_idx(0)
-                    return ops, found_non_zero
+                inner_if_not_found_ops.append(scf.Yield(is_non_zero))
+                # if non-zero already found in previous inner iteration, just return true - else check
+                inner_if_op = scf.If(
+                    inner_loop_if_found_non_zero,
+                    [IntegerType(1)],
+                    [scf.Yield(true_op.result)],
+                    inner_if_not_found_ops,
+                )
+                inner_loop_block.add_op(inner_if_op)
+                # inner loop yields true iff non-zero-found
+                inner_loop_block.add_op(
+                    dlt.IterateYieldOp(inner_if_op.output[0])
+                )
+                # forward the inner loop's iter arg result the per elem if
+                per_elem_if_not_found_non_zero_ops.append(scf.Yield(inner_iter_op.get_result_for_iter_arg_idx(0)))
+                # if a previous elem already found a non-zero, just return true, else check
+                elem_if_op = scf.If(
+                    elem_loop_found_non_zero,
+                    [IntegerType(1)],
+                    [scf.Yield(true_op.result)],
+                    per_elem_if_not_found_non_zero_ops,
+                )
+                ops.append(elem_if_op)
+                # update found_non_zeros from the inner loop's resulting iter_args
+                elem_loop_found_non_zero = elem_if_op.output[0]
+            # all elems have been checked now - so elem_loop_found_non_zero is our answer
+            non_zero_found = elem_loop_found_non_zero
+            return ops, non_zero_found
         return [], False
 
 
@@ -5194,9 +5640,10 @@ def _get_packed_zero_for_accepted_type(
     else:
         raise ValueError(f"Cannot get zero for base element: {t}")
 
+
 def _compare_is_non_zero(value: SSAValue) -> tuple[list[Operation], SSAValue]:
     assert isinstance(value.type, dlt.AcceptedTypes)
-    ops, zero_val = _get_packed_zero_for_accepted_type(value.type)
+    ops, zero_val = _get_packed_zero_for_accepted_type(typing.cast(dlt.AcceptedTypes, value.type))
     if isinstance(value.type, builtin.AnyFloat):
         cond_op = arith.Cmpf(zero_val, value, "une")
         return ops + [cond_op], cond_op.result
@@ -5212,7 +5659,7 @@ def _make_iterate(
     extent_resolver: ExtentResolver,
     ptrs: list[SSAValue],
     iter_args: list[SSAValue],
-    loop_order: dlt.IterationOrder|None = None,
+    loop_order: dlt.IterationOrder | None = None,
 ) -> tuple[list[Operation], dlt.IterateOp]:
     ops = []
     extents = [d.extent for d in dimensions]
@@ -5232,7 +5679,9 @@ def _make_iterate(
         dlt_ptrs.append(dlt_ptr)
 
     if loop_order is None:
-        loop_order = dlt.NestedIterationOrderAttr.generate_for(list(range(len(extents))))
+        loop_order = dlt.NestedIterationOrderAttr.generate_for(
+            list(range(len(extents)))
+        )
 
     iter_op = dlt.IterateOp(
         extents,
