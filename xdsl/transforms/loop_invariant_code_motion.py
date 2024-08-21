@@ -6,12 +6,10 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
-    op_type_rewrite_pattern,
+    op_type_rewrite_pattern
 )
 from xdsl.traits import (
-    IsTerminator,
-    # is_side_effect_free,
-    # only_has_effect,
+    IsTerminator
 )
 
 #  This pass hoists operation that are invariant to the loops.
@@ -30,7 +28,7 @@ from xdsl.traits import (
 #  - the op and none of its contained operations depend on values inside of the
 #    loop (by means of calling definedOutside).
 #  - the op has no side-effects.
-def canBeHoisted(op: Operation, region_target: Region) -> bool | None:
+def can_Be_Hoisted(op: Operation, region_target: Region) -> bool | None:
     #   Do not move terminators.
     if op.has_trait(IsTerminator):
         return False
@@ -48,39 +46,13 @@ def canBeHoisted(op: Operation, region_target: Region) -> bool | None:
                         return False
     return True
 
-
 class LoopsInvariantCodeMotion(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
-
-        if any(isinstance(ha, scf.For) for ha in op.body.walk()):
-            return
-
-        numMoved = 0
-
-        worklist: list[Operation] = []
-
-        for region in op.regions:  # iter thorugh the regions
-            for ops in region.block.ops:
-                worklist.append(ops)
-                while worklist:
-                    oper = worklist.pop()
-                    # Skip ops that have already been moved. Check if the op can be hoisted.
-                    if oper.parent_region() != region:
-                        continue
-                    if not canBeHoisted(oper, region):
-                        continue
-                    print("Can be hoisted op: ", oper)
-
-                    numMoved = numMoved + 1
-                    if not isinstance(oper, scf.Yield):
-                        for user in oper.results[0].uses:
-                            if user.operation.parent_region is region:
-                                worklist.append(user.operation)
-
-        # print(numMoved)
-
-
+        for region in op.regions:
+            for oper in region.block.walk():
+                can_Be_Hoisted(oper, region)
+                
 class ScfForLoopInavarintCodeMotionPass(ModulePass):
     """
     Folds perfect loop nests if they can be represented with a single loop.
