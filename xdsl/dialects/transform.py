@@ -614,13 +614,18 @@ class TileOp(IRDLOperation):
                 [
                     AnyOpType()
                     for _ in range(
-                        len(static_sizes.as_tuple())
-                        if isinstance(static_sizes, DenseArrayBase)
-                        else 0
+                        self.amount_of_non_zero_sizes(static_sizes, dynamic_sizes)
                     )
                 ],
             ],
         )
+
+    def amount_of_non_zero_sizes(
+        self, static_sizes: DenseArrayBase | None, dynamic_sizes: Sequence[SSAValue]
+    ) -> int:
+        if static_sizes is None:
+            return len(dynamic_sizes)
+        return len([size for size in static_sizes.as_tuple() if size != 0])
 
 
 @irdl_op_definition
