@@ -6,11 +6,9 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
-    op_type_rewrite_pattern
+    op_type_rewrite_pattern,
 )
-from xdsl.traits import (
-    IsTerminator
-)
+from xdsl.traits import IsTerminator
 
 #  This pass hoists operation that are invariant to the loops.
 #
@@ -46,13 +44,15 @@ def can_Be_Hoisted(op: Operation, region_target: Region) -> bool | None:
                         return False
     return True
 
+
 class LoopsInvariantCodeMotion(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
         for region in op.regions:
             for oper in region.block.walk():
                 can_Be_Hoisted(oper, region)
-                
+
+
 class ScfForLoopInavarintCodeMotionPass(ModulePass):
     """
     Folds perfect loop nests if they can be represented with a single loop.
