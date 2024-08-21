@@ -767,6 +767,10 @@ class CastOp(IRDLOperation):
 
 @irdl_op_definition
 class MatchOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredmatch-transformmatchop
+    """
+
     name = "transform.structured.match"
 
     ops = opt_prop_def(ArrayAttr[StringAttr])
