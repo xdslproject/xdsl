@@ -232,6 +232,6 @@ def test_amount_of_loops():
             dynamic_sizes=[],
             static_sizes=static_sizes,
         ),
-        """%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<index: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",
+        """%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<index: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",
         None,
     )
