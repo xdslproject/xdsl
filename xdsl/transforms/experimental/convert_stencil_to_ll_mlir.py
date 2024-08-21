@@ -229,6 +229,11 @@ def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
 class LoadOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
+        for use in op.field.uses:
+            if isa(use.operation, StoreOp):
+                raise VerifyException(
+                    "Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before."
+                )
         field = op.field.type
         assert isa(field, FieldType[Attribute])
         assert isa(field.bounds, StencilBoundsAttr)
@@ -501,6 +506,15 @@ class StencilStoreToSubview(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+        for use in op.field.uses:
+            if isa(use.operation, LoadOp):
+                raise VerifyException(
+                    "Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before."
+                )
+            if isa(use.operation, StoreOp) and use.operation is not op:
+                raise VerifyException(
+                    "Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before."
+                )
         field = op.field
         assert isa(field.type, FieldType[Attribute])
         assert isa(field.type.bounds, StencilBoundsAttr)

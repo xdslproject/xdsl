@@ -1277,9 +1277,6 @@ class LoadOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, StoreOp):
-                raise VerifyException("Cannot Load and Store the same field!")
         field = self.field.type
         temp = self.res.type
         assert isa(field, FieldType[Attribute])
@@ -1466,13 +1463,6 @@ class StoreOp(IRDLOperation):
         bounds: StencilBoundsAttr,
     ):
         return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
-
-    def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, LoadOp):
-                raise VerifyException("Cannot Load and Store the same field!")
-            if isa(use.operation, LoadOp) and use.operation is not self:
-                raise VerifyException("Can only store once to a field!")
 
 
 @irdl_op_definition
