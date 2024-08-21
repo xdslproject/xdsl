@@ -139,6 +139,10 @@ def walk_from_to(a: Operation, b: Operation, *, inclusive: bool = False):
 
 
 def is_inplace(apply: ApplyOp, field: SSAValue):
+    """
+    Check if the passed `stencil.apply` has any non-zero offset access to the passed
+    `stencil.field`.
+    """
     # Get all block arguments matching this field
     field_args = set(
         apply.region.block.args[i] for (i, a) in enumerate(apply.args) if a is field
@@ -205,9 +209,8 @@ class LoadBufferFoldPattern(RewritePattern):
             for o in walk_from_to(load, last_user, inclusive=True)
             if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
         ]
-        # import pdb
 
-        # pdb.set_trace()
+        # If the last effecting op is a stencil, handle the safe inplace case
         if (
             effecting
             and isinstance(effecting[-1], ApplyOp)
