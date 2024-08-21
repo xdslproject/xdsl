@@ -22,4 +22,3 @@ qref.cnot %q0, %q1
 // CHECK-ROUNDTRIP-NEXT:    qref.cnot %q0, %q1
 // CHECK-ROUNDTRIP-NEXT:    %0 = qref.measure %q0
 // CHECK-ROUNDTRIP-NEXT:  }
-

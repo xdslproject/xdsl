@@ -65,10 +65,3 @@ builtin.module {
   %res_transpose = "linalg.broadcast"(%0, %1) {"dimensions" = array<i64: 1>} : (tensor<3x4x5xf32>, tensor<4x5x6x2xf32>) -> tensor<4x5x6x2xf32>
 
 }
-
-
-
-
-
-
-

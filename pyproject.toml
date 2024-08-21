@@ -26,7 +26,7 @@ dev = [
     "lit<19.0.0",
     "marimo==0.7.20",
     "pre-commit==3.8.0",
-    "ruff==0.5.7",
+    "ruff==0.6.0",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.5.1",
@@ -34,8 +34,8 @@ dev = [
     "pyright==1.1.345",
 ]
 gui = ["textual==0.76.0", "pyclip==0.7"]
-jax = ["jax==0.4.31"]
-onnx = ["onnx==1.16.2"]
+jax = ["jax==0.4.31", "numpy==2.1.0"]
+onnx = ["onnx==1.16.2", "numpy==2.1.0"]
 riscv = ["riscemu==2.2.7"]
 wgpu = ["wgpu==0.16.0"]
 

@@ -115,6 +115,3 @@
 // CHECK-NEXT: ml_program.global private @onnx_constant_2(dense<2.000000e+00> : tensor<1x5xf32>) : tensor<1x5xf32>
 
 // CHECK-NEXT:  }
-
-
-

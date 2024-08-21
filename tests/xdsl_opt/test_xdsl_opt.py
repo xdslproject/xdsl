@@ -134,7 +134,7 @@ def test_operation_deletion():
 
 def test_print_between_passes():
     filename_in = "tests/xdsl_opt/empty_program.mlir"
-    passes = ["stencil-shape-inference", "dce", "frontend-desymrefy"]
+    passes = ["shape-inference", "dce", "frontend-desymrefy"]
     flags = ["--print-between-passes", "-p", ",".join(passes)]
 
     f = StringIO("")

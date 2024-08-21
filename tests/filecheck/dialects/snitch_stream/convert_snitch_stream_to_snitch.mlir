@@ -104,4 +104,3 @@
 // CHECK-NEXT:  "snitch.ssr_disable"() : () -> ()
 
 // CHECK-NEXT: }
-

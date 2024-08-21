@@ -532,29 +532,48 @@ class FormatParser(BaseParser):
                 anchor = then_elements[-1]
         self.parse_punctuation("?")
 
-        if not then_elements:
-            self.raise_error("An optional group cannot be empty")
+        # Pull whitespace element of front, as they are not parsed
+        first_non_whitespace_index = None
+        for i, x in enumerate(then_elements):
+            if not isinstance(x, WhitespaceDirective):
+                first_non_whitespace_index = i
+                break
+
+        if first_non_whitespace_index is None:
+            self.raise_error("An optional group must have a non-whitespace directive")
         if anchor is None:
             self.raise_error("Every optional group must have an anchor.")
         # TODO: allow attribute and region variables when implemented.
-        if not isinstance(then_elements[0], OptionallyParsableDirective):
+        if not isinstance(
+            then_elements[first_non_whitespace_index], OptionallyParsableDirective
+        ):
             self.raise_error(
                 "First element of an optional group must be optionally parsable."
             )
         if not isinstance(anchor, AnchorableDirective):
             self.raise_error(
-                "An optional group's anchor must be an achorable directive."
+                "An optional group's anchor must be an anchorable directive."
             )
 
-        return OptionalGroupDirective(anchor, then_elements[0], then_elements[1:])
+        return OptionalGroupDirective(
+            anchor,
+            cast(
+                tuple[WhitespaceDirective, ...],
+                then_elements[:first_non_whitespace_index],
+            ),
+            cast(
+                OptionallyParsableDirective, then_elements[first_non_whitespace_index]
+            ),
+            then_elements[first_non_whitespace_index + 1 :],
+        )
 
     def parse_keyword_or_punctuation(self) -> FormatDirective:
         """
         Parse a keyword or a punctuation directive, with the following format:
           keyword-or-punctuation-directive ::= `\\`` (bare-ident | punctuation) `\\``
         """
-        self.parse_characters("`")
         start_token = self._current_token
+        self.parse_characters("`")
 
         # New line case
         if self.parse_optional_keyword("\\"):
@@ -563,16 +582,16 @@ class FormatParser(BaseParser):
             return WhitespaceDirective("\n")
 
         # Space case
+        end_token = self._current_token
         if self.parse_optional_characters("`"):
-            end_token = self._current_token
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
             ]
-            if whitespace != " ":
+            if whitespace != " " and whitespace != "":
                 self.raise_error(
-                    "unexpected whitespace in directive, only ` ` whitespace is allowed"
+                    "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"
                 )
-            return WhitespaceDirective(" ")
+            return WhitespaceDirective(whitespace)
 
         # Punctuation case
         if self._current_token.kind.is_punctuation():
