@@ -7,9 +7,9 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 """
 
 import abc
-from typing import Annotated, cast
+from typing import Annotated, TypeAlias, cast
 
-from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, TensorType
+from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, IntegerType, TensorType
 from xdsl.ir import Attribute, Dialect, SSAValue
 from xdsl.irdl import (
     ConstraintVar,
@@ -89,6 +89,37 @@ class AddOp(ElementwiseBinaryOperation):
     """
 
     name = "stablehlo.add"
+
+
+IntegerTensorType: TypeAlias = TensorType[IntegerType]
+
+
+@irdl_op_definition
+class AndOp(IRDLOperation):
+    """
+    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor. Depending on the element type, does the following:
+
+    For booleans: logical AND.
+    For integers: bitwise AND.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and
+    """
+
+    name = "stablehlo.and"
+
+    T = Annotated[IntegerTensorType, ConstraintVar("T")]
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    result = result_def(T)
+
+    def __init__(
+        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
+    ):
+        if result_type is None:
+            result_type = lhs.type
+        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
 
 
 @irdl_op_definition
@@ -188,6 +219,7 @@ StableHLO = Dialect(
     [
         AbsOp,
         AddOp,
+        AndOp,
         MultiplyOp,
         SubtractOp,
         TransposeOp,
