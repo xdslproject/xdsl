@@ -340,6 +340,15 @@ class TypeDirective(VariableDirective, ABC):
     pass
 
 
+class RegionDirective(OptionallyParsableDirective, ABC):
+    """
+    Baseclass to help keep typechecking simple.
+    RegionDirective is for any RegionVariable, which are all OptionallyParsable.
+    """
+
+    pass
+
+
 class VariadicLikeVariable(VariadicLikeFormatDirective, VariableDirective, ABC):
     pass
 
@@ -728,16 +737,12 @@ class OptionalResultTypeDirective(
 
 
 @dataclass(frozen=True)
-class RegionVariable(VariableDirective, OptionallyParsableDirective):
+class RegionVariable(RegionDirective, VariableDirective):
     """
     A region variable, with the following format:
       region-directive ::= dollar-ident
     The directive will request a space to be printed after.
     """
-
-    def parse(self, parser: Parser, state: ParsingState) -> None:
-        region = parser.parse_region()
-        state.regions[self.index] = region
 
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         region = parser.parse_optional_region()
@@ -753,9 +758,7 @@ class RegionVariable(VariableDirective, OptionallyParsableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicRegionVariable(
-    VariadicVariable, VariableDirective, OptionallyParsableDirective
-):
+class VariadicRegionVariable(RegionDirective, VariadicVariable):
     """
     A variadic region variable, with the following format:
       region-directive ::= ( dollar-ident ( `,` dollar-id )* )?
@@ -782,7 +785,7 @@ class VariadicRegionVariable(
             state.should_emit_space = True
 
 
-class OptionalRegionVariable(OptionalVariable, OptionallyParsableDirective):
+class OptionalRegionVariable(RegionDirective, OptionalVariable):
     """
     An optional region variable, with the following format:
       region-directive ::= ( dollar-ident )?
@@ -1016,6 +1019,12 @@ class OptionalGroupDirective(FormatDirective):
                         | OptionalOperandTypeDirective(_, index)
                     ):
                         state.operand_types[index] = list[Attribute | None]()
+                    case (
+                        RegionVariable(_, index)
+                        | VariadicRegionVariable(_, index)
+                        | OptionalRegionVariable(_, index)
+                    ):
+                        state.regions[index] = list[Region]()
                     case (
                         ResultTypeDirective(_, index)
                         | VariadicResultTypeDirective(_, index)

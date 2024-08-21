@@ -20,6 +20,7 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AttrSizedOperandSegments,
+    AttrSizedRegionSegments,
     AttrSizedResultSegments,
     ConstraintVar,
     EqAttrConstraint,
@@ -1155,14 +1156,6 @@ def test_regions_with_attr_dict(format: str, program: str, generic_program: str)
     check_equivalence(program, generic_program, ctx)
 
 
-@irdl_op_definition
-class MiscOp(IRDLOperation):
-    name = "test.typed_attr"
-    attr = attr_def(IntegerAttr[I32])
-
-    assembly_format = "$attr attr-dict"
-
-
 @pytest.mark.parametrize(
     "format, program, generic_program",
     [
@@ -1173,13 +1166,13 @@ class MiscOp(IRDLOperation):
         ),
         (
             "attr-dict-with-keyword $fst $snd",
-            "test.two_regions {\n  test.typed_attr 3\n} {\n  test.typed_attr 3\n}",
-            '"test.two_regions"() ({ test.typed_attr 3}, { test.typed_attr 3}) : () -> ()',
+            'test.two_regions {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
         ),
         (
             "attr-dict-with-keyword $fst $snd",
-            'test.two_regions attributes {"a" = 2 : i32} {\n  test.typed_attr 3\n} {\n  test.typed_attr 3\n}',
-            '"test.two_regions"() ({ test.typed_attr 3}, { test.typed_attr 3}) {"a" = 2 : i32} : () -> ()',
+            'test.two_regions attributes {"a" = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {"a" = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -1196,7 +1189,6 @@ def test_regions(format: str, program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(TwoRegionsOp)
-    ctx.load_op(MiscOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
@@ -1223,8 +1215,8 @@ def test_regions(format: str, program: str, generic_program: str):
         ),
         (
             "attr-dict-with-keyword $region",
-            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
-            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}) : () -> ()',
+            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}, {\n  "test.op"() : () -> ()\n}) : () -> ()',
         ),
     ],
 )
@@ -1282,19 +1274,64 @@ def test_optional_region(format: str, program: str, generic_program: str):
 def test_multiple_optional_regions():
     """Test the parsing of multiple optional regions"""
 
-    """Test that multiple optional regions requires the ABCMeta PyRDL option."""
+    """Test that a variadic region variable cannot directly follow another variadic region variable."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="Operation test.optional_regions defines more than two variadic regions",
+        match="A variadic region variable cannot be followed by another variadic region variable.",
     ):
 
         @irdl_op_definition
-        class OptionalOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.optional_regions"
+            irdl_options = [AttrSizedRegionSegments()]
             region1 = opt_region_def()
             region2 = opt_region_def()
 
             assembly_format = "attr-dict-with-keyword $region1 $region2"
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "($opt_region^ `keyword`)? attr-dict",
+            "test.optional_region_group",
+            '"test.optional_region_group"() : () -> ()',
+        ),
+        (
+            "($opt_region^ `keyword`)? attr-dict",
+            'test.optional_region_group {\n  "test.op"() : () -> ()\n} keyword',
+            '"test.optional_region_group"() ({"test.op"() : () -> ()}) : () -> ()',
+        ),
+        (
+            "(`keyword` $opt_region^)? attr-dict",
+            "test.optional_region_group",
+            '"test.optional_region_group"() : () -> ()',
+        ),
+        (
+            "(`keyword` $opt_region^)? attr-dict",
+            'test.optional_region_group keyword {\n  "test.op"() : () -> ()\n}',
+            '"test.optional_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
+        ),
+    ],
+)
+def test_optional_groups_regions(format: str, program: str, generic_program: str):
+    """Test the parsing of optional regions in an optional group"""
+
+    @irdl_op_definition
+    class OptionalRegionOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        name = "test.optional_region_group"
+        irdl_options = [AttrSizedRegionSegments]
+        opt_region = opt_region_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(OptionalRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
 
 
 ################################################################################
