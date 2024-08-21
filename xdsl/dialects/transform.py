@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
@@ -765,6 +765,47 @@ class CastOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[AnyOpType()])
 
 
+@irdl_op_definition
+class MatchOp(IRDLOperation):
+    name = "transform.structured.match"
+
+    ops = opt_prop_def(ArrayAttr[StringAttr])
+    # interface = opt_prop_def(EnumAttribute[StrEnum])
+    op_attrs = opt_prop_def(DictionaryAttr)
+    filter_result_types = opt_prop_def(TypeAttribute)
+    filter_operand_types = opt_prop_def(TypeAttribute)
+
+    target = operand_def(TransformOpHandleType)
+    result = result_def(TransformOpHandleType)
+
+    def __init__(
+        self,
+        target: SSAValue,
+        ops: Sequence[str] | ArrayAttr[StringAttr] | None = None,
+        # interface: StrEnum | EnumAttribute[StrEnum] | None = None,
+        op_attrs: dict[str, Attribute] | DictionaryAttr | None = None,
+        filter_result_types: TypeAttribute | None = None,
+        filter_operand_types: TypeAttribute | None = None,
+    ):
+        if isinstance(ops, Sequence):
+            ops = ArrayAttr([StringAttr(op) for op in ops])
+        # if isinstance(interface, StrEnum):
+        #     interface = EnumAttribute(interface)
+        if isinstance(op_attrs, Mapping):
+            op_attrs = DictionaryAttr(op_attrs)
+        super().__init__(
+            properties={
+                "ops": ops,
+                # "interface": interface,
+                "op_attrs": op_attrs,
+                "filter_result_types": filter_result_types,
+                "filter_operand_types": filter_operand_types,
+            },
+            operands=[target],
+            result_types=[AnyOpType()],
+        )
+
+
 Transform = Dialect(
     "transform",
     [
@@ -788,6 +829,7 @@ Transform = Dialect(
         SelectOp,
         NamedSequenceOp,
         CastOp,
+        MatchOp,
     ],
     [
         # Types
