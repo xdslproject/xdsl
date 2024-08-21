@@ -21,11 +21,13 @@ from xdsl.irdl import (
     OpDef,
     OptionalDef,
     OptOperandDef,
+    OptRegionDef,
     OptResultDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     VariadicDef,
     VarOperandDef,
+    VarRegionDef,
     VarResultDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
@@ -43,10 +45,12 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionallyParsableDirective,
     OptionalOperandTypeDirective,
     OptionalOperandVariable,
+    OptionalRegionVariable,
     OptionalResultTypeDirective,
     OptionalResultVariable,
     OptionalUnitAttrVariable,
     PunctuationDirective,
+    RegionVariable,
     ResultTypeDirective,
     ResultVariable,
     VariableDirective,
@@ -55,6 +59,7 @@ from xdsl.irdl.declarative_assembly_format import (
     VariadicLikeVariable,
     VariadicOperandTypeDirective,
     VariadicOperandVariable,
+    VariadicRegionVariable,
     VariadicResultTypeDirective,
     VariadicResultVariable,
     WhitespaceDirective,
@@ -123,6 +128,8 @@ class FormatParser(BaseParser):
     """The attributes that are already parsed."""
     seen_properties: set[str]
     """The properties that are already parsed."""
+    seen_regions: list[bool]
+    """The region variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -141,6 +148,7 @@ class FormatParser(BaseParser):
         self.seen_result_types = [False] * len(op_def.results)
         self.seen_attributes = set[str]()
         self.seen_properties = set[str]()
+        self.seen_regions = [False] * len(op_def.regions)
         self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
@@ -161,6 +169,7 @@ class FormatParser(BaseParser):
         self.verify_properties()
         self.verify_operands(seen_variables)
         self.verify_results(seen_variables)
+        self.verify_regions()
         return FormatProgram(elements)
 
     def verify_directives(self, elements: list[FormatDirective]):
@@ -184,6 +193,10 @@ class FormatParser(BaseParser):
                 ):
                     self.raise_error(
                         "A variadic operand variable cannot be followed by another variadic operand variable."
+                    )
+                case AttrDictDirective(), RegionVariable() if not (a.with_keyword):
+                    self.raise_error(
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
                     )
                 case _:
                     pass
@@ -291,6 +304,25 @@ class FormatParser(BaseParser):
                 "'ParsePropInAttrDict' IRDL option."
             )
 
+    def verify_regions(self):
+        """
+        Check that all regions are present.
+        """
+        for (
+            seen_region,
+            (region_name, _),
+        ) in zip(
+            self.seen_regions,
+            self.op_def.regions,
+            strict=True,
+        ):
+            if not seen_region:
+                self.raise_error(
+                    f"region '{region_name}' "
+                    f"not found, consider adding a '${region_name}' "
+                    "directive to the custom assembly format."
+                )
+
     def parse_optional_variable(
         self,
     ) -> VariableDirective | AttributeVariable | None:
@@ -343,6 +375,19 @@ class FormatParser(BaseParser):
                 return VariadicResultVariable(variable_name, idx)
             else:
                 return ResultVariable(variable_name, idx)
+
+        # Check if the variable is a region
+        for idx, (region_name, region_def) in enumerate(self.op_def.regions):
+            if variable_name != region_name:
+                continue
+            self.seen_regions[idx] = True
+            match region_def:
+                case OptRegionDef():
+                    return OptionalRegionVariable(variable_name, idx)
+                case VarRegionDef():
+                    return VariadicRegionVariable(variable_name, idx)
+                case _:
+                    return RegionVariable(variable_name, idx)
 
         attr_or_prop_by_name = {
             attr_name: attr_or_prop
