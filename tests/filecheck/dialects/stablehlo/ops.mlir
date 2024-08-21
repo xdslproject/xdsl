@@ -27,3 +27,6 @@
 //           [[1,7], [3,9], [5,11]],
 //           [[2,8], [4,10], [6,12]]
 //          ]
+
+// CHECK: %and = "stablehlo.and"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
+%and = "stablehlo.and"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
