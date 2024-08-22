@@ -226,6 +226,3 @@ def test_structured_match():
         """ %0 = "transform.structured.match"(%1) <{"ops" = [], "op_attrs" = {}}> : (!transform.any_op) -> !transform.any_op """,
         None,
     )
-
-
-test_structured_match()
