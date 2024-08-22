@@ -229,9 +229,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             ),
         )
 
-        # if the rewriter needs a result, use `input_stencil` as a drop-in replacement
-        # prefetch_op produces a result that needs to be handled separately
-        # note, that only un-bufferized dmp.swaps produce a result
+        # a little hack to get around a check that prevents replacing a no-results op with an n-results op
         rewriter.replace_matched_op(
             prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
         )

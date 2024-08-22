@@ -433,6 +433,35 @@ class ConstStructOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ZerosOp(IRDLOperation):
+    """
+    Represents the @zeros operation in CSL.
+    """
+
+    name = "csl.zeros"
+
+    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+
+    dynamic_size = opt_operand_def(T)
+
+    result = result_def(MemRefType[T])
+
+    is_const = opt_prop_def(builtin.UnitAttr)
+
+    def __init__(
+        self,
+        memref: MemRefType[T],
+        dynamic_size: SSAValue | Operation | None = None,
+        is_const: builtin.UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=[dynamic_size] if dynamic_size else [[]],
+            result_types=[memref],
+            properties={"is_const": is_const} if is_const else {},
+        )
+
+
+@irdl_op_definition
 class ConstantsOp(IRDLOperation):
     """
     Represents the @constants operation in CSL.
@@ -801,7 +830,7 @@ class _GetDsdOp(IRDLOperation, ABC):
     Abstract base class for CSL @get_dsd()
     """
 
-    sizes = var_operand_def(IntegerType)
+    dynamic_sizes = var_operand_def(IntegerType)
     result = result_def(DsdType)
 
 
@@ -817,29 +846,59 @@ class GetMemDsdOp(_GetDsdOp):
 
     name = "csl.get_mem_dsd"
     base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
+    sizes = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    @staticmethod
+    # def from_memref(memref: MemRefType[IntegerType | Float32Type | Float16Type]) -> GetMemDsdOp:
+    def from_memref(base_addr: SSAValue) -> GetMemDsdOp:
+        assert isa(
+            m_type := base_addr.type,
+            MemRefType[IntegerType | Float32Type | Float16Type],
+        )
+        dsd_t = DsdType(
+            DsdKind.mem1d_dsd if len(m_type.shape) == 1 else DsdKind.mem4d_dsd
+        )
+        offsets = None
+        if isinstance(m_type.layout, builtin.StridedLayoutAttr) and isinstance(
+            m_type.layout.offset, builtin.IntAttr
+        ):
+            offsets = ArrayAttr([IntegerAttr(m_type.layout.offset, 16)])
+        return GetMemDsdOp.build(
+            operands=[[]],
+            result_types=[dsd_t],
+            properties={
+                "sizes": ArrayAttr(m_type.shape),
+                "offsets": offsets,
+            },
+        )
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException("DSD type must be memory DSD")
-        if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
+        if self.sizes and len(self.sizes) > 0 and len(self.dynamic_sizes) > 0:
+            raise VerifyException(
+                "Must have exactly one of sizes or dynamic_sizes specified"
+            )
+        len_sizes = len(self.sizes) if self.sizes else len(self.dynamic_sizes)
+        if self.result.type.data == DsdKind.mem1d_dsd and len_sizes != 1:
             raise VerifyException(
                 "DSD of type mem1d_dsd must have exactly one dimension"
             )
         if self.result.type.data == DsdKind.mem4d_dsd and (
-            len(self.sizes) < 1 or len(self.sizes) > 4
+            len_sizes < 1 or len_sizes > 4
         ):
             raise VerifyException(
                 "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
             )
-        if self.offsets is not None and len(self.offsets) != len(self.sizes):
+        if self.offsets is not None and len(self.offsets) != len_sizes:
             raise VerifyException(
                 "Dimensions of offsets must match dimensions of sizes"
             )
-        if self.strides is not None and len(self.strides) != len(self.sizes):
+        if self.strides is not None and len(self.strides) != len_sizes:
             raise VerifyException(
                 "Dimensions of strides must match dimensions of sizes"
             )
@@ -869,7 +928,7 @@ class GetFabDsdOp(_GetDsdOp):
             raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
             raise VerifyException("DSD type must be fabric DSD")
-        if len(self.sizes) != 1:
+        if len(self.dynamic_sizes) != 1:
             raise VerifyException("Fabric DSDs must have exactly one dimension")
         if self.result.type.data == DsdKind.fabin_dsd and (
             self.control is not None or self.wavelet_index_offset is not None

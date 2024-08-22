@@ -206,6 +206,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return memref_stream_legalize.MemrefStreamLegalizePass
 
+    def get_memref_to_csl_dsd():
+        from xdsl.transforms import memref_to_csl_dsd
+
+        return memref_to_csl_dsd.MemrefToCslDsdPass
+
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -429,6 +434,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "memref-stream-interleave": get_memref_stream_interleave,
         "memref-stream-tile-outer-loops": get_memref_stream_tile_outer_loops,
         "memref-stream-legalize": get_memref_stream_legalize,
+        "memref-to-csl-dsd": get_memref_to_csl_dsd,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,

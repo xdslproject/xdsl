@@ -604,7 +604,7 @@ class CslPrintContext:
                     base_addr=base_addr,
                     offsets=offsets,
                     strides=strides,
-                    sizes=sizes,
+                    dynamic_sizes=sizes,
                     result=result,
                 ):
                     sizes_str = ", ".join(
@@ -627,7 +627,7 @@ class CslPrintContext:
                     )
                     self.print("});")
                 case csl.GetFabDsdOp(
-                    sizes=extent,
+                    dynamic_sizes=extent,
                     fabric_color=fabric_color,
                     queue_id=queue_id,
                     control=control,

@@ -122,15 +122,13 @@ def walk_from(a: Operation) -> Generator[Operation, Any, None]:
         a = a.next_op
 
 
-def walk_from_to(a: Operation, b: Operation, *, inclusive: bool = False):
+def walk_from_to(a: Operation, b: Operation):
     """
     Walk through all operations recursively inside a or its block, until b is met, if
     ever.
     """
     for o in walk_from(a):
         if o == b:
-            if inclusive:
-                yield o
             return
         yield o
 
@@ -181,7 +179,7 @@ class LoadBufferFoldPattern(RewritePattern):
 
         effecting = [
             o
-            for o in walk_from_to(load, last_user, inclusive=True)
+            for o in walk_from_to(load, last_user)
             if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
         ]
         if effecting:
@@ -215,9 +213,11 @@ class ApplyStoreFoldPattern(RewritePattern):
     def is_dest_safe(apply: ApplyOp, store: StoreOp) -> bool:
         # Check that the destination is not used between the apply and store.
         dest = store.field
+        if not apply.next_op:
+            return True
         effecting = [
             o
-            for o in walk_from_to(apply, store)
+            for o in walk_from_to(apply.next_op, store)
             if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)
         ]
         return not effecting
