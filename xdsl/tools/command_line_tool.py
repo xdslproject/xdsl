@@ -375,11 +375,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_bufferize.StencilBufferize
 
-    def get_licm():
-        from xdsl.transforms import loop_invariant_code_motion
-
-        return loop_invariant_code_motion.ScfForLoopInavarintCodeMotionPass
-
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -452,7 +447,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "stencil-bufferize": get_stencil_bufferize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
-        "licm": get_licm,
     }
 
 
