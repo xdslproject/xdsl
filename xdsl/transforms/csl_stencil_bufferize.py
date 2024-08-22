@@ -249,7 +249,13 @@ class ApplyOpBufferize(RewritePattern):
 
 @dataclass(frozen=True)
 class AccessOpBufferize(RewritePattern):
-    """Bufferizes AccessOp."""
+    """
+    Bufferizes AccessOp.
+
+    The type conversion pass creates the scenario that some `csl_stencil.access` ops are equal input and output types,
+    for instance, `(memref<512xf32>) -> memref<512xf32>`. This only happens for ops accessing own data. In this case,
+    the access op has no effect and can safely be folded away.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
