@@ -568,7 +568,7 @@ def amount_of_non_zero_sizes(
 ) -> int:
     if static_sizes is None:
         return len(dynamic_sizes)
-    return sum(bool(size) for size in static_sizes.data.data)
+    return sum(bool(size.data) for size in static_sizes.data.data)
 
 
 @irdl_op_definition
