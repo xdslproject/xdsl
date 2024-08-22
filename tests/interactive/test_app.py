@@ -28,7 +28,7 @@ from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_inputs():
     """Test different inputs produce desired result."""
     async with InputApp().run_test() as pilot:
@@ -94,7 +94,7 @@ async def test_inputs():
         assert app.current_module.is_structurally_equivalent(expected_module)
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_buttons():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
@@ -275,7 +275,7 @@ async def test_buttons():
         assert app.condense_mode is False
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_rewrites():
     """Test rewrite application has the desired result."""
     async with InputApp().run_test() as pilot:
@@ -342,7 +342,7 @@ async def test_rewrites():
         )
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_passes():
     """Test pass application has the desired result."""
     async with InputApp().run_test() as pilot:
@@ -434,7 +434,7 @@ async def test_passes():
         assert app.current_module.is_structurally_equivalent(expected_module)
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_argument_pass_screen():
     """Test that clicking on a pass that requires passes opens a screen to specify them."""
     async with InputApp().run_test() as pilot:
