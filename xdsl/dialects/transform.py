@@ -774,7 +774,7 @@ class MatchOp(IRDLOperation):
     name = "transform.structured.match"
 
     ops = opt_prop_def(ArrayAttr[StringAttr])
-    # interface = opt_prop_def(EnumAttribute[StrEnum])
+    interface = opt_prop_def(AnyIntegerAttr)
     op_attrs = opt_prop_def(DictionaryAttr)
     filter_result_types = opt_prop_def(TypeAttribute)
     filter_operand_types = opt_prop_def(TypeAttribute)
@@ -786,21 +786,32 @@ class MatchOp(IRDLOperation):
         self,
         target: SSAValue,
         ops: Sequence[str] | ArrayAttr[StringAttr] | None = None,
-        # interface: StrEnum | EnumAttribute[StrEnum] | None = None,
+        interface: int | AnyIntegerAttr | str | None = None,
         op_attrs: dict[str, Attribute] | DictionaryAttr | None = None,
         filter_result_types: TypeAttribute | None = None,
         filter_operand_types: TypeAttribute | None = None,
     ):
         if isinstance(ops, Sequence):
             ops = ArrayAttr([StringAttr(op) for op in ops])
-        # if isinstance(interface, StrEnum):
-        #     interface = EnumAttribute(interface)
+        if isinstance(interface, str):
+            match interface:
+                case "LinalgOp":
+                    interface = IntegerAttr(0, IntegerType(32))
+                case "TilingInterface":
+                    interface = IntegerAttr(1, IntegerType(32))
+                case "LoopLikeInterface":
+                    interface = IntegerAttr(2, IntegerType(32))
+                case _:
+                    raise ValueError(f"Unknown interface: {interface}")
+        if isinstance(interface, int):
+            interface = IntegerAttr(interface, IntegerType(32))
+
         if isinstance(op_attrs, Mapping):
             op_attrs = DictionaryAttr(op_attrs)
         super().__init__(
             properties={
                 "ops": ops,
-                # "interface": interface,
+                "interface": interface,
                 "op_attrs": op_attrs,
                 "filter_result_types": filter_result_types,
                 "filter_operand_types": filter_operand_types,
