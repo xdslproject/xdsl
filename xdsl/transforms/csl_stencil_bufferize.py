@@ -265,7 +265,7 @@ class AccessOpBufferize(RewritePattern):
 
         # accesses to own data that (after bufferization) have the same input and output type can be safely folded away
         if op.op.type == r_type and all(o == 0 for o in op.offset):
-            rewriter.replace_matched_op([], new_results=[op.op])
+            rewriter.replace_matched_op(to_tensor_op(op.op))
             return
 
         rewriter.replace_matched_op(

@@ -55,15 +55,16 @@ builtin.module {
 // CHECK-NEXT:     }, {
 // CHECK-NEXT:     ^1(%20 : memref<512xf32>, %21 : memref<510xf32>):
 // CHECK-NEXT:       %22 = bufferization.to_tensor %21 restrict writable : memref<510xf32>
-// CHECK-NEXT:       %23 = arith.constant dense<1.666600e-01> : memref<510xf32>
-// CHECK-NEXT:       %24 = bufferization.to_tensor %23 restrict : memref<510xf32>
-// CHECK-NEXT:       %25 = "tensor.extract_slice"(%20) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %26 = "tensor.extract_slice"(%20) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %27 = linalg.add ins(%22, %26 : tensor<510xf32>, tensor<510xf32>) outs(%22 : tensor<510xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %28 = linalg.add ins(%27, %25 : tensor<510xf32>, tensor<510xf32>) outs(%27 : tensor<510xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %29 = linalg.mul ins(%28, %24 : tensor<510xf32>, tensor<510xf32>) outs(%28 : tensor<510xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %30 = bufferization.to_memref %29 : memref<510xf32>
-// CHECK-NEXT:       csl_stencil.yield %30 : memref<510xf32>
+// CHECK-NEXT:       %23 = bufferization.to_tensor %20 restrict : memref<512xf32>
+// CHECK-NEXT:       %24 = arith.constant dense<1.666600e-01> : memref<510xf32>
+// CHECK-NEXT:       %25 = bufferization.to_tensor %24 restrict : memref<510xf32>
+// CHECK-NEXT:       %26 = "tensor.extract_slice"(%23) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %27 = "tensor.extract_slice"(%23) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %28 = linalg.add ins(%22, %27 : tensor<510xf32>, tensor<510xf32>) outs(%22 : tensor<510xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %29 = linalg.add ins(%28, %26 : tensor<510xf32>, tensor<510xf32>) outs(%28 : tensor<510xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %30 = linalg.mul ins(%29, %25 : tensor<510xf32>, tensor<510xf32>) outs(%29 : tensor<510xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %31 = bufferization.to_memref %30 : memref<510xf32>
+// CHECK-NEXT:       csl_stencil.yield %31 : memref<510xf32>
 // CHECK-NEXT:     }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
