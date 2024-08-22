@@ -255,12 +255,19 @@ class AccessOpBufferize(RewritePattern):
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
         if not isa(op.result.type, TensorType[Attribute]):
             return
+        r_type = tensor_to_memref_type(op.result.type)
+
+        # accesses to own data that (after bufferization) have the same input and output type can be safely folded away
+        if op.op.type == r_type and all(o == 0 for o in op.offset):
+            rewriter.replace_matched_op([], new_results=[op.op])
+            return
+
         rewriter.replace_matched_op(
             [
                 access := csl_stencil.AccessOp(
                     op.op,
                     op.offset,
-                    tensor_to_memref_type(op.result.type),
+                    r_type,
                     op.offset_mapping,
                 ),
                 to_tensor_op(access.result),
