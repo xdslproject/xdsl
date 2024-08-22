@@ -115,49 +115,49 @@ func.func @bufferized(%arg0 : memref<512xf32>, %arg1 : memref<512xf32>) {
 }
 
 
-//CHECK:      "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "bufferized"}> ({
-//CHECK-NEXT: ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
-//CHECK-NEXT:   %9 = arith.constant 0 : i16
-//CHECK-NEXT:   %10 = "csl.get_color"(%9) : (i16) -> !csl.color
-//CHECK-NEXT:   %11 = "csl_wrapper.import"(%2, %3, %10) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
-//CHECK-NEXT:   %12 = "csl_wrapper.import"(%5, %2, %3) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
-//CHECK-NEXT:   %13 = "csl.member_call"(%12, %0, %1, %2, %3, %5) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
-//CHECK-NEXT:   %14 = "csl.member_call"(%11, %0) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
-//CHECK-NEXT:   %15 = arith.constant 1 : i16
-//CHECK-NEXT:   %16 = arith.subi %15, %5 : i16
-//CHECK-NEXT:   %17 = arith.subi %2, %0 : i16
-//CHECK-NEXT:   %18 = arith.subi %3, %1 : i16
-//CHECK-NEXT:   %19 = arith.cmpi slt, %0, %16 : i16
-//CHECK-NEXT:   %20 = arith.cmpi slt, %1, %16 : i16
-//CHECK-NEXT:   %21 = arith.cmpi slt, %17, %5 : i16
-//CHECK-NEXT:   %22 = arith.cmpi slt, %18, %5 : i16
-//CHECK-NEXT:   %23 = arith.ori %19, %20 : i1
-//CHECK-NEXT:   %24 = arith.ori %23, %21 : i1
-//CHECK-NEXT:   %25 = arith.ori %24, %22 : i1
-//CHECK-NEXT:   "csl_wrapper.yield"(%14, %13, %25) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
-//CHECK-NEXT: }, {
-//CHECK-NEXT: ^1(%26 : i16, %27 : i16, %28 : i16, %29 : i16, %30 : i16, %31 : i16, %32 : i16, %memcpy_params : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %isBorderRegionPE : i1):
-//CHECK-NEXT:   %33 = "csl_wrapper.import"(%memcpy_params) <{"module" = "<memcpy/memcpy>", "fields" = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
-//CHECK-NEXT:   %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{"module" = "stencil_comms.csl", "fields" = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
-//CHECK-NEXT:   "memref.global"() <{"sym_name" = "arg0", "type" = memref<512xf32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
-//CHECK-NEXT:   %arg0 = memref.get_global @arg0 : memref<512xf32>
-//CHECK-NEXT:   "memref.global"() <{"sym_name" = "arg1", "type" = memref<512xf32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
-//CHECK-NEXT:   %arg1 = memref.get_global @arg1 : memref<512xf32>
-//CHECK-NEXT:   csl.func @bufferized() {
-//CHECK-NEXT:     %35 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
-//CHECK-NEXT:     csl_stencil.apply(%arg0 : memref<512xf32>, %35 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
-//CHECK-NEXT:     ^2(%arg2 : memref<4x255xf32>, %arg3 : index, %arg4 : memref<510xf32>):
-//CHECK-NEXT:       %36 = csl_stencil.access %arg2[1, 0] : memref<4x255xf32>
-//CHECK-NEXT:       %37 = memref.subview %arg4[%arg3] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
-//CHECK-NEXT:       "memref.copy"(%36, %37) : (memref<255xf32>, memref<255xf32, strided<[1], offset: ?>>) -> ()
-//CHECK-NEXT:       csl_stencil.yield %arg4 : memref<510xf32>
-//CHECK-NEXT:     }, {
-//CHECK-NEXT:     ^3(%arg2_1 : memref<512xf32>, %arg3_1 : memref<510xf32>):
-//CHECK-NEXT:       %38 = arith.constant dense<1.666600e-01> : memref<510xf32>
-//CHECK-NEXT:       linalg.mul ins(%arg3_1, %38 : memref<510xf32>, memref<510xf32>) outs(%arg3_1 : memref<510xf32>)
-//CHECK-NEXT:       csl_stencil.yield %arg3_1 : memref<510xf32>
-//CHECK-NEXT:     }) to <[0, 0], [1, 1]>
-//CHECK-NEXT:     csl.return
-//CHECK-NEXT:   }
-//CHECK-NEXT:   "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
-//CHECK-NEXT: }) : () -> ()
+// CHECK:      "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "bufferized"}> ({
+// CHECK-NEXT: ^2(%40 : i16, %41 : i16, %42 : i16, %43 : i16, %44 : i16, %45 : i16, %46 : i16, %47 : i16, %48 : i16):
+// CHECK-NEXT:   %49 = arith.constant 0 : i16
+// CHECK-NEXT:   %50 = "csl.get_color"(%49) : (i16) -> !csl.color
+// CHECK-NEXT:   %51 = "csl_wrapper.import"(%42, %43, %50) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
+// CHECK-NEXT:   %52 = "csl_wrapper.import"(%45, %42, %43) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
+// CHECK-NEXT:   %53 = "csl.member_call"(%52, %40, %41, %42, %43, %45) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
+// CHECK-NEXT:   %54 = "csl.member_call"(%51, %40) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
+// CHECK-NEXT:   %55 = arith.constant 1 : i16
+// CHECK-NEXT:   %56 = arith.subi %55, %45 : i16
+// CHECK-NEXT:   %57 = arith.subi %42, %40 : i16
+// CHECK-NEXT:   %58 = arith.subi %43, %41 : i16
+// CHECK-NEXT:   %59 = arith.cmpi slt, %40, %56 : i16
+// CHECK-NEXT:   %60 = arith.cmpi slt, %41, %56 : i16
+// CHECK-NEXT:   %61 = arith.cmpi slt, %57, %45 : i16
+// CHECK-NEXT:   %62 = arith.cmpi slt, %58, %45 : i16
+// CHECK-NEXT:   %63 = arith.ori %59, %60 : i1
+// CHECK-NEXT:   %64 = arith.ori %63, %61 : i1
+// CHECK-NEXT:   %65 = arith.ori %64, %62 : i1
+// CHECK-NEXT:   "csl_wrapper.yield"(%54, %53, %65) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
+// CHECK-NEXT: }, {
+// CHECK-NEXT: ^3(%66 : i16, %67 : i16, %68 : i16, %69 : i16, %70 : i16, %71 : i16, %72 : i16, %memcpy_params_1 : !csl.comptime_struct, %stencil_comms_params_1 : !csl.comptime_struct, %isBorderRegionPE_1 : i1):
+// CHECK-NEXT:   %73 = "csl_wrapper.import"(%memcpy_params_1) <{"module" = "<memcpy/memcpy>", "fields" = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:   %74 = "csl_wrapper.import"(%69, %71, %stencil_comms_params_1) <{"module" = "stencil_comms.csl", "fields" = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:   "memref.global"() <{"sym_name" = "arg0", "type" = memref<512xf32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
+// CHECK-NEXT:   %arg0 = memref.get_global @arg0 : memref<512xf32>
+// CHECK-NEXT:   "memref.global"() <{"sym_name" = "arg1", "type" = memref<512xf32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
+// CHECK-NEXT:   %arg1 = memref.get_global @arg1 : memref<512xf32>
+// CHECK-NEXT:   csl.func @bufferized() {
+// CHECK-NEXT:     %75 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
+// CHECK-NEXT:     csl_stencil.apply(%arg0 : memref<512xf32>, %75 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
+// CHECK-NEXT:     ^4(%arg2 : memref<4x255xf32>, %arg3 : index, %arg4 : memref<510xf32>):
+// CHECK-NEXT:       %76 = csl_stencil.access %arg2[1, 0] : memref<4x255xf32>
+// CHECK-NEXT:       %77 = memref.subview %arg4[%arg3] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:       "memref.copy"(%76, %77) : (memref<255xf32>, memref<255xf32, strided<[1], offset: ?>>) -> ()
+// CHECK-NEXT:       csl_stencil.yield %arg4 : memref<510xf32>
+// CHECK-NEXT:     }, {
+// CHECK-NEXT:     ^5(%arg2_1 : memref<512xf32>, %arg3_1 : memref<510xf32>):
+// CHECK-NEXT:       %78 = arith.constant dense<1.666600e-01> : memref<510xf32>
+// CHECK-NEXT:       linalg.mul ins(%arg3_1, %78 : memref<510xf32>, memref<510xf32>) outs(%arg3_1 : memref<510xf32>)
+// CHECK-NEXT:       csl_stencil.yield %arg3_1 : memref<510xf32>
+// CHECK-NEXT:     }) to <[0, 0], [1, 1]>
+// CHECK-NEXT:     csl.return
+// CHECK-NEXT:   }
+// CHECK-NEXT:   "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
+// CHECK-NEXT: }) : () -> ()
