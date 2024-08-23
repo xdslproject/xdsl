@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from types import NoneType
-from typing import ClassVar
+from typing import ClassVar, Generic, Self, TypeVar
 
 from xdsl.dialects.builtin import (
     I32,
@@ -295,188 +295,124 @@ class OperationOp(IRDLOperation):
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
-def _parse_argument(parser: Parser) -> tuple[VariadicityAttr, SSAValue]:
+AttrType = TypeVar("AttrType", AttributeType, RegionType)
+
+
+def _parse_operand(parser: Parser) -> tuple[str, tuple[VariadicityAttr, SSAValue]]:
+    key = parser.parse_str_literal()
+    parser.parse_punctuation("=")
     variadicity = parser.parse_optional_str_enum(VariadicityEnum)
     if variadicity is None:
         variadicity = VariadicityEnum.SINGLE
-
     arg = parser.parse_operand()
 
-    return (VariadicityAttr(variadicity), arg)
+    return (key, (VariadicityAttr(variadicity), arg))
 
 
-def _print_argument(printer: Printer, data: tuple[VariadicityAttr, SSAValue]) -> None:
-    variadicity = data[0].data
-    if variadicity != VariadicityEnum.SINGLE:
-        printer.print(variadicity, " ")
-    printer.print(data[1])
-
-
-@irdl_op_definition
-class OperandsOp(IRDLOperation):
-    """An operation operand definition."""
-
-    name = "irdl.operands"
-
-    args: VarOperand = var_operand_def(AttributeType)
-
-    variadicity = attr_def(VariadicityArrayAttr)
-
-    traits = frozenset([HasParent(OperationOp)])
-
-    def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
-        args_list = [
-            (VariadicityAttr.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
-        ]
-        operands = tuple(operand for _, operand in args_list)
-        attributes = {
-            "variadicity": VariadicityArrayAttr(
-                ArrayAttr(tuple(v for v, _ in args_list))
-            )
-        }
-        super().__init__(operands=[operands], attributes=attributes)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> OperandsOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
-        )
-        return OperandsOp(args)
-
-    def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(
-            zip(self.variadicity.value, self.args),
-            lambda x: _print_argument(printer, x),
-            ", ",
-        )
-        printer.print(")")
-
-
-@irdl_op_definition
-class ResultsOp(IRDLOperation):
-    """An operation result definition."""
-
-    name = "irdl.results"
-
-    args: VarOperand = var_operand_def(AttributeType)
-
-    variadicity = attr_def(VariadicityArrayAttr)
-
-    traits = frozenset([HasParent(OperationOp)])
-
-    def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
-        args_list = [
-            (VariadicityAttr.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
-        ]
-        operands = [x[1] for x in args_list]
-        attributes = {
-            "variadicity": VariadicityArrayAttr(
-                ArrayAttr(tuple(v for v, _ in args_list))
-            )
-        }
-        super().__init__(operands=[operands], attributes=attributes)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ResultsOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
-        )
-        return ResultsOp(args)
-
-    def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_list(
-            zip(self.variadicity.value, self.args),
-            lambda x: _print_argument(printer, x),
-            ", ",
-        )
-        printer.print(")")
-
-
-def _parse_attribute(parser: Parser) -> tuple[str, SSAValue]:
-    key = parser.parse_str_literal()
-    parser.parse_punctuation("=")
-    arg = parser.parse_operand()
-
-    return (key, arg)
-
-
-def _print_attribute(printer: Printer, item: tuple[StringAttr, SSAValue]):
+def _print_operand(
+    printer: Printer, item: tuple[StringAttr, SSAValue, VariadicityAttr]
+):
     printer.print_attribute(item[0])
     printer.print(" = ")
+    variadicity = item[2].data
+    if variadicity != VariadicityEnum.SINGLE:
+        printer.print(variadicity, " ")
     printer.print_operand(item[1])
 
 
-@irdl_op_definition
-class AttributesOp(IRDLOperation):
-    """Define the attributes of an operation"""
+class OpPartBase(IRDLOperation, Generic[AttrType]):
+    """Base class for operands/results/regions/attributes"""
 
-    name = "irdl.attributes"
+    args = var_operand_def(AttrType)
 
-    attribute_values = var_operand_def(AttributeType())
+    names = attr_def(ArrayAttr[StringAttr])
 
-    attribute_value_names = attr_def(ArrayAttr[StringAttr])
+    variadicity = attr_def(VariadicityArrayAttr)
+
+    traits = frozenset([HasParent(OperationOp)])
 
     def __init__(
         self,
-        attribute_values: Sequence[SSAValue],
-        attribute_value_names: ArrayAttr[StringAttr],
+        args: Sequence[SSAValue],
+        names: ArrayAttr[StringAttr],
+        variadicity: VariadicityArrayAttr,
     ):
         super().__init__(
-            operands=(attribute_values,),
-            attributes={"attribute_value_names": attribute_value_names},
+            operands=(args,),
+            attributes={"names": names, "variadicity": variadicity},
         )
 
     @classmethod
-    def get(cls, attributes: dict[str, SSAValue]) -> AttributesOp:
-        operands = tuple(attributes.values())
+    def get(cls, attributes: dict[str, tuple[VariadicityAttr, SSAValue]]) -> Self:
+        operands = tuple(x for _, x in attributes.values())
+        variadicity = VariadicityArrayAttr(ArrayAttr(x for x, _ in attributes.values()))
         names = ArrayAttr(StringAttr(x) for x in attributes.keys())
-        return AttributesOp(operands, names)
+        return cls(operands, names, variadicity)
 
     @classmethod
-    def parse(cls, parser: Parser) -> AttributesOp:
+    def parse(cls, parser: Parser) -> Self:
         tuples = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.BRACES, lambda: _parse_attribute(parser)
+            parser.Delimiter.BRACES, lambda: _parse_operand(parser)
         )
         if tuples is None:
-            return AttributesOp.get(dict())
-        return AttributesOp.get(dict(tuples))
+            return cls.get(dict())
+        return cls.get(dict(tuples))
 
     def print(self, printer: Printer) -> None:
-        if not self.attribute_values:
+        if not self.args:
             return
         with printer.indented():
             printer.print_string(" {\n")
             printer.print_list(
-                zip(self.attribute_value_names, self.attribute_values),
-                lambda x: _print_attribute(printer, x),
+                zip(self.names, self.args, self.variadicity.value),
+                lambda x: _print_operand(printer, x),
                 ",\n",
             )
         printer.print_string("\n}")
 
     def verify_(self) -> None:
-        if len(self.attribute_values) != len(self.attribute_value_names):
+        if len(self.variadicity.value) != len(self.args):
             raise VerifyException(
                 (
-                    "The number of attribute names and their constraints must be the same",
-                    f"but got {len(self.attribute_value_names)} and {len(self.attribute_values)} respectively",
+                    "The number of constraints and their variadicities must be the same",
+                    f"but got {len(self.args)} and {len(self.variadicity.value)} respectively",
+                )
+            )
+        if len(self.args) != len(self.names):
+            raise VerifyException(
+                (
+                    "The number of names and their constraints must be the same",
+                    f"but got {len(self.names)} and {len(self.args)} respectively",
                 )
             )
 
 
 @irdl_op_definition
-class RegionsOp(IRDLOperation):
+class OperandsOp(OpPartBase[AttributeType]):
+    """An operation operand definition."""
+
+    name = "irdl.operands"
+
+
+@irdl_op_definition
+class ResultsOp(OpPartBase[AttributeType]):
+    """An operation result definition."""
+
+    name = "irdl.results"
+
+
+@irdl_op_definition
+class AttributesOp(OpPartBase[AttributeType]):
+    """Define the attributes of an operation"""
+
+    name = "irdl.attributes"
+
+
+@irdl_op_definition
+class RegionsOp(OpPartBase[RegionType]):
     """Define the regions of an operation"""
 
     name = "irdl.regions"
-
-    args = var_operand_def(RegionType())
-
-    assembly_format = "`(` $args `)` attr-dict"
-
-    def __init__(self, args: Sequence[SSAValue]):
-        super().__init__(operands=args)
 
 
 ################################################################################

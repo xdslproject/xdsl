@@ -14,17 +14,26 @@ print(dialect_to_irdl(Cmath, "cmath"))
 
 # CHECK-NEXT:   irdl.operation @norm {
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.operands(%{{.*}})
+# CHECK-NEXT:     irdl.operands {
+# CHECK-NEXT:       "in" = %{{.*}}
+# CHECK-NEXT:     }
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.results(%{{.*}})
+# CHECK-NEXT:     irdl.results {
+# CHECK-NEXT:       "out" = %{{.*}}
+# CHECK-NEXT:     }
 # CHECK-NEXT:   }
 
 # CHECK-NEXT:   irdl.operation @mul {
 # CHECK-NEXT:     %{{.*}} = irdl.any
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.operands(%{{.*}}, %{{.*}})
+# CHECK-NEXT:     irdl.operands {
+# CHECK-NEXT:       "lhs" = %{{.*}},
+# CHECK-NEXT:       "rhs" = %{{.*}}
+# CHECK-NEXT:     }
 # CHECK-NEXT:     %{{.*}} = irdl.any
-# CHECK-NEXT:     irdl.results(%{{.*}})
+# CHECK-NEXT:     irdl.results {
+# CHECK-NEXT:       "out" = %{{.*}}
+# CHECK-NEXT:     }
 # CHECK-NEXT:   }
 
 # CHECK-NEXT: }

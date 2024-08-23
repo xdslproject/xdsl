@@ -173,7 +173,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).operands = list(
-            (f"o{i}", OperandDef(a)) for i, a in enumerate(args)
+            (f"{name.data}", OperandDef(a)) for name, a in zip(op.names, args)
         )
         return ()
 
@@ -184,7 +184,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).results = list(
-            (f"r{i}", ResultDef(a)) for i, a in enumerate(args)
+            (f"{name.data}", ResultDef(a)) for name, a in zip(op.names, args)
         )
         return ()
 

@@ -53,14 +53,14 @@ if __name__ == "__main__":
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class norm(IRDLOperation):
-# CHECK-NEXT:      o0 : Operand
-# CHECK-NEXT:      r0 : OpResult
+# CHECK-NEXT:      in : Operand
+# CHECK-NEXT:      out : OpResult
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class mul(IRDLOperation):
-# CHECK-NEXT:      o0 : Operand
-# CHECK-NEXT:      o1 : Operand
-# CHECK-NEXT:      r0 : OpResult
+# CHECK-NEXT:      lhs : Operand
+# CHECK-NEXT:      rhs : Operand
+# CHECK-NEXT:      out : OpResult
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  Cmath : Dialect

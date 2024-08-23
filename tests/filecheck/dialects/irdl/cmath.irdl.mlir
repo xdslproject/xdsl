@@ -20,14 +20,22 @@ builtin.module {
     // CHECK: irdl.operation @norm {
     // CHECK-NEXT:   %{{.*}} = irdl.any
     // CHECK-NEXT:   %{{.*}} = irdl.parametric @complex<%{{.*}}>
-    // CHECK-NEXT:   irdl.operands(%{{.*}})
-    // CHECK-NEXT:   irdl.results(%{{.*}})
+    // CHECK-NEXT:   irdl.operands {
+    // CHECK-NEXT:     "in" = %{{.*}}
+    // CHECK-NEXT:   }
+    // CHECK-NEXT:   irdl.results {
+    // CHECK-NEXT:     "out" = %{{.*}}
+    // CHECK-NEXT:   }
     // CHECK-NEXT: }
     irdl.operation @norm {
       %0 = irdl.any
       %1 = irdl.parametric @complex<%0>
-      irdl.operands(%1)
-      irdl.results(%0)
+      irdl.operands {
+        "in" = %1
+      }
+      irdl.results {
+        "out" = %0
+      }
     }
 
     // CHECK: irdl.operation @mul {
@@ -35,16 +43,26 @@ builtin.module {
     // CHECK-NEXT:   %{{.*}} = irdl.is f64
     // CHECK-NEXT:   %{{.*}} = irdl.any_of(%{{.*}}, %{{.*}})
     // CHECK-NEXT:   %{{.*}} = irdl.parametric @complex<%{{.*}}>
-    // CHECK-NEXT:   irdl.operands(%{{.*}}, %{{.*}})
-    // CHECK-NEXT:   irdl.results(%{{.*}})
+    // CHECK-NEXT:   irdl.operands {
+    // CHECK-NEXT:     "lhs" = %{{.*}},
+    // CHECK-NEXT:     "rhs" = %{{.*}}
+    // CHECK-NEXT:   }
+    // CHECK-NEXT:   irdl.results {
+    // CHECK-NEXT:     "out" = %{{.*}}
+    // CHECK-NEXT:   }
     // CHECK-NEXT: }
     irdl.operation @mul {
       %0 = irdl.is f32
       %1 = irdl.is f64
       %2 = irdl.any_of(%0, %1)
       %3 = irdl.parametric @complex<%2>
-      irdl.operands(%3, %3)
-      irdl.results(%3)
+      irdl.operands {
+        "lhs" = %3,
+	"rhs" = %3
+      }
+      irdl.results {
+        "out" = %3
+      }
     }
 
   }
