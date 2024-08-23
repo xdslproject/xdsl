@@ -30,3 +30,6 @@
 
 // CHECK: %and = "stablehlo.and"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
 %and = "stablehlo.and"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
+
+// CHECK: "stablehlo.return"(%t0) : (tensor<i32>) -> ()
+"stablehlo.return"(%t0) : (tensor<i32>) -> ()
