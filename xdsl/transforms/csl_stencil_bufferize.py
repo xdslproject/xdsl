@@ -25,7 +25,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
-from xdsl.utils.isa import isattr
+from xdsl.utils.isattr import isattr
 
 
 def tensor_to_memref_type(t: TensorType[Attribute]) -> memref.MemRefType[Attribute]:
