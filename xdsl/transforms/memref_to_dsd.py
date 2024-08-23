@@ -98,7 +98,7 @@ class LowerSubviewOpPass(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefToCslDsdPass(ModulePass):
+class MemrefToDsdPass(ModulePass):
     """
     Lowers memref ops to CSL DSDs.
 
