@@ -48,6 +48,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
@@ -845,10 +846,15 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
+    base_addr = opt_operand_def(
+        base(MemRefType[Attribute]) | base(TensorType[Attribute])
+    )
+    sym_name = opt_prop_def(SymbolRefAttr)
     sizes = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     # def from_memref(memref: MemRefType[IntegerType | Float32Type | Float16Type]) -> GetMemDsdOp:
@@ -985,16 +991,23 @@ class IncrementDsdOffsetOp(IRDLOperation):
     where offset is a 16-bit signed int that may be negative,
     and elem_type is used to convert offset into words (any u,i,f type of 16,32 bit)
     elem_type should be derived by the printer
+
+    Note, the specified offset represents the offset in the underlying buffer, not a delta value.
     """
 
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(i16_value)
+    dynanmic_offset = opt_operand_def(i16_value)
+    offset = opt_prop_def(IntegerAttr)
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
     def verify_(self) -> None:
+        if (self.offset is None) == (self.dynanmic_offset is None):
+            raise VerifyException(
+                f"{self.name} must specify either offset or dynanmic_offset"
+            )
         if (
             not isinstance(self.result.type, DsdType)
             or not isinstance(self.op.type, DsdType)

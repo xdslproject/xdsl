@@ -659,7 +659,10 @@ class CslPrintContext:
                         f"{self._var_use(result)} = @set_dsd_base_addr({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(base_addr)});"
                     )
                 case csl.IncrementDsdOffsetOp(
-                    op=input_dsd, offset=offset, elem_type=elem_type, result=result
+                    op=input_dsd,
+                    dynanmic_offset=offset,
+                    elem_type=elem_type,
+                    result=result,
                 ):
                     self.print(
                         f"{self._var_use(result)} = @increment_dsd_offset({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(offset)}, {self.mlir_type_to_csl_type(elem_type)});"
