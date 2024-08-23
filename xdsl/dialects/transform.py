@@ -563,14 +563,6 @@ class SequenceOp(IRDLOperation):
             )
 
 
-def amount_of_non_zero_sizes(
-    static_sizes: DenseArrayBase | None, dynamic_sizes: Sequence[SSAValue]
-) -> int:
-    if static_sizes is None:
-        return len(dynamic_sizes)
-    return sum(bool(size.data) for size in static_sizes.data.data)
-
-
 @irdl_op_definition
 class TileOp(IRDLOperation):
     """
@@ -622,7 +614,12 @@ class TileOp(IRDLOperation):
                 [
                     AnyOpType()
                     for _ in range(
-                        amount_of_non_zero_sizes(static_sizes, dynamic_sizes)
+                        (
+                            len(static_sizes.as_tuple())
+                            - static_sizes.as_tuple().count(0)
+                        )
+                        if static_sizes
+                        else 0
                     )
                 ],
             ],
