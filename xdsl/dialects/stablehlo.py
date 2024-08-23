@@ -7,13 +7,24 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 """
 
 import abc
+from collections.abc import Sequence
 from typing import Annotated, TypeAlias, cast
 
-from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, IntegerType, TensorType
+from xdsl.dialects.builtin import (
+    I64,
+    AnyTensorType,
+    ArrayAttr,
+    DenseArrayBase,
+    IntegerAttr,
+    IntegerType,
+    TensorType,
+    i64,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
+    ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
@@ -21,6 +32,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -28,6 +40,8 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
@@ -75,6 +89,88 @@ class PrecisionAttr(EnumAttribute[Precision], SpacedOpaqueSyntaxAttribute):
     """
 
     name = "stablehlo.precision"
+
+
+@irdl_attr_definition
+class DotAttr(ParametrizedAttribute):
+    """
+    Attribute that models the dimension information for dot.
+
+    https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloAttrs.td#L82
+    """
+
+    name = "stablehlo.dot"
+
+    lhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    rhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    lhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    rhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            with printer.indented():
+                printer.print_string("\nlhs_batching_dimensions = [")
+                printer.print_list(
+                    self.lhs_batching_dimensions.data,
+                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                )
+                printer.print_string("],")
+                printer.print_string("\nrhs_batching_dimensions = [")
+                printer.print_list(
+                    self.rhs_batching_dimensions.data,
+                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                )
+                printer.print_string("],")
+                printer.print_string("\nlhs_contracting_dimensions = [")
+                printer.print_list(
+                    self.lhs_contracting_dimensions.data,
+                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                )
+                printer.print_string("],")
+                printer.print_string("\nrhs_contracting_dimensions = [")
+                printer.print_list(
+                    self.rhs_contracting_dimensions.data,
+                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                )
+            printer.print_string("]\n")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_characters("lhs_batching_dimensions")
+            parser.parse_punctuation("=")
+            lhs_batching_dimensions = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.SQUARE,
+                lambda: IntegerAttr(parser.parse_integer(), i64),
+            )
+            parser.parse_punctuation(",")
+            parser.parse_characters("rhs_batching_dimensions")
+            parser.parse_punctuation("=")
+            rhs_batching_dimensions = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.SQUARE,
+                lambda: IntegerAttr(parser.parse_integer(), i64),
+            )
+            parser.parse_punctuation(",")
+            parser.parse_characters("lhs_contracting_dimensions")
+            parser.parse_punctuation("=")
+            lhs_contracting_dimensions = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.SQUARE,
+                lambda: IntegerAttr(parser.parse_integer(), i64),
+            )
+            parser.parse_punctuation(",")
+            parser.parse_characters("rhs_contracting_dimensions")
+            parser.parse_punctuation("=")
+            rhs_contracting_dimensions = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.SQUARE,
+                lambda: IntegerAttr(parser.parse_integer(), i64),
+            )
+
+            return (
+                ArrayAttr(lhs_batching_dimensions),
+                ArrayAttr(rhs_batching_dimensions),
+                ArrayAttr(lhs_contracting_dimensions),
+                ArrayAttr(rhs_contracting_dimensions),
+            )
 
 
 # endregion
@@ -282,6 +378,7 @@ StableHLO = Dialect(
         TransposeOp,
     ],
     [
+        DotAttr,
         PrecisionAttr,
     ],
 )
