@@ -10,11 +10,19 @@ import abc
 from typing import Annotated, TypeAlias, cast
 
 from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, IntegerType, TensorType
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    SpacedOpaqueSyntaxAttribute,
+    SSAValue,
+    StrEnum,
+)
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -41,6 +49,32 @@ class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+# endregion
+
+# region Attributes
+
+
+class Precision(StrEnum):
+    """
+    XLA precision for an operand. Has backend specific meaning.
+    """
+
+    DEFAULT = "DEFAULT"
+    HIGH = "HIGH"
+    HIGHEST = "HIGHEST"
+
+
+@irdl_attr_definition
+class PrecisionAttr(EnumAttribute[Precision], SpacedOpaqueSyntaxAttribute):
+    """
+    XLA precision for an operand. Has backend specific meaning.
+
+    https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloEnums.td#L46
+    """
+
+    name = "stablehlo.precision"
 
 
 # endregion
@@ -247,5 +281,7 @@ StableHLO = Dialect(
         ReturnOp,
         TransposeOp,
     ],
-    [],
+    [
+        PrecisionAttr,
+    ],
 )
