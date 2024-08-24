@@ -22,6 +22,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
 
@@ -89,6 +90,7 @@ class Broadcast(IRDLOperation):
     name = "vector.broadcast"
     source: Operand = operand_def(AnyAttr())
     vector: OpResult = result_def(VectorType)
+    traits = frozenset((Pure(),))
 
     def verify_(self):
         assert isa(self.vector.type, VectorType[Attribute])
@@ -113,6 +115,7 @@ class FMA(IRDLOperation):
     rhs: Operand = operand_def(VectorType)
     acc: Operand = operand_def(VectorType)
     res: OpResult = result_def(VectorType)
+    traits = frozenset((Pure(),))
 
     def verify_(self):
         assert isa(self.lhs.type, VectorType[Attribute])
