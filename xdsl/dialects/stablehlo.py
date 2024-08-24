@@ -14,9 +14,11 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
+    ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     ConstraintVar,
@@ -75,6 +77,22 @@ class PrecisionAttr(EnumAttribute[Precision], SpacedOpaqueSyntaxAttribute):
     """
 
     name = "stablehlo.precision"
+
+
+@irdl_attr_definition
+class TokenType(TypeAttribute, ParametrizedAttribute):
+    """
+    Token types represent tokens, i.e. opaque values produced and consumed by some operations.
+    Tokens are used for imposing execution order on operations as described in the Execution section.
+
+    E.g.,
+
+      // %input0: !stablehlo.token
+      // %input1: !stablehlo.token
+      %result = "stablehlo.after_all"(%input0, %input1) : (!stablehlo.token, !stablehlo.token) -> !stablehlo.token
+    """
+
+    name = "stablehlo.token"
 
 
 # endregion
@@ -277,11 +295,12 @@ StableHLO = Dialect(
         AddOp,
         AndOp,
         MultiplyOp,
-        SubtractOp,
         ReturnOp,
+        SubtractOp,
         TransposeOp,
     ],
     [
         PrecisionAttr,
+        TokenType,
     ],
 )
