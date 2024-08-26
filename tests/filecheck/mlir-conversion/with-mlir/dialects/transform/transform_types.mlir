@@ -40,6 +40,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
   %26 = "test.op"() : () -> !transform.any_param
   "transform.match.param.cmpi"(%25, %26) <{predicate = 1 : i32}> : (!transform.any_param, !transform.any_param) -> ()
   %27:2 = "transform.split_handle"(%24) <{fail_on_payload_too_small = true, pass_through_empty_handle = true}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+  %28 = "transform.structured.match"(%24) <{"op_attrs" = {"qmatmul_0"}}> : (!transform.any_op) -> !transform.any_op
 }
     
 
@@ -55,15 +56,15 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   %4 = "test.op"() : () -> !transform.param<i64>
 //CHECK-NEXT:   %5 = "test.op"() : () -> !transform.type
 //CHECK-NEXT:   transform.named_sequence @__transform_main(%arg0: !transform.any_op, %arg1: !transform.op<"linalg.quantized_matmul">, %arg2: !transform.op<"linalg.elemwise_binary">) {
-//CHECK-NEXT:     %18 = transform.cast %arg1 : !transform.op<"linalg.quantized_matmul"> to !transform.any_op
+//CHECK-NEXT:     %19 = transform.cast %arg1 : !transform.op<"linalg.quantized_matmul"> to !transform.any_op
 //CHECK-NEXT:     %tiled_op, %forall_op = transform.structured.tile_using_forall %arg1 tile_sizes [4, 32] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op)
 //CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %arg1[8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:     transform.yield 
 //CHECK-NEXT:   }
 //CHECK-NEXT:   transform.sequence  failures(propagate) {
 //CHECK-NEXT:   ^bb0(%arg0: !transform.any_op):
-//CHECK-NEXT:     %18 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
-//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %18[8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+//CHECK-NEXT:     %19 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
+//CHECK-NEXT:     %tiled_linalg_op, %loops:2 = transform.structured.tile_using_for %19[8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:   }
 //CHECK-NEXT:   %6 = "test.op"() : () -> !transform.any_op
 //CHECK-NEXT:   %7 = transform.get_producer_of_operand %6[0] : (!transform.any_op) -> !transform.any_op
@@ -81,4 +82,5 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   %16 = "test.op"() : () -> !transform.any_param
 //CHECK-NEXT:   transform.match.param.cmpi ne %15, %16 : !transform.any_param
 //CHECK-NEXT:   %17:2 = transform.split_handle %14 : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+//CHECK-NEXT:   %18 = transform.structured.match attributes {qmatmul_0} in %14 : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT: }

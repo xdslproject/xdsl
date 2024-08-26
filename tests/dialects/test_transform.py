@@ -235,3 +235,15 @@ def test_amount_of_loops():
         """%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<index: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",
         None,
     )
+
+def test_structured_match():
+    handle = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
+    assert_print_op(
+        transform.MatchOp(
+            target=handle,
+            ops=[],
+            op_attrs={},
+        ),
+        """ %0 = "transform.structured.match"(%1) <{"ops" = [], "op_attrs" = {}}> : (!transform.any_op) -> !transform.any_op """,
+        None,
+    )
