@@ -82,17 +82,17 @@ csl.func @initialize() {
     %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
     %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 
-    %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
-    %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
-    %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
-    %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+    %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
+    %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3, 4], "offsets" = [1, 2], "operandSegmentSizes" = array<i32: 1, 2>}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
+    %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) <{"operandSegmentSizes" = array<i32: 1, 3>}> : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+    %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) <{"operandSegmentSizes" = array<i32: 1, 4>}> : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
     %dsd_1d1 = "csl.set_dsd_base_addr"(%dsd_1d, %many_arr_ptr) : (!csl<dsd mem1d_dsd>, !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl<dsd mem1d_dsd>
     %dsd_1d2 = "csl.set_dsd_base_addr"(%dsd_1d, %arr) : (!csl<dsd mem1d_dsd>, memref<10xf32>) -> !csl<dsd mem1d_dsd>
     %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %int16) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
     %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
     %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %int8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
 
-    %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
+    %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
     %tensor_dsd2 = "csl.set_dsd_base_addr"(%dsd_1d, %tens) : (!csl<dsd mem1d_dsd>, tensor<510xf32>) -> !csl<dsd mem1d_dsd>
 
     %fabin_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 2 : i5 , "queue_id" = 0 : i3}> : (i32) -> !csl<dsd fabin_dsd>
@@ -113,9 +113,9 @@ csl.func @builtins() {
     %u16_pointer, %u32_pointer = "test.op"() : () -> (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>)
     %f16_pointer, %f32_pointer = "test.op"() : () -> (!csl.ptr<f16,  #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<f32,  #csl<ptr_kind single>, #csl<ptr_const var>>)
     %tens = "test.op"() : () -> (tensor<510xf32>)
-    %dest_dsd = "csl.get_mem_dsd"(%tens, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
-    %src_dsd1 = "csl.get_mem_dsd"(%tens, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
-    %src_dsd2 = "csl.get_mem_dsd"(%tens, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %dest_dsd = "csl.get_mem_dsd"(%tens, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %src_dsd1 = "csl.get_mem_dsd"(%tens, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %src_dsd2 = "csl.get_mem_dsd"(%tens, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
 
     "csl.add16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
     "csl.add16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
@@ -370,16 +370,16 @@ csl.func @builtins() {
 // CHECK-NEXT:       %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
 // CHECK-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
-// CHECK-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
-// CHECK-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
-// CHECK-NEXT:       %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64], "operandSegmentSizes" = array<i32: 1, 2>}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) <{"operandSegmentSizes" = array<i32: 1, 3>}> : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:       %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) <{"operandSegmentSizes" = array<i32: 1, 4>}> : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %dsd_1d1 = "csl.set_dsd_base_addr"(%dsd_1d, %many_arr_ptr) : (!csl<dsd mem1d_dsd>, !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %dsd_1d2 = "csl.set_dsd_base_addr"(%dsd_1d, %arr) : (!csl<dsd mem1d_dsd>, memref<10xf32>) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %int16) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %int8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:       %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:       %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %tensor_dsd2 = "csl.set_dsd_base_addr"(%dsd_1d, %tens) : (!csl<dsd mem1d_dsd>, tensor<510xf32>) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %fabin_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 2 : i5, "queue_id" = 0 : i3}> : (i32) -> !csl<dsd fabin_dsd>
 // CHECK-NEXT:       %fabout_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 3 : i5, "queue_id" = 1 : i3, "control" = true, "wavelet_index_offset" = false}> : (i32) -> !csl<dsd fabout_dsd>
@@ -394,9 +394,9 @@ csl.func @builtins() {
 // CHECK-NEXT:       %u16_pointer, %u32_pointer = "test.op"() : () -> (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-NEXT:       %f16_pointer, %f32_pointer = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-NEXT:       %tens_1 = "test.op"() : () -> tensor<510xf32>
-// CHECK-NEXT:       %dest_dsd = "csl.get_mem_dsd"(%tens_1, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:       %src_dsd1 = "csl.get_mem_dsd"(%tens_1, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:       %src_dsd2 = "csl.get_mem_dsd"(%tens_1, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:       %dest_dsd = "csl.get_mem_dsd"(%tens_1, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:       %src_dsd1 = "csl.get_mem_dsd"(%tens_1, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:       %src_dsd2 = "csl.get_mem_dsd"(%tens_1, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       "csl.add16"(%dest_dsd, %src_dsd1, %src_dsd2) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.add16"(%dest_dsd, %i16_value, %src_dsd1) : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.add16"(%dest_dsd, %u16_value, %src_dsd1) : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
@@ -605,16 +605,16 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
-// CHECK-GENERIC-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
-// CHECK-GENERIC-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
-// CHECK-GENERIC-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
-// CHECK-GENERIC-NEXT:       %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-GENERIC-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
+// CHECK-GENERIC-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64], "operandSegmentSizes" = array<i32: 1, 2>}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-GENERIC-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) <{"operandSegmentSizes" = array<i32: 1, 3>}> : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-GENERIC-NEXT:       %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) <{"operandSegmentSizes" = array<i32: 1, 4>}> : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_1d1 = "csl.set_dsd_base_addr"(%dsd_1d, %many_arr_ptr) : (!csl<dsd mem1d_dsd>, !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_1d2 = "csl.set_dsd_base_addr"(%dsd_1d, %arr) : (!csl<dsd mem1d_dsd>, memref<10xf32>) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %int16) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %int8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
-// CHECK-GENERIC-NEXT:       %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
+// CHECK-GENERIC-NEXT:       %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       %tensor_dsd2 = "csl.set_dsd_base_addr"(%dsd_1d, %tens) : (!csl<dsd mem1d_dsd>, tensor<510xf32>) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       %fabin_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 2 : i5, "queue_id" = 0 : i3}> : (i32) -> !csl<dsd fabin_dsd>
 // CHECK-GENERIC-NEXT:       %fabout_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 3 : i5, "queue_id" = 1 : i3, "control" = true, "wavelet_index_offset" = false}> : (i32) -> !csl<dsd fabout_dsd>
@@ -629,9 +629,9 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %u16_pointer, %u32_pointer = "test.op"() : () -> (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-GENERIC-NEXT:       %f16_pointer, %f32_pointer = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-GENERIC-NEXT:       %tens_1 = "test.op"() : () -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       %dest_dsd = "csl.get_mem_dsd"(%tens_1, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
-// CHECK-GENERIC-NEXT:       %src_dsd1 = "csl.get_mem_dsd"(%tens_1, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
-// CHECK-GENERIC-NEXT:       %src_dsd2 = "csl.get_mem_dsd"(%tens_1, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+// CHECK-GENERIC-NEXT:       %dest_dsd = "csl.get_mem_dsd"(%tens_1, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+// CHECK-GENERIC-NEXT:       %src_dsd1 = "csl.get_mem_dsd"(%tens_1, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+// CHECK-GENERIC-NEXT:       %src_dsd2 = "csl.get_mem_dsd"(%tens_1, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       "csl.add16"(%dest_dsd, %src_dsd1, %src_dsd2) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-GENERIC-NEXT:       "csl.add16"(%dest_dsd, %i16_value, %src_dsd1) : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-GENERIC-NEXT:       "csl.add16"(%dest_dsd, %u16_value, %src_dsd1) : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
