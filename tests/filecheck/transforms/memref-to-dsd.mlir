@@ -27,12 +27,16 @@ builtin.module {
 // CHECK-NEXT: %d_1 = "csl.set_dsd_length"(%a_2, %d) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: %e = arith.constant 510 : ui16
 // CHECK-NEXT: %e_1 = "csl.set_dsd_length"(%a_2, %e) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: "csl.fadds"(%b_2, %d_1, %e_1) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-NEXT: %e_2 = arith.constant 2 : si16
+// CHECK-NEXT: %e_3 = "csl.increment_dsd_offset"(%e_1, %e_2) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: "csl.fadds"(%b_2, %d_1, %e_3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT: %f = arith.constant 510 : ui16
 // CHECK-NEXT: %f_1 = "csl.set_dsd_length"(%c_2, %f) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: %f_2 = arith.constant 2 : si8
 // CHECK-NEXT: %f_3 = "csl.set_dsd_stride"(%f_1, %f_2) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: "csl.fadds"(%b_2, %b_2, %f_3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-NEXT: %f_4 = arith.constant 1 : si16
+// CHECK-NEXT: %f_5 = "csl.increment_dsd_offset"(%f_3, %f_4) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: "csl.fadds"(%b_2, %b_2, %f_5) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
 
   %23 = memref.alloc() {"alignment" = 64 : i64} : memref<10xi32>

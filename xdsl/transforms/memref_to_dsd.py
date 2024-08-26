@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
+    NoneAttr,
     Signedness,
     StridedLayoutAttr,
 )
@@ -107,10 +108,12 @@ class LowerSubviewOpPass(RewritePattern):
         # update offsets only if they differ from op.source.type
         if op.static_offsets.data.data[0].data == memref.Subview.DYNAMIC_INDEX:
             pass  # todo
-        elif isinstance(
-            op.source.type.layout, StridedLayoutAttr
-        ) and op.static_offsets.as_tuple()[0] != (
-            op.source.type.layout.get_offset() or 0
+        elif (
+            isinstance(op.source.type.layout, StridedLayoutAttr)
+            and op.static_offsets.as_tuple()[0]
+            != (op.source.type.layout.get_offset() or 0)
+            or isinstance(op.source.type.layout, NoneAttr)
+            and op.static_offsets.as_tuple()[0] != 0
         ):
             new_ops.append(
                 offset_op := arith.Constant(
