@@ -442,7 +442,7 @@ class ZerosOp(IRDLOperation):
 
     T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
 
-    dynamic_size = opt_operand_def(T)
+    size = opt_operand_def(T)
 
     result = result_def(MemRefType[T])
 
@@ -1780,6 +1780,7 @@ CSL = Dialect(
         Xor16Op,
         Xp162fhOp,
         Xp162fsOp,
+        ZerosOp,
     ],
     [
         ColorType,
