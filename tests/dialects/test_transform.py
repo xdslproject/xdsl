@@ -236,6 +236,7 @@ def test_amount_of_loops():
         None,
     )
 
+
 def test_structured_match():
     handle = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
     assert_print_op(
