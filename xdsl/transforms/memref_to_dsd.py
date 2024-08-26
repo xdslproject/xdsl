@@ -46,16 +46,16 @@ class LowerAllocOpPass(RewritePattern):
         ):
             offsets = ArrayAttr([IntegerAttr(op.memref.type.layout.offset, 16)])
 
+        shape = [arith.Constant(IntegerAttr(d, 16)) for d in op.memref.type.shape]
         dsd_op = csl.GetMemDsdOp.build(
-            operands=[zeros_op, []],
+            operands=[zeros_op, shape],
             result_types=[dsd_t],
             properties={
-                "sizes": ArrayAttr(IntegerAttr(d, 16) for d in op.memref.type.shape),
                 "offsets": offsets,
             },
         )
 
-        rewriter.replace_matched_op([zeros_op, dsd_op])
+        rewriter.replace_matched_op([zeros_op, *shape, dsd_op])
 
 
 class LowerSubviewOpPass(RewritePattern):
