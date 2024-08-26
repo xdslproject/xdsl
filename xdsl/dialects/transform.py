@@ -614,8 +614,11 @@ class TileOp(IRDLOperation):
                 [
                     AnyOpType()
                     for _ in range(
-                        len(static_sizes.as_tuple())
-                        if isinstance(static_sizes, DenseArrayBase)
+                        (
+                            len(static_sizes.as_tuple())
+                            - static_sizes.as_tuple().count(0)
+                        )
+                        if static_sizes
                         else 0
                     )
                 ],
