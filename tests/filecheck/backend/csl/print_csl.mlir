@@ -276,10 +276,10 @@ csl.func @builtins() {
   %u32_pointer = "csl.addressof"(%u32_value) : (ui32) -> !csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>
 
   %A = memref.get_global @A : memref<24xf32>
-  %dsd_2d = "csl.get_mem_dsd"(%A, %i32_value, %i32_value) <{"strides" = [3, 4], "offsets" = [1, 2], "operandSegmentSizes" = array<i32: 1, 2>}> : (memref<24xf32>, si32, si32) -> !csl<dsd mem4d_dsd>
-  %dest_dsd = "csl.get_mem_dsd"(%A, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
-  %src_dsd1 = "csl.get_mem_dsd"(%A, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
-  %src_dsd2 = "csl.get_mem_dsd"(%A, %i32_value) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+  %dsd_2d = "csl.get_mem_dsd"(%A, %i32_value, %i32_value) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (memref<24xf32>, si32, si32) -> !csl<dsd mem4d_dsd>
+  %dest_dsd = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+  %src_dsd1 = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+  %src_dsd2 = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
 
   %dsd_1d2 = "csl.set_dsd_base_addr"(%dest_dsd, %A) : (!csl<dsd mem1d_dsd>, memref<24xf32>) -> !csl<dsd mem1d_dsd>
   %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %i16_value) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>

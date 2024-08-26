@@ -34,7 +34,6 @@ class LowerAllocOpPass(RewritePattern):
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
         assert isa(op.memref.type, MemRefType[csl.ZerosOp.T])
         zeros_op = csl.ZerosOp(op.memref.type)
-        # dsd_op = csl.GetMemDsdOp.from_memref(op.memref.type)
 
         dsd_t = csl.DsdType(
             csl.DsdKind.mem1d_dsd
@@ -132,35 +131,6 @@ class LowerSubviewOpPass(RewritePattern):
         rewriter.replace_matched_op(new_ops)
 
 
-class LowerGetGlobalPass(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.GetGlobal, rewriter: PatternRewriter, /):
-        assert isa(op.memref.type, MemRefType[Attribute])
-        dsd_t = csl.DsdType(
-            csl.DsdKind.mem1d_dsd
-            if len(op.memref.type.get_shape()) == 1
-            else csl.DsdKind.mem4d_dsd
-        )
-        offsets = None
-        if isinstance(op.memref.type.layout, StridedLayoutAttr) and isinstance(
-            op.memref.type.layout.offset, IntAttr
-        ):
-            offsets = ArrayAttr([IntegerAttr(op.memref.type.layout.offset, 16)])
-        rewriter.replace_matched_op(
-            csl.GetMemDsdOp.build(
-                operands=[[], []],
-                result_types=[dsd_t],
-                properties={
-                    "sym_name": op.name_,
-                    "sizes": ArrayAttr(
-                        IntegerAttr(d, 16) for d in op.memref.type.shape
-                    ),
-                    "offsets": offsets,
-                },
-            )
-        )
-
-
 class LowerCopyOpPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CopyOp, rewriter: PatternRewriter, /):
@@ -225,7 +195,6 @@ class MemrefToDsdPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     LowerAllocOpPass(),
-                    LowerGetGlobalPass(),
                     DsdOpUpdateType(),
                 ]
             ),
