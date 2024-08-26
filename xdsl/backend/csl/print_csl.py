@@ -604,7 +604,7 @@ class CslPrintContext:
                     base_addr=base_addr,
                     offsets=offsets,
                     strides=strides,
-                    dynamic_sizes=sizes,
+                    sizes=sizes,
                     result=result,
                 ):
                     sizes_str = ", ".join(
@@ -627,7 +627,7 @@ class CslPrintContext:
                     )
                     self.print("});")
                 case csl.GetFabDsdOp(
-                    dynamic_sizes=extent,
+                    sizes=extent,
                     fabric_color=fabric_color,
                     queue_id=queue_id,
                     control=control,
@@ -660,7 +660,7 @@ class CslPrintContext:
                     )
                 case csl.IncrementDsdOffsetOp(
                     op=input_dsd,
-                    dynanmic_offset=offset,
+                    offset=offset,
                     elem_type=elem_type,
                     result=result,
                 ):

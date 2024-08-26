@@ -48,7 +48,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
@@ -831,7 +830,7 @@ class _GetDsdOp(IRDLOperation, ABC):
     Abstract base class for CSL @get_dsd()
     """
 
-    dynamic_sizes = var_operand_def(IntegerType)
+    sizes = var_operand_def(IntegerType)
     result = result_def(DsdType)
 
 
@@ -846,41 +845,30 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = opt_operand_def(
-        base(MemRefType[Attribute]) | base(TensorType[Attribute])
-    )
-    sym_name = opt_prop_def(SymbolRefAttr)
-    sizes = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+    base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException("DSD type must be memory DSD")
-        if self.sizes and len(self.sizes) > 0 and len(self.dynamic_sizes) > 0:
-            raise VerifyException(
-                "Must have exactly one of sizes or dynamic_sizes specified"
-            )
-        len_sizes = len(self.sizes) if self.sizes else len(self.dynamic_sizes)
-        if self.result.type.data == DsdKind.mem1d_dsd and len_sizes != 1:
+        if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
             raise VerifyException(
                 "DSD of type mem1d_dsd must have exactly one dimension"
             )
         if self.result.type.data == DsdKind.mem4d_dsd and (
-            len_sizes < 1 or len_sizes > 4
+            len(self.sizes) < 1 or len(self.sizes) > 4
         ):
             raise VerifyException(
                 "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
             )
-        if self.offsets is not None and len(self.offsets) != len_sizes:
+        if self.offsets is not None and len(self.offsets) != len(self.sizes):
             raise VerifyException(
                 "Dimensions of offsets must match dimensions of sizes"
             )
-        if self.strides is not None and len(self.strides) != len_sizes:
+        if self.strides is not None and len(self.strides) != len(self.sizes):
             raise VerifyException(
                 "Dimensions of strides must match dimensions of sizes"
             )
@@ -910,7 +898,7 @@ class GetFabDsdOp(_GetDsdOp):
             raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
             raise VerifyException("DSD type must be fabric DSD")
-        if len(self.dynamic_sizes) != 1:
+        if len(self.sizes) != 1:
             raise VerifyException("Fabric DSDs must have exactly one dimension")
         if self.result.type.data == DsdKind.fabin_dsd and (
             self.control is not None or self.wavelet_index_offset is not None
@@ -974,16 +962,11 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    dynanmic_offset = opt_operand_def(i16_value)
-    offset = opt_prop_def(IntegerAttr)
+    offset = operand_def(i16_value)
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
     def verify_(self) -> None:
-        if (self.offset is None) == (self.dynanmic_offset is None):
-            raise VerifyException(
-                f"{self.name} must specify either offset or dynanmic_offset"
-            )
         if (
             not isinstance(self.result.type, DsdType)
             or not isinstance(self.op.type, DsdType)
