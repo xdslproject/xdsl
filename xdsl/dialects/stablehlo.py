@@ -106,70 +106,75 @@ class DotAttr(ParametrizedAttribute):
     lhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
     rhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
 
+    @staticmethod
+    def _print_parameter(
+        name: str, value: ArrayAttr[IntegerAttr[I64]], printer: Printer
+    ):
+        printer.print_string(f"\n{name} = [")
+        printer.print_list(
+            value.data,
+            lambda dim: printer.print_string(f"{dim.value.data}"),
+        )
+        printer.print_string("]")
+
+    @staticmethod
+    def _parse_parameter(name: str, parser: AttrParser) -> ArrayAttr[IntegerAttr[I64]]:
+        parser.parse_characters(name)
+        parser.parse_punctuation("=")
+        value = parser.parse_comma_separated_list(
+            AttrParser.Delimiter.SQUARE,
+            lambda: IntegerAttr(parser.parse_integer(), i64),
+        )
+        return ArrayAttr(value)
+
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             with printer.indented():
-                printer.print_string("\nlhs_batching_dimensions = [")
-                printer.print_list(
-                    self.lhs_batching_dimensions.data,
-                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                DotAttr._print_parameter(
+                    "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
                 )
-                printer.print_string("],")
-                printer.print_string("\nrhs_batching_dimensions = [")
-                printer.print_list(
-                    self.rhs_batching_dimensions.data,
-                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                printer.print_string(",")
+                DotAttr._print_parameter(
+                    "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
                 )
-                printer.print_string("],")
-                printer.print_string("\nlhs_contracting_dimensions = [")
-                printer.print_list(
-                    self.lhs_contracting_dimensions.data,
-                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                printer.print_string(",")
+                DotAttr._print_parameter(
+                    "lhs_contracting_dimensions",
+                    self.lhs_contracting_dimensions,
+                    printer,
                 )
-                printer.print_string("],")
-                printer.print_string("\nrhs_contracting_dimensions = [")
-                printer.print_list(
-                    self.rhs_contracting_dimensions.data,
-                    lambda dim: printer.print_string(f"{dim.value.data}"),
+                printer.print_string(",")
+                DotAttr._print_parameter(
+                    "rhs_contracting_dimensions",
+                    self.rhs_contracting_dimensions,
+                    printer,
                 )
-            printer.print_string("]\n")
+            printer.print_string("\n")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
-            parser.parse_characters("lhs_batching_dimensions")
-            parser.parse_punctuation("=")
-            lhs_batching_dimensions = parser.parse_comma_separated_list(
-                AttrParser.Delimiter.SQUARE,
-                lambda: IntegerAttr(parser.parse_integer(), i64),
+            lhs_batching_dimensions = DotAttr._parse_parameter(
+                "lhs_batching_dimensions", parser
             )
             parser.parse_punctuation(",")
-            parser.parse_characters("rhs_batching_dimensions")
-            parser.parse_punctuation("=")
-            rhs_batching_dimensions = parser.parse_comma_separated_list(
-                AttrParser.Delimiter.SQUARE,
-                lambda: IntegerAttr(parser.parse_integer(), i64),
+            rhs_batching_dimensions = DotAttr._parse_parameter(
+                "rhs_batching_dimensions", parser
             )
             parser.parse_punctuation(",")
-            parser.parse_characters("lhs_contracting_dimensions")
-            parser.parse_punctuation("=")
-            lhs_contracting_dimensions = parser.parse_comma_separated_list(
-                AttrParser.Delimiter.SQUARE,
-                lambda: IntegerAttr(parser.parse_integer(), i64),
+            lhs_contracting_dimensions = DotAttr._parse_parameter(
+                "lhs_contracting_dimensions", parser
             )
             parser.parse_punctuation(",")
-            parser.parse_characters("rhs_contracting_dimensions")
-            parser.parse_punctuation("=")
-            rhs_contracting_dimensions = parser.parse_comma_separated_list(
-                AttrParser.Delimiter.SQUARE,
-                lambda: IntegerAttr(parser.parse_integer(), i64),
+            rhs_contracting_dimensions = DotAttr._parse_parameter(
+                "rhs_contracting_dimensions", parser
             )
 
             return (
-                ArrayAttr(lhs_batching_dimensions),
-                ArrayAttr(rhs_batching_dimensions),
-                ArrayAttr(lhs_contracting_dimensions),
-                ArrayAttr(rhs_contracting_dimensions),
+                lhs_batching_dimensions,
+                rhs_batching_dimensions,
+                lhs_contracting_dimensions,
+                rhs_contracting_dimensions,
             )
 
 
