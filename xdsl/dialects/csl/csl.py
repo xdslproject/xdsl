@@ -856,30 +856,6 @@ class GetMemDsdOp(_GetDsdOp):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    @staticmethod
-    # def from_memref(memref: MemRefType[IntegerType | Float32Type | Float16Type]) -> GetMemDsdOp:
-    def from_memref(base_addr: SSAValue) -> GetMemDsdOp:
-        assert isa(
-            m_type := base_addr.type,
-            MemRefType[IntegerType | Float32Type | Float16Type],
-        )
-        dsd_t = DsdType(
-            DsdKind.mem1d_dsd if len(m_type.shape) == 1 else DsdKind.mem4d_dsd
-        )
-        offsets = None
-        if isinstance(m_type.layout, builtin.StridedLayoutAttr) and isinstance(
-            m_type.layout.offset, builtin.IntAttr
-        ):
-            offsets = ArrayAttr([IntegerAttr(m_type.layout.offset, 16)])
-        return GetMemDsdOp.build(
-            operands=[[]],
-            result_types=[dsd_t],
-            properties={
-                "sizes": ArrayAttr(m_type.shape),
-                "offsets": offsets,
-            },
-        )
-
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")

@@ -39,8 +39,8 @@ builtin.module {
   %24 = memref.get_global @int_buf2 : memref<10xi32>
   "memref.copy"(%23, %24) : (memref<10xi32>, memref<10xi32>) -> ()
 
-// CHECK-NEXT:      "memref.global"() <{"sym_name" = "int_buf1", "type" = memref<10xi32>, "initial_value"}> : () -> ()
-// CHECK-NEXT: "memref.global"() <{"sym_name" = "int_buf2", "type" = memref<10xi32>, "initial_value"}> : () -> ()
+// CHECK:      "memref.global"() <{"sym_name" = "int_buf1", "type" = memref<10xi32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
+// CHECK-NEXT: "memref.global"() <{"sym_name" = "int_buf2", "type" = memref<10xi32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
 // CHECK-NEXT: %9 = "csl.get_mem_dsd"() <{"sym_name" = @int_buf1, "sizes" = [10 : i16], "operandSegmentSizes" = array<i32: 0, 0>}> : () -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: %10 = "csl.get_mem_dsd"() <{"sym_name" = @int_buf2, "sizes" = [10 : i16], "operandSegmentSizes" = array<i32: 0, 0>}> : () -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.mov32"(%10, %9) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
