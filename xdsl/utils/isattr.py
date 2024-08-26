@@ -9,6 +9,10 @@ from xdsl.utils.hints import isa
 def isattr(
     arg: Any, hint: type[AttributeInvT] | GenericAttrConstraint[AttributeInvT]
 ) -> TypeGuard[AttributeInvT]:
+    """
+    A helper method to check whether a given attribute has a given type or conforms to a
+    given constraint.
+    """
     from xdsl.irdl import ConstraintContext
 
     if isinstance(hint, GenericAttrConstraint):
