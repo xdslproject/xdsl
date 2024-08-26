@@ -69,11 +69,11 @@ class IRGen:
         for _ in jaxpr.jaxpr.eqns:
             raise NotImplementedError("jax equation not implemented")
 
-        if inputVars == outputVars:
-            return_ssa = block.args[0]
-            self.builder.insert(Return(return_ssa))
-        else:
-            self.builder.insert(Return())
+        assert inputVars == outputVars
+
+        return_ssa = block.args[0]
+        self.builder.insert(Return(return_ssa))
+
         self.builder = parent_builder
 
         self.builder.insert(
