@@ -151,9 +151,15 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         for arg in args:
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
 
-            if isa(arg.type, stencil.FieldType[TensorType[Attribute]]):
-                arg_t = csl_stencil_bufferize.tensor_to_memref_type(
-                    arg.type.get_element_type()
+            if isa(arg.type, stencil.FieldType[TensorType[Attribute]]) or isa(
+                arg.type, memref.MemRefType[Attribute]
+            ):
+                arg_t = (
+                    csl_stencil_bufferize.tensor_to_memref_type(
+                        arg.type.get_element_type()
+                    )
+                    if isa(arg.type, stencil.FieldType[TensorType[Attribute]])
+                    else arg.type
                 )
                 arg_ops.append(alloc := memref.Alloc([], [], arg_t))
                 ptr_converts.append(
@@ -171,35 +177,15 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     )
                 )
                 export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
-                cast_ops.append(
-                    cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [alloc], [arg.type]
+                if arg_t != arg.type:
+                    cast_ops.append(
+                        cast_op := builtin.UnrealizedConversionCastOp.get(
+                            [alloc], [arg.type]
+                        )
                     )
-                )
-                arg_op_mapping.append(cast_op.outputs[0])
-            elif isa(arg.type, memref.MemRefType[Attribute]):
-                arg_ops.append(alloc := memref.Alloc([], [], arg.type))
-                ptr_converts.append(
-                    address := csl.AddressOfOp(
-                        operands=[alloc],
-                        result_types=[
-                            csl.PtrType(
-                                [
-                                    arg.type.get_element_type(),
-                                    csl.PtrKindAttr(csl.PtrKind.MANY),
-                                    csl.PtrConstAttr(csl.PtrConst.VAR),
-                                ]
-                            )
-                        ],
-                    )
-                )
-                export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
-                cast_ops.append(
-                    cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [alloc], [arg.type]
-                    )
-                )
-                arg_op_mapping.append(cast_op.outputs[0])
+                    arg_op_mapping.append(cast_op.outputs[0])
+                else:
+                    arg_op_mapping.append(alloc.memref)
 
         return [*arg_ops, *ptr_converts, *export_ops, *cast_ops], arg_op_mapping
 
