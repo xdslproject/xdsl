@@ -1434,6 +1434,10 @@ class SymbolExportOp(IRDLOperation):
     to be exported in a single operation in both layout and program module.
 
     It corresponds to @export_name in layout and @export_symbol in program.
+
+    This op takes comes in two modes:
+      * var_name: StringAttr,    type: PtrType,      value: Op(PtrType)
+      * var_name: SymbolRefAttr, type: FunctionType, value: None
     """
 
     name = "csl.export"
@@ -1447,23 +1451,16 @@ class SymbolExportOp(IRDLOperation):
     type = prop_def(base(PtrType) | base(FunctionType))
 
     def __init__(self, sym_name: str | StringAttr, type_or_op: SSAValue | FunctionType):
-        """
-        Accepts one of:
-          1. var_name + PtrType + operand
-          2. var_name + FunctionType
-        """
         var_name: StringAttr | SymbolRefAttr = (
             StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
         )
 
-        sym_type, ops = (
-            (type_or_op.type, [type_or_op])
-            if isinstance(type_or_op, SSAValue)
-            else (type_or_op, [])
-        )
-
-        if isattr(sym_type, FunctionType) and isattr(var_name, StringAttr):
+        if isinstance(type_or_op, SSAValue):
+            assert isattr(type_or_op.type, PtrType)
+            sym_type, ops = type_or_op.type, [type_or_op]
+        else:
             var_name = SymbolRefAttr(var_name)
+            sym_type, ops = type_or_op, []
 
         super().__init__(
             operands=ops, properties={"var_name": var_name, "type": sym_type}
