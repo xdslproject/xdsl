@@ -144,6 +144,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         """
         arg_ops: list[Operation] = []
         arg_op_mapping: list[SSAValue] = []
+        ptr_converts: list[Operation] = []
+        export_ops: list[Operation] = []
+        cast_ops: list[Operation] = []
+
         for arg in args:
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
 
@@ -151,24 +155,30 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 arg_t = csl_stencil_bufferize.tensor_to_memref_type(
                     arg.type.get_element_type()
                 )
-                arg_ops.append(
-                    memref.Global.get(
-                        sym_name=StringAttr(arg_name),
-                        sym_type=csl_stencil_bufferize.tensor_to_memref_type(
-                            arg.type.get_element_type()
-                        ),
-                        initial_value=UnitAttr(),
-                        sym_visibility=StringAttr("public"),
+                arg_ops.append(alloc := memref.Alloc([], [], arg_t))
+                ptr_converts.append(
+                    address := csl.AddressOfOp(
+                        operands=[alloc],
+                        result_types=[
+                            csl.PtrType(
+                                [
+                                    arg_t.get_element_type(),
+                                    csl.PtrKindAttr(csl.PtrKind.MANY),
+                                    csl.PtrConstAttr(csl.PtrConst.VAR),
+                                ]
+                            )
+                        ],
                     )
                 )
-                arg_ops.append(get_global_op := memref.GetGlobal(arg_name, arg_t))
-                arg_ops.append(
+                export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
+                cast_ops.append(
                     cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [get_global_op], [arg.type]
+                        [alloc], [arg.type]
                     )
                 )
                 arg_op_mapping.append(cast_op.outputs[0])
             elif isa(arg.type, memref.MemRefType[Attribute]):
+                # todo same change as above
                 arg_ops.append(
                     memref.Global.get(
                         sym_name=StringAttr(arg_name),
@@ -177,10 +187,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                         sym_visibility=StringAttr("public"),
                     )
                 )
-                arg_ops.append(get_global_op := memref.GetGlobal(arg_name, arg.type))
+                cast_ops.append(get_global_op := memref.GetGlobal(arg_name, arg.type))
                 arg_op_mapping.append(get_global_op.memref)
 
-        return arg_ops, arg_op_mapping
+        return [*arg_ops, *ptr_converts, *export_ops, *cast_ops], arg_op_mapping
 
     def initialise_layout_module(self, module_op: csl_wrapper.ModuleOp):
         """Initialises the layout_module (wrapper block) by setting up (esp. stencil-related) program params"""

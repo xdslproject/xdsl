@@ -80,6 +80,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -1444,6 +1445,29 @@ class SymbolExportOp(IRDLOperation):
     var_name = prop_def(base(StringAttr) | base(SymbolRefAttr))
 
     type = prop_def(base(PtrType) | base(FunctionType))
+
+    def __init__(self, sym_name: str | StringAttr, type_or_op: SSAValue | FunctionType):
+        """
+        Accepts one of:
+          1. var_name + PtrType + operand
+          2. var_name + FunctionType
+        """
+        var_name: StringAttr | SymbolRefAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+
+        sym_type, ops = (
+            (type_or_op.type, [type_or_op])
+            if isinstance(type_or_op, SSAValue)
+            else (type_or_op, [])
+        )
+
+        if isattr(sym_type, FunctionType) and isattr(var_name, StringAttr):
+            var_name = SymbolRefAttr(var_name)
+
+        super().__init__(
+            operands=ops, properties={"var_name": var_name, "type": sym_type}
+        )
 
     def get_name(self) -> str:
         match self.var_name:
