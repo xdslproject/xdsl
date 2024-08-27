@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, memref, stencil
-from xdsl.dialects.builtin import IntegerAttr, StringAttr, TensorType, UnitAttr
+from xdsl.dialects.builtin import IntegerAttr, TensorType
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -178,17 +178,28 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 )
                 arg_op_mapping.append(cast_op.outputs[0])
             elif isa(arg.type, memref.MemRefType[Attribute]):
-                # todo same change as above
-                arg_ops.append(
-                    memref.Global.get(
-                        sym_name=StringAttr(arg_name),
-                        sym_type=arg.type,
-                        initial_value=UnitAttr(),
-                        sym_visibility=StringAttr("public"),
+                arg_ops.append(alloc := memref.Alloc([], [], arg.type))
+                ptr_converts.append(
+                    address := csl.AddressOfOp(
+                        operands=[alloc],
+                        result_types=[
+                            csl.PtrType(
+                                [
+                                    arg.type.get_element_type(),
+                                    csl.PtrKindAttr(csl.PtrKind.MANY),
+                                    csl.PtrConstAttr(csl.PtrConst.VAR),
+                                ]
+                            )
+                        ],
                     )
                 )
-                cast_ops.append(get_global_op := memref.GetGlobal(arg_name, arg.type))
-                arg_op_mapping.append(get_global_op.memref)
+                export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
+                cast_ops.append(
+                    cast_op := builtin.UnrealizedConversionCastOp.get(
+                        [alloc], [arg.type]
+                    )
+                )
+                arg_op_mapping.append(cast_op.outputs[0])
 
         return [*arg_ops, *ptr_converts, *export_ops, *cast_ops], arg_op_mapping
 
