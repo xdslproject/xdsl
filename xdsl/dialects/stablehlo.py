@@ -177,6 +177,31 @@ class AndOp(IRDLOperation):
 
 
 @irdl_op_definition
+class BitcastConvertOp(IRDLOperation):
+    """
+    Performs a bitcast operation on operand tensor and produces a result tensor
+    where the bits of the entire operand tensor are reinterpreted using the type of the result tensor.
+
+    More formally, given E = element_type(operand), E' = element_type(result), and R = rank(operand):
+
+    If num_bits(E') < num_bits(E), bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1]).
+    If num_bits(E') > num_bits(E), bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :]).
+    If num_bits(E') = num_bits(E), bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1]).
+
+    bits returns in-memory representation of a given value,
+    and its behavior is implementation-defined because the exact representation of tensors is implementation-defined,
+    and the exact representation of element types is implementation-defined as well.
+    """
+
+    name = "stablehlo.bitcast_convert"
+    input = operand_def(AnyTensorType)
+    result = result_def(AnyTensorType)
+
+    def __init__(self, input: SSAValue, result: Attribute):
+        super().__init__(operands=(input,), result_types=(result,))
+
+
+@irdl_op_definition
 class MultiplyOp(ElementwiseBinaryOperation):
     """
     Performs element-wise product of two tensors `lhs` and `rhs` and produces a
@@ -294,6 +319,7 @@ StableHLO = Dialect(
         AbsOp,
         AddOp,
         AndOp,
+        BitcastConvertOp,
         MultiplyOp,
         ReturnOp,
         SubtractOp,
