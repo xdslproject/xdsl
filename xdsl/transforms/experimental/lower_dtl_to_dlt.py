@@ -1074,7 +1074,7 @@ class DTLRewriter(RewritePattern):
         iterateOp = dlt.IterateOp(
             extents,
             extent_args,
-            [[[]]],
+            [],
             [],
             [accumulator_op],
             None,
@@ -1431,6 +1431,8 @@ def _op_for(ssa: SSAValue) -> Operation:
     if not isinstance(ssa, OpResult):
         raise ValueError("ssa must be an OpResult")
     return ssa.op
+
+
 
 
 #

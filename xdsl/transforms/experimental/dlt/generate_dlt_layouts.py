@@ -54,7 +54,8 @@ def _try_apply_sparse(layout: dlt.Layout):
         return [_try_apply_sparse(sub_layout) for sub_layout in layout]
     if isinstance(layout, dlt.AbstractLayoutAttr):
         a_layout = typing.cast(dlt.AbstractLayoutAttr, layout)
-        if len(dims := a_layout.common_abstract_dimensions()) > 1:
+        dims = a_layout.common_abstract_dimensions()
+        if len(dims) > 1:
             dims = list(dims)
             dims.sort(
                 key=lambda d: (
@@ -74,6 +75,7 @@ def _make_sparse_layout(
     direct_dims: list[dlt.DimensionAttr],
     sparse_dims: list[dlt.DimensionAttr],
     child_dims: list[dlt.DimensionAttr],
+    buffer_scalar: int = 0,
 ) -> dlt.AbstractLayoutAttr:
     common_dims = layout.common_abstract_dimensions()
     assert common_dims.issuperset(direct_dims + sparse_dims + child_dims)
@@ -93,7 +95,7 @@ def _make_sparse_layout(
         for a_child in layout.children
     ]
     coo_node = dlt.UnpackedCOOLayoutAttr(
-        dlt.AbstractLayoutAttr(abstract_children), sparse_dims
+        dlt.AbstractLayoutAttr(abstract_children), sparse_dims, buffer_scaler=buffer_scalar
     )
 
     indexing_node = dlt.IndexingLayoutAttr(direct_node, coo_node)
@@ -306,7 +308,12 @@ class LayoutGenerator:
 
     def _print_stats(self):
         print(
-            f"{datetime.datetime.now()} : Seen: {len(self.seen_mappings)}, Layout Store: {len(self._generated_layouts)}, Abstract: {len(self.abstract_maps)} ({self._max_size}), Final: {len(self.final_maps)}, Current Abstract Mappings: {["N" if l is None else len(l) for _, l in self.abstract_maps]}")
+            f"{datetime.datetime.now()} : "
+            f"Seen: {len(self.seen_mappings)}, "
+            f"Layout Store: {len(self._generated_layouts)}, "
+            f"Abstract: {len(self.abstract_maps)} ({self._max_size}), "
+            f"Final: {len(self.final_maps)}, "
+            f"Current Abstract Mappings: {["N" if l is None else len(l) for _, l in self.abstract_maps]}")
 
     def plot_mapping(self, mapping: PtrMapping):
         if self.plot_dir is None:
@@ -585,7 +592,8 @@ class LayoutGenerator:
                                 # print(f"abstract_dims: {[d.dimensionName for d in abstract_dims]}")
                                 for abstract_child_dims in self._subsets(list(abstract_dims)):
                                     # print(f"abstract_child_dims: {[d.dimensionName for d in abstract_child_dims]}")
-                                    layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims)))
+                                    for buffer_scaler in [0,2,8,-8]:
+                                        layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
         return layouts
 
     def _try_dense(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: dlt.DimensionAttr = None) -> list[dlt.Layout]:

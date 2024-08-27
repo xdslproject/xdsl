@@ -506,22 +506,27 @@ class TupleOp(IRDLOperation):
         assert isa(self.result.type, TensorExprType)
         assert isa(self.result.type.result, IndexTupleStruct)
 
-        for i, op in enumerate(self.arguments):
-            if self.result.type.result.children.data[i] != op.type.result:
+        for i, arg in enumerate(self.arguments):
+            if self.result.type.result.children.data[i] != arg.type.result:
                 raise VerifyException(
-                    f"{self.name}: Result type shape at tuple index {i} expected to be {op.type.result} but found {self.result.type.result.children.data[i]}"
+                    f"{self.name}: Result type shape at tuple index {i} expected to be {arg.type.result} but found {self.result.type.result.children.data[i]}"
                 )
 
-            for idx in op.type.args.indices():
+            for idx in arg.type.args.indices():
                 if idx not in self.result.type.args.indices():
                     raise VerifyException(
                         f"{self.name}: tuple index {i} arg {idx} must be in result type args"
                     )
-                if op.type.args.vector_space_of(
+                if arg.type.args.vector_space_of(
                     idx
                 ) != self.result.type.args.vector_space_of(idx):
                     raise VerifyException(
-                        f"{self.name}: tuple index {i} arg {idx}:{op.type.args.vector_space_of(idx)} must be in result type args but result has {idx}:{self.result.type.args.vector_space_of(idx)}"
+                        f"{self.name}: tuple index {i} arg {idx}:{arg.type.args.vector_space_of(idx)} must be in result type args but result has {idx}:{self.result.type.args.vector_space_of(idx)}"
+                    )
+            for idx in self.result.type.args.indices():
+                if idx not in self.result.type.args.indices():
+                    raise VerifyException(
+                        f"{self.name}: tuple index {i}'s type does not have index arg {idx}"
                     )
 
         if len(self.result.type.result.children) != len(self.arguments):

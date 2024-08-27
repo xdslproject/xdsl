@@ -1531,11 +1531,15 @@ class UnpackedCOOLayoutAttr(Layout):
     name = "dlt.layout.indexed.unpackedCOO"
     child: ParameterDef[DirectLayout]
     dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
+    buffer_scaler: ParameterDef[IntAttr]
 
-    def __init__(self, child: Layout, dimensions: Iterable[DimensionAttr]):
+    def __init__(self, child: Layout, dimensions: Iterable[DimensionAttr], buffer_scaler: int | IntAttr = 0):
         if not isinstance(dimensions, ArrayAttr):
             dimensions = ArrayAttr(dimensions)
-        super().__init__((child, dimensions))
+        if not isinstance(buffer_scaler, IntAttr):
+            buffer_scaler = IntAttr(buffer_scaler)
+
+        super().__init__((child, dimensions, buffer_scaler))
 
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return IndexRangeType()
@@ -1552,7 +1556,7 @@ class UnpackedCOOLayoutAttr(Layout):
 
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == 1
-        return UnpackedCOOLayoutAttr(children[0], self.dimensions)
+        return UnpackedCOOLayoutAttr(children[0], self.dimensions, self.buffer_scaler)
 
     def get_stage(self) -> Stage :
         child_stage = self.child.get_stage()
@@ -1562,6 +1566,9 @@ class UnpackedCOOLayoutAttr(Layout):
     def get_all_extents(self) -> set[Extent]:
         extents = {d.extent for d in self.dimensions}
         return self.child.get_all_extents() | extents
+
+    def is_buffered(self) -> bool:
+        return self.buffer_scaler.data != 0
 
 
 @irdl_attr_definition
@@ -1604,6 +1611,7 @@ class IndexingLayoutAttr(Layout):
         return None
 
     def verify(self) -> None:
+        super().verify()
         if self.contents_type is None:
             raise VerifyException("Cannot produce contents type for layout")
         index_type = self.indexedChild.indexed_by()
@@ -2299,6 +2307,10 @@ class SelectOp(DTLLayoutScopedOp):
             raise VerifyException(
                 "Once selected, a Ptr-Type cannot be a memory handle base"
             )
+        if not tree_type.layout.has_sub_layout(res_type.layout):
+            raise VerifyException(
+                "The resulting layout of a Select Op should be a sub-tree of the starting ptr layout."
+            )
         # maybe we should calculate if the layouts are valid here too, but this requires some infrastructure for finding
         # sub-layouts from the layout given the selected members and dimensions - and there is not a unique answer as
         # we don't *need* to enforce that the layout is minimal at all steps given the filled_members and
@@ -2849,7 +2861,7 @@ class IterateOp(DTLLayoutScopedOp):
         self,
         extents: Sequence[Extent],
         extent_args: Sequence[SSAValue | Operation],
-        dimensions: Sequence[Sequence[Sequence[DimensionAttr]]],
+        dimensions: Iterable[Iterable[Iterable[DimensionAttr]]],
         tensors: Sequence[SSAValue],
         iter_args: Sequence[SSAValue | Operation],
         order: IterationOrder = None,
@@ -2892,7 +2904,7 @@ class IterateOp(DTLLayoutScopedOp):
         extents = ArrayAttr([e for e in extents])
 
         super().__init__(
-            operands=[extent_args, tensors, iter_args],
+            operands=[extent_args, tensors, tuple(iter_args)],
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
             attributes={"extents": extents, "dimensions": dimensions, "order": order, "identification": identification},
@@ -2933,6 +2945,8 @@ class IterateOp(DTLLayoutScopedOp):
             if extent_arg_idx != len(self.extent_args):
                 raise VerifyException(f"Extent args expected {extent_arg_idx} but {len(self.extent_args)} were supplied")
 
+            if len(self.tensors) != len(self.dimensions):
+                raise VerifyException(f"Expected number of tensors and length of outer array of dimensions to be equal. Found {len(self.tensors)} Tensors but {len(self.dimensions)} tensot dimension specifications")
             tensor_vars = [
                 (i, i - len(self.extents), self.body.block.args[i])
                 for i in range(len(self.extents), len(self.extents) + len(self.tensors))
