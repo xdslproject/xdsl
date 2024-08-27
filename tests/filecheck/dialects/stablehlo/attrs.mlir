@@ -9,6 +9,9 @@
     highest = #stablehlo<precision HIGHEST>
 } : () -> ()
 
+// CHECK-NEXT:    %token = "test.op"() : () -> !stablehlo.token
+%token = "test.op"() : () -> (!stablehlo.token)
+
 // CHECK-NEXT:    "test.op"() {"dot" = #stablehlo.dot<
 // CHECK-NEXT:      lhs_batching_dimensions = [0],
 // CHECK-NEXT:      rhs_batching_dimensions = [1],
