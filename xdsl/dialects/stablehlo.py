@@ -7,14 +7,22 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 """
 
 import abc
+from collections.abc import Sequence
 from typing import Annotated, TypeAlias, cast
 
-from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, IntegerType, TensorType
+from xdsl.dialects.builtin import (
+    I32,
+    AnyTensorType,
+    DenseArrayBase,
+    IntegerType,
+    TensorType,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
     ParametrizedAttribute,
+    Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
@@ -29,6 +37,8 @@ from xdsl.irdl import (
     operand_def,
     result_def,
     var_operand_def,
+    var_region_def,
+    var_result_def,
 )
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -176,6 +186,42 @@ class AndOp(IRDLOperation):
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
 
 
+# TODO: Change to SI32 once StableHLO adopts signful integer semantics
+# See: https://github.com/openxla/stablehlo/issues/22
+# https://github.com/openxla/stablehlo/issues/2489
+SI32TensorType: TypeAlias = TensorType[I32]
+
+
+@irdl_op_definition
+class CaseOp(IRDLOperation):
+    """
+    Semantics
+
+    Produces the output from executing exactly one function from branches depending on the value of index.
+    More formally, result = selected_branch() where:
+
+    selected_branch = branches[index] if 0 <= index < size(branches).
+    selected_branch = branches[-1] otherwise.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
+    """
+
+    name = "stablehlo.case"
+    index = operand_def(SI32TensorType)
+    branches = var_region_def("single_block")
+    _results = var_result_def(AnyTensorType | TokenType)
+
+    def __init__(
+        self,
+        index: SSAValue,
+        branches: Sequence[Region],
+        result_types: Sequence[AnyTensorType | TokenType],
+    ):
+        super().__init__(
+            operands=(index,), result_types=(result_types,), regions=(branches,)
+        )
+
+
 @irdl_op_definition
 class BitcastConvertOp(IRDLOperation):
     """
@@ -320,6 +366,7 @@ StableHLO = Dialect(
         AddOp,
         AndOp,
         BitcastConvertOp,
+        CaseOp,
         MultiplyOp,
         ReturnOp,
         SubtractOp,
