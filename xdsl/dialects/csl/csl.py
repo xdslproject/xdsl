@@ -955,8 +955,6 @@ class IncrementDsdOffsetOp(IRDLOperation):
     where offset is a 16-bit signed int that may be negative,
     and elem_type is used to convert offset into words (any u,i,f type of 16,32 bit)
     elem_type should be derived by the printer
-
-    Note, the specified offset represents the offset in the underlying buffer, not a delta value.
     """
 
     name = "csl.increment_dsd_offset"
