@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, memref, stencil
-from xdsl.dialects.builtin import IntegerAttr, TensorType
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    MemRefType,
+    ShapedType,
+    TensorType,
+)
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -43,6 +48,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         z_dim_no_ghost_cells: int = 1
         z_dim: int = 1
         num_chunks: int = 1
+        chunk_size: int = 1
         for apply_op in apply_ops:
             # loop over accesses to get max_distance (from which we build `pattern`)
             for ap in apply_op.get_accesses():
@@ -69,20 +75,33 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
             # find max z dimension - we could get this from func args, store ops, or apply ops
-            for result in apply_op.results:
-                if isa(result.type, stencil.TempType[TensorType[Attribute]]):
-                    z_dim_no_ghost_cells = max(
-                        z_dim_no_ghost_cells,
-                        result.type.get_element_type().get_shape()[0],
-                    )
-            for arg in op.args:
-                if isa(field_t := arg.type, stencil.FieldType[TensorType[Attribute]]):
-                    z_dim = max(z_dim, field_t.get_element_type().get_shape()[0])
+            # to support both bufferized and unbufferized csl_stencils, retrieve this from iter_arg
+            if isinstance(apply_op.post_process.block.args[1].type, ShapedType):
+                z_dim_no_ghost_cells = max(
+                    z_dim_no_ghost_cells,
+                    apply_op.post_process.block.args[1].type.get_shape()[-1],
+                )
+
+            # retrieve z_dim from post_process arg[0]
+            if isa(
+                field_t := apply_op.post_process.block.args[0].type,
+                stencil.StencilType[
+                    TensorType[Attribute] | memref.MemRefType[Attribute]
+                ],
+            ):
+                # unbufferized csl_stencil
+                z_dim = max(z_dim, field_t.get_element_type().get_shape()[-1])
+            elif isa(field_t, memref.MemRefType[Attribute]):
+                # bufferized csl_stencil
+                z_dim = max(z_dim, field_t.get_shape()[-1])
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
+            if isa(
+                buf_t := apply_op.chunk_reduce.block.args[0].type,
+                TensorType[Attribute] | MemRefType[Attribute],
+            ):
+                chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 
-        # some computations we don't need to do in CSL
-        chunk_size: int = (z_dim // num_chunks) + (0 if z_dim % num_chunks == 0 else 1)
         padded_z_dim: int = chunk_size * num_chunks
 
         # initialise module op

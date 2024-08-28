@@ -249,18 +249,31 @@ class ApplyOpBufferize(RewritePattern):
 
 @dataclass(frozen=True)
 class AccessOpBufferize(RewritePattern):
-    """Bufferizes AccessOp."""
+    """
+    Bufferizes AccessOp.
+
+    The type conversion pass creates the scenario that some `csl_stencil.access` ops are equal input and output types,
+    for instance, `(memref<512xf32>) -> memref<512xf32>`. This only happens for ops accessing own data. In this case,
+    the access op has no effect and can safely be folded away.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
         if not isa(op.result.type, TensorType[Attribute]):
             return
+        r_type = tensor_to_memref_type(op.result.type)
+
+        # accesses to own data that (after bufferization) have the same input and output type can be safely folded away
+        if op.op.type == r_type and all(o == 0 for o in op.offset):
+            rewriter.replace_matched_op(to_tensor_op(op.op))
+            return
+
         rewriter.replace_matched_op(
             [
                 access := csl_stencil.AccessOp(
                     op.op,
                     op.offset,
-                    tensor_to_memref_type(op.result.type),
+                    r_type,
                     op.offset_mapping,
                 ),
                 to_tensor_op(access.result),
