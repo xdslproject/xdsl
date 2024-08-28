@@ -1460,7 +1460,7 @@ class SymbolExportOp(IRDLOperation):
             sym_type, ops = type_or_op.type, [type_or_op]
         else:
             var_name = SymbolRefAttr(var_name)
-            sym_type, ops = type_or_op, []
+            sym_type, ops = type_or_op, [[]]
 
         super().__init__(
             operands=ops, properties={"var_name": var_name, "type": sym_type}

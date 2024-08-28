@@ -133,6 +133,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # set up main function and move func.func ops into this csl.func
         main_func = csl.FuncOp(op.sym_name.data, ((), None))
+        func_export = csl.SymbolExportOp(main_func.sym_name, main_func.function_type)
         args_to_ops, arg_mappings = self._translate_function_args(op.args)
         rewriter.inline_block(
             op.body.block,
@@ -141,7 +142,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         )
 
         # initialise program_module and add main func and empty yield op
-        self.initialise_program_module(module_op, add_ops=[*args_to_ops, main_func])
+        self.initialise_program_module(
+            module_op, add_ops=[*args_to_ops, func_export, main_func]
+        )
 
         # replace (now empty) func by module wrapper
         rewriter.replace_matched_op(module_op)
@@ -206,7 +209,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 else:
                     arg_op_mapping.append(alloc.memref)
 
-        return [*arg_ops, *ptr_converts, *export_ops, *cast_ops], arg_op_mapping
+        return [*arg_ops, *cast_ops, *ptr_converts, *export_ops], arg_op_mapping
 
     def initialise_layout_module(self, module_op: csl_wrapper.ModuleOp):
         """Initialises the layout_module (wrapper block) by setting up (esp. stencil-related) program params"""

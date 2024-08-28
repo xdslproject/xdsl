@@ -60,14 +60,15 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
 // CHECK-NEXT:   %35 = memref.alloc() : memref<512xf32>
 // CHECK-NEXT:   %36 = memref.alloc() : memref<512xf32>
 // CHECK-NEXT:   %c = memref.alloc() : memref<255xf32>
+// CHECK-NEXT:   %a = builtin.unrealized_conversion_cast %35 : memref<512xf32> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:   %b = builtin.unrealized_conversion_cast %36 : memref<512xf32> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:   %37 = "csl.addressof"(%35) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
 // CHECK-NEXT:   %38 = "csl.addressof"(%36) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
 // CHECK-NEXT:   %39 = "csl.addressof"(%c) : (memref<255xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
 // CHECK-NEXT:   "csl.export"(%37) <{"var_name" = "a", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:   "csl.export"(%38) <{"var_name" = "b", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:   "csl.export"(%39) <{"var_name" = "c", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
-// CHECK-NEXT:   %a = builtin.unrealized_conversion_cast %35 : memref<512xf32> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
-// CHECK-NEXT:   %b = builtin.unrealized_conversion_cast %36 : memref<512xf32> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:   "csl.export"() <{"var_name" = @gauss_seidel, "type" = () -> ()}> : () -> ()
 // CHECK-NEXT:   csl.func @gauss_seidel() {
 // CHECK-NEXT:     %40 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:     %41 = tensor.empty() : tensor<510xf32>
@@ -152,6 +153,7 @@ func.func @bufferized(%arg0 : memref<512xf32>, %arg1 : memref<512xf32>) {
 // CHECK-NEXT:   %79 = "csl.addressof"(%arg1) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
 // CHECK-NEXT:   "csl.export"(%78) <{"var_name" = "arg0", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:   "csl.export"(%79) <{"var_name" = "arg1", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT:   "csl.export"() <{"var_name" = @bufferized, "type" = () -> ()}> : () -> ()
 // CHECK-NEXT:   csl.func @bufferized() {
 // CHECK-NEXT:     %80 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:     csl_stencil.apply(%arg0 : memref<512xf32>, %80 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
