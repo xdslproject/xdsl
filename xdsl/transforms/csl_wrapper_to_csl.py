@@ -92,7 +92,7 @@ class ExtractLayoutModule(RewritePattern):
             with ImplicitBuilder(layout.body.block):
                 scf.For(
                     lb=const_0,
-                    ub=const_width,
+                    ub=param_width,
                     step=const_1,
                     iter_args=[],
                     body=outer_loop_block,
@@ -101,7 +101,7 @@ class ExtractLayoutModule(RewritePattern):
                 with ImplicitBuilder(outer_loop_block):
                     scf.For(
                         lb=const_0,
-                        ub=const_height,
+                        ub=param_height,
                         step=const_1,
                         iter_args=[],
                         body=inner_loop_block,
