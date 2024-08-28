@@ -155,6 +155,23 @@ class AddOp(ElementwiseBinaryOperation):
     name = "stablehlo.add"
 
 
+@irdl_op_definition
+class AfterAllOp(IRDLOperation):
+    """
+    Ensures that the operations producing the inputs are executed before any operations that depend on result.
+    Execution of this operation does nothing, it only exists to establish data dependencies from result to inputs.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#after_all
+    """
+
+    name = "stablehlo.after_all"
+    inputs = var_operand_def(TokenType)
+    result = result_def(TokenType)
+
+    def __init__(self, inputs: Sequence[SSAValue]):
+        super().__init__(operands=[inputs], result_types=(TokenType(),))
+
+
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
 
 
@@ -364,6 +381,7 @@ StableHLO = Dialect(
     [
         AbsOp,
         AddOp,
+        AfterAllOp,
         AndOp,
         BitcastConvertOp,
         CaseOp,
