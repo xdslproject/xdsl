@@ -38,7 +38,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, Pure
+from xdsl.traits import (
+    IsTerminator,
+    Pure,
+    RecursivelySpeculatable,
+    RecursiveMemoryEffect,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -205,6 +210,8 @@ class If(IRDLOperation):
     then_region = region_def("single_block")
     else_region = region_def()
 
+    traits = frozenset([RecursiveMemoryEffect(), RecursivelySpeculatable()])
+
 
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
@@ -350,7 +357,7 @@ class Yield(IRDLOperation):
     name = "affine.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([IsTerminator(), Pure()])
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

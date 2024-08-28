@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
@@ -614,8 +614,11 @@ class TileOp(IRDLOperation):
                 [
                     AnyOpType()
                     for _ in range(
-                        len(static_sizes.as_tuple())
-                        if isinstance(static_sizes, DenseArrayBase)
+                        (
+                            len(static_sizes.as_tuple())
+                            - static_sizes.as_tuple().count(0)
+                        )
+                        if static_sizes
                         else 0
                     )
                 ],
@@ -765,6 +768,62 @@ class CastOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[AnyOpType()])
 
 
+@irdl_op_definition
+class MatchOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredmatch-transformmatchop
+    """
+
+    name = "transform.structured.match"
+
+    ops = opt_prop_def(ArrayAttr[StringAttr])
+    interface = opt_prop_def(AnyIntegerAttr)
+    op_attrs = opt_prop_def(DictionaryAttr)
+    filter_result_types = opt_prop_def(TypeAttribute)
+    filter_operand_types = opt_prop_def(TypeAttribute)
+
+    target = operand_def(TransformOpHandleType)
+    result = result_def(TransformOpHandleType)
+
+    def __init__(
+        self,
+        target: SSAValue,
+        ops: Sequence[str] | ArrayAttr[StringAttr] | None = None,
+        interface: int | AnyIntegerAttr | str | None = None,
+        op_attrs: dict[str, Attribute] | DictionaryAttr | None = None,
+        filter_result_types: TypeAttribute | None = None,
+        filter_operand_types: TypeAttribute | None = None,
+    ):
+        if isinstance(ops, Sequence):
+            ops = ArrayAttr([StringAttr(op) for op in ops])
+        if isinstance(interface, str):
+            match interface:
+                case "LinalgOp":
+                    interface = IntegerAttr(0, IntegerType(32))
+                case "TilingInterface":
+                    interface = IntegerAttr(1, IntegerType(32))
+                case "LoopLikeInterface":
+                    interface = IntegerAttr(2, IntegerType(32))
+                case _:
+                    raise ValueError(f"Unknown interface: {interface}")
+        if isinstance(interface, int):
+            interface = IntegerAttr(interface, IntegerType(32))
+
+        if isinstance(op_attrs, Mapping):
+            op_attrs = DictionaryAttr(op_attrs)
+        super().__init__(
+            properties={
+                "ops": ops,
+                "interface": interface,
+                "op_attrs": op_attrs,
+                "filter_result_types": filter_result_types,
+                "filter_operand_types": filter_operand_types,
+            },
+            operands=[target],
+            result_types=[AnyOpType()],
+        )
+
+
 Transform = Dialect(
     "transform",
     [
@@ -788,6 +847,7 @@ Transform = Dialect(
         SelectOp,
         NamedSequenceOp,
         CastOp,
+        MatchOp,
     ],
     [
         # Types
