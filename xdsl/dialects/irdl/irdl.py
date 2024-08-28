@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from types import NoneType
-from typing import ClassVar, Generic, Self, TypeVar
+from typing import ClassVar, Generic, TypeVar
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     I32,
