@@ -433,6 +433,35 @@ class ConstStructOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ZerosOp(IRDLOperation):
+    """
+    Represents the @zeros operation in CSL.
+    """
+
+    name = "csl.zeros"
+
+    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+
+    size = opt_operand_def(T)
+
+    result = result_def(MemRefType[T])
+
+    is_const = opt_prop_def(builtin.UnitAttr)
+
+    def __init__(
+        self,
+        memref: MemRefType[T],
+        dynamic_size: SSAValue | Operation | None = None,
+        is_const: builtin.UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=[dynamic_size] if dynamic_size else [[]],
+            result_types=[memref],
+            properties={"is_const": is_const} if is_const else {},
+        )
+
+
+@irdl_op_definition
 class ConstantsOp(IRDLOperation):
     """
     Represents the @constants operation in CSL.
@@ -1749,6 +1778,7 @@ CSL = Dialect(
         Xor16Op,
         Xp162fhOp,
         Xp162fsOp,
+        ZerosOp,
     ],
     [
         ColorType,
