@@ -33,7 +33,7 @@ dev = [
     "pytest-asyncio==0.24.0",
     "pyright==1.1.345",
 ]
-gui = ["textual==0.77.0", "pyclip==0.7"]
+gui = ["textual==0.78.0", "pyclip==0.7"]
 jax = ["jax==0.4.31", "numpy==2.1.0"]
 onnx = ["onnx==1.16.2", "numpy==2.1.0"]
 riscv = ["riscemu==2.2.7"]
