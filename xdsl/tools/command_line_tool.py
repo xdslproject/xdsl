@@ -101,6 +101,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_stencil_to_csl_wrapper.CslStencilToCslWrapperPass
 
+    def get_csl_wrapper_to_csl():
+        from xdsl.transforms import csl_wrapper_to_csl
+
+        return csl_wrapper_to_csl.CslWrapperToCslPass
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -404,6 +409,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
+        "csl-wrapper-to-csl": get_csl_wrapper_to_csl,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
