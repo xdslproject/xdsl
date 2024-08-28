@@ -5,6 +5,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.csl import csl, csl_wrapper
 from xdsl.ir import Block, Region, SSAValue
+from xdsl.irdl import base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -15,16 +16,33 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
+
+
+def _collect_params(op: csl_wrapper.ModuleOp):
+    new_args = list[SSAValue]()
+    for param in op.params:
+        if isa(param.value, builtin.IntegerAttr):
+            value = arith.Constant(param.value)
+        else:
+            value = None
+        p = csl.ParamOp(param.key.data, param.type, value)
+        new_args.append(SSAValue.get(p))
+    return new_args
+
+
+def _add_to_toplevel(
+    rewriter: PatternRewriter, op: csl_wrapper.ModuleOp, mod: csl.CslModuleOp
+):
+    assert isa(builtin_module := op.parent_op(), builtin.ModuleOp)
+    rewriter.insert_op(mod, InsertPoint.at_start(builtin_module.regions[0].block))
 
 
 @dataclass(frozen=True)
-class RemoveUnusedYield(RewritePattern):
+class RemoveWrapper(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: csl_wrapper.YieldOp, rewriter: PatternRewriter, /):
-        parent = op.parent_op()
-        assert isa(parent, csl_wrapper.ModuleOp)
-        if op.parent_region() == parent.program_module:
-            rewriter.erase_matched_op()
+    def match_and_rewrite(self, _: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+        rewriter.erase_matched_op()
 
 
 @dataclass(frozen=True)
@@ -67,13 +85,7 @@ class ExtractLayoutModule(RewritePattern):
             const_height = arith.Constant(op.height)
             param_height = csl.ParamOp("height", op.height.type, const_height)
 
-            for param in op.params:
-                if isa(param.value, builtin.IntegerAttr):
-                    value = arith.Constant(param.value)
-                else:
-                    value = None
-                p = csl.ParamOp(param.key.data, param.type, value)
-                new_args.append(SSAValue.get(p))
+            new_args = _collect_params(op)
 
             layout = csl.LayoutOp(Region())
             with ImplicitBuilder(layout.body.block):
@@ -111,10 +123,56 @@ class ExtractLayoutModule(RewritePattern):
             regions=[Region(module_block)],
             properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
         )
-        assert isa(builtin_module := op.parent_op(), builtin.ModuleOp)
-        rewriter.insert_op(
-            layout_mod, InsertPoint.at_start(builtin_module.regions[0].block)
+
+        _add_to_toplevel(rewriter, op, layout_mod)
+
+
+# program: width, height, *params, *layout-yields
+
+
+@dataclass(frozen=True)
+class ExtractProgramModule(RewritePattern):
+    def _collect_yield_args(self, yield_op: csl_wrapper.YieldOp):
+        params = list[csl.ParamOp]()
+        for s, v in yield_op.items():
+            assert isattr(ty := v.type, base(csl.ParamOp.T))
+            params.append(csl.ParamOp(s, ty))
+        return params
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+        module_block = Block()
+        with ImplicitBuilder(module_block):
+            const_width = arith.Constant(op.width)
+            param_width = csl.ParamOp("width", op.width.type, const_width)
+
+            const_height = arith.Constant(op.height)
+            param_height = csl.ParamOp("height", op.height.type, const_height)
+
+            new_args = _collect_params(op)
+
+        assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
+        yield_args = self._collect_yield_args(yield_op)
+        module_block.add_ops(yield_args)
+        assert isa(yield_op := op.program_module.block.last_op, csl_wrapper.YieldOp)
+        rewriter.erase_op(yield_op)
+
+        rewriter.inline_block(
+            op.program_module.block,
+            InsertPoint.at_end(module_block),
+            arg_values=[
+                SSAValue.get(param_width),
+                SSAValue.get(param_height),
+                *new_args,
+                *(SSAValue.get(y) for y in yield_args),
+            ],
         )
+
+        program_module = csl.CslModuleOp(
+            regions=[Region(module_block)],
+            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
+        )
+        _add_to_toplevel(rewriter, op, program_module)
 
 
 @dataclass(frozen=True)
@@ -128,13 +186,20 @@ class CslWrapperToCslPass(ModulePass):
     prog_name: str
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        module_pass = PatternRewriteWalker(
+        program_module_pass = PatternRewriteWalker(
+            GreedyRewritePatternApplier([ExtractProgramModule()]),
+            apply_recursively=False,
+        )
+        layout_module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [
-                    ExtractLayoutModule(prog_name=self.prog_name),
-                    RemoveUnusedYield(),
-                ]
+                [ExtractLayoutModule(prog_name=self.prog_name)]
             ),
             apply_recursively=False,
         )
-        module_pass.rewrite_module(op)
+        cleanup_pass = PatternRewriteWalker(
+            GreedyRewritePatternApplier([RemoveWrapper()]), apply_recursively=False
+        )
+
+        program_module_pass.rewrite_module(op)
+        layout_module_pass.rewrite_module(op)
+        cleanup_pass.rewrite_module(op)
