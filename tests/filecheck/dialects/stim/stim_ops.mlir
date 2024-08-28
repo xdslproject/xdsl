@@ -6,8 +6,8 @@
 
 stim.circuit {}
 // CHECK-NEXT:    stim.circuit {
-// CHECK-GENERIC-NEXT:    "stim.circuit"() ({
 // CHECK-NEXT: }
+// CHECK-GENERIC-NEXT:    "stim.circuit"() ({
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 
 stim.circuit attributes {"hello" = "world"} {}
