@@ -534,7 +534,7 @@ def test_speculability(
         name = "test.speculatability"
         region = region_def()
 
-        traits = frozenset([*trait])
+        traits = frozenset(trait)
 
     op = SupeculatabilityTestOp(regions=[Region(Block(nested_ops))])
     optrait = op.get_trait(ConditionallySpeculatable)
