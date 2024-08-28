@@ -9,7 +9,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     region_def,
 )
-from xdsl.irdl.operations import SingleBlockRegion
 
 
 class StimOp(IRDLOperation, ABC):
@@ -33,7 +32,7 @@ class StimCircuitOp(StimOp, IRDLOperation):
         super().__init__(regions=[body])
 
     def verify(self, verify_nested_ops: bool = True) -> None:
-        #if the region is not empty, check that all of the operations have printing
+        # if the region is not empty, check that all of the operations have printing
         if self.body.blocks.__len__() == 1:
             for op in self.body.ops:
                 if not isinstance(op, StimOp):
@@ -42,7 +41,6 @@ class StimCircuitOp(StimOp, IRDLOperation):
                             f"All operations in a stim circuit must sublcass StimOp, found {op.name}"
                         )
                     )
-        
 
     def print_stim(self, printer: StimPrinter):
         if self.body.blocks.__len__() == 1:
