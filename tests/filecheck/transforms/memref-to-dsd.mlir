@@ -67,6 +67,30 @@ builtin.module {
 // CHECK-NEXT: "csl.mov32"(%9, %6) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
 
+%25 = arith.constant 0 : index
+%26 = arith.constant 510 : index
+%27 = arith.constant 1 : index
+%28 = arith.constant 2 : index
+%29 = memref.subview %b[%25] [%26] [%27] : memref<510xf32> to memref<510xf32, strided<[1]>>
+%30 = memref.subview %c[%27] [%26] [%28] : memref<1024xf32> to memref<510xf32, strided<[2], offset: 1>>
+
+// CHECK-NEXT: %10 = arith.constant 0 : index
+// CHECK-NEXT: %11 = arith.constant 510 : index
+// CHECK-NEXT: %12 = arith.constant 1 : index
+// CHECK-NEXT: %13 = arith.constant 2 : index
+// CHECK-NEXT: %14 = arith.index_cast %11 : index to ui16
+// CHECK-NEXT: %15 = "csl.set_dsd_length"(%b_2, %14) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %16 = arith.index_cast %12 : index to si8
+// CHECK-NEXT: %17 = "csl.set_dsd_stride"(%15, %16) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %18 = arith.index_cast %10 : index to si16
+// CHECK-NEXT: %19 = "csl.increment_dsd_offset"(%17, %18) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %20 = arith.index_cast %11 : index to ui16
+// CHECK-NEXT: %21 = "csl.set_dsd_length"(%c_2, %20) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %22 = arith.index_cast %13 : index to si8
+// CHECK-NEXT: %23 = "csl.set_dsd_stride"(%21, %22) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %24 = arith.index_cast %12 : index to si16
+// CHECK-NEXT: %25 = "csl.increment_dsd_offset"(%23, %24) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+
 }) {sym_name = "program"} :  () -> ()
 }
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()

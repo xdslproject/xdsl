@@ -71,10 +71,16 @@ class LowerSubviewOpPass(RewritePattern):
         new_ops: list[Operation] = []
         curr_op = op.source
 
-        # update sizes only if they differ from op.source.type
+        # sizes
         if op.static_sizes.data.data[0].data == memref.Subview.DYNAMIC_INDEX:
-            pass  # todo
+            new_ops.append(cast_op := arith.IndexCastOp(op.sizes[0], csl.u16_value))
+            new_ops.append(
+                curr_op := csl.SetDsdLengthOp.build(
+                    operands=[curr_op, cast_op], result_types=[op.source.type]
+                )
+            )
         elif op.static_sizes.as_tuple() != op.source.type.get_shape():
+            # update sizes only if they differ from op.source.type
             new_ops.append(
                 len_op := arith.Constant(
                     IntegerAttr(
@@ -89,10 +95,20 @@ class LowerSubviewOpPass(RewritePattern):
                 )
             )
 
-        # update strides only if they differ from op.source.type
+        # strides
         if op.static_strides.data.data[0].data == memref.Subview.DYNAMIC_INDEX:
-            pass  # todo
+            new_ops.append(
+                cast_op := arith.IndexCastOp(
+                    op.strides[0], IntegerType(8, Signedness.SIGNED)
+                )
+            )
+            new_ops.append(
+                curr_op := csl.SetDsdStrideOp.build(
+                    operands=[curr_op, cast_op], result_types=[op.source.type]
+                )
+            )
         elif op.static_strides.as_tuple() != op.source.type.get_strides():
+            # update strides only if they differ from op.source.type
             new_ops.append(
                 stride_op := arith.Constant(
                     IntegerAttr(
@@ -107,9 +123,16 @@ class LowerSubviewOpPass(RewritePattern):
                 )
             )
 
-        # update offsets only if they differ from op.source.type
+        # offsets
         if op.static_offsets.data.data[0].data == memref.Subview.DYNAMIC_INDEX:
-            pass  # todo
+            new_ops.append(cast_op := arith.IndexCastOp(op.offsets[0], csl.i16_value))
+            new_ops.append(
+                curr_op := csl.IncrementDsdOffsetOp.build(
+                    operands=[curr_op, cast_op],
+                    properties={"elem_type": op.source.type.get_element_type()},
+                    result_types=[op.source.type],
+                )
+            )
         elif (
             isinstance(op.source.type.layout, StridedLayoutAttr)
             and op.static_offsets.as_tuple()[0]
@@ -117,6 +140,7 @@ class LowerSubviewOpPass(RewritePattern):
             or isinstance(op.source.type.layout, NoneAttr)
             and op.static_offsets.as_tuple()[0] != 0
         ):
+            # update offsets only if they differ from op.source.type
             new_ops.append(
                 offset_op := arith.Constant(
                     IntegerAttr(
