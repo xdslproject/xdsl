@@ -190,10 +190,8 @@ class FormatParser(BaseParser):
                     )
                 case VariadicLikeVariable(), VariadicLikeVariable():
                     if not (
-                        isinstance(a, VariadicLikeTypeDirective)
-                        or isinstance(b, VariadicLikeTypeDirective)
-                        or isinstance(a, RegionDirective)
-                        or isinstance(b, RegionDirective)
+                        isinstance(a, RegionDirective, VariadicLikeTypeDirective)
+                        or isinstance(b, RegionDirective, VariadicLikeTypeDirective)
                     ):
                         self.raise_error(
                             "A variadic operand variable cannot be followed by another variadic operand variable."
