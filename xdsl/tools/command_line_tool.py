@@ -36,6 +36,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return canonicalize_dmp.CanonicalizeDmpPass
 
+    def get_control_flow_hoist():
+        from xdsl.transforms import control_flow_hoist
+
+        return control_flow_hoist.ControlFlowHoistPass
+
     def get_convert_linalg_to_memref_stream():
         from xdsl.transforms import convert_linalg_to_memref_stream
 
@@ -210,6 +215,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import memref_stream_legalize
 
         return memref_stream_legalize.MemrefStreamLegalizePass
+
+    def get_memref_to_dsd():
+        from xdsl.transforms import memref_to_dsd
+
+        return memref_to_dsd.MemrefToDsdPass
 
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
@@ -386,6 +396,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
+        "control-flow-hoist": get_control_flow_hoist,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
@@ -435,6 +446,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "memref-stream-interleave": get_memref_stream_interleave,
         "memref-stream-tile-outer-loops": get_memref_stream_tile_outer_loops,
         "memref-stream-legalize": get_memref_stream_legalize,
+        "memref-to-dsd": get_memref_to_dsd,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,

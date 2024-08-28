@@ -67,6 +67,8 @@
 
     %4 = "csl.constants"(%inline_const, %inline_const) <{is_const}> : (i32, i32) -> memref<?xi32>
 
+    %5 = "csl.zeros"(%const27) <{is_const}> : (i16) -> memref<?xi16>
+
     csl.return
   }
 
@@ -408,6 +410,7 @@ csl.func @builtins() {
 // CHECK-NEXT:   const v1 : [const27]i16 = @constants([const27]i16, const27);
 // CHECK-NEXT:   const v2 : [const27]i32 = @constants([const27]i32, 100);
 // CHECK-NEXT:   const v3 : [100]i32 = @constants([100]i32, 100);
+// CHECK-NEXT:   const v4 : [const27]i16 = @zeros([const27]i16);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
