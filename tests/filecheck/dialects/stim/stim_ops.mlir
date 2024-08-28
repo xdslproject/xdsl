@@ -18,5 +18,3 @@ stim.circuit attributes {"hello" = "world"} {}
 
 // CHECK-NEXT:  }
 // CHECK-GENERIC-NEXT:  }) : () -> ()
-
-

@@ -1,5 +1,5 @@
 from xdsl.dialects import stim
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 
 
 def test_empty_circuit():
