@@ -4,7 +4,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.csl import csl, csl_wrapper
-from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,17 +28,17 @@ class RemoveUnusedYield(RewritePattern):
 
 
 @dataclass(frozen=True)
-class ExtractLayoutProgramModule(RewritePattern):
+class ExtractLayoutModule(RewritePattern):
     prog_name: str
 
-    @staticmethod
-    def replace_arg(
-        rewriter: PatternRewriter, arg: BlockArgument, param: Operation | SSAValue
-    ):
-        for use in arg.uses:
-            rewriter.handle_operation_modification(use.operation)
-        arg.replace_by(SSAValue.get(param))
-        rewriter.erase_block_argument(arg)
+    def add_tile_code(self, x: SSAValue, y: SSAValue, yield_op: csl_wrapper.YieldOp):
+        struct = csl.ConstStructOp(*(f for f in yield_op.items()))
+        return (
+            csl.SetTileCodeOp(
+                fname=self.prog_name, x_coord=x, y_coord=y, params=struct
+            ),
+            struct,
+        )
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
@@ -55,7 +55,7 @@ class ExtractLayoutProgramModule(RewritePattern):
         new_args = list[SSAValue]()
 
         assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
-        yield_op.detach()
+        rewriter.erase_op(yield_op)
 
         with ImplicitBuilder(module_block):
             const_0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
@@ -94,9 +94,7 @@ class ExtractLayoutProgramModule(RewritePattern):
                         body=inner_loop_block,
                     )
         rewriter.inline_block(
-            # TODO(dk949): the clone is temporary
             op.layout_module.block,
-            # op.layout_module.clone().block,
             InsertPoint.at_start(inner_loop_block),
             arg_values=[
                 SSAValue.get(param_width),
@@ -106,19 +104,17 @@ class ExtractLayoutProgramModule(RewritePattern):
                 *new_args,
             ],
         )
-        tile_code = csl.SetTileCodeOp(
-            fname=self.prog_name,
-            x_coord=x,
-            y_coord=y,
-        )
-        inner_loop_block.add_op(tile_code)
+        tile_code, struct = self.add_tile_code(x, y, yield_op)
+        inner_loop_block.add_ops((tile_code, struct))
 
         layout_mod = csl.CslModuleOp(
             regions=[Region(module_block)],
             properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
         )
-        print(layout_mod)
-        exit(0)
+        assert isa(builtin_module := op.parent_op(), builtin.ModuleOp)
+        rewriter.insert_op(
+            layout_mod, InsertPoint.at_start(builtin_module.regions[0].block)
+        )
 
 
 @dataclass(frozen=True)
@@ -135,8 +131,8 @@ class CslWrapperToCslPass(ModulePass):
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    ExtractLayoutModule(prog_name=self.prog_name),
                     RemoveUnusedYield(),
-                    ExtractLayoutProgramModule(prog_name=self.prog_name),
                 ]
             ),
             apply_recursively=False,
