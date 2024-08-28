@@ -5,6 +5,7 @@ Test the definition and usage of traits and interfaces.
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pytest
@@ -37,11 +38,15 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import (
+    AlwaysSpeculatable,
+    ConditionallySpeculatable,
     HasAncestor,
     HasParent,
     OptionalSymbolOpInterface,
+    RecursivelySpeculatable,
     SymbolOpInterface,
     SymbolTable,
+    is_speculatable,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
@@ -495,3 +500,49 @@ def test_insert_or_update():
     assert trait.insert_or_update(op, symbol2) is None
     assert len(op.reg.ops) == 3
     assert symbol2 in list(op.reg.ops)
+
+
+def nonpure():
+    return TestOp.create()
+
+
+def pure():
+    return test.TestPureOp.create()
+
+
+@pytest.mark.parametrize(
+    ("trait", "speculatability", "nested_ops"),
+    [
+        ([], False, []),
+        ([], False, [nonpure()]),
+        ([], False, [pure()]),
+        ([AlwaysSpeculatable()], True, []),
+        ([AlwaysSpeculatable()], True, [nonpure()]),
+        ([AlwaysSpeculatable()], True, [pure()]),
+        ([RecursivelySpeculatable()], True, []),
+        ([RecursivelySpeculatable()], False, [nonpure()]),
+        ([RecursivelySpeculatable()], True, [pure()]),
+    ],
+)
+def test_speculability(
+    trait: tuple[ConditionallySpeculatable] | tuple[()],
+    speculatability: bool,
+    nested_ops: Sequence[Operation],
+):
+    @irdl_op_definition
+    class SupeculatabilityTestOp(IRDLOperation):
+        name = "test.speculatability"
+        region = region_def()
+
+        traits = frozenset([*trait])
+
+    op = SupeculatabilityTestOp(regions=[Region(Block(nested_ops))])
+    optrait = op.get_trait(ConditionallySpeculatable)
+
+    if trait:
+        assert optrait is not None
+        assert optrait.is_speculatable(op) is speculatability
+    else:
+        assert optrait is None
+
+    assert is_speculatable(op) is speculatability
