@@ -1435,7 +1435,7 @@ class SymbolExportOp(IRDLOperation):
 
     It corresponds to @export_name in layout and @export_symbol in program.
 
-    This op takes comes in two modes:
+    This op comes in two modes:
       * var_name: StringAttr,    type: PtrType,      value: Op(PtrType)
       * var_name: SymbolRefAttr, type: FunctionType, value: None
     """
