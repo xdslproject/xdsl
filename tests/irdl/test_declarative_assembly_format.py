@@ -1349,7 +1349,7 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     """Test the parsing of optional regions in an optional group"""
 
     @irdl_op_definition
-    class OptionalRegionOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+    class OptionalRegionOp(IRDLOperation):
         name = "test.optional_region_group"
         irdl_options = [AttrSizedRegionSegments]
         opt_region = opt_region_def()
