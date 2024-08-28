@@ -1,3 +1,4 @@
+import keyword
 from typing import cast
 
 from xdsl.dialects.builtin import ModuleOp
@@ -26,6 +27,12 @@ from xdsl.irdl import (
     get_accessors_from_param_attr_def,
 )
 from xdsl.traits import SymbolTable
+
+
+def python_name(name: str):
+    if keyword.iskeyword(name):
+        return f"{name}_"
+    return name
 
 
 @register_impls
@@ -173,7 +180,8 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).operands = list(
-            (f"{name.data}", OperandDef(a)) for name, a in zip(op.names, args)
+            (f"{python_name(name.data)}", OperandDef(a))
+            for name, a in zip(op.names, args)
         )
         return ()
 
@@ -184,7 +192,8 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).results = list(
-            (f"{name.data}", ResultDef(a)) for name, a in zip(op.names, args)
+            (f"{python_name(name.data)}", ResultDef(a))
+            for name, a in zip(op.names, args)
         )
         return ()
 
@@ -225,7 +234,7 @@ class IRDLFunctions(InterpreterFunctions):
                 case irdl.OperationOp():
                     operations.append(
                         type(IRDLOperation)(
-                            entry.sym_name.data,
+                            python_name(entry.sym_name.data),
                             (IRDLOperation,),
                             dict(IRDLOperation.__dict__)
                             | {"name": entry.qualified_name},
@@ -235,7 +244,7 @@ class IRDLFunctions(InterpreterFunctions):
                 case irdl.TypeOp():
                     attributes.append(
                         type(ParametrizedAttribute)(
-                            entry.sym_name.data,
+                            python_name(entry.sym_name.data),
                             (TypeAttribute, ParametrizedAttribute),
                             dict(ParametrizedAttribute.__dict__)
                             | {"name": entry.qualified_name},

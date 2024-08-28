@@ -11,6 +11,7 @@ from xdsl.dialects.irdl import (
     ResultsOp,
     TypeOp,
 )
+from xdsl.interpreters.irdl import python_name
 
 
 def convert_type_or_attr(op: TypeOp | AttributeOp, dialect_name: str) -> str:
@@ -44,10 +45,10 @@ class {op.sym_name.data}(IRDLOperation):
     for sub_op in op.body.ops:
         if isinstance(sub_op, OperandsOp):
             for name, _ in zip(sub_op.names, sub_op.args):
-                res += f"    {name.data} = operand_def()\n"
+                res += f"    {python_name(name.data)} = operand_def()\n"
         if isinstance(sub_op, ResultsOp):
             for name, _ in zip(sub_op.names, sub_op.args):
-                res += f"    {name.data} = result_def()\n"
+                res += f"    {python_name(name.data)} = result_def()\n"
     res += "    regs = var_region_def()\n"
     res += "    succs = var_successor_def()\n"
     return res

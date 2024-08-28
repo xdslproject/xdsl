@@ -53,7 +53,7 @@ if __name__ == "__main__":
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class norm(IRDLOperation):
-# CHECK-NEXT:      in : Operand
+# CHECK-NEXT:      in_ : Operand
 # CHECK-NEXT:      out : OpResult
 # CHECK-EMPTY:
 # CHECK-EMPTY:

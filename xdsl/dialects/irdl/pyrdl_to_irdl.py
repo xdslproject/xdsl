@@ -1,3 +1,5 @@
+import keyword
+
 from xdsl.builder import Builder
 from xdsl.dialects.irdl import AnyOp
 from xdsl.dialects.irdl.irdl import (
@@ -11,6 +13,12 @@ from xdsl.dialects.irdl.irdl import (
 )
 from xdsl.ir import Attribute, Block, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import AttrConstraint, IRDLOperation, RangeConstraint
+
+
+def depython_name(name: str):
+    if name[-1] == "_" and keyword.iskeyword(name[:-1]):
+        return name[:-1]
+    return name
 
 
 def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue:
@@ -41,7 +49,7 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     # Operands
     operand_values: dict[str, tuple[VariadicityAttr, SSAValue]] = {}
     for name, operand in op_def.operands:
-        operand_values[name] = (
+        operand_values[depython_name(name)] = (
             VariadicityAttr.SINGLE,
             range_to_irdl(builder, operand.constr),
         )
@@ -51,7 +59,7 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     # Results
     result_values: dict[str, tuple[VariadicityAttr, SSAValue]] = {}
     for name, result in op_def.results:
-        result_values[name] = (
+        result_values[depython_name(name)] = (
             VariadicityAttr.SINGLE,
             range_to_irdl(builder, result.constr),
         )
