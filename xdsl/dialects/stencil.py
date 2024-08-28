@@ -62,11 +62,11 @@ from xdsl.traits import (
     HasAncestor,
     HasCanonicalizationPatternsTrait,
     HasParent,
+    HasShapeInferencePatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
     MemoryEffect,
     MemoryEffectKind,
-    MemoryReadEffect,
     NoMemoryEffect,
     Pure,
     RecursiveMemoryEffect,
@@ -421,15 +421,26 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         )
 
 
+class ApplyOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.shape_inference_patterns.stencil import (
+            ApplyOpShapeInference,
+        )
+
+        return (ApplyOpShapeInference(),)
+
+
 class ApplyMemoryEffect(RecursiveMemoryEffect):
     @classmethod
     def get_effects(cls, op: Operation):
         effects = super().get_effects(op)
         if effects is not None:
-            if len(cast(ApplyOp, op).dest) > 0:
-                effects.add(EffectInstance(MemoryEffectKind.WRITE))
-            if any(isinstance(o.type, FieldType) for o in op.operands):
-                effects.add(EffectInstance(MemoryEffectKind.READ))
+            for d in cast(ApplyOp, op).dest:
+                effects.add(EffectInstance(MemoryEffectKind.WRITE, d))
+            for o in cast(ApplyOp, op).args:
+                if isinstance(o.type, FieldType):
+                    effects.add(EffectInstance(MemoryEffectKind.READ, o))
         return effects
 
 
@@ -464,6 +475,7 @@ class ApplyOp(IRDLOperation):
         [
             IsolatedFromAbove(),
             ApplyOpHasCanonicalizationPatternsTrait(),
+            ApplyOpHasShapeInferencePatternsTrait(),
             ApplyMemoryEffect(),
         ]
     )
@@ -561,17 +573,20 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block | Region,
-        result_types: Sequence[TempType[Attribute]],
+        result_types: Sequence[TempType[Attribute]] = (),
+        bounds: StencilBoundsAttr | None = None,
     ):
-        assert len(result_types) > 0
-
+        assert result_types or bounds
         if isinstance(body, Block):
             body = Region(body)
+
+        properties = {"bounds": bounds} if bounds else {}
 
         return ApplyOp.build(
             operands=[list(args), []],
             regions=[body],
             result_types=[result_types],
+            properties=properties,
         )
 
     def verify_(self) -> None:
@@ -645,6 +660,14 @@ class ApplyOp(IRDLOperation):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
+
+    def get_bounds(self):
+        if self.bounds is not None:
+            return self.bounds
+        else:
+            assert self.res
+            res_type = cast(TempType[Attribute], self.res[0].type)
+            return res_type.bounds
 
 
 class AllocOpEffect(MemoryEffect):
@@ -741,6 +764,16 @@ class CastOp(IRDLOperation):
             )
 
 
+class CombineOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.shape_inference_patterns.stencil import (
+            CombineOpShapeInference,
+        )
+
+        return (CombineOpShapeInference(),)
+
+
 @irdl_op_definition
 class CombineOp(IRDLOperation):
     """
@@ -779,11 +812,29 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
-    traits = frozenset([Pure()])
+    traits = frozenset(
+        [
+            Pure(),
+            CombineOpHasShapeInferencePatternsTrait(),
+        ]
+    )
 
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
 
-    irdl_options = [AttrSizedOperandSegments(), Pure()]
+    irdl_options = [
+        AttrSizedOperandSegments(),
+        Pure(),
+    ]
+
+
+class DynAccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls):
+        from xdsl.transforms.shape_inference_patterns.stencil import (
+            DynAccessOpShapeInference,
+        )
+
+        return (DynAccessOpShapeInference(),)
 
 
 @irdl_op_definition
@@ -829,7 +880,13 @@ class DynAccessOp(IRDLOperation):
         "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
     )
 
-    traits = frozenset([HasAncestor(ApplyOp), NoMemoryEffect()])
+    traits = frozenset(
+        [
+            HasAncestor(ApplyOp),
+            NoMemoryEffect(),
+            DynAccessOpHasShapeInferencePatternsTrait(),
+        ]
+    )
 
     def __init__(
         self,
@@ -927,6 +984,16 @@ class IndexOp(IRDLOperation):
         return cast(ApplyOp, ancestor)
 
 
+class AccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.shape_inference_patterns.stencil import (
+            AccessOpShapeInference,
+        )
+
+        return (AccessOpShapeInference(),)
+
+
 @irdl_op_definition
 class AccessOp(IRDLOperation):
     """
@@ -965,7 +1032,9 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = frozenset([HasAncestor(ApplyOp), Pure()])
+    traits = frozenset(
+        [HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()]
+    )
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -1132,6 +1201,22 @@ class AccessOp(IRDLOperation):
         return cast(ApplyOp, ancestor)
 
 
+class LoadOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.shape_inference_patterns.stencil import (
+            LoadOpShapeInference,
+        )
+
+        return (LoadOpShapeInference(),)
+
+
+class LoadOpMemoryEffect(MemoryEffect):
+    @classmethod
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.READ, cast(LoadOp, op).field)}
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
@@ -1170,7 +1255,7 @@ class LoadOp(IRDLOperation):
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
-    traits = frozenset([MemoryReadEffect()])
+    traits = frozenset([LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect()])
 
     @staticmethod
     def get(
@@ -1192,9 +1277,6 @@ class LoadOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, StoreOp):
-                raise VerifyException("Cannot Load and Store the same field!")
         field = self.field.type
         temp = self.res.type
         assert isa(field, FieldType[Attribute])
@@ -1206,6 +1288,16 @@ class LoadOp(IRDLOperation):
                 raise VerifyException(
                     "The stencil.load is too big for the loaded field."
                 )
+
+
+class BufferOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.shape_inference_patterns.stencil import (
+            BufferOpShapeInference,
+        )
+
+        return (BufferOpShapeInference(),)
 
 
 @irdl_op_definition
@@ -1254,13 +1346,18 @@ class BufferOp(IRDLOperation):
 
     assembly_format = "$temp attr-dict-with-keyword `:` type($temp) `->` type($res)"
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), BufferOpHasShapeInferencePatternsTrait()])
 
     def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
 
     def verify_(self) -> None:
+        # When used as a bufferization op, it should be flexible.
+        # This is probably something you don't want to see, but should be valid - it just
+        # means bufferization was incomplete.
+        if isinstance(self.res.type, FieldType):
+            return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
             raise VerifyException(
                 f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
@@ -1292,6 +1389,22 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
             ):
                 return
         super().verify(attr, constraint_context)
+
+
+class StoreOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.shape_inference_patterns.stencil import (
+            StoreOpShapeInference,
+        )
+
+        return (StoreOpShapeInference(),)
+
+
+class StoreOpMemoryEffect(MemoryEffect):
+    @classmethod
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.WRITE, cast(StoreOp, op).field)}
 
 
 @irdl_op_definition
@@ -1346,6 +1459,8 @@ class StoreOp(IRDLOperation):
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
+    traits = frozenset([StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect()])
+
     @staticmethod
     def get(
         temp: SSAValue | Operation,
@@ -1353,13 +1468,6 @@ class StoreOp(IRDLOperation):
         bounds: StencilBoundsAttr,
     ):
         return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
-
-    def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, LoadOp):
-                raise VerifyException("Cannot Load and Store the same field!")
-            if isa(use.operation, LoadOp) and use.operation is not self:
-                raise VerifyException("Can only store once to a field!")
 
 
 @irdl_op_definition

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir | filecheck %s
+// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir --split-input-file --verify-diagnostics | filecheck %s
 
 builtin.module {
 // CHECK: builtin.module {
@@ -821,20 +821,22 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
     func.return
   }
 
-// CHECK:         func.func @stencil_copy_bufferized(%0 : memref<72x72x72xf64>, %1 : memref<72x72x72xf64>) {
-// CHECK-NEXT:      %2 = arith.constant 0 : index
-// CHECK-NEXT:      %3 = arith.constant 0 : index
+// CHECK:    func.func @stencil_copy_bufferized(%0 : memref<72x72x72xf64>, %1 : memref<72x72x72xf64>) {
+// CHECK-NEXT:      %2 = memref.subview %1[4, 4, 4] [72, 72, 72] [1, 1, 1] : memref<72x72x72xf64> to memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:      %3 = memref.subview %0[4, 4, 4] [72, 72, 72] [1, 1, 1] : memref<72x72x72xf64> to memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:      %4 = arith.constant 0 : index
-// CHECK-NEXT:      %5 = arith.constant 1 : index
-// CHECK-NEXT:      %6 = arith.constant 1 : index
+// CHECK-NEXT:      %5 = arith.constant 0 : index
+// CHECK-NEXT:      %6 = arith.constant 0 : index
 // CHECK-NEXT:      %7 = arith.constant 1 : index
-// CHECK-NEXT:      %8 = arith.constant 64 : index
-// CHECK-NEXT:      %9 = arith.constant 64 : index
+// CHECK-NEXT:      %8 = arith.constant 1 : index
+// CHECK-NEXT:      %9 = arith.constant 1 : index
 // CHECK-NEXT:      %10 = arith.constant 64 : index
-// CHECK-NEXT:      "scf.parallel"(%2, %3, %4, %8, %9, %10, %5, %6, %7) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
-// CHECK-NEXT:      ^0(%11 : index, %12 : index, %13 : index):
-// CHECK-NEXT:        %14 = memref.load %0[%11, %12, %13] : memref<72x72x72xf64>
-// CHECK-NEXT:        memref.store %14, %1[%11, %12, %13] : memref<72x72x72xf64>
+// CHECK-NEXT:      %11 = arith.constant 64 : index
+// CHECK-NEXT:      %12 = arith.constant 64 : index
+// CHECK-NEXT:      "scf.parallel"(%4, %5, %6, %10, %11, %12, %7, %8, %9) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+// CHECK-NEXT:      ^0(%13 : index, %14 : index, %15 : index):
+// CHECK-NEXT:        %16 = memref.load %3[%13, %14, %15] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        memref.store %16, %2[%13, %14, %15] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:      func.return
@@ -842,3 +844,54 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
 
 }
 // CHECK-NEXT: }
+
+// -----
+
+  func.func @stencil_double_store(%93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+    %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
+      %xy_1 = arith.addi %x_1, %y_1 : index
+      %xyz_1 = arith.addi %xy_1, %z_1 : index
+      stencil.return %xyz_1 : index
+    }
+    stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    %95 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
+      %xy_1 = arith.addi %x_1, %y_1 : index
+      %xyz_1 = arith.addi %xy_1, %z_1 : index
+      stencil.return %xyz_1 : index
+    }
+    stencil.store %95 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    func.return
+  }
+
+// CHECK:           "stencil.store"(%2, %0) {"bounds" = #stencil.bounds<[0, 0, 0], [64, 64, 64]>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>, !stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> ()
+// CHECK-NEXT:      ^^^^^^^^^^^^^^^-------------------------------------------------------------------------------------------------------------------------
+// CHECK-NEXT:      | Error while applying pattern: Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before.
+// CHECK-NEXT:      ----------------------------------------------------------------------------------------------------------------------------------------
+
+// -----
+
+  func.func @stencil_load_store(%93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+    %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
+      %xy_1 = arith.addi %x_1, %y_1 : index
+      %xyz_1 = arith.addi %xy_1, %z_1 : index
+      stencil.return %xyz_1 : index
+    }
+    stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    %95 = stencil.load %93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex> -> !stencil.temp<[0,64]x[0,64]x[0,64]xindex>
+    "test.op"(%95) : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) -> ()
+    func.return
+  }
+
+// CHECK:           %2 = "stencil.load"(%0) : (!stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xindex>
+// CHECK-NEXT:      ^^^^^^^^^^^^^^^^^^^-----------------------------------------------------------------------------------------------------------------
+// CHECK-NEXT:      | Error while applying pattern: Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before.
+// CHECK-NEXT:      ------------------------------------------------------------------------------------------------------------------------------------

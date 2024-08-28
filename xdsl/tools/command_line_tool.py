@@ -320,10 +320,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_scf_to_asm.LowerScfForToLabels
 
-    def get_stencil_shape_inference():
-        from xdsl.transforms.experimental import stencil_shape_inference
+    def get_shape_inference():
+        from xdsl.transforms.shape_inference import ShapeInferencePass
 
-        return stencil_shape_inference.StencilShapeInferencePass
+        return ShapeInferencePass
 
     def get_stencil_storage_materialization():
         from xdsl.transforms.experimental import stencil_storage_materialization
@@ -440,7 +440,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
-        "stencil-shape-inference": get_stencil_shape_inference,
+        "shape-inference": get_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-to-csl-stencil": get_stencil_to_csl_stencil,

@@ -114,4 +114,3 @@ func.func @interleaved_no_init(%A0 : memref<3x5xf64>, %B0 : memref<5x8xf64>, %C0
     }
     func.return %C0 : memref<3x8xf64>
 }
-

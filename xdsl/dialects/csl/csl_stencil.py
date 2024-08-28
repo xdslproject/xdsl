@@ -124,7 +124,7 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.TempType[Attribute])
+        base(stencil.StencilType[Attribute])
         | base(memref.MemRefType[Attribute])
         | base(TensorType[Attribute])
     )
@@ -513,7 +513,7 @@ class AccessOp(IRDLOperation):
             return cls.build(
                 operands=[temp],
                 result_types=[
-                    TensorType(res_type.element_type, res_type.get_shape()[1:])
+                    TensorType(res_type.element_type, res_type.get_shape()[-1:])
                 ],
                 properties=props,
             )
@@ -521,7 +521,7 @@ class AccessOp(IRDLOperation):
             return cls.build(
                 operands=[temp],
                 result_types=[
-                    memref.MemRefType(res_type.element_type, res_type.get_shape()[1:])
+                    memref.MemRefType(res_type.element_type, res_type.get_shape()[-1:])
                 ],
                 properties=props,
             )
