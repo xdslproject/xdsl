@@ -7,18 +7,40 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 """
 
 import abc
-from typing import Annotated, cast
+from collections.abc import Sequence
+from typing import Annotated, TypeAlias, cast
 
-from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, TensorType
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.dialects.builtin import (
+    I32,
+    AnyTensorType,
+    DenseArrayBase,
+    IntegerType,
+    TensorType,
+)
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    ParametrizedAttribute,
+    Region,
+    SpacedOpaqueSyntaxAttribute,
+    SSAValue,
+    StrEnum,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
+    var_operand_def,
+    var_region_def,
+    var_result_def,
 )
+from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 # region Abstract Base Classes
@@ -39,6 +61,48 @@ class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+# endregion
+
+# region Attributes
+
+
+class Precision(StrEnum):
+    """
+    XLA precision for an operand. Has backend specific meaning.
+    """
+
+    DEFAULT = "DEFAULT"
+    HIGH = "HIGH"
+    HIGHEST = "HIGHEST"
+
+
+@irdl_attr_definition
+class PrecisionAttr(EnumAttribute[Precision], SpacedOpaqueSyntaxAttribute):
+    """
+    XLA precision for an operand. Has backend specific meaning.
+
+    https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloEnums.td#L46
+    """
+
+    name = "stablehlo.precision"
+
+
+@irdl_attr_definition
+class TokenType(TypeAttribute, ParametrizedAttribute):
+    """
+    Token types represent tokens, i.e. opaque values produced and consumed by some operations.
+    Tokens are used for imposing execution order on operations as described in the Execution section.
+
+    E.g.,
+
+      // %input0: !stablehlo.token
+      // %input1: !stablehlo.token
+      %result = "stablehlo.after_all"(%input0, %input1) : (!stablehlo.token, !stablehlo.token) -> !stablehlo.token
+    """
+
+    name = "stablehlo.token"
 
 
 # endregion
@@ -92,6 +156,115 @@ class AddOp(ElementwiseBinaryOperation):
 
 
 @irdl_op_definition
+class AfterAllOp(IRDLOperation):
+    """
+    Ensures that the operations producing the inputs are executed before any operations that depend on result.
+    Execution of this operation does nothing, it only exists to establish data dependencies from result to inputs.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#after_all
+    """
+
+    name = "stablehlo.after_all"
+    inputs = var_operand_def(TokenType)
+    result = result_def(TokenType)
+
+    def __init__(self, inputs: Sequence[SSAValue]):
+        super().__init__(operands=[inputs], result_types=(TokenType(),))
+
+
+IntegerTensorType: TypeAlias = TensorType[IntegerType]
+
+
+@irdl_op_definition
+class AndOp(IRDLOperation):
+    """
+    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor. Depending on the element type, does the following:
+
+    For booleans: logical AND.
+    For integers: bitwise AND.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and
+    """
+
+    name = "stablehlo.and"
+
+    T = Annotated[IntegerTensorType, ConstraintVar("T")]
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    result = result_def(T)
+
+    def __init__(
+        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
+    ):
+        if result_type is None:
+            result_type = lhs.type
+        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+# TODO: Change to SI32 once StableHLO adopts signful integer semantics
+# See: https://github.com/openxla/stablehlo/issues/22
+# https://github.com/openxla/stablehlo/issues/2489
+SI32TensorType: TypeAlias = TensorType[I32]
+
+
+@irdl_op_definition
+class CaseOp(IRDLOperation):
+    """
+    Semantics
+
+    Produces the output from executing exactly one function from branches depending on the value of index.
+    More formally, result = selected_branch() where:
+
+    selected_branch = branches[index] if 0 <= index < size(branches).
+    selected_branch = branches[-1] otherwise.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
+    """
+
+    name = "stablehlo.case"
+    index = operand_def(SI32TensorType)
+    branches = var_region_def("single_block")
+    _results = var_result_def(AnyTensorType | TokenType)
+
+    def __init__(
+        self,
+        index: SSAValue,
+        branches: Sequence[Region],
+        result_types: Sequence[AnyTensorType | TokenType],
+    ):
+        super().__init__(
+            operands=(index,), result_types=(result_types,), regions=(branches,)
+        )
+
+
+@irdl_op_definition
+class BitcastConvertOp(IRDLOperation):
+    """
+    Performs a bitcast operation on operand tensor and produces a result tensor
+    where the bits of the entire operand tensor are reinterpreted using the type of the result tensor.
+
+    More formally, given E = element_type(operand), E' = element_type(result), and R = rank(operand):
+
+    If num_bits(E') < num_bits(E), bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1]).
+    If num_bits(E') > num_bits(E), bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :]).
+    If num_bits(E') = num_bits(E), bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1]).
+
+    bits returns in-memory representation of a given value,
+    and its behavior is implementation-defined because the exact representation of tensors is implementation-defined,
+    and the exact representation of element types is implementation-defined as well.
+    """
+
+    name = "stablehlo.bitcast_convert"
+    input = operand_def(AnyTensorType)
+    result = result_def(AnyTensorType)
+
+    def __init__(self, input: SSAValue, result: Attribute):
+        super().__init__(operands=(input,), result_types=(result,))
+
+
+@irdl_op_definition
 class MultiplyOp(ElementwiseBinaryOperation):
     """
     Performs element-wise product of two tensors `lhs` and `rhs` and produces a
@@ -126,6 +299,26 @@ class SubtractOp(ElementwiseBinaryOperation):
     """
 
     name = "stablehlo.subtract"
+
+
+@irdl_op_definition
+class ReturnOp(IRDLOperation):
+    """This op is un-documented.
+
+    StableHLO's return is used inside of the bodies of StableHLO ops.
+    It behaves like func.return but for StableHLO ops.
+    The func.return op is used inside of func.func op.
+
+    https://discord.com/channels/999073994483433573/1259494021269688360/1259992088565645312
+    """
+
+    name = "stablehlo.return"
+
+    input = var_operand_def(AnyTensorType)
+    traits = frozenset([IsTerminator()])
+
+    def __init__(self, input: list[SSAValue]):
+        super().__init__(operands=(input,))
 
 
 @irdl_op_definition
@@ -188,9 +381,17 @@ StableHLO = Dialect(
     [
         AbsOp,
         AddOp,
+        AfterAllOp,
+        AndOp,
+        BitcastConvertOp,
+        CaseOp,
         MultiplyOp,
+        ReturnOp,
         SubtractOp,
         TransposeOp,
     ],
-    [],
+    [
+        PrecisionAttr,
+        TokenType,
+    ],
 )

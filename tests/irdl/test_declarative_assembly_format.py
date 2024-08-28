@@ -463,6 +463,37 @@ def test_optional_property(program: str, generic_program: str):
     "program, generic_program",
     [
         (
+            "test.optional_property()",
+            '"test.optional_property"() : () -> ()',
+        ),
+        (
+            "test.optional_property( prop i32 )",
+            '"test.optional_property"() <{"prop" = i32}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_property_with_whitespace(program: str, generic_program: str):
+    """Test the parsing of optional operands"""
+
+    @irdl_op_definition
+    class OptionalPropertyOp(IRDLOperation):
+        name = "test.optional_property"
+        prop = opt_prop_def(Attribute)
+
+        assembly_format = "`(` (` ` `prop` $prop^ ` `)? `)` attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalPropertyOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
             "test.optional_unit_attr_prop",
             '"test.optional_unit_attr_prop"() : () -> ()',
         ),
@@ -607,6 +638,7 @@ def test_typed_attribute_variable(program: str, generic_program: str):
             "test.punctuation keyword, keyword",
         ),
         ("`keyword` ` ` `,` `keyword` attr-dict", "test.punctuation keyword , keyword"),
+        ("`keyword` `,` `` `keyword` attr-dict", "test.punctuation keyword,keyword"),
         (
             "`keyword` `\\n` `,` `keyword` attr-dict",
             "test.punctuation keyword\n, keyword",
@@ -1272,8 +1304,6 @@ def test_optional_region(format: str, program: str, generic_program: str):
 
 
 def test_multiple_optional_regions():
-    """Test the parsing of multiple optional regions"""
-
     """Test that a variadic region variable cannot directly follow another variadic region variable."""
     with pytest.raises(
         PyRDLOpDefinitionError,
@@ -1332,6 +1362,7 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
 
 
 ################################################################################
@@ -1727,13 +1758,16 @@ def test_optional_group_variadic_result_anchor(
 @pytest.mark.parametrize(
     "format, error",
     (
-        ("()?", "An optional group cannot be empty"),
+        ("()?", "An optional group must have a non-whitespace directive"),
         ("(`keyword`)?", "Every optional group must have an anchor."),
         (
             "($args^ type($rets)^)?",
             "An optional group can only have one anchor.",
         ),
-        ("(`keyword`^)?", "An optional group's anchor must be an achorable directive."),
+        (
+            "(`keyword`^)?",
+            "An optional group's anchor must be an anchorable directive.",
+        ),
         (
             "($mandatory_arg^)?",
             "First element of an optional group must be optionally parsable.",

@@ -22,4 +22,3 @@
 // CHECK-ROUNDTRIP-NEXT:    %q0_2, %q1_2 = qssa.cnot %q0_1, %q1_1
 // CHECK-ROUNDTRIP-NEXT:    %0 = qssa.measure %q0_2
 // CHECK-ROUNDTRIP-NEXT:  }
-

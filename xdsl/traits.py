@@ -440,6 +440,23 @@ class HasCanonicalizationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
+@dataclass(frozen=True)
+class HasShapeInferencePatternsTrait(OpTrait):
+    """
+    Provides the rewrite passes to shape infer an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    @abc.abstractmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()
+
+
 class MemoryEffectKind(Enum):
     """
     The kind of side effect an operation can have.
@@ -631,7 +648,33 @@ class RecursiveMemoryEffect(MemoryEffect):
         return effects
 
 
-class Pure(NoMemoryEffect):
+class ConditionallySpeculatable(OpTrait):
+    @classmethod
+    @abc.abstractmethod
+    def is_speculatable(cls, op: Operation) -> bool:
+        raise NotImplementedError()
+
+
+class AlwaysSpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return True
+
+
+class RecursivelySpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return all(
+            is_speculatable(o) for r in op.regions for b in r.blocks for o in b.ops
+        )
+
+
+def is_speculatable(op: Operation):
+    trait = op.get_trait(ConditionallySpeculatable)
+    return (trait is not None) and trait.is_speculatable(op)
+
+
+class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
     In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
     found here.
