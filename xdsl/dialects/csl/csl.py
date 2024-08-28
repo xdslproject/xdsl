@@ -407,8 +407,8 @@ class ConstStructOp(IRDLOperation):
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
 
-    def __init__(self, *args: tuple[str, Operation]):
-        operands: list[Operation] = []
+    def __init__(self, *args: tuple[str, Operation | SSAValue]):
+        operands: list[Operation | SSAValue] = []
         fields: list[StringAttr] = []
         for fname, op in args:
             fields.append(StringAttr(fname))
