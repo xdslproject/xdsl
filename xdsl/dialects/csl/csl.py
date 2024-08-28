@@ -1590,9 +1590,11 @@ class ParamOp(IRDLOperation):
 
     res = result_def(T)
 
-    def __init__(self, name: str, result_type: T):
+    def __init__(
+        self, name: str, result_type: T, init_value: SSAValue | Operation | None = None
+    ):
         super().__init__(
-            operands=[[]],
+            operands=[init_value],
             result_types=[result_type],
             properties={"param_name": StringAttr(name)},
         )
