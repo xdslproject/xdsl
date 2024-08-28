@@ -1364,7 +1364,6 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     check_equivalence(program, generic_program, ctx)
 
 
-
 ################################################################################
 # Inference                                                                   #
 ################################################################################
