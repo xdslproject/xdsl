@@ -105,6 +105,7 @@ class ExtractLayoutModule(RewritePattern):
                         iter_args=[y],
                         body=inner_loop_block,
                     )
+                    scf.Yield()
         rewriter.inline_block(
             op.layout_module.block,
             InsertPoint.at_start(inner_loop_block),
@@ -118,6 +119,7 @@ class ExtractLayoutModule(RewritePattern):
         )
         tile_code, struct = self.add_tile_code(x, y, yield_op)
         inner_loop_block.add_ops((tile_code, struct))
+        inner_loop_block.add_op(scf.Yield())
 
         layout_mod = csl.CslModuleOp(
             regions=[Region(module_block)],
