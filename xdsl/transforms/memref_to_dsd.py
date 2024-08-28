@@ -60,6 +60,8 @@ class LowerAllocOpPass(RewritePattern):
 
 
 class LowerSubviewOpPass(RewritePattern):
+    """Lowers memref.subview to dsd ops"""
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter, /):
         assert isa(op.source.type, MemRefType[Attribute])
@@ -135,6 +137,8 @@ class LowerSubviewOpPass(RewritePattern):
 
 
 class LowerCopyOpPass(RewritePattern):
+    """Lowers memref.copy to csl"""
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CopyOp, rewriter: PatternRewriter, /):
         assert isa(op.source.type, MemRefType[Attribute])
@@ -155,6 +159,8 @@ class LowerCopyOpPass(RewritePattern):
 
 
 class DsdOpUpdateType(RewritePattern):
+    """Rebuild DSD ops from memref to DSD types."""
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
@@ -170,6 +176,21 @@ class DsdOpUpdateType(RewritePattern):
                 result_types=[op.op.type],
             )
         )
+
+
+class RetainAddressOfOpPass(RewritePattern):
+    """Ensure we don't export DSD but the underlying memref."""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl.AddressOfOp, rewriter: PatternRewriter, /):
+        if isinstance(op.value.type, csl.DsdType) and isinstance(
+            op.value.owner, csl.GetMemDsdOp
+        ):
+            rewriter.replace_matched_op(
+                csl.AddressOfOp.build(
+                    operands=[op.value.owner.base_addr], result_types=op.result_types
+                )
+            )
 
 
 @dataclass(frozen=True)
@@ -199,6 +220,7 @@ class MemrefToDsdPass(ModulePass):
                 [
                     LowerAllocOpPass(),
                     DsdOpUpdateType(),
+                    RetainAddressOfOpPass(),
                 ]
             ),
             apply_recursively=False,
