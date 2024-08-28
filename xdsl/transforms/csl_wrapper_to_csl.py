@@ -49,25 +49,26 @@ class RemoveWrapper(RewritePattern):
 class ExtractLayoutModule(RewritePattern):
     prog_name: str
 
-    def add_tile_code(self, x: SSAValue, y: SSAValue, yield_op: csl_wrapper.YieldOp):
+    def add_tile_code(
+        self, x: SSAValue, y: SSAValue, yield_op: csl_wrapper.YieldOp, prog_name: str
+    ):
         struct = csl.ConstStructOp(*(f for f in yield_op.items()))
         return (
-            csl.SetTileCodeOp(
-                fname=self.prog_name, x_coord=x, y_coord=y, params=struct
-            ),
             struct,
+            csl.SetTileCodeOp(fname=prog_name, x_coord=x, y_coord=y, params=struct),
         )
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+        prog_name = op.program_name.data if op.program_name else self.prog_name
         module_block = Block()
 
         outer_loop_block = Block()
-        outer_loop_block.insert_arg(builtin.IntegerType(32), 0)
+        outer_loop_block.insert_arg(builtin.IntegerType(16), 0)
         x = outer_loop_block.args[0]
 
         inner_loop_block = Block()
-        inner_loop_block.insert_arg(builtin.IntegerType(32), 0)
+        inner_loop_block.insert_arg(builtin.IntegerType(16), 0)
         y = inner_loop_block.args[0]
 
         new_args = list[SSAValue]()
@@ -76,8 +77,8 @@ class ExtractLayoutModule(RewritePattern):
         rewriter.erase_op(yield_op)
 
         with ImplicitBuilder(module_block):
-            const_0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
-            const_1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
+            const_0 = arith.Constant.from_int_and_width(0, builtin.IntegerType(16))
+            const_1 = arith.Constant.from_int_and_width(1, builtin.IntegerType(16))
 
             const_width = arith.Constant(op.width)
             param_width = csl.ParamOp("width", op.width.type, const_width)
@@ -93,7 +94,7 @@ class ExtractLayoutModule(RewritePattern):
                     lb=const_0,
                     ub=const_width,
                     step=const_1,
-                    iter_args=[x],
+                    iter_args=[],
                     body=outer_loop_block,
                 )
 
@@ -102,7 +103,7 @@ class ExtractLayoutModule(RewritePattern):
                         lb=const_0,
                         ub=const_height,
                         step=const_1,
-                        iter_args=[y],
+                        iter_args=[],
                         body=inner_loop_block,
                     )
                     scf.Yield()
@@ -117,13 +118,19 @@ class ExtractLayoutModule(RewritePattern):
                 *new_args,
             ],
         )
-        tile_code, struct = self.add_tile_code(x, y, yield_op)
-        inner_loop_block.add_ops((tile_code, struct))
+        struct, tile_code = self.add_tile_code(
+            outer_loop_block.args[0],
+            inner_loop_block.args[0],
+            yield_op,
+            prog_name,
+        )
+        inner_loop_block.add_ops((struct, tile_code))
         inner_loop_block.add_op(scf.Yield())
 
         layout_mod = csl.CslModuleOp(
             regions=[Region(module_block)],
             properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
+            attributes={"sym_name": builtin.StringAttr(f"{prog_name}_layout")},
         )
 
         _add_to_toplevel(rewriter, op, layout_mod)
@@ -134,6 +141,8 @@ class ExtractLayoutModule(RewritePattern):
 
 @dataclass(frozen=True)
 class ExtractProgramModule(RewritePattern):
+    prog_name: str
+
     def _collect_yield_args(self, yield_op: csl_wrapper.YieldOp):
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
@@ -143,6 +152,7 @@ class ExtractProgramModule(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+        prog_name = op.program_name.data if op.program_name else self.prog_name
         module_block = Block()
         with ImplicitBuilder(module_block):
             const_width = arith.Constant(op.width)
@@ -173,6 +183,7 @@ class ExtractProgramModule(RewritePattern):
         program_module = csl.CslModuleOp(
             regions=[Region(module_block)],
             properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
+            attributes={"sym_name": builtin.StringAttr(f"{prog_name}_program")},
         )
         _add_to_toplevel(rewriter, op, program_module)
 
@@ -189,7 +200,9 @@ class CslWrapperToCslPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         program_module_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([ExtractProgramModule()]),
+            GreedyRewritePatternApplier(
+                [ExtractProgramModule(prog_name=self.prog_name)]
+            ),
             apply_recursively=False,
         )
         layout_module_pass = PatternRewriteWalker(
