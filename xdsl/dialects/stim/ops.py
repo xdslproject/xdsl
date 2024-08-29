@@ -117,6 +117,7 @@ class QubitMappingAttr(StimAttr, ParametrizedAttribute):
 
 @irdl_op_definition
 class StimCircuitOp(StimOp):
+class StimCircuitOp():
     """
     Base operation containing a stim program
     """
