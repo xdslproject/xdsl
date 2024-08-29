@@ -17,7 +17,6 @@ from xdsl.utils.exceptions import DiagnosticException
 
 @irdl_op_definition
 class EClassOp(IRDLOperation):
-
     T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "eqsat.eclass"
