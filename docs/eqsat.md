@@ -215,4 +215,3 @@ TODO
 ## How does the e-graph handle blocks? 
 
 TODO
-
