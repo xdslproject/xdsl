@@ -19,6 +19,16 @@ from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 
+def _get_prog_name(
+    from_wrapper: builtin.StringAttr | None, from_transofrm: str | None
+) -> str:
+    if from_wrapper is not None:
+        return from_wrapper.data
+    if from_transofrm is not None:
+        return from_transofrm
+    return "pe_program"
+
+
 def _collect_params(op: csl_wrapper.ModuleOp):
     new_args = list[SSAValue]()
     for param in op.params:
@@ -47,7 +57,7 @@ class RemoveWrapper(RewritePattern):
 
 @dataclass(frozen=True)
 class ExtractLayoutModule(RewritePattern):
-    prog_name: str
+    prog_name: str | None = None
 
     def add_tile_code(
         self, x: SSAValue, y: SSAValue, yield_op: csl_wrapper.YieldOp, prog_name: str
@@ -60,7 +70,7 @@ class ExtractLayoutModule(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
-        prog_name = op.program_name.data if op.program_name else self.prog_name
+        prog_name = _get_prog_name(op.program_name, self.prog_name)
         module_block = Block()
 
         outer_loop_block = Block()
@@ -141,7 +151,7 @@ class ExtractLayoutModule(RewritePattern):
 
 @dataclass(frozen=True)
 class ExtractProgramModule(RewritePattern):
-    prog_name: str
+    prog_name: str | None = None
 
     def _collect_yield_args(self, yield_op: csl_wrapper.YieldOp):
         params = list[csl.ParamOp]()
@@ -152,7 +162,7 @@ class ExtractProgramModule(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
-        prog_name = op.program_name.data if op.program_name else self.prog_name
+        prog_name = _get_prog_name(op.program_name, self.prog_name)
         module_block = Block()
         with ImplicitBuilder(module_block):
             const_width = arith.Constant(op.width)
@@ -196,7 +206,7 @@ class CslWrapperToCslPass(ModulePass):
     """
 
     name = "csl-wrapper-to-csl"
-    prog_name: str
+    prog_name: str | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         program_module_pass = PatternRewriteWalker(
