@@ -10,6 +10,7 @@ from xdsl.irdl import (
     ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_prop_def,
     prop_def,
     region_def,
 )
@@ -44,6 +45,10 @@ class QubitAttr(StimAttr, ParametrizedAttribute, TypeAttribute):
         qubit = parser.parse_integer(allow_negative=False, allow_boolean=False)
         parser.parse_punctuation(">")
         return [IntAttr(qubit)]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print(self.qubit.data)
 
     def print_stim(self, printer: StimPrinter):
         printer.print_string(self.qubit.data.__str__())
@@ -84,18 +89,26 @@ class QubitMappingAttr(StimAttr, ParametrizedAttribute):
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
             delimiter=parser.Delimiter.PAREN,
-            parse=lambda: IntAttr(parser.parse_integer()),
+            parse=lambda: IntAttr(
+                parser.parse_integer(allow_negative=False, allow_boolean=False)
+            ),
         )
         parser.parse_punctuation(",")
-        qubit = parser.parse_integer(allow_negative=False, allow_boolean=False)
+        qubit = parser.parse_attribute()
+        if not isinstance(qubit, QubitAttr):
+            parser.raise_error("Expected qubit attr", at_position=parser.pos)
         parser.parse_punctuation(">")
-        return (ArrayAttr(coords), QubitAttr(qubit))
+        return (ArrayAttr(coords), qubit)
 
-    def print(self, printer: Printer) -> None:
-        printer.print("(")
-        printer.print_attribute(self.coords)
-        printer.print(") ")
-        printer.print(self.qubit_name)
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print("(")
+            for i, elem in enumerate(self.coords):
+                if i:
+                    printer.print_string(", ")
+                printer.print(elem.data)
+            printer.print("), ")
+            printer.print(self.qubit_name)
 
     def print_stim(self, printer: StimPrinter):
         printer.print_attribute(self.coords)
@@ -120,12 +133,12 @@ class StimCircuitOp(StimOp):
 
     body = region_def("single_block")
 
-    # qubitlayout = opt_prop_def(ArrayAttr[QubitMappingAttr])
+    qubitlayout = opt_prop_def(ArrayAttr[QubitMappingAttr])
 
-    assembly_format = "attr-dict-with-keyword $body"
+    assembly_format = "(`qubitlayout` $qubitlayout^)? attr-dict-with-keyword $body"
 
-    def __init__(self, body: Region):
-        super().__init__(regions=[body])
+    def __init__(self, body: Region, qubitlayout: None | ArrayAttr[QubitMappingAttr]):
+        super().__init__(regions=[body], properties={"qubitlayout": qubitlayout})
 
     def verify(self, verify_nested_ops: bool = True) -> None:
         return
