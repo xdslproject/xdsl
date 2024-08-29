@@ -9,6 +9,10 @@
 %t4 = tensor.reshape %src(%shape) : (tensor<4x1xf32>, tensor<1xi32>) -> tensor<4xf32>
 %inserted_slice = "tensor.insert_slice"(%t2, %t1) <{"static_offsets" = array<i64: 0, 1>, "static_sizes" = array<i64: 1, 2>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0>}> : (tensor<2xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
 %extracted_slice = "tensor.extract_slice"(%t1) <{"static_offsets" = array<i64: 0, 1>, "static_sizes" = array<i64: 1, 2>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<2x3xf32>) -> tensor<2xf32>
+%dim1 = "tensor.dim"(%t1, %i1): (tensor<2x3xf32>, index) -> index
+%dim2 = "tensor.dim"(%t1, %i1) {"hello" = "world"}: (tensor<2x3xf32>, index) -> index
+%cast1 = "tensor.cast"(%t1) : (tensor<2x3xf32>) -> tensor<?x?xf32>
+%cast2 = "tensor.cast"(%t1) {"hello" = "world"} : (tensor<2x3xf32>) -> tensor<?x?xf32>
 
 
 // CHECK:       module {
@@ -21,4 +25,8 @@
 // CHECK-NEXT:  %reshape = tensor.reshape %4(%5) : (tensor<4x1xf32>, tensor<1xi32>) -> tensor<4xf32>
 // CHECK-NEXT:  %inserted_slice = tensor.insert_slice %1 into %0[0, 1] [1, 2] [1, 1] : tensor<2xf32> into tensor<2x3xf32>
 // CHECK-NEXT:  %extracted_slice = tensor.extract_slice %0[0, 1] [1, 2] [1, 1] : tensor<2x3xf32> to tensor<2xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.dim %{{.*}}, %{{.*}} : tensor<2x3xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.dim {hello = "world"} %{{.*}}, %{{.*}} : tensor<2x3xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.cast %{{.*}} : tensor<2x3xf32> to tensor<?x?xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.cast %{{.*}} {hello = "world"} : tensor<2x3xf32> to tensor<?x?xf32>
 // CHECK-NEXT: }

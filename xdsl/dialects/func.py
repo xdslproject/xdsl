@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
-    FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
     SymbolRefAttr,
@@ -28,10 +28,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
     irdl_op_definition,
     opt_prop_def,
     prop_def,
@@ -117,7 +114,7 @@ class FuncOp(IRDLOperation):
         # TODO: how to verify that there is a terminator?
         entry_block = self.body.blocks.first
         assert entry_block is not None
-        block_arg_types = [arg.type for arg in entry_block.args]
+        block_arg_types = entry_block.arg_types
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
@@ -225,10 +222,10 @@ class FuncOp(IRDLOperation):
             not self.is_declaration
         ), "update_function_type does not work with function declarations!"
         return_op = self.get_return_op()
-        return_type: tuple[Attribute, ...] = self.function_type.outputs.data
+        return_type = self.function_type.outputs.data
 
         if return_op is not None:
-            return_type = tuple(arg.type for arg in return_op.operands)
+            return_type = return_op.operand_types
 
         self.properties["function_type"] = FunctionType.from_lists(
             [arg.type for arg in self.args],
@@ -274,11 +271,9 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class Call(IRDLOperation):
     name = "func.call"
-    arguments: VarOperand = var_operand_def(AnyAttr())
-    callee: FlatSymbolRefAttr = prop_def(FlatSymbolRefAttr)
-
-    # Note: naming this results triggers an ArgumentError
-    res: VarOpResult = var_result_def(AnyAttr())
+    arguments = var_operand_def()
+    callee = prop_def(FlatSymbolRefAttrConstr)
+    res = var_result_def()
 
     # TODO how do we verify that the types are correct?
     def __init__(
@@ -319,7 +314,7 @@ class Call(IRDLOperation):
 @irdl_op_definition
 class Return(IRDLOperation):
     name = "func.return"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
     traits = frozenset([HasParent(FuncOp), IsTerminator()])
 
@@ -331,7 +326,7 @@ class Return(IRDLOperation):
         assert isinstance(func_op, FuncOp)
 
         function_return_types = func_op.function_type.outputs.data
-        return_types = tuple(arg.type for arg in self.arguments)
+        return_types = self.arguments.types
         if function_return_types != return_types:
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"

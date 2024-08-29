@@ -15,7 +15,9 @@ linalg.generic {
         affine_map<() -> ()>,
         affine_map<() -> ()>
     ],
-    iterator_types = []
+    iterator_types = [],
+    doc = "documentation string",
+    library_call = "library call"
 } ins(%A, %B : memref<f64>, memref<f64>) outs(%C : memref<f64>) {
 ^0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
@@ -29,7 +31,9 @@ linalg.generic {
 // CHECK-NEXT:        affine_map<() -> ()>,
 // CHECK-NEXT:        affine_map<() -> ()>
 // CHECK-NEXT:      ],
-// CHECK-NEXT:      iterator_types = []
+// CHECK-NEXT:      iterator_types = [],
+// CHECK-NEXT:      doc = "documentation string",
+// CHECK-NEXT:      library_call = "library call"
 // CHECK-NEXT:    } ins(%A, %B : memref<f64>, memref<f64>) outs(%C : memref<f64>) {
 // CHECK-NEXT:    ^0(%a : f64, %b : f64, %acc_old : f64):
 // CHECK-NEXT:      %prod = arith.mulf %a, %b : f64

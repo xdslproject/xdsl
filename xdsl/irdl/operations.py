@@ -249,6 +249,36 @@ class AttrSizedSuccessorSegments(AttrSizedSegments):
     """Name of the attribute containing the variadic successor sizes."""
 
 
+class SameVariadicSize(IRDLOption):
+    """
+    All variadic definitions should have the same size.
+    """
+
+
+class SameVariadicResultSize(SameVariadicSize):
+    """
+    All variadic results should have the same size.
+    """
+
+
+class SameVariadicOperandSize(SameVariadicSize):
+    """
+    All variadic operands should have the same size.
+    """
+
+
+class SameVariadicRegionSize(SameVariadicSize):
+    """
+    All variadic regions should have the same size.
+    """
+
+
+class SameVariadicSuccessorSize(SameVariadicSize):
+    """
+    All variadic successors should have the same size.
+    """
+
+
 @dataclass
 class ParsePropInAttrDict(IRDLOption):
     """
@@ -305,7 +335,10 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-VarOperand: TypeAlias = tuple[SSAValue, ...]
+class VarOperand(tuple[Operand, ...]):
+    @property
+    def types(self):
+        return tuple(o.type for o in self)
 
 
 @dataclass(init=False)
@@ -341,7 +374,10 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-VarOpResult: TypeAlias = tuple[OpResult, ...]
+class VarOpResult(tuple[OpResult, ...]):
+    @property
+    def types(self):
+        return tuple(r.type for r in self)
 
 
 @dataclass(init=False)
@@ -1216,6 +1252,32 @@ def get_attr_size_option(
     assert False, "Unknown VarIRConstruct value"
 
 
+def get_same_variadic_size_option(
+    construct: VarIRConstruct,
+) -> type[
+    SameVariadicOperandSize
+    | SameVariadicResultSize
+    | SameVariadicRegionSize
+    | SameVariadicSuccessorSize
+]:
+    """Get the AttrSized option for this type."""
+    if construct == VarIRConstruct.OPERAND:
+        return SameVariadicOperandSize
+    if construct == VarIRConstruct.RESULT:
+        return SameVariadicResultSize
+    if construct == VarIRConstruct.REGION:
+        return SameVariadicRegionSize
+    if construct == VarIRConstruct.SUCCESSOR:
+        return SameVariadicSuccessorSize
+    assert False, "Unknown VarIRConstruct value"
+
+
+def get_multiple_variadic_options(
+    construct: VarIRConstruct,
+) -> list[type[IRDLOption]]:
+    return [get_same_variadic_size_option(construct), get_attr_size_option(construct)]
+
+
 def get_variadic_sizes_from_attr(
     op: Operation,
     defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef | SuccessorDef]],
@@ -1288,6 +1350,7 @@ def get_variadic_sizes(
     args = get_op_constructs(op, construct)
     def_type_name = get_construct_name(construct)
     attribute_option = get_attr_size_option(construct)
+    same_size_option = get_same_variadic_size_option(construct)
 
     variadic_defs = [
         (arg_name, arg_def)
@@ -1325,6 +1388,19 @@ def get_variadic_sizes(
             )
         return [len(args) - len(defs) + 1]
 
+    # If the operation has to related SameSize option, equally distribute the
+    # variadic arguments between the variadic definitions.
+    option = next((o for o in op_def.options if isinstance(o, same_size_option)), None)
+    if option is not None:
+        non_variadic_defs = len(defs) - len(variadic_defs)
+        variadic_args = len(args) - non_variadic_defs
+        if variadic_args % len(variadic_defs):
+            name = get_construct_name(construct)
+            raise VerifyException(
+                f"Operation has {variadic_args} {name}s for {len(variadic_defs)} variadic {name}s marked as having the same size."
+            )
+        return [variadic_args // len(variadic_defs)] * len(variadic_defs)
+
     # Unreachable, all cases should have been handled.
     # Additional cases should raise an exception upon
     # definition of the irdl operation.
@@ -1339,7 +1415,12 @@ def get_operand_result_or_region(
     construct: VarIRConstruct,
 ) -> (
     None
-    | SSAValue
+    | Operand
+    | VarOperand
+    | OptOperand
+    | OpResult
+    | VarOpResult
+    | OptOpResult
     | Sequence[SSAValue]
     | Sequence[OpResult]
     | Region
@@ -1374,7 +1455,13 @@ def get_operand_result_or_region(
             return args[begin_arg]
     if isinstance(defs[arg_def_idx][1], VariadicDef):
         arg_size = variadic_sizes[previous_var_args]
-        return args[begin_arg : begin_arg + arg_size]
+        values = args[begin_arg : begin_arg + arg_size]
+        if isinstance(defs[arg_def_idx][1], OperandDef):
+            return VarOperand(cast(Sequence[Operand], values))
+        elif isinstance(defs[arg_def_idx][1], ResultDef):
+            return VarOpResult(cast(Sequence[OpResult], values))
+        else:
+            return values
     else:
         return args[begin_arg]
 
@@ -1390,7 +1477,7 @@ def irdl_op_verify_regions(
                 f"{len(region.blocks)} blocks"
             )
         if (first_block := region.blocks.first) is not None:
-            entry_args_types = tuple(a.type for a in first_block.args)
+            entry_args_types = first_block.arg_types
             try:
                 region_def.entry_args.verify(entry_args_types, constraint_context)
             except Exception as e:
@@ -1512,6 +1599,7 @@ def irdl_build_arg_list(
                     error_prefix
                     + f"passed None to a non-optional {construct} {arg_idx} '{arg_name}'"
                 )
+            arg_sizes.append(0)
         elif isinstance(arg, Sequence):
             if not isinstance(arg_def, VariadicDef):
                 raise ValueError(
@@ -1681,6 +1769,35 @@ def irdl_op_init(
                         raise ValueError(
                             f"Unexpected option {option} in operation definition {op_def}."
                         )
+            case SameVariadicSize():
+                match option:
+                    case SameVariadicOperandSize():
+                        sizes = operand_sizes
+                        construct = VarIRConstruct.OPERAND
+                    case SameVariadicResultSize():
+                        sizes = result_sizes
+                        construct = VarIRConstruct.RESULT
+                    case SameVariadicRegionSize():
+                        sizes = region_sizes
+                        construct = VarIRConstruct.REGION
+                    case SameVariadicSuccessorSize():
+                        sizes = successor_sizes
+                        construct = VarIRConstruct.SUCCESSOR
+                    case _:
+                        raise ValueError(
+                            f"Unexpected option {option} in operation definition {op_def}."
+                        )
+                variadic_sizes = [
+                    size
+                    for (size, def_) in zip(
+                        sizes, get_construct_defs(op_def, construct)
+                    )
+                    if isinstance(def_[1], VariadicDef)
+                ]
+                if any(size != variadic_sizes[0] for size in variadic_sizes[1:]):
+                    raise ValueError(
+                        f"Variadic {get_construct_name(construct)}s have different sizes: {variadic_sizes}"
+                    )
             case _:
                 pass
 
@@ -1713,15 +1830,18 @@ def irdl_op_arg_definition(
 
     # If we have multiple variadics, check that we have an
     # attribute that holds the variadic sizes.
-    arg_size_option = get_attr_size_option(construct)
+    variadics_option = get_multiple_variadic_options(construct)
     if previous_variadics > 1 and (
-        not any(isinstance(o, arg_size_option) for o in op_def.options)
+        not any(
+            isinstance(o, option) for o in op_def.options for option in variadics_option
+        )
     ):
-        arg_size_option_name = type(arg_size_option).__name__
-        raise Exception(
+        names = list(option.__name__ for option in variadics_option)
+        names, last_name = names[:-1], names[-1]
+        raise PyRDLOpDefinitionError(
             f"Operation {op_def.name} defines more than two variadic "
-            f"{get_construct_name(construct)}s, but do not define the "
-            f"{arg_size_option_name} PyRDL option."
+            f"{get_construct_name(construct)}s, but do not define any of "
+            f"{', '.join(names)} or {last_name} PyRDL options."
         )
 
 

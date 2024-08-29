@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Annotated, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from xdsl.dialects.builtin import (
+    I16,
+    I32,
     AnyArrayAttr,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
-    i32,
 )
 from xdsl.ir import (
     Attribute,
@@ -259,7 +260,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
         printer.print(")")
         if len(self.results) != 0:
             printer.print(" : ")
-            printer.print_list([res.type for res in self.results], printer.print)
+            printer.print_list(self.result_types, printer.print)
 
 
 @irdl_op_definition
@@ -564,9 +565,7 @@ class PatternOp(IRDLOperation):
     """
 
     name = "pdl.pattern"
-    benefit: IntegerAttr[Annotated[IntegerType, IntegerType(16)]] = prop_def(
-        IntegerAttr[Annotated[IntegerType, IntegerType(16)]]
-    )
+    benefit = prop_def(IntegerAttr[I16])
     sym_name: StringAttr | None = opt_prop_def(StringAttr)
     body: Region = region_def("single_block")
 
@@ -794,9 +793,7 @@ class ResultOp(IRDLOperation):
     """
 
     name = "pdl.result"
-    index: IntegerAttr[Annotated[IntegerType, i32]] = prop_def(
-        IntegerAttr[Annotated[IntegerType, i32]]
-    )
+    index = prop_def(IntegerAttr[I32])
     parent_: Operand = operand_def(OperationType)
     val: OpResult = result_def(ValueType)
 

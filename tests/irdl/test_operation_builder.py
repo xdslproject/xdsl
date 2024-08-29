@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from xdsl.dialects.arith import Constant
@@ -17,6 +19,7 @@ from xdsl.irdl import (
     OptOpResult,
     OptRegion,
     OptSuccessor,
+    SameVariadicOperandSize,
     Successor,
     VarOperand,
     VarOpResult,
@@ -41,6 +44,7 @@ from xdsl.irdl import (
     var_successor_def,
 )
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 
 ################################################################################
 #                                 Results                                      #
@@ -57,7 +61,7 @@ class ResultOp(IRDLOperation):
 def test_result_builder():
     op = ResultOp.build(result_types=[StringAttr("")])
     op.verify()
-    assert [res.type for res in op.results] == [StringAttr("")]
+    assert op.result_types == (StringAttr(""),)
 
 
 def test_result_builder_exception():
@@ -79,7 +83,7 @@ def test_opt_result_builder():
     op1.verify()
     op2.verify()
     op3.verify()
-    assert [res.type for res in op1.results] == [StringAttr("")]
+    assert op1.result_types == (StringAttr(""),)
     assert len(op2.results) == 0
     assert len(op3.results) == 0
 
@@ -99,10 +103,10 @@ class VarResultOp(IRDLOperation):
 def test_var_result_builder():
     op = VarResultOp.build(result_types=[[StringAttr("0"), StringAttr("1")]])
     op.verify()
-    assert [res.type for res in op.results] == [
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
-    ]
+    )
 
 
 @irdl_op_definition
@@ -122,12 +126,12 @@ def test_two_var_result_builder():
         ]
     )
     op.verify()
-    assert [res.type for res in op.results] == [
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
         StringAttr("3"),
-    ]
+    )
 
     assert op.attributes[
         AttrSizedResultSegments.attribute_name
@@ -142,12 +146,12 @@ def test_two_var_result_builder2():
         ]
     )
     op.verify()
-    assert [res.type for res in op.results] == [
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
         StringAttr("3"),
-    ]
+    )
     assert op.attributes[
         AttrSizedResultSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
@@ -172,13 +176,13 @@ def test_var_mixed_builder():
         ]
     )
     op.verify()
-    assert [res.type for res in op.results] == [
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
         StringAttr("3"),
         StringAttr("4"),
-    ]
+    )
 
     assert op.attributes[
         AttrSizedResultSegments.attribute_name
@@ -310,6 +314,42 @@ def test_two_var_operand_prop_builder2():
     assert op2.properties[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+@irdl_op_definition
+class SameSizeVarOperandOp(IRDLOperation):
+    name = "test.same_size_var_operand_op"
+
+    var1 = var_operand_def()
+    op1 = operand_def()
+    var2 = var_operand_def()
+    irdl_options = [SameVariadicOperandSize()]
+
+
+def test_same_size_operand_builder():
+    op1 = ResultOp.build(result_types=[StringAttr("0")]).res
+    op2 = SameSizeVarOperandOp.build(operands=[[op1, op1], op1, [op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1, op1, op1, op1, op1)
+    op2 = SameSizeVarOperandOp.create(operands=[op1, op1, op1, op1, op1])
+    op2.verify()
+    assert (op2.var1, op2.op1, op2.var2) == ((op1, op1), op1, (op1, op1))
+
+
+def test_same_size_operand_builder2():
+    op1 = ResultOp.build(result_types=[StringAttr("0")]).res
+    with pytest.raises(
+        ValueError, match=re.escape("Variadic operands have different sizes: [1, 3]")
+    ):
+        SameSizeVarOperandOp.build(operands=[[op1], op1, [op1, op1, op1]])
+    op2 = SameSizeVarOperandOp.create(operands=[op1, op1, op1, op1])
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "Operation does not verify: Operation has 3 operands for 2 variadic operands marked as having the same size."
+        ),
+    ):
+        op2.verify()
 
 
 ################################################################################

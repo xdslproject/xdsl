@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     AnyFloatConstr,
     AnyIntegerAttr,
     ContainerOf,
+    DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -39,8 +40,9 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConditionallySpeculatable,
     ConstantLike,
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
 )
@@ -110,7 +112,9 @@ class Constant(IRDLOperation):
 
     @overload
     def __init__(
-        self, value: AnyIntegerAttr | FloatAttr[AnyFloat], value_type: None = None
+        self,
+        value: AnyIntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value_type: None = None,
     ) -> None: ...
 
     @overload
@@ -152,7 +156,12 @@ class Constant(IRDLOperation):
         p0 = parser.pos
         value = parser.parse_attribute()
 
-        if not isattr(value, base(AnyIntegerAttr) | base(FloatAttr[AnyFloat])):
+        if not isattr(
+            value,
+            base(AnyIntegerAttr)
+            | base(FloatAttr[AnyFloat])
+            | base(DenseIntOrFPElementsAttr),
+        ):
             parser.raise_error("Invalid constant value", p0, parser.pos)
 
         c = Constant(value)
@@ -254,7 +263,7 @@ FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
 IntegerBinaryOp = BinaryOperation[IntegerType]
 
 
-class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
@@ -388,6 +397,16 @@ class Subi(SignlessIntegerBinaryOp):
     traits = frozenset([Pure()])
 
 
+class DivUISpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        op = cast(DivUI, op)
+        if not isinstance(cst := op.rhs.owner, Constant):
+            return False
+        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
+        return value.value.data != 0
+
+
 @irdl_op_definition
 class DivUI(SignlessIntegerBinaryOp):
     """
@@ -398,7 +417,7 @@ class DivUI(SignlessIntegerBinaryOp):
 
     name = "arith.divui"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = frozenset([NoMemoryEffect(), DivUISpeculatable()])
 
 
 @irdl_op_definition

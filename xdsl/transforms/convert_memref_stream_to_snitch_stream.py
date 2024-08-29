@@ -1,12 +1,8 @@
-import operator
-from functools import reduce
-from typing import cast
+from typing import Any, cast
 
-from xdsl.backend.riscv.lowering.convert_memref_to_riscv import element_size_for_type
 from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
-    register_type_for_type,
 )
 from xdsl.context import MLContext
 from xdsl.dialects import (
@@ -20,13 +16,17 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    Float16Type,
+    Float32Type,
+    Float64Type,
     IntAttr,
     MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
+    VectorType,
 )
 from xdsl.ir import Attribute, AttributeCovT, Operation
-from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -39,6 +39,26 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 
 
+def snitch_stream_element_type_is_valid(attr: Attribute) -> bool:
+    """
+    An override of the helper to account for Snitch packed SIMD.
+    """
+    if isinstance(attr, VectorType):
+        attr = cast(VectorType[Any], attr)
+        match attr.element_type, attr.element_count():
+            case Float64Type(), 1:
+                return True
+            case Float32Type(), 2:
+                return True
+            case Float16Type(), 4:
+                return True
+            case _:
+                # TODO: handle fp8
+                return False
+    else:
+        return isinstance(attr, Float64Type)
+
+
 class ReadOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -49,7 +69,11 @@ class ReadOpLowering(RewritePattern):
         value_type = cast(
             stream.ReadableStreamType[Attribute], stream_type
         ).element_type
-        register_type = register_type_for_type(value_type).unallocated()
+        if not snitch_stream_element_type_is_valid(value_type):
+            raise DiagnosticException(
+                f"Invalid snitch stream element type {value_type}"
+            )
+        register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
             (op.stream,), (stream.ReadableStreamType(register_type),)
@@ -83,7 +107,11 @@ class WriteOpLowering(RewritePattern):
         value_type = cast(
             stream.WritableStreamType[Attribute], stream_type
         ).element_type
-        register_type = register_type_for_type(value_type).unallocated()
+        if not snitch_stream_element_type_is_valid(value_type):
+            raise DiagnosticException(
+                f"Invalid snitch stream element type {value_type}"
+            )
+        register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
             (op.stream,), (stream.WritableStreamType(register_type),)
@@ -96,9 +124,10 @@ class WriteOpLowering(RewritePattern):
             move_ops = ()
             new_values = cast_op.results
         else:
-            move_ops, new_values = move_to_unallocated_regs(
-                cast_op.results, (value_type,)
+            move_ops = (
+                riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),
             )
+            new_values = move_ops[0].results
         new_write = riscv_snitch.WriteOp(new_values[0], new_stream.results[0])
 
         rewriter.replace_matched_op(
@@ -116,10 +145,6 @@ class StreamOpLowering(RewritePattern):
             for value in op.operands
             if isinstance(value_type := value.type, memref.MemRefType)
         )
-        el_types = tuple(operand_type.element_type for operand_type in operand_types)
-        if not all(el_type == builtin.f64 for el_type in el_types):
-            # Only support f64 streams for now
-            return
         stride_patterns = tuple(
             snitch_stream.StridePattern(
                 ArrayAttr(ub.value for ub in pattern.ub),
@@ -162,62 +187,7 @@ class StreamOpLowering(RewritePattern):
             )
             arg.replace_by(cast_op.results[0])
             cast_op.operands = (arg,)
-            rewriter.modify_block_argument_type(arg, stream_type)
-
-
-def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> AffineMap:
-    """
-    Given a memref returns the map from indices to an offset in bytes in memory. The
-    resulting map has one result expression.
-
-    e.g.:
-    ```
-    my_list = [1, 2, 3, 4, 5, 6]
-    shape = [2, 3]
-    for i in range(2):
-        for j in range(3):
-            k = i * 3 + j
-            el = my_list[k]
-            print(el) # -> 1, 2, 3, 4, 5, 6
-
-    map = strides_map_from_memref_type(MemRefType(f64, [3, 1]))
-
-    for i in range(2):
-        for j in range(3):
-            k = map.eval(i, j) // 8 # factor of 8 since 8 bytes in f64
-            el = my_list[k]
-            print(el) # -> 1, 2, 3, 4, 5, 6
-    ```
-    """
-    maybe_strides = tuple(memref_type.get_strides())
-    for stride in maybe_strides:
-        if stride is None:
-            raise DiagnosticException(
-                f"Cannot get strides from dynamic layout {memref_type}"
-            )
-
-    strides = cast(tuple[int, ...], maybe_strides)
-
-    if not strides:
-        raise DiagnosticException(
-            f"Unsupported empty shape in memref of type {memref_type}"
-        )
-
-    factor = element_size_for_type(memref_type.element_type)
-
-    return AffineMap(
-        len(strides),
-        0,
-        (
-            reduce(
-                operator.add,
-                (
-                    AffineExpr.dimension(i) * stride * factor
-                    for i, stride in enumerate(strides)
-                ),
-            ),
-        ),
-    )
+            rewriter.modify_value_type(arg, stream_type)
 
 
 def strides_for_affine_map(
@@ -231,16 +201,27 @@ def strides_for_affine_map(
     """
     if affine_map.num_symbols:
         raise ValueError("Cannot create strides for affine map with symbols")
-    offset_map = strides_map_from_memref_type(memref_type)
+
+    # only static memref shapes are supported for now:
+    static_shapes = (shape != -1 for shape in memref_type.get_shape())
+    if not all(static_shapes):
+        raise ValueError("Cannot create strides for a memref with dynamic shapes")
+
+    offset_map = memref_type.get_affine_map_in_bytes()
     composed = offset_map.compose(affine_map)
 
     zeros = [0] * composed.num_dims
+    # composed map can have symbols for dynamic offset, just set them to 0
+    symbols = [0] * composed.num_symbols
 
     result: list[int] = []
 
+    # subtract the static offset from each result
+    offset = composed.eval(zeros, symbols)[0]
+
     for i in range(composed.num_dims):
         zeros[i] = 1
-        result.append(composed.eval(zeros, ())[0])
+        result.append(composed.eval(zeros, symbols)[0] - offset)
         zeros[i] = 0
 
     return result

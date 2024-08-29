@@ -1,5 +1,5 @@
+from xdsl.dialects.experimental import dmp
 from xdsl.dialects.experimental.dmp import ExchangeDeclarationAttr, ShapeAttr
-from xdsl.transforms.experimental.dmp import decompositions
 
 
 def flat_face_exchanges(
@@ -9,9 +9,7 @@ def flat_face_exchanges(
     # since this is a private function, and pyright will yell whenever it's accessed,
     # we have this wrapper function here that takes care of making the private publicly
     # accessible in the context of this test.
-    func = (
-        decompositions._flat_face_exchanges_for_dim  # pyright: ignore[reportPrivateUsage]
-    )
+    func = dmp._flat_face_exchanges_for_dim  # pyright: ignore[reportPrivateUsage]
     return func(shape, dim)
 
 

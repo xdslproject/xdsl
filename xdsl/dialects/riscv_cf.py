@@ -25,7 +25,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalisationPatternsTrait, IsTerminator
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import VerifyException
 
@@ -43,7 +43,7 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
-class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv_cf import (

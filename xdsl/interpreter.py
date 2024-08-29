@@ -29,6 +29,17 @@ from xdsl.ir import (
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
+_IMPL_OP_TYPE = "__impl_op_type"
+_CAST_IMPL_TYPES = "__cast_impl_types"
+_ATTR_IMPL_TYPES = "__attr_impl_types"
+_EXT_FUNC_NAME = "__external_func_name"
+_CALLABLE_OP_TYPE = "__callable_op_type"
+_IMPL_DICT = "__impl_dict"
+_CAST_IMPL_DICT = "__cast_impl_dict"
+_ATTR_IMPL_DICT = "__attr_impl_dict"
+_EXT_FUNC_DICT = "__external_func_dict"
+_CALLABLE_IMPL_DICT = "__callable_impl_dict"
+
 
 @dataclass
 class InterpreterFunctions:
@@ -136,17 +147,18 @@ class InterpreterFunctions:
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
+    @classmethod
+    def _callable_impls(
+        cls,
+    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions, Operation]]]:
+        try:
+            impl_dict = getattr(cls, _CALLABLE_IMPL_DICT)
+            return impl_dict.items()
+        except AttributeError as e:
+            raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
+
 
 _FT = TypeVar("_FT", bound=InterpreterFunctions)
-
-_IMPL_OP_TYPE = "__impl_op_type"
-_CAST_IMPL_TYPES = "__cast_impl_types"
-_ATTR_IMPL_TYPES = "__attr_impl_types"
-_EXT_FUNC_NAME = "__external_func_name"
-_IMPL_DICT = "__impl_dict"
-_CAST_IMPL_DICT = "__cast_impl_dict"
-_ATTR_IMPL_DICT = "__attr_impl_dict"
-_EXT_FUNC_DICT = "__external_func_dict"
 
 P = ParamSpec("P")
 
@@ -170,7 +182,7 @@ def impl(
         )
 
     def annot(
-        func: NonTerminatorOpImpl[_FT, OperationInvT]
+        func: NonTerminatorOpImpl[_FT, OperationInvT],
     ) -> OpImpl[_FT, OperationInvT]:
         def impl(
             ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
@@ -230,7 +242,7 @@ def impl_cast(
     """
 
     def annot(
-        func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]
+        func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1],
     ) -> CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]:
         setattr(func, _CAST_IMPL_TYPES, (input_type, output_type))
         return func
@@ -273,6 +285,27 @@ def impl_external(
     return annot
 
 
+def impl_callable(
+    op_type: type[OperationInvT],
+) -> Callable[
+    [NonTerminatorOpImpl[_FT, OperationInvT]], NonTerminatorOpImpl[_FT, OperationInvT]
+]:
+    """
+    Marks the Python implementation of a callable operation.
+    """
+
+    if not op_type.has_trait(CallableOpInterface):
+        raise ValueError("Operations that are not callable must use `impl` annotation")
+
+    def annot(
+        impl: NonTerminatorOpImpl[_FT, OperationInvT],
+    ) -> NonTerminatorOpImpl[_FT, OperationInvT]:
+        setattr(impl, _CALLABLE_OP_TYPE, op_type)
+        return impl
+
+    return annot
+
+
 def register_impls(ft: type[_FT]) -> type[_FT]:
     """
     Enumerates the methods on a given class, and registers the ones marked with
@@ -286,6 +319,7 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
     cast_impl_dict: _CastImplDict = {}
     external_func_dict: _ExtFuncImplDict = {}
     attr_impl_dict: _AttrImplDict = {}
+    callable_impl_dict: _CallableImplDict = {}
 
     for cls in ft.mro():
         # Iterate from subclass through superclasses
@@ -316,11 +350,17 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
                 if types not in attr_impl_dict:
                     # subclass overrides superclass definition
                     attr_impl_dict[types] = val
+            elif _CALLABLE_OP_TYPE in val.__dir__():
+                op_type = getattr(val, _CALLABLE_OP_TYPE)
+                if op_type not in callable_impl_dict:
+                    # subclass overrides superclass definition
+                    callable_impl_dict[op_type] = val
 
     setattr(ft, _IMPL_DICT, impl_dict)
     setattr(ft, _CAST_IMPL_DICT, cast_impl_dict)
     setattr(ft, _ATTR_IMPL_DICT, attr_impl_dict)
     setattr(ft, _EXT_FUNC_DICT, external_func_dict)
+    setattr(ft, _CALLABLE_IMPL_DICT, callable_impl_dict)
 
     return ft
 
@@ -349,6 +389,12 @@ class _InterpreterFunctionImpls:
     ] = field(default_factory=dict)
     _external_funcs_dict: dict[
         str, tuple[InterpreterFunctions, ExtFuncImpl[InterpreterFunctions]]
+    ] = field(default_factory=dict)
+    _callable_impl_dict: dict[
+        type[Operation],
+        tuple[
+            InterpreterFunctions, NonTerminatorOpImpl[InterpreterFunctions, Operation]
+        ],
     ] = field(default_factory=dict)
 
     def register_from(self, ft: InterpreterFunctions, /, override: bool):
@@ -391,6 +437,16 @@ class _InterpreterFunctionImpls:
                 )
 
             self._external_funcs_dict[sym_name] = (ft, ext_impl)
+
+        callable_impls = ft._callable_impls()  # pyright: ignore[reportPrivateUsage]
+        for op_type, impl in callable_impls:
+            if op_type in self._callable_impl_dict and not override:
+                raise ValueError(
+                    "Attempting to register implementation for op of type "
+                    f"{op_type}, but type already registered"
+                )
+
+            self._callable_impl_dict[op_type] = (ft, impl)
 
     def run(
         self, interpreter: Interpreter, op: Operation, args: tuple[Any, ...]
@@ -436,6 +492,13 @@ class _InterpreterFunctionImpls:
             )
 
         ft, ext_func = self._external_funcs_dict[sym_name]
+
+        return ext_func(ft, interpreter, op, args)
+
+    def call(
+        self, interpreter: Interpreter, op: Operation, args: PythonValues
+    ) -> PythonValues:
+        ft, ext_func = self._callable_impl_dict[type(op)]
 
         return ext_func(ft, interpreter, op, args)
 
@@ -625,28 +688,14 @@ class Interpreter:
         Calls the implementation for the given operation.
         """
         if isinstance(op, str):
-            name = op
             op = self.get_op_for_symbol(op)
-        else:
-            name = "unknown"
-
-        interface = op.get_trait(CallableOpInterface)
-
-        self.interpreter_assert(
-            interface is not None,
-            f"Operation {op.name} does not have trait CallableOpInterface",
-        )
-        assert interface is not None
-
-        body = interface.get_callable_region(op)
-
-        # TODO: make this an interface that exposes `is_external_decl` or similar
-        if (first_block := body.blocks.first) is None or not first_block.ops:
-            results = self._impls.call_external(self, name, op, inputs)
-        else:
-            results = self.run_ssacfg_region(body, inputs, name)
-        assert results is not None
+        results = self._impls.call(self, op, inputs)
         return results
+
+    def call_external(
+        self, sym_name: str, op: Operation, inputs: PythonValues = ()
+    ) -> PythonValues:
+        return self._impls.call_external(self, sym_name, op, inputs)
 
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
@@ -849,4 +898,8 @@ ExtFuncImpl: TypeAlias = Callable[
 _ExtFuncImplDict: TypeAlias = dict[
     str,
     ExtFuncImpl[InterpreterFunctions],
+]
+
+_CallableImplDict: TypeAlias = dict[
+    type[Operation], NonTerminatorOpImpl[InterpreterFunctions, Operation]
 ]

@@ -23,7 +23,6 @@ from xdsl.pattern_rewriter import (
 
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
-
     pipeline_depth: int = field()
 
     @op_type_rewrite_pattern
@@ -144,6 +143,8 @@ class PipelineGenericPattern(RewritePattern):
                 ),
                 ArrayAttr(new_bounds),
                 op.init_indices,
+                op.doc,
+                op.library_call,
             )
         )
 

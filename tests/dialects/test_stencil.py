@@ -529,27 +529,6 @@ def test_stencil_store():
     assert store.bounds is bounds
 
 
-def test_stencil_store_load_overlap():
-    temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
-
-    field_type = FieldType([(0, 2), (0, 2)], f32)
-    field_type_ssa_val = TestSSAValue(field_type)
-
-    lb = IndexAttr.get(1, 1)
-    ub = IndexAttr.get(64, 64)
-    bounds = StencilBoundsAttr.new((lb, ub))
-
-    load = LoadOp.get(field_type_ssa_val, lb, ub)
-    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, bounds)
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        load.verify()
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        store.verify()
-
-
 def test_stencil_index():
     dim = IntAttr(10)
     offset = IndexAttr.get(1)
@@ -756,7 +735,7 @@ builtin.module {
       %9 = arith.addf %8, %7 : f32
       stencil.return %9 : f32
     }
-    stencil.store %3 to %1 ([0] : [6]) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
+    stencil.store %3 to %1(<[0], [6]>) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
     func.return
   }
 }

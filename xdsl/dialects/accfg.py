@@ -97,7 +97,7 @@ class AcceleratorOp(IRDLOperation):
 
     fields = prop_def(DictionaryAttr)
 
-    launch_addr = prop_def(IntegerAttr)
+    launch_addr = prop_def(AnyIntegerAttr)
 
     # TODO: the barrier field will likely be changed in the future
 
@@ -107,7 +107,7 @@ class AcceleratorOp(IRDLOperation):
     # We're looking into ways of generalizing this aspect currently,
     # but this is a thing that actually works for snitch now.
 
-    barrier = prop_def(IntegerAttr)
+    barrier = prop_def(AnyIntegerAttr)
 
     def __init__(
         self,

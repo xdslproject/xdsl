@@ -86,7 +86,7 @@ class XType(Generic[_TCov]):
 
 
 int32 = XType(int, "<i")
-int64 = XType(int, "<I")
+int64 = XType(int, "<q")
 float32 = XType(float, "<f")
 float64 = XType(float, "<d")
 
@@ -154,19 +154,19 @@ class TypedPtr(Generic[_T]):
 
     @staticmethod
     def new_float32(els: Sequence[float]) -> TypedPtr[float]:
-        return TypedPtr.new(els, xtype=float32)
+        return TypedPtr[float].new(els, xtype=float32)
 
     @staticmethod
     def new_float64(els: Sequence[float]) -> TypedPtr[float]:
-        return TypedPtr.new(els, xtype=float64)
+        return TypedPtr[float].new(els, xtype=float64)
 
     @staticmethod
     def new_int32(els: Sequence[int]) -> TypedPtr[int]:
-        return TypedPtr.new(els, xtype=int32)
+        return TypedPtr[int].new(els, xtype=int32)
 
     @staticmethod
     def new_int64(els: Sequence[int]) -> TypedPtr[int]:
-        return TypedPtr.new(els, xtype=int64)
+        return TypedPtr[int].new(els, xtype=int64)
 
     @staticmethod
     def new_index(els: Sequence[int], index_bitwidth: int) -> TypedPtr[int]:
@@ -174,4 +174,4 @@ class TypedPtr(Generic[_T]):
             raise ValueError(
                 f"Invalid index bitwidth {index_bitwidth} monly 32 or 64 allowed"
             )
-        return TypedPtr.new(els, xtype=index(index_bitwidth))
+        return TypedPtr[int].new(els, xtype=index(index_bitwidth))

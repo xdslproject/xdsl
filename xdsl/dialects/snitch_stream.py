@@ -74,13 +74,18 @@ class StridePattern(ParametrizedAttribute):
 
     ub: ParameterDef[ArrayAttr[IntAttr]]
     strides: ParameterDef[ArrayAttr[IntAttr]]
+    repeat: ParameterDef[IntAttr]
+    """
+    Number of times an element will be repeated when loaded, default is 1.
+    """
 
     def __init__(
         self,
-        ub: ParameterDef[ArrayAttr[IntAttr]],
-        strides: ParameterDef[ArrayAttr[IntAttr]],
+        ub: ArrayAttr[IntAttr],
+        strides: ArrayAttr[IntAttr],
+        repeat: IntAttr = IntAttr(1),
     ):
-        super().__init__((ub, strides))
+        super().__init__((ub, strides, repeat))
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -102,7 +107,13 @@ class StridePattern(ParametrizedAttribute):
                     parser.Delimiter.SQUARE, parser.parse_integer
                 )
             )
-            return (ub, strides)
+            if parser.parse_optional_punctuation(","):
+                parser.parse_identifier("repeat")
+                parser.parse_punctuation("=")
+                repeat = parser.parse_integer(allow_boolean=False, allow_negative=False)
+            else:
+                repeat = 1
+            return (ub, strides, IntAttr(repeat))
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -111,14 +122,17 @@ class StridePattern(ParametrizedAttribute):
             printer.print_string("], strides = [")
             printer.print_list(self.strides, lambda attr: printer.print(attr.data))
             printer.print_string("]")
+            if self.repeat.data != 1:
+                printer.print_string(f", repeat = {self.repeat.data}")
 
     @staticmethod
     def from_bounds_and_strides(
-        ub: Sequence[int], strides: Sequence[int]
+        ub: Sequence[int], strides: Sequence[int], repeat: int = 1
     ) -> StridePattern:
         return StridePattern(
             ArrayAttr(IntAttr(i) for i in ub),
             ArrayAttr(IntAttr(i) for i in strides),
+            IntAttr(repeat),
         )
 
     def rank(self):
@@ -133,10 +147,12 @@ class StridePattern(ParametrizedAttribute):
     def offset_iter(self) -> Iterator[int]:
         for indices in product(*(range(bound.data) for bound in self.ub.data)):
             indices: tuple[int, ...] = indices
-            yield sum(
+            offset = sum(
                 index * stride.data
                 for (index, stride) in zip(indices, self.strides.data)
             )
+            for _ in range(self.repeat.data):
+                yield offset
 
     def offsets(self) -> tuple[int, ...]:
         return tuple(self.offset_iter())
@@ -194,7 +210,14 @@ class StridePattern(ParametrizedAttribute):
         ub = (ub0, *(bound for bound, _ in tuples[second_outermost_dim:]))
         s = (s0, *(stride for _, stride in tuples[second_outermost_dim:]))
 
-        return StridePattern.from_bounds_and_strides(ub, s)
+        if s[-1] == 0:
+            repeat = ub[-1] * self.repeat.data
+            ub = ub[:-1]
+            s = s[:-1]
+        else:
+            repeat = self.repeat.data
+
+        return StridePattern.from_bounds_and_strides(ub, s, repeat)
 
 
 @irdl_op_definition
@@ -269,14 +292,14 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.attributes:

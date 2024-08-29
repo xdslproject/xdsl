@@ -39,7 +39,7 @@ from xdsl.irdl import (
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
     CallableOpInterface,
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     IsTerminator,
     OpTrait,
     Pure,
@@ -386,7 +386,7 @@ class ReturnOp(IRDLOperation):
         return super().__init__(operands=[input])
 
 
-class ReshapeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
+class ReshapeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from ..rewrites.optimise_toy import (
@@ -413,7 +413,7 @@ class ReshapeOp(IRDLOperation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res: OpResult = result_def(TensorTypeF64)
 
-    traits = frozenset((Pure(), ReshapeOpHasCanonicalisationPatternsTrait()))
+    traits = frozenset((Pure(), ReshapeOpHasCanonicalizationPatternsTrait()))
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isattr(arg.type, AnyTensorTypeF64Constr):
@@ -459,7 +459,7 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
             op.res.type = TensorType(f64, res_shape)
 
 
-class TransposeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
+class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from ..rewrites.optimise_toy import SimplifyRedundantTranspose
@@ -477,7 +477,7 @@ class TransposeOp(IRDLOperation):
         (
             Pure(),
             InferTransposeOpShapeTrait(),
-            TransposeOpHasCanonicalisationPatternsTrait(),
+            TransposeOpHasCanonicalizationPatternsTrait(),
         )
     )
 

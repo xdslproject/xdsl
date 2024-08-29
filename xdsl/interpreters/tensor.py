@@ -18,7 +18,6 @@ from xdsl.utils.exceptions import InterpretationError
 
 @register_impls
 class TensorFunctions(InterpreterFunctions):
-
     @impl(tensor.EmptyOp)
     def run_empty(
         self, interpreter: Interpreter, op: tensor.EmptyOp, args: tuple[Any, ...]

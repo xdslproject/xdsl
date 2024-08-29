@@ -214,7 +214,14 @@ def test_op_clone_with_regions():
     ca1 = test.TestOp.create(result_types=(i32,))
     ca1.results[0].name_hint = "b"
     # Parent
-    pa = test.TestOp.create(regions=[Region([Block([ca0])]), Region([Block([ca1])])])
+    pa = test.TestOp.create(
+        regions=[
+            Region([Block([ca0], arg_types=(i32,))]),
+            Region([Block([ca1], arg_types=(i32,))]),
+        ]
+    )
+    pa.regions[0].block.args[0].name_hint = "ca0"
+    pa.regions[1].block.args[0].name_hint = "ca1"
 
     pb = pa.clone()
     assert pa is not pb
@@ -235,11 +242,15 @@ def test_op_clone_with_regions():
         for o in op.walk():
             for res in o.results:
                 yield res.name_hint
+            for r in o.regions:
+                for b in r.blocks:
+                    for arg in b.args:
+                        yield arg.name_hint
 
-    assert tuple(name_hints(pa)) == ("a", "b")
-    assert tuple(name_hints(pb)) == ("a", "b")
-    assert tuple(name_hints(pc)) == ("a", "b")
-    assert tuple(name_hints(pd)) == (None, None)
+    assert tuple(name_hints(pa)) == ("ca0", "ca1", "a", "b")
+    assert tuple(name_hints(pb)) == ("ca0", "ca1", "a", "b")
+    assert tuple(name_hints(pc)) == ("ca0", "ca1", "a", "b")
+    assert tuple(name_hints(pd)) == (None, None, None, None)
 
 
 def test_block_branching_to_another_region_wrong():
@@ -477,8 +488,8 @@ def test_split_block_args():
 
     new_block = old_block.split_before(op, arg_types=(i32, i64))
 
-    arg_types = [a.type for a in new_block.args]
-    assert arg_types == [i32, i64]
+    arg_types = new_block.arg_types
+    assert arg_types == (i32, i64)
 
 
 def test_region_clone_into_circular_blocks():

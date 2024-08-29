@@ -4,13 +4,13 @@ import abc
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, TypeVar, final
+from typing import TYPE_CHECKING, TypeVar, final
 
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
-    from xdsl.ir import Attribute, Operation, Region
+    from xdsl.ir import Attribute, Operation, Region, SSAValue
     from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -20,12 +20,8 @@ class OpTrait:
     A trait attached to an operation definition.
     Traits can be used to define operation invariants, additional semantic information,
     or to group operations that have similar properties.
-    Traits have parameters, which by default is just the `None` value. Parameters should
-    always be comparable and hashable.
     Note that traits are the merge of traits and interfaces in MLIR.
     """
-
-    parameters: Any = field(default=None)
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
@@ -47,22 +43,20 @@ class ConstantLike(OpTrait):
 class HasParent(OpTrait):
     """Constraint the operation to have a specific parent operation."""
 
-    parameters: tuple[type[Operation], ...]
+    op_types: tuple[type[Operation], ...]
 
-    def __init__(self, *parameters: type[Operation]):
-        if not parameters:
-            raise ValueError("parameters must not be empty")
-        super().__init__(parameters)
+    def __init__(self, head_param: type[Operation], *tail_params: type[Operation]):
+        object.__setattr__(self, "op_types", (head_param, *tail_params))
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
-        if isinstance(parent, self.parameters):
+        if isinstance(parent, self.op_types):
             return
-        if len(self.parameters) == 1:
+        if len(self.op_types) == 1:
             raise VerifyException(
-                f"'{op.name}' expects parent op '{self.parameters[0].name}'"
+                f"'{op.name}' expects parent op '{self.op_types[0].name}'"
             )
-        names = ", ".join(f"'{p.name}'" for p in self.parameters)
+        names = ", ".join(f"'{p.name}'" for p in self.op_types)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
 
@@ -73,18 +67,18 @@ class HasAncestor(OpTrait):
     parent.
     """
 
-    parameters: tuple[type[Operation], ...]
+    op_types: tuple[type[Operation], ...]
 
     def __init__(self, head_param: type[Operation], *tail_params: type[Operation]):
-        super().__init__((head_param, *tail_params))
+        object.__setattr__(self, "op_types", (head_param, *tail_params))
 
     def verify(self, op: Operation) -> None:
         if self.get_ancestor(op) is None:
-            if len(self.parameters) == 1:
+            if len(self.op_types) == 1:
                 raise VerifyException(
-                    f"'{op.name}' expects ancestor op '{self.parameters[0].name}'"
+                    f"'{op.name}' expects ancestor op '{self.op_types[0].name}'"
                 )
-            names = ", ".join(f"'{p.name}'" for p in self.parameters)
+            names = ", ".join(f"'{p.name}'" for p in self.op_types)
             raise VerifyException(
                 f"'{op.name}' expects ancestor op to be one of {names}"
             )
@@ -98,7 +92,7 @@ class HasAncestor(OpTrait):
 
     def get_ancestor(self, op: Operation) -> Operation | None:
         ancestors = self.walk_ancestors(op)
-        matching_ancestors = (a for a in ancestors if isinstance(a, self.parameters))
+        matching_ancestors = (a for a in ancestors if isinstance(a, self.op_types))
         return next(matching_ancestors, None)
 
 
@@ -133,6 +127,7 @@ class NoTerminator(OpTrait):
                 )
 
 
+@dataclass(frozen=True)
 class SingleBlockImplicitTerminator(OpTrait):
     """
     Checks the existence of the specified terminator to an operation which has
@@ -144,7 +139,7 @@ class SingleBlockImplicitTerminator(OpTrait):
     https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
     """
 
-    parameters: type[Operation]
+    op_type: type[Operation]
 
     def verify(self, op: Operation) -> None:
         for region in op.regions:
@@ -156,13 +151,13 @@ class SingleBlockImplicitTerminator(OpTrait):
                 if (last_op := block.last_op) is None:
                     raise VerifyException(
                         f"'{op.name}' contains empty block instead of at least "
-                        f"terminating with {self.parameters.name}"
+                        f"terminating with {self.op_type.name}"
                     )
 
-                if not isinstance(last_op, self.parameters):
+                if not isinstance(last_op, self.op_type):
                     raise VerifyException(
                         f"'{op.name}' terminates with operation {last_op.name} "
-                        f"instead of {self.parameters.name}"
+                        f"instead of {self.op_type.name}"
                     )
 
 
@@ -181,11 +176,11 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
             if (
                 (last_op := block.last_op) is not None
                 and last_op.has_trait(IsTerminator)
-                and not isinstance(last_op, trait.parameters)
+                and not isinstance(last_op, trait.op_type)
             ):
                 raise VerifyException(
                     f"'{op.name}' terminates with operation {last_op.name} "
-                    f"instead of {trait.parameters.name}"
+                    f"instead of {trait.op_type.name}"
                 )
 
     from xdsl.builder import ImplicitBuilder
@@ -200,7 +195,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
                 IsTerminator
             ):
                 with ImplicitBuilder(block):
-                    trait.parameters.create()
+                    trait.op_type.create()
 
 
 class IsolatedFromAbove(OpTrait):
@@ -429,7 +424,7 @@ class CallableOpInterface(OpTrait, abc.ABC):
 
 
 @dataclass(frozen=True)
-class HasCanonicalisationPatternsTrait(OpTrait):
+class HasCanonicalizationPatternsTrait(OpTrait):
     """
     Provides the rewrite passes to canonicalize an operation.
 
@@ -442,6 +437,23 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @classmethod
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class HasShapeInferencePatternsTrait(OpTrait):
+    """
+    Provides the rewrite passes to shape infer an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    @abc.abstractmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
 
 
@@ -479,6 +491,23 @@ class MemoryEffectKind(Enum):
     """
 
 
+@dataclass(frozen=True)
+class EffectInstance:
+    """
+    An instance of a side effect.
+    """
+
+    kind: MemoryEffectKind
+    """
+    The kind of side effect.
+    """
+
+    value: SSAValue | SymbolRefAttr | None = field(default=None)
+    """
+    The value or symbol that is affected by the side effect, if known.
+    """
+
+
 class MemoryEffect(OpTrait):
     """
     A trait that enables operations to expose their side-effects or absence thereof.
@@ -486,7 +515,7 @@ class MemoryEffect(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind] | None:
+    def get_effects(cls, op: Operation) -> set[EffectInstance] | None:
         """
         Returns the concrete side effects of the operation.
 
@@ -518,7 +547,8 @@ def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
     """
     Returns if the operation has the given side effects and no others.
     """
-    return get_effects(op) == {effect}
+    effects = get_effects(op)
+    return effects is not None and all(e.kind == effect for e in effects)
 
 
 def is_side_effect_free(op: Operation) -> bool:
@@ -529,9 +559,9 @@ def is_side_effect_free(op: Operation) -> bool:
     return effects is not None and len(effects) == 0
 
 
-def get_effects(op: Operation) -> set[MemoryEffectKind] | None:
+def get_effects(op: Operation) -> set[EffectInstance] | None:
     """
-    Helper to get known side effects of an operation, including recursive effects.
+    Helper to get known side effects of an operation.
     None means that the operation has unknown effects, for safety.
     """
 
@@ -539,7 +569,7 @@ def get_effects(op: Operation) -> set[MemoryEffectKind] | None:
     if not effect_interfaces:
         return None
 
-    effects = set[MemoryEffectKind]()
+    effects = set[EffectInstance]()
     for it in op.get_traits_of_type(MemoryEffect):
         it_effects = it.get_effects(op)
         if it_effects is None:
@@ -555,18 +585,18 @@ class NoMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
         return set()
 
 
 class MemoryReadEffect(MemoryEffect):
     """
-    A trait that signals that an operation has read side effects.
+    A trait that signals that an operation always has read side effects.
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
-        return {MemoryEffectKind.READ}
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.READ)}
 
 
 class MemoryWriteEffect(MemoryEffect):
@@ -575,8 +605,28 @@ class MemoryWriteEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
-        return {MemoryEffectKind.WRITE}
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.WRITE)}
+
+
+class MemoryAllocEffect(MemoryEffect):
+    """
+    A trait that signals that an operation always has alloc side effects.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.ALLOC)}
+
+
+class MemoryFreeEffect(MemoryEffect):
+    """
+    A trait that signals that an operation always has deallocation side effects.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.FREE)}
 
 
 class RecursiveMemoryEffect(MemoryEffect):
@@ -587,7 +637,7 @@ class RecursiveMemoryEffect(MemoryEffect):
 
     @classmethod
     def get_effects(cls, op: Operation):
-        effects = set[MemoryEffectKind]()
+        effects = set[EffectInstance]()
         for r in op.regions:
             for b in r.blocks:
                 for child_op in b.ops:
@@ -598,7 +648,33 @@ class RecursiveMemoryEffect(MemoryEffect):
         return effects
 
 
-class Pure(NoMemoryEffect):
+class ConditionallySpeculatable(OpTrait):
+    @classmethod
+    @abc.abstractmethod
+    def is_speculatable(cls, op: Operation) -> bool:
+        raise NotImplementedError()
+
+
+class AlwaysSpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return True
+
+
+class RecursivelySpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return all(
+            is_speculatable(o) for r in op.regions for b in r.blocks for o in b.ops
+        )
+
+
+def is_speculatable(op: Operation):
+    trait = op.get_trait(ConditionallySpeculatable)
+    return (trait is not None) and trait.is_speculatable(op)
+
+
+class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
     In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
     found here.

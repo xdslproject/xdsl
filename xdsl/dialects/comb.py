@@ -13,7 +13,7 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import Annotated
 
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, UnitAttr, i32, i64
+from xdsl.dialects.builtin import I32, I64, IntegerAttr, IntegerType, UnitAttr, i32
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import (
     ConstraintVar,
@@ -257,9 +257,7 @@ class ICmpOp(IRDLOperation, ABC):
 
     T = Annotated[IntegerType, ConstraintVar("T")]
 
-    predicate: IntegerAttr[IntegerType] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i64]]
-    )
+    predicate: IntegerAttr[IntegerType] = attr_def(IntegerAttr[I64])
     lhs: Operand = operand_def(T)
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(IntegerType(1))
@@ -397,7 +395,7 @@ class ExtractOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     low_bit: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i32]], attr_name="lowBit"
+        IntegerAttr[I32], attr_name="lowBit"
     )
     result: OpResult = result_def(IntegerType)
 
@@ -492,7 +490,7 @@ class ConcatOp(IRDLOperation):
         return ConcatOp(inputs, IntegerType(sum_of_width))
 
     def verify_(self) -> None:
-        sum_of_width = _get_sum_of_int_width([inp.type for inp in self.inputs])
+        sum_of_width = _get_sum_of_int_width(self.inputs.types)
         assert sum_of_width is not None
         assert isinstance(self.result.type, IntegerType)
         if sum_of_width != self.result.type.width.data:
@@ -521,7 +519,7 @@ class ConcatOp(IRDLOperation):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
         printer.print(" : ")
-        printer.print_list([inp.type for inp in self.inputs], printer.print_attribute)
+        printer.print_list(self.inputs.types, printer.print_attribute)
 
 
 @irdl_op_definition

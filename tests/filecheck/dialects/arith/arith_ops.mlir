@@ -193,4 +193,9 @@
 
   %index = arith.index_cast %lhsi32 : i32 to index
   // CHECK-NEXT: %index = arith.index_cast %lhsi32 : i32 to index
+
+  %t_const = arith.constant dense<1.234500e-01> : tensor<16xf32>
+  %m_const = arith.constant dense<1.678900e-01> : memref<64xf32>
+  // CHECK-NEXT: %t_const = arith.constant dense<1.234500e-01> : tensor<16xf32>
+  // CHECK-NEXT: %m_const = arith.constant dense<1.678900e-01> : memref<64xf32>
 }) : () -> ()

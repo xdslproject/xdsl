@@ -136,7 +136,7 @@ class InnerRefAttr(ParametrizedAttribute):
         ):
             parser.raise_error("Expected a module and symbol reference")
         return [
-            FlatSymbolRefAttr(symbol_ref.root_reference),
+            SymbolRefAttr(symbol_ref.root_reference),
             symbol_ref.nested_references.data[0],
         ]
 
@@ -1230,7 +1230,7 @@ class InstanceOp(IRDLOperation):
         printer.print_list(
             zip(
                 (name.data for name in self.result_names),
-                (result.type for result in self.results),
+                self.result_types,
             ),
             lambda x: print_output_port(*x),
         )
@@ -1301,7 +1301,7 @@ class OutputOp(IRDLOperation):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_operand)
         printer.print(" : ")
-        printer.print_list((x.type for x in self.inputs), printer.print_attribute)
+        printer.print_list(self.inputs.types, printer.print_attribute)
 
 
 HW = Dialect(

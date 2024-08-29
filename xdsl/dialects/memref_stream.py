@@ -43,6 +43,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     var_operand_def,
@@ -50,7 +51,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     IsTerminator,
     NoTerminator,
 )
@@ -264,14 +265,14 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.attributes:
@@ -349,8 +350,7 @@ class StreamingRegionOp(IRDLOperation):
         return generic
 
 
-class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
-
+class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls):
         from xdsl.transforms.canonicalization_patterns.memref_stream import (
@@ -397,6 +397,9 @@ class GenericOp(IRDLOperation):
     Indices into the `outputs` that correspond to the initial values in `inits`.
     """
 
+    doc: StringAttr | None = opt_prop_def(StringAttr)
+    library_call: StringAttr | None = opt_prop_def(StringAttr)
+
     body: Region = region_def("single_block")
 
     traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
@@ -413,6 +416,8 @@ class GenericOp(IRDLOperation):
         iterator_types: ArrayAttr[Attribute],
         bounds: ArrayAttr[IntegerAttr[IndexType]],
         init_indices: ArrayAttr[IntAttr],
+        doc: StringAttr | None = None,
+        library_call: StringAttr | None = None,
     ) -> None:
         for m in indexing_maps:
             if m.data.num_symbols:
@@ -426,6 +431,8 @@ class GenericOp(IRDLOperation):
                 "init_indices": init_indices,
                 "indexing_maps": indexing_maps,
                 "iterator_types": iterator_types,
+                "doc": doc,
+                "library_call": library_call,
             },
             regions=[body],
         )
@@ -513,20 +520,26 @@ class GenericOp(IRDLOperation):
                 lambda iterator_type: printer.print_string_literal(iterator_type.data),
             )
             printer.print_string("]")
+            if self.doc:
+                printer.print_string(",\ndoc = ")
+                printer.print_attribute(self.doc)
+            if self.library_call:
+                printer.print_string(",\nlibrary_call = ")
+                printer.print_attribute(self.library_call)
         printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.inits:
@@ -716,6 +729,8 @@ class GenericOp(IRDLOperation):
             ArrayAttr(iterator_types),
             bounds,
             ArrayAttr(IntAttr(index) for index in init_indices),
+            doc,
+            library_call,
         )
         generic.attributes |= attrs
         generic.attributes |= extra_attrs
