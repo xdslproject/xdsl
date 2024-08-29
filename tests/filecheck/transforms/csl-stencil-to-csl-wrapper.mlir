@@ -45,7 +45,7 @@ builtin.module {
 // CHECK-NEXT:     %10 = "csl.member_call"(%9, %0, %1, %2, %3, %5) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %11 = "csl.member_call"(%8, %0) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %12 = arith.constant 1 : i16
-// CHECK-NEXT:     %13 = arith.subi %12, %5 : i16
+// CHECK-NEXT:     %13 = arith.subi %5, %12 : i16
 // CHECK-NEXT:     %14 = arith.subi %2, %0 : i16
 // CHECK-NEXT:     %15 = arith.subi %3, %1 : i16
 // CHECK-NEXT:     %16 = arith.cmpi slt, %0, %13 : i16

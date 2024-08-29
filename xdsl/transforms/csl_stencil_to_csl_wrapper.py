@@ -185,7 +185,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
             # set up program param `is_border_region_pe`
             one = arith.Constant(IntegerAttr(1, 16))
-            pattern_minus_one = arith.Subi(one, param_pattern)
+            pattern_minus_one = arith.Subi(param_pattern, one)
             width_minus_x = arith.Subi(param_width, param_x)
             height_minus_y = arith.Subi(param_height, param_y)
             x_lt_pattern_minus_one = arith.Cmpi(param_x, pattern_minus_one, "slt")
