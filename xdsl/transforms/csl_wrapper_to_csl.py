@@ -121,10 +121,10 @@ class ExtractLayoutModule(RewritePattern):
             op.layout_module.block,
             InsertPoint.at_start(inner_loop_block),
             arg_values=[
-                SSAValue.get(param_width),
-                SSAValue.get(param_height),
                 SSAValue.get(x),
                 SSAValue.get(y),
+                SSAValue.get(param_width),
+                SSAValue.get(param_height),
                 *new_args,
             ],
         )
