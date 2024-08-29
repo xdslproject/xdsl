@@ -70,13 +70,16 @@ def test_parameters_init(op_type: type[OperandsOp | ResultsOp]):
 
     val1 = TestSSAValue(AttributeType())
     val2 = TestSSAValue(AttributeType())
-    op = op_type([(VariadicityAttr.SINGLE, val1), (VariadicityAttr.OPTIONAL, val2)])
+    op = op_type.get(
+        {"in1": (VariadicityAttr.SINGLE, val1), "in2": (VariadicityAttr.OPTIONAL, val2)}
+    )
     op2 = op_type.create(
         operands=[val1, val2],
         attributes={
+            "names": ArrayAttr((StringAttr("in1"), StringAttr("in2"))),
             "variadicity": VariadicityArrayAttr(
                 ArrayAttr((VariadicityAttr.SINGLE, VariadicityAttr.OPTIONAL))
-            )
+            ),
         },
     )
 

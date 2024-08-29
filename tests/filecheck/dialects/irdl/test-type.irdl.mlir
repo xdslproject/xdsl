@@ -23,11 +23,15 @@ builtin.module {
 
     // CHECK:      irdl.operation @any {
     // CHECK-NEXT:   %{{.*}} = irdl.any
-    // CHECK-NEXT:   irdl.results(%{{.*}})
+    // CHECK-NEXT:   irdl.results {
+    // CHECK-NEXT:     "out" = %{{.*}}
+    // CHECK-NEXT:   }
     // CHECK-NEXT: }
     irdl.operation @any {
       %0 = irdl.any
-      irdl.results(%0)
+      irdl.results {
+        "out" = %0
+      }
     }
   }
 }
