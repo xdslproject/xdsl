@@ -124,7 +124,7 @@ class StimOp(StimPrintable, IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class StimCircuitOp():
+class StimCircuitOp(StimOp):
     """
     Base operation containing a stim program
     """
@@ -175,6 +175,8 @@ class AnnotationOp(StimOp, ABC):
     """
     Base Annotation operation
     """
+
+    ...
 
 
 @irdl_op_definition
