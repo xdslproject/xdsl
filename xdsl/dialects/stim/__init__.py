@@ -6,6 +6,7 @@ Stim = Dialect(
     "stim",
     [
         StimCircuitOp,
+        QubitCoordsOp,
     ],
     [
         QubitAttr,
