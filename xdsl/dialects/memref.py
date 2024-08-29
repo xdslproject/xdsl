@@ -6,6 +6,7 @@ from typing import Annotated, ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    I64,
     AnyFloat,
     AnyIntegerAttr,
     AnySignlessIntegerType,
@@ -35,13 +36,14 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    AttrSizedResultSegments,
     ConstraintVar,
     IRDLOperation,
     Operand,
     ParsePropInAttrDict,
+    SameVariadicResultSize,
     VarOperand,
     VarOpResult,
+    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -55,7 +57,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
     NoMemoryEffect,
@@ -139,8 +141,7 @@ class Store(IRDLOperation):
         return cls(operands=[value, ref, indices])
 
 
-class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
-
+class AllocOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
@@ -296,7 +297,7 @@ class AllocaScopeReturnOp(IRDLOperation):
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
-        if any(op.type != res.type for op, res in zip(self.ops, parent.results)):
+        if self.ops.types != parent.result_types:
             raise VerifyException(
                 "Expected operand types to match parent's return types."
             )
@@ -368,7 +369,7 @@ class AtomicRMWOp(IRDLOperation):
     memref = operand_def(MemRefType[T])
     indices = var_operand_def(IndexType)
 
-    kind = prop_def(IntegerAttr[Annotated[IntegerType, i64]])
+    kind = prop_def(IntegerAttr[I64])
 
     result = result_def(T)
 
@@ -376,7 +377,9 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class Dealloc(IRDLOperation):
     name = "memref.dealloc"
-    memref: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    memref: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -413,7 +416,7 @@ class Global(IRDLOperation):
     type: Attribute = prop_def(Attribute)
     initial_value: Attribute = prop_def(Attribute)
     constant = opt_prop_def(UnitAttr)
-    alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
+    alignment = opt_prop_def(IntegerAttr[I64])
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -463,7 +466,9 @@ class Global(IRDLOperation):
 class Dim(IRDLOperation):
     name = "memref.dim"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
     index: Operand = operand_def(IndexType)
 
     result: OpResult = result_def(IndexType)
@@ -543,7 +548,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     traits = frozenset([NoMemoryEffect()])
 
-    irdl_options = [AttrSizedResultSegments()]
+    irdl_options = [SameVariadicResultSize()]
 
     def __init__(self, source: SSAValue | Operation):
         """
@@ -585,7 +590,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
         )
 
 
-class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class MemrefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import (
@@ -597,7 +602,6 @@ class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 @irdl_op_definition
 class Subview(IRDLOperation):
-
     DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
     """
     Constant value used to denote dynamic indices in offsets, sizes, and strides.
@@ -648,6 +652,51 @@ class Subview(IRDLOperation):
                 "static_sizes": static_sizes,
                 "static_strides": static_strides,
             },
+        )
+
+    @staticmethod
+    def get(
+        source: SSAValue,
+        offsets: Sequence[SSAValue | int],
+        sizes: Sequence[SSAValue | int],
+        strides: Sequence[SSAValue | int],
+        result_type: Attribute,
+    ) -> Subview:
+        dyn_offsets: list[SSAValue] = []
+        dyn_sizes: list[SSAValue] = []
+        dyn_strides: list[SSAValue] = []
+        static_offsets: list[int] = []
+        static_sizes: list[int] = []
+        static_strides: list[int] = []
+
+        for offset in offsets:
+            if isinstance(offset, int):
+                static_offsets.append(offset)
+            else:
+                static_offsets.append(Subview.DYNAMIC_INDEX)
+                dyn_offsets.append(offset)
+        for size in sizes:
+            if isinstance(size, int):
+                static_sizes.append(size)
+            else:
+                static_sizes.append(Subview.DYNAMIC_INDEX)
+                dyn_sizes.append(size)
+        for stride in strides:
+            if isinstance(stride, int):
+                static_strides.append(stride)
+            else:
+                static_strides.append(Subview.DYNAMIC_INDEX)
+                dyn_strides.append(stride)
+
+        return Subview(
+            source,
+            dyn_offsets,
+            dyn_sizes,
+            dyn_strides,
+            static_offsets,
+            static_sizes,
+            static_strides,
+            result_type,
         )
 
     @staticmethod
@@ -714,7 +763,7 @@ class Subview(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.source)
         print_dynamic_index_list(
             printer,
@@ -722,14 +771,14 @@ class Subview(IRDLOperation):
             (cast(int, offset.data) for offset in self.static_offsets.data.data),
             dynamic_index=Subview.DYNAMIC_INDEX,
         )
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             self.sizes,
             (cast(int, size.data) for size in self.static_sizes.data.data),
             dynamic_index=Subview.DYNAMIC_INDEX,
         )
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             self.strides,
@@ -793,8 +842,12 @@ class Subview(IRDLOperation):
 class Cast(IRDLOperation):
     name = "memref.cast"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest: OpResult = result_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
 
     traits = frozenset([NoMemoryEffect()])
 
@@ -810,8 +863,10 @@ class Cast(IRDLOperation):
 class MemorySpaceCast(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
     traits = frozenset([NoMemoryEffect()])
 

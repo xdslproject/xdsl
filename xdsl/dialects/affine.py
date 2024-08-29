@@ -38,7 +38,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, Pure
+from xdsl.traits import (
+    IsTerminator,
+    Pure,
+    RecursivelySpeculatable,
+    RecursiveMemoryEffect,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -89,21 +94,21 @@ class ApplyOp(IRDLOperation):
         m = self.map.data
         operands = tuple(self.mapOperands)
         assert len(operands) == m.num_dims + m.num_symbols, f"{len(operands)} {m}"
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.map)
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         if m.num_dims:
-            printer.print_string_raw("(")
+            printer.print_string("(")
             printer.print_list(
                 operands[: m.num_dims], lambda el: printer.print_operand(el)
             )
-            printer.print_string_raw(")")
+            printer.print_string(")")
         if m.num_symbols:
-            printer.print_string_raw("[")
+            printer.print_string("[")
             printer.print_list(
                 operands[m.num_dims :], lambda el: printer.print_operand(el)
             )
-            printer.print_string_raw("]")
+            printer.print_string("]")
 
 
 @irdl_op_definition
@@ -142,14 +147,14 @@ class For(IRDLOperation):
             raise VerifyException(
                 "Expected as many upper bound operands as upper bound dimensions and symbols."
             )
-        iter_types = [op.type for op in self.inits]
-        if iter_types != [res.type for res in self.results]:
+        iter_types = self.inits.types
+        if iter_types != self.result_types:
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"
             )
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = [IndexType()] + iter_types
-        arg_types = [arg.type for arg in entry_block.args]
+        block_arg_types = (IndexType(), *iter_types)
+        arg_types = entry_block.arg_types
         if block_arg_types != arg_types:
             raise VerifyException(
                 "Expected BlockArguments to have the same types as the operands"
@@ -204,6 +209,8 @@ class If(IRDLOperation):
 
     then_region = region_def("single_block")
     else_region = region_def()
+
+    traits = frozenset([RecursiveMemoryEffect(), RecursivelySpeculatable()])
 
 
 @irdl_op_definition
@@ -350,7 +357,7 @@ class Yield(IRDLOperation):
     name = "affine.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([IsTerminator(), Pure()])
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

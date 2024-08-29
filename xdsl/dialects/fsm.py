@@ -7,8 +7,10 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
+    SymbolRefAttr,
 )
 from xdsl.ir import (
     Attribute,
@@ -203,11 +205,7 @@ class OutputOp(IRDLOperation):
             raise VerifyException("Transition regions should not output any value")
         while (parent := parent.parent_op()) is not None:
             if isinstance(parent, MachineOp):
-                if not (
-                    [operand.type for operand in self.operands]
-                    == [result for result in parent.function_type.outputs]
-                    and len(self.operands) == len(parent.function_type.outputs)
-                ):
+                if self.operand_types != parent.function_type.outputs.data:
                     raise VerifyException(
                         "OutputOp output type must be consistent with the machine "
                         + str(parent.sym_name)
@@ -230,7 +228,7 @@ class TransitionOp(IRDLOperation):
 
     action = region_def()
 
-    nextState = attr_def(FlatSymbolRefAttr)
+    nextState = attr_def(FlatSymbolRefAttrConstr)
 
     traits = frozenset([NoTerminator(), HasParent(StateOp)])
 
@@ -241,7 +239,7 @@ class TransitionOp(IRDLOperation):
         action: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
         if isinstance(nextState, str):
-            nextState = FlatSymbolRefAttr(nextState)
+            nextState = SymbolRefAttr(nextState)
         attributes: dict[str, Attribute] = {
             "nextState": nextState,
         }
@@ -377,7 +375,7 @@ class InstanceOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    machine = attr_def(FlatSymbolRefAttr)
+    machine = attr_def(FlatSymbolRefAttrConstr)
 
     res = result_def(InstanceType)
 
@@ -385,7 +383,7 @@ class InstanceOp(IRDLOperation):
         self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
     ):
         if isinstance(machine, str):
-            machine = FlatSymbolRefAttr(machine)
+            machine = SymbolRefAttr(machine)
         attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(sym_name),
             "machine": machine,
@@ -440,21 +438,13 @@ class TriggerOp(IRDLOperation):
         if m is None:
             raise VerifyException("Machine definition does not exist.")
 
-        if not (
-            [operand.type for operand in self.inputs]
-            == [result for result in m.function_type.inputs]
-            and len(self.inputs) == len(m.function_type.inputs)
-        ):
+        if self.inputs.types != tuple(result for result in m.function_type.inputs):
             raise VerifyException(
                 "TriggerOp input types must be consistent with the machine "
                 + str(m.sym_name)
             )
 
-        if not (
-            [operand.type for operand in self.outputs]
-            == [result for result in m.function_type.outputs]
-            and len(self.outputs) == len(m.function_type.outputs)
-        ):
+        if self.outputs.types != tuple(result for result in m.function_type.outputs):
             raise VerifyException(
                 "TriggerOp output types must be consistent with the machine "
                 + str(m.sym_name)
@@ -473,7 +463,7 @@ class HWInstanceOp(IRDLOperation):
     name = "fsm.hw_instance"
 
     sym_name = attr_def(StringAttr)
-    machine = attr_def(FlatSymbolRefAttr)
+    machine = attr_def(FlatSymbolRefAttrConstr)
     inputs = var_operand_def(AnyAttr())
     clock = operand_def(signlessIntegerLike)
     reset = operand_def(signlessIntegerLike)
@@ -490,7 +480,7 @@ class HWInstanceOp(IRDLOperation):
         outputs: Sequence[Attribute],
     ):
         if isinstance(machine, str):
-            machine = FlatSymbolRefAttr(machine)
+            machine = SymbolRefAttr(machine)
         clock = SSAValue.get(clock)
         reset = SSAValue.get(reset)
         if isinstance(sym_name, str):
@@ -508,21 +498,15 @@ class HWInstanceOp(IRDLOperation):
     def verify_(self):
         m = SymbolTable.lookup_symbol(self, self.machine)
         if isinstance(m, MachineOp):
-            if not (
-                [operand.type for operand in self.inputs]
-                == [result for result in m.function_type.inputs]
-                and len(self.inputs) == len(m.function_type.inputs)
-            ):
+            if self.inputs.types != tuple(result for result in m.function_type.inputs):
                 raise VerifyException(
                     "HWInstanceOp "
                     + str(self.sym_name)
                     + " input type must be consistent with the machine "
                     + str(m.sym_name)
                 )
-            if not (
-                [operand.type for operand in self.outputs]
-                == [result for result in m.function_type.outputs]
-                and len(self.outputs) == len(m.function_type.outputs)
+            if self.outputs.types != tuple(
+                result for result in m.function_type.outputs
             ):
                 raise VerifyException(
                     "HWInstanceOp "

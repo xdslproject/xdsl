@@ -3,7 +3,13 @@ from itertools import pairwise
 from typing import cast
 
 from xdsl.dialects import builtin, memref, stencil
-from xdsl.dialects.builtin import IndexType, IntegerAttr, TensorType
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    AnyMemRefType,
+    IndexType,
+    MemRefType,
+    TensorType,
+)
 from xdsl.dialects.experimental import dmp
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
@@ -14,9 +20,11 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
     ParameterDef,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -29,9 +37,11 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasAncestor,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -40,6 +50,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @irdl_attr_definition
@@ -113,21 +124,23 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        stencil.TempType[Attribute] | memref.MemRefType[Attribute]
+        base(stencil.StencilType[Attribute])
+        | base(memref.MemRefType[Attribute])
+        | base(TensorType[Attribute])
     )
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    result = result_def(memref.MemRefType)
+    result = result_def(memref.MemRefType | TensorType)
 
     def __init__(
         self,
         input_stencil: SSAValue | Operation,
         topo: dmp.RankTopoAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
-        result_type: memref.MemRefType[Attribute] | None = None,
+        result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
@@ -137,6 +150,16 @@ class PrefetchOp(IRDLOperation):
             },
             result_types=[result_type],
         )
+
+
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl_stencil import (
+            RedundantIterArgInitialisation,
+        )
+
+        return (RedundantIterArgInitialisation(),)
 
 
 @irdl_op_definition
@@ -180,12 +203,13 @@ class ApplyOp(IRDLOperation):
     name = "csl_stencil.apply"
 
     communicated_stencil = operand_def(
-        stencil.TempType[Attribute] | memref.MemRefType[Attribute]
+        base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
-    iter_arg = operand_def(TensorType[Attribute])
+    iter_arg = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
 
     args = var_operand_def(Attribute)
+    dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
 
     chunk_reduce = region_def()
     post_process = region_def()
@@ -194,36 +218,54 @@ class ApplyOp(IRDLOperation):
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    num_chunks = prop_def(IntegerAttr)
+    num_chunks = prop_def(AnyIntegerAttr)
 
-    res = var_result_def(stencil.TempType)
+    bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
-    traits = frozenset([IsolatedFromAbove(), RecursiveMemoryEffect()])
+    res = var_result_def(stencil.StencilType)
+
+    traits = frozenset(
+        [
+            IsolatedFromAbove(),
+            ApplyOpHasCanonicalizationPatternsTrait(),
+            RecursiveMemoryEffect(),
+        ]
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def print(self, printer: Printer):
-        def print_arg(arg: tuple[SSAValue, Attribute]):
-            printer.print(arg[0])
+        def print_arg(arg: SSAValue):
+            printer.print(arg)
             printer.print(" : ")
-            printer.print(arg[1])
+            printer.print(arg.type)
 
         printer.print("(")
 
         # args required by function signature, plus optional args for regions
         args = [self.communicated_stencil, self.iter_arg, *self.args]
 
-        printer.print_list(
-            zip(args, (a.type for a in args)),
-            print_arg,
-        )
-        printer.print(") -> (")
-        printer.print_list((r.type for r in self.res), printer.print_attribute)
+        printer.print_list(args, print_arg)
+        if self.dest:
+            printer.print(") outs (")
+            printer.print_list(self.dest, print_arg)
+        else:
+            printer.print(") -> (")
+            printer.print_list(self.res.types, printer.print_attribute)
+
         printer.print(") ")
+        printer.print("<")
+        printer.print_attr_dict(self.properties)
+        printer.print("> ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print("(")
         printer.print_region(self.chunk_reduce, print_entry_block_args=True)
         printer.print(", ")
         printer.print_region(self.post_process, print_entry_block_args=True)
         printer.print(")")
+        if self.bounds is not None:
+            printer.print(" to ")
+            self.bounds.print_parameters(printer)
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -236,12 +278,22 @@ class ApplyOp(IRDLOperation):
 
         operands = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
 
-        props = parser.parse_optional_properties_dict()
+        if parser.parse_optional_punctuation("->"):
+            parser.parse_punctuation("(")
+            result_types = parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_attribute, parser.parse_attribute
+            )
+            destinations = []
+        else:
+            parser.parse_keyword("outs")
+            parser.parse_punctuation("(")
+            destinations = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parse_args
+            )
+            result_types = []
+        parser.parse_punctuation(")")
 
-        parser.parse_punctuation("->")
-        result_types = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_attribute
-        )
+        props = parser.parse_optional_properties_dict()
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:
             attrs = attrs.data
@@ -250,8 +302,12 @@ class ApplyOp(IRDLOperation):
         parser.parse_punctuation(",")
         post_process = parser.parse_region()
         parser.parse_punctuation(")")
+        if parser.parse_optional_keyword("to"):
+            props["bounds"] = stencil.StencilBoundsAttr.new(
+                stencil.StencilBoundsAttr.parse_parameters(parser)
+            )
         return cls(
-            operands=[operands[0], operands[1], operands[2:]],
+            operands=[operands[0], operands[1], operands[2:], destinations],
             result_types=[result_types],
             regions=[chunk_reduce, post_process],
             properties=props,
@@ -278,14 +334,16 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert isa(self.iter_arg.type, TensorType[Attribute])
+        assert isa(
+            self.iter_arg.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+        )
         chunk_reduce_req_types = [
-            memref.MemRefType(
-                TensorType(
-                    self.iter_arg.type.get_element_type(),
-                    (self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,),
+            type(self.iter_arg.type)(
+                self.iter_arg.type.get_element_type(),
+                (
+                    len(self.swaps),
+                    self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
                 ),
-                (len(self.swaps),),
             ),
             IndexType(),
             self.iter_arg.type,
@@ -309,27 +367,28 @@ class ApplyOp(IRDLOperation):
                     f"Unexpected block argument type of post_process, got {arg.type} != {expected_type} at index {arg.index}"
                 )
 
-        if len(self.res) < 1:
+        if (len(self.res) == 0) == (len(self.dest) == 0):
             raise VerifyException(
-                f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
+                "Expected stencil.apply to have either results or dest specified"
             )
-        res_type = cast(stencil.TempType[Attribute], self.res[0].type)
-        for other in self.res[1:]:
-            other = cast(stencil.TempType[Attribute], other.type)
-            if res_type.bounds != other.bounds:
-                raise VerifyException("Expected all output types bounds to be equals.")
 
     def get_rank(self) -> int:
-        res_type = self.res[0].type
-        assert isa(res_type, stencil.TempType[Attribute])
-        return res_type.get_num_dims()
+        if self.dest:
+            res_type = self.dest[0].type
+        else:
+            res_type = self.res[0].type
+        if isa(res_type, stencil.StencilType[Attribute]):
+            return res_type.get_num_dims()
+        elif self.bounds:
+            return len(self.bounds.ub)
+        raise ValueError("Cannot derive rank")
 
     def get_accesses(self) -> Iterable[stencil.AccessPattern]:
         """
         Return the access patterns of each input.
 
          - An offset is a tuple describing a relative access
-         - An access pattern is a class wrappoing a sequence of offsets
+         - An access pattern is a class wrapping a sequence of offsets
          - This method returns an access pattern for each stencil
            field of the apply operation.
         """
@@ -364,10 +423,12 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(memref.MemRefType | stencil.TempType)
+    op = operand_def(
+        base(AnyMemRefType) | base(stencil.StencilType) | base(TensorType[Attribute])
+    )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType)
+    result = result_def(TensorType | AnyMemRefType)
 
     traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
 
@@ -375,7 +436,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute],
+        result_type: TensorType[Attribute] | MemRefType[Attribute],
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -442,30 +503,59 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isa(
-            res_type, memref.MemRefType[Attribute] | stencil.TempType[Attribute]
-        ):
-            parser.raise_error("Expected return type to be a memref or stencil.temp")
-        return cls.build(
-            operands=[temp], result_types=[res_type.element_type], properties=props
+        if isa(res_type, stencil.StencilType[Attribute]):
+            return cls.build(
+                operands=[temp],
+                result_types=[res_type.get_element_type()],
+                properties=props,
+            )
+        elif isattr(res_type, base(TensorType[Attribute])):
+            return cls.build(
+                operands=[temp],
+                result_types=[
+                    TensorType(res_type.element_type, res_type.get_shape()[-1:])
+                ],
+                properties=props,
+            )
+        elif isattr(res_type, base(AnyMemRefType)):
+            return cls.build(
+                operands=[temp],
+                result_types=[
+                    memref.MemRefType(res_type.element_type, res_type.get_shape()[-1:])
+                ],
+                properties=props,
+            )
+        parser.raise_error(
+            "Expected return type to be a tensor, memref, or stencil.temp"
         )
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if not isa(self.op.type, stencil.TempType[Attribute]):
+            if isa(self.op.type, memref.MemRefType[Attribute]):
+                if not self.result.type == self.op.type:
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
+                    )
+            elif isa(self.op.type, stencil.StencilType[Attribute]):
+                if not self.result.type == self.op.type.get_element_type():
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
+                    )
+            else:
                 raise VerifyException(
-                    f"{type(self)} access to own data requires type stencil.TempType but found {self.op.type}"
+                    f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
-            assert self.result.type == self.op.type.get_element_type()
         else:
-            if not isa(self.op.type, memref.MemRefType[Attribute]):
+            if not isa(
+                self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+            ):
                 raise VerifyException(
-                    f"{type(self)} access to neighbor data requires type memref.MemRefType but found {self.op.type}"
+                    f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
                 )
 
         # As promised by HasAncestor(ApplyOp)
         trait = cast(
-            HasAncestor, AccessOp.get_trait(HasAncestor, (stencil.ApplyOp, ApplyOp))
+            HasAncestor, AccessOp.get_trait(HasAncestor(stencil.ApplyOp, ApplyOp))
         )
         apply = trait.get_ancestor(self)
         assert isinstance(apply, stencil.ApplyOp | ApplyOp)
@@ -499,18 +589,22 @@ class AccessOp(IRDLOperation):
                         f"apply, got {offset} >= {apply.get_rank()}"
                     )
 
-    def get_apply(self):
+    def get_apply(self) -> stencil.ApplyOp | ApplyOp:
         """
         Simple helper to get the parent apply and raise otherwise.
         """
-        trait = cast(HasAncestor, self.get_trait(HasAncestor, (stencil.ApplyOp,)))
+        trait = cast(
+            HasAncestor,
+            self.get_trait(HasAncestor(stencil.ApplyOp, ApplyOp)),
+        )
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
             raise ValueError(
                 "stencil.apply not found, this function should be called on"
                 "verified accesses only."
             )
-        return cast(stencil.ApplyOp, ancestor)
+        assert isinstance(ancestor, stencil.ApplyOp | ApplyOp)
+        return ancestor
 
 
 @irdl_op_definition

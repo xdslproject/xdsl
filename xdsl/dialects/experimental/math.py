@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import AnyFloat, IntegerType
+from xdsl.dialects.builtin import AnyFloatConstr, IntegerType
 from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
@@ -29,8 +29,8 @@ class AbsFOp(IRDLOperation):
 
     name = "math.absf"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -94,9 +94,9 @@ class Atan2Op(IRDLOperation):
 
     name = "math.atan2"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
-    rhs: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    lhs: Operand = operand_def(AnyFloatConstr)
+    rhs: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -132,8 +132,8 @@ class AtanOp(IRDLOperation):
 
     name = "math.atan"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -165,8 +165,8 @@ class CbrtOp(IRDLOperation):
 
     name = "math.cbrt"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -199,8 +199,8 @@ class CeilOp(IRDLOperation):
 
     name = "math.ceil"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -234,9 +234,9 @@ class CopySignOp(IRDLOperation):
 
     name = "math.copysign"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
-    rhs: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    lhs: Operand = operand_def(AnyFloatConstr)
+    rhs: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -273,8 +273,8 @@ class CosOp(IRDLOperation):
 
     name = "math.cos"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -376,8 +376,8 @@ class ErfOp(IRDLOperation):
 
     name = "math.erf"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -410,8 +410,8 @@ class Exp2Op(IRDLOperation):
 
     name = "math.exp2"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -446,8 +446,8 @@ class ExpM1Op(IRDLOperation):
 
     name = "math.expm1"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -480,8 +480,8 @@ class ExpOp(IRDLOperation):
 
     name = "math.exp"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -522,9 +522,9 @@ class FPowIOp(IRDLOperation):
 
     name = "math.fpowi"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
+    lhs: Operand = operand_def(AnyFloatConstr)
     rhs: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(AnyFloat)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -561,8 +561,8 @@ class FloorOp(IRDLOperation):
 
     name = "math.floor"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -600,10 +600,10 @@ class FmaOp(IRDLOperation):
 
     name = "math.fma"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    a: Operand = operand_def(AnyFloat)
-    b: Operand = operand_def(AnyFloat)
-    c: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    a: Operand = operand_def(AnyFloatConstr)
+    b: Operand = operand_def(AnyFloatConstr)
+    c: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -666,8 +666,8 @@ class Log10Op(IRDLOperation):
 
     name = "math.log10"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -699,8 +699,8 @@ class Log1pOp(IRDLOperation):
 
     name = "math.log1p"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -730,8 +730,8 @@ class Log2Op(IRDLOperation):
 
     name = "math.log2"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -761,8 +761,8 @@ class LogOp(IRDLOperation):
 
     name = "math.log"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -795,9 +795,9 @@ class PowFOp(IRDLOperation):
 
     name = "math.powf"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
-    rhs: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    lhs: Operand = operand_def(AnyFloatConstr)
+    rhs: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -837,8 +837,8 @@ class RoundEvenOp(IRDLOperation):
 
     name = "math.roundeven"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -874,8 +874,8 @@ class RoundOp(IRDLOperation):
 
     name = "math.round"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -904,8 +904,8 @@ class RsqrtOp(IRDLOperation):
 
     name = "math.rsqrt"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -938,8 +938,8 @@ class SinOp(IRDLOperation):
 
     name = "math.sin"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -968,8 +968,8 @@ class SqrtOp(IRDLOperation):
 
     name = "math.sqrt"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -999,8 +999,8 @@ class TanOp(IRDLOperation):
 
     name = "math.tan"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -1030,8 +1030,8 @@ class TanhOp(IRDLOperation):
 
     name = "math.tanh"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 
@@ -1066,8 +1066,8 @@ class TruncOp(IRDLOperation):
 
     name = "math.trunc"
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    operand: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     traits = frozenset([Pure()])
 

@@ -25,6 +25,7 @@ from typing import (
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     Data,
     ParametrizedAttribute,
     TypedAttribute,
@@ -46,6 +47,7 @@ from .constraints import (  # noqa: TID251
     ConstraintContext,
     ConstraintVar,
     EqAttrConstraint,
+    GenericAttrConstraint,
     ParamAttrConstraint,
     VarConstraint,
 )
@@ -311,8 +313,8 @@ def irdl_to_attr_constraint(
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
-    if isinstance(irdl, AttrConstraint):
-        return irdl
+    if isinstance(irdl, GenericAttrConstraint):
+        return cast(AttrConstraint, irdl)
 
     if isinstance(irdl, Attribute):
         return EqAttrConstraint(irdl)
@@ -430,3 +432,18 @@ def irdl_to_attr_constraint(
         )
 
     raise ValueError(f"Unexpected irdl constraint: {irdl}")
+
+
+def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:
+    """
+    Converts an attribute type into the equivalent constraint, detecting generic
+    parameters if present.
+    """
+    return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
+
+
+def eq(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
+    """
+    Converts an attribute instance into the equivalent constraint.
+    """
+    return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))

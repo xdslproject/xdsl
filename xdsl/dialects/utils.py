@@ -167,7 +167,9 @@ def print_func_op_like(
         printer.print_region(body, False, False)
 
 
-def parse_func_op_like(parser: Parser, *, reserved_attr_names: Sequence[str]) -> tuple[
+def parse_func_op_like(
+    parser: Parser, *, reserved_attr_names: Sequence[str]
+) -> tuple[
     str,
     Sequence[Attribute],
     Sequence[Attribute],
@@ -295,7 +297,7 @@ def print_dynamic_index_list(
         if integer == dynamic_index:
             printer.print_ssa_value(values[value_index])
             if value_types:
-                printer.print_string_raw(" : ")
+                printer.print_string(" : ")
                 printer.print_attribute(value_types[value_index])
             value_index += 1
         else:

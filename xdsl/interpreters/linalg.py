@@ -222,7 +222,6 @@ class LinalgFunctions(InterpreterFunctions):
         op: linalg.Conv2DNchwFchwOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-
         input, kernel_filter, res = args[0], args[1], args[2]
         assert isinstance(input, ShapedArray)
         assert isinstance(kernel_filter, ShapedArray)

@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from enum import auto
-from typing import Annotated, Generic
+from typing import Generic
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    I32,
     AnyAttr,
     AnyIntegerAttr,
     ArrayAttr,
@@ -660,6 +661,7 @@ class ExternalBufferOp(IRDLOperation):
         shape: ArrayAttr[IntAttr],
         element_type: Attribute,
     ):
+        memref.MemRefType(element_type, shape)
         super().__init__(
             attributes={"sym_name": StringAttr(sym_name)},
             result_types=[memref.MemRefType(element_type, shape)],
@@ -886,7 +888,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
         if isinstance(object_fifo, str):
             object_fifo = SymbolRefAttr(object_fifo)
 
-        result_subview = ObjectFIFOSubview.from_element_type_and_shape(
+        result_subview = ObjectFIFOSubview[Attribute].from_element_type_and_shape(
             element_type, shape
         )
         super().__init__(
@@ -1047,7 +1049,9 @@ class createObjectFifo(IRDLOperation):
         shape: Iterable[int | IntAttr],
         name: str,
     ):
-        object_fifo = ObjectFIFO.from_element_type_and_shape(referenced_type, shape)
+        object_fifo = ObjectFIFO[Attribute].from_element_type_and_shape(
+            referenced_type, shape
+        )
         super().__init__(
             attributes={
                 "elemNumber": elemNumber,
@@ -1358,7 +1362,7 @@ class ShimDMAAllocationOp(IRDLOperation):
     name = "aie.shimDMAAllocation"
 
     sym_name = attr_def(StringAttr)
-    channelDir = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
+    channelDir = attr_def(IntegerAttr[I32])
     channelIndex = attr_def(IntegerAttr[IntegerType])
     col = attr_def(IntegerAttr[IntegerType])
 

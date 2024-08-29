@@ -23,7 +23,6 @@ from xdsl.pattern_rewriter import (
 
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
-
     pipeline_depth: int = field()
 
     @op_type_rewrite_pattern
@@ -32,6 +31,10 @@ class PipelineGenericPattern(RewritePattern):
     ) -> None:
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             # Already interleaved
+            return
+
+        if memref_stream.IteratorTypeAttr.reduction() not in op.iterator_types:
+            # No reduction
             return
 
         interleave_bound_index = -1
@@ -140,6 +143,8 @@ class PipelineGenericPattern(RewritePattern):
                 ),
                 ArrayAttr(new_bounds),
                 op.init_indices,
+                op.doc,
+                op.library_call,
             )
         )
 

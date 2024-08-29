@@ -36,6 +36,16 @@ def test_linalg_on_memrefs():
     func.FuncOp("foo", ([], []), funcBody)
 
 
+def test_matmul_on_memrefs():
+    a = memref.Alloc.get(f32, shape=[100, 50])
+    b = memref.Alloc.get(f32, shape=[50, 100])
+    c = memref.Alloc.get(f32, shape=[100, 100])
+
+    matmul_op = linalg.MatmulOp(inputs=(a.memref, b.memref), outputs=(c.memref,))
+
+    assert matmul_op.result_types == ()
+
+
 def test_loop_range_methods():
     A = memref.Alloc.get(f32, shape=[100, 50])
     B = memref.Alloc.get(f32, shape=[50, 100])

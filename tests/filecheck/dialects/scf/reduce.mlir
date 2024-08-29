@@ -32,4 +32,3 @@ builtin.module {
 // CHECK-NEXT:     }) : (f32) -> ()
 // CHECK-NEXT:     scf.yield
 // CHECK-NEXT:   }) : (index, index, index, f32) -> f32
-// CHECK-NEXT:

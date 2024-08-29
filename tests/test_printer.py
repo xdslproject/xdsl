@@ -702,7 +702,7 @@ class CustomFormatAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class AnyOp(IRDLOperation):
-    name = "any"
+    name = "test.any"
 
 
 def test_custom_format_attr():
@@ -711,13 +711,13 @@ def test_custom_format_attr():
     """
     prog = """\
 "builtin.module"() ({
-  "any"() {"attr" = #test.custom<zero>} : () -> ()
+  "test.any"() {"attr" = #test.custom<zero>} : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  "any"() {"attr" = #test.custom<zero>} : () -> ()
+  "test.any"() {"attr" = #test.custom<zero>} : () -> ()
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -870,12 +870,14 @@ def test_get_printed_name():
     val = TestSSAValue(i32)
 
     # Test printing without constraints
-    printer.stream = StringIO()
+    stream = StringIO()
+    printer.stream = stream
     picked_name = printer.print_ssa_value(val)
     assert f"%{picked_name}" == printer.stream.getvalue()
 
     # Test printing when name has already been picked
-    printer.stream = StringIO()
+    stream = StringIO()
+    printer.stream = stream
     picked_name = printer.print_ssa_value(val)
     assert f"%{picked_name}" == printer.stream.getvalue()
 
@@ -898,7 +900,7 @@ def test_indented():
             printer.print("\nfoo,")
             printer.print("\nbar,")
             printer.print("\n")
-            printer.print_string_raw("test\nraw print!")
+            printer.print_string("test\nraw print!", indent=0)
             printer.print_string("\ndifferent indent level", indent=4)
         printer.print("\n)")
     printer.print("\n}")

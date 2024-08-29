@@ -15,6 +15,7 @@ from typing import NamedTuple, overload
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     IntAttr,
     LocationAttr,
     ParameterDef,
@@ -110,7 +111,7 @@ class InnerRefAttr(ParametrizedAttribute):
             module = StringAttr(module)
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__([FlatSymbolRefAttr(module), name])
+        super().__init__((SymbolRefAttr(module), name))
 
     @classmethod
     def get_from_operation(
@@ -135,7 +136,7 @@ class InnerRefAttr(ParametrizedAttribute):
         ):
             parser.raise_error("Expected a module and symbol reference")
         return [
-            FlatSymbolRefAttr(symbol_ref.root_reference),
+            SymbolRefAttr(symbol_ref.root_reference),
             symbol_ref.nested_references.data[0],
         ]
 
@@ -1024,7 +1025,9 @@ class InstanceOp(IRDLOperation):
     name = "hw.instance"
 
     instance_name = attr_def(StringAttr, attr_name="instanceName")
-    module_name: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr, attr_name="moduleName")
+    module_name: FlatSymbolRefAttr = attr_def(
+        FlatSymbolRefAttrConstr, attr_name="moduleName"
+    )
     inputs: VarOperand = var_operand_def()
     outputs: VarOpResult = var_result_def()
     arg_names: ArrayAttr[StringAttr] = attr_def(
@@ -1227,7 +1230,7 @@ class InstanceOp(IRDLOperation):
         printer.print_list(
             zip(
                 (name.data for name in self.result_names),
-                (result.type for result in self.results),
+                self.result_types,
             ),
             lambda x: print_output_port(*x),
         )
@@ -1298,7 +1301,7 @@ class OutputOp(IRDLOperation):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_operand)
         printer.print(" : ")
-        printer.print_list((x.type for x in self.inputs), printer.print_attribute)
+        printer.print_list(self.inputs.types, printer.print_attribute)
 
 
 HW = Dialect(

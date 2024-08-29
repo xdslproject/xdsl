@@ -22,6 +22,8 @@
 // CHECK-NEXT:  %{{.*}} = riscv.li 8 : !riscv.reg
 // CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%{{.*}}) {"dm" = #builtin.int<0>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  %{{.*}} = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:  %{{.*}} = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:  "snitch.ssr_set_stream_repetition"(%{{.*}}) {"dm" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  %{{.*}} = riscv.li 2 : !riscv.reg
 // CHECK-NEXT:  %{{.*}} = riscv.li 3 : !riscv.reg
 // CHECK-NEXT:  %{{.*}} = riscv.addi %{{.*}}, -1 : (!riscv.reg) -> !riscv.reg
@@ -36,6 +38,8 @@
 // CHECK-NEXT:  %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:  %{{.*}} = riscv.sub %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%{{.*}}) {"dm" = #builtin.int<1>, "dimension" = #builtin.int<1>} : (!riscv.reg) -> ()
+// CHECK-NEXT:  %{{.*}} = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:  "snitch.ssr_set_stream_repetition"(%{{.*}}) {"dm" = #builtin.int<1>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  %{{.*}} = riscv.li 2 : !riscv.reg
 // CHECK-NEXT:  %{{.*}} = riscv.li 3 : !riscv.reg
 // CHECK-NEXT:  %{{.*}} = riscv.li 4 : !riscv.reg
@@ -66,6 +70,8 @@
 // CHECK-NEXT:  %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:  %{{.*}} = riscv.sub %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%{{.*}}) {"dm" = #builtin.int<2>, "dimension" = #builtin.int<3>} : (!riscv.reg) -> ()
+// CHECK-NEXT:  %{{.*}} = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:  "snitch.ssr_set_stream_repetition"(%{{.*}}) {"dm" = #builtin.int<2>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_source"(%A) {"dm" = #builtin.int<0>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_source"(%B) {"dm" = #builtin.int<1>, "dimension" = #builtin.int<1>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_destination"(%C) {"dm" = #builtin.int<2>, "dimension" = #builtin.int<3>} : (!riscv.reg) -> ()
@@ -89,6 +95,8 @@
 // CHECK-NEXT:  %{{.*}} = riscv.li 8 : !riscv.reg
 // CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%{{.*}}) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  %{{.*}} = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:  %{{.*}} = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:  "snitch.ssr_set_stream_repetition"(%{{.*}}) {"dm" = #builtin.int<31>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_source"(%A) {"dm" = #builtin.int<0>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_destination"(%B) {"dm" = #builtin.int<1>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  %{{.*}}, %{{.*}} = "snitch.ssr_enable"() : () -> (!stream.readable<!riscv.freg<ft0>>, !stream.writable<!riscv.freg<ft1>>)
@@ -96,4 +104,3 @@
 // CHECK-NEXT:  "snitch.ssr_disable"() : () -> ()
 
 // CHECK-NEXT: }
-

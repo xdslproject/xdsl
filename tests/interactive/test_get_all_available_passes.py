@@ -7,7 +7,7 @@ from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import individual_rewrite
 from xdsl.transforms import (
     reconcile_unrealized_casts,
-    test_lower_memref_stream_to_snitch_stream,
+    test_lower_linalg_to_snitch,
 )
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
@@ -41,8 +41,8 @@ def test_get_all_available_passes():
                 pass_spec=None,
             ),
             AvailablePass(
-                display_name="test-lower-memref-stream-to-snitch-stream",
-                module_pass=test_lower_memref_stream_to_snitch_stream.TestLowerMemrefStreamToSnitchStream,
+                display_name="test-lower-linalg-to-snitch",
+                module_pass=test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass,
                 pass_spec=None,
             ),
         )

@@ -1,6 +1,8 @@
+import sys
 from collections.abc import Callable
 
 from xdsl.ir import Dialect
+from xdsl.utils.dialect_loader import IRDLDialectFinder
 
 
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
@@ -65,6 +67,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.csl.csl_stencil import CSL_STENCIL
 
         return CSL_STENCIL
+
+    def get_csl_wrapper():
+        from xdsl.dialects.csl.csl_wrapper import CSL_WRAPPER
+
+        return CSL_WRAPPER
 
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
@@ -176,6 +183,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Printf
 
+    def get_quantum():
+        from xdsl.dialects.quantum import QUANTUM
+
+        return QUANTUM
+
     def get_qref():
         from xdsl.dialects.qref import QREF
 
@@ -241,6 +253,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return SnitchStream
 
+    def get_stablehlo():
+        from xdsl.dialects.stablehlo import StableHLO
+
+        return StableHLO
+
     def get_stencil():
         from xdsl.dialects.stencil import Stencil
 
@@ -299,6 +316,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "comb": get_comb,
         "csl": get_csl,
         "csl_stencil": get_csl_stencil,
+        "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
         "eqsat": get_eqsat,
         "fir": get_fir,
@@ -321,6 +339,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
+        "quantum": get_quantum,
         "qref": get_qref,
         "qssa": get_qssa,
         "riscv": get_riscv,
@@ -334,6 +353,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,
+        "stablehlo": get_stablehlo,
         "stencil": get_stencil,
         "stream": get_stream,
         "symref": get_symref,
@@ -344,3 +364,8 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "x86": get_x86,
         "transform": get_transform,
     }
+
+
+# Add the IRDLDialectFinder to the meta path as last resort, i.e, it will look for a
+# .irdl implementation if no .py implementation is found.
+sys.meta_path.append(IRDLDialectFinder(get_all_dialects))

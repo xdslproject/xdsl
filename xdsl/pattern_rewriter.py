@@ -231,11 +231,16 @@ class PatternRewriter(PatternRewriterListener):
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)
 
-    def modify_block_argument_type(self, arg: BlockArgument, new_type: Attribute):
-        """Modify the type of a block argument."""
+    def modify_value_type(self, arg: SSAValue, new_type: Attribute):
+        """Modify the type of a value."""
         self.has_done_action = True
         arg.type = new_type
 
+        owner = arg.owner
+        if isinstance(owner, Block):
+            owner = owner.parent_op()
+        if owner is not None:
+            self.handle_operation_modification(owner)
         for use in arg.uses:
             self.handle_operation_modification(use.operation)
 
@@ -381,7 +386,7 @@ _OperationT = TypeVar("_OperationT", bound=Operation)
 
 
 def op_type_rewrite_pattern(
-    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
+    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None],
 ) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
     """
     This function is intended to be used as a decorator on a RewritePatter
@@ -521,9 +526,9 @@ class TypeConversionPattern(RewritePattern):
         for region in op.regions:
             for block in region.blocks:
                 for arg in block.args:
-                    converted = self.convert_type(arg.type)
+                    converted = self._convert_type_rec(arg.type)
                     if converted is not None and converted != arg.type:
-                        rewriter.modify_block_argument_type(arg, converted)
+                        rewriter.modify_value_type(arg, converted)
         if changed:
             regions = [op.detach_region(r) for r in op.regions]
             new_op = type(op).create(
@@ -547,7 +552,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None]
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern

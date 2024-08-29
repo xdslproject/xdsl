@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from xdsl.dialects import qssa
 from xdsl.dialects.builtin import IntegerType
+from xdsl.dialects.quantum import AngleAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
@@ -11,6 +12,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     var_result_def,
 )
@@ -139,7 +141,7 @@ class CNotGateOp(QRefBase):
     def __init__(self, in1: SSAValue, in2: SSAValue):
         super().__init__(
             operands=(in1, in2),
-            result_types=(qubit, qubit),
+            result_types=(),
         )
 
     def ssa_op(self) -> qssa.CNotGateOp:
@@ -155,26 +157,26 @@ class CNotGateOp(QRefBase):
 
 
 @irdl_op_definition
-class CZGateOp(QRefBase):
-    name = "qref.cz"
+class RZGateOp(QRefBase):
+    name = "qref.rz"
 
-    in1 = operand_def(qubit)
+    input = operand_def(qubit)
 
-    in2 = operand_def(qubit)
+    angle = prop_def(AngleAttr)
 
-    assembly_format = "$in1 `,` $in2 attr-dict"
+    assembly_format = "$angle $input attr-dict"
 
-    def __init__(self, in1: SSAValue, in2: SSAValue):
+    def __init__(self, angle: AngleAttr, input: SSAValue):
         super().__init__(
-            operands=(in1, in2),
-            result_types=(),
+            operands=(input,), result_types=(), properties={"angle": angle}
         )
 
-    def ssa_op(self) -> qssa.CZGateOp:
-        return qssa.CZGateOp.create(
+    def ssa_op(self) -> qssa.RZGateOp:
+        return qssa.RZGateOp.create(
             operands=self.operands,
-            result_types=(qssa.qubit, qssa.qubit),
+            result_types=(qssa.qubit,),
             attributes=self.attributes,
+            properties=self.properties,
         )
 
     @property
@@ -214,7 +216,7 @@ QREF = Dialect(
     "qref",
     [
         CNotGateOp,
-        CZGateOp,
+        RZGateOp,
         HGateOp,
         MeasureOp,
         QRefAllocOp,

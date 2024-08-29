@@ -350,4 +350,51 @@ func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : mem
 // CHECK-NEXT:      func.return %{{.*}} : memref<3x8xf64>
 // CHECK-NEXT:    }
 
+func.func public @ssum(
+  %X: memref<8x16xf32>,
+  %Y: memref<8x16xf32>,
+  %Z: memref<8x16xf32>
+) {
+  memref_stream.generic {
+    bounds = [8, 8],
+    indexing_maps = [
+      affine_map<(d0, d1) -> (d0, 2 * d1)>,
+      affine_map<(d0, d1) -> (d0, 2 * d1)>,
+      affine_map<(d0, d1) -> (d0, 2 * d1)>
+    ],
+    iterator_types = ["parallel", "parallel"]
+  } ins(%X, %Y : memref<8x16xf32>, memref<8x16xf32>) outs(%Z : memref<8x16xf32>) {
+  ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
+    %3 = arith.addf %in, %in_1 : vector<2xf32>
+    memref_stream.yield %3 : vector<2xf32>
+  }
+  func.return
+}
+
+// CHECK-NEXT:    func.func public @ssum(%X : memref<8x16xf32>, %Y : memref<8x16xf32>, %Z : memref<8x16xf32>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, (d1 * 2))>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, (d1 * 2))>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, (d1 * 2))>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%X, %Y : memref<8x16xf32>, memref<8x16xf32>) outs(%Z : memref<8x16xf32>) {
+// CHECK-NEXT:      ^0(%0 : !stream.readable<vector<2xf32>>, %1 : !stream.readable<vector<2xf32>>, %2 : !stream.writable<vector<2xf32>>):
+// CHECK-NEXT:        memref_stream.generic {
+// CHECK-NEXT:          bounds = [8, 8],
+// CHECK-NEXT:          indexing_maps = [
+// CHECK-NEXT:            affine_map<(d0, d1) -> (d0, (d1 * 2))>,
+// CHECK-NEXT:            affine_map<(d0, d1) -> (d0, (d1 * 2))>,
+// CHECK-NEXT:            affine_map<(d0, d1) -> (d0, (d1 * 2))>
+// CHECK-NEXT:          ],
+// CHECK-NEXT:          iterator_types = ["parallel", "parallel"]
+// CHECK-NEXT:        } ins(%0, %1 : !stream.readable<vector<2xf32>>, !stream.readable<vector<2xf32>>) outs(%2 : !stream.writable<vector<2xf32>>) {
+// CHECK-NEXT:        ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
+// CHECK-NEXT:          %3 = arith.addf %in, %in_1 : vector<2xf32>
+// CHECK-NEXT:          memref_stream.yield %3 : vector<2xf32>
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }

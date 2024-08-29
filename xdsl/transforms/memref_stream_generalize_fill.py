@@ -24,12 +24,10 @@ from xdsl.pattern_rewriter import (
 
 
 class GeneralizeFillPattern(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.FillOp, rewriter: PatternRewriter
     ) -> None:
-
         block = Block(arg_types=(op.value.type, op.value.type))
 
         with ImplicitBuilder(block) as (arg0, _):

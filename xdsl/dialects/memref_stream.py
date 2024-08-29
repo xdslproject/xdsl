@@ -17,6 +17,7 @@ from typing_extensions import Self
 from xdsl.dialects import memref, stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyMemRefType,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -38,16 +39,22 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.traits import (
+    HasCanonicalizationPatternsTrait,
+    IsTerminator,
+    NoTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -258,14 +265,14 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.attributes:
@@ -343,6 +350,16 @@ class StreamingRegionOp(IRDLOperation):
         return generic
 
 
+class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls):
+        from xdsl.transforms.canonicalization_patterns.memref_stream import (
+            RemoveUnusedInitOperandPattern,
+        )
+
+        return (RemoveUnusedInitOperandPattern(),)
+
+
 @irdl_op_definition
 class GenericOp(IRDLOperation):
     name = "memref_stream.generic"
@@ -352,7 +369,7 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(memref.MemRefType | stream.WritableStreamType)
+    outputs = var_operand_def(base(AnyMemRefType) | base(stream.AnyWritableStreamType))
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
@@ -380,7 +397,12 @@ class GenericOp(IRDLOperation):
     Indices into the `outputs` that correspond to the initial values in `inits`.
     """
 
+    doc: StringAttr | None = opt_prop_def(StringAttr)
+    library_call: StringAttr | None = opt_prop_def(StringAttr)
+
     body: Region = region_def("single_block")
+
+    traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -394,6 +416,8 @@ class GenericOp(IRDLOperation):
         iterator_types: ArrayAttr[Attribute],
         bounds: ArrayAttr[IntegerAttr[IndexType]],
         init_indices: ArrayAttr[IntAttr],
+        doc: StringAttr | None = None,
+        library_call: StringAttr | None = None,
     ) -> None:
         for m in indexing_maps:
             if m.data.num_symbols:
@@ -407,6 +431,8 @@ class GenericOp(IRDLOperation):
                 "init_indices": init_indices,
                 "indexing_maps": indexing_maps,
                 "iterator_types": iterator_types,
+                "doc": doc,
+                "library_call": library_call,
             },
             regions=[body],
         )
@@ -420,14 +446,36 @@ class GenericOp(IRDLOperation):
         bounds, and the second is empty.
         If there are two, then the first element of the returned tuple has the outer
         bounds, and the second the inner.
+        Interleaved iterators are not returned in either tuple.
         """
         output_maps = self.indexing_maps.data[len(self.inputs) :]
         # min_dims will equal len(self.iterator_types) in the perfect nest case
         min_dims = min(m.data.num_dims for m in output_maps)
-        return (
-            tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
-            tuple(bound.value.data for bound in self.bounds.data[min_dims:]),
+        num_interleaved = sum(
+            it.data == IteratorType.INTERLEAVED for it in self.iterator_types
         )
+        if num_interleaved:
+            res = (
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[: min_dims - num_interleaved]
+                ),
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[
+                        min_dims - num_interleaved : -num_interleaved
+                    ]
+                ),
+            )
+        else:
+            res = (
+                tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[min_dims - num_interleaved :]
+                ),
+            )
+        return res
 
     @property
     def is_imperfectly_nested(self) -> bool:
@@ -472,20 +520,26 @@ class GenericOp(IRDLOperation):
                 lambda iterator_type: printer.print_string_literal(iterator_type.data),
             )
             printer.print_string("]")
+            if self.doc:
+                printer.print_string(",\ndoc = ")
+                printer.print_attribute(self.doc)
+            if self.library_call:
+                printer.print_string(",\nlibrary_call = ")
+                printer.print_attribute(self.library_call)
         printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.inits:
@@ -675,6 +729,8 @@ class GenericOp(IRDLOperation):
             ArrayAttr(iterator_types),
             bounds,
             ArrayAttr(IntAttr(index) for index in init_indices),
+            doc,
+            library_call,
         )
         generic.attributes |= attrs
         generic.attributes |= extra_attrs

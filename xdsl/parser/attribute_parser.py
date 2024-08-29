@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     AnyArrayAttr,
     AnyFloat,
     AnyFloatAttr,
+    AnyFloatConstr,
     AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
@@ -44,7 +45,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     NoneType,
     OpaqueAttr,
-    RankedVectorOrTensorOf,
+    RankedStructure,
     Signedness,
     StridedLayoutAttr,
     StringAttr,
@@ -59,9 +60,10 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
+from xdsl.irdl import BaseAttr, base
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span, StringLiteral, Token
 
 
@@ -495,7 +497,7 @@ class AttrParser(BaseParser):
 
     def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
-        if not isa(element_type, IntegerType | AnyFloat):
+        if not isattr(element_type, base(IntegerType) | AnyFloatConstr):
             self.raise_error(
                 "Complex type must be parameterized by an integer or float type!"
             )
@@ -692,9 +694,9 @@ class AttrParser(BaseParser):
         self,
         hex_string: str,
         type: (
-            RankedVectorOrTensorOf[IntegerType]
-            | RankedVectorOrTensorOf[IndexType]
-            | RankedVectorOrTensorOf[AnyFloat]
+            RankedStructure[IntegerType]
+            | RankedStructure[IndexType]
+            | RankedStructure[AnyFloat]
         ),
     ) -> tuple[list[int] | list[float], list[int]]:
         """
@@ -741,7 +743,7 @@ class AttrParser(BaseParser):
         data_values: list[int] | list[float] = []
 
         # Use struct to unpack floats
-        if isa(element_type, Float32Type | Float64Type):
+        if isattr(element_type, BaseAttr(Float32Type) | BaseAttr(Float64Type)):
             data_values = list(struct.unpack_from(format_str, byte_list))
         # Use int for unpacking IntegerType
         else:
@@ -761,20 +763,21 @@ class AttrParser(BaseParser):
     def _parse_dense_literal_type(
         self,
     ) -> (
-        RankedVectorOrTensorOf[IntegerType]
-        | RankedVectorOrTensorOf[IndexType]
-        | RankedVectorOrTensorOf[AnyFloat]
+        RankedStructure[IntegerType]
+        | RankedStructure[IndexType]
+        | RankedStructure[AnyFloat]
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
-        if not isa(
+        if not isattr(
             type,
-            RankedVectorOrTensorOf[IntegerType]
-            | RankedVectorOrTensorOf[IndexType]
-            | RankedVectorOrTensorOf[AnyFloat],
+            base(RankedStructure[IntegerType])
+            | base(RankedStructure[IndexType])
+            | base(RankedStructure[AnyFloat]),
         ):
             self.raise_error(
-                "Expected vector or tensor type of " "integer, index, or float type"
+                "Expected memref, vector or tensor type of "
+                "integer, index, or float type"
             )
 
         # Check for static shapes in type

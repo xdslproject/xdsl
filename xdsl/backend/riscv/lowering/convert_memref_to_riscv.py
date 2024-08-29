@@ -12,6 +12,7 @@ from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
     DenseIntOrFPElementsAttr,
+    FixedBitwidthType,
     Float32Type,
     Float64Type,
     IntegerType,
@@ -37,42 +38,13 @@ from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
 
 
-def bitwidth_of_type(type_attribute: Attribute) -> int:
-    """
-    Returns the width of an element type in bits, or raises DiagnosticException for unknown inputs.
-    """
-    if isinstance(type_attribute, AnyFloat):
-        return type_attribute.get_bitwidth
-    elif isinstance(type_attribute, IntegerType):
-        return type_attribute.width.data
-    else:
-        raise NotImplementedError(
-            f"Unsupported memref element type for riscv lowering: {type_attribute}"
-        )
-
-
-def element_size_for_type(type_attribute: Attribute) -> int:
-    """
-    Returns the width of an element type in bytes, or raises DiagnosticException for
-    unknown inputs, or sizes not divisible by 8.
-    """
-    bitwidth = bitwidth_of_type(type_attribute)
-    if bitwidth % 8:
-        raise DiagnosticException(
-            f"Cannot determine size for element type {type_attribute}"
-            f" with bitwidth {bitwidth}"
-        )
-    bytes_per_element = bitwidth // 8
-    return bytes_per_element
-
-
 class ConvertMemrefAllocOp(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter) -> None:
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
-        width_in_bytes = bitwidth_of_type(op_memref_type.element_type) // 8
+        assert isinstance(op_memref_type.element_type, FixedBitwidthType)
+        width_in_bytes = op_memref_type.element_type.size
         size = prod(op_memref_type.get_shape()) * width_in_bytes
         rewriter.replace_matched_op(
             (
@@ -117,7 +89,8 @@ def get_strided_pointer(
     a new pointer to the element being accessed by the 'indices'.
     """
 
-    bytes_per_element = element_size_for_type(memref_type.element_type)
+    assert isinstance(memref_type.element_type, FixedBitwidthType)
+    bytes_per_element = memref_type.element_type.size
 
     match memref_type.layout:
         case NoneAttr():
@@ -348,7 +321,6 @@ class ConvertMemrefGetGlobalOp(RewritePattern):
 
 
 class ConvertMemrefSubviewOp(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter):
         # Assumes that the operation is valid, meaning that the subview is indeed a
@@ -394,7 +366,8 @@ class ConvertMemrefSubviewOp(RewritePattern):
 
         offset = result_layout_attr.get_offset()
 
-        factor = element_size_for_type(result_type.element_type)
+        assert isinstance(result_type.element_type, FixedBitwidthType)
+        factor = result_type.element_type.size
 
         if offset == 0:
             rewriter.replace_matched_op(
