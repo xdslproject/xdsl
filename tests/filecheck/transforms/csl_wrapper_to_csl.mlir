@@ -111,7 +111,7 @@ builtin.module {
 // CHECK-NEXT:           %17 = arith.ori %13, %14 : i1
 // CHECK-NEXT:           %18 = arith.ori %17, %15 : i1
 // CHECK-NEXT:           %isBorderRegionPE = arith.ori %18, %16 : i1
-// CHECK-NEXT:           %19 = "csl.const_struct"(%getParamsRes, %computeAllRoutesRes, %isBorderRegionPE) <{"ssa_fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> !csl.comptime_struct
+// CHECK-NEXT:           %19 = "csl.const_struct"(%width, %height, %getParamsRes, %computeAllRoutesRes, %isBorderRegionPE) <{"ssa_fields" = ["width", "height", "memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (i16, i16, !csl.comptime_struct, !csl.comptime_struct, i1) -> !csl.comptime_struct
 // CHECK-NEXT:           "csl.set_tile_code"(%xDim, %yDim, %19) <{"file" = "gauss_seidel_func"}> : (i16, i16, !csl.comptime_struct) -> ()
 // CHECK-NEXT:         }
 // CHECK-NEXT:       }

@@ -60,9 +60,19 @@ class ExtractLayoutModule(RewritePattern):
     prog_name: str | None = None
 
     def add_tile_code(
-        self, x: SSAValue, y: SSAValue, yield_op: csl_wrapper.YieldOp, prog_name: str
+        self,
+        x: SSAValue,
+        y: SSAValue,
+        width: csl.ParamOp,
+        height: csl.ParamOp,
+        yield_op: csl_wrapper.YieldOp,
+        prog_name: str,
     ):
-        struct = csl.ConstStructOp(*(f for f in yield_op.items()))
+        struct = csl.ConstStructOp(
+            ("width", width),
+            ("height", height),
+            *(f for f in yield_op.items()),
+        )
         return (
             struct,
             csl.SetTileCodeOp(fname=prog_name, x_coord=x, y_coord=y, params=struct),
@@ -131,6 +141,8 @@ class ExtractLayoutModule(RewritePattern):
         struct, tile_code = self.add_tile_code(
             outer_loop_block.args[0],
             inner_loop_block.args[0],
+            param_width,
+            param_height,
             yield_op,
             prog_name,
         )
