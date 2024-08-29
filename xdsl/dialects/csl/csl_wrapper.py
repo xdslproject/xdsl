@@ -152,6 +152,7 @@ class ModuleOp(IRDLOperation):
       * general params:        `width` and `height` followed by everything specified in `params`
       * params from layout:    everything defined by `layout_yield_op.fields`
       * input-output symbols:  any arg from the function lowered into this op, which are exported symbols supporting host-device transfers
+                               Note, these are not present if the csl_stencil is bufferized.
     """
 
     name = "csl_wrapper.module"
