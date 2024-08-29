@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from io import StringIO
-
 from xdsl.context import MLContext
 from xdsl.dialects import stim
-from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, IntAttr
 from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute
 from xdsl.parser import Parser
-from xdsl.printer import Printer
 
 ################################################################################
 # Utils for this test file                                                     #
 ################################################################################
+
 
 def check_attribute(attr: Attribute, program: str):
     ctx = MLContext()
