@@ -182,7 +182,7 @@ class ExtractProgramModule(RewritePattern):
 
         program_module = csl.CslModuleOp(
             regions=[Region(module_block)],
-            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
+            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM)},
             attributes={"sym_name": builtin.StringAttr(f"{prog_name}_program")},
         )
         _add_to_toplevel(rewriter, op, program_module)
