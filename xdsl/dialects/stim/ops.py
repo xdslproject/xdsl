@@ -1,4 +1,3 @@
-from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
 
@@ -10,8 +9,6 @@ from xdsl.irdl import (
     ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
-    opt_prop_def,
-    prop_def,
     region_def,
 )
 from xdsl.parser import AttrParser
@@ -116,8 +113,7 @@ class QubitMappingAttr(StimAttr, ParametrizedAttribute):
 
 
 @irdl_op_definition
-class StimCircuitOp(StimOp):
-class StimCircuitOp():
+class StimCircuitOp(IRDLOperation):
     """
     Base operation containing a stim program
     """
@@ -147,4 +143,3 @@ class StimCircuitOp():
         self.print_stim(printer)
         res = io.getvalue()
         return res
-
