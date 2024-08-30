@@ -18,8 +18,10 @@ class StimPrinter:
     @contextmanager
     def in_braces(self):
         self.print_string("{")
-        yield
-        self.print_string("}")
+        try:
+            yield
+        finally:
+            self.print_string("}")
 
     @contextmanager
     def in_parens(self):

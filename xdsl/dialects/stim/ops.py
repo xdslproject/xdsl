@@ -41,21 +41,20 @@ class QubitAttr(StimAttr, ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[IntAttr]:
-        parser.parse_punctuation("<")
-        qubit = parser.parse_integer(allow_negative=False, allow_boolean=False)
-        parser.parse_punctuation(">")
-        return [IntAttr(qubit)]
+        with parser.in_angle_brackets():
+            qubit = parser.parse_integer(allow_negative=False, allow_boolean=False)
+            return (IntAttr(qubit),)
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print(self.qubit.data)
 
     def print_stim(self, printer: StimPrinter):
-        printer.print_string(self.qubit.data.__str__())
+        printer.print_string(f"{self.qubit.data}")
 
 
 @irdl_attr_definition
-class QubitMappingAttr(StimAttr, ParametrizedAttribute):
+class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
     """
     This attribute provides a way to indicate the required connectivity or layout of `physical` qubits.
 
@@ -89,9 +88,7 @@ class QubitMappingAttr(StimAttr, ParametrizedAttribute):
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
             delimiter=parser.Delimiter.PAREN,
-            parse=lambda: IntAttr(
-                parser.parse_integer(allow_negative=False, allow_boolean=False)
-            ),
+            parse=lambda: IntAttr(parser.parse_integer(allow_boolean=False)),
         )
         parser.parse_punctuation(",")
         qubit = parser.parse_attribute()
