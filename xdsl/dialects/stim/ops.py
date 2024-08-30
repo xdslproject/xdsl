@@ -18,14 +18,8 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
 
-class StimAttr(StimPrintable):
-    "Base Stim attribute"
-
-    name = "stim.attr"
-
-
 @irdl_attr_definition
-class QubitAttr(StimAttr, ParametrizedAttribute, TypeAttribute):
+class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
     """
     Type for a single qubit.
     """
@@ -112,16 +106,8 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
         self.qubit_name.print_stim(printer)
 
 
-class StimOp(StimPrintable, IRDLOperation, ABC):
-    """
-    Base Stim operation
-    """
-
-    ...
-
-
 @irdl_op_definition
-class StimCircuitOp(StimOp):
+class StimCircuitOp(StimPrintable, IRDLOperation):
     """
     Base operation containing a stim program
     """
@@ -168,9 +154,13 @@ drive the change of a value and be used to direct printing of stim circuits.
 """
 
 
-class AnnotationOp(StimOp, ABC):
+class AnnotationOp(StimPrintable, IRDLOperation, ABC):
     """
-    Base Annotation operation
+    Base Annotation operation.
+
+    This is used to indicate operations that are stim annotations,
+    these do not have operational semantics,
+    so this will be used during transforms to ignore these operations.
     """
 
     ...
