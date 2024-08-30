@@ -15,14 +15,8 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
 
-class StimAttr(StimPrintable):
-    "Base Stim attribute"
-
-    name = "stim.attr"
-
-
 @irdl_attr_definition
-class QubitAttr(StimAttr, ParametrizedAttribute, TypeAttribute):
+class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
     """
     Type for a single qubit.
     """
@@ -51,7 +45,7 @@ class QubitAttr(StimAttr, ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class QubitMappingAttr(StimAttr, ParametrizedAttribute):
+class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
     """
     This attribute provides a way to indicate the required connectivity or layout of `physical` qubits.
 
@@ -85,9 +79,7 @@ class QubitMappingAttr(StimAttr, ParametrizedAttribute):
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
             delimiter=parser.Delimiter.PAREN,
-            parse=lambda: IntAttr(
-                parser.parse_integer(allow_negative=False, allow_boolean=False)
-            ),
+            parse=lambda: IntAttr(parser.parse_integer(allow_boolean=False)),
         )
         parser.parse_punctuation(",")
         qubit = parser.parse_attribute()
@@ -108,11 +100,12 @@ class QubitMappingAttr(StimAttr, ParametrizedAttribute):
 
     def print_stim(self, printer: StimPrinter):
         printer.print_attribute(self.coords)
+        printer.print_string(" ")
         self.qubit_name.print_stim(printer)
 
 
 @irdl_op_definition
-class StimCircuitOp(IRDLOperation):
+class StimCircuitOp(StimPrintable, IRDLOperation):
     """
     Base operation containing a stim program
     """
