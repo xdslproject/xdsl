@@ -27,7 +27,7 @@ class StimPrinter:
     def in_parens(self):
         self.print_string("(")
         yield
-        self.print_string(")")
+        self.print_string(") ")
 
     T = TypeVar("T")
 

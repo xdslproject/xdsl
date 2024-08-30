@@ -46,5 +46,3 @@ stim.circuit qubitlayout [#stim.qubit_coord<(0, 0), !stim.qubit<0>>] attributes 
 
 // CHECK-NEXT:  }
 // CHECK-GENERIC-NEXT:  }) : () -> ()
-
-
