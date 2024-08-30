@@ -117,9 +117,9 @@ class _FuncBase(IRDLOperation, ABC):
     Base class for the shared functionalty of FuncOp and TaskOp
     """
 
-    body: Region = region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    function_type: FunctionType = prop_def(FunctionType)
+    body = region_def()
+    sym_name = prop_def(StringAttr)
+    function_type = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
@@ -359,9 +359,9 @@ class CslModuleOp(IRDLOperation):
     """
 
     name = "csl.module"
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
-    sym_name: StringAttr = attr_def(StringAttr)
+    sym_name = attr_def(StringAttr)
 
     traits = frozenset(
         [
@@ -759,7 +759,7 @@ class ReturnOp(IRDLOperation):
 class LayoutOp(IRDLOperation):
     name = "csl.layout"
 
-    body: Region = region_def()
+    body = region_def()
 
     traits = frozenset([NoTerminator(), InModuleKind(ModuleKind.LAYOUT)])
 

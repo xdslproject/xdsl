@@ -11,12 +11,10 @@ from xdsl.dialects.builtin import (
     VectorType,
     i1,
 )
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
-    Operand,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -29,9 +27,9 @@ from xdsl.utils.hints import assert_isa, isa
 @irdl_op_definition
 class Load(IRDLOperation):
     name = "vector.load"
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
-    res: OpResult = result_def(VectorType)
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
+    res = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.memref.type, MemRefType[Attribute])
@@ -59,9 +57,9 @@ class Load(IRDLOperation):
 @irdl_op_definition
 class Store(IRDLOperation):
     name = "vector.store"
-    vector: Operand = operand_def(VectorType)
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
+    vector = operand_def(VectorType)
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
 
     def verify_(self):
         assert isa(self.memref.type, MemRefType[Attribute])
@@ -87,8 +85,8 @@ class Store(IRDLOperation):
 @irdl_op_definition
 class Broadcast(IRDLOperation):
     name = "vector.broadcast"
-    source: Operand = operand_def(AnyAttr())
-    vector: OpResult = result_def(VectorType)
+    source = operand_def(AnyAttr())
+    vector = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.vector.type, VectorType[Attribute])
@@ -109,10 +107,10 @@ class Broadcast(IRDLOperation):
 @irdl_op_definition
 class FMA(IRDLOperation):
     name = "vector.fma"
-    lhs: Operand = operand_def(VectorType)
-    rhs: Operand = operand_def(VectorType)
-    acc: Operand = operand_def(VectorType)
-    res: OpResult = result_def(VectorType)
+    lhs = operand_def(VectorType)
+    rhs = operand_def(VectorType)
+    acc = operand_def(VectorType)
+    res = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.lhs.type, VectorType[Attribute])
@@ -167,11 +165,11 @@ class FMA(IRDLOperation):
 @irdl_op_definition
 class Maskedload(IRDLOperation):
     name = "vector.maskedload"
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
-    mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
-    passthrough: Operand = operand_def(VectorType)
-    res: OpResult = result_def(VectorRankConstraint(1))
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
+    mask = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
+    passthrough = operand_def(VectorType)
+    res = result_def(VectorRankConstraint(1))
 
     def verify_(self):
         memref_type = self.memref.type
@@ -219,10 +217,10 @@ class Maskedload(IRDLOperation):
 @irdl_op_definition
 class Maskedstore(IRDLOperation):
     name = "vector.maskedstore"
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
-    mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
-    value_to_store: Operand = operand_def(VectorRankConstraint(1))
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
+    mask = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
+    value_to_store = operand_def(VectorRankConstraint(1))
 
     def verify_(self):
         memref_type = self.memref.type
@@ -261,7 +259,7 @@ class Maskedstore(IRDLOperation):
 @irdl_op_definition
 class Print(IRDLOperation):
     name = "vector.print"
-    source: Operand = operand_def(AnyAttr())
+    source = operand_def(AnyAttr())
 
     @staticmethod
     def get(source: Operation | SSAValue) -> Print:
@@ -271,8 +269,8 @@ class Print(IRDLOperation):
 @irdl_op_definition
 class Createmask(IRDLOperation):
     name = "vector.create_mask"
-    mask_operands: VarOperand = var_operand_def(IndexType)
-    mask_vector: OpResult = result_def(VectorBaseTypeConstraint(i1))
+    mask_operands = var_operand_def(IndexType)
+    mask_vector = result_def(VectorBaseTypeConstraint(i1))
 
     def verify_(self):
         assert isa(self.mask_vector.type, VectorType[Attribute])

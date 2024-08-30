@@ -51,8 +51,6 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
-    VarOperand,
-    VarOpResult,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -1197,8 +1195,8 @@ class AffineSetAttr(Data[AffineSet]):
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
 
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOpResult = var_result_def()
+    inputs = var_operand_def()
+    outputs = var_result_def()
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1380,7 +1378,7 @@ class ModuleOp(IRDLOperation):
 
     sym_name = opt_attr_def(StringAttr)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset(
         [

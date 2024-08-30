@@ -875,7 +875,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
     size = attr_def(IntegerAttr[IntegerType])
     object_fifo = attr_def(SymbolRefAttr)
 
-    result: OpResult = result_def(ObjectFIFOSubview)
+    result = result_def(ObjectFIFOSubview)
 
     def __init__(
         self,
