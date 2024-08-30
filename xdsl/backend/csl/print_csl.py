@@ -570,6 +570,7 @@ class CslPrintContext:
                     else:
                         init = f" = { self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
+                    self.variables[res] = name.data
                     self.print(f"param {name.data} : {ty}{init};")
                 case csl.ConstStructOp(
                     items=items, ssa_fields=fields, ssa_values=values, res=res

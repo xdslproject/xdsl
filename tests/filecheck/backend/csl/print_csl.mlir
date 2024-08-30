@@ -339,12 +339,11 @@ csl.func @builtins() {
 
 
 "csl.module"() <{kind=#csl<module_kind layout>}> ({
-  %p1 = "csl.param"() <{param_name = "param_1"}> : () -> i32
+  %x_dim = "csl.param"() <{param_name = "param_1"}> : () -> i32
   %init = arith.constant 3.14 : f16
   %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
 
   csl.layout {
-    %x_dim = arith.constant 4 : i32
     %y_dim = arith.constant 6 : i32
     "csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ()
 
@@ -621,7 +620,7 @@ csl.func @builtins() {
 // CHECK-NEXT: param param_1 : i32;
 // CHECK-NEXT: param param_2 : f16 = 3.14;
 // CHECK-NEXT: layout {
-// CHECK-NEXT:   @set_rectangle(4, 6);
+// CHECK-NEXT:   @set_rectangle(param_1, 6);
 // CHECK-NEXT:   @set_tile_code(0, 0, "file.csl", );
 // CHECK-NEXT:   const params : comptime_struct = .{
 // CHECK-NEXT:     .hello = 123,
