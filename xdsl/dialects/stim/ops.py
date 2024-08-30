@@ -38,17 +38,16 @@ class QubitAttr(StimAttr, ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[IntAttr]:
-        parser.parse_punctuation("<")
-        qubit = parser.parse_integer(allow_negative=False, allow_boolean=False)
-        parser.parse_punctuation(">")
-        return [IntAttr(qubit)]
+        with parser.in_angle_brackets():
+            qubit = parser.parse_integer(allow_negative=False, allow_boolean=False)
+            return (IntAttr(qubit),)
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print(self.qubit.data)
 
     def print_stim(self, printer: StimPrinter):
-        printer.print_string(self.qubit.data.__str__())
+        printer.print_string(f"{self.qubit.data}")
 
 
 @irdl_attr_definition
