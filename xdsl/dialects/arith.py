@@ -40,6 +40,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConditionallySpeculatable,
     ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
@@ -396,6 +397,16 @@ class Subi(SignlessIntegerBinaryOp):
     traits = frozenset([Pure()])
 
 
+class DivUISpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        op = cast(DivUI, op)
+        if not isinstance(cst := op.rhs.owner, Constant):
+            return False
+        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
+        return value.value.data != 0
+
+
 @irdl_op_definition
 class DivUI(SignlessIntegerBinaryOp):
     """
@@ -406,7 +417,7 @@ class DivUI(SignlessIntegerBinaryOp):
 
     name = "arith.divui"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = frozenset([NoMemoryEffect(), DivUISpeculatable()])
 
 
 @irdl_op_definition

@@ -506,6 +506,11 @@ class CslPrintContext:
                     self._print_or_promote_to_inline_expr(
                         res, f"@concat_structs({a_var}, {b_var})"
                     )
+                case csl.ZerosOp(result=res, is_const=constness):
+                    type = self._memref_type_to_string(res)
+                    res_name = self._get_variable_name_for(res)
+                    kind = "const" if constness else "var"
+                    self.print(f"{kind} {res_name} : {type} = @zeros({type});")
                 case csl.ConstantsOp(value=val, result=res, is_const=constness):
                     type = self._memref_type_to_string(res)
                     res_name = self._get_variable_name_for(res)
@@ -565,6 +570,7 @@ class CslPrintContext:
                     else:
                         init = f" = { self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
+                    self.variables[res] = name.data
                     self.print(f"param {name.data} : {ty}{init};")
                 case csl.ConstStructOp(
                     items=items, ssa_fields=fields, ssa_values=values, res=res

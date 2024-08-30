@@ -39,6 +39,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     Pure,
+    RecursivelySpeculatable,
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
@@ -173,7 +174,13 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region: Region = region_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield), RecursiveMemoryEffect()])
+    traits = frozenset(
+        [
+            SingleBlockImplicitTerminator(Yield),
+            RecursiveMemoryEffect(),
+            RecursivelySpeculatable(),
+        ]
+    )
 
     def __init__(
         self,

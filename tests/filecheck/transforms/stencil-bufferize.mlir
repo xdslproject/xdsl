@@ -445,6 +445,8 @@ func.func @buffered_combine(%0 : !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
+// This should bufferize as an in-place increment
+// The accesses are zero-offset, so it's safe to do in-place
 func.func @increment_n(%0 : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
   %load = stencil.load %0 : !stencil.field<[0,64]x[0,64]xf64> -> !stencil.temp<[0,64]x[0,64]xf64>
   %inplace = stencil.apply(%load_arg = %load : !stencil.temp<[0,64]x[0,64]xf64>, %nn = %n : f64) -> (!stencil.temp<[0,64]x[0,64]xf64>) {
@@ -456,11 +458,33 @@ func.func @increment_n(%0 : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
   func.return
 }
 
-// CHECK:         func.func @increment_n(%0 : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
+// CHECK:    func.func @increment_n(%inplace : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
+// CHECK-NEXT:      stencil.apply(%load_arg = %inplace : !stencil.field<[0,64]x[0,64]xf64>, %nn = %n : f64) outs (%inplace : !stencil.field<[0,64]x[0,64]xf64>) {
+// CHECK-NEXT:        %acc = stencil.access %load_arg[0, 0] : !stencil.field<[0,64]x[0,64]xf64>
+// CHECK-NEXT:        %inc = arith.addf %acc, %nn : f64
+// CHECK-NEXT:        stencil.return %inc : f64
+// CHECK-NEXT:      } to <[0, 0], [64, 64]>
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+
+// This should *not* bufferize as an in-place increment
+// There is a non-zero offset on the access, so it wouldn't be safe to do in-place in parallel.
+func.func @increment_n_offset(%0 : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
+  %load = stencil.load %0 : !stencil.field<[0,64]x[0,64]xf64> -> !stencil.temp<[0,64]x[0,64]xf64>
+  %inplace = stencil.apply(%load_arg = %load : !stencil.temp<[0,64]x[0,64]xf64>, %nn = %n : f64) -> (!stencil.temp<[0,64]x[0,64]xf64>) {
+    %acc = stencil.access %load_arg[0, 1] : !stencil.temp<[0,64]x[0,64]xf64>
+    %inc = arith.addf %acc, %nn : f64
+    stencil.return %inc : f64
+  }
+  stencil.store %inplace to %0(<[0, 0], [64, 64]>) : !stencil.temp<[0,64]x[0,64]xf64> to !stencil.field<[0,64]x[0,64]xf64>
+  func.return
+}
+
+// CHECK:         func.func @increment_n_offset(%0 : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
 // CHECK-NEXT:      %load = stencil.load %0 : !stencil.field<[0,64]x[0,64]xf64> -> !stencil.temp<[0,64]x[0,64]xf64>
 // CHECK-NEXT:      %inplace = stencil.buffer %load : !stencil.temp<[0,64]x[0,64]xf64> -> !stencil.field<[0,64]x[0,64]xf64>
 // CHECK-NEXT:      stencil.apply(%load_arg = %inplace : !stencil.field<[0,64]x[0,64]xf64>, %nn = %n : f64) outs (%0 : !stencil.field<[0,64]x[0,64]xf64>) {
-// CHECK-NEXT:        %acc = stencil.access %load_arg[0, 0] : !stencil.field<[0,64]x[0,64]xf64>
+// CHECK-NEXT:        %acc = stencil.access %load_arg[0, 1] : !stencil.field<[0,64]x[0,64]xf64>
 // CHECK-NEXT:        %inc = arith.addf %acc, %nn : f64
 // CHECK-NEXT:        stencil.return %inc : f64
 // CHECK-NEXT:      } to <[0, 0], [64, 64]>
