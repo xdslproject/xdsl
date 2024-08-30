@@ -535,7 +535,7 @@ _Result = TypeVar("_Result", bound=FooType | BarType)
 class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
     name = "test.string_or_int_generic"
 
-    attr = attr_def(_Attr)
+    attr: _Attr = attr_def(_Attr)
     operand = operand_def(_Operand)
     result = result_def(_Result)
 
