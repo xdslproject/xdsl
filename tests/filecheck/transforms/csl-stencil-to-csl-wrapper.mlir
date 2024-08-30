@@ -42,7 +42,7 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
 // CHECK-NEXT:   %13 = "csl.member_call"(%12, %0, %1, %2, %3, %5) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
 // CHECK-NEXT:   %14 = "csl.member_call"(%11, %0) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 // CHECK-NEXT:   %15 = arith.constant 1 : i16
-// CHECK-NEXT:   %16 = arith.subi %15, %5 : i16
+// CHECK-NEXT:   %16 = arith.subi %5, %15 : i16
 // CHECK-NEXT:   %17 = arith.subi %2, %0 : i16
 // CHECK-NEXT:   %18 = arith.subi %3, %1 : i16
 // CHECK-NEXT:   %19 = arith.cmpi slt, %0, %16 : i16
@@ -132,7 +132,7 @@ func.func @bufferized(%arg0 : memref<512xf32>, %arg1 : memref<512xf32>) {
 // CHECK-NEXT:   %56 = "csl.member_call"(%55, %43, %44, %45, %46, %48) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
 // CHECK-NEXT:   %57 = "csl.member_call"(%54, %43) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 // CHECK-NEXT:   %58 = arith.constant 1 : i16
-// CHECK-NEXT:   %59 = arith.subi %58, %48 : i16
+// CHECK-NEXT:   %59 = arith.subi %48, %58 : i16
 // CHECK-NEXT:   %60 = arith.subi %45, %43 : i16
 // CHECK-NEXT:   %61 = arith.subi %46, %44 : i16
 // CHECK-NEXT:   %62 = arith.cmpi slt, %43, %59 : i16
