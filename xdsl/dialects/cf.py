@@ -8,9 +8,9 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
+    attr_def,
     irdl_op_definition,
     operand_def,
-    prop_def,
     successor_def,
     var_operand_def,
 )
@@ -19,9 +19,12 @@ from xdsl.traits import IsTerminator
 
 @irdl_op_definition
 class Assert(IRDLOperation):
+    """Assert operation with message attribute"""
+
     name = "cf.assert"
+
     arg = operand_def(IntegerType(1))
-    msg = prop_def(StringAttr)
+    msg = attr_def(StringAttr)
 
     def __init__(self, arg: Operation | SSAValue, msg: str | StringAttr):
         if isinstance(msg, str):
@@ -31,9 +34,13 @@ class Assert(IRDLOperation):
             properties={"msg": msg},
         )
 
+    assembly_format = "$arg `,` $msg attr-dict"
+
 
 @irdl_op_definition
 class Branch(IRDLOperation):
+    """Branch operation"""
+
     name = "cf.br"
 
     arguments = var_operand_def(AnyAttr())
@@ -47,6 +54,8 @@ class Branch(IRDLOperation):
 
 @irdl_op_definition
 class ConditionalBranch(IRDLOperation):
+    """Conditional branch operation"""
+
     name = "cf.cond_br"
 
     cond = operand_def(IntegerType(1))
