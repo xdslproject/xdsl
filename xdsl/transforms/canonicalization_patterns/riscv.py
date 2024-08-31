@@ -403,6 +403,22 @@ class BitwiseAndByZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
+class XorBySelf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter):
+        """
+        x ^ x = 0
+        """
+        if op.rs1 == op.rs2:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                (
+                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd, comment=op.comment),
+                )
+            )
+
+
 class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
