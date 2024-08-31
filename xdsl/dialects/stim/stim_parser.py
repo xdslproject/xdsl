@@ -1,18 +1,18 @@
 import re
-from typing import Any, Callable, Sequence, TypeVar
-from xdsl.dialects.builtin import ArrayAttr, IntAttr
-from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr, StimCircuitOp
-from xdsl.ir import Operation
-from xdsl.ir.core import Block, Region
-from xdsl.utils.lexer import Input, Position
+from collections.abc import Callable, Sequence
+from typing import TypeVar
 
+from xdsl.dialects.builtin import ArrayAttr, IntAttr
 from xdsl.dialects.stim import (
     QubitCoordsOp,
-    )
-
+)
+from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr, StimCircuitOp
+from xdsl.ir import Block, Operation, Region
+from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
 
 T = TypeVar("T")
+
 
 class ParseError(Exception):
     position: Position
@@ -31,20 +31,20 @@ class InstructionSpelling(StrEnum):
 
     COORD = "QUBIT_COORDS"
 
+
 NEWLINE = re.compile(r"\n")
 NOT_NEWLINE = re.compile(r"[^\n]*")
 INDENT = re.compile(r"[ \t]*")
 SPACE = re.compile(r"[ \t]")
 ARG = re.compile(r"\d+(\.\d+)?")
-#PAULI = re.compile("|".join(re.re.escape(p.value) for p in PauliSpelling))
+# PAULI = re.compile("|".join(re.re.escape(p.value) for p in PauliSpelling))
 TARGET = re.compile(r"\d+")
-#GATE = re.compile("|".join(re.escape(p.value) for p in PrimitiveSpelling))
-#INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in InstructionSpelling))
+# GATE = re.compile("|".join(re.escape(p.value) for p in PrimitiveSpelling))
+# INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in InstructionSpelling))
 NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]+")
 """
 A regular expression for a name, - letter followed by a number of letters or numbers or underscores.
 """
-
 
 
 class StimParser:
@@ -98,8 +98,8 @@ class StimParser:
         lines: list[Operation] = []
         while (op := self.parse_optional_operation()) is not None:
             lines.append(op)
-        
-        circuit_body = Region(Block(ops = lines))  
+
+        circuit_body = Region(Block(ops=lines))
         return StimCircuitOp(circuit_body, None)
 
     def parse_optional_comment(self) -> None:
@@ -109,25 +109,28 @@ class StimParser:
         if self.parse_optional_chars("#") is None:
             return
 
-        self.expect("comment", lambda parser: parser.parse_optional_pattern(NOT_NEWLINE))
+        self.expect(
+            "comment", lambda parser: parser.parse_optional_pattern(NOT_NEWLINE)
+        )
 
     def _check_comment_and_newline(self) -> str | None:
         self.parse_optional_comment()
         return self.parse_optional_pattern(NEWLINE)
-        
 
-    def parse_optional_operation(self,)-> Operation | None:
+    def parse_optional_operation(
+        self,
+    ) -> Operation | None:
         """
         Stim lines have format:
             line ::= indent? (instruction | block_start | block_end)? (comment ::= `#' NotNewLine)? NEWLINE
         As this parser goes straight to operations, and stim comments, indentations and empty lines have no semantic meaning
         we look for operations, then skip straight through any lines without instructions or block starts or ends.
         """
-        
-        self.parse_optional_pattern(INDENT)
-        op = self.parse_optional_instruction() #TODO: add parsing for blocks
 
-        #Skip comments and empty lines
+        self.parse_optional_pattern(INDENT)
+        op = self.parse_optional_instruction()  # TODO: add parsing for blocks
+
+        # Skip comments and empty lines
         while self._check_comment_and_newline() is not None:
             pass
         return op
@@ -142,14 +145,14 @@ class StimParser:
         if (name := self.parse_optional_pattern(NAME)) is None:
             return None
 
-        #raise ParseError(self.pos, "Expected name at the beginning of an instruction.")
-        
+        # raise ParseError(self.pos, "Expected name at the beginning of an instruction.")
+
         op = InstructionSpelling(name)
         parens = self.parse_optional_parens()
         if parens is None:
             parens = []
         targets = self.parse_targets()
-        return self.build_operation(op,parens,targets)
+        return self.build_operation(op, parens, targets)
 
     # region Parens parsing
     def parse_paren(self):
@@ -158,15 +161,12 @@ class StimParser:
             arg = float(str_val)
             return arg
 
-    def parse_optional_parens(
-        self
-    ) -> list[float] | None:
-
+    def parse_optional_parens(self) -> list[float] | None:
         # Parse the opening bracket.
         if self.parse_optional_chars("(") is None:
             return None
-        
-        #Check that there is a first argument
+
+        # Check that there is a first argument
         if (first := self.parse_paren()) is None:
             raise ParseError(self.pos, "Expected at least one argument in parentheses")
         args = [first]
@@ -176,15 +176,15 @@ class StimParser:
             self.expect("comma", lambda parser: parser.parse_optional_chars(","))
             arg = self.expect("arg", lambda parser: parser.parse_paren())
             args.append(arg)
-        
+
         return args
 
     # endregion
-        
+
     # region Targets parsing
 
     def parse_target(self) -> QubitAttr | None:
-        #Check for a space
+        # Check for a space
         if self.parse_optional_pattern(INDENT) is None:
             raise ParseError(self.pos, "Targets must be separated by spacing.")
         if (str_val := self.parse_optional_pattern(TARGET)) is not None:
@@ -197,31 +197,34 @@ class StimParser:
             targets = SPACE INDENTS target targets?
         TODO: the Stim documentation indicates that their parser requires at least one target per instruction - but their actual parser does not enforce this. Check incongruency.
         """
-        #Check that there is a first target
+        # Check that there is a first target
         if (first := self.parse_target()) is None:
             raise ParseError(self.pos, "Expected at least one target")
         targets = [first]
-        #Parse targets until no more are found
+        # Parse targets until no more are found
         while (target := self.parse_target()) is not None:
             targets.append(target)
         return targets
-    
+
     # endregion
 
-    def build_coord_parens(self, parens:list[float]) -> ArrayAttr[IntAttr]:
+    def build_coord_parens(self, parens: list[float]) -> ArrayAttr[IntAttr]:
         coords = ArrayAttr([IntAttr(int(x)) for x in parens])
         return coords
-        
-    def build_operation(self, op:InstructionSpelling, parens:list[float], targets:Sequence[QubitAttr]):
+
+    def build_operation(
+        self, op: InstructionSpelling, parens: list[float], targets: Sequence[QubitAttr]
+    ):
         match op:
             case InstructionSpelling.COORD:
                 if len(targets) > 1:
-                    raise ParseError(self.pos, "QUBIT_COORDS can only act on one target")
+                    raise ParseError(
+                        self.pos, "QUBIT_COORDS can only act on one target"
+                    )
                 qubit = targets[0]
                 coords = self.build_coord_parens(parens)
                 mapping = QubitMappingAttr(coords, qubit)
                 return QubitCoordsOp(mapping)
-
 
     # region Build operation
 

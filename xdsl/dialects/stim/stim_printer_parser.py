@@ -53,10 +53,11 @@ class StimPrinter:
             return
         raise ValueError(f"Cannot print in stim format: {attribute}")
 
-    def print_op(self,op:Operation):
+    def print_op(self, op: Operation):
         if not isinstance(op, StimPrintable):
             raise ValueError(f"Cannot print in stim format: {op}")
         op.print_stim(self)
+
 
 class StimPrintable(abc.ABC):
     @abc.abstractmethod
