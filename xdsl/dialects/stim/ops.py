@@ -128,9 +128,8 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
 
     def print_stim(self, printer: StimPrinter):
         for op in self.body.block.ops:
-            if not isinstance(op, StimPrintable):
-                raise ValueError(f"Cannot print in stim format: {op}")
-            op.print_stim(printer)
+            printer.print_op(op)
+            printer.print_string("\n")
         printer.print_string("")
 
     def stim(self) -> str:
