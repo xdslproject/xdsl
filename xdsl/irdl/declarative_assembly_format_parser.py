@@ -50,6 +50,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalResultVariable,
     OptionalUnitAttrVariable,
     PunctuationDirective,
+    RegionDirective,
     RegionVariable,
     ResultTypeDirective,
     ResultVariable,
@@ -187,12 +188,23 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
-                case VariadicLikeVariable(), VariadicLikeVariable() if not (
-                    isinstance(a, VariadicLikeTypeDirective)
-                    or isinstance(b, VariadicLikeTypeDirective)
-                ):
+                case VariadicLikeVariable(), VariadicLikeVariable():
+                    if not (
+                        isinstance(a, RegionDirective | VariadicLikeTypeDirective)
+                        or isinstance(b, RegionDirective | VariadicLikeTypeDirective)
+                    ):
+                        self.raise_error(
+                            "A variadic operand variable cannot be followed by another variadic operand variable."
+                        )
+                    elif isinstance(a, RegionDirective) and isinstance(
+                        b, RegionDirective
+                    ):
+                        self.raise_error(
+                            "A variadic region variable cannot be followed by another variadic region variable."
+                        )
+                case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
                     self.raise_error(
-                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
                     )
                 case AttrDictDirective(), RegionVariable() if not (a.with_keyword):
                     self.raise_error(
