@@ -31,7 +31,7 @@ class Assert(IRDLOperation):
             msg = StringAttr(msg)
         super().__init__(
             operands=[arg],
-            properties={"msg": msg},
+            attributes={"msg": msg},
         )
 
     assembly_format = "$arg `,` $msg attr-dict"
@@ -50,6 +50,8 @@ class Branch(IRDLOperation):
 
     def __init__(self, dest: Block, *ops: Operation | SSAValue):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
+
+    assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
 
 
 @irdl_op_definition
@@ -80,6 +82,13 @@ class ConditionalBranch(IRDLOperation):
         super().__init__(
             operands=[cond, then_ops, else_ops], successors=[then_block, else_block]
         )
+
+    assembly_format = """
+    $cond `,`
+    $then_block (`(` $then_arguments^ `:` type($then_arguments) `)`)? `,`
+    $else_block (`(` $else_arguments^ `:` type($else_arguments) `)`)?
+    attr-dict
+    """
 
 
 Cf = Dialect(
