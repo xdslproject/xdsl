@@ -22,8 +22,10 @@ from xdsl.dialects import builtin, func
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatAttr,
-    AnyIntegerAttr, ArrayAttr,
-    FloatAttr, IndexType,
+    AnyIntegerAttr,
+    ArrayAttr,
+    FloatAttr,
+    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -138,7 +140,9 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
 
     def without(self, val: AttributeCovT) -> SetAttr[AttributeCovT]:
         if val not in self.data:
-            raise ValueError("Cannot remove elements that do not exist in the set. If this is expected, use difference() instead of without()")
+            raise ValueError(
+                "Cannot remove elements that do not exist in the set. If this is expected, use difference() instead of without()"
+            )
         return SetAttr(self.data.difference([val]))
 
     def difference(self, val: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
@@ -146,7 +150,9 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
 
     def remove(self, val: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
         if not frozenset(val).issubset(self.data):
-            raise ValueError("Cannot remove elements that do not exist in the set. If this is expected, use difference() instead of remove()")
+            raise ValueError(
+                "Cannot remove elements that do not exist in the set. If this is expected, use difference() instead of remove()"
+            )
         return SetAttr(self.data.difference(val))
 
     def union(self, val: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
@@ -297,13 +303,21 @@ class Extent(ParametrizedAttribute, abc.ABC):
             match extent_type:
                 case "S":
                     # StaticExtent
-                    return StaticExtentAttr(*StaticExtentAttr.internal_parse_extent(parser))
+                    return StaticExtentAttr(
+                        *StaticExtentAttr.internal_parse_extent(parser)
+                    )
                 case "Sc":
-                    return ScopeDefinedExtentAttr(*ScopeDefinedExtentAttr.internal_parse_extent(parser))
+                    return ScopeDefinedExtentAttr(
+                        *ScopeDefinedExtentAttr.internal_parse_extent(parser)
+                    )
                 case "I":
-                    return InitDefinedExtentAttr(*InitDefinedExtentAttr.internal_parse_extent(parser))
+                    return InitDefinedExtentAttr(
+                        *InitDefinedExtentAttr.internal_parse_extent(parser)
+                    )
                 case "D":
-                    return DynamicExtentAttr(*DynamicExtentAttr.internal_parse_extent(parser))
+                    return DynamicExtentAttr(
+                        *DynamicExtentAttr.internal_parse_extent(parser)
+                    )
 
     @abstractmethod
     def internal_print_extent(self, printer: Printer) -> None:
@@ -375,7 +389,7 @@ class StaticExtentAttr(BaseExtent):
 
     @classmethod
     def internal_parse_extent(cls, parser: AttrParser) -> list[Attribute]:
-        i = parser.parse_integer(allow_boolean= False, allow_negative = False)
+        i = parser.parse_integer(allow_boolean=False, allow_negative=False)
         return [IntegerAttr(i, IndexType())]
 
     def internal_print_extent(self, printer: Printer) -> None:
@@ -419,7 +433,6 @@ class ScopeDefinedExtentAttr(BaseExtent):
     def internal_print_extent(self, printer: Printer) -> None:
         printer.print("Sc|")
         printer.print(self.value.data)
-
 
 
 class RunTimeBaseExtent(BaseExtent, abc.ABC):
@@ -740,7 +753,12 @@ class ElementAttr(ParametrizedAttribute):
     ) -> int:
         members = list(members)
         dimensions = list(dimensions)
-        return self.has_members(members) and self.has_dimensions(dimensions) and (base_type is None or self.base_type == base_type)
+        return (
+            self.has_members(members)
+            and self.has_dimensions(dimensions)
+            and (base_type is None or self.base_type == base_type)
+        )
+
 
 @irdl_attr_definition
 class TypeType(ParametrizedAttribute, TypeAttribute):
@@ -794,8 +812,7 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
     def internal_print_parameters(self, printer: Printer) -> None:
         values = list(self.elements)
         sorted_values = [
-            values[i]
-            for s, i in sorted([(str(s), i) for i, s in enumerate(values)])
+            values[i] for s, i in sorted([(str(s), i) for i, s in enumerate(values)])
         ]
         with printer.in_angle_brackets():
             printer.print_list(
@@ -891,11 +908,14 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
             ]
         )
 
-    def has_selectable_type(self, sub_type: TypeType) -> set[tuple[SetAttr[MemberAttr], SetAttr[DimensionAttr]]]:
+    def has_selectable_type(
+        self, sub_type: TypeType
+    ) -> set[tuple[SetAttr[MemberAttr], SetAttr[DimensionAttr]]]:
         possible_selections = None
         for s_elem in sub_type.elements:
             possible_elems = [
-                e for e in self.elements
+                e
+                for e in self.elements
                 if e.has_members(s_elem.member_specifiers)
                 and e.has_dimensions(s_elem.dimensions)
                 and e.base_type == s_elem.base_type
@@ -903,23 +923,26 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
             if len(possible_elems) == 0:
                 return set()
             possible_elem_selections = [
-                (e.member_specifiers.remove(s_elem.member_specifiers),
-                 e.dimensions.remove(s_elem.dimensions))
+                (
+                    e.member_specifiers.remove(s_elem.member_specifiers),
+                    e.dimensions.remove(s_elem.dimensions),
+                )
                 for e in possible_elems
             ]
             if possible_selections is None:
-                possible_selections = {ps:{e:s_elem}
+                possible_selections = {
+                    ps: {e: s_elem}
                     for e, ps in zip(possible_elems, possible_elem_selections)
                 }
             else:
-                possible_selections = {ps: map | {possible_elems[possible_elem_selections.index(ps)]:s_elem}
-                                       for ps, map in possible_selections.items()
-                                       if ps in possible_elem_selections
-                                       and possible_elems[possible_elem_selections.index(ps)] not in map}
+                possible_selections = {
+                    ps: map
+                    | {possible_elems[possible_elem_selections.index(ps)]: s_elem}
+                    for ps, map in possible_selections.items()
+                    if ps in possible_elem_selections
+                    and possible_elems[possible_elem_selections.index(ps)] not in map
+                }
         return set(possible_selections.keys())
-
-
-
 
     def get_single_element(self) -> None | ElementAttr:
         if len(self.elements) == 1:
@@ -952,8 +975,6 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         return select_dim
 
 
-
-
 class Layout(ParametrizedAttribute, abc.ABC):
 
     @property
@@ -983,7 +1004,7 @@ class Layout(ParametrizedAttribute, abc.ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_stage(self) -> Stage :
+    def get_stage(self) -> Stage:
         raise NotImplementedError()
 
     @abstractmethod
@@ -993,8 +1014,10 @@ class Layout(ParametrizedAttribute, abc.ABC):
     def get_all_runtime_base_extents(self) -> set[RunTimeBaseExtent]:
         return {e for e in self.get_all_extents() if isinstance(e, RunTimeBaseExtent)}
 
-    def get_all_init_base_extents(self) -> set[RunTimeBaseExtent]:
-        return {e for e in self.get_all_extents() if isinstance(e, InitDefinedExtentAttr)}
+    def get_all_init_base_extents(self) -> set[InitDefinedExtentAttr]:
+        return {
+            e for e in self.get_all_extents() if isinstance(e, InitDefinedExtentAttr)
+        }
 
     def has_sub_layout(self, other: Layout) -> bool:
         for l in self.walk():
@@ -1014,7 +1037,13 @@ class Layout(ParametrizedAttribute, abc.ABC):
     def abstract_layout(typetype: TypeType, name: StringAttr | str = None) -> Layout:
         parts = []
         for elem in typetype.elements:
-            parts.append((elem.member_specifiers, elem.dimensions, PrimitiveLayoutAttr(elem.base_type)))
+            parts.append(
+                (
+                    elem.member_specifiers,
+                    elem.dimensions,
+                    PrimitiveLayoutAttr(elem.base_type),
+                )
+            )
         layout = AbstractLayoutAttr(parts)
 
         # if name is not None:
@@ -1029,9 +1058,13 @@ class AnyDirectLayout(AttrConstraint):
             raise Exception(f"expected Layout Attribute but got {attr}")
         layout = cast(Layout, attr)
         if layout.indexed_by() != None:
-            raise Exception(f"Layout indexed by {layout.indexed_by()} but None is expected for a Direct Layout.")
+            raise Exception(
+                f"Layout indexed by {layout.indexed_by()} but None is expected for a Direct Layout."
+            )
+
 
 DirectLayout = typing.Annotated[Layout, AnyDirectLayout()]
+
 
 class AnyIndexedLayout(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -1039,7 +1072,10 @@ class AnyIndexedLayout(AttrConstraint):
             raise Exception(f"expected Layout Attribute but got {attr}")
         layout = cast(Layout, attr)
         if layout.indexed_by() not in [IndexType(), IndexRangeType()]:
-            raise Exception(f"Layout is not Indexed by Index or IndexRangeType, got {layout.indexed_by()} instead.")
+            raise Exception(
+                f"Layout is not Indexed by Index or IndexRangeType, got {layout.indexed_by()} instead."
+            )
+
 
 IndexedLayout = typing.Annotated[Layout, AnyIndexedLayout()]
 
@@ -1083,7 +1119,7 @@ class KnowledgeLayout(Layout, abc.ABC):
         )
 
     def node_matches(self, other: Layout) -> bool:
-        return  isinstance(other, type(self)) and self.matches(other)
+        return isinstance(other, type(self)) and self.matches(other)
 
 
 @irdl_attr_definition
@@ -1113,6 +1149,7 @@ class ReadOnlyLayoutAttr(KnowledgeLayout):
 
     def get_parameters(self) -> tuple[()]:
         return ()
+
 
 #
 # @irdl_attr_definition
@@ -1192,7 +1229,9 @@ class AbstractChildAttr(ParametrizedAttribute):
 
     @property
     def contents_type(self) -> TypeType:
-        return self.child.contents_type.add_members(self.member_specifiers).add_dimensions(self.dimensions)
+        return self.child.contents_type.add_members(
+            self.member_specifiers
+        ).add_dimensions(self.dimensions)
 
     def __lt__(self, other):
         if not isinstance(other, AbstractChildAttr):
@@ -1202,8 +1241,18 @@ class AbstractChildAttr(ParametrizedAttribute):
         if len(self.member_specifiers) > len(other.member_specifiers):
             return False
 
-        self_members = sorted([(member.structName.data,member.memberName.data) for member in self.member_specifiers])
-        other_members = sorted([(member.structName.data, member.memberName.data) for member in other.member_specifiers])
+        self_members = sorted(
+            [
+                (member.structName.data, member.memberName.data)
+                for member in self.member_specifiers
+            ]
+        )
+        other_members = sorted(
+            [
+                (member.structName.data, member.memberName.data)
+                for member in other.member_specifiers
+            ]
+        )
         if self_members < other_members:
             return True
         if self_members > other_members:
@@ -1214,8 +1263,12 @@ class AbstractChildAttr(ParametrizedAttribute):
         if len(self.dimensions) > len(other.dimensions):
             return False
 
-        self_dims = sorted([(dim.dimensionName.data, str(dim.extent)) for dim in self.dimensions])
-        other_dims = sorted([(dim.dimensionName.data, str(dim.extent)) for dim in other.dimensions])
+        self_dims = sorted(
+            [(dim.dimensionName.data, str(dim.extent)) for dim in self.dimensions]
+        )
+        other_dims = sorted(
+            [(dim.dimensionName.data, str(dim.extent)) for dim in other.dimensions]
+        )
         if self_dims < other_dims:
             return True
         if self_dims > other_dims:
@@ -1233,7 +1286,10 @@ class AbstractLayoutAttr(Layout):
 
     def __init__(
         self,
-        children: Iterable[AbstractChildAttr | tuple[Iterable[MemberAttr], Iterable[DimensionAttr], Layout]],
+        children: Iterable[
+            AbstractChildAttr
+            | tuple[Iterable[MemberAttr], Iterable[DimensionAttr], Layout]
+        ],
     ):
         cs = []
         for child in children:
@@ -1242,7 +1298,9 @@ class AbstractLayoutAttr(Layout):
             elif isinstance(child, tuple) and len(child) == 3:
                 cs.append(AbstractChildAttr(*child))
             else:
-                raise ValueError("Cannot produce Abstract Layout Attribute from child that is malformed")
+                raise ValueError(
+                    "Cannot produce Abstract Layout Attribute from child that is malformed"
+                )
         cs.sort()
         children = ArrayAttr(cs)
         if len(children) != len({c.contents_type for c in children}):
@@ -1253,7 +1311,9 @@ class AbstractLayoutAttr(Layout):
 
     @property
     def contents_type(self) -> TypeType:
-        return TypeType([e for child in self.children for e in child.contents_type.elements])
+        return TypeType(
+            [e for child in self.children for e in child.contents_type.elements]
+        )
 
     @property
     def is_abstract(self) -> bool:
@@ -1269,33 +1329,54 @@ class AbstractLayoutAttr(Layout):
         try:
             t = self.contents_type
         except ValueError | VerifyException as e:
-            raise VerifyException("Abstract Layout's content Type cannot be formed") from e
+            raise VerifyException(
+                "Abstract Layout's content Type cannot be formed"
+            ) from e
 
     def get_children(self) -> list[Layout]:
         return [child.child for child in self.children]
 
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == len(self.children)
-        return AbstractLayoutAttr([AbstractChildAttr(child.member_specifiers, child.dimensions, new_child) for child, new_child in zip(self.children, children)])
+        return AbstractLayoutAttr(
+            [
+                AbstractChildAttr(child.member_specifiers, child.dimensions, new_child)
+                for child, new_child in zip(self.children, children)
+            ]
+        )
 
     def get_stage(self) -> Stage:
-        return max([dim.extent.get_stage() for child in self.children for dim in child.dimensions] + [child.child.get_stage() for child in self.children])
+        return max(
+            [
+                dim.extent.get_stage()
+                for child in self.children
+                for dim in child.dimensions
+            ]
+            + [child.child.get_stage() for child in self.children]
+        )
 
     def get_all_extents(self) -> set[Extent]:
-        return {e for child in self.children for e in child.child.get_all_extents()} | {dim.extent for child in self.children for dim in child.dimensions}
+        return {e for child in self.children for e in child.child.get_all_extents()} | {
+            dim.extent for child in self.children for dim in child.dimensions
+        }
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, AbstractLayoutAttr) and \
-            len(self.children) == len(other.children) and \
-            [c.member_specifers == o.member_specifiers and
-             c.dimensions == o.dimensions
-             for c, o in zip(self.children, other.children)]
+        return (
+            isinstance(other, AbstractLayoutAttr)
+            and len(self.children) == len(other.children)
+            and [
+                c.member_specifers == o.member_specifiers
+                and c.dimensions == o.dimensions
+                for c, o in zip(self.children, other.children)
+            ]
+        )
 
     def common_abstract_dimensions(self) -> set[DimensionAttr]:
         return set.intersection(*[set(c.dimensions) for c in self.children])
 
     def common_abstract_members(self) -> set[MemberAttr]:
         return set.intersection(*[set(c.member_specifiers) for c in self.children])
+
 
 @irdl_attr_definition
 class PrimitiveLayoutAttr(Layout):
@@ -1323,7 +1404,9 @@ class PrimitiveLayoutAttr(Layout):
         return set()
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, PrimitiveLayoutAttr) and self.base_type == other.base_type
+        return (
+            isinstance(other, PrimitiveLayoutAttr) and self.base_type == other.base_type
+        )
 
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return None
@@ -1360,7 +1443,9 @@ class ConstantLayoutAttr(Layout):
         return set()
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, ConstantLayoutAttr) and self.base_data == other.base_data
+        return (
+            isinstance(other, ConstantLayoutAttr) and self.base_data == other.base_data
+        )
 
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return None
@@ -1368,7 +1453,9 @@ class ConstantLayoutAttr(Layout):
     def verify(self) -> None:
         super().verify()
         if not isinstance(self.base_data.type, AcceptedTypes):
-            raise VerifyException("Constant Layout cannot use a Constant type outside of AcceptedTypes")
+            raise VerifyException(
+                "Constant Layout cannot use a Constant type outside of AcceptedTypes"
+            )
 
 
 @irdl_attr_definition
@@ -1470,14 +1557,17 @@ class MemberLayoutAttr(Layout):
         assert len(children) == 1
         return MemberLayoutAttr(children[0], self.member_specifier)
 
-    def get_stage(self) -> Stage :
+    def get_stage(self) -> Stage:
         return self.child.get_stage()
 
     def get_all_extents(self) -> set[Extent]:
         return self.child.get_all_extents()
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, MemberLayoutAttr) and self.member_specifier == other.member_specifier
+        return (
+            isinstance(other, MemberLayoutAttr)
+            and self.member_specifier == other.member_specifier
+        )
 
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return self.child.indexed_by()
@@ -1520,7 +1610,9 @@ class StructLayoutAttr(Layout):
             )
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, StructLayoutAttr) and len(self.children) == len(other.children)
+        return isinstance(other, StructLayoutAttr) and len(self.children) == len(
+            other.children
+        )
 
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return None
@@ -1533,7 +1625,12 @@ class UnpackedCOOLayoutAttr(Layout):
     dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
     buffer_scaler: ParameterDef[IntAttr]
 
-    def __init__(self, child: Layout, dimensions: Iterable[DimensionAttr], buffer_scaler: int | IntAttr = 0):
+    def __init__(
+        self,
+        child: Layout,
+        dimensions: Iterable[DimensionAttr],
+        buffer_scaler: int | IntAttr = 0,
+    ):
         if not isinstance(dimensions, ArrayAttr):
             dimensions = ArrayAttr(dimensions)
         if not isinstance(buffer_scaler, IntAttr):
@@ -1549,7 +1646,10 @@ class UnpackedCOOLayoutAttr(Layout):
         return self.child.contents_type.add_dimensions(self.dimensions)
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, UnpackedCOOLayoutAttr) and self.dimensions == other.dimensions
+        return (
+            isinstance(other, UnpackedCOOLayoutAttr)
+            and self.dimensions == other.dimensions
+        )
 
     def get_children(self) -> list[Layout]:
         return [self.child]
@@ -1558,7 +1658,7 @@ class UnpackedCOOLayoutAttr(Layout):
         assert len(children) == 1
         return UnpackedCOOLayoutAttr(children[0], self.dimensions, self.buffer_scaler)
 
-    def get_stage(self) -> Stage :
+    def get_stage(self) -> Stage:
         child_stage = self.child.get_stage()
         dimension_stages = [d.extent.get_stage() for d in self.dimensions]
         return max(*dimension_stages, child_stage)
@@ -1587,8 +1687,12 @@ class IndexingLayoutAttr(Layout):
         new_elems = []
         for i_e in idx_elems:
             for d_e in dir_elms:
-                new_elems.append(i_e.add_members(d_e.member_specifiers).add_dimensions(d_e.dimensions))
-        # cross product of elems in the direct and indexed child. This allows for 
+                new_elems.append(
+                    i_e.add_members(d_e.member_specifiers).add_dimensions(
+                        d_e.dimensions
+                    )
+                )
+        # cross product of elems in the direct and indexed child. This allows for
         return TypeType(new_elems)
 
     def node_matches(self, other: Layout) -> bool:
@@ -1601,7 +1705,7 @@ class IndexingLayoutAttr(Layout):
         assert len(children) == 2
         return IndexingLayoutAttr(children[0], children[1])
 
-    def get_stage(self) -> Stage :
+    def get_stage(self) -> Stage:
         return max([child.get_stage() for child in self.get_children()])
 
     def get_all_extents(self) -> set[Extent]:
@@ -1619,11 +1723,15 @@ class IndexingLayoutAttr(Layout):
             raise VerifyException("Index child is indexed by None - this is not allow.")
         direct_child_contents = self.directChild.contents_type
         if direct_child_contents.get_single_element() is None:
-            raise VerifyException("Indexed node does not support multi-tensor structures as the direct_child")
+            raise VerifyException(
+                "Indexed node does not support multi-tensor structures as the direct_child"
+            )
         direct_base_types = [e.base_type for e in direct_child_contents.elements]
         if not all(index_type == bt for bt in direct_base_types):
-            raise VerifyException(f"Index child calls for index type; {index_type} but direct child has type "
-                                  f"{direct_child_contents} with base types: {direct_base_types}")
+            raise VerifyException(
+                f"Index child calls for index type; {index_type} but direct child has type "
+                f"{direct_child_contents} with base types: {direct_base_types}"
+            )
 
 
 @irdl_attr_definition
@@ -1640,7 +1748,9 @@ class ArithDropLayoutAttr(Layout):
         return self.child.contents_type.add_dimension(self.dimension)
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, ArithDropLayoutAttr) and self.dimension == other.dimension
+        return (
+            isinstance(other, ArithDropLayoutAttr) and self.dimension == other.dimension
+        )
 
     def get_children(self) -> list[Layout]:
         return [self.child]
@@ -1649,7 +1759,7 @@ class ArithDropLayoutAttr(Layout):
         assert len(children) == 1
         return ArithDropLayoutAttr(children[0], self.dimension)
 
-    def get_stage(self) -> Stage :
+    def get_stage(self) -> Stage:
         return max(self.child.get_stage(), self.dimension.extent.get_stage())
 
     def get_all_extents(self) -> set[Extent]:
@@ -1658,22 +1768,26 @@ class ArithDropLayoutAttr(Layout):
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return None
 
+
 @irdl_attr_definition
 class ArithReplacementAttr(ParametrizedAttribute):
-    name= "dlt.ArithReplacement"
+    name = "dlt.ArithReplacement"
     outer_dimension: ParameterDef[DimensionAttr]
     inner_dimension: ParameterDef[DimensionAttr]
     inner_member: ParameterDef[MemberAttr]
 
-    def __init__(self, outer: DimensionAttr, inner: DimensionAttr, inner_member: MemberAttr):
+    def __init__(
+        self, outer: DimensionAttr, inner: DimensionAttr, inner_member: MemberAttr
+    ):
 
         super().__init__((outer, inner, inner_member))
 
     def verify(self) -> None:
         super().verify()
         if self.outer_dimension.extent != self.inner_dimension.extent:
-            raise VerifyException("ArithReplacement inner and outer dimension extents must be the same.")
-
+            raise VerifyException(
+                "ArithReplacement inner and outer dimension extents must be the same."
+            )
 
 
 @irdl_attr_definition
@@ -1689,21 +1803,29 @@ class ArithReplaceLayoutAttr(Layout):
         super().verify()
         inner_dims = {r.inner_dimension for r in self.replacements}
         if len(inner_dims) != 1:
-            raise VerifyException("All replacements within a ArithReplacementLayout node must have the same inner dimension.")
+            raise VerifyException(
+                "All replacements within a ArithReplacementLayout node must have the same inner dimension."
+            )
 
         outer_dims = {r.outer_dimension for r in self.replacements}
         if len(outer_dims) != len(self.replacements):
             raise VerifyException(
-                "All replacements within a ArithReplacementLayout node must have a unique outer dimension.")
+                "All replacements within a ArithReplacementLayout node must have a unique outer dimension."
+            )
 
         inner_members = {r.inner_member for r in self.replacements}
         if len(inner_members) != len(self.replacements):
             raise VerifyException(
-                "All replacements within a ArithReplacementLayout node must have a unique inner member.")
+                "All replacements within a ArithReplacementLayout node must have a unique inner member."
+            )
 
-        extents = {r.inner_dimension.extent for r in self.replacements} | {r.outer_dimension.extent for r in self.replacements}
+        extents = {r.inner_dimension.extent for r in self.replacements} | {
+            r.outer_dimension.extent for r in self.replacements
+        }
         if len(extents) != 1:
-            raise VerifyException("All dimensions used in ArithReplaceLayout must have the same extent")
+            raise VerifyException(
+                "All dimensions used in ArithReplaceLayout must have the same extent"
+            )
 
     @property
     def contents_type(self) -> TypeType:
@@ -1712,14 +1834,21 @@ class ArithReplaceLayoutAttr(Layout):
         for elem in child_elems:
             new_elem = elem
             for r in self.replacements:
-                if elem.has_selectable([r.inner_member],[r.inner_dimension]):
-                    new_elem = elem.select_member(r.inner_member).select_dimension(r.inner_dimension).add_dimension(r.outer_dimension)
+                if elem.has_selectable([r.inner_member], [r.inner_dimension]):
+                    new_elem = (
+                        elem.select_member(r.inner_member)
+                        .select_dimension(r.inner_dimension)
+                        .add_dimension(r.outer_dimension)
+                    )
                     break
             new_elems.append(new_elem)
         return TypeType(new_elems)
 
     def node_matches(self, other: Layout) -> bool:
-        return isinstance(other, ArithReplaceLayoutAttr) and self.replacements == other.replacements
+        return (
+            isinstance(other, ArithReplaceLayoutAttr)
+            and self.replacements == other.replacements
+        )
 
     def get_children(self) -> list[Layout]:
         return [self.child]
@@ -1728,11 +1857,15 @@ class ArithReplaceLayoutAttr(Layout):
         assert len(children) == 1
         return ArithReplaceLayoutAttr(children[0], self.replacements)
 
-    def get_stage(self) -> Stage :
-        return self.child.get_stage() # we don't change any extents so we can pass this call through
+    def get_stage(self) -> Stage:
+        return (
+            self.child.get_stage()
+        )  # we don't change any extents so we can pass this call through
 
     def get_all_extents(self) -> set[Extent]:
-        return self.child.get_all_extents() # we don't change any extents so we can pass this call through
+        return (
+            self.child.get_all_extents()
+        )  # we don't change any extents so we can pass this call through
 
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return None
@@ -1753,6 +1886,7 @@ class ArithReplaceLayoutAttr(Layout):
         assert len(dims) == 1
         return dims.pop()
 
+PtrIdent = StringAttr
 
 @irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute):
@@ -1763,7 +1897,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
     filled_dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
     filled_extents: ParameterDef[ArrayAttr[AnyRunTimeBaseExtent()]]
     base: ParameterDef[StringAttr]
-    identification: ParameterDef[StringAttr]
+    identification: ParameterDef[PtrIdent]
 
     def __init__(
         self,
@@ -1775,7 +1909,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             Sequence[InitDefinedExtentAttr] | ArrayAttr[InitDefinedExtentAttr]
         ) = ArrayAttr([]),
         base: bool = False,
-        identity: StringAttr | str = "",
+        identity: PtrIdent | str = "",
     ):
         base = StringAttr("Y") if base else StringAttr("N")
         identity = StringAttr(identity) if isinstance(identity, str) else identity
@@ -1816,7 +1950,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
     def has_identity(self):
         return self.identification.data != ""
 
-    def with_identification(self, identity: str | StringAttr) -> PtrType:
+    def with_identification(self, identity: str | PtrIdent) -> PtrType:
         return PtrType(
             self.contents_type,
             self.layout,
@@ -1837,17 +1971,6 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             base=self.is_base,
         )
 
-    # def with_layout_name(self, name: str | StringAttr, preserve_ident=False) -> PtrType:
-    #     return PtrType(
-    #         self.contents_type,
-    #         NamedLayoutAttr(name, self.layout),
-    #         self.filled_members,
-    #         self.filled_dimensions,
-    #         self.filled_extents,
-    #         base=self.is_base,
-    #         identity=self.identification if preserve_ident else "",
-    #     )
-
     def with_new_layout(
         self, layout: Layout, remove_bloat=False, preserve_ident=False
     ) -> PtrType:
@@ -1862,7 +1985,11 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             useful_dims = contents_type.all_dimension_attributes()
             filled_dimensions = [d for d in filled_dimensions if d in useful_dims]
             contents_type = contents_type.select_dimensions(filled_dimensions)
-            useful_extents = {e for e in layout.get_all_runtime_base_extents() if isinstance(e, InitDefinedExtentAttr)}
+            useful_extents = {
+                e
+                for e in layout.get_all_runtime_base_extents()
+                if isinstance(e, InitDefinedExtentAttr)
+            }
             filled_extents = [e for e in filled_extents if e in useful_extents]
         return PtrType(
             self.contents_type,
@@ -1883,7 +2010,11 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
                 f"{self.name}: layout does not provide the expected contents type"
             )
 
-        extents = {e for e in self.layout.get_all_runtime_base_extents() if isinstance(e, InitDefinedExtentAttr)}
+        extents = {
+            e
+            for e in self.layout.get_all_runtime_base_extents()
+            if isinstance(e, InitDefinedExtentAttr)
+        }
         for e in extents:
             if e not in self.filled_extents:
                 raise VerifyException(
@@ -1903,29 +2034,50 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
         parser.parse_punctuation(",")
         content_type = TypeType(*TypeType.internal_parse_parameters(parser))
         parser.parse_punctuation(",")
-        filled_members = SetAttr(parser.parse_comma_separated_list(parser.Delimiter.BRACES,
-                                                           lambda: MemberAttr(MemberAttr.internal_parse_parameters(parser))))
+        filled_members = SetAttr(
+            parser.parse_comma_separated_list(
+                parser.Delimiter.BRACES,
+                lambda: MemberAttr(MemberAttr.internal_parse_parameters(parser)),
+            )
+        )
         parser.parse_punctuation(",")
-        filled_dimensions = SetAttr(parser.parse_comma_separated_list(parser.Delimiter.SQUARE,
-                                                                   lambda: DimensionAttr(
-                                                                       DimensionAttr.internal_parse_parameters(parser))))
+        filled_dimensions = SetAttr(
+            parser.parse_comma_separated_list(
+                parser.Delimiter.SQUARE,
+                lambda: DimensionAttr(DimensionAttr.internal_parse_parameters(parser)),
+            )
+        )
         parser.parse_punctuation(",")
-        filled_extents = SetAttr(parser.parse_comma_separated_list(parser.Delimiter.SQUARE,
-                                                                      lambda: InitDefinedExtentAttr(
-                                                                          *InitDefinedExtentAttr.internal_parse_extent(
-                                                                              parser))))
+        filled_extents = SetAttr(
+            parser.parse_comma_separated_list(
+                parser.Delimiter.SQUARE,
+                lambda: InitDefinedExtentAttr(
+                    *InitDefinedExtentAttr.internal_parse_extent(parser)
+                ),
+            )
+        )
         parser.parse_punctuation(",")
         layout = parser.parse_attribute()
-        return tuple([content_type, layout, filled_members, filled_dimensions, filled_extents, base, ident])
+        return tuple(
+            [
+                content_type,
+                layout,
+                filled_members,
+                filled_dimensions,
+                filled_extents,
+                base,
+                ident,
+            ]
+        )
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             self.internal_print_parameters(printer)
 
     def internal_print_parameters(self, printer: Printer) -> None:
-        printer.print("\"")
+        printer.print('"')
         printer.print(self.identification.data)
-        printer.print("\"")
+        printer.print('"')
         printer.print(", ")
         if self.is_base:
             printer.print("true")
@@ -1937,8 +2089,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
 
         values = list(self.filled_members)
         sorted_values = [
-            values[i]
-            for s, i in sorted([(str(m), i) for i, m in enumerate(values)])
+            values[i] for s, i in sorted([(str(m), i) for i, m in enumerate(values)])
         ]
         printer.print("{")
         printer.print_list(
@@ -1949,8 +2100,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
 
         values = list(self.filled_dimensions)
         sorted_values = [
-            values[i]
-            for s, i in sorted([(str(d), i) for i, d in enumerate(values)])
+            values[i] for s, i in sorted([(str(d), i) for i, d in enumerate(values)])
         ]
         printer.print("[")
         printer.print_list(
@@ -1961,132 +2111,14 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
 
         values = list(self.filled_extents)
         sorted_values = [
-            values[i]
-            for s, i in sorted([(str(e), i) for i, e in enumerate(values)])
+            values[i] for s, i in sorted([(str(e), i) for i, e in enumerate(values)])
         ]
         printer.print("[")
-        printer.print_list(
-            sorted_values, lambda e: e.internal_print_extent(printer)
-        )
+        printer.print_list(sorted_values, lambda e: e.internal_print_extent(printer))
         printer.print("]")
         printer.print(", ")
 
         printer.print_attribute(self.layout)
-
-
-# @irdl_attr_definition
-# class PtrBaseType(ParametrizedAttribute, TypeAttribute):
-#     name = "dlt.ptrBase"
-#     ptr_type: ParameterDef[PtrType]
-#
-#     def __init__(self, ptr_type: PtrType):
-#         super().__init__(tuple([ptr_type]))
-#
-#     @property
-#     def contents_type(self) -> TypeType:
-#         return self.ptr_type.contents_type
-
-
-#
-#
-#
-# @irdl_op_definition
-# class StructOp(IRDLOperation):
-#     name = "dlt.struct"
-#
-#     res: OpResult = result_def(TypeType)
-#     region: Region = region_def("single_block")
-#
-#     def verify_(self) -> None:
-#         isa(self.region.block.last_op, StructYieldOp)
-#         if self.res.type != self.region.block.last_op.output_type():
-#             raise VerifyException("Struct result type must be the dlt.type corrosponding to the elements in the yield op")
-#         pass
-#
-# @irdl_op_definition
-# class StructYieldOp(IRDLOperation):
-#     name = "dlt.structYield"
-#     arguments: VarOperand = var_operand_def(TypeType)
-#
-#     traits = traits_def(
-#         lambda: frozenset([IsTerminator(), HasParent(StructOp)])
-#     )
-#
-#     def verify_(self) -> None:
-#         elements = [elem for arg in self.arguments if isinstance(arg.type, TypeType) for elem in arg.type.elements]
-#         TypeType(elements) # check that making this type doesn't cause an error
-#
-#     def output_type(self):
-#         elements = [elem for arg in self.arguments if isinstance(arg.type, TypeType) for elem in arg.type.elements]
-#         type = TypeType(elements)
-#         return type
-#
-# #TODO
-#
-# @irdl_op_definition
-# class IndexingOp(IRDLOperation):
-#     name = "dlt.indexing"
-# #TODO
-#
-# @irdl_op_definition
-# class MemberOp(IRDLOperation):
-#     name = "dlt.member"
-# #TODO
-#
-#
-#
-# @irdl_op_definition
-# class PrimitiveOp(IRDLOperation):
-#     name = "dlt.primitive"
-#     of: AcceptedTypes = attr_def(AcceptedTypes)
-#     res: OpResult = result_def(TypeType)
-#
-#     def __init__(self, of: AcceptedTypes):
-#         type = TypeType([ElementAttr(tuple([SetAttr([]), SetAttr([]), of]))])
-#         super().__init__(attributes={"of":of}, result_types=[type])
-# #TODO
-#
-# @irdl_op_definition
-# class ConstOp(IRDLOperation):
-#     name = "dlt.const"
-#     value: AnyFloatAttr | IntegerAttr = attr_def(AnyFloatAttr | IntegerAttr)
-#     res: OpResult = result_def(TypeType)
-#
-# #TODO
-#
-# @irdl_op_definition
-# class DenseOp(IRDLOperation):
-#     name = "dlt.dense"
-#     child: OperandDef = operand_def(TypeType)
-#     dimension: DimensionAttr = attr_def(DimensionAttr)
-#     res: OpResult = result_def(TypeType)
-#
-#     def verify_(self) -> None:
-#         elements = [elem for elem in self.child.type.elements]
-#         new_elements = []
-#         for elem in elements:
-#             dims = list(elem.dimensions)
-#             dims.append(self.dimension)
-#             new_dims = SetAttr(dims)
-#             new_elem = ElementAttr(tuple([elem.member_specifiers, new_dims, elem.base_type]))
-#             new_elements.append(new_elem)
-#         new_type = TypeType(new_elements)
-#         res_type = self.res.type
-#         if new_type != res_type:
-#             raise VerifyException("Result type does not match input type with added dimension")
-#
-# #TODO
-#
-# @irdl_op_definition
-# class UnpackedCoordinateFormatOp(IRDLOperation):
-#     name = "dlt.upcoo"
-# #TODO
-#
-# @irdl_op_definition
-# class IndexAffineOp(IRDLOperation):
-#     name = "dlt.indexAffine"
-# #TODO
-
 
 @irdl_op_definition
 class LayoutScopeOp(IRDLOperation):
@@ -2246,7 +2278,6 @@ class DTLLayoutScopedOp(IRDLOperation):
             parent = parent.parent_op()
         return parent
 
-
 @irdl_op_definition
 class SelectOp(DTLLayoutScopedOp):
     name = "dlt.select"  # take a ptrType and constrain a member field or a dimension value.
@@ -2263,7 +2294,7 @@ class SelectOp(DTLLayoutScopedOp):
         members: SetAttr[MemberAttr] | Iterable[MemberAttr],
         dimensions: ArrayAttr[DimensionAttr] | Iterable[DimensionAttr],
         values: Sequence[SSAValue | Operation],
-        result_type: Attribute | None = None,
+        result_type: Attribute | None | PtrIdent | str = None,
     ):
         if not isinstance(tree, SSAValue):
             tree = SSAValue.get(tree)
@@ -2273,10 +2304,13 @@ class SelectOp(DTLLayoutScopedOp):
             dimensions = ArrayAttr(dimensions)
         if not isinstance(values, tuple):
             values = tuple(values)
-        if result_type is None:
+        if result_type is None or isinstance(result_type, str | PtrIdent):
             assert isinstance(tree.type, PtrType)
+            ident = result_type
             result_type = SelectOp.calculateResultType(tree.type, members, dimensions)
             result_type = result_type.as_not_base()
+            if ident is not None:
+                result_type = result_type.with_identification(ident)
         super().__init__(
             operands=[tree, values],
             result_types=[result_type],
@@ -2318,7 +2352,7 @@ class SelectOp(DTLLayoutScopedOp):
 
     @classmethod
     def parse(cls: type[SelectOp], parser: Parser) -> SelectOp:
-        # dlt.select{root:e, node:x}(A:0, B:10) from %1
+        # dlt.select{root:e, node:x}(A:0, B:10) from %1 {attributes}
         ms = parser.parse_comma_separated_list(
             parser.Delimiter.BRACES,
             lambda: MemberAttr(tuple(MemberAttr.internal_parse_parameters(parser))),
@@ -2326,7 +2360,6 @@ class SelectOp(DTLLayoutScopedOp):
         members = SetAttr(ms)
 
         def parseDim() -> tuple[DimensionAttr, SSAValue]:
-            # ident = parser.parse_identifier()
             dim = DimensionAttr(tuple(DimensionAttr.internal_parse_parameters(parser)))
             parser.parse_punctuation(":")
             operand = parser.parse_operand()
@@ -2337,6 +2370,8 @@ class SelectOp(DTLLayoutScopedOp):
         dimensions = ArrayAttr(dim_attrs)
         parser.parse_keyword("from")
         tree = parser.parse_operand()
+
+        attributes = parser.parse_optional_attr_dict()
 
         if parser.parse_optional_punctuation(":"):
             parser.parse_punctuation("(")
@@ -2357,6 +2392,7 @@ class SelectOp(DTLLayoutScopedOp):
             res_type = SelectOp.calculateResultType(tree.type, members, dimensions)
 
         selectOp = SelectOp(tree, members, dimensions, dim_operands, res_type)
+        selectOp.attributes.update(attributes)
         return selectOp
 
     @staticmethod
@@ -2404,6 +2440,9 @@ class SelectOp(DTLLayoutScopedOp):
         printer.print(")")
         printer.print(" from ")
         printer.print(self.tree)
+        printer.print(" ")
+        attributes = {k:v for k, v in self.attributes.items() if k not in {"members", "dimensions"}}
+        printer.print_attr_dict(attributes)
         printer.print(" : ")
         printer.print("(")
         printer.print(self.tree.type)
@@ -2442,6 +2481,7 @@ class GetOp(DTLLayoutScopedOp):
         if self.get_type != elem.base_type:
             raise VerifyException(f"{self.name} cannot get {self.get_type} from {elem}")
 
+
 @irdl_op_definition
 class GetSOp(DTLLayoutScopedOp):
     name = "dlt.gets"  # take a PtrType that points only to primitives (no member fields or dimensions) and get the value
@@ -2452,7 +2492,9 @@ class GetSOp(DTLLayoutScopedOp):
 
     def __init__(self, tree: SSAValue, get_type: AcceptedTypes):
         super().__init__(
-            operands=[tree], result_types=[get_type, IntegerType(1)], attributes={"get_type": get_type}
+            operands=[tree],
+            result_types=[get_type, IntegerType(1)],
+            attributes={"get_type": get_type},
         )
 
     def verify_(self) -> None:
@@ -2472,6 +2514,7 @@ class GetSOp(DTLLayoutScopedOp):
             )
         if self.get_type != elem.base_type:
             raise VerifyException(f"{self.name} cannot get {self.get_type} from {elem}")
+
 
 @irdl_op_definition
 class SetOp(DTLLayoutScopedOp):
@@ -2660,6 +2703,12 @@ class IterationOrderBase(ParametrizedAttribute, abc.ABC):
     def from_children(self, children: list[IterationOrder]) -> Self:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def non_zero_loop_for(
+        self, tensor_idx: int, iterate_op: IterateOp
+    ) -> set[DimensionAttr]:
+        raise NotImplementedError
+
     def is_abstract(self) -> bool:
         return any(child.is_abstract for child in self.get_children())
 
@@ -2678,9 +2727,17 @@ class AbstractIterationOrderAttr(IterationOrderBase):
     name = "dlt.iteration.abstract"
 
     extent_indices: ParameterDef[SetAttr[IntAttr]]
+    non_zero_reducible_tensors: ParameterDef[ArrayAttr[IntAttr]]
+    non_zero_reducible_tensor_extents: ParameterDef[ArrayAttr[SetAttr[IntAttr]]]
     child: ParameterDef[IterationOrder]
 
-    def __init__(self, extent_indices: Iterable[int | IntAttr], child: IterationOrder):
+    def __init__(
+        self,
+        extent_indices: Iterable[int | IntAttr],
+        non_zero_reducible_tensors: Iterable[int | IntAttr],
+        non_zero_reducible_tensor_extents: Iterable[Iterable[int | IntAttr]],
+        child: IterationOrder,
+    ):
         if not isinstance(extent_indices, SetAttr):
             idxs = set()
             for i in extent_indices:
@@ -2690,7 +2747,28 @@ class AbstractIterationOrderAttr(IterationOrderBase):
             extent_indices = SetAttr(idxs)
         if len(extent_indices) == 0:
             raise ValueError("Cannot of abstract order with no extents")
-        super().__init__((extent_indices, child,))
+        new_non_zero_reducible_tensors = []
+        for t in non_zero_reducible_tensors:
+            if not isinstance(t, IntAttr):
+                t = IntAttr(t)
+            new_non_zero_reducible_tensors.append(t)
+        new_non_zero_reducible_tensors = ArrayAttr(new_non_zero_reducible_tensors)
+
+        new_non_zero_reducible_tensor_extents = []
+        for t in non_zero_reducible_tensor_extents:
+            es = []
+            for e in t:
+                es.append(e)
+            new_non_zero_reducible_tensor_extents.append(SetAttr(es))
+        new_non_zero_reducible_tensor_extents = ArrayAttr(new_non_zero_reducible_tensor_extents)
+        super().__init__(
+            (
+                extent_indices,
+                new_non_zero_reducible_tensors,
+                new_non_zero_reducible_tensor_extents,
+                child,
+            )
+        )
 
     def get_extent_indices(self) -> set[int]:
         child = self.child.get_extent_indices()
@@ -2706,13 +2784,34 @@ class AbstractIterationOrderAttr(IterationOrderBase):
         assert len(children) == 1
         return AbstractIterationOrderAttr(self.extent_indices, children[0])
 
+    def non_zero_loop_for(
+        self, tensor_idx: int, iterate_op: IterateOp
+    ) -> set[DimensionAttr]:
+        return self.child.non_zero_loop_for(tensor_idx, iterate_op)
+
     def is_abstract(self) -> bool:
         return True
 
     def verify(self) -> None:
         super().verify()
         if duplicates := (set(self.extent_indices) & self.child.get_extent_indices()):
-            raise VerifyException(f"Child produces extent indices {duplicates} that are also present in this parent {self.name}")
+            raise VerifyException(
+                f"Child produces extent indices {duplicates} that are also present in this parent {self.name}"
+            )
+        if len(self.non_zero_reducible_tensors) != len(
+            self.non_zero_reducible_tensor_extents
+        ):
+            raise VerifyException(
+                "each non-zero reducible tensor must have a corrosponding set or extents over which it is non-zero reducible"
+            )
+        for tensor, t_extents in zip(
+            self.non_zero_reducible_tensors, self.non_zero_reducible_tensor_extents
+        ):
+            for e in t_extents:
+                if e not in self.extent_indices:
+                    raise VerifyException(
+                        "Abstract Iteration Order can only define possible non-zero reducible tensor extents for extents it also defines as abstract"
+                    )
 
     @staticmethod
     def generate_for(extents_indices: list[int]) -> IterationOrder:
@@ -2720,7 +2819,7 @@ class AbstractIterationOrderAttr(IterationOrderBase):
         if len(extents_indices) == 0:
             return base
         else:
-            return AbstractIterationOrderAttr(extents_indices, base)
+            return AbstractIterationOrderAttr(extents_indices, [],[], base)
 
 
 @irdl_attr_definition
@@ -2740,6 +2839,11 @@ class BodyIterationOrderAttr(IterationOrderBase):
         assert len(children) == 0
         return BodyIterationOrderAttr()
 
+    def non_zero_loop_for(
+        self, tensor_idx: int, iterate_op: IterateOp
+    ) -> set[DimensionAttr]:
+        return set()
+
 
 @irdl_attr_definition
 class NestedIterationOrderAttr(IterationOrderBase):
@@ -2751,7 +2855,12 @@ class NestedIterationOrderAttr(IterationOrderBase):
     def __init__(self, extent_index: int | IntAttr, child: IterationOrder):
         if isinstance(extent_index, int):
             extent_index = IntAttr(extent_index)
-        super().__init__((extent_index, child,))
+        super().__init__(
+            (
+                extent_index,
+                child,
+            )
+        )
 
     def get_extent_indices(self) -> set[int]:
         child = self.child.get_extent_indices()
@@ -2769,39 +2878,65 @@ class NestedIterationOrderAttr(IterationOrderBase):
         assert len(children) == 1
         return NestedIterationOrderAttr(self.extent_index, children[0])
 
+    def non_zero_loop_for(
+        self, tensor_idx: int, iterate_op: IterateOp
+    ) -> set[DimensionAttr]:
+        return self.child.non_zero_loop_for(tensor_idx, iterate_op)
+
     def verify(self) -> None:
         super().verify()
         if self.extent_index in self.child.get_extent_indices():
-            raise VerifyException(f"Child produces extent index {self.extent_index} that is also present in this parent {self.name}")
+            raise VerifyException(
+                f"Child produces extent index {self.extent_index} that is also present in this parent {self.name}"
+            )
 
     @staticmethod
-    def generate_for(num_extents: list[int] | list[IntAttr], body: IterationOrder = None) -> IterationOrder:
+    def generate_for(
+        num_extents: list[int] | list[IntAttr], body: IterationOrder = None
+    ) -> IterationOrder:
         if len(num_extents) == 0:
             return BodyIterationOrderAttr() if body is None else body
         idx = num_extents.pop(0)
-        return NestedIterationOrderAttr(idx, NestedIterationOrderAttr.generate_for(num_extents, body=body))
+        return NestedIterationOrderAttr(
+            idx, NestedIterationOrderAttr.generate_for(num_extents, body=body)
+        )
 
 
 @irdl_attr_definition
 class NonZeroIterationOrderAttr(IterationOrderBase):
     name = "dlt.iteration.nonzero"
 
-    extent_index: ParameterDef[IntAttr]
+    extent_indices: ParameterDef[ArrayAttr[IntAttr]]
     tensor_index: ParameterDef[IntAttr]
     child: ParameterDef[IterationOrder]
 
-    def __init__(self, extent_index: int | IntAttr, tensor_index: int | IntAttr, child: IterationOrder):
-        if isinstance(extent_index, int):
-            extent_index = IntAttr(extent_index)
+    def __init__(
+        self,
+        extent_indices: Iterable[int | IntAttr],
+        tensor_index: int | IntAttr,
+        child: IterationOrder,
+    ):
+        new_extent_indices = []
+        for extent_index in extent_indices:
+            if isinstance(extent_index, int):
+                extent_index = IntAttr(extent_index)
+            new_extent_indices.append(extent_index)
+        new_extent_indices = ArrayAttr(new_extent_indices)
         if isinstance(tensor_index, int):
             tensor_index = IntAttr(tensor_index)
-        super().__init__((extent_index, tensor_index, child,))
+        super().__init__(
+            (
+                new_extent_indices,
+                tensor_index,
+                child,
+            )
+        )
 
     def get_extent_indices(self) -> set[int]:
         child = self.child.get_extent_indices()
-        if self.extent_index.data in child:
+        if any(e.data in child for e in self.extent_indices):
             raise ValueError()
-        return {self.extent_index.data} | child
+        return {e.data for e in self.extent_indices} | child
 
     def get_tensor_indices(self) -> set[int]:
         child = self.child.get_tensor_indices()
@@ -2814,14 +2949,31 @@ class NonZeroIterationOrderAttr(IterationOrderBase):
 
     def from_children(self, children: list[IterationOrder]) -> Self:
         assert len(children) == 1
-        return NonZeroIterationOrderAttr(self.extent_index, self.tensor_index, children[0])
+        return NonZeroIterationOrderAttr(
+            self.extent_indices, self.tensor_index, children[0]
+        )
+
+    def non_zero_loop_for(
+        self, tensor_idx: int, iterate_op: IterateOp
+    ) -> set[DimensionAttr]:
+        dims = set()
+        if self.tensor_index.data == tensor_idx:
+            for e in self.extent_indices:
+                dims |= set(iterate_op.dimensions.data[tensor_idx].data[e.data])
+        return dims | self.child.non_zero_loop_for(tensor_idx, iterate_op)
 
     def verify(self) -> None:
         super().verify()
-        if self.extent_index in self.child.get_extent_indices():
-            raise VerifyException(f"Child produces extent index {self.extent_index} that is also present in this parent {self.name}")
+        if any(e in self.child.get_extent_indices() for e in self.extent_indices):
+            raise VerifyException(
+                f"Child produces extent indices {self.child.get_extent_indices() & set(self.extent_indices)} that is also present in this parent {self.name}"
+            )
         if self.tensor_index in self.child.get_tensor_indices():
-            raise VerifyException(f"Child produces tensor index {self.tensor_index} that is also present in this parent {self.name}")
+            raise VerifyException(
+                f"Child produces tensor index {self.tensor_index} that is also present in this parent {self.name}"
+            )
+
+IterIdent = StringAttr
 
 
 @irdl_op_definition
@@ -2839,7 +2991,7 @@ class IterateOp(DTLLayoutScopedOp):
     tensors: VarOperand = var_operand_def(PtrType)
 
     order: IterationOrder = attr_def(IterationOrder)
-    identification: StringAttr = attr_def(StringAttr)
+    identification: IterIdent = attr_def(IterIdent)
 
     iter_args: VarOperand = var_operand_def(
         AnyAttr()
@@ -2865,7 +3017,7 @@ class IterateOp(DTLLayoutScopedOp):
         tensors: Sequence[SSAValue],
         iter_args: Sequence[SSAValue | Operation],
         order: IterationOrder = None,
-        identification: StringAttr | str = None,
+        identification: IterIdent | str = None,
         body: Region | Sequence[Operation] | Sequence[Block] | Block = None,
     ):
         if body is None:
@@ -2907,7 +3059,12 @@ class IterateOp(DTLLayoutScopedOp):
             operands=[extent_args, tensors, tuple(iter_args)],
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
-            attributes={"extents": extents, "dimensions": dimensions, "order": order, "identification": identification},
+            attributes={
+                "extents": extents,
+                "dimensions": dimensions,
+                "order": order,
+                "identification": identification,
+            },
         )
 
     def verify_(self):
@@ -2943,10 +3100,14 @@ class IterateOp(DTLLayoutScopedOp):
                     extent_arg_idx += 1
 
             if extent_arg_idx != len(self.extent_args):
-                raise VerifyException(f"Extent args expected {extent_arg_idx} but {len(self.extent_args)} were supplied")
+                raise VerifyException(
+                    f"Extent args expected {extent_arg_idx} but {len(self.extent_args)} were supplied"
+                )
 
             if len(self.tensors) != len(self.dimensions):
-                raise VerifyException(f"Expected number of tensors and length of outer array of dimensions to be equal. Found {len(self.tensors)} Tensors but {len(self.dimensions)} tensot dimension specifications")
+                raise VerifyException(
+                    f"Expected number of tensors and length of outer array of dimensions to be equal. Found {len(self.tensors)} Tensors but {len(self.dimensions)} tensot dimension specifications"
+                )
             tensor_vars = [
                 (i, i - len(self.extents), self.body.block.args[i])
                 for i in range(len(self.extents), len(self.extents) + len(self.tensors))
@@ -3021,19 +3182,25 @@ class IterateOp(DTLLayoutScopedOp):
 
         self.verify_order()
 
-    def verify_order(self, order: IterationOrder = None, e: type[Exception] = VerifyException):
+    def verify_order(
+        self, order: IterationOrder = None, e: type[Exception] = VerifyException
+    ):
         if order is None:
             order = self.order
         if not set(range(len(self.tensors))).issuperset(order.get_tensor_indices()):
-            raise e(f"Order {order} refers to tensors indices: {order.get_tensor_indices()} but iterate op only has {len(self.tensors)} tensor args")
-        if not set(range(len(self.extents))) == (order.get_extent_indices()):
-            raise e(f"Expected to find extent indices: [0,{len(self.extents)}) but got {order.get_extent_indices()}")
+            raise e(
+                f"Order {order} refers to tensors indices: {order.get_tensor_indices()} but iterate op only has {len(self.tensors)} tensor args"
+            )
+        if not set(range(len(self.extents))) == order.get_extent_indices():
+            raise e(
+                f"Expected to find extent indices: [0,{len(self.extents)}) but got {order.get_extent_indices()}"
+            )
 
     @property
     def has_identity(self):
         return self.identification.data != ""
 
-    def set_identity(self, ident: str|StringAttr):
+    def set_identity(self, ident: str | IterIdent):
         if isinstance(ident, str):
             ident = StringAttr(ident)
         self.identification = ident
@@ -3107,10 +3274,14 @@ class IterateOp(DTLLayoutScopedOp):
         return self.res[index]
 
     def get_block_args_for_extent_args(self) -> list[BlockArgument]:
-        return list(self.body.block.args[0:len(self.extents)])
+        return list(self.body.block.args[0 : len(self.extents)])
 
     def get_block_args_for_tensor_args(self) -> list[BlockArgument]:
-        return list(self.body.block.args[len(self.extents):len(self.extents)+len(self.tensors)])
+        return list(
+            self.body.block.args[
+                len(self.extents) : len(self.extents) + len(self.tensors)
+            ]
+        )
 
     def get_block_arg_for_tensor_arg_idx(self, index: int) -> BlockArgument:
         index += len(self.extents)

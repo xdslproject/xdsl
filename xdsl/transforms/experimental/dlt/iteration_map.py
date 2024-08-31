@@ -1,10 +1,14 @@
-from typing import Self
+from typing import Self, cast
 
+from xdsl.dialects import func, scf
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.experimental import dlt
+from xdsl.ir import Operation
 from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, RewritePattern, attr_type_rewrite_pattern, \
     op_type_rewrite_pattern
+from xdsl.transforms.experimental.dlt.layout_graph import LayoutGraph
 
+NestOp = dlt.IterateOp | func.FuncOp | dlt.LayoutScopeOp
 
 class DLTIterateConsistencyError(Exception):
     pass
@@ -20,6 +24,13 @@ class IterationMap:
                 raise ValueError(f"Iteration op identification attribute is not set to {name}")
             if "iter_order" not in iter_op.attributes:
                 raise ValueError("Iteration ops must have iter_order attribute")
+
+    @staticmethod
+    def parent_nest_for_op(op: Operation) -> NestOp | None:
+        parent_op = op.parent_op()
+        while not isinstance(parent_op, NestOp) and parent_op is not None:
+            parent_op = parent_op.parent_op()
+        return parent_op
 
     def matches(self, other: Self) -> bool:
         if set(self.iteration_ops.keys()) != set(other.iteration_ops.keys()):

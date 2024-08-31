@@ -4,8 +4,9 @@ import time
 import typing
 
 from scripts.visualiseDLT import IterationPlotter
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.dialects.experimental import dlt
+from xdsl.dialects.experimental.dlt import SetAttr
 from xdsl.transforms.experimental.dlt.iteration_map import IterationMap
 
 
@@ -17,12 +18,49 @@ def _make_nested_order(order: dlt.IterationOrder) -> dlt.IterationOrder:
         return dlt.NestedIterationOrderAttr(order.extent_index, child)
     elif isinstance(order, dlt.NonZeroIterationOrderAttr):
         child = _make_nested_order(order.child)
-        return dlt.NonZeroIterationOrderAttr(order.extent_index, order.tensor_index, child)
+        return dlt.NonZeroIterationOrderAttr(order.extent_indices, order.tensor_index, child)
     elif isinstance(order, dlt.AbstractIterationOrderAttr):
         child = _make_nested_order(order.child)
         for extent_idx in order.extent_indices:
             child = dlt.NestedIterationOrderAttr(extent_idx, child)
         return child
+
+
+def _make_non_zero_nested_order(order: dlt.IterationOrder) -> dlt.IterationOrder:
+    if isinstance(order, dlt.BodyIterationOrderAttr):
+        return order
+    elif isinstance(order, dlt.NestedIterationOrderAttr):
+        child = _make_non_zero_nested_order(order.child)
+        return dlt.NestedIterationOrderAttr(order.extent_index, child)
+    elif isinstance(order, dlt.NonZeroIterationOrderAttr):
+        child = _make_non_zero_nested_order(order.child)
+        return dlt.NonZeroIterationOrderAttr(order.extent_indices, order.tensor_index, child)
+    elif isinstance(order, dlt.AbstractIterationOrderAttr):
+        child = _make_non_zero_nested_order(order.child)
+        best_tensor_idx = None
+        extents = set()
+        for tensor_idx, tensor_extents in zip(order.non_zero_reducible_tensors, order.non_zero_reducible_tensor_extents):
+            if len(tensor_extents) > len(extents):
+                extents = set(tensor_extents)
+                best_tensor_idx = tensor_idx
+        if best_tensor_idx is None:
+            for extent_idx in order.extent_indices:
+                child = dlt.NestedIterationOrderAttr(extent_idx, child)
+            return child
+        else:
+            left_over_extents = SetAttr(set(order.extent_indices)-extents)
+            left_over_tensors = []
+            left_over_tensor_extents = []
+            for tensor_idx, tensor_extents in zip(order.non_zero_reducible_tensors,
+                                                  order.non_zero_reducible_tensor_extents):
+                if tensor_idx != best_tensor_idx:
+                    left_over_tensors.append(tensor_idx)
+                    left_over_tensor_extents.append(SetAttr([e for e in tensor_extents if e in left_over_extents]))
+            left_over_tensors = ArrayAttr(left_over_tensors)
+            left_over_tensor_extents = ArrayAttr(left_over_tensor_extents)
+            if len(set(left_over_extents)) > 0:
+                child = dlt.AbstractIterationOrderAttr(left_over_extents, left_over_tensors, left_over_tensor_extents, child)
+            return dlt.NonZeroIterationOrderAttr(extents, best_tensor_idx, child)
 
 
 class IterationMapping():

@@ -3,14 +3,15 @@ Lower Data-Layout Trees into LLVM struct types (and other things)
 """
 
 import functools
+import typing
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import cast
 
 from xdsl.dialects import func
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import ArrayAttr, IntAttr, NoneAttr, StringAttr
 from xdsl.dialects.experimental import dlt
-from xdsl.dialects.experimental.dlt import SelectOp
+from xdsl.dialects.experimental.dlt import SelectOp, SetAttr
 from xdsl.ir import (
     Block, SSAValue, Use, Operation, Attribute,
 )
@@ -51,7 +52,7 @@ class _Namer:
 @dataclass
 class DLTGenerateIterateOpIdentitiesRewriter(RewritePattern):
 
-    prefix: str = "_Ident_"
+    prefix: str = "_Iter_"
     iteration_maps: dict[dlt.LayoutScopeOp, IterationMap] = field(default_factory=dict)
     namers: dict[dlt.LayoutScopeOp, _Namer] = field(default_factory=dict)
 
@@ -69,6 +70,25 @@ class DLTGenerateIterateOpIdentitiesRewriter(RewritePattern):
             new_name = self.namers[scope].get_next()
             iter_op.set_identity(new_name)
             rewriter.handle_operation_modification(iter_op)
+
+        if "zeroable" in iter_op.attributes and "tensor_select_index_groups" in iter_op.attributes:
+            if isinstance(iter_op.order, dlt.AbstractIterationOrderAttr) and len(iter_op.order.non_zero_reducible_tensors) == 0:
+                all_extents = iter_op.order.extent_indices
+                zeroable = set(typing.cast(SetAttr[StringAttr], iter_op.attributes["zeroable"]))
+                select_groups = typing.cast(ArrayAttr[NoneAttr | StringAttr], iter_op.attributes["tensor_select_index_groups"])
+                assert isinstance(select_groups, ArrayAttr)
+                tensor_indices = []
+                for i, select_group in enumerate(select_groups):
+                    if select_group in zeroable:
+                        tensor_indices.append(i)
+                tensor_zeroable_extents = []
+                for t in tensor_indices:
+                    tensor_zeroable_extents.append(all_extents)
+                tensor_indices = ArrayAttr([IntAttr(i) for i in tensor_indices])
+                tensor_zeroable_extents = ArrayAttr(tensor_zeroable_extents)
+                new_order = dlt.AbstractIterationOrderAttr(all_extents, tensor_indices, tensor_zeroable_extents, iter_op.order.child)
+                iter_op.order = new_order
+                rewriter.handle_operation_modification(iter_op)
 
         self.iteration_maps[scope].add(iter_op)
 
@@ -118,14 +138,14 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
                     out_ptr = cast(dlt.PtrType, select_op.res.type)
                     if out_ptr.identification not in layout_graph.ident_count:
                         raise ValueError()
-                    layout_graph.add_edge(ptr_ident, select_op.members, select_op.dimensions, out_ptr.identification)
+                    layout_graph.add_edge(ptr_ident, select_op.members, select_op.dimensions, out_ptr.identification, None)
                 elif isinstance(use.operation, dlt.IterateOp):
                     iterate_op = cast(dlt.IterateOp, use.operation)
                     block_arg, dimses = iterate_op.get_block_arg_and_dims_for_input_arg(use)
                     if dimses is not None:
                         dim_attrs = {dim for dims in dimses for dim in dims}
                         out_ptr = cast(dlt.PtrType, block_arg.type)
-                        layout_graph.add_edge(ptr_ident, [], dim_attrs, out_ptr.identification)
+                        layout_graph.add_edge(ptr_ident, [], dim_attrs, out_ptr.identification, iterate_op.identification)
                 elif isinstance(use.operation, dlt.ExtractExtentOp):
                     extract_op = cast(dlt.ExtractExtentOp, use.operation)
                     if isinstance(extract_op.extent, dlt.InitDefinedExtentAttr):
@@ -169,7 +189,8 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
         for use in result.uses:
             ssa_values = UseDefChainTrait.get_defs_following_from_operand(use)
             for ssa in ssa_values:
-                this_ptr = ssa.type
+                this_ptr = typing.cast(dlt.PtrType, ssa.type)
+                assert isinstance(this_ptr, dlt.PtrType)
                 if this_ptr.has_identity:
                     layout_graph.add_equality_edge(identity, this_ptr.identification)
                 else:

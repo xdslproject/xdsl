@@ -1,5 +1,7 @@
+import typing
 from dataclasses import dataclass
 
+from xdsl.dialects.builtin import ArrayAttr, NoneAttr
 from xdsl.dialects.experimental import dlt
 from xdsl.ir import BlockArgument
 from xdsl.pattern_rewriter import (
@@ -17,6 +19,7 @@ class DLTIterateOptimiserRewriter(RewritePattern):
         parents = []
         current = sel_op.parent_op()
         while isinstance(current, dlt.IterateOp):
+            current = typing.cast(dlt.IterateOp, current)
             if sel_op.tree in current.get_block_args_for_tensor_args():
                 break
             if current.is_ancestor(sel_op.tree.owner):
@@ -54,9 +57,6 @@ class DLTIterateOptimiserRewriter(RewritePattern):
         if len(dims_to_remove) < 1:
             return  # No optimisations to be done here
 
-        print(dims_to_remove)
-        print(dim_mapping_per_parent)
-
         new_trees = [sel_op.tree]
         for p_i, parent in reversed(list(enumerate(parents))):
             new_arg_type = dlt.SelectOp.calculateResultType(
@@ -81,6 +81,11 @@ class DLTIterateOptimiserRewriter(RewritePattern):
             new_values,
             sel_op.res.type,
         )
+        zero_group = None
+        if "select_index_group" in sel_op.attributes:
+            zero_group = sel_op.attributes["select_index_group"]
+            new_select.attributes["select_index_group"] = zero_group
+
         rewriter.replace_matched_op([new_select], [new_select.res])
 
         for p_i, parent in enumerate(parents):
@@ -95,6 +100,17 @@ class DLTIterateOptimiserRewriter(RewritePattern):
 
             new_iter_tensors = (*parent.tensors, new_trees[p_i + 1])
 
+            if "tensor_select_index_groups" in parent.attributes:
+                if zero_group is None:
+                    zero_group = NoneAttr()
+                parent_tensor_zero_groups = typing.cast(ArrayAttr, parent.attributes["tensor_select_index_groups"])
+                assert isinstance(parent_tensor_zero_groups, ArrayAttr)
+                assert len(parent_tensor_zero_groups) == len(parent.tensors)
+                parent_tensor_zero_groups = list(parent_tensor_zero_groups)
+            else:
+                parent_tensor_zero_groups = [NoneAttr()]*len(parent.tensors)
+
+
             new_iterate_op = dlt.IterateOp(
                 list(parent.extents),
                 parent.extent_args,
@@ -105,6 +121,10 @@ class DLTIterateOptimiserRewriter(RewritePattern):
                 parent.identification,
                 new_iterate_body,
             )
-            rewriter.replace_op(parent, [new_iterate_op], new_iterate_op.results)
+            if "zeroable" in parent.attributes:
+                new_iterate_op.attributes["zeroable"] = parent.attributes["zeroable"]
+            if zero_group is not None:
+                new_tensor_zero_groups = parent_tensor_zero_groups + [zero_group]
+                new_iterate_op.attributes["tensor_select_index_groups"] = ArrayAttr(new_tensor_zero_groups)
 
-        print("Done")
+            rewriter.replace_op(parent, [new_iterate_op], new_iterate_op.results)

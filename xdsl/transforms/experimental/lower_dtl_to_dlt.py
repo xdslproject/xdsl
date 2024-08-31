@@ -1,4 +1,3 @@
-import dataclasses
 import functools
 import typing
 from dataclasses import dataclass
@@ -6,10 +5,12 @@ from typing import Union
 
 import xdsl.dialects.arith as arith
 import xdsl.dialects.builtin as builtin
-from xdsl import ir, printer
+from xdsl import ir
+from xdsl.dialects.builtin import StringAttr
 
 # from xdsl.dialects.builtin import *
 from xdsl.dialects.experimental import dlt, dtl
+from xdsl.dialects.experimental.dlt import SetAttr, SetOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -24,14 +25,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-tensor_shape: dict[str, int] = {}
-tensor_shape["P"] = 3
-tensor_shape["Q"] = 4
-
 tensor_base_type = builtin.f32
-
-output_buf = 1
-
 
 class ExprResult:
     def __init__(
@@ -51,10 +45,11 @@ TupleStruct: typing.TypeAlias = Union[tuple["TupleStruct[_T]", ...], _T]
 
 
 class OpsAndResult:
-    def __init__(self, ops: list[Operation], result: TupleStruct[ExprResult], allocated: list[dlt.AllocOp]):
+    def __init__(self, ops: list[Operation], result: TupleStruct[ExprResult], allocated: list[dlt.AllocOp], zeroable: list[StringAttr]):
         self.ops = ops
         self.result = result
         self.allocated = allocated
+        self.zeroable = zeroable
 
     @property
     def single_result(self) -> ExprResult:
@@ -159,6 +154,7 @@ class DTLRewriter(RewritePattern):
         self.rewriter = rewriter
         self.context = exe_op
         self.next_dimension_name_number = 0  #
+        self.next_select_ptr_name_number = 0
         self.next_temp_name_number = 0
 
         self.elements = {}
@@ -343,6 +339,7 @@ class DTLRewriter(RewritePattern):
         return OpsAndResult(
             [],
             ExprResult(self.context.tensor_args[block_arg.index], dlt_dims, base_type),
+            [],
             []
         )
 
@@ -412,15 +409,16 @@ class DTLRewriter(RewritePattern):
 
     def _match_indices_and_subexprs(
         self, indices, subexpr: TupleStruct[ExprResult], indexMap: dict[dtl.Index, SSAValue]
-    ) -> tuple[list[Operation], TupleStruct[ExprResult]]:
+    ) -> tuple[list[Operation], TupleStruct[ExprResult], list[StringAttr]]:
         if isinstance(subexpr, tuple):
             children = [
                 self._match_indices_and_subexprs(i, e, indexMap)
                 for i, e in zip(indices, subexpr)
             ]
             ops = [op for child in children for op in child[0]]
-            results = tuple([res for ops, res in children])
-            return (ops, results)
+            results = tuple([res for ops, res, _ in children])
+            zeroable_groups = [z for _, _, zs in children for z in zs]
+            return (ops, results, zeroable_groups)
         elif isinstance(subexpr, ExprResult):
             dlt_ptr = subexpr.ssa
             dlt_dims = subexpr.dims
@@ -435,10 +433,12 @@ class DTLRewriter(RewritePattern):
                     idxs.append(indexMap[i])
                     dims.append(n)
             selector = dlt.SelectOp(dlt_ptr, [], dims, idxs)
+            select_index_group = StringAttr("select_"+self.next_select_ptr_name())
+            selector.attributes["select_index_group"] = select_index_group
             ops = [selector]
             return ops, ExprResult(
-                SSAValue.get(selector), left_over_dims, subexpr.base_type
-            )
+                selector.res, left_over_dims, subexpr.base_type
+            ), [select_index_group]
 
     @_get_expression.register
     def _(
@@ -447,43 +447,88 @@ class DTLRewriter(RewritePattern):
         if self.verbose > 0:
             print(f"_get_expression: {expr.name} :===: {expr}")
         subexpr: OpsAndResult = self._get_expression(_op_for(expr.expr), indexMap)
-        ops, results = self._match_indices_and_subexprs(
+        ops, results, zeroable_groups = self._match_indices_and_subexprs(
             expr.indices, subexpr.result, indexMap
         )
-        return OpsAndResult(subexpr.ops + ops, results, subexpr.allocated)
+        if isinstance(results, ExprResult) and len(results.dims) == 0:
+            assert len(zeroable_groups) == 1
+            zeroable = zeroable_groups
+        else:
+            zeroable = []
+        return OpsAndResult(subexpr.ops + ops, results, subexpr.allocated, zeroable)
 
+    # def _match_indices_and_subDestinations(
+    #     self, indices: dtl.IndexingStruct, destination: TupleStruct[Destination], indexMap: dict[dtl.Index, SSAValue]
+    # ) -> tuple[list[Operation], TupleStruct[Destination]]:
+    #     if isinstance(destination, tuple):
+    #         assert isinstance(indices, dtl.IndexTupleStruct)
+    #         children = [
+    #             self._match_indices_and_subexprs(i, e, indexMap)
+    #             for i, e in zip(indices, destination)
+    #         ]
+    #         ops = [op for child in children for op in child[0]]
+    #         results = tuple([res for ops, res in children])
+    #         return (ops, results)
+    #     elif isinstance(destination, Destination):
+    #         assert isinstance(indices, dtl.IndexShapeStruct)
+    #         dlt_ptr = destination.ptr
+    #         dlt_dims = destination.dlt_dims
+    #         assert len([s for s in indices.shape if isinstance(s, dtl.NoneIndex)]) == len(dlt_dims)
+    #         idxs = []
+    #         dims = []
+    #         left_over_spaces = []
+    #         left_over_dlt_dims = []
+    #         dlt_dim_idx = 0
+    #         for i in indices.shape:
+    #             if isinstance(i, dtl.NoneIndex):
+    #                 left_over_spaces.append(destination.spaces[dlt_dim_idx])
+    #                 left_over_dlt_dims.append(destination.dlt_dims[dlt_dim_idx])
+    #                 dlt_dim_idx += 1
+    #             elif isinstance(i, dtl.Index):
+    #                 idxs.append(indexMap[i])
+    #                 dims.append(destination.dlt_dims[dlt_dim_idx])
+    #         for i, n in zip(indices.shape, dlt_dims):
+    #             if isinstance(i, dtl.NoneIndex):
+    #                 left_over_spaces.append(i)
+    #                 left_over_dlt_dims.append(n)
+    #             else:
+    #                 idxs.append(indexMap[i])
+    #                 dims.append(n)
+    #         selector = dlt.SelectOp(dlt_ptr, [], dims, idxs)
+    #         ops = [selector]
+    #         return ops, Destination(SSAValue.get(selector), left_over_spaces, left_over_dlt_dims, destination.base_type)
 
-    def _match_indices_and_subDestinations(
-        self, indices: dtl.IndexingStruct, destination: TupleStruct[Destination], indexMap: dict[dtl.Index, SSAValue]
-    ) -> tuple[list[Operation], TupleStruct[Destination]]:
+    def _copy_get_expr_index_to_do_index(self, result: TupleStruct[ExprResult], destination: TupleStruct[Destination | None]) -> list[Operation]:
         if isinstance(destination, tuple):
-            assert isinstance(indices, dtl.IndexTupleStruct)
-            children = [
-                self._match_indices_and_subexprs(i, e, indexMap)
-                for i, e in zip(indices, destination)
-            ]
-            ops = [op for child in children for op in child[0]]
-            results = tuple([res for ops, res in children])
-            return (ops, results)
+            assert isinstance(result, tuple)
+            ops = []
+            for r, d in zip(result, destination):
+                ops.extend(self._copy_get_expr_index_to_do_index(r, d))
+            return ops
         elif isinstance(destination, Destination):
-            assert isinstance(indices, dtl.IndexShapeStruct)
-            dlt_ptr = destination.ptr
-            dlt_dims = destination.dlt_dims
-            assert len(indices.shape) == len(dlt_dims)
-            idxs = []
-            dims = []
-            left_over_spaces = []
-            left_over_dlt_dims = []
-            for i, n in zip(indices.shape, dlt_dims):
-                if isinstance(i, dtl.NoneIndex):
-                    left_over_spaces.append(i)
-                    left_over_dlt_dims.append(n)
-                else:
-                    idxs.append(indexMap[i])
-                    dims.append(n)
-            selector = dlt.SelectOp(dlt_ptr, [], dims, idxs)
-            ops = [selector]
-            return ops, Destination(SSAValue.get(selector), left_over_spaces, left_over_dlt_dims, destination.base_type)
+            assert isinstance(result, ExprResult)
+            assert len(result.dims) == len(destination.dlt_dims)
+            assert result.base_type == destination.base_type
+
+            source_tensor = result.ssa
+            source_dlt_dims = result.dims
+
+            destination_dlt_dims = destination.dlt_dims
+
+            assert isinstance(source_tensor.type, dlt.PtrType)
+            assert destination.base_type == typing.cast(dlt.PtrType,
+                                                        source_tensor.type).contents_type.get_single_element().base_type
+
+            assert all(s.extent == d.extent for s, d in zip(source_dlt_dims, destination_dlt_dims))
+            if len(source_dlt_dims) == 0:
+                return [get := dlt.GetOp(source_tensor, destination.base_type), dlt.SetOp(destination.ptr, destination.base_type, get.res)]
+            else:
+                return [dlt.CopyOp(source_tensor, source_dlt_dims, destination.ptr, destination_dlt_dims, destination.base_type)]
+
+        elif destination is None:
+            return []
+        else:
+            assert False
 
     @_do_expression.register
     def _(
@@ -498,9 +543,12 @@ class DTLRewriter(RewritePattern):
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
             return []
-        ops, new_destination = self._match_indices_and_subDestinations(expr.indices, destination, index_map)
-        child_ops = self._do_expression(_op_for(expr.expr), new_destination, index_map)
-        return ops+child_ops
+        ops_res: OpsAndResult = self._get_expression(expr, index_map)
+        copy_ops = self._copy_get_expr_index_to_do_index(ops_res.result, destination)
+        # ops, new_destination = self._match_indices_and_subDestinations(expr.indices, destination, index_map)
+        # child_ops = self._do_expression(_op_for(expr.expr), new_destination, index_map)
+        dealloc_ops = [dlt.DeallocOp(alloc.res) for alloc in ops_res.allocated]
+        return ops_res.ops + copy_ops + dealloc_ops
 
     def _deindexing_struct_to_list(self, struct: dtl.DeIndexingStruct) -> list[dtl.IndexShapeStruct[dtl.Index | dtl.VectorSpace]]:
         if isinstance(struct, dtl.IndexTupleStruct):
@@ -909,7 +957,7 @@ class DTLRewriter(RewritePattern):
         ops.append(iterateOp)
         deindex_result = self._get_deindex_ExprResult(ptr_elements, elements)
 
-        return OpsAndResult(ops, deindex_result, [alloc])
+        return OpsAndResult(ops, deindex_result, [alloc], [])
 
     @_do_expression.register
     def _(
@@ -943,7 +991,7 @@ class DTLRewriter(RewritePattern):
                 extent_args.append(e_a)
 
         destinations: list[Destination] = _linear(destination, Destination)
-        deindex_shapes: list[dtl.IndexShapeStruct[dtl.Index, dtl.VectorSpace]] = self._deindexing_struct_to_list(expr.indices)
+        deindex_shapes: list[dtl.IndexShapeStruct[dtl.Index | dtl.VectorSpace]] = self._deindexing_struct_to_list(expr.indices)
         tensor_inputs = []
         dimension_specifiers = []
         tensor_block_args = []
@@ -952,7 +1000,7 @@ class DTLRewriter(RewritePattern):
         assert len(destinations) == len(deindex_shapes)
         for dest, deindex_shape in zip(destinations, deindex_shapes):
             dest: Destination = dest
-            deindex_shape: dtl.IndexShapeStruct[dtl.Index, dtl.VectorSpace] = deindex_shape
+            deindex_shape: dtl.IndexShapeStruct[dtl.Index | dtl.VectorSpace] = deindex_shape
             tensor_inputs.append(dest.ptr)
 
             extent_dims = [[] for _ in loop_indices]
@@ -1001,6 +1049,19 @@ class DTLRewriter(RewritePattern):
             return ext_dim, extent_val
         else:
             raise NotImplementedError(f"Vector space {vs} is not implemented")
+
+    # def get_tensor_var_for_selection(self, expr: Operation,
+    #                                  indices: set[dtl.Index],
+    #                                  current_tensors: dict[tuple[int,...], tuple[SSAValue, dict[dtl.Index, dlt.DimensionAttr]]],
+    #                                  path: tuple[int, ...]
+    #                                  ) -> dict[tuple[int,...], tuple[SSAValue, dlt.DimensionAttr, dtl.Index]]:
+    #     match expr:
+    #         case dtl.ScalarMulOp():
+    #             return self.get_tensor_var_for_selection(expr.lhs, indices, current_tensors, (*path, 0)) | self.get_tensor_var_for_selection(expr.rhs, indices, current_tensors, (*path, 1))
+    #         case dtl.TensorVariableOp:
+    #             if path in current_tensors:
+    #                 tensor_ssa, dims_already_selected = current_tensors[path]
+
 
     @_get_expression.register
     def _(
@@ -1081,12 +1142,13 @@ class DTLRewriter(RewritePattern):
             None,
             block,
         )
+        iterateOp.attributes["zeroable"] = SetAttr(subexpr.zeroable)
         ops.append(iterateOp)
         accumulator_result = iterateOp.results[0]
         accumulator_result_ssa = SSAValue.get(accumulator_result)
 
         return OpsAndResult(
-            ops, ExprResult(accumulator_result, [], accumulator_result_ssa.type), []
+            ops, ExprResult(accumulator_result, [], accumulator_result_ssa.type), [], []
         )
 
     @_do_expression.register
@@ -1123,7 +1185,7 @@ class DTLRewriter(RewritePattern):
         assert len(indexMap) == 0
         const_op = arith.Constant(expr.val)
         return OpsAndResult(
-            [const_op], ExprResult(const_op.result, [], const_op.result.type), []
+            [const_op], ExprResult(const_op.result, [], const_op.result.type), [], []
         )
 
     @_do_expression.register
@@ -1175,7 +1237,7 @@ class DTLRewriter(RewritePattern):
         ops = lsubexpr.ops + l_ops + rsubexpr.ops + r_ops + [add] + deallocs
         ssa = SSAValue.get(add)
 
-        return OpsAndResult(ops, ExprResult(ssa, [], ssa.type), [])
+        return OpsAndResult(ops, ExprResult(ssa, [], ssa.type), [], [])
 
     @_do_expression.register
     def _(
@@ -1230,7 +1292,7 @@ class DTLRewriter(RewritePattern):
         ops = lsubexpr.ops + l_ops + rsubexpr.ops + r_ops + [add] + deallocs
         ssa = SSAValue.get(add)
 
-        return OpsAndResult(ops, ExprResult(ssa, [], ssa.type), [])
+        return OpsAndResult(ops, ExprResult(ssa, [], ssa.type), [], [])
 
     @_do_expression.register
     def _(
@@ -1283,9 +1345,9 @@ class DTLRewriter(RewritePattern):
         mul = arith.Mulf(lf, rf)
         deallocs = [dlt.DeallocOp(alloc.res) for alloc in lsubexpr.allocated + rsubexpr.allocated]
         ops = lsubexpr.ops + l_ops + rsubexpr.ops + r_ops + [mul] + deallocs
-        ssa = SSAValue.get(mul)
+        ssa = mul.result
 
-        return OpsAndResult(ops, ExprResult(ssa, [], ssa.type), [])
+        return OpsAndResult(ops, ExprResult(ssa, [], ssa.type), [], lsubexpr.zeroable+rsubexpr.zeroable)
 
     @_do_expression.register
     def _(
@@ -1319,12 +1381,13 @@ class DTLRewriter(RewritePattern):
             assert len(expr.dims) == 0
             assert ssa.type == expr.base_type
             return [], ssa
-
-        if len(ssa.type.contents_type.elements) != 1:
+        assert isinstance(ssa.type, dlt.PtrType)
+        ptr_type = typing.cast(dlt.PtrType, ssa.type)
+        if len(ptr_type.contents_type.elements) != 1:
             raise ValueError(
                 f"Cannot get scalar from dlt.Ptr: {ssa.type} - more than one element"
             )
-        element = list(ssa.type.contents_type.elements)[0]
+        element = list(ptr_type.contents_type.elements)[0]
         if len(element.member_specifiers) != 0:
             raise ValueError(
                 f"Cannot get scalar from dlt.Ptr: {ssa.type} - member specifiers"
@@ -1355,7 +1418,7 @@ class DTLRewriter(RewritePattern):
             results.append(sub.result)
             allocs.extend(sub.allocated)
         result = tuple(results)
-        return OpsAndResult(ops, result, allocs)
+        return OpsAndResult(ops, result, allocs, [])
 
     @_do_expression.register
     def _(
@@ -1386,7 +1449,7 @@ class DTLRewriter(RewritePattern):
         if self.verbose > 0:
             print(f"_get_expression: {expr.name} :===: {expr}")
         res: OpsAndResult = self._get_expression(_op_for(expr.tuple), indexMap)
-        return OpsAndResult(res.ops, res.result[expr.index.data], res.allocated)
+        return OpsAndResult(res.ops, res.result[expr.index.data], res.allocated, [])
 
     @_do_expression.register
     def _(
@@ -1419,6 +1482,11 @@ class DTLRewriter(RewritePattern):
     def next_unique_name(self):
         next = self.next_dimension_name_number
         self.next_dimension_name_number = next + 1
+        return str(next)
+
+    def next_select_ptr_name(self):
+        next = self.next_select_ptr_name_number
+        self.next_select_ptr_name_number = next + 1
         return str(next)
 
     def next_temp_name(self):

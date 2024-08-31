@@ -1,10 +1,13 @@
+import typing
 from dataclasses import dataclass
 from typing import assert_type, cast
+
+from numpy.f2py.cfuncs import callbacks
 
 from xdsl.dialects import arith, builtin, llvm, printf, scf
 from xdsl.dialects.builtin import (
     AnyFloat,
-    DenseArrayBase,
+    ArrayAttr, DenseArrayBase,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -28,9 +31,10 @@ from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.dlt import layout_llvm_semantics
 from xdsl.transforms.experimental.dlt.layout_llvm_semantics import (
     ArgIndexGetter,
+    Callback,
     ExtentResolver,
     IndexGetter,
-    NoCallback,
+    LoopCallback, NoCallback,
     PtrCarriedExtentGetter,
     PtrCarriedIndexGetter,
     SSAExtentGetter,
@@ -616,13 +620,18 @@ class DLTIterateRewriter(RewritePattern):
             tensor_arg_extent_resolver = ExtentResolver(e_map, iterate_op.get_scope())
 
             tensor_map_map = {}
-            for extent_index, (extent, ext_dims) in enumerate(zip(iterate_op.extents, tensor_dims)):
+            for extent_index, (extent, ext_dims) in enumerate(
+                zip(iterate_op.extents, tensor_dims)
+            ):
                 ext_dims = cast(dlt.SetAttr[dlt.DimensionAttr], ext_dims)
-                if extent.is_static():
+                if len(ext_dims) == 0:
+                    pass  # this extent isn't used in this tensor - so it need not match, or exist
+                elif extent.is_static():
                     assert all(dim.extent == extent for dim in ext_dims)
                 elif extent.is_scope_time():
                     assert all(dim.extent == extent for dim in ext_dims)
                 else:
+                    # extent is used but cannot be compared statically, so we check bounds before looping.
                     get_tensor_extent_ops, (tensor_extent,) = (
                         tensor_arg_extent_resolver.resolve(extent).output()
                     )
@@ -648,7 +657,6 @@ class DLTIterateRewriter(RewritePattern):
 
             tensor_map.append((tensor_arg, tensor_map_map))
 
-
         resulting_iter_args = self._make_for_loop(
             iterate_op,
             extent_resolver,
@@ -661,8 +669,8 @@ class DLTIterateRewriter(RewritePattern):
         )
         rewriter.replace_matched_op(ops, resulting_iter_args)
 
+    @staticmethod
     def _make_for_loop(
-        self,
         iterate_op: dlt.IterateOp,
         extent_resolver: ExtentResolver,
         tensor_map: list[tuple[SSAValue, dict[dlt.DimensionAttr, int]]],
@@ -673,7 +681,7 @@ class DLTIterateRewriter(RewritePattern):
         pre_ops: list[Operation],
     ) -> list[SSAValue]:
         if isinstance(iteration_order, dlt.BodyIterationOrderAttr):
-            resulting_iter_args = self._make_inner_body(
+            resulting_iter_args = DLTIterateRewriter._make_inner_body(
                 iterate_op,
                 extent_resolver,
                 tensor_map,
@@ -702,11 +710,11 @@ class DLTIterateRewriter(RewritePattern):
                     if e_idx == extent_idx:
                         dims.append(dim)
                         values.append(sub_indices_map[e_idx])
-                new_t_map = {d:i for d, i in t_map.items() if d not in dims}
+                new_t_map = {d: i for d, i in t_map.items() if d not in dims}
                 select_op = dlt.SelectOp(tensor_ssa, [], dims, values)
                 loop_body.add_op(select_op)
                 new_tensor_map.append((select_op.res, new_t_map))
-            resulting_iter_args = self._make_for_loop(
+            resulting_iter_args = DLTIterateRewriter._make_for_loop(
                 iterate_op,
                 extent_resolver,
                 new_tensor_map,
@@ -720,12 +728,78 @@ class DLTIterateRewriter(RewritePattern):
             for_op = scf.For(lb, ext_ssa, step, iter_args, loop_body)
             Rewriter.insert_ops_at_location([for_op], insert_point)
             return list(for_op.res)
+        elif isinstance(iteration_order, dlt.NonZeroIterationOrderAttr):
+            ops = []
+            sparse_tensor_idx = iteration_order.tensor_index.data
+            sparse_tensor_ssa, dims = tensor_map[sparse_tensor_idx]
+            sparse_tensor_ptr_type = typing.cast(dlt.PtrType, sparse_tensor_ssa.type)
+            inner_ptr_type = iterate_op.get_block_arg_for_tensor_arg_idx(
+                sparse_tensor_idx
+            ).type
+            inner_ptr_type = typing.cast(dlt.PtrType, inner_ptr_type)
+            sparse_tensor_llvm_type = Semantic_Map.get_data_type_from_dlt_ptr(
+                sparse_tensor_ptr_type
+            )
+            cast_op = UnrealizedConversionCastOp.get(
+                sparse_tensor_ssa, sparse_tensor_llvm_type
+            )
+            ops.append(cast_op)
+            sparse_tensor_llvm = cast_op.outputs[0]
+
+            get_data_ptr_op = llvm.ExtractValueOp(
+                DenseArrayBase.from_list(i64, [0]),
+                sparse_tensor_llvm,
+                llvm.LLVMPointerType.opaque(),
+            )
+            ops.append(get_data_ptr_op)
+            sparse_tensor_llvm_data_ptr = get_data_ptr_op.res
+
+            filled_members = set(sparse_tensor_ptr_type.filled_members)
+            filled_dims = {
+                dim: PtrCarriedIndexGetter(
+                    sparse_tensor_llvm, sparse_tensor_ptr_type, dim=dim
+                )
+                for dim in sparse_tensor_ptr_type.filled_dimensions
+            }
+            extent_idxs_to_loop = [e.data for e in iteration_order.extent_indices]
+            extents_to_loop = [iterate_op.extents.data[e] for e in extent_idxs_to_loop]
+            dims_to_loop = {
+                d
+                for e in extent_idxs_to_loop
+                for d in iterate_op.dimensions.data[sparse_tensor_idx].data[e]
+            }
+
+            callback = _IterMakeLoopCallback(iterate_op,
+                                             extent_resolver,
+                                             tensor_map,
+                                             iteration_order,
+                                             iter_args,
+                                             indices_map,
+                                             dims,
+                                             pre_ops,
+                                             )
+
+            Rewriter.insert_ops_at_location(ops, insert_point)
+
+            child_ops, iter_args_out = Semantic_Map.make_sparse_loop_for(
+                sparse_tensor_ptr_type.layout,
+                inner_ptr_type.layout,
+                extent_resolver,
+                sparse_tensor_llvm_data_ptr,
+                callback,
+                callback.initial_iter_args(),
+                filled_members,
+                filled_dims,
+                dims_to_loop,
+            )
+            Rewriter.insert_ops_at_location(child_ops, insert_point)
+            return iter_args_out
         else:
             raise NotImplementedError(f"We do not currently support {iteration_order}")
 
+    @staticmethod
     def _make_inner_body(
-        self,
-        iterate_op: dlt.IterateOp,
+            iterate_op: dlt.IterateOp,
         extent_resolver: ExtentResolver,
         tensor_map: list[tuple[SSAValue, dict[dlt.DimensionAttr, int]]],
         indices_map: dict[int, BlockArgument],
@@ -766,6 +840,155 @@ class DLTIterateRewriter(RewritePattern):
         return yielded
 
 
+class _IterMakeLoopCallback(LoopCallback):
+
+    def __init__(
+            self,
+            iterate_op: dlt.IterateOp,
+            extent_resolver: ExtentResolver,
+            tensor_map: list[tuple[SSAValue, dict[dlt.DimensionAttr, int]]],
+            current_iter_order: dlt.NonZeroIterationOrderAttr,
+            iter_args: list[SSAValue],
+            indices_map: dict[int, BlockArgument],
+            dim_to_extent_idx_map: dict[dlt.DimensionAttr, int],
+            pre_ops: list[Operation],
+
+    ):
+        super().__init__(iter_args)
+        self.iterate_op = iterate_op
+        self.extent_resolver = extent_resolver
+        self.tensor_map = tensor_map
+        self.current_iter_order = current_iter_order
+        self.indices_map = indices_map
+        self.dim_to_extent_idx_map = dim_to_extent_idx_map
+        self.pre_ops = pre_ops
+
+    def body(self,
+             terminal_layout: dlt.Layout,
+             members: set[dlt.MemberAttr],
+             dim_map: dict[dlt.DimensionAttr, IndexGetter],
+             extent_resolver: ExtentResolver,
+             ptr: SSAValue,
+             iter_args: list[SSAValue],
+             ) -> tuple[list[Operation], list[SSAValue]]:
+        tensor_idx = self.current_iter_order.tensor_index.data
+        tensor_ptr, dims = self.tensor_map[tensor_idx]
+        extent_indices = {dims[d]: dim_map[d] for d in dims}
+        assert all(e.data in extent_indices for e in self.current_iter_order.extent_indices)
+        ops = []
+        new_tensor_map = []
+        for t_idx, (tensor_ssa, t_map) in enumerate(self.tensor_map):
+            dims = []
+            values = []
+            for dim, e_idx in t_map.items():
+                if e_idx in extent_indices:
+                    dims.append(dim)
+                    val_op, (val,) = extent_indices[e_idx].get().output()
+                    ops.extend(val_op)
+                    values.append(val)
+            new_t_map = {d: i for d, i in t_map.items() if d not in dims}
+            if t_idx == tensor_idx:
+
+                tensor_ptr_type = typing.cast(dlt.PtrType, tensor_ssa.type)
+                extract_ops, data_ptr, ptr_dim_map, ptr_extent_map = Semantic_Map.extract_from_ptr_struct(
+                    tensor_ptr_type, tensor_ssa)
+                ops.extend(extract_ops)
+
+                new_members = members - set(tensor_ptr_type.filled_members)
+                new_dimensions = set(dim_map.keys()) - set(ptr_dim_map.keys())
+                new_contents_type = tensor_ptr_type.contents_type.select_members(new_members).select_dimensions(new_dimensions)
+                selection_needed = terminal_layout.contents_type.has_selectable_type(new_contents_type)
+                assert len(selection_needed) == 1
+                members_needed, dimensions_needed = selection_needed.pop()
+                extents_needed = terminal_layout.get_all_init_base_extents()
+                terminal_layout.contents_type.has_selectable_type(tensor_ptr_type.contents_type.select_members(new_members).select_dimensions(new_dimensions))
+                new_tensor_ptr_type = dlt.PtrType(
+                    new_contents_type,
+                    terminal_layout,
+                    members_needed,
+                    ArrayAttr(dimensions_needed),
+                    ArrayAttr(extents_needed),
+                )
+                gen_ops, ptr_struct_result = Semantic_Map.generate_ptr_struct(
+                    new_tensor_ptr_type, ptr, ptr_dim_map | dim_map, self.extent_resolver.with_new(ptr_extent_map)
+                )
+                ops.extend(gen_ops)
+                cast_output_op = UnrealizedConversionCastOp.get(ptr_struct_result, new_tensor_ptr_type)
+                ops.append(cast_output_op)
+                new_tensor_map.append((cast_output_op.outputs[0], new_t_map))
+            else:
+                select_op = dlt.SelectOp(tensor_ssa, [], dims, values)
+                ops.append(select_op)
+                new_tensor_map.append((select_op.res, new_t_map))
+
+        sub_indices_map = dict(self.indices_map)
+        for i, getter in extent_indices.items():
+            getter_ops, (value,) = getter.get().output()
+            ops.extend(getter_ops)
+            sub_indices_map[i] = value
+
+        loop_block = Block()
+        resulting_iter_args = DLTIterateRewriter._make_for_loop(
+            self.iterate_op,
+            self.extent_resolver,
+            new_tensor_map,
+            self.current_iter_order.child,
+            iter_args,
+            sub_indices_map,
+            InsertPoint.at_end(loop_block),
+            self.pre_ops,
+        )
+        while len(loop_block.ops) > 0:
+            op = loop_block.detach_op(loop_block.first_op)
+            ops.append(op)
+
+        return ops, resulting_iter_args
+
+    def callback(
+        self,
+        terminal_layout: dlt.Layout,
+        members: set[dlt.MemberAttr],
+        dim_map: dict[dlt.DimensionAttr, IndexGetter],
+        dims_left_to_loop: set[dlt.DimensionAttr],
+        extent_resolver: ExtentResolver,
+        ptr: SSAValue,
+        iter_args: list[SSAValue],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        assert (set(dim_map.keys()) & dims_left_to_loop) == set()
+        if len(dims_left_to_loop) == 0:
+            return self.body(terminal_layout, members, dim_map, extent_resolver, ptr, iter_args)
+
+        dim_to_loop = dims_left_to_loop.pop()
+        ops = []
+        ops.append(lb := arith.Constant(IntegerAttr(0, IndexType())))
+        ops.append(step := arith.Constant(IntegerAttr(1, IndexType())))
+
+        extent = dim_to_loop.extent
+        extent_ops, (ext_ssa,) = extent_resolver.resolve(extent).output()
+        ops.extend(extent_ops)
+
+        loop_body = Block(arg_types=[IndexType()] + [arg.type for arg in iter_args])
+        sub_index = loop_body.args[0]
+
+        new_dim_map = dim_map | {dim_to_loop : ArgIndexGetter(sub_index)}
+        loop_iter_args = list(loop_body.args[1:])
+
+        loop_ops, iter_results = self.callback(
+            terminal_layout,
+            members,
+            new_dim_map,
+            dims_left_to_loop,
+            extent_resolver,
+            ptr,
+            loop_iter_args,
+        )
+        loop_body.add_ops(loop_ops)
+        loop_body.add_op(scf.Yield(*iter_results))
+        for_op = scf.For(lb, ext_ssa, step, iter_args, loop_body)
+        ops.append(for_op)
+        return ops, list(for_op.res)
+
+
 @dataclass
 class DLTCopyRewriter(RewritePattern):
 
@@ -802,7 +1025,7 @@ class DLTCopyRewriter(RewritePattern):
         src = iterate_op.get_block_arg_for_tensor_arg_idx(0)
         dst = iterate_op.get_block_arg_for_tensor_arg_idx(1)
         new_body_ops.append(load := dlt.GetOp(src, copy_op.copy_type))
-        new_body_ops.append(store := dlt.SetOp(dst, copy_op.copy_type, load))
+        new_body_ops.append(store := dlt.SetOp(dst, copy_op.copy_type, load.res))
         body.insert_ops_before(new_body_ops, body.last_op)
         rewriter.replace_matched_op(ops)
 

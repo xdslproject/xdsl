@@ -66,6 +66,12 @@ def _try_apply_sparse(layout: dlt.Layout):
             )
             sparse = [dims.pop()]
             return _make_sparse_layout(a_layout, dims, sparse, [])
+        elif len(a_layout.children) > 1:
+            sub_layouts = []
+            for child in a_layout.children:
+                sub_layouts.append(dlt.AbstractLayoutAttr([child]))
+            struct_layout = dlt.StructLayoutAttr(sub_layouts)
+            return _try_apply_sparse(struct_layout)
     children = [_try_apply_sparse(child) for child in layout.get_children()]
     return layout.from_new_children(children)
 

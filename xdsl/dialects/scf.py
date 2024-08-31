@@ -5,7 +5,7 @@ from typing import Annotated
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import AnySignlessIntegerOrIndexType, IndexType, IntegerType
+from xdsl.dialects.builtin import AnySignlessIntegerOrIndexType, IndexType, IntAttr, IntegerType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,

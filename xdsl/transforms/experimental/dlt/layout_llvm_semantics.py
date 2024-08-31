@@ -8,15 +8,16 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     FloatAttr,
     IndexType,
-    IntegerAttr,
+    IntAttr, IntegerAttr,
     IntegerType,
-    UnrealizedConversionCastOp,
+    StringAttr, UnrealizedConversionCastOp,
     i64,
 )
 from xdsl.dialects.experimental import dlt
+from xdsl.dialects.experimental.dlt import SetAttr
 from xdsl.ir import Block, Operation, SSAValue
 from xdsl.rewriter import InsertPoint, Rewriter
-
+from xdsl.transforms.experimental.dlt.layout_manipulation import Manipulator, ManipulatorMap
 
 class NumericResult:
     def __init__(
@@ -538,6 +539,70 @@ class DerivedInitialiser(Initialiser):
         )
 
 
+class LoopCallback(abc.ABC):
+    def __init__(self, initial_args: list[SSAValue] = None):
+        self._initial_args = initial_args
+
+    def initial_iter_args(self) -> list[SSAValue]:
+        return [] if self._initial_args is None else self._initial_args
+
+    @abc.abstractmethod
+    def callback(
+        self,
+        terminal_layout: dlt.Layout,
+        members: set[dlt.MemberAttr],
+        dim_map: dict[dlt.DimensionAttr, IndexGetter],
+        dims_left_to_loop: set[dlt.DimensionAttr],
+        extent_resolver: ExtentResolver,
+        ptr: SSAValue,
+        iter_args: list[SSAValue],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        raise NotImplementedError
+
+    # returns ops, list of iter args to be passed in to the next invocation
+
+class DerivedLoopCallback(LoopCallback):
+    def __init__(
+        self,
+        original: LoopCallback,
+        members: set[dlt.MemberAttr],
+        dim_map: dict[dlt.DimensionAttr, SSAValue|IndexGetter],
+    ):
+        self.original = original
+        self.members = members
+        self.dim_map = dim_map
+        if original is not None:
+            super().__init__(
+                # original.typetype.add_members(members).add_dimensions(dim_map.keys()),
+                original.initial_iter_args(),
+            )
+
+    def callback(
+        self,
+        terminal_layout: dlt.Layout,
+        members: set[dlt.MemberAttr],
+        dim_map: dict[dlt.DimensionAttr, SSAValue],
+        dims_left_to_loop: set[dlt.DimensionAttr],
+        extent_resolver: ExtentResolver,
+        ptr: SSAValue,
+        iter_args: list[SSAValue],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        new_dim_map_parts = {}
+        for dim, val in self.dim_map.items():
+            if isinstance(val, SSAValue):
+                val = ArgIndexGetter(val)
+            new_dim_map_parts[dim] = val
+        ops, iter_args_out = self.original.callback(
+            terminal_layout,
+            members | self.members,
+            (dim_map | new_dim_map_parts),
+            dims_left_to_loop,
+            extent_resolver,
+            ptr,
+            iter_args,
+        )
+        return ops, iter_args_out
+
 class Callback(abc.ABC):
     def __init__(self, initial_args: list[SSAValue] = None, can_exits_early=False):
         # self.typetype = typetype
@@ -566,7 +631,7 @@ class Callback(abc.ABC):
         raise NotImplementedError
 
     # returns ops, list of iter args to be passed in to the next invocation, and a value deciding if the iterating
-    # should stop early. Exiting early is ignored by Init-iteration.
+    # should stop early.
 
 
 class NoCallback(Callback):
@@ -713,7 +778,7 @@ class SemanticsMapper:
             input_ptr,
         )
         assert isinstance(val.type, llvm.LLVMPointerType)
-        assert val.owner in ops
+        assert val.owner in ops or val == input_ptr
         return ops, val
 
     def get_getter_for(
@@ -835,6 +900,7 @@ class SemanticsMapper:
         has_extra_space: bool | SSAValue,
         is_last_element: bool | SSAValue,
     ) -> tuple[list[Operation], list[SSAValue]]:
+        assert len(callback_args) == len(init_callback.initial_iter_args())
         assert isinstance(
             input_ptr.type, llvm.LLVMPointerType
         ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
@@ -859,6 +925,7 @@ class SemanticsMapper:
             is_last_element,
         )
         ops.extend(init_ops)
+        assert len(callback_args) == len(iter_args)
         return ops, iter_args
 
     def init_indexed_layout(
@@ -876,6 +943,7 @@ class SemanticsMapper:
         assert isinstance(
             input_ptr.type, llvm.LLVMPointerType
         ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
+        assert len(callback_args) == len(init_callback.initial_iter_args())
         ops: list[Operation] = []
         init_ops, iter_args = self.get_indexed(layout).init_layout(
             layout,
@@ -889,6 +957,7 @@ class SemanticsMapper:
             direct_iter_func,
         )
         ops.extend(init_ops)
+        assert len(callback_args) == len(iter_args)
         return ops, iter_args
 
     def dealloc_layout(
@@ -951,10 +1020,13 @@ class SemanticsMapper:
         # )
         ops: list[Operation] = []
         if isinstance(has_extra_space, bool):
+            converted = True
             ops.append(
                 op := arith.Constant(IntegerAttr(int(has_extra_space), IntegerType(1)))
             )
             has_extra_space = op.result
+        else:
+            converted = False
         init_ops, iter_args, exited_early = self.get_direct(layout).linear_iterate(
             layout,
             extent_resolver,
@@ -1050,6 +1122,33 @@ class SemanticsMapper:
             direct_iterate_func,
             direct_members,
             direct_dim_mapping,
+        )
+
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.DirectLayout,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        assert starting_layout.has_sub_layout(ending_layout)
+        assert isinstance(input_ptr.type, llvm.LLVMPointerType)
+        assert len(dims_to_loop & set(dim_mapping.keys())) == 0
+        return self.get_direct(starting_layout).make_sparse_loop_for(
+            starting_layout,
+            ending_layout,
+            extent_resolver,
+            input_ptr,
+            callback,
+            callback_args,
+            members,
+            dim_mapping,
+            dims_to_loop
         )
 
     # def get_iteration_for(
@@ -1323,6 +1422,20 @@ class DirectLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.A
     ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def make_sparse_loop_for(
+            self,
+            starting_layout: T,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        raise NotImplementedError
 
 class IndexedLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.ABC):
 
@@ -1487,7 +1600,9 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
             if_extra_space.extend(
                 ptr_ops + [llvm.StoreOp(zero_extra_val, extra_ptr), scf.Yield()]
             )
-            ops.append(scf.If(has_extra_space, [], if_extra_space))
+            if_op = scf.If(has_extra_space, [], if_extra_space)
+            # if_op.attributes["debug"] = StringAttr(f"Prim-_set_zero_ops")
+            ops.append(if_op)
         return ops
 
     def init_layout(
@@ -1510,15 +1625,15 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         if initial_found is not False:
             ssa_ops, initial_found = _make_bool_ssa(initial_found)
             ops.extend(ssa_ops)
-            ops.append(
-                scf.If(
-                    initial_found,
-                    [],
-                    [llvm.StoreOp(initial_value, input_ptr), scf.Yield()],
-                    self._set_zero_ops(layout.base_type, input_ptr, has_extra_space)
-                    + [scf.Yield()],
-                )
+            if_op = scf.If(
+                initial_found,
+                [],
+                [llvm.StoreOp(initial_value, input_ptr), scf.Yield()],
+                self._set_zero_ops(layout.base_type, input_ptr, has_extra_space)
+                + [scf.Yield()],
             )
+            # if_op.attributes["debug"] = StringAttr(f"Prim-_init_layout")
+            ops.append(if_op)
         else:
             ops.extend(self._set_zero_ops(layout.base_type, input_ptr, has_extra_space))
 
@@ -1586,6 +1701,32 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         # since a primitive always exists, there's no need to use the fill_value_getter
         return ops, val
 
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.PrimitiveLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        assert starting_layout == ending_layout
+        assert len(members) == 0
+        assert len(dim_mapping) == 0
+        assert len(dims_to_loop) == 0
+        callback_ops, iter_args_out = callback.callback(
+            starting_layout,
+            set(),
+            {},
+            set(),
+            extent_resolver,
+            input_ptr,
+            callback_args,
+        )
+        return callback_ops, iter_args_out
 
 class ConstantSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
 
@@ -1672,6 +1813,33 @@ class ConstantSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         raise AssertionError(
             "Const does not have 'space'. It cannot be Iterated in any order."
         )
+
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.ConstantLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        assert starting_layout == ending_layout
+        assert len(members) == 0
+        assert len(dim_mapping) == 0
+        assert len(dims_to_loop) == 0
+        callback_ops, iter_args_out = callback.callback(
+            starting_layout,
+            set(),
+            {},
+            set(),
+            extent_resolver,
+            input_ptr,
+            callback_args,
+        )
+        return callback_ops, iter_args_out
 
     def ensure_space(
         self,
@@ -1811,6 +1979,57 @@ class MemberSemantics(DirectLayoutNodeSemantics[dlt.MemberLayoutAttr]):
         )
         ops.extend(child_ops)
         return ops, iter_args_out, exited
+
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.MemberLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        if starting_layout == ending_layout:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
+        elif starting_layout.member_specifier in members:
+            ops = []
+            new_callback = DerivedLoopCallback(callback, {starting_layout.member_specifier}, {})
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.child,
+                ending_layout,
+                extent_resolver,
+                input_ptr,
+                new_callback,
+                callback_args,
+                members - {starting_layout.member_specifier},
+                dim_mapping,
+                dims_to_loop
+            )
+            ops.extend(child_ops)
+            return ops, iter_args_out
+        else:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
 
     def ensure_space(
         self,
@@ -2042,6 +2261,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
             if_op = scf.If(
                 value_found, [base_type], [scf.Yield(fill_value)], if_escalate
             )
+            # if_op.attributes["debug"] = StringAttr(f"Dense-Ensure_space")
             f_ops.append(if_op)
 
             return f_ops, if_op.output[0]
@@ -2122,6 +2342,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
             [scf.Yield(has_extra_space)],
             [scf.Yield(false_const)],
         )
+        # has_extra_if.attributes["debug"] = StringAttr(f"Dense-INit")
         block.add_op(has_extra_if)
 
         if isinstance(is_last_element, SSAValue):
@@ -2131,6 +2352,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
                 [scf.Yield(is_last_element)],
                 [scf.Yield(false_const)],
             )
+            # is_last_element_if.attributes["debug"] = StringAttr(f"Dense-Init_last_elem")
             block.add_op(is_last_element_if)
             is_last_element = is_last_element_if.output[0]
 
@@ -2265,6 +2487,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
             [scf.Yield(has_extra_space)],
             [scf.Yield(false_const)],
         )
+        # has_extra_if.attributes["debug"] = StringAttr(f"Dense_Lin_iter_exta")
         block.add_op(has_extra_if)
 
         if isinstance(is_last_element, SSAValue):
@@ -2274,6 +2497,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
                 [scf.Yield(is_last_element)],
                 [scf.Yield(false_const)],
             )
+            # is_last_element_if.attributes["debug"] = StringAttr(f"Dense_lin)iter_last")
             block.add_op(is_last_element_if)
             is_last_element = is_last_element_if.output[0]
 
@@ -2335,6 +2559,120 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
 
         return ops, output_callback_iter_args, did_exit_early
 
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.DenseLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        if starting_layout == ending_layout:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
+        elif starting_layout.dimension in dim_mapping:
+            idx_getter = dim_mapping.pop(starting_layout.dimension)
+            idx_ops, (index) = idx_getter.get().output()
+            ptr_ops, ptr = self.get_offset(
+                starting_layout,
+                ArgIndexGetter(index),
+                extent_resolver,
+                input_ptr,
+            )
+            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.child,
+                ending_layout,
+                extent_resolver,
+                ptr,
+                new_callback,
+                callback_args,
+                members,
+                dim_mapping,
+                dims_to_loop,
+            )
+            return idx_ops + ptr_ops + child_ops, iter_args_out
+        elif starting_layout.dimension in dims_to_loop:
+            child_size: NumericResult1 = self.semantics.get_size(
+                starting_layout.child, extent_resolver
+            ).keep(1)
+            ops: list[Operation] = []
+
+            true_const = arith.Constant(IntegerAttr(1, IntegerType(1)))
+            ops.append(true_const)
+            false_const = arith.Constant(IntegerAttr(0, IntegerType(1)))
+            ops.append(false_const)
+            one_const = arith.Constant(IntegerAttr(1, IndexType()))
+            ops.append(one_const)
+            zero_const = arith.Constant(IntegerAttr(0, IndexType()))
+            ops.append(zero_const)
+
+            child_size_ops, child_size = child_size.split()
+            ops.extend(child_size_ops)
+
+            start_idx = zero_const.result
+            step = one_const.result
+            end_idx_ops, (end_idx,) = extent_resolver.resolve(
+                starting_layout.dimension.extent
+            ).output()
+            ops.extend(end_idx_ops)
+
+            block = Block()  # loop body
+            index = block.insert_arg(
+                IndexType(), 0
+            )  # index - to run through the dense dimension
+            offset = child_size * NumericResult.from_mixed([], index)
+            ptr_add_ops, ptr_arg = offset.add_to_llvm_pointer(input_ptr)
+            block.add_ops(ptr_add_ops)
+
+            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            new_callback_args = []
+            for arg in callback_args:
+                new_callback_args.append(block.insert_arg(arg.type, len(block.args)))
+
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.child,
+                ending_layout,
+                extent_resolver,
+                ptr_arg,
+                new_callback,
+                new_callback_args,
+                members,
+                dim_mapping,
+                dims_to_loop - {starting_layout.dimension},
+            )
+            block.add_ops(child_ops)
+
+            block.add_op(scf.Yield(*iter_args_out))
+            for_loop =  scf.For(start_idx, end_idx, step, callback_args, block)
+            ops.append(for_loop)
+            output_callback_iter_args = list(for_loop.res)
+
+            return ops, output_callback_iter_args
+        else:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
+
 
 class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
     def get_size(
@@ -2350,29 +2688,33 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         self,
         starting_layout: dlt.StructLayoutAttr,
         members: set[dlt.MemberAttr],
-        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dimensions: set[dlt.DimensionAttr],
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
+        none_okay: bool = False,
     ) -> tuple[list[Operation], SSAValue, dlt.Layout, int]:
         if (
             sum(
                 1
                 for c in starting_layout.children
-                if c.contents_type.has_selectable(members, dim_mapping.keys()) > 0
+                if c.contents_type.has_selectable(members, dimensions) > 0
             )
             != 1
         ):
-            raise ValueError(
-                f"Cannot select ambiguously, but there are multiple possible children that could be ment by selecting: "
-                f"{members} and {dim_mapping.keys()} in {[c.contents_type for c in starting_layout.children]}"
-            )
+            if none_okay:
+                return None
+            else:
+                raise ValueError(
+                    f"Cannot select ambiguously, but there are multiple possible children that could be ment by selecting: "
+                    f"{members} and {dimensions} in {[c.contents_type for c in starting_layout.children]}"
+                )
         child = None
         child_idx = None
         offset = NumericResult.from_mixed([], 0)
         for i, child_layout in enumerate(starting_layout.children):
             child_layout: dlt.Layout = child_layout
             if (
-                child_layout.contents_type.has_selectable(members, dim_mapping.keys())
+                child_layout.contents_type.has_selectable(members, dimensions)
                 > 0
             ):
                 child = child_layout
@@ -2394,7 +2736,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
         ptr_ops, ptr, child, _ = self.pick_child(
-            starting_layout, members, dim_mapping, extent_resolver, input_ptr
+            starting_layout, members, set(dim_mapping.keys()), extent_resolver, input_ptr
         )
         child_ops, child_res = self.semantics.get_select_for(
             child, ending_layout, members, dim_mapping, extent_resolver, ptr
@@ -2411,7 +2753,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
         ptr_ops, ptr, child, _ = self.pick_child(
-            starting_layout, members, dim_mapping, extent_resolver, input_ptr
+            starting_layout, members, set(dim_mapping.keys()), extent_resolver, input_ptr
         )
         child_ops, child_res, child_found = self.semantics.get_getter_for(
             child, get_type, members, dim_mapping, extent_resolver, ptr
@@ -2428,7 +2770,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         input_ptr: SSAValue,
     ) -> list[Operation]:
         ptr_ops, ptr, child, _ = self.pick_child(
-            starting_layout, members, dim_mapping, extent_resolver, input_ptr
+            starting_layout, members, set(dim_mapping.keys()), extent_resolver, input_ptr
         )
         child_ops = self.semantics.get_setter_for(
             child, set_val, members, dim_mapping, extent_resolver, ptr
@@ -2447,7 +2789,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
     ) -> tuple[list[Operation], SSAValue]:
         ops: list[Operation] = []
         ptr_ops, ptr, child, child_idx = self.pick_child(
-            layout, members, dim_mapping, extent_resolver, input_ptr
+            layout, members, set(dim_mapping.keys()), extent_resolver, input_ptr
         )
         ops.extend(ptr_ops)
 
@@ -2498,6 +2840,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
                     [scf.Yield(true_op.result, running_val)],
                     lin_iter_ops + [scf.Yield(exited_early, callback_results[0])],
                 )
+                # if_op.attributes["debug"] = StringAttr(f"Struct_ensure")
                 f_ops.append(if_op)
                 running_known = if_op.output[0]
                 running_val = if_op.output[1]
@@ -2512,6 +2855,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
             if_op = scf.If(
                 running_known, [base_type], [scf.Yield(fill_value)], if_escalate
             )
+            # if_op.attributes["debug"] = StringAttr(f"Struct_ensure_2")
             f_ops.append(if_op)
 
             return f_ops, if_op.output[0]
@@ -2652,6 +2996,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
                 [scf.Yield(true_const.result, current_ptr, *current_callback_args)],
                 if_ops,
             )
+            # if_op.attributes["debug"] = StringAttr(f"Struct_lin_iter")
             ops.append(if_op)
             current_exit = if_op.output[0]
             current_ptr = if_op.output[1]
@@ -2659,6 +3004,55 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
 
         return ops, current_callback_args, current_exit
 
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.StructLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        if starting_layout == ending_layout:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
+        elif (child_data := self.pick_child(starting_layout, members, set(dim_mapping.keys())|dims_to_loop, extent_resolver, input_ptr, none_okay=True)) is not None:
+            ptr_ops, ptr, child, child_idx = child_data
+            new_callback = DerivedLoopCallback(callback, set(), {})
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                child,
+                ending_layout,
+                extent_resolver,
+                ptr,
+                new_callback,
+                callback_args,
+                members,
+                dim_mapping,
+                dims_to_loop,
+            )
+            return ptr_ops + child_ops, iter_args_out
+        else:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
 
 class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
 
@@ -2817,6 +3211,110 @@ class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
         ops.extend(child_ops)
         return ops, iter_args_out, exited
 
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.ArithDropLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        if starting_layout == ending_layout:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
+        elif starting_layout.dimension in dim_mapping:
+            idx_getter = dim_mapping.pop(starting_layout.dimension)
+            idx_ops, (index) = idx_getter.get().output()
+            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.child,
+                ending_layout,
+                extent_resolver,
+                input_ptr,
+                new_callback,
+                callback_args,
+                members,
+                dim_mapping,
+                dims_to_loop,
+            )
+            return idx_ops + child_ops, iter_args_out
+        elif starting_layout.dimension in dims_to_loop:
+            child_size: NumericResult1 = self.semantics.get_size(
+                starting_layout.child, extent_resolver
+            ).keep(1)
+            ops: list[Operation] = []
+
+            true_const = arith.Constant(IntegerAttr(1, IntegerType(1)))
+            ops.append(true_const)
+            false_const = arith.Constant(IntegerAttr(0, IntegerType(1)))
+            ops.append(false_const)
+            one_const = arith.Constant(IntegerAttr(1, IndexType()))
+            ops.append(one_const)
+            zero_const = arith.Constant(IntegerAttr(0, IndexType()))
+            ops.append(zero_const)
+
+            child_size_ops, child_size = child_size.split()
+            ops.extend(child_size_ops)
+
+            start_idx = zero_const.result
+            step = one_const.result
+            end_idx_ops, (end_idx,) = extent_resolver.resolve(
+                starting_layout.dimension.extent
+            ).output()
+            ops.extend(end_idx_ops)
+
+            block = Block()  # loop body
+            index = block.insert_arg(
+                IndexType(), 0
+            )  # index - to run through the dense dimension
+            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            new_callback_args = []
+            for arg in callback_args:
+                new_callback_args.append(block.insert_arg(arg.type, len(block.args)))
+
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.child,
+                ending_layout,
+                extent_resolver,
+                input_ptr,
+                new_callback,
+                new_callback_args,
+                members,
+                dim_mapping,
+                dims_to_loop - {starting_layout.dimension},
+            )
+            block.add_ops(child_ops)
+
+            block.add_op(scf.Yield(*iter_args_out))
+            for_loop = scf.For(start_idx, end_idx, step, callback_args, block)
+            ops.append(for_loop)
+            output_callback_iter_args = list(for_loop.res)
+
+            return ops, output_callback_iter_args
+        else:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
+
 
 class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr]):
 
@@ -2972,6 +3470,63 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
             )
             return ops, iter_args_out, exit_early
 
+
+    class ReplacementLoopCallback(LoopCallback):
+        def __init__(self, layout: dlt.ArithReplaceLayoutAttr, original: LoopCallback):
+            self.layout = layout
+            self.original = original
+            super().__init__(original.initial_iter_args())
+
+        def callback(
+                self,
+                terminal_layout: dlt.Layout,
+                members: set[dlt.MemberAttr],
+                dim_map: dict[dlt.DimensionAttr, IndexGetter],
+                dims_left_to_loop: set[dlt.DimensionAttr],
+                extent_resolver: ExtentResolver,
+                ptr: SSAValue,
+                iter_args: list[SSAValue],
+        ) -> tuple[list[Operation], list[SSAValue]]:
+            replacements = {
+                r
+                for r in self.layout.replacements
+                if r.inner_member in members and r.inner_dimension in (set(dim_map.keys())|dims_left_to_loop)
+            }
+            if len(replacements) != 1:
+                raise ValueError()
+            replacement = replacements.pop()
+
+            dim_in_map = False
+            dim_in_loop = False
+
+            new_members = members - {replacement.inner_member}
+            new_dim_map = {
+                dim: val
+                for dim, val in dim_map.items()
+                if dim != replacement.inner_dimension
+            }
+            if len(new_dim_map) < len(dim_map):
+                dim_in_map = True
+                new_dim_map |= {replacement.outer_dimension: dim_map[replacement.inner_dimension]}
+
+            new_dims_left_to_loop = {dim for dim in dims_left_to_loop if dim != replacement.inner_dimension}
+            if len(new_dims_left_to_loop) < len(dims_left_to_loop):
+                dim_in_loop = True
+                new_dims_left_to_loop |= {replacement.outer_dimension: dim_map[replacement.inner_dimension]}
+
+            assert not (dim_in_map and dim_in_loop)
+
+            ops, iter_args_out = self.original.callback(
+                terminal_layout,
+                new_members,
+                new_dim_map,
+                new_dims_left_to_loop,
+                extent_resolver,
+                ptr,
+                iter_args,
+            )
+            return ops, iter_args_out
+
     class ReplacementInitialiser(Initialiser):
         def __init__(self, layout: dlt.ArithReplaceLayoutAttr, original: Initialiser):
             self.layout = layout
@@ -3107,6 +3662,86 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
         )
         return child_ops, iter_args_out, exited
 
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.ArithReplaceLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        if starting_layout == ending_layout:
+                callback_ops, iter_args_out = callback.callback(
+                    starting_layout,
+                    members,
+                    dim_mapping,
+                    dims_to_loop,
+                    extent_resolver,
+                    input_ptr,
+                    callback_args,
+                )
+                return callback_ops, iter_args_out
+
+        overlap_dims = set(dim_mapping.keys()) & starting_layout.outer_dimensions()
+        if len(overlap_dims) > 0:
+            assert len(overlap_dims) == 1
+            dim = overlap_dims.pop()
+            replacement = starting_layout.replacement_for(dim)
+            new_dim_mapping = dict(dim_mapping)
+
+            idx_getter = new_dim_mapping.pop(replacement.outer_dimension)
+            new_dim_mapping[replacement.inner_dimension] = idx_getter
+            new_members = members | {replacement.inner_member}
+
+            new_callback = self.ReplacementLoopCallback(starting_layout, callback)
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.child,
+                ending_layout,
+                extent_resolver,
+                input_ptr,
+                new_callback,
+                callback_args,
+                new_members,
+                new_dim_mapping,
+                dims_to_loop,
+            )
+            return child_ops, iter_args_out
+        overlap_dims = set(dims_to_loop) & starting_layout.outer_dimensions()
+        if len(overlap_dims) > 0:
+            assert len(overlap_dims) == 1
+            dim = overlap_dims.pop()
+            replacement = starting_layout.replacement_for(dim)
+            new_dims_to_loop = (dims_to_loop-{replacement.outer_dimension})|{replacement.inner_dimension}
+            new_members = members | {replacement.inner_member}
+
+            new_callback = self.ReplacementLoopCallback(starting_layout, callback)
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.child,
+                ending_layout,
+                extent_resolver,
+                input_ptr,
+                new_callback,
+                callback_args,
+                new_members,
+                dim_mapping,
+                new_dims_to_loop,
+            )
+            return child_ops, iter_args_out
+
+        callback_ops, iter_args_out = callback.callback(
+            starting_layout,
+            members,
+            dim_mapping,
+            dims_to_loop,
+            extent_resolver,
+            input_ptr,
+            callback_args,
+        )
+        return callback_ops, iter_args_out
 
 class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
@@ -3340,6 +3975,7 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             if_index_range_found_true,
             if_index_range_found_false,
         )
+        # if_index_range_found_op.attributes["debug"] = StringAttr(f"Indexing_ensure")
         ops.append(if_index_range_found_op)
         true_index_range = if_index_range_found_op.output[0]
 
@@ -3451,6 +4087,7 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
         ops = []
         true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.append(true_op)
 
         ptr_space = self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
         ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
@@ -3530,6 +4167,107 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         ops.extend(child_ops)
         return ops, child_iter_args, child_exited_early
 
+    def make_sparse_loop_for(
+            self,
+            starting_layout: dlt.IndexingLayoutAttr,
+            ending_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            callback: LoopCallback,
+            callback_args: list[SSAValue],
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+    ) -> tuple[list[Operation], list[SSAValue]]:
+        if starting_layout == ending_layout:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
+
+        dir_type = starting_layout.directChild.contents_type
+        direct_members = dir_type.all_member_attributes() & members
+        direct_dims = dir_type.all_dimension_attributes() & (dims_to_loop | set(dim_mapping.keys()))
+        dir_select_type = dlt.TypeType([(direct_members, direct_dims, starting_layout.indexedChild.indexed_by())])
+        if (SetAttr([]), SetAttr([])) in dir_type.has_selectable_type(dir_select_type):
+            ops = []
+            ptr_space = self.semantics.get_size(starting_layout.indexedChild, extent_resolver).sum()
+            direct_ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
+            ops.extend(direct_ptr_ops)
+
+
+            direct_dim_mapping = {d: dim_mapping[d] for d in direct_dims if d in dim_mapping}
+            direct_dims_to_loop = {d for d in direct_dims if d in dims_to_loop}
+
+            direct_terminal = Manipulator.reduce_to_terminal(
+                starting_layout.directChild,
+                direct_members,
+                direct_dims,
+                starting_layout.indexedChild.indexed_by(),
+            )
+            assert direct_terminal is not None
+
+
+            idx_buffer_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
+            idx_buffer_ptr = idx_buffer_op.dereferenced_value
+            ops.append(idx_buffer_op)
+            data_buffer_ops, data_buffer_ptr_ptr = (
+                _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
+            )
+            ops.extend(data_buffer_ops)
+            data_buffer_op = llvm.LoadOp(data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque())
+            ops.append(data_buffer_op)
+            data_buffer_ptr = data_buffer_op.dereferenced_value
+
+            data_elem_size_ops, (data_elem_size,) = (
+                self.semantics.get_size(starting_layout.indexedChild.child, extent_resolver).keep(1).output()
+            )
+            ops.extend(data_elem_size_ops)
+
+            new_callback = UnpackCOOSemantics.SparseMakeLoopCallback(
+                self.semantics,
+                starting_layout.indexedChild,
+                ending_layout,
+                extent_resolver,
+                members - direct_members,
+                {d: g for d,g in dim_mapping.items() if d not in direct_dim_mapping},
+                dims_to_loop - direct_dims_to_loop,
+                idx_buffer_ptr,
+                data_buffer_ptr,
+                data_elem_size,
+                callback,
+                callback_args,
+            )
+
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
+                starting_layout.directChild,
+                direct_terminal,
+                extent_resolver,
+                direct_data_ptr,
+                new_callback,
+                callback_args,
+                direct_members,
+                direct_dim_mapping,
+                direct_dims_to_loop,
+            )
+            return ops + child_ops, iter_args_out
+        else:
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
 
 class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
 
@@ -4262,6 +5000,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         direct_init_func: LinearIterCallbackFunc,
         direct_iter_func: LinearIterCallbackFunc,
     ) -> tuple[list[Operation], list[SSAValue]]:
+        assert len(callback_args) == len(init_callback.initial_iter_args())
         ops = []
 
         running_total_initial_zero = arith.Constant(IntegerAttr(0, IndexType()))
@@ -4320,12 +5059,13 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             set_data_callback, is_last_element
         )
         ops.extend(set_data_ops)
-
-        return ops, iter_args
+        callback_iter_args = iter_args[3:]
+        assert len(callback_args) == len(callback_iter_args)
+        return ops, callback_iter_args
 
     def dealloc_layout(
         self,
-        layout: T,
+        layout: dlt.UnpackedCOOLayoutAttr,
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
         direct_iter_func: LinearIterCallbackFunc,
@@ -4338,13 +5078,16 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         idx_buffer_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
         idx_buffer_ptr = idx_buffer_op.dereferenced_value
         ops.append(idx_buffer_op)
-        data_buffer_ops, data_buffer_ptr = (
+        data_buffer_ptr_ptr_ops, data_buffer_ptr_ptr = (
             _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
         )
-        ops.extend(data_buffer_ops)
+        ops.extend(data_buffer_ptr_ptr_ops)
+        data_buffer_ptr_op = llvm.LoadOp(data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque())
+        ops.append(data_buffer_ptr_op)
+        data_buffer_ptr = data_buffer_ptr_op.dereferenced_value
 
         data_elem_size_ops, (data_elem_size,) = (
-            self.semantics.get_size(layout.indexedChild.child, extent_resolver)
+            self.semantics.get_size(layout.child, extent_resolver)
             .keep(1)
             .output()
         )
@@ -4352,7 +5095,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
 
         dealloc_callback = UnpackCOOSemantics.DeallocCallback(
             self.semantics,
-            layout.indexedChild,
+            layout,
             extent_resolver,
             data_buffer_ptr,
             data_elem_size,
@@ -4723,7 +5466,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             get_non_zeros, found_non_zeros = derived_initialiser.get_non_zero(
                 set(),
                 {
-                    dim: arg
+                    dim: ArgIndexGetter(arg)
                     for dim, arg in zip(
                         self.sparse_dims, iter_op.get_block_args_for_extent_args()
                     )
@@ -5274,6 +6017,153 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             did_exit_early = while_loop.results[1]
 
             return ops, output_inner_callback_iter_args, did_exit_early
+
+    class SparseMakeLoopCallback(LoopCallback):
+        def __init__(
+            self,
+            semantics: SemanticsMapper,
+            unpack_coo_layout: dlt.UnpackedCOOLayoutAttr,
+            end_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+            idx_buffer_ptr: SSAValue,
+            data_buffer_ptr: SSAValue,
+            data_element_size: SSAValue,
+            inner_callback: LoopCallback,
+            inner_callback_args: list[SSAValue],
+        ):
+            self.semantics = semantics
+            self.unpack_coo_layout = unpack_coo_layout
+
+            self.end_layout = end_layout
+            self.extent_resolver = extent_resolver
+            self.members = members
+            self.dim_mapping = dim_mapping
+            self.dims_to_loop = dims_to_loop
+
+            self.idx_buffer_ptr = idx_buffer_ptr
+            assert isinstance(self.idx_buffer_ptr.type, llvm.LLVMPointerType)
+            self.data_buffer_ptr = data_buffer_ptr
+            assert isinstance(self.data_buffer_ptr.type, llvm.LLVMPointerType)
+
+            self.data_element_size = data_element_size
+            assert isinstance(self.data_element_size.type, IndexType)
+
+            self.inner_callback = inner_callback
+
+            super().__init__(inner_callback_args)
+
+        def callback(
+                self,
+                terminal_layout: dlt.Layout,
+                members: set[dlt.MemberAttr],
+                dim_map: dict[dlt.DimensionAttr, IndexGetter],
+                dims_left_to_loop: set[dlt.DimensionAttr],
+                extent_resolver: ExtentResolver,
+                ptr: SSAValue,
+                iter_args: list[SSAValue],
+        ) -> tuple[list[Operation], list[SSAValue]]:
+            assert len(dims_left_to_loop) == 0
+            ops: list[Operation] = []
+            true_const = arith.Constant(IntegerAttr(1, IntegerType(1)))
+            ops.append(true_const)
+            false_const = arith.Constant(IntegerAttr(0, IntegerType(1)))
+            ops.append(false_const)
+            one_op = arith.Constant(IntegerAttr(1, IndexType()))
+            ops.append(one_op)
+
+            getter_ops, index_range, index_range_found = self.semantics.get_getter_for(
+                terminal_layout, dlt.IndexRangeType(), set(), {}, extent_resolver, ptr
+            )
+            ops.extend(getter_ops)
+            extract_ops, start, end = _extract_indices_from_index_range(index_range)
+            ops.extend(extract_ops)
+
+            idxs_step_ops, (idxs_step,) = (
+                _get_accepted_type_size(IndexType()).sum()
+                * NumericResult.from_mixed([], len(self.unpack_coo_layout.dimensions))
+            ).output()
+            ops.extend(idxs_step_ops)
+            idx_step_ops, (idx_step,) = (
+                _get_accepted_type_size(IndexType()).sum().output()
+            )
+            ops.extend(idx_step_ops)
+
+            start_idx, end_idx, step = start, end, one_op.result
+
+            block = Block()
+            index = block.insert_arg(IndexType(), 0)
+            block_inner_callback_args = [
+                block.insert_arg(arg.type, len(block.args)) for arg in iter_args
+            ]
+
+            idx_buffer_ops, current_idx_buffer_ptr = (
+                NumericResult.from_mixed([], index)
+                * NumericResult.from_mixed([], idxs_step)
+            ).add_to_llvm_pointer(self.idx_buffer_ptr)
+            block.add_ops(idx_buffer_ops)
+            data_buffer_ops, current_data_buffer_ptr = (
+                NumericResult.from_mixed([], index)
+                * NumericResult.from_mixed([], self.data_element_size)
+            ).add_to_llvm_pointer(self.data_buffer_ptr)
+            block.add_ops(data_buffer_ops)
+
+            looped_sparse_dims = {}
+            checked_sparse_dims = {}
+            checked = true_const.result
+            for dim in self.unpack_coo_layout.dimensions:
+                sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, IndexType())
+                block.add_op(sparse_index_load)
+                if dim in self.dims_to_loop:
+                    looped_sparse_dims[dim] = sparse_index_load.dereferenced_value
+                elif dim in self.dim_mapping:
+                    checked_sparse_dims[dim] = sparse_index_load.dereferenced_value
+                    val_wanted_ops, (val_wanted,) = self.dim_mapping[dim].get().output()
+                    block.add_ops(val_wanted_ops)
+                    cmp_op = arith.Cmpi(checked_sparse_dims[dim], val_wanted, "eq")
+                    block.add_op(cmp_op)
+                    checked_op = arith.AndI(cmp_op.result, checked)
+                    block.add_op(checked_op)
+                    checked = checked_op.result
+
+                increment_idx_ops, current_idx_buffer_ptr = NumericResult.from_mixed(
+                    [], idx_step
+                ).add_to_llvm_pointer(current_idx_buffer_ptr)
+                block.add_ops(increment_idx_ops)
+
+            if_checked_true = []
+            block_callback = DerivedLoopCallback(
+                self.inner_callback, members, dim_map | looped_sparse_dims | checked_sparse_dims
+            )
+
+            child_ops, new_inner_callback_arg = (
+                self.semantics.make_sparse_loop_for(
+                    self.unpack_coo_layout.child,
+                    self.end_layout,
+                    self.extent_resolver,
+                    current_data_buffer_ptr,
+                    block_callback,
+                    block_inner_callback_args,
+                    self.members,
+                    {d: g for d,g in self.dim_mapping.items() if d not in checked_sparse_dims},
+                    self.dims_to_loop - set(looped_sparse_dims.keys()),
+                )
+            )
+            if_checked_true.extend(child_ops)
+            if_checked_true.append(scf.Yield(*new_inner_callback_arg))
+            if_checked_false = []
+            if_checked_false.append(scf.Yield(*block_inner_callback_args))
+            if_checked_op = scf.If(checked, [arg.type for arg in iter_args], if_checked_true, if_checked_false)
+            block.add_op(if_checked_op)
+
+            block.add_op(scf.Yield(*if_checked_op.results))
+            for_loop = scf.For(start_idx, end_idx, step, iter_args, block)
+            ops.append(for_loop)
+            output_callback_iter_args = list(for_loop.res)
+
+            return ops, output_callback_iter_args
 
     class SparseIndexIncrementCallback(Callback):
 
