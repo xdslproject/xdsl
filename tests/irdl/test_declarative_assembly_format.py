@@ -862,29 +862,41 @@ def test_optional_operand(format: str, program: str, generic_program: str):
 
 
 @pytest.mark.parametrize(
-    "program, generic_program",
+    "program, generic_program, as_property",
     [
         (
             '%0 = "test.op"() : () -> i32\n'
             "test.variadic_operands(%0 : i32) [%0 : i32]",
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+            False,
+        ),
+        (
+            '%0 = "test.op"() : () -> i32\n'
+            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operands"(%0, %0) <{operandSegmentSizes = array<i32:1,1>}> : (i32,i32) -> ()',
+            True,
         ),
         (
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             "test.variadic_operands(%0, %1 : i32, i64) [%1, %0 : i64, i32]",
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             '"test.variadic_operands"(%0, %1, %1, %0) {operandSegmentSizes = array<i32:2,2>} : (i32, i64, i64, i32) -> ()',
+            False,
         ),
         (
             '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
             "test.variadic_operands(%0, %1, %2 : i32, i64, i128) [%2, %1, %0 : i128, i64, i32]",
             '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
             '"test.variadic_operands"(%0, %1, %2, %2, %1, %0) {operandSegmentSizes = array<i32:3,3>} : (i32, i64, i128, i128, i64, i32) -> ()',
+            False,
         ),
     ],
 )
-def test_multiple_variadic_operands(program: str, generic_program: str):
+def test_multiple_variadic_operands(
+    program: str, generic_program: str, as_property: bool
+):
     """Test the parsing of variadic operands"""
 
     @irdl_op_definition
@@ -893,7 +905,7 @@ def test_multiple_variadic_operands(program: str, generic_program: str):
         args1 = var_operand_def()
         args2 = var_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments()]
+        irdl_options = [AttrSizedOperandSegments(as_property=as_property)]
 
         assembly_format = (
             "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
