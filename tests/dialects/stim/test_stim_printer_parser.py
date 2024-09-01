@@ -8,7 +8,7 @@ from xdsl.dialects.stim.ops import (
     QubitCoordsOp,
     QubitMappingAttr,
 )
-from xdsl.dialects.stim.stim_parser import StimParser
+from xdsl.dialects.stim.stim_parser import StimParseError, StimParser
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
@@ -98,6 +98,7 @@ def test_stim_roundtrip_empty_circuit(program: str):
 @pytest.mark.parametrize(
     "program",
     [
+        ("QUBIT_COORDS() 0\n"),
         ("QUBIT_COORDS(0, 0) 0\n"),
         ("QUBIT_COORDS(0, 2) 1\n"),
         ("QUBIT_COORDS(0, 0) 0\n" "QUBIT_COORDS(1, 2) 2\n"),
@@ -105,3 +106,17 @@ def test_stim_roundtrip_empty_circuit(program: str):
 )
 def test_stim_roundtrip_qubit_coord_op(program: str):
     check_stim_roundtrip(program)
+
+
+def test_no_spaces_before_target():
+    with pytest.raises(StimParseError, match="Targets must be separated by spacing."):
+        program = "QUBIT_COORDS(1, 1)1"
+        parser = StimParser(program)
+        parser.parse_circuit()
+
+
+def test_no_targets():
+    program = "QUBIT_COORDS(1, 1)"
+    with pytest.raises(StimParseError, match="Expected at least one target"):
+        parser = StimParser(program)
+        parser.parse_circuit()

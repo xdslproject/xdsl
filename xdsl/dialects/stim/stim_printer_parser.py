@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
 
-from xdsl.dialects.builtin import ArrayAttr, IntAttr
+from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.ir import Attribute, Operation
 
 """
@@ -47,6 +47,9 @@ class StimPrinter:
             attribute = cast(ArrayAttr[Attribute], attribute)
             with self.in_parens():
                 self.print_list(attribute, self.print_attribute)
+            return
+        if isinstance(attribute, FloatData):
+            self.print_string(f"{attribute.data}")
             return
         if isinstance(attribute, IntAttr):
             self.print_string(f"{attribute.data}")

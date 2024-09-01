@@ -2,7 +2,7 @@ import re
 from collections.abc import Callable, Sequence
 from typing import TypeVar
 
-from xdsl.dialects.builtin import ArrayAttr, IntAttr
+from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.dialects.stim import (
     QubitCoordsOp,
 )
@@ -14,17 +14,17 @@ from xdsl.utils.str_enum import StrEnum
 T = TypeVar("T")
 
 
-class ParseError(Exception):
+class StimParseError(Exception):
     position: Position
     message: str
 
     def __init__(self, position: Position, message: str) -> None:
         self.position = position
         self.message = message
-        super().__init__(f"ParseError at {self.position}: {self.message}")
+        super().__init__(f"StimParseError at {self.position}: {self.message}")
 
 
-class InstructionSpelling(StrEnum):
+class Instruction(StrEnum):
     """
     Enum for the parse-able instructions in Stim.
     """
@@ -40,10 +40,10 @@ ARG = re.compile(r"\d+(\.\d+)?")
 # PAULI = re.compile("|".join(re.re.escape(p.value) for p in PauliSpelling))
 TARGET = re.compile(r"\d+")
 # GATE = re.compile("|".join(re.escape(p.value) for p in PrimitiveSpelling))
-# INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in InstructionSpelling))
+# INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in Instruction))
 NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]+")
 """
-A regular expression for a name, - letter followed by a number of letters or numbers or underscores.
+A regular expression for a name: a letter followed by a number of letters or numbers or underscores.
 """
 
 
@@ -78,7 +78,7 @@ class StimParser:
     # region Helpers
     def expect(self, message: str, parse: Callable[["StimParser"], T | None]) -> T:
         if (parsed := parse(self)) is None:
-            raise ParseError(self.pos, message)
+            raise StimParseError(self.pos, message)
         return parsed
 
     def parse_one_of(
@@ -92,8 +92,13 @@ class StimParser:
 
     def parse_circuit(self) -> StimCircuitOp:
         """
-        Greedily parse Stim dialect operations from a string formatted as a Stim file and return a StimCircuitOp
+        Parse Stim dialect operations from a string formatted as a Stim file and return a StimCircuitOp
         containing the operations in its single block.
+
+        Circuits have format:
+            circuit         ::= (line)*
+
+        Collect by operations instead of by line to skip any lines that are not converted into operations.
         """
         lines: list[Operation] = []
         while (op := self.parse_optional_operation()) is not None:
@@ -105,6 +110,9 @@ class StimParser:
     def parse_optional_comment(self) -> None:
         """
         Parse a comment if there, but this is not stored.
+
+        Comments have format:
+            comment ::= `#` NOT_NEWLINE
         """
         if self.parse_optional_chars("#") is None:
             return
@@ -114,6 +122,9 @@ class StimParser:
         )
 
     def _check_comment_and_newline(self) -> str | None:
+        """
+        Consume an optional comment and newline, returning if a newline has occured.
+        """
         self.parse_optional_comment()
         return self.parse_optional_pattern(NEWLINE)
 
@@ -125,6 +136,8 @@ class StimParser:
             line ::= indent? (instruction | block_start | block_end)? (comment ::= `#' NotNewLine)? NEWLINE
         As this parser goes straight to operations, and stim comments, indentations and empty lines have no semantic meaning
         we look for operations, then skip straight through any lines without instructions or block starts or ends.
+
+        Operations are given by instructions, or the a block containing instructions.
         """
 
         self.parse_optional_pattern(INDENT)
@@ -140,14 +153,11 @@ class StimParser:
     def parse_optional_instruction(self) -> Operation | None:
         """
         Parse instruction with format:
-            instruction ::= name parens_arguments? targets
+            instruction ::= name (parens_arguments)? targets
         """
         if (name := self.parse_optional_pattern(NAME)) is None:
             return None
-
-        # raise ParseError(self.pos, "Expected name at the beginning of an instruction.")
-
-        op = InstructionSpelling(name)
+        op = Instruction(name)
         parens = self.parse_optional_parens()
         if parens is None:
             parens = []
@@ -155,26 +165,42 @@ class StimParser:
         return self.build_operation(op, parens, targets)
 
     # region Parens parsing
-    def parse_paren(self):
+    def parse_optional_paren(self):
+        """
+        Parse an argument passed to an instruction in parentheses with format:
+            arg ::= double
+        """
         self.parse_optional_pattern(INDENT)
         if (str_val := self.parse_optional_pattern(ARG)) is not None:
             arg = float(str_val)
             return arg
 
     def parse_optional_parens(self) -> list[float] | None:
+        """
+        Parse an optional parenthesis with optional arguments with format:
+            parens ::= `(` (INDENT* arg INDENT* (',' INDENT* arg INDENT*)*)? `)`
+
+        TODO: The Stim documentation uses this format:
+            <PARENS_ARGUMENTS> ::= '(' <ARGUMENTS> ')'
+            <ARGUMENTS> ::= /[ \t]*/ <ARG> /[ \t]*/ (',' <ARGUMENTS>)?
+
+            but its implementation accepts empty arguments - this is kept here to be consistent.
+
+        """
         # Parse the opening bracket.
         if self.parse_optional_chars("(") is None:
             return None
-
-        # Check that there is a first argument
-        if (first := self.parse_paren()) is None:
-            raise ParseError(self.pos, "Expected at least one argument in parentheses")
-        args = [first]
+        if self.parse_optional_chars(")") is not None:
+            return []
+        # Check if an argument exists.
+        args: list[float] = [
+            self.expect("arg", lambda parser: parser.parse_optional_paren())
+        ]
         # Until the closing bracket is found:
         while self.parse_optional_chars(")") is None:
             self.parse_optional_pattern(INDENT)
             self.expect("comma", lambda parser: parser.parse_optional_chars(","))
-            arg = self.expect("arg", lambda parser: parser.parse_paren())
+            arg = self.expect("arg", lambda parser: parser.parse_optional_paren())
             args.append(arg)
 
         return args
@@ -183,50 +209,66 @@ class StimParser:
 
     # region Targets parsing
 
-    def parse_target(self) -> QubitAttr | None:
+    def parse_optional_target(self) -> QubitAttr | None:
+        """
+        Parse a target with format:
+            target ::= <QUBIT_TARGET> | <MEASUREMENT_RECORD_TARGET> | <SWEEP_BIT_TARGET> | <PAULI_TARGET> | <COMBINER_TARGET>
+        TODO: Currently only supports target ::= qubit_target as the other relevant operations are not yet supported
+        """
         # Check for a space
-        if self.parse_optional_pattern(INDENT) is None:
-            raise ParseError(self.pos, "Targets must be separated by spacing.")
+        space = self.parse_optional_pattern(SPACE)
+        self.parse_optional_pattern(INDENT)
         if (str_val := self.parse_optional_pattern(TARGET)) is not None:
+            if space is None:
+                raise StimParseError(self.pos, "Targets must be separated by spacing.")
             target = int(str_val)
             return QubitAttr(target)
 
     def parse_targets(self) -> list[QubitAttr]:
         """
-        Parse targets with form:
+        Parse targets with format:
             targets = SPACE INDENTS target targets?
         TODO: the Stim documentation indicates that their parser requires at least one target per instruction - but their actual parser does not enforce this. Check incongruency.
         """
         # Check that there is a first target
-        if (first := self.parse_target()) is None:
-            raise ParseError(self.pos, "Expected at least one target")
+        if (first := self.parse_optional_target()) is None:
+            raise StimParseError(self.pos, "Expected at least one target")
         targets = [first]
         # Parse targets until no more are found
-        while (target := self.parse_target()) is not None:
+        while (target := self.parse_optional_target()) is not None:
             targets.append(target)
         return targets
 
     # endregion
 
-    def build_coord_parens(self, parens: list[float]) -> ArrayAttr[IntAttr]:
-        coords = ArrayAttr([IntAttr(int(x)) for x in parens])
+    # region Build operation
+
+    def build_parens(self, parens: list[float]) -> ArrayAttr[FloatData | IntAttr]:
+        """
+        Convert a list of parens into an ArrayAttr.
+        """
+        args = [
+            (IntAttr(int(arg))) if (arg.is_integer()) else (FloatData(arg))
+            for arg in parens
+        ]
+        coords = ArrayAttr(args)
         return coords
 
     def build_operation(
-        self, op: InstructionSpelling, parens: list[float], targets: Sequence[QubitAttr]
+        self, op: Instruction, parens: list[float], targets: Sequence[QubitAttr]
     ):
+        """
+        Build the operation corresponding to the name, parens, and targets found by the parser.
+        """
         match op:
-            case InstructionSpelling.COORD:
-                if len(targets) > 1:
-                    raise ParseError(
-                        self.pos, "QUBIT_COORDS can only act on one target"
-                    )
+            case Instruction.COORD:
+                if targets == []:
+                    # In line with the behaviour of the Stim parser, parsing an empty parens argument gives a paren with 0 in.
+                    targets = [QubitAttr(0)]
                 qubit = targets[0]
-                coords = self.build_coord_parens(parens)
+                coords = self.build_parens(parens)
                 mapping = QubitMappingAttr(coords, qubit)
                 return QubitCoordsOp(mapping)
-
-    # region Build operation
 
     # endregion
 
