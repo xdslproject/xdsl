@@ -5,40 +5,41 @@ builtin.module {
 
 
   %0 = "test.op"() : () -> i1
-  "scf.if"(%0) ({
+  scf.if %0 {
     %1 = "test.op"() : () -> i32
     scf.yield
-  }, {
+  } else {
     %2 = "test.op"() : () -> i32
-    scf.yield
-  }) : (i1) -> ()
+  }
 
   // CHECK:      %{{.*}} = "test.op"() : () -> i1
-  // CHECK-NEXT: "scf.if"(%{{.*}}) ({
+  // CHECK-NEXT: scf.if %{{.*}} {
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
-  // CHECK-NEXT:   scf.yield
-  // CHECK-NEXT: }, {
+  // CHECK-NEXT: } else {
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
-  // CHECK-NEXT:   scf.yield
-  // CHECK-NEXT: }) : (i1) -> ()
+  // CHECK-NEXT: }
 
 
-  %3 = "scf.if"(%0) ({
+  %3 = scf.if %0 -> (i32) {
     %4 = "test.op"() : () -> i32
     scf.yield %4 : i32
-  }, {
+  } else {
     %5 = "test.op"() : () -> i32
     scf.yield %5 : i32
-  }) : (i1) -> i32
+  }
 
-
-  // CHECK:      %{{.*}} = "scf.if"(%{{.*}}) ({
+  // CHECK:      %{{.*}} = scf.if %{{.*}} -> (i32) {
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
   // CHECK-NEXT:   scf.yield %{{.*}} : i32
-  // CHECK-NEXT: }, {
+  // CHECK-NEXT: } else {
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
   // CHECK-NEXT:   scf.yield %{{.*}} : i32
-  // CHECK-NEXT: }) : (i1) -> i32
+  // CHECK-NEXT: }
+
+  scf.if %0 {}
+
+  // CHECK: scf.if %{{.*}} {
+  // CHECK-NEXT: }
 
   func.func @while() {
     %init = arith.constant 0 : i32

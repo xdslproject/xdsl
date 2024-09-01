@@ -170,7 +170,7 @@ class If(IRDLOperation):
     output: VarOpResult = var_result_def(AnyAttr())
     cond: Operand = operand_def(IntegerType(1))
 
-    true_region: Region = region_def()
+    true_region: Region = region_def("single_block")
     # TODO this should be optional under certain conditions
     false_region: Region = region_def()
 
@@ -188,6 +188,7 @@ class If(IRDLOperation):
         return_types: Sequence[Attribute],
         true_region: Region | Sequence[Block] | Sequence[Operation],
         false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         if false_region is None:
             false_region = Region()
@@ -196,7 +197,75 @@ class If(IRDLOperation):
             operands=[cond],
             result_types=[return_types],
             regions=[true_region, false_region],
+            attributes=attr_dict,
         )
+
+    @staticmethod
+    def parse_region_with_yield(parser: Parser) -> Region:
+        region = parser.parse_region()
+        block = region.blocks.last
+        if block is None:
+            block = Block()
+            region.add_block(block)
+        last_op = block.last_op
+        if last_op is not None and last_op.has_trait(IsTerminator):
+            return region
+
+        block.add_op(Yield())
+
+        return region
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        cond = parser.parse_operand()
+        return_types = []
+        if parser.parse_optional_punctuation("->"):
+            return_types = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+        else:
+            return_types = []
+
+        then_region = cls.parse_region_with_yield(parser)
+
+        else_region = (
+            cls.parse_region_with_yield(parser)
+            if parser.parse_optional_keyword("else")
+            else Region()
+        )
+
+        attr_dict = parser.parse_optional_attr_dict()
+
+        return cls(cond, return_types, then_region, else_region, attr_dict)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.cond)
+
+        print_block_terminators = False
+        if bool(self.output):
+            printer.print_string(" -> (")
+            printer.print_list(self.output.types, printer.print_attribute)
+            printer.print_string(")")
+            print_block_terminators = True
+
+        printer.print_string(" ")
+        printer.print_region(
+            self.true_region,
+            print_entry_block_args=False,
+            print_block_terminators=print_block_terminators,
+        )
+
+        if bool(self.false_region.blocks):
+            printer.print_string(" else ")
+            printer.print_region(
+                self.false_region,
+                print_entry_block_args=False,
+                print_block_terminators=print_block_terminators,
+            )
+
+        if bool(self.attributes.keys):
+            printer.print_attr_dict(self.attributes)
 
 
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
