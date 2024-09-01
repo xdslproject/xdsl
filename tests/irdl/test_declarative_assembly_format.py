@@ -38,12 +38,15 @@ from xdsl.irdl import (
     opt_prop_def,
     opt_region_def,
     opt_result_def,
+    opt_successor_def,
     prop_def,
     region_def,
     result_def,
+    successor_def,
     var_operand_def,
     var_region_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -1358,6 +1361,182 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
 
     ctx = MLContext()
     ctx.load_op(OptionalRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
+# Successors                                                                   #
+################################################################################
+
+
+def test_missing_successor():
+    """Test that successors should be parsed."""
+    with pytest.raises(PyRDLOpDefinitionError, match="successor 'successor' not found"):
+
+        @irdl_op_definition
+        class NoSuccessorOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.no_successor_op"
+            successor = successor_def()
+
+            assembly_format = "attr-dict-with-keyword"
+
+
+def test_successors():
+    """Test the parsing of successors"""
+
+    program = textwrap.dedent(
+        """\
+        "test.op"() ({
+          "test.op"() [^0] : () -> ()
+        ^0:
+          test.two_successors ^0 ^0
+        }) : () -> ()"""
+    )
+
+    generic_program = textwrap.dedent(
+        """\
+        "test.op"() ({
+          "test.op"() [^0] : () -> ()
+        ^0:
+          "test.two_successors"() [^0, ^0] : () -> ()
+        }) : () -> ()"""
+    )
+
+    @irdl_op_definition
+    class TwoSuccessorsOp(IRDLOperation):
+        name = "test.two_successors"
+        fst = successor_def()
+        snd = successor_def()
+
+        assembly_format = "$fst $snd attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(TwoSuccessorsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.var_successor \n}) : () -> ()',
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.var_successor"() : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+        (
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  test.var_successor ^0
+                }) : () -> ()"""
+            ),
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.var_successor"() [^0] : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+        (
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  test.var_successor ^0 ^0
+                }) : () -> ()"""
+            ),
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.var_successor"() [^0, ^0] : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+    ],
+)
+def test_variadic_successor(program: str, generic_program: str):
+    """Test the parsing of successors"""
+
+    @irdl_op_definition
+    class VarSuccessorOp(IRDLOperation):
+        name = "test.var_successor"
+        succ = var_successor_def()
+
+        assembly_format = "$succ attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(VarSuccessorOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.opt_successor \n}) : () -> ()',
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.opt_successor"() : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+        (
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  test.opt_successor ^0
+                }) : () -> ()"""
+            ),
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.opt_successor"() [^0] : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+    ],
+)
+def test_optional_successor(program: str, generic_program: str):
+    """Test the parsing of successors"""
+
+    @irdl_op_definition
+    class OptSuccessorOp(IRDLOperation):
+        name = "test.opt_successor"
+        succ = opt_successor_def()
+
+        assembly_format = "$succ attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptSuccessorOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)

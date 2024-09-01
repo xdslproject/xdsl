@@ -23,12 +23,14 @@ from xdsl.irdl import (
     OptOperandDef,
     OptRegionDef,
     OptResultDef,
+    OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     VariadicDef,
     VarOperandDef,
     VarRegionDef,
     VarResultDef,
+    VarSuccessorDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
@@ -48,12 +50,14 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalRegionVariable,
     OptionalResultTypeDirective,
     OptionalResultVariable,
+    OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
     ResultTypeDirective,
     ResultVariable,
+    SuccessorVariable,
     VariableDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
@@ -63,6 +67,7 @@ from xdsl.irdl.declarative_assembly_format import (
     VariadicRegionVariable,
     VariadicResultTypeDirective,
     VariadicResultVariable,
+    VariadicSuccessorVariable,
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -131,6 +136,8 @@ class FormatParser(BaseParser):
     """The properties that are already parsed."""
     seen_regions: list[bool]
     """The region variables that are already parsed."""
+    seen_successors: list[bool]
+    """The successor variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -150,6 +157,7 @@ class FormatParser(BaseParser):
         self.seen_attributes = set[str]()
         self.seen_properties = set[str]()
         self.seen_regions = [False] * len(op_def.regions)
+        self.seen_successors = [False] * len(op_def.successors)
         self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
@@ -171,6 +179,7 @@ class FormatParser(BaseParser):
         self.verify_operands(seen_variables)
         self.verify_results(seen_variables)
         self.verify_regions()
+        self.verify_successors()
         return FormatProgram(elements)
 
     def verify_directives(self, elements: list[FormatDirective]):
@@ -335,6 +344,25 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format."
                 )
 
+    def verify_successors(self):
+        """
+        Check that all successors are present.
+        """
+        for (
+            seen_successor,
+            (successor_name, _),
+        ) in zip(
+            self.seen_successors,
+            self.op_def.successors,
+            strict=True,
+        ):
+            if not seen_successor:
+                self.raise_error(
+                    f"successor '{successor_name}' "
+                    f"not found, consider adding a '${successor_name}' "
+                    "directive to the custom assembly format."
+                )
+
     def parse_optional_variable(
         self,
     ) -> VariableDirective | AttributeVariable | None:
@@ -400,6 +428,19 @@ class FormatParser(BaseParser):
                     return VariadicRegionVariable(variable_name, idx)
                 case _:
                     return RegionVariable(variable_name, idx)
+
+        # Check if the variable is a successor
+        for idx, (successor_name, successor_def) in enumerate(self.op_def.successors):
+            if variable_name != successor_name:
+                continue
+            self.seen_successors[idx] = True
+            match successor_def:
+                case OptSuccessorDef():
+                    return OptionalSuccessorVariable(variable_name, idx)
+                case VarSuccessorDef():
+                    return VariadicSuccessorVariable(variable_name, idx)
+                case _:
+                    return SuccessorVariable(variable_name, idx)
 
         attr_or_prop_by_name = {
             attr_name: attr_or_prop

@@ -26,6 +26,7 @@ from xdsl.irdl import (
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
+    Successor,
     VariadicDef,
     VarIRConstruct,
 )
@@ -50,19 +51,17 @@ class ParsingState:
     operand_types: list[Attribute | None | list[Attribute | None]]
     result_types: list[Attribute | None | list[Attribute | None]]
     regions: list[Region | None | list[Region]]
+    successors: list[Successor | None | list[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     constraint_context: ConstraintContext
 
     def __init__(self, op_def: OpDef):
-        if op_def.successors:
-            raise NotImplementedError(
-                "Operation definitions with successors are not yet supported"
-            )
         self.operands = [None] * len(op_def.operands)
         self.operand_types = [None] * len(op_def.operands)
         self.result_types = [None] * len(op_def.results)
         self.regions = [None] * len(op_def.regions)
+        self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
         self.constraint_context = ConstraintContext()
@@ -168,6 +167,7 @@ class FormatProgram:
             attributes=state.attributes,
             properties=properties,
             regions=state.regions,
+            successors=state.successors,
         )
 
     def assign_constraint_variables(
@@ -806,6 +806,80 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
         region = getattr(op, self.name)
         if region:
             printer.print_region(region)
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+
+class SuccessorVariable(VariableDirective, OptionallyParsableDirective):
+    """
+    A successor variable, with the following format:
+      successor-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        successor = parser.parse_optional_successor()
+
+        state.successors[self.index] = successor
+
+        return successor is not None
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_block_name(getattr(op, self.name))
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+class VariadicSuccessorVariable(VariadicVariable, OptionallyParsableDirective):
+    """
+    A variadic successor variable, with the following format:
+      successor-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        successors: list[Successor] = []
+        current_successor = parser.parse_optional_successor()
+        while current_successor is not None:
+            successors.append(current_successor)
+            current_successor = parser.parse_optional_successor()
+
+        state.successors[self.index] = successors
+
+        return bool(successors)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        successor = getattr(op, self.name)
+        if successor:
+            printer.print_list(successor, printer.print_block_name, delimiter=" ")
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+
+class OptionalSuccessorVariable(OptionalVariable, OptionallyParsableDirective):
+    """
+    An optional successor variable, with the following format:
+      successor-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        successor = parser.parse_optional_successor()
+        if successor is None:
+            successor = list[Successor]()
+        state.successors[self.index] = successor
+        return bool(successor)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        successor = getattr(op, self.name)
+        if successor:
+            printer.print_block_name(successor)
             state.last_was_punctuation = False
             state.should_emit_space = True
 
