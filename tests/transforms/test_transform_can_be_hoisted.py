@@ -1,5 +1,5 @@
-from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import builtin, func, scf, test
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import func, scf, test
 from xdsl.dialects.arith import Addf
 from xdsl.dialects.builtin import (
     FunctionType,
@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.scf import For, Yield
-from xdsl.ir import Block, BlockArgument, Region
+from xdsl.ir import Block, Region
 from xdsl.transforms.loop_invariant_code_motion import can_be_hoisted
 
 index = IndexType()
@@ -43,7 +43,7 @@ def test_for_with_loop_invariant_verify():
 
     assert can_be_hoisted(op1, region)
     assert can_be_hoisted(op2, region)
-    assert can_be_hoisted(op3, region)
+    assert not can_be_hoisted(op3, region)
     assert not can_be_hoisted(f, region)
 
 
@@ -59,36 +59,41 @@ def test_invariant_loop_dialect():
     co0 = test.TestOp(result_types=[i32])
     co1 = test.TestOp(result_types=[i32])
     coi = test.TestOp(result_types=[i32])
-
-    @Builder.implicit_region((builtin.IndexType(),))
-    def inner_loop_body(args: tuple[BlockArgument, ...]):
-        bla = test.TestOp(result_types=[i32])
+    block = Block(
+        arg_types=(
+            index,
+            index,
+        )
+    )
+    block1 = Block(
+        arg_types=(
+            index,
+            index,
+        )
+    )
+    region_inner = Region(block)
+    with ImplicitBuilder(block) as (_arg0, _):
+        op1 = test.TestOp(result_types=[i32])
         # Test operation inside the loop
-        hello = test.TestOp([bla], result_types=[i32])
+        hello = test.TestOp([op1], result_types=[i32])
         test.TestOp([hello], result_types=[])
         # Floating-point addition inside the loop
-        _v0 = Addf(cf7, cf8)
+        v0 = Addf(cf7, cf8)
 
-    @Builder.implicit_region((builtin.IndexType(),))
-    def outer_loop_body(args: tuple[BlockArgument, ...]):
-        scf.For(ci0, ci10, ci1, [], inner_loop_body)
+    region = Region(block1)
+    with ImplicitBuilder(block1) as (_arg1, _):
+        scf.For(ci0, ci10, ci1, [], region_inner)
 
-    for_op = For(co0, co1, coi, [], outer_loop_body)
+    for_op = For(co0, co1, coi, [], region)
     body0 = Block([cf7, cf8, for_op])
-    region0 = Region(body0)
+    region_outer = Region(body0)
     func_type = FunctionType.from_lists([], [])
-    function = func.FuncOp("invariant_loop_dialect", func_type, region0)
+    function = func.FuncOp("invariant_loop_dialect", func_type, region_outer)
 
     # Wrap all in a ModuleOp
-    mod = ModuleOp([function])
-    # Inner most for loop
-    if any(isinstance(ha, scf.For) for ha in mod.body.walk()):
-        return
-    # Assertions to check loop invariant and hoisting
-    for op in mod.body.walk():
-        if isinstance(op, test.TestOp):
-            assert not can_be_hoisted(op, mod.body)
-        elif isinstance(op, Addf):
-            region = op.parent_region()
-            assert region is not None
-            assert can_be_hoisted(op, region)
+    _mod = ModuleOp([function])
+    assert can_be_hoisted(op1, region)
+    assert not can_be_hoisted(hello, region)
+    assert can_be_hoisted(cf7, region_outer)
+    assert can_be_hoisted(cf8, region_outer)
+    assert can_be_hoisted(v0, region)

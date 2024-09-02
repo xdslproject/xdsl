@@ -34,7 +34,7 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
     # the loop body.
     for child in op.walk():
         for operand in child.operands:
-            operand_owner = operand.owner.parent_op()
+            operand_owner = operand.owner
             assert operand_owner is not None
             if op.is_ancestor(operand_owner):
                 continue
