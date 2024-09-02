@@ -1,9 +1,6 @@
 import abc
 import typing
-from enum import member
-from typing import Set, Tuple
 
-from tests.test_builtin_traits import test_has_no_terminator_empty_block_with_single_block_region_requires_no_terminator
 from xdsl.dialects.experimental import dlt
 from xdsl.dialects.experimental.dlt import DimensionAttr, Layout, MemberAttr, TypeType
 
