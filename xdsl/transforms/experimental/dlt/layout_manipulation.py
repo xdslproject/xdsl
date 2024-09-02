@@ -97,8 +97,13 @@ class ManipulatorMap:
         dimensions: set[dlt.DimensionAttr],
         through_index_reducible: bool,
     ) -> tuple[Layout, set[MemberAttr], set[DimensionAttr], bool] | None:
-        return self.get(layout).try_reduction(layout, members, dimensions, through_index_reducible)
-
+        initial_type = layout.contents_type.select_members(members).select_dimensions(dimensions)
+        try_result = self.get(layout).try_reduction(layout, set(members), set(dimensions), through_index_reducible)
+        if try_result is not None:
+            new_layout, new_members, new_dimensions, new_idx_reduce = try_result
+            new_type = new_layout.contents_type.select_members(new_members).select_dimensions(new_dimensions)
+            assert new_type == initial_type, "try_reduction failed to provide the same resulting type as an answer"
+        return try_result
     def structural_reduction(
         self, layout: dlt.Layout, dlt_type: dlt.TypeType
     ) -> None | dlt.Layout:
@@ -1552,5 +1557,6 @@ Manipulator.add(dlt.MemberLayoutAttr, MemberManipulator(Manipulator))
 Manipulator.add(dlt.DenseLayoutAttr, DenseManipulator(Manipulator))
 Manipulator.add(dlt.StructLayoutAttr, StructManipulator(Manipulator))
 Manipulator.add(dlt.ArithDropLayoutAttr, ArithDropManipulator(Manipulator))
+Manipulator.add(dlt.ArithReplaceLayoutAttr, ArithReplaceManipulator(Manipulator))
 Manipulator.add(dlt.IndexingLayoutAttr, IndexingManipulator(Manipulator))
 Manipulator.add(dlt.UnpackedCOOLayoutAttr, UnpackedCOOManipulator(Manipulator))

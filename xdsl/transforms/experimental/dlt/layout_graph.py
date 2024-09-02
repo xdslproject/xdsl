@@ -346,12 +346,14 @@ class LayoutGraph:
         ident: PtrIdent,
         non_zero_reducible_ptrs: set[PtrIdent],
         current_types: dict[PtrIdent, dlt.PtrType],
+        verbose: int = 0,
     ):
-
-        print(f"reducing {ident.data}: ", end="")
+        if verbose > 1:
+            print(f"reducing {ident.data}: ", end="")
         ptr_type = current_types[ident]
         if ptr_type.is_base:
-            print(f"stopped - {ident.data} is base ptr")
+            if verbose > 1:
+                print(f"stopped - {ident.data} is base ptr")
             return
         available_members = set(ptr_type.filled_members)
         available_dimensions = set(ptr_type.filled_dimensions)
@@ -377,7 +379,7 @@ class LayoutGraph:
                     dim
                     for dim in ptr_type.filled_dimensions
                     if dim in left_over_dimensions
-                ]
+                ] + [dim for dim in left_over_dimensions if dim not in ptr_type.filled_dimensions]
             )
             all_new_extents = new_layout.get_all_extents()
             filled_extents = [
@@ -398,15 +400,18 @@ class LayoutGraph:
                 self.propagate_type(ident, new_types_map, non_zero_reducible_ptrs)
                 self.check_consistency(new_types_map, non_zero_reducible_ptrs)
             except (DLTPtrConsistencyError, InConsistentLayoutException) as e:
-                print(". ", end="")
+                if verbose > 1:
+                    print(". ", end="")
             else:
                 changed = {
                     i for (i, ptr) in new_types_map.items() if current_types[i] != ptr
                 }
-                print("changes propagated to: " + ",".join([i.data for i in changed]))
+                if verbose > 1:
+                    print("changes propagated to: " + ",".join([i.data for i in changed]))
                 current_types.update(new_types_map)
                 return
-        print("stopped - no reductions possible")
+        if verbose > 1:
+            print("stopped - no reductions possible")
 
     def propagate_type(
         self,

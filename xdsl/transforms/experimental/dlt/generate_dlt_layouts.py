@@ -380,7 +380,7 @@ class LayoutGenerator:
                 for i, new_layout in enumerate(new_layouts):
                     now = time.time()
 
-                    val = f" {i}/{new_layout_count} \t times: {propagate_times}"
+                    val = f" {i}/{new_layout_count} \t times: [{','.join(propagate_times)}]"
                     print(("\b"*chars) + val, end="")
                     chars = len(val)
 
@@ -392,7 +392,7 @@ class LayoutGenerator:
 
                     new_ptr = ptr.with_new_layout(new_layout, preserve_ident=True)
                     new_mapping[ident] = new_ptr
-                    self.layout_graph.propagate_type(ident, new_mapping)
+                    self.layout_graph.propagate_type(ident, new_mapping, set())
                     # changed = [
                     #     i.data for (i, ptr) in new_mapping.items() if parent_mapping[i] != ptr
                     # ]
@@ -407,9 +407,9 @@ class LayoutGenerator:
                         self.plot_mapping(new_ptr_mapping)
                         node_children.append(new_ptr_mapping)
                         self.seen_mappings.add(new_ptr_mapping)
-                    propagate_times.append(time.time() - now)
+                    propagate_times.append("{:.2f}".format(time.time() - now))
 
-                val = f" {new_layout_count}/{new_layout_count} \t times: {propagate_times}"
+                val = f" {new_layout_count}/{new_layout_count} \t times: [{','.join(propagate_times)}]"
                 print(("\b" * chars) + val)
                 chars = len(val)
                 print(f"\t\tNew mappings: {new_nums} of which {len(duplicate_nums)} are duplicates")

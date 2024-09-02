@@ -8,7 +8,7 @@ from xdsl.dialects import arith, builtin, llvm, printf, scf
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr, DenseArrayBase,
-    IndexType,
+    Float32Type, IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -808,6 +808,37 @@ class DLTIterateRewriter(RewritePattern):
         pre_ops: list[Operation],
     ) -> list[SSAValue]:
         _inner_body_ops = []
+        # debug_string = f"Iter: '{iterate_op.identification.data}' : extents: "
+        # args = []
+        # for ext_id, val in indices_map.items():
+        #     debug_string += f"{ext_id}: {{}}, "
+        #     args.append(val)
+        # debug_string += "tensors: "
+        # for t_i, (t_ssa, t_map) in enumerate(tensor_map):
+        #     debug_string += f"{t_i}:'{t_ssa.type.identification.data}':{{}} "
+        #     extract_ops, data_ptr, ptr_dim_map, ptr_extent_map = Semantic_Map.extract_from_ptr_struct(
+        #         t_ssa.type, t_ssa)
+        #     _inner_body_ops.extend(extract_ops)
+        #     ptr_int = llvm.PtrToIntOp(data_ptr)
+        #     _inner_body_ops.append(ptr_int)
+        #     args.append(ptr_int.output)
+        #     debug_string += "["
+        #     for dim, val in ptr_dim_map.items():
+        #         get_ops, (ssa,) = val.get().output()
+        #         _inner_body_ops.extend(get_ops)
+        #         debug_string += f"{dim.dimensionName.data}:{{}}"
+        #         args.append(ssa)
+        #     debug_string += "]"
+        #
+        #
+        # debug_string += "iter_args: "
+        # for i, ssa in enumerate(iter_args):
+        #     if isinstance(ssa.type, IntegerType | Float32Type | IndexType):
+        #         debug_string += f"{i}: {{}}"
+        #         args.append(ssa)
+        #
+        # print_op = printf.PrintFormatOp(debug_string, *args)
+        # _inner_body_ops.append(print_op)
 
         selected_tensors = []
         block_arg_tensor_types = [
@@ -957,7 +988,7 @@ class _IterMakeLoopCallback(LoopCallback):
         assert (set(dim_map.keys()) & dims_left_to_loop) == set()
         if len(dims_left_to_loop) == 0:
             return self.body(terminal_layout, members, dim_map, extent_resolver, ptr, iter_args)
-
+        dims_left_to_loop = sorted(list(dims_left_to_loop), key=(lambda d:d.dimensionName.data))
         dim_to_loop = dims_left_to_loop.pop()
         ops = []
         ops.append(lb := arith.Constant(IntegerAttr(0, IndexType())))
@@ -977,7 +1008,7 @@ class _IterMakeLoopCallback(LoopCallback):
             terminal_layout,
             members,
             new_dim_map,
-            dims_left_to_loop,
+            set(dims_left_to_loop),
             extent_resolver,
             ptr,
             loop_iter_args,

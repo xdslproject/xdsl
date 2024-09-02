@@ -2,7 +2,7 @@ import abc
 import typing
 from collections.abc import Callable
 
-from xdsl.dialects import arith, builtin, llvm, scf
+from xdsl.dialects import arith, builtin, llvm, printf, scf
 from xdsl.dialects.builtin import (
     AnyFloat,
     DenseArrayBase,
@@ -70,6 +70,8 @@ class NumericResult:
         operations: typing.Iterable[Operation],
         *values: typing.Union[int, SSAValue],
     ) -> "NumericResult":
+        for v in values:
+            assert isinstance(v, int | SSAValue)
         static_values = tuple([v if isinstance(v, int) else 0 for v in values])
         ssa_values = tuple([v if isinstance(v, SSAValue) else None for v in values])
         result = typing.cast(
@@ -971,6 +973,11 @@ class SemanticsMapper:
         ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
         ops: list[Operation] = []
 
+        # ptr_op = llvm.PtrToIntOp(input_ptr)
+        # ops.append(ptr_op)
+        # print_op = printf.PrintFormatOp(f"dealloc {type(layout)}) {{}}", ptr_op.output)
+        # ops.append(print_op)
+
         init_ops = self.get_direct(layout).dealloc_layout(
             layout,
             extent_resolver,
@@ -990,6 +997,11 @@ class SemanticsMapper:
             input_ptr.type, llvm.LLVMPointerType
         ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
         ops: list[Operation] = []
+
+        # ptr_op = llvm.PtrToIntOp(input_ptr)
+        # ops.append(ptr_op)
+        # print_op = printf.PrintFormatOp(f"dealloc Indexed {type(layout)}) {{}}", ptr_op.output)
+        # ops.append(print_op)
 
         init_ops = self.get_indexed(layout).dealloc_layout(
             layout,
@@ -1146,9 +1158,9 @@ class SemanticsMapper:
             input_ptr,
             callback,
             callback_args,
-            members,
-            dim_mapping,
-            dims_to_loop
+            set(members),
+            dict(dim_mapping),
+            set(dims_to_loop)
         )
 
     # def get_iteration_for(
@@ -2391,7 +2403,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         zero_ops, (zero,) = NumericResult.from_const(0).output()
         one_ops, (one,) = NumericResult.from_const(1).output()
         size_ops, (elem_size,) = (
-            self.semantics.get_size(layout, extent_resolver).keep(1).output()
+            self.semantics.get_size(layout.child, extent_resolver).keep(1).output()
         )
         ops.extend(zero_ops + one_ops + size_ops)
         block = Block()
@@ -2584,7 +2596,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
             return callback_ops, iter_args_out
         elif starting_layout.dimension in dim_mapping:
             idx_getter = dim_mapping.pop(starting_layout.dimension)
-            idx_ops, (index) = idx_getter.get().output()
+            idx_ops, (index,) = idx_getter.get().output()
             ptr_ops, ptr = self.get_offset(
                 starting_layout,
                 ArgIndexGetter(index),

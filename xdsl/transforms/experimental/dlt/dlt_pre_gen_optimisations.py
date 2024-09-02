@@ -1,7 +1,7 @@
 import typing
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import ArrayAttr, NoneAttr
+from xdsl.dialects.builtin import ArrayAttr, IntAttr, NoneAttr, StringAttr
 from xdsl.dialects.experimental import dlt
 from xdsl.ir import BlockArgument
 from xdsl.pattern_rewriter import (
@@ -128,3 +128,30 @@ class DLTIterateOptimiserRewriter(RewritePattern):
                 new_iterate_op.attributes["tensor_select_index_groups"] = ArrayAttr(new_tensor_zero_groups)
 
             rewriter.replace_op(parent, [new_iterate_op], new_iterate_op.results)
+
+
+
+
+@dataclass
+class DLTSetIterationOpNonZeroLoopsRewriter(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, iter_op: dlt.IterateOp, rewriter: PatternRewriter):
+        if "zeroable" in iter_op.attributes and "tensor_select_index_groups" in iter_op.attributes:
+            if isinstance(iter_op.order, dlt.AbstractIterationOrderAttr) and len(iter_op.order.non_zero_reducible_tensors) == 0:
+                all_extents = iter_op.order.extent_indices
+                zeroable = set(typing.cast(dlt.SetAttr[StringAttr], iter_op.attributes["zeroable"]))
+                select_groups = typing.cast(ArrayAttr[NoneAttr | StringAttr], iter_op.attributes["tensor_select_index_groups"])
+                assert isinstance(select_groups, ArrayAttr)
+                tensor_indices = []
+                for i, select_group in enumerate(select_groups):
+                    if select_group in zeroable:
+                        tensor_indices.append(i)
+                tensor_zeroable_extents = []
+                for t in tensor_indices:
+                    tensor_zeroable_extents.append(all_extents)
+                tensor_indices = ArrayAttr([IntAttr(i) for i in tensor_indices])
+                tensor_zeroable_extents = ArrayAttr(tensor_zeroable_extents)
+                new_order = dlt.AbstractIterationOrderAttr(all_extents, tensor_indices, tensor_zeroable_extents, iter_op.order.child)
+                iter_op.order = new_order
+                rewriter.handle_operation_modification(iter_op)
