@@ -422,11 +422,15 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
-    def __init__(self, name: str, params: SSAValue | Operation | None = None):
+    def __init__(
+        self, name: str | StringAttr, params: SSAValue | Operation | None = None
+    ):
+        if isinstance(name, str):
+            name = StringAttr(name)
         super().__init__(
             operands=[params],
             result_types=[ImportedModuleType()],
-            properties={"module": StringAttr(name)},
+            properties={"module": name},
         )
 
 
