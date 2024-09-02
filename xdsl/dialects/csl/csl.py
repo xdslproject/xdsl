@@ -112,6 +112,13 @@ class DsdKind(StrEnum):
     fabout_dsd = "fabout_dsd"
 
 
+class Direction(StrEnum):
+    north = "north"
+    south = "south"
+    east = "east"
+    west = "west"
+
+
 class _FuncBase(IRDLOperation, ABC):
     """
     Base class for the shared functionalty of FuncOp and TaskOp
@@ -276,6 +283,16 @@ class TaskKindAttr(EnumAttribute[TaskKind], SpacedOpaqueSyntaxAttribute):
 
 
 @irdl_attr_definition
+class DirectionAttr(EnumAttribute[Direction], SpacedOpaqueSyntaxAttribute):
+    name = "csl.dir_kind"
+
+
+@irdl_attr_definition
+class DirectionType(ParametrizedAttribute, TypeAttribute):
+    name = "csl.direction"
+
+
+@irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     """
     Represents a typed pointer in CSL.
@@ -350,6 +367,20 @@ ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+
+
+@irdl_op_definition
+class DirectionOp(IRDLOperation):
+    name = "csl.get_dir"
+
+    dir = prop_def(DirectionAttr)
+
+    res = result_def(DirectionType)
+
+    def __init__(self, direction: DirectionAttr | Direction):
+        if isinstance(direction, Direction):
+            direction = DirectionAttr(direction)
+        super().__init__(properties={"dir": direction}, result_types=[DirectionType()])
 
 
 @irdl_op_definition
@@ -1776,6 +1807,7 @@ CSL = Dialect(
         ConstantsOp,
         CslModuleOp,
         CtzOp,
+        DirectionOp,
         FabshOp,
         FabssOp,
         FaddhOp,
@@ -1842,6 +1874,8 @@ CSL = Dialect(
         ImportedModuleType,
         PtrType,
         ModuleKindAttr,
+        DirectionAttr,
+        DirectionType,
         PtrConstAttr,
         PtrKindAttr,
         TaskKindAttr,

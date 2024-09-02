@@ -116,6 +116,7 @@
 
   %ptr_1_fn = "csl.addressof_fn"() <{fn_name = @args_no_return}> : () -> !csl.ptr<(i32, i32) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
   %ptr_2_fn = "csl.addressof_fn"() <{fn_name = @no_args_return}> : () -> !csl.ptr<() -> (f32), #csl<ptr_kind single>, #csl<ptr_const const>>
+  %dir_test = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
 
 
 
@@ -459,6 +460,7 @@ csl.func @builtins() {
 // CHECK-NEXT: const ptr_to_val : *const i16 = &const27;
 // CHECK-NEXT: const ptr_1_fn : *const fn(i32, i32) void = &args_no_return;
 // CHECK-NEXT: const ptr_2_fn : *const fn() f32 = &no_args_return;
+// CHECK-NEXT: const dir_test : direction = NORTH;
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(global_ptr, "ptr_name");
 // CHECK-NEXT: }
