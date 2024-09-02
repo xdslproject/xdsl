@@ -377,6 +377,8 @@ class DirectionOp(IRDLOperation):
 
     res = result_def(DirectionType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(self, direction: DirectionAttr | Direction):
         if isinstance(direction, Direction):
             direction = DirectionAttr(direction)
