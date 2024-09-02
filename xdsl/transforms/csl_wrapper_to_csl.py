@@ -29,8 +29,8 @@ This is the name which will be used by the layout module when calling
 class ExtractCslModules(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
-        layout_module = self.lower_layout_module(op, rewriter)
         program_module = self.lower_program_module(op, rewriter)
+        layout_module = self.lower_layout_module(op, rewriter)
         rewriter.replace_matched_op([layout_module, program_module])
 
     @staticmethod
