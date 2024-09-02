@@ -544,6 +544,11 @@ class CslPrintContext:
                     ty = cast(csl.PtrType, res.type)
                     use = self._var_use(res, ty.constness.data.value)
                     self.print(f"{use} = &{val_name};")
+
+                case csl.AddressOfFnOp(fn_name=name, res=res):
+                    ty = cast(csl.PtrType, res.type)
+                    use = self._var_use(res, ty.constness.data.value)
+                    self.print(f"{use} = &{name.string_value()};")
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
                     name = exp.get_name()
                     q_name = f'"{name}"'
