@@ -133,21 +133,18 @@ except CodeGenerationException as e:
 
 p = FrontendProgram()
 with CodeContext(p):
-    # CHECK:      %{{.*}} = "scf.if"(%{{.*}}) ({
+    # CHECK:      %{{.*}} = scf.if %{{.*}} -> (i32) {
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @x} : () -> i32
     # CHECK-NEXT:   scf.yield %{{.*}} : i32
-    # CHECK-NEXT: }, {
+    # CHECK-NEXT: } else {
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @y} : () -> i32
     # CHECK-NEXT:   scf.yield %{{.*}} : i32
-    # CHECK-NEXT: }) : (i1) -> i32
+    # CHECK-NEXT: }
     def test_if_expr(cond: i1, x: i32, y: i32) -> i32:
         return x if cond else y
 
-    # CHECK:      "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:   scf.yield
-    # CHECK-NEXT: }, {
-    # CHECK-NEXT:   scf.yield
-    # CHECK-NEXT: }) : (i1) -> ()
+    # CHECK:      scf.if %{{.*}} {
+    # CHECK-NEXT: }
     def test_if_I(cond: i1):
         if cond:
             pass
@@ -156,23 +153,16 @@ with CodeContext(p):
         return
 
     # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> i1
-    # CHECK-NEXT: "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:   scf.yield
-    # CHECK-NEXT: }, {
+    # CHECK-NEXT: scf.if %{{.*}} {
+    # CHECK-NEXT: } else {
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> i1
-    # CHECK-NEXT:   "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:     scf.yield
-    # CHECK-NEXT:   }, {
+    # CHECK-NEXT:   scf.if %{{.*}} {
+    # CHECK-NEXT:   } else {
     # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> i1
-    # CHECK-NEXT:     "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:       scf.yield
-    # CHECK-NEXT:     }, {
-    # CHECK-NEXT:       scf.yield
-    # CHECK-NEXT:     }) : (i1) -> ()
-    # CHECK-NEXT:     scf.yield
-    # CHECK-NEXT:   }) : (i1) -> ()
-    # CHECK-NEXT:   scf.yield
-    # CHECK-NEXT: }) : (i1) -> ()
+    # CHECK-NEXT:     scf.if %{{.*}} {
+    # CHECK-NEXT:     }
+    # CHECK-NEXT:   }
+    # CHECK-NEXT: }
     def test_if_II(a: i1, b: i1, c: i1):
         if a:
             pass
@@ -183,11 +173,8 @@ with CodeContext(p):
         return
 
     # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @cond} : () -> i1
-    # CHECK-NEXT: "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:   scf.yield
-    # CHECK-NEXT: }, {
-    # CHECK-NEXT:   scf.yield
-    # CHECK-NEXT: }) : (i1) -> ()
+    # CHECK-NEXT: scf.if %{{.*}} {
+    # CHECK-NEXT: }
     def test_if_III(cond: i1):
         if cond:
             pass

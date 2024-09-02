@@ -65,6 +65,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import (
     IsolatedFromAbove,
+    NoMemoryEffect,
     NoTerminator,
     OptionalSymbolOpInterface,
     SymbolTable,
@@ -1199,6 +1200,8 @@ class UnrealizedConversionCastOp(IRDLOperation):
 
     inputs: VarOperand = var_operand_def()
     outputs: VarOpResult = var_result_def()
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):

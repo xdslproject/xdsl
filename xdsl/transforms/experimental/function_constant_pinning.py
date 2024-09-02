@@ -164,6 +164,8 @@ def func_contains_pinning_annotation(funcop: func.FuncOp) -> Operation | None:
 
     Only works on top-level operations, we can't handle nested things right now.
     """
+    if not funcop.body.blocks:
+        return None
     for op in funcop.body.block.ops:
         if PIN_CONSTANT_VALS in op.attributes:
             return op

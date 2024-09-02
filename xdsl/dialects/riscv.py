@@ -1778,6 +1778,14 @@ class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     name = "riscv.or"
 
 
+class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import XorBySelf
+
+        return (XorBySelf(),)
+
+
 @irdl_op_definition
 class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
@@ -1789,6 +1797,8 @@ class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.xor"
+
+    traits = frozenset((BitwiseXorHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition

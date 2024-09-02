@@ -622,13 +622,13 @@ func.func @store_result_lowering(%arg0 : f64) {
 func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"}{
     %101, %102 = stencil.apply(%arg1_1 = %arg0_1 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
       %true = "test.op"() : () -> i1
-      %103, %104 = "scf.if"(%true) ({
+      %103, %104 = scf.if %true -> (!stencil.result<f64>, f64) {
         %105 = stencil.store_result %arg1_1 : !stencil.result<f64>
         scf.yield %105, %arg1_1 : !stencil.result<f64>, f64
-      }, {
+      } else {
         %106 = stencil.store_result  : !stencil.result<f64>
         scf.yield %106, %arg1_1 : !stencil.result<f64>, f64
-      }) : (i1) -> (!stencil.result<f64>, f64)
+      }
       %107 = stencil.store_result %104 : !stencil.result<f64>
       stencil.return %103, %107 : !stencil.result<f64>, !stencil.result<f64>
     }
@@ -652,13 +652,13 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64
 // CHECK-NEXT:      "scf.parallel"(%0, %1, %2, %6, %7, %8, %3, %4, %5) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // CHECK-NEXT:      ^0(%9 : index, %10 : index, %11 : index):
 // CHECK-NEXT:        %true = "test.op"() : () -> i1
-// CHECK-NEXT:        %12, %13 = "scf.if"(%true) ({
+// CHECK-NEXT:        %12, %13 = scf.if %true -> (f64, f64) {
 // CHECK-NEXT:          memref.store %arg0, %b0_storeview[%9, %10, %11] : memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:          scf.yield %arg0, %arg0 : f64, f64
-// CHECK-NEXT:        }, {
+// CHECK-NEXT:        } else {
 // CHECK-NEXT:          %14 = builtin.unrealized_conversion_cast to f64
 // CHECK-NEXT:          scf.yield %14, %arg0 : f64, f64
-// CHECK-NEXT:        }) : (i1) -> (f64, f64)
+// CHECK-NEXT:        }
 // CHECK-NEXT:        memref.store %13, %b1_storeview[%9, %10, %11] : memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
