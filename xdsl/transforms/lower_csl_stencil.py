@@ -194,6 +194,14 @@ class LowerYieldOp(RewritePattern):
 class LowerCslStencil(ModulePass):
     """
     Lowers csl_stencil ops to csl and api calls.
+
+    * `csl_stencil.access` are lowered to api call (emitting dsd) + UnrealizedConversionCastOp (converting dsd to
+      memref).
+    * The UnrealizedConversionCastOps are erased in the `memref-to-dsd` pass
+    * `csl_stencil.apply` is lowered to an api call. Its two regions are placed into csl.funcs that are passed as
+      callbacks to the api call.
+    * `csl_stencil.yield` ops are lowered to `csl.return` as they terminate what are now callback functions with no
+      return values.
     """
 
     name = "lower-csl-stencil"
