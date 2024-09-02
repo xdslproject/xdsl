@@ -552,7 +552,7 @@ class CslPrintContext:
                     use = self._var_use(res, ty.constness.data.value)
                     self.print(f"{use} = &{name.string_value()};")
                 case csl.DirectionOp(dir=d, res=res):
-                    use = self._var_use(res, "const")
+                    use = self._var_use(res)
                     self.print(f"{use} = {str.upper(d.data)};")
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
                     name = exp.get_name()
