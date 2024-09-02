@@ -212,3 +212,6 @@ func.func @specialize_multi_case() -> i32 {
 // CHECK-NEXT:     %v = arith.constant 1 : i64
 // CHECK-NEXT:     func.return %v : i32
 // CHECK-NEXT:   }
+
+func.func private @external_test(i32, i64, memref<?xf64>) -> f64
+// CHECK-NEXT: func.func private @external_test(i32, i64, memref<?xf64>) -> f64
