@@ -39,7 +39,7 @@ def _collect_params(op: csl_wrapper.ModuleOp) -> list[SSAValue]:
         else:
             value = None
         p = csl.ParamOp(param.key.data, param.type, value)
-        new_args.append(SSAValue.get(p))
+        new_args.append(p.res)
     return new_args
 
 
@@ -161,8 +161,8 @@ class ExtractLayoutModule(RewritePattern):
             arg_values=[
                 SSAValue.get(x),
                 SSAValue.get(y),
-                SSAValue.get(param_width),
-                SSAValue.get(param_height),
+                param_width.res,
+                param_height.res,
                 *new_args,
             ],
         )
@@ -232,10 +232,10 @@ class ExtractProgramModule(RewritePattern):
             op.program_module.block,
             InsertPoint.at_end(module_block),
             arg_values=[
-                SSAValue.get(param_width),
-                SSAValue.get(param_height),
+                param_width.res,
+                param_height.res,
                 *new_args,
-                *(SSAValue.get(y) for y in yield_args),
+                *(y.res for y in yield_args),
             ],
         )
 
