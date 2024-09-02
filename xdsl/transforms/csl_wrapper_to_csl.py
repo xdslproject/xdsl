@@ -25,61 +25,31 @@ This is the name which will be used by the layout module when calling
 """
 
 
-def _collect_params(op: csl_wrapper.ModuleOp) -> list[SSAValue]:
-    """
-    Creates a list of `csl.param`s which should replace the block arguments in the
-    layout and program regions of the wrapper.
-
-    To be called in an `ImplicitBuilder`
-    """
-    params = list[SSAValue]()
-    for param in op.params:
-        if isa(param.value, builtin.IntegerAttr):
-            value = arith.Constant(param.value)
-        else:
-            value = None
-        p = csl.ParamOp(param.key.data, param.type, value)
-        params.append(p.res)
-    return params
-
-
-def _add_to_toplevel(
-    rewriter: PatternRewriter,
-    op: csl_wrapper.ModuleOp,
-    mod: csl.CslModuleOp,
-) -> None:
-    """Inserts the `csl.module` at the start of the `builtin.module`"""
-    assert isa(builtin_module := op.parent_op(), builtin.ModuleOp)
-    rewriter.insert_op(mod, InsertPoint.at_start(builtin_module.regions[0].block))
-
-
 @dataclass(frozen=True)
-class RemoveWrapper(RewritePattern):
-    """Cleanup pass to remove the now empty csl_wrapper"""
-
+class ExtractCslModules(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, _: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+    def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+        layout_module = self.lower_layout_module(op, rewriter)
+        program_module = self.lower_program_module(op, rewriter)
+        rewriter.replace_matched_op([layout_module, program_module])
 
+    @staticmethod
+    def _collect_params(op: csl_wrapper.ModuleOp) -> list[SSAValue]:
+        """
+        Creates a list of `csl.param`s which should replace the block arguments in the
+        layout and program regions of the wrapper.
 
-@dataclass(frozen=True)
-class ExtractLayoutModule(RewritePattern):
-    """
-    Moves the contents of the layout region of the `csl_wrapper.module` into a
-    `csl.module`.
-
-    The contents of the region get wrapped in 2 `scf.for` loops.
-
-    `csl_wrapper.yield` is replaced by `csl.set_tile_code`.
-
-    The block args of the block of the region get replaced as follows:
-        1: Outer loop counter (x dimension)
-        2: Inner loop counter (y dimension)
-        3: "width" `csl.param`
-        4: "height" `csl.param`
-        5..n: Replaced with the `params` of the `csl_wrapper.module` by creating a
-              `csl.param` for each of them.
-    """
+        To be called in an `ImplicitBuilder`
+        """
+        params = list[SSAValue]()
+        for param in op.params:
+            if isa(param.value, builtin.IntegerAttr):
+                value = arith.Constant(param.value)
+            else:
+                value = None
+            p = csl.ParamOp(param.key.data, param.type, value)
+            params.append(p.res)
+        return params
 
     def add_tile_code(
         self,
@@ -106,8 +76,26 @@ class ExtractLayoutModule(RewritePattern):
             csl.SetTileCodeOp(fname=prog_name, x_coord=x, y_coord=y, params=struct),
         )
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+    def lower_layout_module(
+        self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /
+    ) -> csl.CslModuleOp:
+        """
+        Moves the contents of the layout region of the `csl_wrapper.module` into a
+        `csl.module`.
+
+        The contents of the region get wrapped in 2 `scf.for` loops.
+
+        `csl_wrapper.yield` is replaced by `csl.set_tile_code`.
+
+        The block args of the block of the region get replaced as follows:
+            1: Outer loop counter (x dimension)
+            2: Inner loop counter (y dimension)
+            3: "width" `csl.param`
+            4: "height" `csl.param`
+            5..n: Replaced with the `params` of the `csl_wrapper.module` by creating a
+                  `csl.param` for each of them.
+        """
+
         prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
         module_block = Block()
 
@@ -132,7 +120,7 @@ class ExtractLayoutModule(RewritePattern):
             const_height = arith.Constant(op.height)
             param_height = csl.ParamOp("height", op.height.type, const_height)
 
-            params_from_block_args = _collect_params(op)
+            params_from_block_args = self._collect_params(op)
 
             layout = csl.LayoutOp(Region())
             with ImplicitBuilder(layout.body.block):
@@ -180,24 +168,7 @@ class ExtractLayoutModule(RewritePattern):
             properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
             attributes={"sym_name": builtin.StringAttr(f"{prog_name}_layout")},
         )
-
-        _add_to_toplevel(rewriter, op, layout_mod)
-
-
-@dataclass(frozen=True)
-class ExtractProgramModule(RewritePattern):
-    """
-    Moves the contents of the program region of the `csl_wrapper.module` into a
-    `csl.module`.
-
-    The block args of the block of the region get replaced as follows:
-        1: Outer loop counter (x dimension)
-        2: Inner loop counter (y dimension)
-        3: "width" `csl.param`
-        4: "height" `csl.param`
-        5..n: Replaced with the `params` of the `csl_wrapper.module` by creating a
-              `csl.param` for each of them.
-    """
+        return layout_mod
 
     @staticmethod
     def _collect_yield_args(yield_op: csl_wrapper.YieldOp) -> list[csl.ParamOp]:
@@ -207,15 +178,29 @@ class ExtractProgramModule(RewritePattern):
             params.append(csl.ParamOp(s, ty))
         return params
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
+    def lower_program_module(
+        self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /
+    ) -> csl.CslModuleOp:
+        """
+        Moves the contents of the program region of the `csl_wrapper.module` into a
+        `csl.module`.
+
+        The block args of the block of the region get replaced as follows:
+            1: Outer loop counter (x dimension)
+            2: Inner loop counter (y dimension)
+            3: "width" `csl.param`
+            4: "height" `csl.param`
+            5..n: Replaced with the `params` of the `csl_wrapper.module` by creating a
+                  `csl.param` for each of them.
+        """
+
         prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
         module_block = Block()
         with ImplicitBuilder(module_block):
             param_width = csl.ParamOp("width", op.width.type)
             param_height = csl.ParamOp("height", op.height.type)
 
-            params_from_block_args = _collect_params(op)
+            params_from_block_args = self._collect_params(op)
 
         assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
         yield_args = self._collect_yield_args(yield_op)
@@ -239,7 +224,7 @@ class ExtractProgramModule(RewritePattern):
             properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM)},
             attributes={"sym_name": builtin.StringAttr(f"{prog_name}_program")},
         )
-        _add_to_toplevel(rewriter, op, program_module)
+        return program_module
 
 
 @dataclass(frozen=True)
@@ -249,18 +234,7 @@ class CslWrapperToCslPass(ModulePass):
     name = "csl-wrapper-to-csl"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        program_module_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([ExtractProgramModule()]),
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([ExtractCslModules()]),
             apply_recursively=False,
-        )
-        layout_module_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([ExtractLayoutModule()]),
-            apply_recursively=False,
-        )
-        cleanup_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([RemoveWrapper()]), apply_recursively=False
-        )
-
-        program_module_pass.rewrite_module(op)
-        layout_module_pass.rewrite_module(op)
-        cleanup_pass.rewrite_module(op)
+        ).rewrite_module(op)
