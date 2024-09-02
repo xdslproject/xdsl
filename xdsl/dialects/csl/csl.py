@@ -441,8 +441,8 @@ class ConstStructOp(IRDLOperation):
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
 
-    def __init__(self, *args: tuple[str, Operation]):
-        operands: list[Operation] = []
+    def __init__(self, *args: tuple[str, Operation | SSAValue]):
+        operands: list[Operation | SSAValue] = []
         fields: list[StringAttr] = []
         for fname, op in args:
             fields.append(StringAttr(fname))
@@ -1706,9 +1706,11 @@ class ParamOp(IRDLOperation):
 
     res = result_def(T)
 
-    def __init__(self, name: str, result_type: T):
+    def __init__(
+        self, name: str, result_type: T, init_value: SSAValue | Operation | None = None
+    ):
         super().__init__(
-            operands=[[]],
+            operands=[init_value],
             result_types=[result_type],
             properties={"param_name": StringAttr(name)},
         )
