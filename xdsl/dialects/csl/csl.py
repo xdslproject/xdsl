@@ -540,7 +540,7 @@ class MemberCallOp(IRDLOperation):
     def __init__(
         self,
         fname: str,
-        result_type: Attribute,
+        result_type: Attribute | None,
         struct: Operation,
         params: Sequence[SSAValue | Operation],
     ):

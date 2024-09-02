@@ -156,6 +156,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return lower_affine.LowerAffinePass
 
+    def get_lower_csl_stencil():
+        from xdsl.transforms import lower_csl_stencil
+
+        return lower_csl_stencil.LowerCslStencil
+
     def get_lower_mpi():
         from xdsl.transforms import lower_mpi
 
@@ -427,6 +432,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
+        "lower-csl-stencil": get_lower_csl_stencil,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
         "lower-riscv-func": get_lower_riscv_func,
