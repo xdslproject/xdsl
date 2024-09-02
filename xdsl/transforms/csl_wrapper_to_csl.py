@@ -32,15 +32,15 @@ def _collect_params(op: csl_wrapper.ModuleOp) -> list[SSAValue]:
 
     To be called in an `ImplicitBuilder`
     """
-    new_args = list[SSAValue]()
+    params = list[SSAValue]()
     for param in op.params:
         if isa(param.value, builtin.IntegerAttr):
             value = arith.Constant(param.value)
         else:
             value = None
         p = csl.ParamOp(param.key.data, param.type, value)
-        new_args.append(p.res)
-    return new_args
+        params.append(p.res)
+    return params
 
 
 def _add_to_toplevel(
@@ -119,8 +119,6 @@ class ExtractLayoutModule(RewritePattern):
         inner_loop_block.insert_arg(builtin.IntegerType(16), 0)
         y = inner_loop_block.args[0]
 
-        new_args = list[SSAValue]()
-
         assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
         rewriter.erase_op(yield_op)
 
@@ -134,7 +132,7 @@ class ExtractLayoutModule(RewritePattern):
             const_height = arith.Constant(op.height)
             param_height = csl.ParamOp("height", op.height.type, const_height)
 
-            new_args = _collect_params(op)
+            params_from_block_args = _collect_params(op)
 
             layout = csl.LayoutOp(Region())
             with ImplicitBuilder(layout.body.block):
@@ -163,7 +161,7 @@ class ExtractLayoutModule(RewritePattern):
                 SSAValue.get(y),
                 param_width.res,
                 param_height.res,
-                *new_args,
+                *params_from_block_args,
             ],
         )
         struct, tile_code = self.add_tile_code(
@@ -220,7 +218,7 @@ class ExtractProgramModule(RewritePattern):
             param_width = csl.ParamOp("width", op.width.type)
             param_height = csl.ParamOp("height", op.height.type)
 
-            new_args = _collect_params(op)
+            params_from_block_args = _collect_params(op)
 
         assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
         yield_args = self._collect_yield_args(yield_op)
@@ -234,7 +232,7 @@ class ExtractProgramModule(RewritePattern):
             arg_values=[
                 param_width.res,
                 param_height.res,
-                *new_args,
+                *params_from_block_args,
                 *(y.res for y in yield_args),
             ],
         )
