@@ -580,7 +580,7 @@ class ReduceOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([RecursiveMemoryEffect()])
+    traits = frozenset([RecursiveMemoryEffect(), IsTerminator()])
 
     def __init__(
         self,
