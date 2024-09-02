@@ -297,15 +297,20 @@ class DmpSwapOpTensorize(RewritePattern):
 class StoreOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
-            StoreOp.get(
-                op.temp,
-                op.field,
-                StencilBoundsAttr(
-                    zip(list(op.bounds.lb.array)[:-1], list(op.bounds.ub)[:-1])
-                ),
+        if (
+            is_tensorized(op.field.type)
+            and isinstance(op.field.type, ShapedType)
+            and len(op.bounds.lb) != len(op.field.type.get_shape())
+        ):
+            rewriter.replace_matched_op(
+                StoreOp.get(
+                    op.temp,
+                    op.field,
+                    StencilBoundsAttr(
+                        zip(list(op.bounds.lb.array)[:-1], list(op.bounds.ub)[:-1])
+                    ),
+                )
             )
-        )
 
 
 class AccessOpUpdateShape(RewritePattern):
