@@ -15,7 +15,6 @@ from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Successor,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -309,7 +308,7 @@ class BranchOp(riscv.RISCVAsmOperation):
 
     block_arguments = var_operand_def(RISCVRegisterType)
     successor = successor_def()
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -397,7 +396,7 @@ class JOp(RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    block_arguments = var_operand_def(RISCVRegisterType)
 
     successor = successor_def()
 

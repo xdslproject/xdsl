@@ -397,10 +397,10 @@ class GenericOp(IRDLOperation):
     Indices into the `outputs` that correspond to the initial values in `inits`.
     """
 
-    doc: StringAttr | None = opt_prop_def(StringAttr)
-    library_call: StringAttr | None = opt_prop_def(StringAttr)
+    doc = opt_prop_def(StringAttr)
+    library_call = opt_prop_def(StringAttr)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
 

@@ -21,9 +21,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
-    Operand,
-    VarOperand,
-    VarOpResult,
     irdl_op_definition,
     operand_def,
     region_def,
@@ -50,11 +47,11 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class While(IRDLOperation):
     name = "scf.while"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def(AnyAttr())
 
-    res: VarOpResult = var_result_def(AnyAttr())
-    before_region: Region = region_def()
-    after_region: Region = region_def()
+    res = var_result_def(AnyAttr())
+    before_region = region_def()
+    after_region = region_def()
 
     traits = frozenset([RecursiveMemoryEffect()])
 
@@ -167,12 +164,12 @@ class Yield(AbstractYieldOperation[Attribute]):
 @irdl_op_definition
 class If(IRDLOperation):
     name = "scf.if"
-    output: VarOpResult = var_result_def(AnyAttr())
-    cond: Operand = operand_def(IntegerType(1))
+    output = var_result_def(AnyAttr())
+    cond = operand_def(IntegerType(1))
 
-    true_region: Region = region_def("single_block")
+    true_region = region_def("single_block")
     # TODO this should be optional under certain conditions
-    false_region: Region = region_def()
+    false_region = region_def()
 
     traits = frozenset(
         [
@@ -282,15 +279,15 @@ class For(IRDLOperation):
 
     T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
 
-    lb: Operand = operand_def(T)
-    ub: Operand = operand_def(T)
-    step: Operand = operand_def(T)
+    lb = operand_def(T)
+    ub = operand_def(T)
+    step = operand_def(T)
 
-    iter_args: VarOperand = var_operand_def(AnyAttr())
+    iter_args = var_operand_def(AnyAttr())
 
-    res: VarOpResult = var_result_def(AnyAttr())
+    res = var_result_def(AnyAttr())
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset(
         [
@@ -449,13 +446,13 @@ class For(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     name = "scf.parallel"
-    lowerBound: VarOperand = var_operand_def(IndexType)
-    upperBound: VarOperand = var_operand_def(IndexType)
-    step: VarOperand = var_operand_def(IndexType)
-    initVals: VarOperand = var_operand_def(AnyAttr())
-    res: VarOpResult = var_result_def(AnyAttr())
+    lowerBound = var_operand_def(IndexType)
+    upperBound = var_operand_def(IndexType)
+    step = var_operand_def(IndexType)
+    initVals = var_operand_def(AnyAttr())
+    res = var_result_def(AnyAttr())
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -576,9 +573,9 @@ class ParallelOp(IRDLOperation):
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
     name = "scf.reduce"
-    argument: Operand = operand_def(AnyAttr())
+    argument = operand_def(AnyAttr())
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset([RecursiveMemoryEffect()])
 
@@ -626,7 +623,7 @@ class ReduceOp(IRDLOperation):
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
-    result: Operand = operand_def(AnyAttr())
+    result = operand_def(AnyAttr())
 
     traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
 
@@ -637,8 +634,8 @@ class ReduceReturnOp(IRDLOperation):
 @irdl_op_definition
 class Condition(IRDLOperation):
     name = "scf.condition"
-    cond: Operand = operand_def(IntegerType(1))
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    cond = operand_def(IntegerType(1))
+    arguments = var_operand_def(AnyAttr())
 
     traits = frozenset([HasParent(While), IsTerminator(), Pure()])
 

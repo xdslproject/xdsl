@@ -14,10 +14,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
-    VarRegion,
-    VarSuccessor,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
@@ -42,9 +38,9 @@ class TestOp(IRDLOperation):
 
     name = "test.op"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
@@ -80,10 +76,10 @@ class TestTermOp(IRDLOperation):
 
     name = "test.termop"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
-    successor: VarSuccessor = var_successor_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
@@ -123,10 +119,10 @@ class TestPureOp(IRDLOperation):
 
     name = "test.pureop"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
-    successor: VarSuccessor = var_successor_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
@@ -166,10 +162,10 @@ class TestReadOp(IRDLOperation):
 
     name = "test.op_with_memread"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
-    successor: VarSuccessor = var_successor_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
@@ -209,10 +205,10 @@ class TestWriteOp(IRDLOperation):
 
     name = "test.op_with_memwrite"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
-    successor: VarSuccessor = var_successor_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)

@@ -8,9 +8,6 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
-    Operand,
-    Successor,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -23,8 +20,8 @@ from xdsl.traits import IsTerminator
 @irdl_op_definition
 class Assert(IRDLOperation):
     name = "cf.assert"
-    arg: Operand = operand_def(IntegerType(1))
-    msg: StringAttr = prop_def(StringAttr)
+    arg = operand_def(IntegerType(1))
+    msg = prop_def(StringAttr)
 
     def __init__(self, arg: Operation | SSAValue, msg: str | StringAttr):
         if isinstance(msg, str):
@@ -39,8 +36,8 @@ class Assert(IRDLOperation):
 class Branch(IRDLOperation):
     name = "cf.br"
 
-    arguments: VarOperand = var_operand_def(AnyAttr())
-    successor: Successor = successor_def()
+    arguments = var_operand_def(AnyAttr())
+    successor = successor_def()
 
     traits = frozenset([IsTerminator()])
 
@@ -52,14 +49,14 @@ class Branch(IRDLOperation):
 class ConditionalBranch(IRDLOperation):
     name = "cf.cond_br"
 
-    cond: Operand = operand_def(IntegerType(1))
-    then_arguments: VarOperand = var_operand_def(AnyAttr())
-    else_arguments: VarOperand = var_operand_def(AnyAttr())
+    cond = operand_def(IntegerType(1))
+    then_arguments = var_operand_def(AnyAttr())
+    else_arguments = var_operand_def(AnyAttr())
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    then_block: Successor = successor_def()
-    else_block: Successor = successor_def()
+    then_block = successor_def()
+    else_block = successor_def()
 
     traits = frozenset([IsTerminator()])
 
