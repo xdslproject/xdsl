@@ -17,6 +17,7 @@ from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
+    AttrSizedSegments,
     ConstraintContext,
     OpDef,
     OptionalDef,
@@ -317,7 +318,13 @@ class FormatParser(BaseParser):
                     "parsed from the attribute dictionary."
                 )
             return
+
         missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
+
+        for option in self.op_def.options:
+            if isinstance(option, AttrSizedSegments) and option.as_property:
+                missing_properties.remove(option.attribute_name)
+
         if missing_properties:
             self.raise_error(
                 f"{', '.join(missing_properties)} properties are missing from "
