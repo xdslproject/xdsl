@@ -1,6 +1,6 @@
 from xdsl.ir import Dialect
 
-from .ops import QubitAttr, QubitCoordsOp, QubitMappingAttr, StimCircuitOp
+from .ops import QubitCoordsOp, QubitMappingAttr, StimCircuitOp
 
 Stim = Dialect(
     "stim",
@@ -9,7 +9,6 @@ Stim = Dialect(
         StimCircuitOp,
     ],
     [
-        QubitAttr,
         QubitMappingAttr,
     ],
 )

@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
-from xdsl.ir import Attribute, Operation
+from xdsl.dialects.qref import QRefAllocOp
+from xdsl.ir import Attribute, Operation, SSAValue
 
 """
 This file implements a printer that prints to the .stim file format.
@@ -16,6 +17,9 @@ Full documentation can be found here: https://github.com/quantumlib/Stim/blob/ma
 @dataclass(eq=False, repr=False)
 class StimPrinter:
     stream: Any | None = field(default=None)
+
+    seen_qubits: dict[SSAValue, int] = field(default_factory=dict)
+    num_qubits: int = field(default=0)
 
     def print_string(self, text: str) -> None:
         print(text, end="", file=self.stream)
@@ -30,7 +34,7 @@ class StimPrinter:
     def in_parens(self):
         self.print_string("(")
         yield
-        self.print_string(") ")
+        self.print_string(")")
 
     T = TypeVar("T")
 
@@ -56,10 +60,36 @@ class StimPrinter:
             return
         raise ValueError(f"Cannot print in stim format: {attribute}")
 
-    def print_op(self, op: Operation):
+    def print_op(self, op: Operation) -> bool:
+        """
+        The only non-StimPrintable operations that may appear in a StimCircuitOp
+        are QRefAllocOps - which are used to indicate new qubits.
+        These are SSA-values that then can be matched to a qubit number throughout the 
+        printed Stim circuit.
+
+        The qubit numbers are assigned greedily as they are found, so if a mapping was encoded
+        without providing QUBIT_COORD ops, it would be lost up to alpha renaming. The qubits 
+        in this representation are treated only as logical entities.
+        """
+        if isinstance(op, QRefAllocOp):
+            self.seen_qubits[op.results[0]] = self.num_qubits
+            self.num_qubits += 1
+            return False
         if not isinstance(op, StimPrintable):
             raise ValueError(f"Cannot print in stim format: {op}")
         op.print_stim(self)
+        return True
+
+    def print_target(self, target: SSAValue):
+        if target in self.seen_qubits:
+            self.print_string(str(self.seen_qubits[target]))
+            return
+        raise ValueError(f"Qubit {target} was not allocated in scope.")
+
+    def print_targets(self, targets: list[SSAValue]):
+        for target in targets:
+            self.print_string(" ")
+            self.print_target(target)
 
 
 class StimPrintable(abc.ABC):

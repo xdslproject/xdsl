@@ -3,48 +3,22 @@ from collections.abc import Sequence
 from io import StringIO
 
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
-from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
-from xdsl.ir import ParametrizedAttribute, Region, TypeAttribute
+from xdsl.dialects.qref import qubit
+from xdsl.dialects.stim.stim_printer import StimPrintable, StimPrinter
+from xdsl.ir import ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
-    opt_prop_def,
+    operand_def,
     prop_def,
     region_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
-
-@irdl_attr_definition
-class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
-    """
-    Type for a single qubit.
-    """
-
-    name = "stim.qubit"
-
-    qubit: ParameterDef[IntAttr]
-
-    def __init__(self, qubit: int | IntAttr) -> None:
-        if not isinstance(qubit, IntAttr):
-            qubit = IntAttr(qubit)
-        super().__init__(parameters=[qubit])
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[IntAttr]:
-        with parser.in_angle_brackets():
-            qubit = parser.parse_integer(allow_negative=False, allow_boolean=False)
-            return (IntAttr(qubit),)
-
-    def print_parameters(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print(self.qubit.data)
-
-    def print_stim(self, printer: StimPrinter):
-        printer.print_string(f"{self.qubit.data}")
+# region Attribute definitions
 
 
 @irdl_attr_definition
@@ -52,9 +26,10 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
     """
     This attribute provides a way to indicate the required connectivity or layout of `physical` qubits.
 
-    It consists of two parameters:
-        1. A co-ordinate array (currently it only anticipates a pair of qubits, but this is not fixed)
-        2. A value associated with a qubit referred to in a circuit.
+    It has one parameter that represents a co-ordinate array
+
+    It is attached to a SSA-value associated with a qubit referred to in a circuit.
+    This value is allocated at definition in a QubitCoord op.
 
     The co-ordinates may be used as a physical address of a qubit, or the relative address with respect to some known physical address.
 
@@ -64,53 +39,57 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
     name = "stim.qubit_coord"
 
     coords: ParameterDef[ArrayAttr[FloatData | IntAttr]]
-    qubit_name: ParameterDef[QubitAttr]
 
     def __init__(
         self,
         coords: list[float] | ArrayAttr[FloatData | IntAttr],
-        qubit_name: int | QubitAttr,
     ) -> None:
-        if not isinstance(qubit_name, QubitAttr):
-            qubit_name = QubitAttr(qubit_name)
         if not isinstance(coords, ArrayAttr):
             coords = ArrayAttr(
                 (IntAttr(int(arg))) if (type(arg) is int) else (FloatData(arg))
                 for arg in coords
             )
-        super().__init__(parameters=[coords, qubit_name])
+        super().__init__(parameters=[coords])
 
     @classmethod
     def parse_parameters(
         cls, parser: AttrParser
-    ) -> tuple[ArrayAttr[FloatData | IntAttr], QubitAttr]:
-        parser.parse_punctuation("<")
+    ) -> Sequence[ArrayAttr[FloatData | IntAttr]]:
         coords = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.PAREN,
+            delimiter=parser.Delimiter.ANGLE,
             parse=lambda: IntAttr(x)
             if type(x := parser.parse_number(allow_boolean=False)) is int
             else FloatData(x),
         )
-        parser.parse_punctuation(",")
-        qubit = parser.parse_attribute()
-        if not isinstance(qubit, QubitAttr):
-            parser.raise_error("Expected qubit attr", at_position=parser.pos)
-        parser.parse_punctuation(">")
-        return (ArrayAttr(coords), qubit)
+        return [ArrayAttr(coords)]
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print("(")
             for i, elem in enumerate(self.coords):
                 if i:
                     printer.print_string(", ")
                 printer.print(elem.data)
-            printer.print("), ")
-            printer.print(self.qubit_name)
 
     def print_stim(self, printer: StimPrinter):
         printer.print_attribute(self.coords)
-        self.qubit_name.print_stim(printer)
+
+
+# endregion
+
+# region Instruction definitions
+
+"""
+Stim Instructions Definitions
+
+Stim divides these into three groups:
+    1. Operations
+    2. Annotations
+    3. Control Flow
+
+A Stim Circuit is represented by a StimCircuitOp,
+which contains a single list of Stim instructions as a single region with a single block.
+A StimCircuitOp has attributes that can act as storage for the annotations that occur in a Stim circuit.
+"""
 
 
 @irdl_op_definition
@@ -123,20 +102,18 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
 
     body = region_def("single_block")
 
-    qubitlayout = opt_prop_def(ArrayAttr[QubitMappingAttr])
-
-    assembly_format = "(`qubitlayout` $qubitlayout^)? attr-dict-with-keyword $body"
+    assembly_format = "attr-dict-with-keyword $body"
 
     def __init__(self, body: Region, qubitlayout: None | ArrayAttr[QubitMappingAttr]):
-        super().__init__(regions=[body], properties={"qubitlayout": qubitlayout})
+        super().__init__(regions=[body])
 
     def verify(self, verify_nested_ops: bool = True) -> None:
         return
 
     def print_stim(self, printer: StimPrinter):
         for op in self.body.block.ops:
-            printer.print_op(op)
-            printer.print_string("\n")
+            if printer.print_op(op):
+                printer.print_string("\n")
         printer.print_string("")
 
     def stim(self) -> str:
@@ -146,6 +123,11 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
         res = io.getvalue()
         return res
 
+
+# endregion
+
+
+# region Annotation operations
 
 """
 Annotation Operations
@@ -180,13 +162,39 @@ class QubitCoordsOp(AnnotationOp):
 
     name = "stim.assign_qubit_coord"
 
-    qubitmapping = prop_def(QubitMappingAttr)
+    qubitcoord = prop_def(QubitMappingAttr)
+    target = operand_def(qubit)
 
-    assembly_format = "$qubitmapping attr-dict"
+    assembly_format = "$qubitcoord $target attr-dict"
 
-    def __init__(self, qubitmapping: QubitMappingAttr):
-        super().__init__(properties={"qubitmapping": qubitmapping})
+    def __init__(self, target: SSAValue, qubitmapping: QubitMappingAttr):
+        super().__init__(operands=[target], properties={"qubitcoord": qubitmapping})
 
     def print_stim(self, printer: StimPrinter) -> None:
         printer.print_string("QUBIT_COORDS")
-        self.qubitmapping.print_stim(printer)
+        self.qubitcoord.print_stim(printer)
+        printer.print_targets([self.target])
+
+
+"""
+@irdl_op_definition
+class DetectorAnnotation(AnnotationOp):
+
+class MPadAnnotation(AnnotationOp):
+
+class ObservableAnnotation():
+
+class ShiftCoordsAnnotation():
+
+class TickAnnotation():
+"""
+# endregion
+
+# region Controlflow operations
+
+"""
+@irdl_op_definition
+class RepeatOp(scf.for)
+"""
+
+# endregion

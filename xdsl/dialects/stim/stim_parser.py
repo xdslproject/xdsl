@@ -2,12 +2,10 @@ import re
 from collections.abc import Callable, Sequence
 from typing import TypeVar
 
+from xdsl.dialects import qref
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
-from xdsl.dialects.stim import (
-    QubitCoordsOp,
-)
-from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr, StimCircuitOp
-from xdsl.ir import Block, Operation, Region
+from xdsl.dialects.stim import QubitCoordsOp, QubitMappingAttr, StimCircuitOp
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
 
@@ -51,11 +49,14 @@ class StimParser:
     input: Input
     pos: int
 
+    qubit_ssa_map: dict[int, SSAValue]
+
     def __init__(self, input: Input | str, pos: int = 0):
         if isinstance(input, str):
             input = Input(input, "<unknown>")
         self.input = input
         self.pos = pos
+        self.qubit_ssa_map = {}
 
     @property
     def remaining(self) -> str:
@@ -102,7 +103,8 @@ class StimParser:
         """
         lines: list[Operation] = []
         while (op := self.parse_optional_operation()) is not None:
-            lines.append(op)
+            lines += op[0]
+            lines.append(op[1])
 
         circuit_body = Region(Block(ops=lines))
         return StimCircuitOp(circuit_body, None)
@@ -130,7 +132,7 @@ class StimParser:
 
     def parse_optional_operation(
         self,
-    ) -> Operation | None:
+    ) -> tuple[list[Operation], Operation] | None:
         """
         Stim lines have format:
             line ::= indent? (instruction | block_start | block_end)? (comment ::= `#' NotNewLine)? NEWLINE
@@ -138,19 +140,22 @@ class StimParser:
         we look for operations, then skip straight through any lines without instructions or block starts or ends.
 
         Operations are given by instructions, or the a block containing instructions.
+
+        As stim operations are able to introduce new qubits non-explicitly, parsing an operation may return additional
+        allocation operations to explicitly allocate the ssa-values for the qubits.
         """
 
         self.parse_optional_pattern(INDENT)
-        op = self.parse_optional_instruction()  # TODO: add parsing for blocks
+        ops = self.parse_optional_instruction()  # TODO: add parsing for blocks
 
         # Skip comments and empty lines
         while self._check_comment_and_newline() is not None:
             pass
-        return op
+        return ops
 
     # region Instruction parsing
 
-    def parse_optional_instruction(self) -> Operation | None:
+    def parse_optional_instruction(self) -> tuple[list[Operation], Operation] | None:
         """
         Parse instruction with format:
             instruction ::= name (parens_arguments)? targets
@@ -161,10 +166,11 @@ class StimParser:
         parens = self.parse_optional_parens()
         if parens is None:
             parens = []
-        targets = self.parse_targets()
-        return self.build_operation(op, parens, targets)
+        extra_ops, targets = self.parse_targets()
+        return (extra_ops, self.build_operation(op, parens, targets))
 
     # region Parens parsing
+
     def parse_optional_paren(self):
         """
         Parse an argument passed to an instruction in parentheses with format:
@@ -209,11 +215,15 @@ class StimParser:
 
     # region Targets parsing
 
-    def parse_optional_target(self) -> QubitAttr | None:
+    def parse_optional_target(self) -> tuple[Operation, SSAValue] | SSAValue | None:
         """
         Parse a target with format:
             target ::= <QUBIT_TARGET> | <MEASUREMENT_RECORD_TARGET> | <SWEEP_BIT_TARGET> | <PAULI_TARGET> | <COMBINER_TARGET>
         TODO: Currently only supports target ::= qubit_target as the other relevant operations are not yet supported
+
+        If a target has not been seen before, then it must be provided a new SSA-value that is the qubit reference. This is currently
+        implemented by allocating a new qubit.
+        TODO: this ought to be revisited when the lattice surgery dialect is written.
         """
         # Check for a space
         space = self.parse_optional_pattern(SPACE)
@@ -222,9 +232,15 @@ class StimParser:
             if space is None:
                 raise StimParseError(self.pos, "Targets must be separated by spacing.")
             target = int(str_val)
-            return QubitAttr(target)
+            # If the target has already been allocated, return the ssa value associated with it.
+            if target in self.qubit_ssa_map:
+                return self.qubit_ssa_map[target]
+            new_qubit_op = qref.QRefAllocOp(1)
+            qref_val = new_qubit_op.results[0]
+            self.qubit_ssa_map[target] = qref_val
+            return (new_qubit_op, qref_val)
 
-    def parse_targets(self) -> list[QubitAttr]:
+    def parse_targets(self) -> tuple[list[Operation], list[SSAValue]]:
         """
         Parse targets with format:
             targets = SPACE INDENTS target targets?
@@ -233,11 +249,21 @@ class StimParser:
         # Check that there is a first target
         if (first := self.parse_optional_target()) is None:
             raise StimParseError(self.pos, "Expected at least one target")
-        targets = [first]
+        targets: list[SSAValue] = []
+        extra_alloc_ops: list[Operation] = []
+        if isinstance(first, tuple):
+            extra_alloc_ops.append(first[0])
+            targets.append(first[1])
+        else:
+            targets.append(first)
         # Parse targets until no more are found
         while (target := self.parse_optional_target()) is not None:
-            targets.append(target)
-        return targets
+            if isinstance(target, tuple):
+                extra_alloc_ops.append(target[0])
+                targets.append(target[1])
+            else:
+                targets.append(target)
+        return (extra_alloc_ops, targets)
 
     # endregion
 
@@ -255,20 +281,20 @@ class StimParser:
         return coords
 
     def build_operation(
-        self, op: Instruction, parens: list[float], targets: Sequence[QubitAttr]
+        self, op: Instruction, parens: list[float], targets: Sequence[SSAValue]
     ):
         """
         Build the operation corresponding to the name, parens, and targets found by the parser.
         """
         match op:
             case Instruction.COORD:
-                if targets == []:
+                if parens == []:
                     # In line with the behaviour of the Stim parser, parsing an empty parens argument gives a paren with 0 in.
-                    targets = [QubitAttr(0)]
+                    parens = [0.0]
                 qubit = targets[0]
                 coords = self.build_parens(parens)
-                mapping = QubitMappingAttr(coords, qubit)
-                return QubitCoordsOp(mapping)
+                mapping = QubitMappingAttr(coords)
+                return QubitCoordsOp(qubit, mapping)
 
     # endregion
 

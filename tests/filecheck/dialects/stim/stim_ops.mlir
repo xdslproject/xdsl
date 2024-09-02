@@ -16,33 +16,25 @@ stim.circuit attributes {"hello" = "world"} {}
 // CHECK-GENERIC-NEXT:    "stim.circuit"() ({
 // CHECK-GENERIC-NEXT:   }) {"hello" = "world"} : () -> ()
 
-stim.assign_qubit_coord <(0, 0), !stim.qubit<0>>
-// CHECK-NEXT:    stim.assign_qubit_coord <(0, 0), !stim.qubit<0>>
-// CHECK-GENERIC-NEXT:    "stim.assign_qubit_coord"() <{"qubitmapping" = #stim.qubit_coord<(0, 0), !stim.qubit<0>>}> : () -> ()
+%q0 = qref.alloc<1>
+stim.assign_qubit_coord <0, 0> %q0
+// CHECK-NEXT:  %q0 = qref.alloc<1>
+// CHECK-NEXT:    stim.assign_qubit_coord <0, 0> %q0
+// CHECK-GENERIC-NEXT: %q0 = "qref.alloc"() : () -> !qref.qubit
+// CHECK-GENERIC-NEXT:    "stim.assign_qubit_coord"(%q0) <{"qubitcoord" = #stim.qubit_coord<0, 0>}> : (!qref.qubit) -> ()
 
-stim.circuit {stim.assign_qubit_coord <(0, 0), !stim.qubit<0>>}
+stim.circuit {
+    %q1 = qref.alloc<1>
+    stim.assign_qubit_coord <0, 0> %q1
+}
 // CHECK-NEXT:    stim.circuit {
-// CHECK-NEXT:  stim.assign_qubit_coord <(0, 0), !stim.qubit<0>>
+// CHECK-NEXT:  %q1 = qref.alloc<1>
+// CHECK-NEXT:    stim.assign_qubit_coord <0, 0> %q1
 // CHECK-NEXT: }
 // CHECK-GENERIC-NEXT:    "stim.circuit"() ({
-// CHECK-GENERIC-NEXT:  "stim.assign_qubit_coord"() <{"qubitmapping" = #stim.qubit_coord<(0, 0), !stim.qubit<0>>}>
+// CHECK-GENERIC-NEXT: %q1 = "qref.alloc"() : () -> !qref.qubit
+// CHECK-GENERIC-NEXT:    "stim.assign_qubit_coord"(%q1) <{"qubitcoord" = #stim.qubit_coord<0, 0>}> : (!qref.qubit) -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()
-
-stim.circuit attributes {"hello" = "world"} {stim.assign_qubit_coord <(0, 0), !stim.qubit<0>>}
-// CHECK-NEXT:    stim.circuit attributes {"hello" = "world"} {
-// CHECK-NEXT:  stim.assign_qubit_coord <(0, 0), !stim.qubit<0>>
-// CHECK-NEXT: }
-// CHECK-GENERIC-NEXT:    "stim.circuit"() ({
-// CHECK-GENERIC-NEXT:  "stim.assign_qubit_coord"() <{"qubitmapping" = #stim.qubit_coord<(0, 0), !stim.qubit<0>>}>
-// CHECK-GENERIC-NEXT:  }) {"hello" = "world"} : () -> ()
-
-stim.circuit qubitlayout [#stim.qubit_coord<(0, 0), !stim.qubit<0>>] attributes {"hello" = "world"} {stim.assign_qubit_coord <(1, 2), !stim.qubit<2>>}
-// CHECK-NEXT:    stim.circuit qubitlayout [#stim.qubit_coord<(0, 0), !stim.qubit<0>>] attributes {"hello" = "world"}
-// CHECK-NEXT:  stim.assign_qubit_coord <(1, 2), !stim.qubit<2>>
-// CHECK-NEXT: }
-// CHECK-GENERIC-NEXT:    "stim.circuit"() <{"qubitlayout" = [#stim.qubit_coord<(0, 0), !stim.qubit<0>>]}> ({
-// CHECK-GENERIC-NEXT:  "stim.assign_qubit_coord"() <{"qubitmapping" = #stim.qubit_coord<(1, 2), !stim.qubit<2>>}>
-// CHECK-GENERIC-NEXT:  }) {"hello" = "world"} : () -> ()
 
 // CHECK-NEXT:  }
 // CHECK-GENERIC-NEXT:  }) : () -> ()
