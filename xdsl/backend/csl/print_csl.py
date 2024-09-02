@@ -308,6 +308,8 @@ class CslPrintContext:
                         mut = ""
                 ty = self.mlir_type_to_csl_type(ty)
                 return f"{sym}{mut}{ty}"
+            case csl.DirectionType():
+                return "direction"
             case FunctionType(inputs=inp, outputs=out) if len(out) <= 1:
                 args = map(self.mlir_type_to_csl_type, inp)
                 ret = self.mlir_type_to_csl_type(out.data[0]) if len(out) else "void"
@@ -549,6 +551,9 @@ class CslPrintContext:
                     ty = cast(csl.PtrType, res.type)
                     use = self._var_use(res, ty.constness.data.value)
                     self.print(f"{use} = &{name.string_value()};")
+                case csl.DirectionOp(dir=d, res=res):
+                    use = self._var_use(res)
+                    self.print(f"{use} = {str.upper(d.data)};")
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
                     name = exp.get_name()
                     q_name = f'"{name}"'
