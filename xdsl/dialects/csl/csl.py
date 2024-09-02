@@ -1530,6 +1530,39 @@ class SymbolExportOp(IRDLOperation):
 
 
 @irdl_op_definition
+class AddressOfFnOp(IRDLOperation):
+    """
+    Takes the address of a function from symbol ref.
+
+    Result has to have kind SINGLE and constness CONST
+    """
+
+    name = "csl.addressof_fn"
+    fn_name = prop_def(SymbolRefAttr)
+
+    res = result_def(PtrType)
+
+    def __init__(self, fn_name: str | SymbolRefAttr):
+        if isinstance(fn_name, str):
+            fn_name = SymbolRefAttr(fn_name)
+
+        super().__init__(properties={"fn_name": fn_name})
+
+    def verify_(self) -> None:
+        ty = self.res.type
+        assert isa(ty, PtrType)
+        if not isa(ty.type, FunctionType):
+            raise VerifyException("Pointed to type must be a function type")
+        if ty.kind.data != PtrKind.SINGLE:
+            raise VerifyException("Pointer kind must be 'single'")
+
+        if ty.constness.data != PtrConst.CONST:
+            raise VerifyException("Function pointers must be const")
+
+        return super().verify_()
+
+
+@irdl_op_definition
 class AddressOfOp(IRDLOperation):
     """
     Take the address of a scalar or an array (memref)
@@ -1733,6 +1766,7 @@ CSL = Dialect(
     [
         Add16Op,
         Add16cOp,
+        AddressOfFnOp,
         AddressOfOp,
         And16Op,
         CallOp,

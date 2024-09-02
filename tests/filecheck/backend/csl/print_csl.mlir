@@ -114,6 +114,10 @@
   %ptr_to_arr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const var>>
   %ptr_to_val = "csl.addressof"(%const27) : (i16) -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const const>>
 
+  %ptr_1_fn = "csl.addressof_fn"() <{fn_name = @args_no_return}> : () -> !csl.ptr<(i32, i32) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+  %ptr_2_fn = "csl.addressof_fn"() <{fn_name = @no_args_return}> : () -> !csl.ptr<() -> (f32), #csl<ptr_kind single>, #csl<ptr_const const>>
+
+
 
   "csl.export"(%global_ptr) <{
     type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>,
@@ -453,6 +457,8 @@ csl.func @builtins() {
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
 // CHECK-NEXT: var ptr_to_arr : *[10]f32 = &uninit_array;
 // CHECK-NEXT: const ptr_to_val : *const i16 = &const27;
+// CHECK-NEXT: const ptr_1_fn : *const fn(i32, i32) void = &args_no_return;
+// CHECK-NEXT: const ptr_2_fn : *const fn() f32 = &no_args_return;
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(global_ptr, "ptr_name");
 // CHECK-NEXT: }
