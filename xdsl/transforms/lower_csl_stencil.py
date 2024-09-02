@@ -25,7 +25,7 @@ from xdsl.rewriter import InsertPoint
 
 def get_dir_and_distance_ops(
     op: csl_stencil.AccessOp,
-) -> tuple[Operation | None, Operation]:
+) -> tuple[csl.DirectionOp, arith.Constant]:
     """
     Given an access op, return the distance and direction, assuming as access
     to a neighbour (not self) in a star-shape pattern
@@ -36,19 +36,20 @@ def get_dir_and_distance_ops(
     assert (offset[0] == 0) ^ (
         offset[1] == 0
     ), "Expecting neighbour access in a star-shape pattern"
-    # todo implement csl.direction
-    # if offset[0] < 0:
-    #     dir = "EAST"
-    # elif offset[0] > 0:
-    #     dir = "WEST"
-    # elif offset[1] < 0:
-    #     dir = "NORTH"
-    # elif offset[1] > 0:
-    #     dir = "SOUTH"
-    # else:
-    #     raise ValueError("Invalid offset, expecting 2-dimensional star-shape neighbor access")
+    if offset[0] < 0:
+        d = csl.Direction.EAST
+    elif offset[0] > 0:
+        d = csl.Direction.WEST
+    elif offset[1] < 0:
+        d = csl.Direction.NORTH
+    elif offset[1] > 0:
+        d = csl.Direction.SOUTH
+    else:
+        raise ValueError(
+            "Invalid offset, expecting 2-dimensional star-shape neighbor access"
+        )
     max_distance = abs(max(offset, key=abs))
-    return None, arith.Constant(IntegerAttr(max_distance, 16))
+    return csl.DirectionOp(d), arith.Constant(IntegerAttr(max_distance, 16))
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -74,17 +75,17 @@ class LowerAccessOp(RewritePattern):
         if not (module_wrapper_op := _get_module_wrapper(op)):
             return
 
-        # todo `dir` param:
-        _, neighbor_op = get_dir_and_distance_ops(op)
+        dir_op, neighbor_op = get_dir_and_distance_ops(op)
         rewriter.replace_matched_op(
             [
                 neighbor_op,
+                dir_op,
                 m_call := csl.MemberCallOp(
                     "getRecvBufDsdByNeighbor",
                     csl.DsdType(csl.DsdKind.mem1d_dsd),
                     module_wrapper_op.get_program_import("stencil_comms.csl"),
                     [
-                        # dir_op,
+                        dir_op,
                         neighbor_op,
                     ],
                 ),
@@ -117,41 +118,49 @@ class LowerApplyOp(RewritePattern):
         ), "Expected csl_stencil.apply to be inside a func.func or csl.func"
 
         # set up csl funcs
-        cr = csl.FuncOp("chunk_reduce_cb", FunctionType.from_lists([i16], []))
-        pp = csl.FuncOp(
+        reduce_fn = csl.FuncOp("chunk_reduce_cb", FunctionType.from_lists([i16], []))
+        post_fn = csl.FuncOp(
             "post_process_cb", FunctionType.from_lists([], []), Region(Block())
         )
 
         # the offset arg was of type index and is now i16, so it's cast back to index to be used in the func body
-        cr.body.block.add_op(
+        reduce_fn.body.block.add_op(
             index_op := arith.IndexCastOp(
-                cr.body.block.args[0],
+                reduce_fn.body.block.args[0],
                 IndexType(),
             )
         )
 
         # arg maps for the regions
-        cr_arg_m = [
+        reduce_arg_m = [
             op.communicated_stencil,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
             op.iter_arg,
             *op.args[: len(op.chunk_reduce.block.args) - 3],
         ]
-        pp_arg_m = [op.communicated_stencil, op.iter_arg, *op.args[len(cr_arg_m) - 3 :]]
+        post_arg_m = [
+            op.communicated_stencil,
+            op.iter_arg,
+            *op.args[len(reduce_arg_m) - 3 :],
+        ]
 
         # inlining both regions
         rewriter.inline_block(
-            op.chunk_reduce.block, InsertPoint.at_end(cr.body.block), cr_arg_m
+            op.chunk_reduce.block,
+            InsertPoint.at_end(reduce_fn.body.block),
+            reduce_arg_m,
         )
         rewriter.inline_block(
-            op.post_process.block, InsertPoint.at_end(pp.body.block), pp_arg_m
+            op.post_process.block, InsertPoint.at_end(post_fn.body.block), post_arg_m
         )
 
         # place both func next to the enclosing parent func
-        rewriter.insert_op([cr, pp], InsertPoint.after(parent_func))
+        rewriter.insert_op([reduce_fn, post_fn], InsertPoint.after(parent_func))
 
         # add api call
         num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
+        reduce_ref = csl.AddressOfFnOp(reduce_fn)
+        post_ref = csl.AddressOfFnOp(post_fn)
         api_call = csl.MemberCallOp(
             "communicate",
             None,
@@ -159,13 +168,13 @@ class LowerApplyOp(RewritePattern):
             [
                 op.communicated_stencil,
                 num_chunks,
-                # todo cr function pointer
-                # todo pp function pointer
+                reduce_ref,
+                post_ref,
             ],
         )
 
         # replace op with api call
-        rewriter.replace_matched_op([num_chunks, api_call], [])
+        rewriter.replace_matched_op([num_chunks, reduce_ref, post_ref, api_call], [])
 
 
 @dataclass(frozen=True)
