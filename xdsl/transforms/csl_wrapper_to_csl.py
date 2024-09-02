@@ -184,9 +184,6 @@ class ExtractLayoutModule(RewritePattern):
         _add_to_toplevel(rewriter, op, layout_mod)
 
 
-# program: width, height, *params, *layout-yields
-
-
 @dataclass(frozen=True)
 class ExtractProgramModule(RewritePattern):
     """
