@@ -33,20 +33,13 @@ from xdsl.ir import (
     Attribute,
     Data,
     Dialect,
-    OpResult,
     ParametrizedAttribute,
     TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    Operand,
-    OptOperand,
-    OptOpResult,
     ParameterDef,
-    VarOperand,
-    VarOpResult,
-    VarRegion,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -465,18 +458,18 @@ class Absent(IRDLOperation):
     """
 
     name = "fir.absent"
-    intype: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    intype = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
 class Addc(IRDLOperation):
     name = "fir.addc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -490,9 +483,9 @@ class AddressOf(IRDLOperation):
     """
 
     name = "fir.address_of"
-    symbol: SymbolRefAttr = prop_def(SymbolRefAttr)
-    resTy: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    symbol = prop_def(SymbolRefAttr)
+    resTy = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -508,13 +501,13 @@ class Allocmem(IRDLOperation):
     """
 
     name = "fir.allocmem"
-    in_type: Attribute = prop_def(Attribute)
-    uniq_name: StringAttr | None = opt_prop_def(StringAttr)
-    typeparams: VarOperand = var_operand_def()
-    shape: VarOperand = var_operand_def()
+    in_type = prop_def(Attribute)
+    uniq_name = opt_prop_def(StringAttr)
+    typeparams = var_operand_def()
+    shape = var_operand_def()
 
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -581,14 +574,14 @@ class Alloca(IRDLOperation):
     """
 
     name = "fir.alloca"
-    in_type: Attribute = prop_def(Attribute)
-    uniq_name: StringAttr | None = opt_prop_def(StringAttr)
-    bindc_name: StringAttr | None = opt_prop_def(StringAttr)
-    typeparams: VarOperand = var_operand_def()
-    shape: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
-    valuebyref: UnitAttr | None = opt_prop_def(UnitAttr)
+    in_type = prop_def(Attribute)
+    uniq_name = opt_prop_def(StringAttr)
+    bindc_name = opt_prop_def(StringAttr)
+    typeparams = var_operand_def()
+    shape = var_operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
+    valuebyref = opt_prop_def(UnitAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -634,11 +627,11 @@ class ArrayAccess(IRDLOperation):
     """
 
     name = "fir.array_access"
-    sequence: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    element: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    element = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -661,10 +654,10 @@ class ArrayAmend(IRDLOperation):
     """
 
     name = "fir.array_amend"
-    sequence: Operand = operand_def()
-    memref: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    memref = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -688,13 +681,13 @@ class ArrayCoor(IRDLOperation):
     """
 
     name = "fir.array_coor"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    shape = operand_def()
+    slice = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -721,11 +714,11 @@ class ArrayFetch(IRDLOperation):
     """
 
     name = "fir.array_fetch"
-    sequence: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    element: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    element = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -761,12 +754,12 @@ class ArrayLoad(IRDLOperation):
     """
 
     name = "fir.array_load"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    shape = operand_def()
+    slice = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -790,12 +783,12 @@ class ArrayMergeStore(IRDLOperation):
     """
 
     name = "fir.array_merge_store"
-    original: Operand = operand_def()
-    sequence: Operand = operand_def()
-    memref: Operand = operand_def()
-    slice: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    original = operand_def()
+    sequence = operand_def()
+    memref = operand_def()
+    slice = operand_def()
+    typeparams = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -830,12 +823,12 @@ class ArrayModify(IRDLOperation):
     """
 
     name = "fir.array_modify"
-    sequence: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    result_1: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    result_1 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -867,12 +860,12 @@ class ArrayUpdate(IRDLOperation):
     """
 
     name = "fir.array_update"
-    sequence: Operand = operand_def()
-    merge: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    merge = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -889,9 +882,9 @@ class BoxAddr(IRDLOperation):
     """
 
     name = "fir.box_addr"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -904,9 +897,9 @@ class BoxcharLen(IRDLOperation):
     """
 
     name = "fir.boxchar_len"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -926,12 +919,12 @@ class BoxDims(IRDLOperation):
     """
 
     name = "fir.box_dims"
-    val: Operand = operand_def()
-    dim: Operand = operand_def()
-    result_0: OpResult = result_def()
-    result_1: OpResult = result_def()
-    result_2: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    dim = operand_def()
+    result_0 = result_def()
+    result_1 = result_def()
+    result_2 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -948,9 +941,9 @@ class BoxElesize(IRDLOperation):
     """
 
     name = "fir.box_elesize"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -969,9 +962,9 @@ class BoxIsalloc(IRDLOperation):
     """
 
     name = "fir.box_isalloc"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -989,9 +982,9 @@ class BoxIsarray(IRDLOperation):
     """
 
     name = "fir.box_isarray"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1005,9 +998,9 @@ class BoxIsptr(IRDLOperation):
     """
 
     name = "fir.box_isptr"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1025,9 +1018,9 @@ class BoxprocHost(IRDLOperation):
     """
 
     name = "fir.boxproc_host"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1045,9 +1038,9 @@ class BoxRank(IRDLOperation):
     """
 
     name = "fir.box_rank"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1061,9 +1054,9 @@ class BoxTdesc(IRDLOperation):
     """
 
     name = "fir.box_tdesc"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1076,11 +1069,11 @@ class Call(IRDLOperation):
     """
 
     name = "fir.call"
-    callee: Attribute = prop_def(Attribute)
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result_0: OptOpResult = opt_result_def()
-    args: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
+    callee = prop_def(Attribute)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result_0 = opt_result_def()
+    args = var_operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1105,10 +1098,10 @@ class CharConvert(IRDLOperation):
     """
 
     name = "fir.char_convert"
-    _from: Operand = operand_def()
-    count: Operand = operand_def()
-    to: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    _from = operand_def()
+    count = operand_def()
+    to = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1118,10 +1111,10 @@ class Cmpc(IRDLOperation):
     """
 
     name = "fir.cmpc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1133,8 +1126,8 @@ class Constc(IRDLOperation):
     """
 
     name = "fir.constc"
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1152,9 +1145,9 @@ class Convert(IRDLOperation):
     """
 
     name = "fir.convert"
-    value: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    value = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1179,11 +1172,11 @@ class CoordinateOf(IRDLOperation):
     """
 
     name = "fir.coordinate_of"
-    baseType: Attribute = prop_def(Attribute)
-    ref: Operand = operand_def()
-    coor: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    baseType = prop_def(Attribute)
+    ref = operand_def()
+    coor = var_operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1224,10 +1217,10 @@ class Declare(IRDLOperation):
     """
 
     name = "fir.declare"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    typeparams: VarOperand = var_operand_def()
-    uniq_name: StringAttr = prop_def(StringAttr)
+    memref = operand_def()
+    shape = operand_def()
+    typeparams = var_operand_def()
+    uniq_name = prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
 
 
@@ -1244,7 +1237,7 @@ class DtEntry(IRDLOperation):
     """
 
     name = "fir.dt_entry"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1263,11 +1256,11 @@ class Dispatch(IRDLOperation):
     """
 
     name = "fir.dispatch"
-    pass_arg_pos: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
-    object: Operand = operand_def()
-    args: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    pass_arg_pos = opt_prop_def(AnyIntegerAttr)
+    object = operand_def()
+    args = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1289,7 +1282,7 @@ class DispatchTable(IRDLOperation):
     name = "fir.dispatch_table"
 
     sym_name = prop_def(StringAttr)
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -1297,11 +1290,11 @@ class DispatchTable(IRDLOperation):
 @irdl_op_definition
 class Divc(IRDLOperation):
     name = "fir.divc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1325,13 +1318,13 @@ class DoLoop(IRDLOperation):
     """
 
     name = "fir.do_loop"
-    lowerBound: Operand = operand_def()
-    upperBound: Operand = operand_def()
-    step: Operand = operand_def()
-    finalValue: Attribute | None = opt_prop_def(Attribute)
-    initArgs: Operand = operand_def()
-    _results: VarOpResult = var_result_def()
-    regs: VarRegion = var_region_def()
+    lowerBound = operand_def()
+    upperBound = operand_def()
+    step = operand_def()
+    finalValue = opt_prop_def(Attribute)
+    initArgs = operand_def()
+    _results = var_result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1353,10 +1346,10 @@ class Emboxchar(IRDLOperation):
     """
 
     name = "fir.emboxchar"
-    memref: Operand = operand_def()
-    len: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    len = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1383,13 +1376,13 @@ class Embox(IRDLOperation):
     """
 
     name = "fir.embox"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: VarOperand = var_operand_def()
-    typeparams: VarOperand = var_operand_def()
-    sourceBox: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    shape = operand_def()
+    slice = var_operand_def()
+    typeparams = var_operand_def()
+    sourceBox = var_operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -1417,10 +1410,10 @@ class Emboxproc(IRDLOperation):
     """
 
     name = "fir.emboxproc"
-    func: Operand = operand_def()
-    host: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    func = operand_def()
+    host = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1441,9 +1434,9 @@ class ExtractValue(IRDLOperation):
     """
 
     name = "fir.extract_value"
-    adt: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    adt = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1460,9 +1453,9 @@ class FieldIndex(IRDLOperation):
     """
 
     name = "fir.field_index"
-    typeparams: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    typeparams = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1475,7 +1468,7 @@ class End(IRDLOperation):
     """
 
     name = "fir.end"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1493,8 +1486,8 @@ class Freemem(IRDLOperation):
     """
 
     name = "fir.freemem"
-    heapref: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    heapref = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1509,8 +1502,8 @@ class Gentypedesc(IRDLOperation):
     """
 
     name = "fir.gentypedesc"
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1528,7 +1521,7 @@ class GlobalLen(IRDLOperation):
     """
 
     name = "fir.global_len"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1553,12 +1546,12 @@ class Global(IRDLOperation):
     """
 
     name = "fir.global"
-    regs: VarRegion = var_region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    symref: SymbolRefAttr = prop_def(SymbolRefAttr)
-    type: Attribute = prop_def(Attribute)
-    linkName: StringAttr | None = opt_prop_def(StringAttr)
-    constant: UnitAttr | None = opt_prop_def(UnitAttr)
+    regs = var_region_def()
+    sym_name = prop_def(StringAttr)
+    symref = prop_def(SymbolRefAttr)
+    type = prop_def(Attribute)
+    linkName = opt_prop_def(StringAttr)
+    constant = opt_prop_def(UnitAttr)
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -1581,8 +1574,8 @@ class HasValue(IRDLOperation):
     """
 
     name = "fir.has_value"
-    resval: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    resval = operand_def()
+    regs = var_region_def()
 
     traits = frozenset([IsTerminator()])
 
@@ -1603,8 +1596,8 @@ class If(IRDLOperation):
     """
 
     name = "fir.if"
-    condition: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    condition = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1626,10 +1619,10 @@ class InsertOnRange(IRDLOperation):
     """
 
     name = "fir.insert_on_range"
-    seq: Operand = operand_def()
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    seq = operand_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1652,10 +1645,10 @@ class InsertValue(IRDLOperation):
     """
 
     name = "fir.insert_value"
-    adt: Operand = operand_def()
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    adt = operand_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1670,9 +1663,9 @@ class IsPresent(IRDLOperation):
     """
 
     name = "fir.is_present"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1703,13 +1696,13 @@ class IterateWhile(IRDLOperation):
     """
 
     name = "fir.iterate_while"
-    lowerBound: Operand = operand_def()
-    upperBound: Operand = operand_def()
-    step: Operand = operand_def()
-    iterateIn: Operand = operand_def()
-    initArgs: Operand = operand_def()
-    _results: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lowerBound = operand_def()
+    upperBound = operand_def()
+    step = operand_def()
+    iterateIn = operand_def()
+    initArgs = operand_def()
+    _results = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1726,9 +1719,9 @@ class LenParamIndex(IRDLOperation):
     """
 
     name = "fir.len_param_index"
-    typeparams: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    typeparams = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1746,27 +1739,27 @@ class Load(IRDLOperation):
     """
 
     name = "fir.load"
-    memref: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
 class Mulc(IRDLOperation):
     name = "fir.mulc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
 class Negc(IRDLOperation):
     name = "fir.negc"
-    operand: Operand = operand_def()
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    operand = operand_def()
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1786,9 +1779,9 @@ class NoReassoc(IRDLOperation):
     """
 
     name = "fir.no_reassoc"
-    val: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1824,11 +1817,11 @@ class Rebox(IRDLOperation):
     """
 
     name = "fir.rebox"
-    box: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    box = operand_def()
+    shape = operand_def()
+    slice = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1841,8 +1834,8 @@ class Result(IRDLOperation):
     """
 
     name = "fir.result"
-    regs: VarRegion = var_region_def()
-    _results: OptOperand = opt_operand_def()
+    regs = var_region_def()
+    _results = opt_operand_def()
 
     traits = frozenset([IsTerminator()])
 
@@ -1878,11 +1871,11 @@ class SaveResult(IRDLOperation):
     """
 
     name = "fir.save_result"
-    value: Operand = operand_def()
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    value = operand_def()
+    memref = operand_def()
+    shape = operand_def()
+    typeparams = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1903,10 +1896,10 @@ class SelectCase(IRDLOperation):
     """
 
     name = "fir.select_case"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1927,10 +1920,10 @@ class Select(IRDLOperation):
     """
 
     name = "fir.select"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1950,10 +1943,10 @@ class SelectRank(IRDLOperation):
     """
 
     name = "fir.select_rank"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1974,10 +1967,10 @@ class SelectType(IRDLOperation):
     """
 
     name = "fir.select_type"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1993,8 +1986,8 @@ class Shape(IRDLOperation):
     """
 
     name = "fir.shape"
-    extents: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
+    extents = var_operand_def()
+    result_0 = result_def()
 
 
 @irdl_op_definition
@@ -2011,9 +2004,9 @@ class ShapeShift(IRDLOperation):
     """
 
     name = "fir.shape_shift"
-    pairs: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    pairs = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2029,9 +2022,9 @@ class Shift(IRDLOperation):
     """
 
     name = "fir.shift"
-    origins: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    origins = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2063,11 +2056,11 @@ class Slice(IRDLOperation):
     """
 
     name = "fir.slice"
-    triples: Operand = operand_def()
-    fields: Operand = operand_def()
-    substr: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    triples = operand_def()
+    fields = operand_def()
+    substr = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2087,9 +2080,9 @@ class Store(IRDLOperation):
     """
 
     name = "fir.store"
-    value: Operand = operand_def()
-    memref: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    value = operand_def()
+    memref = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2104,19 +2097,19 @@ class StringLit(IRDLOperation):
     """
 
     name = "fir.string_lit"
-    size: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    value: StringAttr = attr_def(StringAttr)
-    result_0: OpResult = result_def()
+    size = attr_def(IntegerAttr[IntegerType])
+    value = attr_def(StringAttr)
+    result_0 = result_def()
 
 
 @irdl_op_definition
 class Subc(IRDLOperation):
     name = "fir.subc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2130,10 +2123,10 @@ class Unboxchar(IRDLOperation):
     """
 
     name = "fir.unboxchar"
-    boxchar: Operand = operand_def()
-    result_0: OpResult = result_def()
-    result_1: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    boxchar = operand_def()
+    result_0 = result_def()
+    result_1 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2147,10 +2140,10 @@ class Unboxproc(IRDLOperation):
     """
 
     name = "fir.unboxproc"
-    boxproc: Operand = operand_def()
-    result_0: OpResult = result_def()
-    refTuple: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    boxproc = operand_def()
+    result_0 = result_def()
+    refTuple = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2167,8 +2160,8 @@ class Undefined(IRDLOperation):
     """
 
     name = "fir.undefined"
-    intype: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    intype = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2184,7 +2177,7 @@ class Unreachable(IRDLOperation):
     """
 
     name = "fir.unreachable"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2199,8 +2192,8 @@ class ZeroBits(IRDLOperation):
     """
 
     name = "fir.zero_bits"
-    intype: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    intype = result_def()
+    regs = var_region_def()
 
 
 FIR = Dialect(

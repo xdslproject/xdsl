@@ -21,11 +21,10 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Operation, OpResult, OpTrait
+from xdsl.ir import Operation, OpTrait
 from xdsl.irdl import (
     Block,
     IRDLOperation,
-    Operand,
     Region,
     attr_def,
     irdl_op_definition,
@@ -113,8 +112,8 @@ class TestOp(IRDLOperation):
     name = "test.test"
     traits = frozenset([LargerOperandTrait(), BitwidthSumLessThanTrait(64)])
 
-    ops: Operand = operand_def(IntegerType)
-    res: OpResult = result_def(IntegerType)
+    ops = operand_def(IntegerType)
+    res = result_def(IntegerType)
 
 
 def test_has_trait_object():
@@ -243,7 +242,7 @@ class OpWithInterface(IRDLOperation):
     name = "test.op_with_interface"
     traits = frozenset([GetNumResultsTraitForOpWithOneResult()])
 
-    res: OpResult = result_def(IntegerType)
+    res = result_def(IntegerType)
 
 
 def test_interface():
@@ -293,7 +292,7 @@ def test_symbol_op_interface():
     class SymNameWrongTypeOp(IRDLOperation):
         name = "wrong_sym_name_type"
 
-        sym_name: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+        sym_name = attr_def(AnyIntegerAttr)
         traits = frozenset((SymbolOpInterface(),))
 
     op1 = SymNameWrongTypeOp(

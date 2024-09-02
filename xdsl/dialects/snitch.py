@@ -18,7 +18,6 @@ from xdsl.dialects.riscv import IntRegisterType
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -43,7 +42,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     configuration value for a specific dimension handled by a streamer.
     """
 
-    value: Operand = operand_def(IntRegisterType)
+    value = operand_def(IntRegisterType)
     dm = attr_def(IntAttr)
     dimension = attr_def(IntAttr)
 
@@ -75,7 +74,7 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     configuration value for a streamer.
     """
 
-    value: Operand = operand_def(IntRegisterType)
+    value = operand_def(IntRegisterType)
     dm = attr_def(IntAttr)
 
     def __init__(self, value: Operation | SSAValue, dm: IntAttr):

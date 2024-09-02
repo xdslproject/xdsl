@@ -158,7 +158,7 @@ class ModuleOp(IRDLOperation):
     width = prop_def(IntegerAttr[IntegerType])
     height = prop_def(IntegerAttr[IntegerType])
     program_name = opt_prop_def(StringAttr)
-    params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
+    params = prop_def(ArrayAttr[ParamAttribute])
 
     layout_module = region_def("single_block")
     program_module = region_def("single_block")

@@ -15,12 +15,11 @@ from xdsl.dialects.builtin import (
     i1,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Attribute, Data, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Data, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
-    Operand,
     ParametrizedAttribute,
     attr_def,
     irdl_attr_definition,
@@ -54,8 +53,8 @@ class ClockDivider(IRDLOperation):
     name = "seq.clock_div"
 
     pow2 = attr_def(AnyIntegerAttr)
-    clockIn: Operand = operand_def(ClockType)
-    clockOut: OpResult = result_def(ClockType)
+    clockIn = operand_def(ClockType)
+    clockOut = result_def(ClockType)
 
     def __init__(self, clockIn: SSAValue | Operation, pow2: int | AnyIntegerAttr):
         if isinstance(pow2, int):
@@ -186,8 +185,8 @@ class ConstClockOp(IRDLOperation):
 
     name = "seq.const_clock"
 
-    value: ClockConstAttr = attr_def(ClockConstAttr)
-    result: OpResult = result_def(clock)
+    value = attr_def(ClockConstAttr)
+    result = result_def(clock)
 
     @classmethod
     def parse(cls, parser: Parser) -> "ConstClockOp":

@@ -17,7 +17,6 @@ from xdsl.ir import (
     Block,
     Dialect,
     Operation,
-    OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -27,11 +26,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    OptOperand,
-    OptRegion,
     ParameterDef,
-    VarOperand,
-    VarOpResult,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -190,8 +185,8 @@ class ApplyNativeConstraintOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_constraint"
-    constraint_name: StringAttr = prop_def(StringAttr, prop_name="name")
-    args: VarOperand = var_operand_def(AnyPDLTypeConstr)
+    constraint_name = prop_def(StringAttr, prop_name="name")
+    args = var_operand_def(AnyPDLTypeConstr)
 
     def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
         if isinstance(name, str):
@@ -221,9 +216,9 @@ class ApplyNativeRewriteOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_rewrite"
-    constraint_name: StringAttr = prop_def(StringAttr, prop_name="name")
-    args: VarOperand = var_operand_def(AnyPDLTypeConstr)
-    res: VarOpResult = var_result_def(AnyPDLTypeConstr)
+    constraint_name = prop_def(StringAttr, prop_name="name")
+    args = var_operand_def(AnyPDLTypeConstr)
+    res = var_result_def(AnyPDLTypeConstr)
 
     def __init__(
         self,
@@ -270,9 +265,9 @@ class AttributeOp(IRDLOperation):
     """
 
     name = "pdl.attribute"
-    value: Attribute | None = opt_prop_def(Attribute)
-    value_type: OptOperand = opt_operand_def(TypeType)
-    output: OpResult = result_def(AttributeType)
+    value = opt_prop_def(Attribute)
+    value_type = opt_operand_def(TypeType)
+    output = result_def(AttributeType)
 
     def verify_(self):
         if self.value is not None and self.value_type is not None:
@@ -326,7 +321,7 @@ class EraseOp(IRDLOperation):
     """
 
     name = "pdl.erase"
-    op_value: Operand = operand_def(OperationType)
+    op_value = operand_def(OperationType)
 
     def __init__(self, op_value: SSAValue) -> None:
         super().__init__(operands=[op_value])
@@ -347,8 +342,8 @@ class OperandOp(IRDLOperation):
     """
 
     name = "pdl.operand"
-    value_type: OptOperand = opt_operand_def(TypeType)
-    value: OpResult = result_def(ValueType)
+    value_type = opt_operand_def(TypeType)
+    value = result_def(ValueType)
 
     def __init__(self, value_type: SSAValue | None = None) -> None:
         super().__init__(operands=[value_type], result_types=[ValueType()])
@@ -376,8 +371,8 @@ class OperandsOp(IRDLOperation):
     """
 
     name = "pdl.operands"
-    value_type: OptOperand = opt_operand_def(RangeType[TypeType])
-    value: OpResult = result_def(RangeType[ValueType])
+    value_type = opt_operand_def(RangeType[TypeType])
+    value = result_def(RangeType[ValueType])
 
     def __init__(self, value_type: SSAValue | None) -> None:
         super().__init__(operands=[value_type], result_types=[RangeType(ValueType())])
@@ -405,17 +400,13 @@ class OperationOp(IRDLOperation):
     """
 
     name = "pdl.operation"
-    opName: StringAttr | None = opt_prop_def(StringAttr)
-    attributeValueNames: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
+    opName = opt_prop_def(StringAttr)
+    attributeValueNames = prop_def(ArrayAttr[StringAttr])
 
-    operand_values: VarOperand = var_operand_def(
-        base(ValueType) | base(RangeType[ValueType])
-    )
-    attribute_values: VarOperand = var_operand_def(AttributeType)
-    type_values: VarOperand = var_operand_def(
-        base(TypeType) | base(RangeType[TypeType])
-    )
-    op: OpResult = result_def(OperationType)
+    operand_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
+    attribute_values = var_operand_def(AttributeType)
+    type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
+    op = result_def(OperationType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -566,8 +557,8 @@ class PatternOp(IRDLOperation):
 
     name = "pdl.pattern"
     benefit = prop_def(IntegerAttr[I16])
-    sym_name: StringAttr | None = opt_prop_def(StringAttr)
-    body: Region = region_def("single_block")
+    sym_name = opt_prop_def(StringAttr)
+    body = region_def("single_block")
 
     traits = frozenset([OptionalSymbolOpInterface()])
 
@@ -649,10 +640,8 @@ class RangeOp(IRDLOperation):
     """
 
     name = "pdl.range"
-    arguments: VarOperand = var_operand_def(
-        AnyPDLTypeConstr | base(RangeType[AnyPDLType])
-    )
-    result: OpResult = result_def(RangeType[AnyPDLType])
+    arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    result = result_def(RangeType[AnyPDLType])
 
     traits = traits_def(lambda: frozenset([HasParent(RewriteOp)]))
 
@@ -726,11 +715,9 @@ class ReplaceOp(IRDLOperation):
     """
 
     name = "pdl.replace"
-    op_value: Operand = operand_def(OperationType)
-    repl_operation: OptOperand = opt_operand_def(OperationType)
-    repl_values: VarOperand = var_operand_def(
-        base(ValueType) | base(ArrayAttr[ValueType])
-    )
+    op_value = operand_def(OperationType)
+    repl_operation = opt_operand_def(OperationType)
+    repl_values = var_operand_def(base(ValueType) | base(ArrayAttr[ValueType]))
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -794,8 +781,8 @@ class ResultOp(IRDLOperation):
 
     name = "pdl.result"
     index = prop_def(IntegerAttr[I32])
-    parent_: Operand = operand_def(OperationType)
-    val: OpResult = result_def(ValueType)
+    parent_ = operand_def(OperationType)
+    val = result_def(ValueType)
 
     def __init__(self, index: int | IntegerAttr[IntegerType], parent: SSAValue) -> None:
         if isinstance(index, int):
@@ -822,9 +809,9 @@ class ResultsOp(IRDLOperation):
     """
 
     name = "pdl.results"
-    index: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
-    parent_: Operand = operand_def(OperationType)
-    val: OpResult = result_def(base(ValueType) | base(RangeType[ValueType]))
+    index = opt_prop_def(IntegerAttr[IntegerType])
+    parent_ = operand_def(OperationType)
+    val = result_def(base(ValueType) | base(RangeType[ValueType]))
 
     def __init__(
         self,
@@ -866,13 +853,13 @@ class RewriteOp(IRDLOperation):
     """
 
     name = "pdl.rewrite"
-    root: OptOperand = opt_operand_def(OperationType)
+    root = opt_operand_def(OperationType)
     # name of external rewriter function
-    name_: StringAttr | None = opt_prop_def(StringAttr, prop_name="name")
+    name_ = opt_prop_def(StringAttr, prop_name="name")
     # parameters of external rewriter function
-    external_args: VarOperand = var_operand_def(AnyPDLTypeConstr)
+    external_args = var_operand_def(AnyPDLTypeConstr)
     # body of inline rewriter function
-    body: OptRegion = opt_region_def()
+    body = opt_region_def()
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -952,8 +939,8 @@ class TypeOp(IRDLOperation):
     """
 
     name = "pdl.type"
-    constantType: Attribute | None = opt_prop_def(Attribute)
-    result: OpResult = result_def(TypeType)
+    constantType = opt_prop_def(Attribute)
+    result = result_def(TypeType)
 
     def __init__(self, constant_type: Attribute | None = None) -> None:
         super().__init__(
@@ -982,8 +969,8 @@ class TypesOp(IRDLOperation):
     """
 
     name = "pdl.types"
-    constantTypes: AnyArrayAttr | None = opt_prop_def(AnyArrayAttr)
-    result: OpResult = result_def(RangeType[TypeType])
+    constantTypes = opt_prop_def(AnyArrayAttr)
+    result = result_def(RangeType[TypeType])
 
     def __init__(self, constant_types: Iterable[Attribute] | None = None) -> None:
         if constant_types is not None:
