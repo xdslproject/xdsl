@@ -52,7 +52,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, SymbolOpInterface
+from xdsl.traits import IsTerminator, NoMemoryEffect, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -365,6 +365,8 @@ class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
     rhs = operand_def(T)
     res = result_def(T)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(
         self,
         lhs: SSAValue,
@@ -582,6 +584,8 @@ class GEPOp(IRDLOperation):
     rawConstantIndices = prop_def(DenseArrayBase)
     inbounds = opt_prop_def(UnitAttr)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(
         self,
         ptr: SSAValue | Operation,
@@ -701,6 +705,8 @@ class IntToPtrOp(IRDLOperation):
 
     output = result_def(LLVMPointerType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
@@ -777,6 +783,8 @@ class PtrToIntOp(IRDLOperation):
 
     output = result_def(IntegerType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
 
@@ -850,6 +858,8 @@ class NullOp(IRDLOperation):
 
     nullptr = result_def(LLVMPointerType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
@@ -870,6 +880,8 @@ class ExtractValueOp(IRDLOperation):
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -900,6 +912,8 @@ class InsertValueOp(IRDLOperation):
 
     res = result_def(Attribute)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(
         self,
         position: DenseArrayBase,
@@ -924,6 +938,8 @@ class UndefOp(IRDLOperation):
     name = "llvm.mlir.undef"
 
     res = result_def(Attribute)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
@@ -1010,6 +1026,8 @@ class AddressOfOp(IRDLOperation):
 
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -1135,7 +1153,7 @@ class ReturnOp(IRDLOperation):
 
     arg = opt_operand_def(Attribute)
 
-    traits = frozenset((IsTerminator(),))
+    traits = frozenset((IsTerminator(), NoMemoryEffect()))
 
     def __init__(self, value: Attribute | None = None):
         super().__init__(attributes={"value": value})
@@ -1146,6 +1164,8 @@ class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
     result = result_def(Attribute)
     value = prop_def(Attribute)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
@@ -1261,6 +1281,8 @@ class ZeroOp(IRDLOperation):
     name = "llvm.mlir.zero"
 
     assembly_format = "attr-dict `:` type($res)"
+
+    traits = frozenset([NoMemoryEffect()])
 
     res = result_def(LLVMTypeConstr)
 

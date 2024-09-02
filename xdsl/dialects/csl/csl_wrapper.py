@@ -144,6 +144,10 @@ class ModuleOp(IRDLOperation):
     The layout module has two additional block args `x` and `y` as part of the `@set_tile_code` loop nest.
     Operations using these args need to be lowered to the correct place in the loop nest.
 
+    The layout module has the following args (in order):
+      * set_tile_code params:  `x` and `y`
+      * general params:        `width` and `height` followed by everything specified in `params`
+
     The program module has the following args (in order):
       * general params:        `width` and `height` followed by everything specified in `params`
       * params from layout:    everything defined by `layout_yield_op.fields`
