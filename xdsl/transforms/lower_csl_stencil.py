@@ -116,16 +116,21 @@ class LowerApplyOp(RewritePattern):
             parent_func
         ), "Expected csl_stencil.apply to be inside a func.func or csl.func"
 
+        # set up csl funcs
         cr = csl.FuncOp("chunk_reduce_cb", FunctionType.from_lists([i16], []))
         pp = csl.FuncOp(
             "post_process_cb", FunctionType.from_lists([], []), Region(Block())
         )
+
+        # the offset arg was of type index and is now i16, so it's cast back to index to be used in the func body
         cr.body.block.add_op(
             index_op := arith.IndexCastOp(
                 cr.body.block.args[0],
                 IndexType(),
             )
         )
+
+        # arg maps for the regions
         cr_arg_m = [
             op.communicated_stencil,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
@@ -134,6 +139,7 @@ class LowerApplyOp(RewritePattern):
         ]
         pp_arg_m = [op.communicated_stencil, op.iter_arg, *op.args[len(cr_arg_m) - 3 :]]
 
+        # inlining both regions
         rewriter.inline_block(
             op.chunk_reduce.block, InsertPoint.at_end(cr.body.block), cr_arg_m
         )
@@ -141,8 +147,10 @@ class LowerApplyOp(RewritePattern):
             op.post_process.block, InsertPoint.at_end(pp.body.block), pp_arg_m
         )
 
+        # place both func next to the enclosing parent func
         rewriter.insert_op([cr, pp], InsertPoint.after(parent_func))
 
+        # add api call
         num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
         api_call = csl.MemberCallOp(
             "communicate",
@@ -156,6 +164,7 @@ class LowerApplyOp(RewritePattern):
             ],
         )
 
+        # replace op with api call
         rewriter.replace_matched_op([num_chunks, api_call], [])
 
 
