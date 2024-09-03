@@ -262,15 +262,39 @@ class LowerImport(RewritePattern):
         ops.append(op)
         return ops
 
+    def _make_import_struct(self, import_op: csl_wrapper.ImportOp):
+        """
+        Create the struct to be passed to `@import_module`
+
+        Handles the case where multiple structs need to be concatinated before
+        being imported (this is indicated by an empty field name in
+        `csl_wrapper.import`). All required intermediate structs get returned
+        as a list.
+
+        Last struct in the list is to be used in `csl.import`
+        """
+
+        fields = list[tuple[str, SSAValue | Operation]]()
+        structs_to_concat = list[SSAValue | Operation]()
+        for fname, op in zip(import_op.fields, import_op.ops):
+            if fname.data != "":
+                fields.append((fname.data, op))
+            else:
+                structs_to_concat.append(op)
+        out_structs: list[Operation] = [csl.ConstStructOp(*fields)]
+        for s in structs_to_concat:
+            out_structs.append(csl.ConcatStructOp(out_structs[-1], s))
+        return out_structs
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ImportOp, rewriter: PatternRewriter, /):
         csl_mod = self._get_csl_mod(op)
         ops = self._collect_ops(op, [])
-        struct = csl.ConstStructOp(*((f.data, o) for f, o in zip(op.fields, op.ops)))
-        import_ = csl.ImportModuleConstOp(op.module, struct)
+        structs = self._make_import_struct(op)
+        import_ = csl.ImportModuleConstOp(op.module, structs[-1])
 
         rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
-        rewriter.replace_matched_op([struct, import_])
+        rewriter.replace_matched_op([*structs, import_])
 
 
 @dataclass(frozen=True)
