@@ -1793,7 +1793,7 @@ class ConcatStructOp(IRDLOperation):
 
     result = result_def(ComptimeStructType)
 
-    def __init__(self, struct_a: Operation, struct_b: Operation):
+    def __init__(self, struct_a: Operation | SSAValue, struct_b: Operation | SSAValue):
         super().__init__(
             operands=[struct_a, struct_b],
             result_types=[ComptimeStructType()],
