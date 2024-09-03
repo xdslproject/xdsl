@@ -245,7 +245,7 @@ class LowerImport(RewritePattern):
         assert (parent := op.parent_op()) is not None
         return self._get_csl_mod(parent)
 
-    def _collect_ops(self, op: Operation, ops: list[Operation]):
+    def _collect_ops(self, op: Operation, ops: list[Operation]) -> list[Operation]:
         """
         Detach the op from its current location and store it in the list
 
