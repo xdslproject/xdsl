@@ -125,11 +125,13 @@ builtin.module {
 // CHECK-NEXT:     %1 = arith.constant 255 : i16
 // CHECK-NEXT:     %chunk_size = "csl.param"(%1) <{"param_name" = "chunk_size"}> : (i16) -> i16
 // CHECK-NEXT:     %stencil_comms_params = "csl.param"() <{"param_name" = "stencil_comms_params"}> : () -> !csl.comptime_struct
-// CHECK-NEXT:     %stencilCommsMod = "csl.const_struct"(%pattern, %chunk_size, %stencil_comms_params) <{"ssa_fields" = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.comptime_struct
-// CHECK-NEXT:     %stencilCommsMod_1 = "csl.import_module"(%stencilCommsMod) <{"module" = "stencil_comms.csl"}> : (!csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:     %stencilCommsMod = "csl.const_struct"(%pattern, %chunk_size) <{"ssa_fields" = ["pattern", "chunkSize"]}> : (i16, i16) -> !csl.comptime_struct
+// CHECK-NEXT:     %stencilCommsMod_1 = "csl.concat_structs"(%stencilCommsMod, %stencil_comms_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:     %stencilCommsMod_2 = "csl.import_module"(%stencilCommsMod_1) <{"module" = "stencil_comms.csl"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %memcpy_params = "csl.param"() <{"param_name" = "memcpy_params"}> : () -> !csl.comptime_struct
-// CHECK-NEXT:     %memcpyMod = "csl.const_struct"(%memcpy_params) <{"ssa_fields" = [""]}> : (!csl.comptime_struct) -> !csl.comptime_struct
-// CHECK-NEXT:     %memcpyMod_1 = "csl.import_module"(%memcpyMod) <{"module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:     %memcpyMod = "csl.const_struct"() <{"ssa_fields" = []}> : () -> !csl.comptime_struct
+// CHECK-NEXT:     %memcpyMod_1 = "csl.concat_structs"(%memcpyMod, %memcpy_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:     %memcpyMod_2 = "csl.import_module"(%memcpyMod_1) <{"module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %width = "csl.param"() <{"param_name" = "width"}> : () -> i16
 // CHECK-NEXT:     %height = "csl.param"() <{"param_name" = "height"}> : () -> i16
 // CHECK-NEXT:     %2 = arith.constant 512 : i16
