@@ -252,7 +252,7 @@ class LowerImport(RewritePattern):
         Do this recursively for all operands of each operation.
 
         NOTE: This op's dependencies are added to the list first to preserve
-              the order in which they get added bakc to the module.
+              the order in which they get added back to the module.
         """
         op.detach()
         for operand in op.operands:
