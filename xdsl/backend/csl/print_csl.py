@@ -26,6 +26,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TypeAttribute,
     UnitAttr,
+    i1,
 )
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import Operand
@@ -70,8 +71,8 @@ class CslPrintContext:
                 arith.RemSI.name: "%",
                 arith.RemUI.name: "%",
                 arith.ShLI.name: "<<",
-                arith.AndI.name: "and",
-                arith.OrI.name: "or",
+                arith.AndI.name: "&",
+                arith.OrI.name: "|",
             }
         )
         self._cmp_ops.update(
@@ -446,6 +447,17 @@ class CslPrintContext:
         """
         for op in body.ops:
             match op:
+                case (
+                    arith.AndI(lhs=lhs, rhs=rhs, result=res)
+                    | arith.OrI(lhs=lhs, rhs=rhs, result=res)
+                ) if res.type == i1:
+                    lhs_name = self._get_variable_name_for(lhs)
+                    rhs_name = self._get_variable_name_for(rhs)
+                    self._print_or_promote_to_inline_expr(
+                        res,
+                        f"{lhs_name} {'or' if isa(op, arith.OrI) else 'and'} {rhs_name}",
+                        brackets=True,
+                    )
                 # handle all binary ops at once:
                 case Operation() if op.name in self._binops:
                     self._print_or_promote_to_inline_expr(
