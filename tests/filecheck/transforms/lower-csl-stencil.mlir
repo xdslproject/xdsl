@@ -97,12 +97,12 @@ builtin.module {
 // CHECK-NEXT:     csl.func @gauss_seidel_func() {
 // CHECK-NEXT:       %arg4 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:       %37 = arith.constant 2 : i16
-// CHECK-NEXT:       %38 = "csl.addressof_fn"() <{"fn_name" = @chunk_reduce_cb}> : () -> !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
-// CHECK-NEXT:       %39 = "csl.addressof_fn"() <{"fn_name" = @post_process_cb}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %38 = "csl.addressof_fn"() <{"fn_name" = @chunk_reduce_cb0}> : () -> !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %39 = "csl.addressof_fn"() <{"fn_name" = @post_process_cb0}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       "csl.member_call"(%34, %arg0, %37, %38, %39) <{"field" = "communicate"}> : (!csl.imported_module, memref<512xf32>, i16, !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.func @chunk_reduce_cb(%40 : i16) {
+// CHECK-NEXT:     csl.func @chunk_reduce_cb0(%40 : i16) {
 // CHECK-NEXT:       %arg3 = arith.index_cast %40 : i16 to index
 // CHECK-NEXT:       %41 = arith.constant 1 : i16
 // CHECK-NEXT:       %42 = "csl.get_dir"() <{"dir" = #csl<dir_kind west>}> : () -> !csl.direction
@@ -126,7 +126,7 @@ builtin.module {
 // CHECK-NEXT:       "csl.fadds"(%57, %57, %44) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.func @post_process_cb() {
+// CHECK-NEXT:     csl.func @post_process_cb0() {
 // CHECK-NEXT:       %58 = memref.subview %arg0[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
 // CHECK-NEXT:       %59 = memref.subview %arg0[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
 // CHECK-NEXT:       "csl.fadds"(%arg4, %arg4, %59) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()

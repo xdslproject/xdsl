@@ -33,7 +33,7 @@ def get_dir_and_distance_ops(
 
     offset = tuple(op.offset)
     assert len(offset) == 2, "Expecting 2-dimensional access"
-    assert (offset[0] == 0) ^ (
+    assert (offset[0] == 0) != (
         offset[1] == 0
     ), "Expecting neighbour access in a star-shape pattern"
     if offset[0] < 0:
@@ -94,12 +94,14 @@ class LowerAccessOp(RewritePattern):
         )
 
 
-@dataclass(frozen=True)
+@dataclass
 class LowerApplyOp(RewritePattern):
     """
     Lowers csl_stencil.apply to an API call. Places the two regions in csl.funcs and
     passes them as callbacks.
     """
+
+    count: int = 0
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
@@ -118,10 +120,15 @@ class LowerApplyOp(RewritePattern):
         ), "Expected csl_stencil.apply to be inside a func.func or csl.func"
 
         # set up csl funcs
-        reduce_fn = csl.FuncOp("chunk_reduce_cb", FunctionType.from_lists([i16], []))
-        post_fn = csl.FuncOp(
-            "post_process_cb", FunctionType.from_lists([], []), Region(Block())
+        reduce_fn = csl.FuncOp(
+            "chunk_reduce_cb" + str(self.count), FunctionType.from_lists([i16], [])
         )
+        post_fn = csl.FuncOp(
+            "post_process_cb" + str(self.count),
+            FunctionType.from_lists([], []),
+            Region(Block()),
+        )
+        self.count += 1
 
         # the offset arg was of type index and is now i16, so it's cast back to index to be used in the func body
         reduce_fn.body.block.add_op(
