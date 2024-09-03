@@ -291,7 +291,7 @@ class LowerImport(RewritePattern):
         csl_mod = self._get_csl_mod(op)
         ops = self._collect_ops(op, [])
         structs = self._make_import_struct(op)
-        import_ = csl.ImportModuleConstOp(op.module, structs[-1])
+        import_ = csl.ImportModuleConstOp(op.module, structs[-1] if len(structs) > 0 else None)
 
         rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
         rewriter.replace_matched_op([*structs, import_])
