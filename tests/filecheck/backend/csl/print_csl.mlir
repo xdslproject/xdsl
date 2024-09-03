@@ -56,6 +56,45 @@
     csl.return
   }
 
+  csl.func @comparisons() -> i1 {
+    %int1 = arith.constant 0 : i32
+    %int2 = arith.constant 1 : i32
+
+    %float1 = arith.constant 0.0 : f32
+    %float2 = arith.constant 1.1 : f32
+
+    %intEq  = arith.cmpi eq,  %int1, %int2 : i32
+    %intNe  = arith.cmpi ne,  %int1, %int2 : i32
+    %intSlt = arith.cmpi slt, %int1, %int2 : i32
+    %intSle = arith.cmpi sle, %int1, %int2 : i32
+    %intSgt = arith.cmpi sgt, %int1, %int2 : i32
+    %intSge = arith.cmpi sge, %int1, %int2 : i32
+    %intUlt = arith.cmpi ult, %int1, %int2 : i32
+    %intUle = arith.cmpi ule, %int1, %int2 : i32
+    %intUgt = arith.cmpi ugt, %int1, %int2 : i32
+    %intUge = arith.cmpi uge, %int1, %int2 : i32
+
+    %floatFalse = arith.cmpf false, %float1, %float2 : f32
+    %floatOeq   = arith.cmpf oeq,   %float1, %float2 : f32
+    %floatOgt   = arith.cmpf ogt,   %float1, %float2 : f32
+    %floatOge   = arith.cmpf oge,   %float1, %float2 : f32
+    %floatOlt   = arith.cmpf olt,   %float1, %float2 : f32
+    %floatOle   = arith.cmpf ole,   %float1, %float2 : f32
+    %floatOne   = arith.cmpf one,   %float1, %float2 : f32
+    %floatUeq   = arith.cmpf ueq,   %float1, %float2 : f32
+    %floatUgt   = arith.cmpf ugt,   %float1, %float2 : f32
+    %floatUge   = arith.cmpf uge,   %float1, %float2 : f32
+    %floatUlt   = arith.cmpf ult,   %float1, %float2 : f32
+    %floatUle   = arith.cmpf ule,   %float1, %float2 : f32
+    %floatUne   = arith.cmpf une,   %float1, %float2 : f32
+    %floatTrue  = arith.cmpf true,  %float1, %float2 : f32
+
+    %or_ = arith.ori %intSle, %floatUgt : i1
+    %and_ = arith.andi %or_, %floatOge : i1
+
+    csl.return %and_ : i1
+  }
+
   csl.func @constants() {
     %inline_const = arith.constant 100 : i32
 
@@ -407,6 +446,31 @@ csl.func @builtins() {
 // CHECK-NEXT:   const castI32again : i32 = @as(i32, @as(i16, 0.0));
 // CHECK-NEXT:   const castU32 : u32 = @as(u32, 0);
 // CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn comparisons() bool {
+// CHECK-NEXT:   const intEq : bool = 0  ==  1;
+// CHECK-NEXT:   const intNe : bool = 0  !=  1;
+// CHECK-NEXT:   const intSlt : bool = 0  <  1;
+// CHECK-NEXT:   const intSgt : bool = 0  >  1;
+// CHECK-NEXT:   const intSge : bool = 0  >=  1;
+// CHECK-NEXT:   const intUlt : bool = 0  <  1;
+// CHECK-NEXT:   const intUle : bool = 0  <=  1;
+// CHECK-NEXT:   const intUgt : bool = 0  >  1;
+// CHECK-NEXT:   const intUge : bool = 0  >=  1;
+// CHECK-NEXT:   const floatFalse : bool = false;
+// CHECK-NEXT:   const floatOeq : bool = 0.0  ==  1.1;
+// CHECK-NEXT:   const floatOgt : bool = 0.0  >  1.1;
+// CHECK-NEXT:   const floatOlt : bool = 0.0  <  1.1;
+// CHECK-NEXT:   const floatOle : bool = 0.0  <=  1.1;
+// CHECK-NEXT:   const floatOne : bool = 0.0  !=  1.1;
+// CHECK-NEXT:   const floatUeq : bool = 0.0  ==  1.1;
+// CHECK-NEXT:   const floatUge : bool = 0.0  >=  1.1;
+// CHECK-NEXT:   const floatUlt : bool = 0.0  <  1.1;
+// CHECK-NEXT:   const floatUle : bool = 0.0  <=  1.1;
+// CHECK-NEXT:   const floatUne : bool = 0.0  !=  1.1;
+// CHECK-NEXT:   const floatTrue : bool = true;
+// CHECK-NEXT:   return (((0  <=  1) or (0.0  >  1.1)) and (0.0  >=  1.1));
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn constants() void {
