@@ -4,12 +4,19 @@ from typing import TypeVar
 
 from xdsl.dialects import qref
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
-from xdsl.dialects.stim import QubitCoordsOp, QubitMappingAttr, StimCircuitOp
+from xdsl.dialects.stim import (
+    CliffordGateOp,
+    QubitCoordsOp,
+    QubitMappingAttr,
+    StimCircuitOp,
+)
+from xdsl.dialects.stim.ops import PauliOperatorEnum, SingleQubitCliffordsEnum
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
 
 T = TypeVar("T")
+T1 = TypeVar("T1")
 
 
 class StimParseError(Exception):
@@ -22,7 +29,7 @@ class StimParseError(Exception):
         super().__init__(f"StimParseError at {self.position}: {self.message}")
 
 
-class Instruction(StrEnum):
+class AnnotationEnum(StrEnum):
     """
     Enum for the parse-able instructions in Stim.
     """
@@ -30,15 +37,43 @@ class Instruction(StrEnum):
     COORD = "QUBIT_COORDS"
 
 
+class SingleQubitUnitaryEnum(StrEnum):
+    """
+    Enum for the parse-able single qubit unitary gates in Stim.
+    """
+
+    IDENTITY = "I"
+    HXY = "H_XY"
+    HYZ = "H_YZ"
+    HXZ = "H_XZ"
+    H = "H"
+    SQRT_X_DAG = "SQRT_X_DAG"
+    SQRT_Y_DAG = "SQRT_Y_DAG"
+    SQRT_Z_DAG = "SQRT_Z_DAG"
+    SQRT_X = "SQRT_X"
+    SQRT_Y = "SQRT_Y"
+    SQRT_Z = "SQRT_Z"
+    S_DAG = "S_DAG"
+    S = "S"
+    C_XYZ = "C_XYZ"
+    C_ZYX = "C_ZYX"
+
+
 NEWLINE = re.compile(r"\n")
 NOT_NEWLINE = re.compile(r"[^\n]*")
 INDENT = re.compile(r"[ \t]*")
 SPACE = re.compile(r"[ \t]")
 ARG = re.compile(r"\d+(\.\d+)?")
-# PAULI = re.compile("|".join(re.re.escape(p.value) for p in PauliSpelling))
+PAULI = re.compile(
+    "|".join(re.escape(p.value) for p in PauliOperatorEnum), re.IGNORECASE
+)
 TARGET = re.compile(r"\d+")
-# GATE = re.compile("|".join(re.escape(p.value) for p in PrimitiveSpelling))
-# INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in Instruction))
+SQGATE = re.compile(
+    "|".join(re.escape(p.value) for p in SingleQubitUnitaryEnum), re.IGNORECASE
+)
+ANNOTATION = re.compile(
+    "|".join(re.escape(i.value) for i in AnnotationEnum), re.IGNORECASE
+)
 NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]+")
 """
 A regular expression for a name: a letter followed by a number of letters or numbers or underscores.
@@ -83,11 +118,13 @@ class StimParser:
         return parsed
 
     def parse_one_of(
-        self, StimParsers: Sequence[Callable[["StimParser"], T | None]]
-    ) -> T | None:
-        for StimParser in StimParsers:
+        self,
+        StimParsers: Sequence[Callable[["StimParser"], T | None]],
+        builders: Sequence[Callable[[T], T1]],
+    ) -> T1 | None:
+        for StimParser, build in zip(StimParsers, builders):
             if (parsed := StimParser(self)) is not None:
-                return parsed
+                return build(parsed)
 
     # endregion
 
@@ -107,7 +144,7 @@ class StimParser:
             lines.append(op[1])
 
         circuit_body = Region(Block(ops=lines))
-        return StimCircuitOp(circuit_body, None)
+        return StimCircuitOp(circuit_body)
 
     def parse_optional_comment(self) -> None:
         """
@@ -154,15 +191,37 @@ class StimParser:
         return ops
 
     # region Instruction parsing
+    def parse_optional_name(self):
+        if (
+            op := self.parse_one_of(
+                [
+                    lambda parser: parser.parse_optional_pattern(PAULI),
+                    lambda parser: parser.parse_optional_pattern(SQGATE),
+                    lambda parser: parser.parse_optional_pattern(ANNOTATION),
+                ],
+                [
+                    lambda str: PauliOperatorEnum(str),
+                    lambda str: SingleQubitUnitaryEnum(str),
+                    lambda str: AnnotationEnum(str),
+                ],
+            )
+        ) is None:
+            if n := self.parse_optional_pattern(NAME) is not None:
+                raise StimParseError(
+                    self.pos, f"`{n}` is not a known instruction name."
+                )
+            return None
+        return op
 
     def parse_optional_instruction(self) -> tuple[list[Operation], Operation] | None:
         """
         Parse instruction with format:
             instruction ::= name (parens_arguments)? targets
         """
-        if (name := self.parse_optional_pattern(NAME)) is None:
+
+        # Check if any of the valid names pass
+        if (op := self.parse_optional_name()) is None:
             return None
-        op = Instruction(name)
         parens = self.parse_optional_parens()
         if parens is None:
             parens = []
@@ -281,20 +340,104 @@ class StimParser:
         return coords
 
     def build_operation(
-        self, op: Instruction, parens: list[float], targets: Sequence[SSAValue]
+        self,
+        op: AnnotationEnum | PauliOperatorEnum | SingleQubitUnitaryEnum,
+        parens: list[float],
+        targets: Sequence[SSAValue],
     ):
         """
         Build the operation corresponding to the name, parens, and targets found by the parser.
         """
-        match op:
-            case Instruction.COORD:
-                if parens == []:
-                    # In line with the behaviour of the Stim parser, parsing an empty parens argument gives a paren with 0 in.
-                    parens = [0.0]
-                qubit = targets[0]
-                coords = self.build_parens(parens)
-                mapping = QubitMappingAttr(coords)
-                return QubitCoordsOp(qubit, mapping)
+
+        if isinstance(op, AnnotationEnum):
+            match op:
+                case AnnotationEnum.COORD:
+                    if parens == []:
+                        # In line with the behaviour of the Stim parser, parsing an empty parens argument gives a paren with 0 in.
+                        parens = [0.0]
+                    qubit = targets[0]
+                    coords = self.build_parens(parens)
+                    mapping = QubitMappingAttr(coords)
+                    return QubitCoordsOp(qubit, mapping)
+        if isinstance(op, PauliOperatorEnum):
+            if parens != []:
+                raise StimParseError(
+                    self.pos,
+                    f"Gate {op} was given parens arguments ({parens.count}) but expects (0) arguments.",
+                )
+            return CliffordGateOp(SingleQubitCliffordsEnum.Rotation, targets, op)
+        if isinstance(op, SingleQubitUnitaryEnum):
+            if parens != []:
+                raise StimParseError(
+                    self.pos,
+                    f"Gate {op} was given parens arguments ({parens.count}) but expects (0) arguments.",
+                )
+            match op:
+                case SingleQubitUnitaryEnum.IDENTITY:
+                    return CliffordGateOp(SingleQubitCliffordsEnum.Rotation, targets)
+                case SingleQubitUnitaryEnum.H | SingleQubitUnitaryEnum.HXZ:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.BiAxisRotation, targets
+                    )
+                case SingleQubitUnitaryEnum.HXY:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.BiAxisRotation,
+                        targets,
+                        PauliOperatorEnum.Z,
+                    )
+                case SingleQubitUnitaryEnum.HYZ:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.BiAxisRotation,
+                        targets,
+                        PauliOperatorEnum.X,
+                    )
+                case SingleQubitUnitaryEnum.S | SingleQubitUnitaryEnum.SQRT_Z:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.Rotation,
+                        targets,
+                        PauliOperatorEnum.Z,
+                        is_sqrt=True,
+                    )
+                case SingleQubitUnitaryEnum.S_DAG | SingleQubitUnitaryEnum.SQRT_Z_DAG:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.Rotation,
+                        targets,
+                        PauliOperatorEnum.Z,
+                        is_dag=True,
+                        is_sqrt=True,
+                    )
+                case SingleQubitUnitaryEnum.SQRT_X:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.Rotation,
+                        targets,
+                        PauliOperatorEnum.X,
+                        is_sqrt=True,
+                    )
+                case SingleQubitUnitaryEnum.SQRT_X_DAG:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.Rotation,
+                        targets,
+                        PauliOperatorEnum.X,
+                        is_dag=True,
+                        is_sqrt=True,
+                    )
+                case SingleQubitUnitaryEnum.SQRT_Y:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.Rotation,
+                        targets,
+                        PauliOperatorEnum.Y,
+                        is_sqrt=True,
+                    )
+                case SingleQubitUnitaryEnum.SQRT_Y_DAG:
+                    return CliffordGateOp(
+                        SingleQubitCliffordsEnum.Rotation,
+                        targets,
+                        PauliOperatorEnum.Y,
+                        is_dag=True,
+                        is_sqrt=True,
+                    )
+                case _:
+                    raise StimParseError(self.pos, f"Parsing not implemented for {op}")
 
     # endregion
 

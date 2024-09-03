@@ -40,7 +40,7 @@ def check_stim_roundtrip(program: str, expected_stim: str):
 def test_empty_circuit():
     empty_block = Block()
     empty_region = Region(empty_block)
-    module = StimCircuitOp(empty_region, None)
+    module = StimCircuitOp(empty_region)
 
     assert module.stim() == ""
 
@@ -49,7 +49,7 @@ def test_stim_circuit_ops_stim_printable():
     op = TestOp()
     block = Block([op])
     region = Region(block)
-    module = StimCircuitOp(region, None)
+    module = StimCircuitOp(region)
 
     with pytest.raises(ValueError, match="Cannot print in stim format:"):
         res_io = StringIO()
@@ -119,3 +119,19 @@ def test_no_targets():
     with pytest.raises(StimParseError, match="Expected at least one target"):
         parser = StimParser(program)
         parser.parse_circuit()
+
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("I 0", "I 0\n"),
+        ("X 0", "X 0\n"),
+        ("Y 1 0", "Y 0 1\n"),
+        ("Z 0 \n Z 1", "Z 0\nZ 1\n"),
+        ("H 0 \n H 1", "H 0\nH 1\n"),
+        ("H_XY 1", "H_XY 0\n"),
+        ("S 0 \n SQRT_Z_DAG 1 \n SQRT_Y 2", "S 0\nS_DAG 1\nSQRT_Y 2\n"),
+    ],
+)
+def test_stim_roundtrip_single_qubit_clifford(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)

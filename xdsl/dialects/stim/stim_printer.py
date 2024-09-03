@@ -1,5 +1,5 @@
 import abc
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
@@ -64,11 +64,11 @@ class StimPrinter:
         """
         The only non-StimPrintable operations that may appear in a StimCircuitOp
         are QRefAllocOps - which are used to indicate new qubits.
-        These are SSA-values that then can be matched to a qubit number throughout the 
+        These are SSA-values that then can be matched to a qubit number throughout the
         printed Stim circuit.
 
         The qubit numbers are assigned greedily as they are found, so if a mapping was encoded
-        without providing QUBIT_COORD ops, it would be lost up to alpha renaming. The qubits 
+        without providing QUBIT_COORD ops, it would be lost up to alpha renaming. The qubits
         in this representation are treated only as logical entities.
         """
         if isinstance(op, QRefAllocOp):
@@ -86,7 +86,7 @@ class StimPrinter:
             return
         raise ValueError(f"Qubit {target} was not allocated in scope.")
 
-    def print_targets(self, targets: list[SSAValue]):
+    def print_targets(self, targets: Sequence[SSAValue]):
         for target in targets:
             self.print_string(" ")
             self.print_target(target)
