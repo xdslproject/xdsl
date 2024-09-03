@@ -4,7 +4,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.csl import csl, csl_wrapper
-from xdsl.ir import Block, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -228,6 +228,52 @@ class ExtractCslModules(RewritePattern):
 
 
 @dataclass(frozen=True)
+class LowerImport(RewritePattern):
+    """
+    Replace the `csl_wrapper.import` with the equivalent `csl.import`.
+
+    Hoist the import and all ops it depends on to the module scope (as is required by CSL)
+    """
+
+    def _get_csl_mod(self, op: Operation) -> csl.CslModuleOp:
+        """
+        Find the parent `csl.module` of the current op
+        """
+
+        if isinstance(op, csl.CslModuleOp):
+            return op
+        assert (parent := op.parent_op()) is not None
+        return self._get_csl_mod(parent)
+
+    def _collect_ops(self, op: Operation, ops: list[Operation]):
+        """
+        Detach the op from its current location and store it in the list
+
+        Do this recursively for all operands of each operation.
+
+        NOTE: This op's dependencies are added to the list first to preserve
+              the order in which they get added bakc to the module.
+        """
+        op.detach()
+        for operand in op.operands:
+            owner = operand.owner
+            assert isinstance(owner, Operation)
+            self._collect_ops(owner, ops)
+        ops.append(op)
+        return ops
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_wrapper.ImportOp, rewriter: PatternRewriter, /):
+        csl_mod = self._get_csl_mod(op)
+        ops = self._collect_ops(op, [])
+        struct = csl.ConstStructOp(*((f.data, o) for f, o in zip(op.fields, op.ops)))
+        import_ = csl.ImportModuleConstOp(op.module, struct)
+
+        rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
+        rewriter.replace_matched_op([struct, import_])
+
+
+@dataclass(frozen=True)
 class CslWrapperToCslPass(ModulePass):
     """Unwraps the `csl_wrappermodule` into two `csl.module`s."""
 
@@ -235,6 +281,6 @@ class CslWrapperToCslPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ExtractCslModules()]),
+            GreedyRewritePatternApplier([ExtractCslModules(), LowerImport()]),
             apply_recursively=False,
         ).rewrite_module(op)
