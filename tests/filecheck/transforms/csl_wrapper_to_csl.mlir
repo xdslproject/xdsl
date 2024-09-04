@@ -75,16 +75,22 @@ builtin.module {
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
-// CHECK-NEXT:     %0 = arith.constant 0 : i16
-// CHECK-NEXT:     %1 = arith.constant 1 : i16
-// CHECK-NEXT:     %2 = arith.constant 1022 : i16
-// CHECK-NEXT:     %width = "csl.param"(%2) <{"param_name" = "width"}> : (i16) -> i16
-// CHECK-NEXT:     %3 = arith.constant 510 : i16
-// CHECK-NEXT:     %height = "csl.param"(%3) <{"param_name" = "height"}> : (i16) -> i16
-// CHECK-NEXT:     %4 = arith.constant 512 : i16
-// CHECK-NEXT:     %zDim = "csl.param"(%4) <{"param_name" = "z_dim"}> : (i16) -> i16
-// CHECK-NEXT:     %5 = arith.constant 2 : i16
-// CHECK-NEXT:     %pattern = "csl.param"(%5) <{"param_name" = "pattern"}> : (i16) -> i16
+// CHECK-NEXT:     %0 = arith.constant 2 : i16
+// CHECK-NEXT:     %pattern = "csl.param"(%0) <{"param_name" = "pattern"}> : (i16) -> i16
+// CHECK-NEXT:     %1 = arith.constant 1022 : i16
+// CHECK-NEXT:     %width = "csl.param"(%1) <{"param_name" = "width"}> : (i16) -> i16
+// CHECK-NEXT:     %2 = arith.constant 510 : i16
+// CHECK-NEXT:     %height = "csl.param"(%2) <{"param_name" = "height"}> : (i16) -> i16
+// CHECK-NEXT:     %routesMod = "csl.const_struct"(%pattern, %width, %height) <{"ssa_fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.comptime_struct
+// CHECK-NEXT:     %routesMod_1 = "csl.import_module"(%routesMod) <{"module" = "routes.csl"}> : (!csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:     %const0 = arith.constant 0 : i16
+// CHECK-NEXT:     %color0 = "csl.get_color"(%const0) : (i16) -> !csl.color
+// CHECK-NEXT:     %getParamsMod = "csl.const_struct"(%width, %height, %color0) <{"ssa_fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.comptime_struct
+// CHECK-NEXT:     %getParamsMod_1 = "csl.import_module"(%getParamsMod) <{"module" = "<memcpy/get_params>"}> : (!csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:     %3 = arith.constant 0 : i16
+// CHECK-NEXT:     %4 = arith.constant 1 : i16
+// CHECK-NEXT:     %5 = arith.constant 512 : i16
+// CHECK-NEXT:     %zDim = "csl.param"(%5) <{"param_name" = "z_dim"}> : (i16) -> i16
 // CHECK-NEXT:     %6 = arith.constant 2 : i16
 // CHECK-NEXT:     %num_chunks = "csl.param"(%6) <{"param_name" = "num_chunks"}> : (i16) -> i16
 // CHECK-NEXT:     %7 = arith.constant 255 : i16
@@ -92,14 +98,10 @@ builtin.module {
 // CHECK-NEXT:     %8 = arith.constant 510 : i16
 // CHECK-NEXT:     %padded_z_dim = "csl.param"(%8) <{"param_name" = "padded_z_dim"}> : (i16) -> i16
 // CHECK-NEXT:     csl.layout {
-// CHECK-NEXT:       scf.for %xDim = %0 to %width step %1 : i16 {
-// CHECK-NEXT:         scf.for %yDim = %0 to %height step %1 : i16 {
-// CHECK-NEXT:           %const0 = arith.constant 0 : i16
-// CHECK-NEXT:           %color0 = "csl.get_color"(%const0) : (i16) -> !csl.color
-// CHECK-NEXT:           %getParamsMod = "csl_wrapper.import"(%width, %height, %color0) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
-// CHECK-NEXT:           %routesMod = "csl_wrapper.import"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
-// CHECK-NEXT:           %computeAllRoutesRes = "csl.member_call"(%routesMod, %xDim, %yDim, %width, %height, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
-// CHECK-NEXT:           %getParamsRes = "csl.member_call"(%getParamsMod, %xDim) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
+// CHECK-NEXT:       scf.for %xDim = %3 to %width step %4 : i16 {
+// CHECK-NEXT:         scf.for %yDim = %3 to %height step %4 : i16 {
+// CHECK-NEXT:           %computeAllRoutesRes = "csl.member_call"(%routesMod_1, %xDim, %yDim, %width, %height, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
+// CHECK-NEXT:           %getParamsRes = "csl.member_call"(%getParamsMod_1, %xDim) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 // CHECK-NEXT:           %9 = arith.constant 1 : i16
 // CHECK-NEXT:           %10 = arith.subi %pattern, %9 : i16
 // CHECK-NEXT:           %11 = arith.subi %width, %xDim : i16
@@ -118,23 +120,27 @@ builtin.module {
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }) {"sym_name" = "gauss_seidel_func_layout"} : () -> ()
 // CHECK-NEXT:   "csl.module"() <{"kind" = #csl<module_kind program>}> ({
+// CHECK-NEXT:     %0 = arith.constant 2 : i16
+// CHECK-NEXT:     %pattern = "csl.param"(%0) <{"param_name" = "pattern"}> : (i16) -> i16
+// CHECK-NEXT:     %1 = arith.constant 255 : i16
+// CHECK-NEXT:     %chunk_size = "csl.param"(%1) <{"param_name" = "chunk_size"}> : (i16) -> i16
+// CHECK-NEXT:     %stencil_comms_params = "csl.param"() <{"param_name" = "stencil_comms_params"}> : () -> !csl.comptime_struct
+// CHECK-NEXT:     %stencilCommsMod = "csl.const_struct"(%pattern, %chunk_size) <{"ssa_fields" = ["pattern", "chunkSize"]}> : (i16, i16) -> !csl.comptime_struct
+// CHECK-NEXT:     %stencilCommsMod_1 = "csl.concat_structs"(%stencilCommsMod, %stencil_comms_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:     %stencilCommsMod_2 = "csl.import_module"(%stencilCommsMod_1) <{"module" = "stencil_comms.csl"}> : (!csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:     %memcpy_params = "csl.param"() <{"param_name" = "memcpy_params"}> : () -> !csl.comptime_struct
+// CHECK-NEXT:     %memcpyMod = "csl.const_struct"() <{"ssa_fields" = []}> : () -> !csl.comptime_struct
+// CHECK-NEXT:     %memcpyMod_1 = "csl.concat_structs"(%memcpyMod, %memcpy_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:     %memcpyMod_2 = "csl.import_module"(%memcpyMod_1) <{"module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %width = "csl.param"() <{"param_name" = "width"}> : () -> i16
 // CHECK-NEXT:     %height = "csl.param"() <{"param_name" = "height"}> : () -> i16
-// CHECK-NEXT:     %0 = arith.constant 512 : i16
-// CHECK-NEXT:     %zDim = "csl.param"(%0) <{"param_name" = "z_dim"}> : (i16) -> i16
-// CHECK-NEXT:     %1 = arith.constant 2 : i16
-// CHECK-NEXT:     %pattern = "csl.param"(%1) <{"param_name" = "pattern"}> : (i16) -> i16
-// CHECK-NEXT:     %2 = arith.constant 2 : i16
-// CHECK-NEXT:     %num_chunks = "csl.param"(%2) <{"param_name" = "num_chunks"}> : (i16) -> i16
-// CHECK-NEXT:     %3 = arith.constant 255 : i16
-// CHECK-NEXT:     %chunk_size = "csl.param"(%3) <{"param_name" = "chunk_size"}> : (i16) -> i16
+// CHECK-NEXT:     %2 = arith.constant 512 : i16
+// CHECK-NEXT:     %zDim = "csl.param"(%2) <{"param_name" = "z_dim"}> : (i16) -> i16
+// CHECK-NEXT:     %3 = arith.constant 2 : i16
+// CHECK-NEXT:     %num_chunks = "csl.param"(%3) <{"param_name" = "num_chunks"}> : (i16) -> i16
 // CHECK-NEXT:     %4 = arith.constant 510 : i16
 // CHECK-NEXT:     %padded_z_dim = "csl.param"(%4) <{"param_name" = "padded_z_dim"}> : (i16) -> i16
-// CHECK-NEXT:     %memcpy_params = "csl.param"() <{"param_name" = "memcpy_params"}> : () -> !csl.comptime_struct
-// CHECK-NEXT:     %stencil_comms_params = "csl.param"() <{"param_name" = "stencil_comms_params"}> : () -> !csl.comptime_struct
 // CHECK-NEXT:     %isBorderRegionPE = "csl.param"() <{"param_name" = "isBorderRegionPE"}> : () -> i1
-// CHECK-NEXT:     %memcpyMod = "csl_wrapper.import"(%memcpy_params) <{"module" = "<memcpy/memcpy>", "fields" = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
-// CHECK-NEXT:     %stencilCommsMod = "csl_wrapper.import"(%pattern, %chunk_size, %stencil_comms_params) <{"module" = "stencil_comms.csl", "fields" = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %inputArr = memref.alloc() : memref<512xf32>
 // CHECK-NEXT:     %outputArr = memref.alloc() : memref<512xf32>
 // CHECK-NEXT:     %inputArrPtr = "csl.addressof"(%inputArr) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
