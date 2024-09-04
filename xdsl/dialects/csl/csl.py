@@ -422,11 +422,15 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
-    def __init__(self, name: str, params: SSAValue | Operation | None = None):
+    def __init__(
+        self, name: str | StringAttr, params: SSAValue | Operation | None = None
+    ):
+        if isinstance(name, str):
+            name = StringAttr(name)
         super().__init__(
             operands=[params],
             result_types=[ImportedModuleType()],
-            properties={"module": StringAttr(name)},
+            properties={"module": name},
         )
 
 
@@ -1795,7 +1799,7 @@ class ConcatStructOp(IRDLOperation):
 
     result = result_def(ComptimeStructType)
 
-    def __init__(self, struct_a: Operation, struct_b: Operation):
+    def __init__(self, struct_a: Operation | SSAValue, struct_b: Operation | SSAValue):
         super().__init__(
             operands=[struct_a, struct_b],
             result_types=[ComptimeStructType()],

@@ -4,7 +4,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.csl import csl, csl_wrapper
-from xdsl.ir import Block, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -228,6 +228,78 @@ class ExtractCslModules(RewritePattern):
 
 
 @dataclass(frozen=True)
+class LowerImport(RewritePattern):
+    """
+    Replace the `csl_wrapper.import` with the equivalent `csl.import`.
+
+    Hoist the import and all ops it depends on to the module scope (as is required by CSL)
+    """
+
+    def _get_csl_mod(self, op: Operation) -> csl.CslModuleOp:
+        """
+        Find the parent `csl.module` of the current op
+        """
+
+        if isinstance(op, csl.CslModuleOp):
+            return op
+        assert (parent := op.parent_op()) is not None
+        return self._get_csl_mod(parent)
+
+    def _collect_ops(self, op: Operation, ops: list[Operation]) -> list[Operation]:
+        """
+        Detach the op from its current location and store it in the list
+
+        Do this recursively for all operands of each operation.
+
+        NOTE: This op's dependencies are added to the list first to preserve
+              the order in which they get added back to the module.
+        """
+        op.detach()
+        for operand in op.operands:
+            owner = operand.owner
+            assert isinstance(owner, Operation)
+            self._collect_ops(owner, ops)
+        ops.append(op)
+        return ops
+
+    def _make_import_struct(self, import_op: csl_wrapper.ImportOp):
+        """
+        Create the struct to be passed to `@import_module`
+
+        Handles the case where multiple structs need to be concatinated before
+        being imported (this is indicated by an empty field name in
+        `csl_wrapper.import`). All required intermediate structs get returned
+        as a list.
+
+        Last struct in the list is to be used in `csl.import`
+        """
+
+        fields = list[tuple[str, SSAValue | Operation]]()
+        structs_to_concat = list[SSAValue | Operation]()
+        for fname, op in zip(import_op.fields, import_op.ops):
+            if fname.data != "":
+                fields.append((fname.data, op))
+            else:
+                structs_to_concat.append(op)
+        out_structs: list[Operation] = [csl.ConstStructOp(*fields)]
+        for s in structs_to_concat:
+            out_structs.append(csl.ConcatStructOp(out_structs[-1], s))
+        return out_structs
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_wrapper.ImportOp, rewriter: PatternRewriter, /):
+        csl_mod = self._get_csl_mod(op)
+        ops = self._collect_ops(op, [])
+        structs = self._make_import_struct(op)
+        import_ = csl.ImportModuleConstOp(
+            op.module, structs[-1] if len(structs) > 0 else None
+        )
+
+        rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
+        rewriter.replace_matched_op([*structs, import_])
+
+
+@dataclass(frozen=True)
 class CslWrapperToCslPass(ModulePass):
     """Unwraps the `csl_wrappermodule` into two `csl.module`s."""
 
@@ -235,6 +307,6 @@ class CslWrapperToCslPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ExtractCslModules()]),
+            GreedyRewritePatternApplier([ExtractCslModules(), LowerImport()]),
             apply_recursively=False,
         ).rewrite_module(op)
