@@ -64,13 +64,6 @@ def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
     return None
 
 
-def _get_memcpy_mod(op: Block):
-    for o in op.walk():
-        if isinstance(o, csl_wrapper.ImportOp) and o.module.data == "<memcpy/memcpy>":
-            return o
-    raise RuntimeError("Could not find memcpy module")
-
-
 @dataclass(frozen=True)
 class LowerAccessOp(RewritePattern):
     """
@@ -169,7 +162,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # add a call to `unblock_cmd_stream` at the end of the prost_process fn
-        memcpy = _get_memcpy_mod(module_wrapper_op.program_module.block)
+        memcpy = module_wrapper_op.get_program_import("<memcpy/memcpy>")
         unblock_cmd_stream_call = csl.MemberCallOp(
             struct=memcpy, fname="unblock_cmd_stream", params=[], result_type=None
         )
