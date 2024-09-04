@@ -121,6 +121,56 @@ def test_no_targets():
         parser.parse_circuit()
 
 
+def test_unknown_instruction_name():
+    program = "HEX 0"
+    with pytest.raises(
+        StimParseError,
+        match="StimParseError at 3: `HEX` is not a known instruction name.",
+    ):
+        parser = StimParser(program)
+        parser.parse_circuit()
+    program = "Boot 0"
+    with pytest.raises(
+        StimParseError,
+        match="StimParseError at 4: `Boot` is not a known instruction name.",
+    ):
+        parser = StimParser(program)
+        parser.parse_circuit()
+    program = "SQRT_E 0"
+    with pytest.raises(
+        StimParseError, match="StimParseError at 5: Expected pauli after SQRT_"
+    ):
+        parser = StimParser(program)
+        parser.parse_circuit()
+    program = "SQRT_XY 0"
+    with pytest.raises(
+        StimParseError, match="StimParseError at 7: SQRT_XY is not a known operation"
+    ):
+        parser = StimParser(program)
+        parser.parse_circuit()
+    program = "CM 0"
+    with pytest.raises(
+        StimParseError, match="StimParseError at 1: Expected pauli after C"
+    ):
+        parser = StimParser(program)
+        parser.parse_circuit()
+
+
+def test_gate_given_parens():
+    program = "X() 0"
+    with pytest.raises(
+        StimParseError, match="StimParseError at 1: Gate X was given parens arguments"
+    ):
+        parser = StimParser(program)
+        parser.parse_circuit()
+    program = "X(1) 0"
+    with pytest.raises(
+        StimParseError, match="StimParseError at 1: Gate X was given parens arguments"
+    ):
+        parser = StimParser(program)
+        parser.parse_circuit()
+
+
 @pytest.mark.parametrize(
     "program, expected_stim",
     [

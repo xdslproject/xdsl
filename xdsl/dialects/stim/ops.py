@@ -413,7 +413,7 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         else:
             match self.gate_name.data:
                 case TwoQubitCliffordsEnum.Swap:
-                    if self.ctrl != None or self.pauli_modifier != None:
+                    if self.ctrl is not None or self.pauli_modifier is not None:
                         raise ValueError("Controlled or modified swaps not supported.")
                     printer.print_string("SWAP")
                 case TwoQubitCliffordsEnum.Ctrl:
