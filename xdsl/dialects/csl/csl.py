@@ -113,10 +113,10 @@ class DsdKind(StrEnum):
 
 
 class Direction(StrEnum):
-    north = "north"
-    south = "south"
-    east = "east"
-    west = "west"
+    NORTH = "north"
+    SOUTH = "south"
+    EAST = "east"
+    WEST = "west"
 
 
 class _FuncBase(IRDLOperation, ABC):
@@ -573,7 +573,7 @@ class MemberCallOp(IRDLOperation):
     def __init__(
         self,
         fname: str,
-        result_type: Attribute,
+        result_type: Attribute | None,
         struct: Operation,
         params: Sequence[SSAValue | Operation],
     ):
@@ -1575,11 +1575,17 @@ class AddressOfFnOp(IRDLOperation):
 
     res = result_def(PtrType)
 
-    def __init__(self, fn_name: str | SymbolRefAttr):
-        if isinstance(fn_name, str):
-            fn_name = SymbolRefAttr(fn_name)
+    def __init__(self, fn: FuncOp):
+        fn_name = SymbolRefAttr(fn.sym_name)
+        res = PtrType(
+            [
+                fn.function_type,
+                PtrKindAttr(PtrKind.SINGLE),
+                PtrConstAttr(PtrConst.CONST),
+            ]
+        )
 
-        super().__init__(properties={"fn_name": fn_name})
+        super().__init__(properties={"fn_name": fn_name}, result_types=[res])
 
     def verify_(self) -> None:
         ty = self.res.type
