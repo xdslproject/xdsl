@@ -6,6 +6,7 @@ from .ops import (
     PauliAttr,
     QubitCoordsOp,
     QubitMappingAttr,
+    ResetGateOp,
     SingleQubitGateAttr,
     StimCircuitOp,
     TwoQubitGateAttr,
@@ -15,9 +16,10 @@ Stim = Dialect(
     "stim",
     [
         CliffordGateOp,
-        QubitCoordsOp,
-        StimCircuitOp,
         MeasurementGateOp,
+        QubitCoordsOp,
+        ResetGateOp,
+        StimCircuitOp,
     ],
     [PauliAttr, QubitMappingAttr, SingleQubitGateAttr, TwoQubitGateAttr],
 )

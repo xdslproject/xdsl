@@ -183,7 +183,7 @@ class PauliAttr(StimPrintable, EnumAttribute[PauliOperatorEnum]):
     name = "stim.pauli"
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(" ") 
+        printer.print(" ")
         super().print_parameter(printer)
 
     def print_stim(self, printer: StimPrinter):
@@ -227,7 +227,7 @@ class SingleQubitGateAttr(EnumAttribute[SingleQubitCliffordsEnum]):
     name = "stim.singlequbitclifford"
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(" ") 
+        printer.print(" ")
         super().print_parameter(printer)
 
 
@@ -235,7 +235,7 @@ class TwoQubitGateAttr(EnumAttribute[TwoQubitCliffordsEnum]):
     name = "stim.twoqubitclifford"
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(" ") 
+        printer.print(" ")
         super().print_parameter(printer)
 
 
@@ -527,12 +527,64 @@ class MeasurementGateOp(StimPrintable, GateOp, IRDLOperation):
             parser.Delimiter.PAREN, parser.parse_unresolved_operand
         )
         qubits = parser.resolve_operands(targets, len(targets) * [qubit], parser.pos)
-        return cls.create(operands=qubits, result_types=[i1]*len(qubits), properties={"pauli_modifier":PauliAttr(pauli_modifier)})
+        return cls.create(
+            operands=qubits,
+            result_types=[i1] * len(qubits),
+            properties={"pauli_modifier": PauliAttr(pauli_modifier)},
+        )
 
     def print_stim(self, printer: StimPrinter):
         printer.print_string("M")
         printer.print_string(self.pauli_modifier.data)
         printer.update_ssa_results(self.results)
+        printer.print_targets(self.targets)
+
+
+@irdl_op_definition
+class ResetGateOp(StimPrintable, GateOp, IRDLOperation):
+    """
+    Resets take no parens.
+    """
+
+    name = "stim.reset"
+
+    pauli_modifier = prop_def(PauliAttr)
+    targets = var_operand_def(qubit)
+
+    traits = frozenset([GateOpInterface()])
+
+    def __init__(
+        self,
+        targets: Sequence[SSAValue],
+        pauli_modifier: PauliOperatorEnum | PauliAttr = PauliOperatorEnum.Z,
+    ):
+        if isinstance(pauli_modifier, PauliOperatorEnum):
+            pauli_modifier = PauliAttr(pauli_modifier)
+        super().__init__(
+            operands=[targets],
+            properties={"pauli_modifier": pauli_modifier},
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.pauli_modifier.data)
+        printer.print_string(" ")
+        printer.print_operands(self.targets)
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        pauli_modifier = parser.parse_str_enum(PauliOperatorEnum)
+        targets = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_unresolved_operand
+        )
+        qubits = parser.resolve_operands(targets, len(targets) * [qubit], parser.pos)
+        return cls.create(
+            operands=qubits, properties={"pauli_modifier": PauliAttr(pauli_modifier)}
+        )
+
+    def print_stim(self, printer: StimPrinter):
+        printer.print_string("R")
+        printer.print_string(self.pauli_modifier.data)
         printer.print_targets(self.targets)
 
 

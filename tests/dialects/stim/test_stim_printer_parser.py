@@ -208,7 +208,22 @@ def test_stim_roundtrip_two_qubit_clifford(program: str, expected_stim: str):
         ("MY 0", "MY 0\n"),
         ("MZ 1 0", "MZ 0 1\n"),
         ("M 0 \n MZ 1", "MZ 0\nMZ 1\n"),
+        ("X 0 \n MZ 1", "X 0\nMZ 1\n"),
     ],
 )
 def test_stim_roundtrip_measurement(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)
+
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("RX 0", "RX 0\n"),
+        ("RY 0", "RY 0\n"),
+        ("RZ 1 0", "RZ 0 1\n"),
+        ("R 0 \n RZ 1", "RZ 0\nRZ 1\n"),
+        ("X 0 \n RZ 1", "X 0\nRZ 1\n"),
+    ],
+)
+def test_stim_roundtrip_reset(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)

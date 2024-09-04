@@ -14,6 +14,7 @@ from xdsl.dialects.stim.ops import (
     MeasurementGateOp,
     PauliAttr,
     PauliOperatorEnum,
+    ResetGateOp,
     SingleQubitCliffordsEnum,
     TwoQubitCliffordsEnum,
 )
@@ -263,6 +264,7 @@ class StimParser:
                 lambda parser: parser.parse_optional_measurement(),
                 lambda parser: parser.parse_optional_annotation(),
                 lambda parser: parser.parse_optional_gate(),
+                lambda parser: parser.parse_optional_reset(),
             ],
         )
         start_pos = self.pos
@@ -412,6 +414,30 @@ class StimParser:
             self.result_ssa_map[self.seen_results] = result
             self.seen_results += 1
         return extra_ops, measurement_op
+
+    def parse_optional_reset(self):
+        start_pos = self.pos
+        if self.parse_optional_chars("R") is None:
+            return None
+        if (gate_name := self.parse_optional_pattern(PAULI)) is None:
+            if self.parse_optional_pattern(NAME) is not None:
+                raise StimParseError(
+                    self.pos,
+                    f"Unknown operation {self.input.content[start_pos:self.pos]}",
+                )
+            else:
+                gate_name = "Z"
+        if ((parens := self.parse_optional_parens()) is not None) and len(parens) > 1:
+            raise ValueError(
+                f"Gate {gate_name} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
+            )
+        extra_ops, targets = self.parse_targets()
+        reset_op = ResetGateOp.create(
+            operands=targets,
+            result_types=[qref.QubitAttr()] * len(targets),
+            properties={"pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name))},
+        )
+        return extra_ops, reset_op
 
     def parse_optional_gate_name(
         self,
