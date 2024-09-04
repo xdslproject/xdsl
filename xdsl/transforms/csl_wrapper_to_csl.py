@@ -178,6 +178,16 @@ class ExtractCslModules(RewritePattern):
             params.append(csl.ParamOp(s, ty))
         return params
 
+    @staticmethod
+    def _get_memcpy_mod(op: Block):
+        for o in op.walk():
+            if (
+                isinstance(o, csl_wrapper.ImportOp)
+                and o.module.data == "<memcpy/memcpy>"
+            ):
+                return o
+        raise RuntimeError("Could not find memcpy module")
+
     def lower_program_module(
         self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /
     ) -> csl.CslModuleOp:
@@ -218,6 +228,15 @@ class ExtractCslModules(RewritePattern):
                 *(y.res for y in yield_args),
             ],
         )
+
+        memcpy = self._get_memcpy_mod(module_block)
+        with ImplicitBuilder(module_block):
+            launch = csl.MemberAccessOp(
+                operands=[memcpy],
+                properties={"field": builtin.StringAttr("LAUNCH")},
+                result_types=[csl.ColorType()],
+            )
+            csl.RpcOp(operands=[launch])
 
         program_module = csl.CslModuleOp(
             regions=[Region(module_block)],
