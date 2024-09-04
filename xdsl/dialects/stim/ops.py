@@ -215,6 +215,7 @@ class TwoQubitCliffordsEnum(StrEnum):
     Swap = "Swap"
     Ctrl = "C_"
     Midswap = "Midswap"
+    Both_Pauli = "Both_Pauli"
 
 
 class SingleQubitGateAttr(EnumAttribute[SingleQubitCliffordsEnum]):
@@ -282,6 +283,8 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
     dag = opt_prop_def(UnitAttr, prop_name="dag")
     sqrt = opt_prop_def(UnitAttr, prop_name="sqrt")
 
+    ctrl = opt_prop_def(PauliAttr)
+
     traits = frozenset([GateOpInterface()])
 
     def __init__(
@@ -290,14 +293,21 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         | (SingleQubitGateAttr | TwoQubitGateAttr),
         targets: Sequence[SSAValue],
         pauli_modifier: PauliOperatorEnum | PauliAttr | None = None,
+        ctrl: PauliOperatorEnum | PauliAttr | None = None,
         is_dag: bool = False,
         is_sqrt: bool = False,
     ):
+        properties: dict[str, Attribute] = {}
         if isinstance(gate_name, SingleQubitCliffordsEnum):
             gate_name = SingleQubitGateAttr(gate_name)
+            if ctrl is not None:
+                raise PyRDLOpDefinitionError("Single qubit gates cannot be controlled!")
         if isinstance(gate_name, TwoQubitCliffordsEnum):
             gate_name = TwoQubitGateAttr(gate_name)
-        properties: dict[str, Attribute] = {"gate_name": gate_name}
+            if isinstance(ctrl, PauliOperatorEnum):
+                ctrl = PauliAttr(ctrl)
+                properties["ctrl"] = ctrl
+        properties["gate_name"] = gate_name
         if isinstance(pauli_modifier, PauliOperatorEnum):
             properties["pauli_modifier"] = PauliAttr(pauli_modifier)
         if isinstance(pauli_modifier, PauliAttr):
@@ -309,10 +319,11 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         super().__init__(operands=[targets], properties=properties)
 
     def verify_(self) -> None:
-        if isinstance(self.gate_name, TwoQubitGateAttr) and len(self.targets) % 2 != 0:
-            raise PyRDLOpDefinitionError(
-                "Two qubit gates expect an even number of targets."
-            )
+        if isinstance(self.gate_name, TwoQubitGateAttr):
+            if len(self.targets) % 2 != 0:
+                raise PyRDLOpDefinitionError(
+                    "Two qubit gates expect an even number of targets."
+                )
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -339,6 +350,7 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
 
         dag = parser.parse_optional_keyword("dag") is not None
         sqrt = parser.parse_optional_keyword("sqrt") is not None
+        ctrl = parser.parse_optional_str_enum(PauliOperatorEnum)
 
         targets = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parser.parse_unresolved_operand
@@ -349,7 +361,7 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         #    parser.raise_error("Targets must be a list of type !qref.qubit")
         qubits = parser.resolve_operands(targets, len(targets) * [qubit], parser.pos)
 
-        return cls(gate_name, qubits, pauli_modifier, dag, sqrt)
+        return cls(gate_name, qubits, pauli_modifier, ctrl, dag, sqrt)
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -361,6 +373,9 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
             printer.print(" dag")
         if self.sqrt is not None:
             printer.print(" sqrt")
+        if self.ctrl is not None:
+            printer.print(" ")
+            printer.print(self.ctrl.data)
         printer.print(" ")
         printer.print_operands(self.targets)
 
@@ -395,7 +410,67 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
                             printer.print_string("H_YZ")
                         case _:
                             printer.print_string("H_XY")
+        else:
+            match self.gate_name.data:
+                case TwoQubitCliffordsEnum.Swap:
+                    if self.ctrl != None or self.pauli_modifier != None:
+                        raise ValueError("Controlled or modified swaps not supported.")
+                    printer.print_string("SWAP")
+                case TwoQubitCliffordsEnum.Ctrl:
+                    if (
+                        self.pauli_modifier is not None
+                        and self.pauli_modifier.data != PauliOperatorEnum.Z
+                    ):
+                        self.pauli_modifier.print_stim(printer)
+                    printer.print_string("C")
+                    if self.ctrl is None or self.ctrl.data == PauliOperatorEnum.X:
+                        printer.print_string("NOT")
+                    else:
+                        self.ctrl.print_stim(printer)
+                case TwoQubitCliffordsEnum.Midswap:
+                    dag = False
+                    if self.ctrl is not None:
+                        raise ValueError("Controlled midwaps not supported")
+                    if self.pauli_modifier is not None:
+                        if self.pauli_modifier.data == PauliOperatorEnum.Y:
+                            printer.print_string("I")
+                            if self.dag is not None:
+                                dag = True
+                        else:
+                            printer.print_string("C")
+                            self.pauli_modifier.print_stim(printer)
+                    else:
+                        printer.print_string("I")
+                        if self.dag is not None:
+                            dag = True
+                    printer.print_string("SWAP")
+                    if dag:
+                        printer.print_string("DAG")
+                case TwoQubitCliffordsEnum.Both_Pauli:
+                    if self.ctrl is not None:
+                        raise ValueError(
+                            "Controlled multi rotation gates are not defined in Stim"
+                        )
+                    if self.sqrt is not None:
+                        raise ValueError(
+                            "This constructor is intended only for SQRT paulis on pairs of input qubits. Use single qubit cliffords instead."
+                        )
+                    printer.print_string("SQRT_")
+                    if self.pauli_modifier is None:
+                        # default the sqrt to XX
+                        printer.print_string("XX")
+                    else:
+                        self.pauli_modifier.print_stim(printer)
+                        self.pauli_modifier.print_stim(printer)
+                    if self.dag is not None:
+                        printer.print_string("_DAG")
+
         printer.print_targets(self.targets)
+
+
+# endregion
+
+# region Stabilizer operation definitions
 
 
 # endregion

@@ -135,3 +135,17 @@ def test_no_targets():
 )
 def test_stim_roundtrip_single_qubit_clifford(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)
+
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("SWAP 0 1", "SWAP 0 1\n"),
+        ("CX 0 1", "CNOT 0 1\n"),
+        ("CY 1 0", "CY 0 1\n"),
+        ("CZ 0 2 3 4\n CZ 1 2", "CZ 0 1 2 3\nCZ 4 1\n"),
+        ("ISWAP 0 1 \n CNOT 1 2", "ISWAP 0 1\nCNOT 1 2\n"),
+    ],
+)
+def test_stim_roundtrip_two_qubit_clifford(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)

@@ -10,7 +10,11 @@ from xdsl.dialects.stim import (
     QubitMappingAttr,
     StimCircuitOp,
 )
-from xdsl.dialects.stim.ops import PauliOperatorEnum, SingleQubitCliffordsEnum
+from xdsl.dialects.stim.ops import (
+    PauliOperatorEnum,
+    SingleQubitCliffordsEnum,
+    TwoQubitCliffordsEnum,
+)
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
@@ -59,6 +63,42 @@ class SingleQubitUnitaryEnum(StrEnum):
     C_ZYX = "C_ZYX"
 
 
+class TwoQubitUnitaryEnum(StrEnum):
+    """
+    Enum for the parse-able single qubit unitary gates in Stim.
+    """
+
+    SQRT_XX_DAG = "SQRT_XX_DAG"
+    SQRT_YY_DAG = "SQRT_YY_DAG"
+    SQRT_ZZ_DAG = "SQRT_ZZ_DAG"
+    SQRT_XX = "SQRT_XX"
+    SQRT_YY = "SQRT_YY"
+    SQRT_ZZ = "SQRT_ZZ"
+
+    CXSWAP = "CXSWAP"
+    SWAPCX = "SWAPCX"
+    CZSWAP = "CZSWAP"
+    SWAPCZ = "SWAPCZ"
+    iSWAP = "ISWAP"
+    ISWAP_DAG = "ISWAP_DAG"
+
+    SWAP = "SWAP"
+
+    CNOT = "CNOT"
+    CX = "CX"
+    CY = "CY"
+    CZ = "CZ"
+    XCX = "XCX"
+    XCY = "XCY"
+    XCZ = "XCZ"
+    YCX = "YCX"
+    YCY = "YCY"
+    YCZ = "YCZ"
+    ZCX = "ZCX"
+    ZCY = "ZCY"
+    ZCZ = "ZCZ"
+
+
 NEWLINE = re.compile(r"\n")
 NOT_NEWLINE = re.compile(r"[^\n]*")
 INDENT = re.compile(r"[ \t]*")
@@ -69,7 +109,10 @@ PAULI = re.compile(
 )
 TARGET = re.compile(r"\d+")
 SQGATE = re.compile(
-    "|".join(re.escape(p.value) for p in SingleQubitUnitaryEnum), re.IGNORECASE
+    "|".join(re.escape(gate.value) for gate in SingleQubitUnitaryEnum), re.IGNORECASE
+)
+TQGATE = re.compile(
+    "|".join(re.escape(gate.value) for gate in TwoQubitUnitaryEnum), re.IGNORECASE
 )
 ANNOTATION = re.compile(
     "|".join(re.escape(i.value) for i in AnnotationEnum), re.IGNORECASE
@@ -190,16 +233,163 @@ class StimParser:
             pass
         return ops
 
+    def parse_optional_gate(self):
+        # TODO: Finish this version of the parser to remove ugly enum matching. In particular, make the errors return a complaint that parses to the next whitespace.
+        startpos = self.pos  # put outside call
+        if self.parse_optional_chars("SQRT_") is not None:
+            pauli = self.parse_optional_pattern(PAULI)
+            if pauli is None:
+                raise StimParseError(self.pos, "Expected pauli after SQRT")
+            pauli2 = self.parse_optional_pattern(PAULI)
+            dag = False
+            if self.parse_optional_chars("_DAG") is not None:
+                dag = True
+            if pauli2 is None:
+                return (
+                    SingleQubitCliffordsEnum.Rotation,
+                    PauliOperatorEnum(pauli),
+                    None,
+                    True,
+                    dag,
+                )
+            else:
+                if pauli2 != pauli:
+                    raise StimParseError(
+                        self.pos, f"SQRT_{pauli}{pauli2} is not a known operation"
+                    )
+                return (
+                    TwoQubitCliffordsEnum.Both_Pauli,
+                    PauliOperatorEnum(pauli),
+                    PauliOperatorEnum(pauli2),
+                    True,
+                    dag,
+                )
+        elif self.parse_optional_chars("C"):
+            pauli = self.parse_optional_pattern(PAULI)
+            if pauli is None:
+                if self.parse_optional_chars("NOT") is None:
+                    raise StimParseError(self.pos, "Expected pauli after C")
+                return (
+                    TwoQubitCliffordsEnum.Ctrl,
+                    PauliOperatorEnum.Z,
+                    PauliOperatorEnum.X,
+                    False,
+                    False,
+                )
+            if self.parse_optional_chars("SWAP"):
+                return (
+                    TwoQubitCliffordsEnum.Midswap,
+                    PauliOperatorEnum(pauli),
+                    None,
+                    False,
+                    False,
+                )
+            return TwoQubitCliffordsEnum.Ctrl, PauliOperatorEnum.Z, pauli, False, False
+        elif self.parse_optional_chars("H"):
+            if self.parse_optional_chars("_XY"):
+                return (
+                    TwoQubitCliffordsEnum.Midswap,
+                    PauliOperatorEnum.Z,
+                    None,
+                    False,
+                    False,
+                )
+            if self.parse_optional_chars("_XZ"):
+                return (
+                    TwoQubitCliffordsEnum.Midswap,
+                    PauliOperatorEnum.Y,
+                    None,
+                    False,
+                    False,
+                )
+            if self.parse_optional_chars("_YZ"):
+                return (
+                    TwoQubitCliffordsEnum.Midswap,
+                    PauliOperatorEnum.X,
+                    None,
+                    False,
+                    False,
+                )
+        elif pauli := self.parse_optional_pattern(PAULI) is not None:
+            if self.parse_optional_chars("C"):
+                pauli = self.parse_optional_pattern(PAULI)
+                if pauli is None:
+                    if self.parse_optional_chars("NOT") is None:
+                        raise StimParseError(self.pos, "Expected pauli after C")
+                    return (
+                        TwoQubitCliffordsEnum.Ctrl,
+                        PauliOperatorEnum.Z,
+                        PauliOperatorEnum.X,
+                        False,
+                        False,
+                    )
+                return (
+                    TwoQubitCliffordsEnum.Ctrl,
+                    PauliOperatorEnum.Z,
+                    pauli,
+                    False,
+                    False,
+                )
+            return SingleQubitCliffordsEnum.Rotation, pauli, None, False, False
+        i = False
+        if self.parse_optional_chars("I") is not None:
+            i = True
+        if self.parse_optional_chars("SWAP") is not None:
+            if i:
+                dag = False
+                if self.parse_optional_chars("_DAG") is not None:
+                    dag = True
+                return (
+                    TwoQubitCliffordsEnum.Midswap,
+                    PauliOperatorEnum.Y,
+                    None,
+                    False,
+                    dag,
+                )
+            if self.parse_optional_chars("CX") is not None:
+                return (
+                    TwoQubitCliffordsEnum.Midswap,
+                    PauliOperatorEnum.X,
+                    None,
+                    False,
+                    False,
+                )
+            elif self.parse_optional_chars("CZ") is not None:
+                return (
+                    TwoQubitCliffordsEnum.Midswap,
+                    PauliOperatorEnum.Z,
+                    None,
+                    False,
+                    False,
+                )
+            return TwoQubitCliffordsEnum.Swap, None, None, False, False
+        if i:
+            return SingleQubitCliffordsEnum.Rotation, None, None, False, False
+        if self.parse_optional_chars("S") is not None:
+            dag = False
+            if self.parse_optional_chars("_DAG") is not None:
+                dag = True
+            return (
+                SingleQubitCliffordsEnum.Rotation,
+                PauliOperatorEnum.Z,
+                None,
+                True,
+                dag,
+            )
+        return None
+
     # region Instruction parsing
     def parse_optional_name(self):
         if (
             op := self.parse_one_of(
                 [
+                    lambda parser: parser.parse_optional_pattern(TQGATE),
                     lambda parser: parser.parse_optional_pattern(PAULI),
                     lambda parser: parser.parse_optional_pattern(SQGATE),
                     lambda parser: parser.parse_optional_pattern(ANNOTATION),
                 ],
                 [
+                    lambda str: TwoQubitUnitaryEnum(str),
                     lambda str: PauliOperatorEnum(str),
                     lambda str: SingleQubitUnitaryEnum(str),
                     lambda str: AnnotationEnum(str),
@@ -341,7 +531,10 @@ class StimParser:
 
     def build_operation(
         self,
-        op: AnnotationEnum | PauliOperatorEnum | SingleQubitUnitaryEnum,
+        op: AnnotationEnum
+        | PauliOperatorEnum
+        | SingleQubitUnitaryEnum
+        | TwoQubitUnitaryEnum,
         parens: list[float],
         targets: Sequence[SSAValue],
     ):
@@ -438,6 +631,99 @@ class StimParser:
                     )
                 case _:
                     raise StimParseError(self.pos, f"Parsing not implemented for {op}")
+        if isinstance(op, TwoQubitUnitaryEnum):
+            if parens != []:
+                raise StimParseError(
+                    self.pos,
+                    f"Gate {op} was given parens arguments ({parens.count}) but expects (0) arguments.",
+                )
+            if len(targets) % 2 != 0:
+                raise StimParseError(
+                    self.pos,
+                    f"Gate {op} was given an odd number of targets but expects.",
+                )
+            for ctrl, target in zip(targets[0::2], targets[1::2]):
+                if ctrl == target:
+                    raise StimParseError(
+                        self.pos,
+                        f"The two qubit gate {op} was applied to a target pair with the same target ({ctrl}) twice. Gates can't interact targets with themselves.",
+                    )
+            match op:
+                case (
+                    TwoQubitUnitaryEnum.ZCX
+                    | TwoQubitUnitaryEnum.CX
+                    | TwoQubitUnitaryEnum.CNOT
+                ):
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.Z,
+                        PauliOperatorEnum.X,
+                    )
+                case TwoQubitUnitaryEnum.ZCY | TwoQubitUnitaryEnum.CY:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.Z,
+                        PauliOperatorEnum.Y,
+                    )
+                case TwoQubitUnitaryEnum.ZCZ | TwoQubitUnitaryEnum.CZ:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.Z,
+                        PauliOperatorEnum.Z,
+                    )
+                case TwoQubitUnitaryEnum.YCX:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.Y,
+                        PauliOperatorEnum.X,
+                    )
+                case TwoQubitUnitaryEnum.YCY:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.Y,
+                        PauliOperatorEnum.Y,
+                    )
+                case TwoQubitUnitaryEnum.YCZ:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.Y,
+                        PauliOperatorEnum.Z,
+                    )
+                case TwoQubitUnitaryEnum.XCX:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.X,
+                        PauliOperatorEnum.X,
+                    )
+                case TwoQubitUnitaryEnum.XCY:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.X,
+                        PauliOperatorEnum.Y,
+                    )
+                case TwoQubitUnitaryEnum.XCZ:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Ctrl,
+                        targets,
+                        PauliOperatorEnum.X,
+                        PauliOperatorEnum.Z,
+                    )
+                case TwoQubitUnitaryEnum.SWAP:
+                    return CliffordGateOp(TwoQubitCliffordsEnum.Swap, targets)
+                case TwoQubitUnitaryEnum.iSWAP:
+                    return CliffordGateOp(
+                        TwoQubitCliffordsEnum.Midswap, targets, PauliOperatorEnum.Y
+                    )
+                case _:
+                    raise NotImplementedError(f"Gate {op} not yet suppported.")
 
     # endregion
 
