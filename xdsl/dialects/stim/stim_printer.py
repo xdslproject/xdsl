@@ -21,6 +21,9 @@ class StimPrinter:
     seen_qubits: dict[SSAValue, int] = field(default_factory=dict)
     num_qubits: int = field(default=0)
 
+    num_results: int = field(default=0)
+    seen_results: dict[SSAValue, int] = field(default_factory=dict)
+
     def print_string(self, text: str) -> None:
         print(text, end="", file=self.stream)
 
@@ -90,6 +93,11 @@ class StimPrinter:
         for target in targets:
             self.print_string(" ")
             self.print_target(target)
+
+    def update_ssa_results(self, results: Sequence[SSAValue]):
+        for result in results:
+            self.seen_results[result] = self.num_results
+            self.num_results += 1
 
 
 class StimPrintable(abc.ABC):

@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
 
-from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr, UnitAttr
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, FloatData, IntAttr, UnitAttr, i1
 from xdsl.dialects.qref import qubit
 from xdsl.dialects.stim.stim_printer import StimPrintable, StimPrinter
 from xdsl.ir import (
@@ -24,6 +24,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -181,6 +182,10 @@ class PauliOperatorEnum(StrEnum):
 class PauliAttr(StimPrintable, EnumAttribute[PauliOperatorEnum]):
     name = "stim.pauli"
 
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(" ") 
+        super().print_parameter(printer)
+
     def print_stim(self, printer: StimPrinter):
         printer.print_string(self.data)
 
@@ -221,9 +226,17 @@ class TwoQubitCliffordsEnum(StrEnum):
 class SingleQubitGateAttr(EnumAttribute[SingleQubitCliffordsEnum]):
     name = "stim.singlequbitclifford"
 
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(" ") 
+        super().print_parameter(printer)
+
 
 class TwoQubitGateAttr(EnumAttribute[TwoQubitCliffordsEnum]):
     name = "stim.twoqubitclifford"
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(" ") 
+        super().print_parameter(printer)
 
 
 # endregion
@@ -471,6 +484,56 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
 # endregion
 
 # region Stabilizer operation definitions
+
+
+@irdl_op_definition
+class MeasurementGateOp(StimPrintable, GateOp, IRDLOperation):
+    """
+    Measurements take parens for noise.
+    """
+
+    name = "stim.measure"
+
+    pauli_modifier = prop_def(PauliAttr)
+    targets = var_operand_def(qubit)
+
+    results = var_result_def(BoolAttr)
+
+    traits = frozenset([GateOpInterface()])
+
+    def __init__(
+        self,
+        targets: Sequence[SSAValue],
+        pauli_modifier: PauliOperatorEnum | PauliAttr = PauliOperatorEnum.Z,
+    ):
+        if isinstance(pauli_modifier, PauliOperatorEnum):
+            pauli_modifier = PauliAttr(pauli_modifier)
+        super().__init__(
+            operands=[targets],
+            result_types=[[i1] * len(targets)],
+            properties={"pauli_modifier": pauli_modifier},
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.pauli_modifier.data)
+        printer.print_string(" ")
+        printer.print_operands(self.targets)
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        pauli_modifier = parser.parse_str_enum(PauliOperatorEnum)
+        targets = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_unresolved_operand
+        )
+        qubits = parser.resolve_operands(targets, len(targets) * [qubit], parser.pos)
+        return cls.create(operands=qubits, result_types=[i1]*len(qubits), properties={"pauli_modifier":PauliAttr(pauli_modifier)})
+
+    def print_stim(self, printer: StimPrinter):
+        printer.print_string("M")
+        printer.print_string(self.pauli_modifier.data)
+        printer.update_ssa_results(self.results)
+        printer.print_targets(self.targets)
 
 
 # endregion

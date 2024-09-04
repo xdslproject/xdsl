@@ -199,3 +199,16 @@ def test_stim_roundtrip_single_qubit_clifford(program: str, expected_stim: str):
 )
 def test_stim_roundtrip_two_qubit_clifford(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)
+
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("MX 0", "MX 0\n"),
+        ("MY 0", "MY 0\n"),
+        ("MZ 1 0", "MZ 0 1\n"),
+        ("M 0 \n MZ 1", "MZ 0\nMZ 1\n"),
+    ],
+)
+def test_stim_roundtrip_measurement(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)

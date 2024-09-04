@@ -11,6 +11,8 @@ from xdsl.dialects.stim import (
     StimCircuitOp,
 )
 from xdsl.dialects.stim.ops import (
+    MeasurementGateOp,
+    PauliAttr,
     PauliOperatorEnum,
     SingleQubitCliffordsEnum,
     TwoQubitCliffordsEnum,
@@ -99,6 +101,13 @@ class TwoQubitUnitaryEnum(StrEnum):
     ZCZ = "ZCZ"
 
 
+class MeasurementSpelling(StrEnum):
+    MX = "MX"
+    MY = "MY"
+    MZ = "MZ"
+    M = "M"
+
+
 NEWLINE = re.compile(r"\n")
 NOT_NEWLINE = re.compile(r"[^\n]*")
 INDENT = re.compile(r"[ \t]*")
@@ -113,6 +122,9 @@ SQGATE = re.compile(
 )
 TQGATE = re.compile(
     "|".join(re.escape(gate.value) for gate in TwoQubitUnitaryEnum), re.IGNORECASE
+)
+MEASUREMENT = re.compile(
+    "|".join(re.escape(gate.value) for gate in MeasurementSpelling), re.IGNORECASE
 )
 ANNOTATION = re.compile(
     "|".join(re.escape(i.value) for i in AnnotationEnum), re.IGNORECASE
@@ -129,12 +141,17 @@ class StimParser:
 
     qubit_ssa_map: dict[int, SSAValue]
 
+    result_ssa_map: dict[int, SSAValue]
+    seen_results: int
+
     def __init__(self, input: Input | str, pos: int = 0):
         if isinstance(input, str):
             input = Input(input, "<unknown>")
         self.input = input
         self.pos = pos
+        self.seen_results = 0
         self.qubit_ssa_map = {}
+        self.result_ssa_map = {}
 
     @property
     def remaining(self) -> str:
@@ -241,8 +258,9 @@ class StimParser:
         """
 
         # Check if any of the valid names parse
-        op = self.parse_one_of(
+        op: tuple[list[Operation], Operation] | None = self.parse_one_of(
             [
+                lambda parser: parser.parse_optional_measurement(),
                 lambda parser: parser.parse_optional_annotation(),
                 lambda parser: parser.parse_optional_gate(),
             ],
@@ -324,7 +342,7 @@ class StimParser:
             if target in self.qubit_ssa_map:
                 return self.qubit_ssa_map[target]
             new_qubit_op = qref.QRefAllocOp(1)
-            qref_val = new_qubit_op.results[0]
+            qref_val: SSAValue = new_qubit_op.results[0]
             self.qubit_ssa_map[target] = qref_val
             return (new_qubit_op, qref_val)
 
@@ -367,6 +385,33 @@ class StimParser:
         ]
         coords = ArrayAttr(args)
         return coords
+
+    def parse_optional_measurement(self):
+        start_pos = self.pos
+        if self.parse_optional_chars("M") is None:
+            return None
+        if (gate_name := self.parse_optional_pattern(PAULI)) is None:
+            if self.parse_optional_pattern(NAME) is not None:
+                raise StimParseError(
+                    self.pos,
+                    f"Unknown operation {self.input.content[start_pos:self.pos]}",
+                )
+            else:
+                gate_name = "Z"
+        if ((parens := self.parse_optional_parens()) is not None) and len(parens) > 1:
+            raise ValueError(
+                f"Gate {gate_name} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
+            )
+        extra_ops, targets = self.parse_targets()
+        measurement_op = MeasurementGateOp.create(
+            operands=targets,
+            result_types=[qref.QubitAttr()] * len(targets),
+            properties={"pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name))},
+        )
+        for result in measurement_op.results:
+            self.result_ssa_map[self.seen_results] = result
+            self.seen_results += 1
+        return extra_ops, measurement_op
 
     def parse_optional_gate_name(
         self,
