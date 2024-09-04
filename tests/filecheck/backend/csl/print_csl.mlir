@@ -173,7 +173,7 @@ csl.func @initialize() {
   %b = memref.get_global @b : memref<4xf32>
   %y = memref.get_global @y : memref<4xf32>
 
-  scf.for %idx = %lb to %ub step %step {
+  scf.for %idx = %lb to %ub step %step : i16 {
     %idx_f32 = arith.sitofp %idx : i16 to f32
     %idx_index = "arith.index_cast"(%idx) : (i16) -> index
     memref.store %idx_f32, %A[%idx_index] : memref<24xf32>
@@ -181,7 +181,7 @@ csl.func @initialize() {
 
   %ub_6 = arith.constant 6 : i16
 
-  scf.for %j = %lb to %ub_6 step %step {
+  scf.for %j = %lb to %ub_6 step %step : i16 {
     %val = arith.constant 1.0 : f32
     %j_idx = "arith.index_cast"(%j) : (i16) -> index
     memref.store %val, %x[%j_idx] : memref<6xf32>
@@ -189,7 +189,7 @@ csl.func @initialize() {
 
   %ub_4 = arith.constant 6 : i16
 
-  scf.for %i = %lb to %ub_4 step %step {
+  scf.for %i = %lb to %ub_4 step %step : i16 {
     %c2 = arith.constant 2.0 : f32
     %c0 = arith.constant 0.0 : f32
     %i_idx = "arith.index_cast"(%i) : (i16) -> index

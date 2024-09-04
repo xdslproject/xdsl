@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     Signedness,
     StridedLayoutAttr,
+    UnrealizedConversionCastOp,
 )
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -210,6 +211,21 @@ class LowerCopyOpPass(RewritePattern):
         rewriter.replace_matched_op(func(operands=[[op.destination, op.source]]))
 
 
+class LowerUnrealizedConversionCastOpPass(RewritePattern):
+    """
+    Conversions from dsd to memref are no longer necessary after this pass.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: UnrealizedConversionCastOp, rewriter: PatternRewriter, /
+    ):
+        if all(isa(t, csl.DsdType) for t in op.inputs.types) and all(
+            isa(t, MemRefType[Attribute]) for t in op.outputs.types
+        ):
+            rewriter.replace_matched_op([], new_results=op.inputs)
+
+
 class DsdOpUpdateType(RewritePattern):
     """Rebuild DSD ops from memref to DSD types."""
 
@@ -261,6 +277,7 @@ class MemrefToDsdPass(ModulePass):
                 [
                     LowerSubviewOpPass(),
                     LowerCopyOpPass(),
+                    LowerUnrealizedConversionCastOpPass(),
                 ]
             ),
             walk_reverse=True,

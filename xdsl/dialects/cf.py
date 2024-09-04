@@ -8,9 +8,9 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
+    attr_def,
     irdl_op_definition,
     operand_def,
-    prop_def,
     successor_def,
     var_operand_def,
 )
@@ -19,21 +19,28 @@ from xdsl.traits import IsTerminator
 
 @irdl_op_definition
 class Assert(IRDLOperation):
+    """Assert operation with message attribute"""
+
     name = "cf.assert"
+
     arg = operand_def(IntegerType(1))
-    msg = prop_def(StringAttr)
+    msg = attr_def(StringAttr)
 
     def __init__(self, arg: Operation | SSAValue, msg: str | StringAttr):
         if isinstance(msg, str):
             msg = StringAttr(msg)
         super().__init__(
             operands=[arg],
-            properties={"msg": msg},
+            attributes={"msg": msg},
         )
+
+    assembly_format = "$arg `,` $msg attr-dict"
 
 
 @irdl_op_definition
 class Branch(IRDLOperation):
+    """Branch operation"""
+
     name = "cf.br"
 
     arguments = var_operand_def(AnyAttr())
@@ -44,9 +51,13 @@ class Branch(IRDLOperation):
     def __init__(self, dest: Block, *ops: Operation | SSAValue):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
 
+    assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
+
 
 @irdl_op_definition
 class ConditionalBranch(IRDLOperation):
+    """Conditional branch operation"""
+
     name = "cf.cond_br"
 
     cond = operand_def(IntegerType(1))
@@ -71,6 +82,13 @@ class ConditionalBranch(IRDLOperation):
         super().__init__(
             operands=[cond, then_ops, else_ops], successors=[then_block, else_block]
         )
+
+    assembly_format = """
+    $cond `,`
+    $then_block (`(` $then_arguments^ `:` type($then_arguments) `)`)? `,`
+    $else_block (`(` $else_arguments^ `:` type($else_arguments) `)`)?
+    attr-dict
+    """
 
 
 Cf = Dialect(

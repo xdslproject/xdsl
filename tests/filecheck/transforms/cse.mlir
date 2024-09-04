@@ -134,20 +134,20 @@ func.func @different_ops() -> (i32, i32) {
 func.func @down_propagate() -> i32 {
     %27 = arith.constant 1 : i32
     %28 = arith.constant true
-    "cf.cond_br"(%28, %27) [^1, ^2] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+    cf.cond_br %28, ^1, ^2(%27 : i32)
   ^1:
     %29 = arith.constant 1 : i32
-    "cf.br"(%29) [^2] : (i32) -> ()
+    cf.br ^2(%29 : i32)
   ^2(%30 : i32):
     func.return %30 : i32
   }
 
 // CHECK:      %0 = arith.constant 1 : i32
 // CHECK-NEXT:      %1 = arith.constant true
-// CHECK-NEXT:      "cf.cond_br"(%1, %0) [^0, ^1] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+// CHECK-NEXT:      cf.cond_br %1, ^0, ^1(%0 : i32)
 // CHECK-NEXT:    ^0:
 // CHECK-NEXT:      %2 = arith.constant 1 : i32
-// CHECK-NEXT:      "cf.br"(%2) [^1] : (i32) -> ()
+// CHECK-NEXT:      cf.br ^1(%2 : i32)
 // CHECK-NEXT:    ^1(%3 : i32):
 // CHECK-NEXT:      func.return %3 : i32
 // CHECK-NEXT:    }
@@ -179,10 +179,10 @@ func.func @down_propagate() -> i32 {
 func.func @up_propagate() -> i32 {
     %33 = arith.constant 0 : i32
     %34 = arith.constant true
-    "cf.cond_br"(%34, %33) [^4, ^5] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+    cf.cond_br %34, ^4, ^5(%33 : i32)
   ^4:
     %35 = arith.constant 1 : i32
-    "cf.br"(%35) [^5] : (i32) -> ()
+    cf.br ^5(%35 : i32)
   ^5(%36 : i32):
     %37 = arith.constant 1 : i32
     %38 = arith.addi %36, %37 : i32
@@ -191,10 +191,10 @@ func.func @up_propagate() -> i32 {
 
 // CHECK:      %0 = arith.constant 0 : i32
 // CHECK-NEXT:      %1 = arith.constant true
-// CHECK-NEXT:      "cf.cond_br"(%1, %0) [^0, ^1] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+// CHECK-NEXT:      cf.cond_br %1, ^0, ^1(%0 : i32)
 // CHECK-NEXT:    ^0:
 // CHECK-NEXT:      %2 = arith.constant 1 : i32
-// CHECK-NEXT:      "cf.br"(%2) [^1] : (i32) -> ()
+// CHECK-NEXT:      cf.br ^1(%2 : i32)
 // CHECK-NEXT:    ^1(%3 : i32):
 // CHECK-NEXT:      %4 = arith.constant 1 : i32
 // CHECK-NEXT:      %5 = arith.addi %3, %4 : i32
@@ -208,10 +208,10 @@ func.func @up_propagate_region() -> i32 {
     %39 = "foo.region"() ({
       %40 = arith.constant 0 : i32
       %41 = arith.constant true
-      "cf.cond_br"(%41, %40) [^6, ^7] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+      cf.cond_br %41, ^6, ^7(%40 : i32)
     ^6:
       %42 = arith.constant 1 : i32
-      "cf.br"(%42) [^7] : (i32) -> ()
+      cf.br ^7(%42 : i32)
     ^7(%43 : i32):
       %44 = arith.constant 1 : i32
       %45 = arith.addi %43, %44 : i32
@@ -223,10 +223,10 @@ func.func @up_propagate_region() -> i32 {
 // CHECK:      %0 = "foo.region"() ({
 // CHECK-NEXT:        %1 = arith.constant 0 : i32
 // CHECK-NEXT:        %2 = arith.constant true
-// CHECK-NEXT:        "cf.cond_br"(%2, %1) [^0, ^1] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+// CHECK-NEXT:        cf.cond_br %2, ^0, ^1(%1 : i32)
 // CHECK-NEXT:      ^0:
 // CHECK-NEXT:        %3 = arith.constant 1 : i32
-// CHECK-NEXT:        "cf.br"(%3) [^1] : (i32) -> ()
+// CHECK-NEXT:        cf.br ^1(%3 : i32)
 // CHECK-NEXT:      ^1(%4 : i32):
 // CHECK-NEXT:        %5 = arith.constant 1 : i32
 // CHECK-NEXT:        %6 = arith.addi %4, %5 : i32

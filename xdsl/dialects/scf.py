@@ -422,9 +422,12 @@ class For(IRDLOperation):
         )
 
         # Set induction variable type
-        indvar = unresolved_indvar.resolve(lb.type)
-        if parser.parse_optional_characters(":"):
-            indvar.type = parser.parse_type()
+        indvar_type = (
+            parser.parse_type()
+            if parser.parse_optional_characters(":")
+            else IndexType()
+        )
+        indvar = unresolved_indvar.resolve(indvar_type)
 
         # Set block argument types
         iter_args = [

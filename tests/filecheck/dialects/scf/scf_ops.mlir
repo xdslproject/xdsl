@@ -138,11 +138,10 @@ builtin.module {
     %ub = arith.constant 42 : index
     %s = arith.constant 3 : index
     %prod = arith.constant 1 : index
-    %res_1 = "scf.for"(%lb, %ub, %s, %prod) ({
-    ^2(%iv : index, %prod_iter : index):
+    %res_1 = scf.for %iv = %lb to %ub step %s iter_args(%prod_iter = %prod) -> (index) {
       %prod_new = arith.muli %prod_iter, %iv : index
       scf.yield %prod_new : index
-    }) : (index, index, index, index) -> index
+    }
     func.return
   }
 
@@ -158,5 +157,27 @@ builtin.module {
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
+  func.func @for_i32() {
+    %lb = arith.constant 0 : i32
+    %ub = arith.constant 42 : i32
+    %s = arith.constant 3 : i32
+    %prod = arith.constant 1 : i32
+    %res_1 = scf.for %iv = %lb to %ub step %s iter_args(%prod_iter = %prod) -> (i32) : i32 {
+      %prod_new = arith.muli %prod_iter, %iv : i32
+      scf.yield %prod_new : i32
+    }
+    func.return
+  }
 
+  // CHECK-NEXT: func.func @for_i32() {
+  // CHECK-NEXT:   %{{.*}} = arith.constant 0 : i32
+  // CHECK-NEXT:   %{{.*}} = arith.constant 42 : i32
+  // CHECK-NEXT:   %{{.*}} = arith.constant 3 : i32
+  // CHECK-NEXT:   %{{.*}} = arith.constant 1 : i32
+  // CHECK-NEXT:   %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (i32) : i32 {
+  // CHECK-NEXT:     %{{.*}} = arith.muli %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:     scf.yield %{{.*}} : i32
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
 }
