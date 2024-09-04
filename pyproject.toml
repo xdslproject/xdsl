@@ -31,7 +31,7 @@ dev = [
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.6.1",
     "pytest-asyncio==0.24.0",
-    "pyright==1.1.345",
+    "pyright==1.1.379",
 ]
 gui = ["textual==0.79.1", "pyclip==0.7"]
 jax = ["jax==0.4.31", "numpy==2.1.1"]
