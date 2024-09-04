@@ -1,13 +1,14 @@
 import datetime
-import dis
 import itertools
 import time
 import typing
+from dataclasses import dataclass
 from typing import TypeVar
 
-from scripts.visualiseDLT import LayoutPlotter
+from dtl.visualise import LayoutPlotter
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.experimental import dlt
+from xdsl.dialects.experimental.dlt import PtrIdent
 from xdsl.transforms.experimental.dlt.layout_graph import LayoutGraph
 
 T = TypeVar("T", dlt.Layout, list[dlt.Layout])
@@ -243,14 +244,25 @@ def _make_index_replacement(
     assert index_replace_node.contents_type == layout.contents_type
     return index_replace_node
 
+@dataclass(frozen=True, eq=True)
+class ReifyConfig():
+    dense: bool = True # do we try dense layouts
+    coo_buffer_options: frozenset[int] = frozenset([0, 2, 8, -8]) # do we try coo layouts and if so, what buffer options
+    arith_replace: bool = True # do we try index replacement layouts
+    force_arith_replace_immediate_use: bool = True
+    permute_structure_size_threshold: int = -1 # only try permuting struct pairs if the numbers of dimensions in the content types of the 2 children are both less than this threshold (working on the idea that the order is less important for large sub-layouts that will probably use multiple cache lines anyway)
+    members_first: bool = True # do we force that if a member layout node can be injected it is done first and other options are not considered (until the member layout's abstract child is reified)
 
+    @property
+    def coo(self) -> bool:
+        return len(self.coo_buffer_options) > 0
 
 
 class PtrMapping():
     def __init__(self, number: int, ptr_map: dict[StringAttr, dlt.PtrType]):
         self.number = number
         self.keys = tuple(ptr_map.keys())
-        self.values = tuple(ptr_map.values())
+        self.values = tuple(list(ptr_map.values()))
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, PtrMapping):
@@ -271,11 +283,13 @@ class PtrMapping():
 
 class LayoutGenerator:
 
-    def __init__(self, layout_graph: LayoutGraph, plot_dir = None):
+    def __init__(self, layout_graph: LayoutGraph, config_map: dict[PtrIdent, ReifyConfig], plot_dir: str = None):
         self.layout_graph = layout_graph
         self.abstract_maps: list[tuple[PtrMapping, list[PtrMapping]|None]] = [(
             PtrMapping(0, layout_graph.get_type_map()), None)
         ]
+        self.config_map = config_map
+        assert all(ident in config_map for ident in layout_graph.get_idents())
         self._max_size = 0
         self.final_maps: set[PtrMapping] = set()
         self.seen_mappings = set()
@@ -283,7 +297,7 @@ class LayoutGenerator:
 
         self._entry_points = self.layout_graph.get_entry_layouts().keys()
 
-        self._generated_layouts: dict[dlt.AbstractLayoutAttr, typing.Collection[dlt.Layout] | None] = {}
+        self._generated_layouts: dict[tuple[ReifyConfig, dlt.AbstractLayoutAttr], typing.Collection[dlt.Layout] | None] = {}
 
         self.plot_dir = plot_dir
 
@@ -368,7 +382,7 @@ class LayoutGenerator:
                 print(f"\tReifying {ident.data}")
                 ptr = parent_mapping[ident]
                 layout = ptr.layout
-                new_layouts = self._generate_layouts(layout)
+                new_layouts = self._generate_layouts(layout, self.config_map[ident])
                 new_nums = []
                 duplicate_nums = []
                 propagate_times = []
@@ -427,18 +441,18 @@ class LayoutGenerator:
         print(f"Generated {len(self.final_maps)} reified mappings in {time.time()-start_time}s")
         return self.final_maps
 
-    def _generate_layouts(self, layout: dlt.Layout, path=tuple()) -> typing.Collection[dlt.Layout]:
+    def _generate_layouts(self, layout: dlt.Layout, config: ReifyConfig, path=tuple()) -> typing.Collection[dlt.Layout]:
         if not layout.is_abstract:
             return []
         layouts = []
         if isinstance(layout, dlt.AbstractLayoutAttr):
             layout = typing.cast(dlt.AbstractLayoutAttr, layout)
-            previous_layouts = self._generated_layouts.get(layout, None)
+            previous_layouts = self._generated_layouts.get((config, layout), None)
             if previous_layouts is None:
                 print(f"\t\t Generating new layouts at: {path}")
-                new_layouts = self._reify_layout(layout)
+                new_layouts = self._reify_layout(layout, config)
                 layouts.extend(new_layouts)
-                self._generated_layouts[layout] = new_layouts
+                self._generated_layouts[(config, layout)] = new_layouts
             else:
                 print(f"\t\t Using Previously Generated layouts at: {path}")
                 layouts.extend(previous_layouts)
@@ -446,7 +460,7 @@ class LayoutGenerator:
         else:
             children = layout.get_children()
             for i, child in enumerate(children):
-                child_layouts = self._generate_layouts(child, path=(*path, i))
+                child_layouts = self._generate_layouts(child, config, path=(*path, i))
                 for child_layout in child_layouts:
                     new_children = children[:i] + [child_layout] + children[i + 1 :]
                     layouts.append(layout.from_new_children(new_children))
@@ -469,7 +483,7 @@ class LayoutGenerator:
             # print(print_val)
         return layouts
 
-    def _reify_layout(self, abstract_layout: dlt.AbstractLayoutAttr) -> typing.Collection[dlt.Layout]:
+    def _reify_layout(self, abstract_layout: dlt.AbstractLayoutAttr, config: ReifyConfig) -> typing.Collection[dlt.Layout]:
         val = ". "
         print(f"\t\t\treifying abstract layout with {len(abstract_layout.children)} children: "+val, end="")
         chars = len(val)
@@ -482,12 +496,14 @@ class LayoutGenerator:
                 print(("\b"*chars) + f"Single empty abstract layout.")
                 return (abstract_child.child,)
 
-        # If abstract layout has any common members, these should ne delt with first as they do not affect physical data layout (even though they may effect ptr reductions with our naive selection statements)
-        if len(common_mems := abstract_layout.common_abstract_members()) > 0:
-            print(("\b" * chars) + f"Forcing common members to be reified first")
-            return (self._reify_members(abstract_layout, common_mems),)
-
         layouts = list()
+
+        # If abstract layout has any common members, these should be delt with first as they do not affect physical data layout (even though they may affect ptr reductions with our naive selection statements)
+        if len(common_mems := abstract_layout.common_abstract_members()) > 0:
+            layouts.append(self._reify_members(abstract_layout, common_mems))
+            if config.members_first:
+                print(("\b" * chars) + f"Forcing common members to be reified first")
+                return layouts
 
         val = f"{len(layouts)} .. "
         print(("\b"*chars) + val, end="")
@@ -513,10 +529,11 @@ class LayoutGenerator:
                 dlt.AbstractLayoutAttr([abstract_children[0]]),
                 dlt.AbstractLayoutAttr([abstract_children[1]]),
             ]))
-            layouts.append(dlt.StructLayoutAttr([
-                dlt.AbstractLayoutAttr([abstract_children[1]]),
-                dlt.AbstractLayoutAttr([abstract_children[0]]),
-            ]))
+            if config.permute_structure_size_threshold < 0 or config.permute_structure_size_threshold > min(len(abstract_children[0].contents_type.all_dimension_attributes()), len(abstract_children[0].contents_type.all_dimension_attributes())):
+                layouts.append(dlt.StructLayoutAttr([
+                    dlt.AbstractLayoutAttr([abstract_children[1]]),
+                    dlt.AbstractLayoutAttr([abstract_children[0]]),
+                ]))
 
         val = f"{len(layouts)} .... "
         print(("\b" * chars) + val, end="")
@@ -527,15 +544,15 @@ class LayoutGenerator:
         chars = len(val)
 
         # Try to insert an index replacement node
-        if len(abstract_children) > 1:
-            index_swap_layouts = self._get_index_replace_layouts(abstract_layout)
+        if config.arith_replace and len(abstract_children) > 1:
+            index_swap_layouts = self._get_index_replace_layouts(abstract_layout, config)
             layouts.extend(index_swap_layouts)
 
         # Try to insert an indexing node
-        if len(abstract_children) == 1:
-            layouts.extend(self._try_sparse(abstract_layout))
+        if config.coo and len(abstract_children) == 1:
+            layouts.extend(self._try_sparse(abstract_layout, config=config))
 
-        if len(abstract_children) == 1:
+        if config.dense and len(abstract_children) == 1:
             layouts.extend(self._try_dense(abstract_layout))
 
         val = "...... "
@@ -578,11 +595,12 @@ class LayoutGenerator:
         new_children = [dlt.AbstractChildAttr(c.member_specifiers.remove(mems), c.dimensions, c.child) for c in
                         abstract_layout.children]
         new_layout = dlt.AbstractLayoutAttr(new_children)
-        for m in mems:
+        for m in sorted(list(mems), key=lambda m: m.structName.data+m.memberName.data):
             new_layout = dlt.MemberLayoutAttr(new_layout, m)
         return new_layout
 
-    def _try_sparse(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: set[dlt.DimensionAttr] = None) -> list[dlt.Layout]:
+    def _try_sparse(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: set[dlt.DimensionAttr] = None, config: ReifyConfig = None) -> list[dlt.Layout]:
+        buffer_options = config.coo_buffer_options if config is not None else [0,2,8,-8]
         layouts = []
         if len(dims := abstract_layout.common_abstract_dimensions()) > 1:
             # print(f"Common Abstract Dims > 1. dims: {[d.dimensionName for d in dims]}")
@@ -598,7 +616,7 @@ class LayoutGenerator:
                                 # print(f"abstract_dims: {[d.dimensionName for d in abstract_dims]}")
                                 for abstract_child_dims in self._subsets(list(abstract_dims)):
                                     # print(f"abstract_child_dims: {[d.dimensionName for d in abstract_child_dims]}")
-                                    for buffer_scaler in [0,2,8,-8]:
+                                    for buffer_scaler in buffer_options:
                                         layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
         return layouts
 
@@ -637,7 +655,7 @@ class LayoutGenerator:
     #                                       dense_layout))
     #     return abstract_child_replacements
 
-    def _get_index_replace_layouts(self, layout: dlt.AbstractLayoutAttr) -> list[dlt.ArithReplaceLayoutAttr]:
+    def _get_index_replace_layouts(self, layout: dlt.AbstractLayoutAttr, config: ReifyConfig) -> list[dlt.ArithReplaceLayoutAttr]:
 
         extent_map = {}
         for dim in [d for child in layout.children for d in child.dimensions]:
@@ -649,7 +667,7 @@ class LayoutGenerator:
                 for child in layout.children
                 if len(dims & set(child.dimensions)) >= 1
             )
-            if count > 1:
+            if count == len(layout.children.data):
                 extents.append((e, dims))
 
         if len(extents) == 0:
@@ -689,13 +707,16 @@ class LayoutGenerator:
                     failed = True
                     break
             if (not failed) and (len(picked_list) > 1):
-                layouts.extend(self._make_arith_replacement_node(layout, extent, list(picked_list)))
+                layouts.extend(self._make_arith_replacement_node(layout, extent, list(picked_list), config))
 
         return layouts
 
     def _make_arith_replacement_node(self,
-            layout: dlt.AbstractLayoutAttr, extent: dlt.Extent, dims: list[dlt.DimensionAttr], dim_name_num=0
+            layout: dlt.AbstractLayoutAttr, extent: dlt.Extent, dims: list[dlt.DimensionAttr], dim_name_num=0, config: ReifyConfig = None
     ) -> list[dlt.ArithReplaceLayoutAttr]:
+        if config is None:
+            config = ReifyConfig()
+
         all_dims_names = [
             d.dimensionName.data for d in layout.contents_type.all_dimension_attributes()
         ]
@@ -740,8 +761,13 @@ class LayoutGenerator:
 
         # Try to insert an indexing node so that we use the inner dim usefully
         new_layouts = []
-        new_layouts.extend(self._try_sparse(abstract_node, must_use={inner_dim}))
-        new_layouts.extend(self._try_dense(abstract_node, must_use=inner_dim))
+        if config.force_arith_replace_immediate_use:
+            if config.coo:
+                new_layouts.extend(self._try_sparse(abstract_node, must_use={inner_dim}, config=config))
+            if config.dense:
+                new_layouts.extend(self._try_dense(abstract_node, must_use=inner_dim))
+        else:
+            new_layouts.append(abstract_node)
 
 
         replacements = [

@@ -1,9 +1,8 @@
 import datetime
 import itertools
 import time
-import typing
 
-from scripts.visualiseDLT import IterationPlotter
+from dtl.visualise import IterationPlotter
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.dialects.experimental import dlt
 from xdsl.dialects.experimental.dlt import SetAttr
