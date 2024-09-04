@@ -617,16 +617,16 @@ csl.func @builtins() {
 // CHECK-NEXT:   var i32_pointer : *i32 = &i32_value;
 // CHECK-NEXT:   var u16_pointer : *u16 = &u16_value;
 // CHECK-NEXT:   var u32_pointer : *u32 = &u32_value;
-// CHECK-NEXT:   const dsd_2d : mem4d_dsd = @get_dsd( mem4d_dsd .{
+// CHECK-NEXT:   const dsd_2d : mem4d_dsd = @get_dsd( mem4d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0, d1 | { i32_value, i32_value } -> A[ 3 * d0 + 1, 4 * d1 + 2 ]
 // CHECK-NEXT:   });
-// CHECK-NEXT:   const dest_dsd : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:   const dest_dsd : mem1d_dsd = @get_dsd( mem1d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
 // CHECK-NEXT:   });
-// CHECK-NEXT:   const src_dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:   const src_dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
 // CHECK-NEXT:   });
-// CHECK-NEXT:   const src_dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:   const src_dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   const dsd_1d2 : mem1d_dsd = @set_dsd_base_addr(dest_dsd, A);

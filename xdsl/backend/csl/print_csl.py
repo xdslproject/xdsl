@@ -709,7 +709,7 @@ class CslPrintContext:
                     ]
                     accesses_str = ", ".join(accesses)
                     self.print(
-                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)} .{{"
+                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
                     )
                     self.print(
                         f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
