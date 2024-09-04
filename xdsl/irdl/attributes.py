@@ -49,6 +49,7 @@ from .constraints import (  # noqa: TID251
     EqAttrConstraint,
     GenericAttrConstraint,
     ParamAttrConstraint,
+    TypeVarConstraint,
     VarConstraint,
 )
 from .error import IRDLAnnotations  # noqa: TID251
@@ -314,6 +315,12 @@ def irdl_to_attr_constraint(
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
+        if isinstance(irdl, TypeVarConstraint):
+            return (
+                irdl.constraint
+                if type_var_mapping is None
+                else type_var_mapping.get(irdl.type_var, irdl.constraint)
+            )
         return cast(AttrConstraint, irdl)
 
     if isinstance(irdl, Attribute):
@@ -355,7 +362,8 @@ def irdl_to_attr_constraint(
         if irdl.__bound__ is None:
             raise Exception("Type variables used in IRDL are expected to" " be bound.")
         # We do not allow nested type variables.
-        return irdl_to_attr_constraint(irdl.__bound__)
+        constraint = irdl_to_attr_constraint(irdl.__bound__)
+        return TypeVarConstraint(irdl, constraint)
 
     origin = get_origin(irdl)
 

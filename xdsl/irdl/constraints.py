@@ -130,6 +130,38 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         return self.constraint.get_unique_base()
 
 
+@dataclass(frozen=True)
+class TypeVarConstraint(AttrConstraint):
+    """
+    Stores the TypeVar instance used to define a generic ParametrizedAttribute.
+    """
+
+    type_var: TypeVar
+    """The instance of the TypeVar used in the definition."""
+
+    constraint: AttrConstraint
+    """The base constraint of the TypeVar."""
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        self.constraint.verify(attr, constraint_context)
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constraint.get_resolved_variables()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constraint.can_infer(constraint_names)
+
+    def infer(self, constraint_context: ConstraintContext) -> Attribute:
+        return self.constraint.infer(constraint_context)
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return self.constraint.get_unique_base()
+
+
 @dataclass(frozen=True, init=True)
 class ConstraintVar:
     """
