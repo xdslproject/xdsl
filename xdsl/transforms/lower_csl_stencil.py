@@ -64,6 +64,13 @@ def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
     return None
 
 
+def _get_memcpy_mod(op: Block):
+    for o in op.walk():
+        if isinstance(o, csl_wrapper.ImportOp) and o.module.data == "<memcpy/memcpy>":
+            return o
+    raise RuntimeError("Could not find memcpy module")
+
+
 @dataclass(frozen=True)
 class LowerAccessOp(RewritePattern):
     """
@@ -160,6 +167,14 @@ class LowerApplyOp(RewritePattern):
         rewriter.inline_block(
             op.post_process.block, InsertPoint.at_end(post_fn.body.block), post_arg_m
         )
+
+        # add a call to `unblock_cmd_stream` at the end of the prost_process fn
+        memcpy = _get_memcpy_mod(module_wrapper_op.program_module.block)
+        unblock_cmd_stream_call = csl.MemberCallOp(
+            struct=memcpy, fname="unblock_cmd_stream", params=[], result_type=None
+        )
+        assert (ret_op := post_fn.body.block.last_op)
+        rewriter.insert_op(unblock_cmd_stream_call, InsertPoint.before(ret_op))
 
         # place both func next to the enclosing parent func
         rewriter.insert_op([reduce_fn, post_fn], InsertPoint.after(parent_func))

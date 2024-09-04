@@ -133,6 +133,7 @@ builtin.module {
 // CHECK-NEXT:       "csl.fadds"(%arg4, %arg4, %58) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
 // CHECK-NEXT:       %60 = arith.constant 1.666600e-01 : f32
 // CHECK-NEXT:       "csl.fmuls"(%arg4, %arg4, %60) : (memref<510xf32>, memref<510xf32>, f32) -> ()
+// CHECK-NEXT:       "csl.member_call"(%33) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
