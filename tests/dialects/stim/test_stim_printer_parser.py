@@ -227,3 +227,13 @@ def test_stim_roundtrip_measurement(program: str, expected_stim: str):
 )
 def test_stim_roundtrip_reset(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)
+
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("TICK", "TICK\n"),
+    ],
+)
+def test_stim_roundtrip_tick(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)

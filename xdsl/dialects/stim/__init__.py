@@ -9,6 +9,7 @@ from .ops import (
     ResetGateOp,
     SingleQubitGateAttr,
     StimCircuitOp,
+    TickAnnotationOp,
     TwoQubitGateAttr,
 )
 
@@ -20,6 +21,7 @@ Stim = Dialect(
         QubitCoordsOp,
         ResetGateOp,
         StimCircuitOp,
+        TickAnnotationOp,
     ],
     [PauliAttr, QubitMappingAttr, SingleQubitGateAttr, TwoQubitGateAttr],
 )

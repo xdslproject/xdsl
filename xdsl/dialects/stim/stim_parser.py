@@ -16,6 +16,7 @@ from xdsl.dialects.stim.ops import (
     PauliOperatorEnum,
     ResetGateOp,
     SingleQubitCliffordsEnum,
+    TickAnnotationOp,
     TwoQubitCliffordsEnum,
 )
 from xdsl.ir import Block, Operation, Region, SSAValue
@@ -42,6 +43,7 @@ class AnnotationEnum(StrEnum):
     """
 
     COORD = "QUBIT_COORDS"
+    TICK = "TICK"
 
 
 class SingleQubitUnitaryEnum(StrEnum):
@@ -356,7 +358,8 @@ class StimParser:
         """
         # Check that there is a first target
         if (first := self.parse_optional_target()) is None:
-            raise StimParseError(self.pos, "Expected at least one target")
+            return [], []
+            # TODO: this potentially should have an error as part of the potential incongruency with stim's documentation - raise StimParseError(self.pos, "Expected at least one target")
         targets: list[SSAValue] = []
         extra_alloc_ops: list[Operation] = []
         if isinstance(first, tuple):
@@ -655,7 +658,7 @@ class StimParser:
             gate_options[3],
         )
 
-    def parse_optional_annotation(self):
+    def parse_optional_annotation(self) -> tuple[list[Operation], Operation] | None:
         name_start_pos = self.pos
         if (annotation := self.parse_optional_pattern(ANNOTATION)) is None:
             return None
@@ -680,6 +683,18 @@ class StimParser:
                 coords = self.build_parens(parens)
                 mapping = QubitMappingAttr(coords)
                 return extra_ops, QubitCoordsOp(qubit, mapping)
+            case AnnotationEnum.TICK:
+                if parens != []:
+                    raise StimParseError(
+                        self.pos,
+                        f"TICK operation expects no parens arguments but was given {parens}.",
+                    )
+                if targets != []:
+                    raise StimParseError(
+                        self.pos,
+                        f"TICK operation expects no targets but was given targets {len(targets)}.",
+                    )
+                return [], TickAnnotationOp()
 
     # endregion
 

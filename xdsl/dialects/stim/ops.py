@@ -651,8 +651,25 @@ class ObservableAnnotation():
 
 class ShiftCoordsAnnotation():
 
-class TickAnnotation():
 """
+
+
+@irdl_op_definition
+class TickAnnotationOp(AnnotationOp):
+    """
+    A tick annotation is essentially an empty marker that can be used by the compiler.
+    """
+
+    name = "stim.tick"
+    assembly_format = "attr-dict"
+
+    def __init__(self):
+        super().__init__(operands=[])
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string("TICK")
+
+
 # endregion
 
 # region Controlflow operations
