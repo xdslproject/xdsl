@@ -114,13 +114,6 @@ def test_no_spaces_before_target():
         parser.parse_circuit()
 
 
-def test_no_targets():
-    program = "QUBIT_COORDS(1, 1)"
-    with pytest.raises(StimParseError, match="Expected at least one target"):
-        parser = StimParser(program)
-        parser.parse_circuit()
-
-
 def test_unknown_instruction_name():
     program = "HEX 0"
     with pytest.raises(

@@ -21,7 +21,7 @@ from xdsl.dialects.stim.ops import (
     TickAnnotationOp,
     TwoQubitCliffordsEnum,
 )
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
 
@@ -436,22 +436,23 @@ class StimParser:
                 )
             else:
                 gate_name = "Z"
-        noise = 0
+        properties: dict[str, Attribute] = {
+            "pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name)),
+        }
         if (parens := self.parse_optional_parens()) is not None:
+            noise = 0
             if len(parens) > 1:
                 raise ValueError(
                     f"Gate {gate_name} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
                 )
             elif len(parens) == 1:
                 noise = parens[0]
+            properties["noise"] = DepolarizingNoiseAttr(noise)
         extra_ops, targets = self.parse_targets()
         measurement_op = MeasurementGateOp.create(
             operands=targets,
             result_types=[qref.QubitAttr()] * len(targets),
-            properties={
-                "pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name)),
-                "noise": DepolarizingNoiseAttr(noise),
-            },
+            properties=properties,
         )
         for result in measurement_op.results:
             self.result_ssa_map[self.seen_results] = result
@@ -769,10 +770,9 @@ class StimParser:
         extra_ops, targets = self.parse_targets()
         match AnnotationEnum(annotation):
             case AnnotationEnum.COORD:
-                qubit = targets[0]
                 coords = self.build_parens(parens)
                 mapping = QubitMappingAttr(coords)
-                return extra_ops, QubitCoordsOp(qubit, mapping)
+                return extra_ops, QubitCoordsOp(targets, mapping)
             case AnnotationEnum.TICK:
                 if parens != []:
                     raise StimParseError(

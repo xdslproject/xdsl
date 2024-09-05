@@ -826,17 +826,17 @@ class QubitCoordsOp(AnnotationOp):
     name = "stim.assign_qubit_coord"
 
     qubitcoord = prop_def(QubitMappingAttr)
-    target = operand_def(qubit)
+    targets = var_operand_def(qubit)
 
-    assembly_format = "$qubitcoord $target attr-dict"
+    assembly_format = "$qubitcoord ` ` `(` $targets `:` type($targets) `)` attr-dict"
 
-    def __init__(self, target: SSAValue, qubitmapping: QubitMappingAttr):
-        super().__init__(operands=[target], properties={"qubitcoord": qubitmapping})
+    def __init__(self, targets: list[SSAValue], qubitmapping: QubitMappingAttr):
+        super().__init__(operands=[targets], properties={"qubitcoord": qubitmapping})
 
     def print_stim(self, printer: StimPrinter) -> None:
         printer.print_string("QUBIT_COORDS")
         self.qubitcoord.print_stim(printer)
-        printer.print_targets([self.target])
+        printer.print_targets(self.targets)
 
 
 @irdl_op_definition

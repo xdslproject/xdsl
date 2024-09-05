@@ -17,15 +17,15 @@ stim.circuit attributes {"hello" = "world"} {}
 // CHECK-GENERIC-NEXT:   }) {"hello" = "world"} : () -> ()
 
 %q0 = qref.alloc<1>
-stim.assign_qubit_coord <0, 0> %q0
+stim.assign_qubit_coord <0, 0> (%q0 : !qref.qubit)
 // CHECK-NEXT:  %q0 = qref.alloc<1>
-// CHECK-NEXT:    stim.assign_qubit_coord <0, 0> %q0
+// CHECK-NEXT:    stim.assign_qubit_coord <0, 0> (%q0 : !qref.qubit)
 // CHECK-GENERIC-NEXT: %q0 = "qref.alloc"() : () -> !qref.qubit
 // CHECK-GENERIC-NEXT:    "stim.assign_qubit_coord"(%q0) <{"qubitcoord" = #stim.qubit_coord<0, 0>}> : (!qref.qubit) -> ()
 
 stim.circuit {
     %q1 = qref.alloc<1>
-    stim.assign_qubit_coord <0, 0> %q1
+    stim.assign_qubit_coord <0, 0> (%q1 : !qref.qubit)
     stim.clifford I X dag (%q1)
     stim.tick
     %r0 = stim.measure X (%q1)
@@ -34,7 +34,7 @@ stim.circuit {
 }
 // CHECK-NEXT:    stim.circuit {
 // CHECK-NEXT:  %q1 = qref.alloc<1>
-// CHECK-NEXT:    stim.assign_qubit_coord <0, 0> %q1
+// CHECK-NEXT:    stim.assign_qubit_coord <0, 0> (%q1 : !qref.qubit)
 // CHECK-NEXT:  stim.clifford I X dag (%q1)
 // CHECK-NEXT:  stim.tick
 // CHECK-NEXT:  %r0 = stim.measure X (%q1)

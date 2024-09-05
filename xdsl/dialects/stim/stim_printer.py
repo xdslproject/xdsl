@@ -61,8 +61,7 @@ class StimPrinter:
         if isinstance(attribute, FloatData):
             self.print_string(f"{attribute.data}")
             return
-
-        raise ValueError(f"Cannot print in stim format: {attribute}")
+        # If not within the specified attributes, don't print anything as they cannot be represented in Stim.
 
     def print_op(self, op: Operation) -> bool:
         """
