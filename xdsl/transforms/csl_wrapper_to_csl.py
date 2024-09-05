@@ -194,6 +194,7 @@ class ExtractCslModules(RewritePattern):
                   `csl.param` for each of them.
         """
 
+        memcpy = op.get_program_import("<memcpy/memcpy>")
         prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
         module_block = Block()
         with ImplicitBuilder(module_block):
@@ -218,6 +219,14 @@ class ExtractCslModules(RewritePattern):
                 *(y.res for y in yield_args),
             ],
         )
+
+        with ImplicitBuilder(module_block):
+            launch = csl.MemberAccessOp(
+                operands=[memcpy],
+                properties={"field": builtin.StringAttr("LAUNCH")},
+                result_types=[csl.ColorType()],
+            )
+            csl.RpcOp(operands=[launch])
 
         program_module = csl.CslModuleOp(
             regions=[Region(module_block)],

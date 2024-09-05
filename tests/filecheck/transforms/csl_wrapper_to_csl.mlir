@@ -173,6 +173,8 @@ builtin.module {
 // CHECK-NEXT:       }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
+// CHECK-NEXT:   %5 = "csl.member_access"(%memcpyMod_2) <{"field" = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
+// CHECK-NEXT:   "csl.rpc"(%5) : (!csl.color) -> ()
 // CHECK-NEXT:   }) {"sym_name" = "gauss_seidel_func_program"} : () -> ()
 // CHECK-NEXT: }
 // CHECK-EMPTY:
