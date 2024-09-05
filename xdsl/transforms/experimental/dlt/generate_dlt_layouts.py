@@ -32,9 +32,11 @@ def _make_dense_layouts(layout: T, layout_map: dict[str, dlt.Layout]) -> T:
         sub_layouts = []
         for child in layout.children:
             sub_layout = _make_dense_layouts(child.child, layout_map)
-            for dim in list(child.dimensions):
+            child_dims = sorted(list(child.dimensions), key = lambda d: d.dimensionName.data)
+            for dim in child_dims:
                 sub_layout = dlt.DenseLayoutAttr(sub_layout, dim)
-            for member in list(child.member_specifiers):
+            child_mems = sorted(list(child.member_specifiers), key = lambda m: (m.structName.data, m.memberName.data))
+            for member in child_mems:
                 sub_layout = dlt.MemberLayoutAttr(sub_layout, member)
             sub_layouts.append(sub_layout)
         if len(sub_layouts) == 1:
@@ -127,7 +129,7 @@ def _try_apply_index_replace(layout: dlt.Layout):
                 if len(dims & set(child.dimensions)) >= 1
             )
             extents.append((count, dims))
-        extents.sort()
+        extents.sort(key= lambda e: str(e))
 
         if len(extents) == 0:
             return layout
@@ -150,7 +152,9 @@ def _try_apply_index_replace(layout: dlt.Layout):
                 must_use = possible & picked_list
                 if len(must_use) == 0:
                     if len(possible) > 0:
-                        picked_dim = possible.pop()
+                        possible_list = sorted(list(possible), key = lambda d: d.dimensionName.data)
+                        picked_dim = possible_list.pop()
+                        possible = possible - {picked_dim}
                         picked_list |= {picked_dim}
                         ruled_out |= possible
                 elif len(must_use) == 1:
@@ -199,13 +203,13 @@ def _make_index_replacement(
     inner_dim = dlt.DimensionAttr(dim_name, extent)
     outer_dims = []
     for child in layout.children:
-        d = set(child.dimensions) & set(dims)
-        if len(d) == 0:
+        ds = set(child.dimensions) & set(dims)
+        if len(ds) == 0:
             pass
-        elif len(d) > 1:
+        elif len(ds) > 1:
             assert False
         else:
-            outer_dims.append(d.pop())
+            outer_dims.append(ds.pop())
 
     inner_members = {}
     for outer_dim in outer_dims:
@@ -222,10 +226,11 @@ def _make_index_replacement(
 
     new_children = []
     for child in layout.children:
-        d = set(child.dimensions) & set(dims)
-        if len(d) == 0:
+        ds = set(child.dimensions) & set(dims)
+        if len(ds) == 0:
             continue
-        outer_dim = d.pop()
+        d_list = sorted(list(ds), key = lambda d: d.dimensionName.data)
+        outer_dim = d_list.pop()
         inner_member = inner_members[outer_dim]
         new_child = dlt.AbstractChildAttr(
             child.member_specifiers.add([inner_member]),
@@ -378,7 +383,7 @@ class LayoutGenerator:
                             return self.final_maps
                     continue
 
-                ident = idents.pop()
+                ident = sorted(list(idents), key = lambda id: id.data).pop()
                 print(f"\tReifying {ident.data}")
                 ptr = parent_mapping[ident]
                 layout = ptr.layout
@@ -441,7 +446,7 @@ class LayoutGenerator:
         print(f"Generated {len(self.final_maps)} reified mappings in {time.time()-start_time}s")
         return self.final_maps
 
-    def _generate_layouts(self, layout: dlt.Layout, config: ReifyConfig, path=tuple()) -> typing.Collection[dlt.Layout]:
+    def _generate_layouts(self, layout: dlt.Layout, config: ReifyConfig, path=tuple()) -> list[dlt.Layout]:
         if not layout.is_abstract:
             return []
         layouts = []
@@ -483,7 +488,7 @@ class LayoutGenerator:
             # print(print_val)
         return layouts
 
-    def _reify_layout(self, abstract_layout: dlt.AbstractLayoutAttr, config: ReifyConfig) -> typing.Collection[dlt.Layout]:
+    def _reify_layout(self, abstract_layout: dlt.AbstractLayoutAttr, config: ReifyConfig) -> list[dlt.Layout]:
         val = ". "
         print(f"\t\t\treifying abstract layout with {len(abstract_layout.children)} children: "+val, end="")
         chars = len(val)
@@ -494,7 +499,7 @@ class LayoutGenerator:
             abstract_child = abstract_layout.children.data[0]
             if len(abstract_child.dimensions) == 0 and len(abstract_child.member_specifiers) == 0:
                 print(("\b"*chars) + f"Single empty abstract layout.")
-                return (abstract_child.child,)
+                return [abstract_child.child]
 
         layouts = list()
 
@@ -560,7 +565,8 @@ class LayoutGenerator:
         chars = len(val)
 
         # Try to separate common dims from the abstract node
-        if common_dims := list(abstract_layout.common_abstract_dimensions()):
+        common_dims = sorted(list(abstract_layout.common_abstract_dimensions()), key = lambda d: d.dimensionName.data)
+        if common_dims:
             for subset in self._subsets(common_dims):
                 if len(subset) < 1:
                     continue
@@ -602,19 +608,20 @@ class LayoutGenerator:
     def _try_sparse(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: set[dlt.DimensionAttr] = None, config: ReifyConfig = None) -> list[dlt.Layout]:
         buffer_options = config.coo_buffer_options if config is not None else [0,2,8,-8]
         layouts = []
-        if len(dims := abstract_layout.common_abstract_dimensions()) > 1:
+        dims = sorted(list(abstract_layout.common_abstract_dimensions()), key = lambda d: d.dimensionName.data)
+        if len(dims) > 1:
             # print(f"Common Abstract Dims > 1. dims: {[d.dimensionName for d in dims]}")
-            for direct in self._subsets(list(dims)):
-                rest = dims.difference(direct)
+            for direct in self._subsets(dims):
+                rest = [d for d in dims if d not in direct]
                 # print(f"direct: {[d.dimensionName for d in direct]}, rest: {[d.dimensionName for d in rest]}")
                 if len(rest) > 0:
-                    for sparse in self._subsets(list(rest)):
+                    for sparse in self._subsets(rest):
                         # print(f"sparse: {[d.dimensionName for d in sparse]}")
                         if len(sparse) > 0 and (must_use is None or must_use.issubset(set(sparse)|set(direct))):
                             for sparse_perm in self._permutations(sparse):
-                                abstract_dims = rest.difference(sparse)
+                                abstract_dims = [d for d in rest if d not in sparse]
                                 # print(f"abstract_dims: {[d.dimensionName for d in abstract_dims]}")
-                                for abstract_child_dims in self._subsets(list(abstract_dims)):
+                                for abstract_child_dims in self._subsets(abstract_dims):
                                     # print(f"abstract_child_dims: {[d.dimensionName for d in abstract_child_dims]}")
                                     for buffer_scaler in buffer_options:
                                         layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
@@ -622,7 +629,8 @@ class LayoutGenerator:
 
     def _try_dense(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: dlt.DimensionAttr = None) -> list[dlt.Layout]:
         layouts = []
-        if len(dims := abstract_layout.common_abstract_dimensions()) > 0:
+        dims = sorted(list(abstract_layout.common_abstract_dimensions()), key = lambda d: d.dimensionName.data)
+        if len(dims) > 0:
             if must_use is not None:
                 assert must_use in dims
                 dims = [must_use]
@@ -673,6 +681,8 @@ class LayoutGenerator:
         if len(extents) == 0:
             return []
 
+        extents.sort(key = lambda e: str(e))
+
         layouts = []
 
         while len(extents) > 0:
@@ -695,7 +705,9 @@ class LayoutGenerator:
                     break
                 must_use = possible & picked_list
                 if len(must_use) == 0:
-                    picked_dim = possible.pop()
+                    possible_list = sorted(list(possible), key = lambda d: d.dimensionName.data)
+                    picked_dim = possible_list.pop()
+                    possible = possible - {picked_dim}
                     picked_list |= {picked_dim}
                     ruled_out |= possible
                 elif len(must_use) == 1:
@@ -707,7 +719,7 @@ class LayoutGenerator:
                     failed = True
                     break
             if (not failed) and (len(picked_list) > 1):
-                layouts.extend(self._make_arith_replacement_node(layout, extent, list(picked_list), config))
+                layouts.extend(self._make_arith_replacement_node(layout, extent, list(picked_list), config=config))
 
         return layouts
 
@@ -746,10 +758,10 @@ class LayoutGenerator:
 
         new_children = []
         for child in layout.children:
-            d = set(child.dimensions) & set(dims)
-            if len(d) == 0:
+            ds = set(child.dimensions) & set(dims)
+            if len(ds) == 0:
                 assert False
-            outer_dim = d.pop()
+            outer_dim = sorted(list(ds), key=lambda d: d.dimensionName.data).pop()
             inner_member = inner_members[outer_dim]
             new_child = dlt.AbstractChildAttr(
                 child.member_specifiers.add([inner_member]),
@@ -806,13 +818,12 @@ class LayoutGenerator:
         else:
             return
 
-    def _subset_pairs(self, children: typing.Sequence):
+    def _subset_pairs(self, children: list):
         if len(children) > 3 :
-            children_set = set(children)
             for subset in itertools.chain.from_iterable(itertools.combinations(children, r) for r in range(len(children) + 1)):
                 if len(subset) == 0 or len(subset) == len(children):
                     continue
-                other_set = children_set - set(subset)
+                other_set = [c for c in children if c not in subset]
                 yield subset, other_set
             return
         elif len(children) == 3:
@@ -827,7 +838,7 @@ class LayoutGenerator:
         else:
             return
 
-    def _subsets(self, children: typing.Sequence):
+    def _subsets(self, children: list):
         if len(children) > 3 :
             yield from itertools.chain.from_iterable(itertools.combinations(children, r) for r in range(len(children) + 1))
             return
