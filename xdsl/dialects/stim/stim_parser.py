@@ -12,6 +12,7 @@ from xdsl.dialects.stim import (
 )
 from xdsl.dialects.stim.ops import (
     DepolarizingNoiseAttr,
+    DetectorCoordsOp,
     MeasurementGateOp,
     PauliAttr,
     PauliOperatorEnum,
@@ -45,6 +46,7 @@ class AnnotationEnum(StrEnum):
 
     COORD = "QUBIT_COORDS"
     TICK = "TICK"
+    DETECTOR = "DETECTOR"
 
 
 class SingleQubitUnitaryEnum(StrEnum):
@@ -264,8 +266,8 @@ class StimParser:
         # Check if any of the valid names parse
         op: tuple[list[Operation], Operation] | None = self.parse_one_of(
             [
-                lambda parser: parser.parse_optional_measurement(),
                 lambda parser: parser.parse_optional_annotation(),
+                lambda parser: parser.parse_optional_measurement(),
                 lambda parser: parser.parse_optional_gate(),
                 lambda parser: parser.parse_optional_reset(),
                 lambda parser: parser.parse_optional_noise(),
@@ -407,7 +409,7 @@ class StimParser:
                         f"Unknown operation {self.input.content[start_pos:self.pos]}",
                     )
         noise = 0
-        if ((parens := self.parse_optional_parens()) is not None):
+        if (parens := self.parse_optional_parens()) is not None:
             if len(parens) > 1:
                 raise ValueError(
                     f"Gate DEPOLARIZE{qubit_type} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
@@ -415,8 +417,12 @@ class StimParser:
             elif len(parens) == 1:
                 noise = parens[0]
         extra_ops, targets = self.parse_targets()
-        #TODO: Currently parsing is very lazy and just assigns any noise to an identity gate
-        return extra_ops, CliffordGateOp(SingleQubitCliffordsEnum.Rotation,targets,noise=DepolarizingNoiseAttr(noise))
+        # TODO: Currently parsing is very lazy and just assigns any noise to an identity gate
+        return extra_ops, CliffordGateOp(
+            SingleQubitCliffordsEnum.Rotation,
+            targets,
+            noise=DepolarizingNoiseAttr(noise),
+        )
 
     def parse_optional_measurement(self):
         start_pos = self.pos
@@ -431,7 +437,7 @@ class StimParser:
             else:
                 gate_name = "Z"
         noise = 0
-        if ((parens := self.parse_optional_parens()) is not None):
+        if (parens := self.parse_optional_parens()) is not None:
             if len(parens) > 1:
                 raise ValueError(
                     f"Gate {gate_name} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
@@ -442,7 +448,10 @@ class StimParser:
         measurement_op = MeasurementGateOp.create(
             operands=targets,
             result_types=[qref.QubitAttr()] * len(targets),
-            properties={"pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name)), "noise": DepolarizingNoiseAttr(noise)},
+            properties={
+                "pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name)),
+                "noise": DepolarizingNoiseAttr(noise),
+            },
         )
         for result in measurement_op.results:
             self.result_ssa_map[self.seen_results] = result
@@ -689,6 +698,49 @@ class StimParser:
             gate_options[3],
         )
 
+    def parse_optional_rec(self) -> SSAValue | None:
+        """
+        Parse an argument passed to an instruction in parentheses with format:
+            rec ::= rec[-`int`]
+        """
+        # Check for a space
+        space = self.parse_optional_pattern(SPACE)
+        if self.parse_optional_chars("rec[-") is None:
+            return None
+        if space is None:
+            raise StimParseError(self.pos, "Targets must be separated by spacing.")
+        if (str_val := self.parse_optional_pattern(TARGET)) is not None:
+            arg = int(str_val)
+            if arg > self.seen_results:
+                raise StimParseError(self.pos, "Record argument out of range.")
+            if self.parse_optional_chars("]") is not None:
+                return self.result_ssa_map[self.seen_results - arg]
+        raise StimParseError(
+            self.pos,
+            "Target started with 'r' but wasn't a record argument like 'rec[-1]'",
+        )
+
+    def parse_optional_recs(self) -> list[SSAValue] | None:
+        """
+        Parse an optional parenthesis or recs with optional arguments with format:
+            parens ::= `(` (INDENT* rec INDENT* (',' INDENT* rec INDENT*)*)? `)`
+
+        TODO: The Stim documentation uses this format:
+            <PARENS_ARGUMENTS> ::= '(' <ARGUMENTS> ')'
+            <ARGUMENTS> ::= /[ \t]*/ <ARG> /[ \t]*/ (',' <ARGUMENTS>)?
+
+            but its implementation accepts empty arguments - this is kept here to be consistent.
+
+        """
+        if (rec := self.parse_optional_rec()) is None:
+            return None
+        recs: list[SSAValue] = [rec]
+        # whilst recs are found:
+        # Parse targets until no more are found
+        while (rec := self.parse_optional_rec()) is not None:
+            recs.append(rec)
+        return recs
+
     def parse_optional_annotation(self) -> tuple[list[Operation], Operation] | None:
         name_start_pos = self.pos
         if (annotation := self.parse_optional_pattern(ANNOTATION)) is None:
@@ -707,6 +759,13 @@ class StimParser:
         elif parens is None:
             # In line with the behaviour of the Stim parser, parsing no parens argument gives an empty list.
             parens = []
+
+        if AnnotationEnum(annotation) == AnnotationEnum.DETECTOR:
+            coords = self.build_parens(parens)
+            if (recs := self.parse_optional_recs()) is None:
+                return [], DetectorCoordsOp([], QubitMappingAttr(coords))
+            return [], DetectorCoordsOp(recs, QubitMappingAttr(coords))
+
         extra_ops, targets = self.parse_targets()
         match AnnotationEnum(annotation):
             case AnnotationEnum.COORD:
@@ -726,6 +785,10 @@ class StimParser:
                         f"TICK operation expects no targets but was given targets {len(targets)}.",
                     )
                 return [], TickAnnotationOp()
+            case _:
+                raise StimParseError(
+                    self.pos, f"Annotation {annotation} not currently supported."
+                )
 
     # endregion
 

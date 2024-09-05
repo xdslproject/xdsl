@@ -238,6 +238,7 @@ def test_stim_roundtrip_reset(program: str, expected_stim: str):
 def test_stim_roundtrip_tick(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)
 
+
 @pytest.mark.parametrize(
     "program, expected_stim",
     [
@@ -247,6 +248,7 @@ def test_stim_roundtrip_tick(program: str, expected_stim: str):
 def test_stim_roundtrip_depolarize(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)
 
+
 @pytest.mark.parametrize(
     "program, expected_stim",
     [
@@ -254,4 +256,14 @@ def test_stim_roundtrip_depolarize(program: str, expected_stim: str):
     ],
 )
 def test_stim_roundtrip_depolarize_measure(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)
+
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("M(0.1) 0 \n DETECTOR(0) rec[-1]", "MZ(0.1) 0\nDETECTOR(0) rec[-1]\n"),
+    ],
+)
+def test_stim_roundtrip_detector(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)

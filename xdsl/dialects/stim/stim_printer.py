@@ -55,12 +55,13 @@ class StimPrinter:
             with self.in_parens():
                 self.print_list(attribute, self.print_attribute)
             return
-        if isinstance(attribute, FloatData):
-            self.print_string(f"{attribute.data}")
-            return
         if isinstance(attribute, IntAttr):
             self.print_string(f"{attribute.data}")
             return
+        if isinstance(attribute, FloatData):
+            self.print_string(f"{attribute.data}")
+            return
+
         raise ValueError(f"Cannot print in stim format: {attribute}")
 
     def print_op(self, op: Operation) -> bool:
@@ -98,6 +99,15 @@ class StimPrinter:
         for result in results:
             self.seen_results[result] = self.num_results
             self.num_results += 1
+
+    def print_recs(self, results: Sequence[SSAValue]):
+        for result in results:
+            if result in self.seen_results:
+                self.print_string(" rec[-")
+                self.print_string(str(self.num_results - self.seen_results[result]))
+                self.print_string("]")
+                return
+            raise ValueError(f"Result {result} was not allocated in scope.")
 
 
 class StimPrintable(abc.ABC):

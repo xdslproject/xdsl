@@ -24,5 +24,11 @@ Stim = Dialect(
         StimCircuitOp,
         TickAnnotationOp,
     ],
-    [PauliAttr, QubitMappingAttr, SingleQubitGateAttr, TwoQubitGateAttr, DepolarizingNoiseAttr],
+    [
+        PauliAttr,
+        QubitMappingAttr,
+        SingleQubitGateAttr,
+        TwoQubitGateAttr,
+        DepolarizingNoiseAttr,
+    ],
 )
