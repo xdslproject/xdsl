@@ -29,7 +29,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import OpTrait
-from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.exceptions import ParseError, PyRDLAttrDefinitionError, PyRDLOpDefinitionError, VerifyException
 from xdsl.utils.str_enum import StrEnum
 
 # region Attribute definitions
@@ -79,10 +79,7 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            for i, elem in enumerate(self.coords):
-                if i:
-                    printer.print_string(", ")
-                printer.print(elem.data)
+            printer.print_list(self.coords, lambda attr: printer.print(attr.data))
 
     def print_stim(self, printer: StimPrinter):
         printer.print_attribute(self.coords)
@@ -188,6 +185,159 @@ class PauliAttr(StimPrintable, EnumAttribute[PauliOperatorEnum]):
 
     def print_stim(self, printer: StimPrinter):
         printer.print_string(self.data)
+
+# region Noise model attribute definitions
+
+"""
+In this implementation noise channels are attributes attached to other operations.
+
+Providing noise as attributes allows them to be considered in the same way that other compiler analyses (like liveness parameters) are represented in xDSL and MLIR.
+
+Stim provides these noise channel operations:
+    1. Correlated Errors - correlated/e applies a pauli product with a given probability (has an else) + set of pauli and targets
+    2. Depolarizing Errors
+    3. Heralded - erase by doing half x half z. 1 paren for probability, targets. (tells you which qubits have been erased)
+    4. heralded pauli - pauli modifiers with percent for eacg (can also be unheralded)
+    5. pauli channel same but 2 qubits so up to 15
+    5, x,y,z
+    6. Measurement Errors
+"""
+class NoiseAttr(StimPrintable, ParametrizedAttribute, ABC):
+    name = "stim.noiseattr"
+
+@irdl_attr_definition
+class DepolarizingNoiseAttr(NoiseAttr):
+    """
+        This attribute represents depolarizing noise occurring after the operation it is attached to.
+
+        It can be attached to a single qubit operation or a two qubit operation, and infers its behaviour from which it can be attached to.
+
+        This attribute takes one parameter `probability`, which is the probability of a depolarizing error occuring.
+
+        In stim's simulator, this is then uniformly split into any of the possible combinations of pauli errors occuring.
+        
+        This also has an optional heralded operand which may only be set if the attached operation is single qubit (TODO: why can't this be attached to two qubit errors?)
+    """
+    name = "stim.depolarizingnoiseattr"
+    
+    probability : ParameterDef[FloatData]
+
+    #TODO: implement heralding
+    #heralded : ParameterDef[UnitAttr | NoneAttr]
+
+    def __init__(self, probability:float):
+        super().__init__(parameters = [FloatData(probability)])
+    
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        printer.print(self.probability.data)
+        #if self.heralded is not NoneAttr:
+        #    printer.print_string(", ")
+        #    printer.print_string("heralded")
+        printer.print_string(">")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        if parser.parse_optional_characters("<") is None:
+            raise (PyRDLAttrDefinitionError("Probability attribute required!"))
+        probability = parser.parse_number(context_msg=" probability parameter for depolarizing noise attribute")
+       # if parser.parse_optional_characters(",") is None:
+        parser.parse_characters(">", " for stim.depolarizingnoiseattr parameters")
+        return [FloatData(probability)]#, NoneAttr()]
+        #parser.parse_characters(",", " between stim.depolarizingnoiseattr args")
+        #parser.parse_keyword("heralded", " as only possible second stim.depolarizingnoiseattr arg")
+        #parser.parse_characters(">", " to end stim.depolarizingnoiseattr parameters")
+        #return [FloatData(probability), UnitAttr()]
+
+    def print_stim(self, printer:StimPrinter):
+        with printer.in_parens():
+            printer.print_attribute(self.probability)
+
+
+@irdl_attr_definition
+class SpecifiedPauliNoiseAttr(NoiseAttr):
+    """
+    This attribute represents non-uniform pauli errors occurring.
+
+    It has a variadic parameter `probabilities`.
+
+    If it is attached to a one qubit operation it must take 3 parameters, one indicating the probability of each pauli error occurring with interpreted format:
+    (pX,pY,pZ)
+
+    If it is attached to a two qubit operation it takes 15
+    (pXI,pXX,pXY,pXZ,pYI,PYX,pYY,pYZ,pZI,pZX,pZY,pZZ,pIX,pIY,pIZ)
+
+    Single pauli errors are also represented by this attribute, where they are encoded by being attached to a single qubit operation, with two of the paulis having 0 as their probability.
+
+    TODO: Make this able to be given parameters which are specified by naming the errors and attributes for readability? - could do with a verifier? nah no difference
+
+    For single qubit unitaries - a herald probability may also be passed.
+    """
+
+    name = "stim.specifiedpaulinoiseattr"
+
+    probabilities: ParameterDef[ArrayAttr[FloatData]]
+
+    def __init__(
+        self,
+        coords: list[float] | ArrayAttr[FloatData],
+    ) -> None:
+        if not isinstance(coords, ArrayAttr):
+            coords = ArrayAttr(
+                FloatData(arg)
+                for arg in coords
+            )
+        super().__init__(parameters=[coords])
+
+    def verify(self) -> None :
+        raise NotImplementedError()
+
+    @classmethod
+    def parse_parameters(
+        cls, parser: AttrParser
+    ) -> Sequence[ArrayAttr[FloatData]]:
+        probabilities = parser.parse_comma_separated_list(
+            delimiter=parser.Delimiter.ANGLE,
+            parse=lambda: FloatData(parser.parse_number(allow_boolean=False)),
+        )
+        return [ArrayAttr(probabilities)]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_list(self.probabilities, lambda attr: printer.print_attribute(attr))
+
+
+    def print_stim(self, printer: StimPrinter):
+        printer.print_attribute(self.probabilities)
+        
+
+@irdl_attr_definition
+class PauliProductNoiseAttr(NoiseAttr):
+    """
+    This attribute represents a product of pauli errors occurring on multiple qubits. 
+
+    It has one parameter for the probability of occurring, and another variadic attribute that specifies the pauli errors that occur and the qubits they occur on..
+ 
+    We encode elses simply by the ordering of the appearance of any of these in an operations noise attribute.
+
+    Technically all other errors are an example of these.
+    """
+
+    name = "stim.pauli_product_noiseattr"
+
+    probability : ParameterDef[FloatData]
+
+    paulis : ParameterDef[ArrayAttr[PauliAttr]]
+
+    def verify_targets(self, indices:int) -> None:
+        if len(self.paulis) != indices:
+            raise PyRDLAttrDefinitionError("Pauli products must specify pairs of paulis and targets.")
+
+    def print_stim(self, printer: StimPrinter) -> None: 
+        printer.print_attribute(self.probability)
+
+
+# endregion
 
 
 # region Gate Operation Enum definitions
@@ -298,6 +448,9 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
 
     ctrl = opt_prop_def(PauliAttr)
 
+    noise = opt_prop_def(DepolarizingNoiseAttr)
+    #TODO: Extend this to allow the alternatives - SpecifiedPauliNoiseAttrs, or an array of PauliProducts.
+
     traits = frozenset([GateOpInterface()])
 
     def __init__(
@@ -309,6 +462,7 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         ctrl: PauliOperatorEnum | PauliAttr | None = None,
         is_dag: bool = False,
         is_sqrt: bool = False,
+        noise: DepolarizingNoiseAttr | float | None = None,
     ):
         properties: dict[str, Attribute] = {}
         if isinstance(gate_name, SingleQubitCliffordsEnum):
@@ -329,6 +483,10 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
             properties["dag"] = UnitAttr()
         if is_sqrt:
             properties["sqrt"] = UnitAttr()
+        if noise is not None:
+            if not isinstance(noise, DepolarizingNoiseAttr):
+                noise = DepolarizingNoiseAttr(noise)
+            properties["noise"] = noise
         super().__init__(operands=[targets], properties=properties)
 
     def verify_(self) -> None:
@@ -364,7 +522,9 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         dag = parser.parse_optional_keyword("dag") is not None
         sqrt = parser.parse_optional_keyword("sqrt") is not None
         ctrl = parser.parse_optional_str_enum(PauliOperatorEnum)
-
+        
+        noise = parser.parse_optional_number()
+            
         targets = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parser.parse_unresolved_operand
         )
@@ -374,7 +534,7 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         #    parser.raise_error("Targets must be a list of type !qref.qubit")
         qubits = parser.resolve_operands(targets, len(targets) * [qubit], parser.pos)
 
-        return cls(gate_name, qubits, pauli_modifier, ctrl, dag, sqrt)
+        return cls(gate_name, qubits, pauli_modifier, ctrl, dag, sqrt, noise)
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -389,6 +549,9 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
         if self.ctrl is not None:
             printer.print(" ")
             printer.print(self.ctrl.data)
+        if self.noise is not None:
+            printer.print(" ")
+            printer.print(self.noise.probability.data)
         printer.print(" ")
         printer.print_operands(self.targets)
 
@@ -480,6 +643,18 @@ class CliffordGateOp(StimPrintable, GateOp, IRDLOperation):
 
         printer.print_targets(self.targets)
 
+        if self.noise is not None:
+            #TODO: When the other noise models are allowed this needs to be updated.
+            printer.print_string("\n")
+            printer.print_string("DEPOLARIZE")
+            if isinstance(self.gate_name, SingleQubitGateAttr):
+                printer.print_string("1")
+            else:
+                printer.print_string("2")
+            self.noise.print_stim(printer)
+            printer.print_targets(self.targets)
+        
+
 
 # endregion
 
@@ -499,30 +674,43 @@ class MeasurementGateOp(StimPrintable, GateOp, IRDLOperation):
 
     results = var_result_def(BoolAttr)
 
+    noise = opt_prop_def(DepolarizingNoiseAttr)
+
     traits = frozenset([GateOpInterface()])
 
     def __init__(
         self,
         targets: Sequence[SSAValue],
         pauli_modifier: PauliOperatorEnum | PauliAttr = PauliOperatorEnum.Z,
+        noise: DepolarizingNoiseAttr | float | None = None,
     ):
         if isinstance(pauli_modifier, PauliOperatorEnum):
             pauli_modifier = PauliAttr(pauli_modifier)
+        if not isinstance(noise,DepolarizingNoiseAttr):
+            if noise is not None:
+                noise = DepolarizingNoiseAttr(noise)
         super().__init__(
             operands=[targets],
             result_types=[[i1] * len(targets)],
-            properties={"pauli_modifier": pauli_modifier},
+            properties={"pauli_modifier": pauli_modifier, "noise": noise},
         )
 
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print(self.pauli_modifier.data)
+        if self.noise is not None:
+            printer.print_string(" ")
+            printer.print(self.noise.probability.data)
         printer.print_string(" ")
         printer.print_operands(self.targets)
 
     @classmethod
     def parse(cls, parser: Parser):
         pauli_modifier = parser.parse_str_enum(PauliOperatorEnum)
+        properties:dict[str,Attribute] = {"pauli_modifier": PauliAttr(pauli_modifier)}
+        noise_probability = parser.parse_optional_number()
+        if noise_probability is not None:
+            properties["noise"] = DepolarizingNoiseAttr(noise_probability)
         targets = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parser.parse_unresolved_operand
         )
@@ -530,12 +718,14 @@ class MeasurementGateOp(StimPrintable, GateOp, IRDLOperation):
         return cls.create(
             operands=qubits,
             result_types=[i1] * len(qubits),
-            properties={"pauli_modifier": PauliAttr(pauli_modifier)},
+            properties=properties,
         )
 
     def print_stim(self, printer: StimPrinter):
         printer.print_string("M")
         printer.print_string(self.pauli_modifier.data)
+        if self.noise is not None:
+            self.noise.print_stim(printer)
         printer.update_ssa_results(self.results)
         printer.print_targets(self.targets)
 

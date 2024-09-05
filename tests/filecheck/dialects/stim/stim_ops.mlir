@@ -30,6 +30,7 @@ stim.circuit {
     stim.tick
     %r0 = stim.measure X (%q1)
     stim.reset X (%q1)
+    stim.clifford I dag 0.01 (%q1)
 }
 // CHECK-NEXT:    stim.circuit {
 // CHECK-NEXT:  %q1 = qref.alloc<1>
@@ -38,6 +39,7 @@ stim.circuit {
 // CHECK-NEXT:  stim.tick
 // CHECK-NEXT:  %r0 = stim.measure X (%q1)
 // CHECK-NEXT:  stim.reset X (%q1)
+// CHECK-NEXT:  stim.clifford I dag 0.01 (%q1)
 // CHECK-NEXT: }
 // CHECK-GENERIC-NEXT:    "stim.circuit"() ({
 // CHECK-GENERIC-NEXT: %q1 = "qref.alloc"() : () -> !qref.qubit
@@ -46,6 +48,7 @@ stim.circuit {
 // CHECK-GENERIC-NEXT: "stim.tick"() : () -> ()
 // CHECK-GENERIC-NEXT: %r0 = "stim.measure"(%q1) <{"pauli_modifier" = #stim.pauli X}> : (!qref.qubit) -> i1
 // CHECK-GENERIC-NEXT: "stim.reset"(%q1) <{"pauli_modifier" = #stim.pauli X}> : (!qref.qubit) -> ()
+// CHECK-GENERIC-NEXT: "stim.clifford"(%q1) <{"gate_name" = #stim.singlequbitclifford I, "dag", "noise" = #stim.depolarizingnoiseattr<0.01>}> : (!qref.qubit) -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()
 
 // CHECK-NEXT:  }

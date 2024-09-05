@@ -2,6 +2,7 @@ from xdsl.ir import Dialect
 
 from .ops import (
     CliffordGateOp,
+    DepolarizingNoiseAttr,
     MeasurementGateOp,
     PauliAttr,
     QubitCoordsOp,
@@ -23,5 +24,5 @@ Stim = Dialect(
         StimCircuitOp,
         TickAnnotationOp,
     ],
-    [PauliAttr, QubitMappingAttr, SingleQubitGateAttr, TwoQubitGateAttr],
+    [PauliAttr, QubitMappingAttr, SingleQubitGateAttr, TwoQubitGateAttr, DepolarizingNoiseAttr],
 )

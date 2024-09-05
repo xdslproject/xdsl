@@ -11,6 +11,7 @@ from xdsl.dialects.stim import (
     StimCircuitOp,
 )
 from xdsl.dialects.stim.ops import (
+    DepolarizingNoiseAttr,
     MeasurementGateOp,
     PauliAttr,
     PauliOperatorEnum,
@@ -267,6 +268,7 @@ class StimParser:
                 lambda parser: parser.parse_optional_annotation(),
                 lambda parser: parser.parse_optional_gate(),
                 lambda parser: parser.parse_optional_reset(),
+                lambda parser: parser.parse_optional_noise(),
             ],
         )
         start_pos = self.pos
@@ -391,6 +393,31 @@ class StimParser:
         coords = ArrayAttr(args)
         return coords
 
+    def parse_optional_noise(self):
+        start_pos = self.pos
+        qubit_type = 1
+        if self.parse_optional_chars("DEPOLARIZE") is None:
+            return None
+        if self.parse_optional_chars("1") is None:
+            if self.parse_optional_chars("2") is None:
+                qubit_type = 2
+                if self.parse_optional_pattern(NAME) is not None:
+                    raise StimParseError(
+                        self.pos,
+                        f"Unknown operation {self.input.content[start_pos:self.pos]}",
+                    )
+        noise = 0
+        if ((parens := self.parse_optional_parens()) is not None):
+            if len(parens) > 1:
+                raise ValueError(
+                    f"Gate DEPOLARIZE{qubit_type} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
+                )
+            elif len(parens) == 1:
+                noise = parens[0]
+        extra_ops, targets = self.parse_targets()
+        #TODO: Currently parsing is very lazy and just assigns any noise to an identity gate
+        return extra_ops, CliffordGateOp(SingleQubitCliffordsEnum.Rotation,targets,noise=DepolarizingNoiseAttr(noise))
+
     def parse_optional_measurement(self):
         start_pos = self.pos
         if self.parse_optional_chars("M") is None:
@@ -403,15 +430,19 @@ class StimParser:
                 )
             else:
                 gate_name = "Z"
-        if ((parens := self.parse_optional_parens()) is not None) and len(parens) > 1:
-            raise ValueError(
-                f"Gate {gate_name} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
-            )
+        noise = 0
+        if ((parens := self.parse_optional_parens()) is not None):
+            if len(parens) > 1:
+                raise ValueError(
+                    f"Gate {gate_name} was given {len(parens)} parens arguments {parens} but takes 0 or 1 parens arguments."
+                )
+            elif len(parens) == 1:
+                noise = parens[0]
         extra_ops, targets = self.parse_targets()
         measurement_op = MeasurementGateOp.create(
             operands=targets,
             result_types=[qref.QubitAttr()] * len(targets),
-            properties={"pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name))},
+            properties={"pauli_modifier": PauliAttr(PauliOperatorEnum(gate_name)), "noise": DepolarizingNoiseAttr(noise)},
         )
         for result in measurement_op.results:
             self.result_ssa_map[self.seen_results] = result
