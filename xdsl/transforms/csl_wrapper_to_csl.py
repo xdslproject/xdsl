@@ -124,6 +124,7 @@ class ExtractCslModules(RewritePattern):
 
             layout = csl.LayoutOp(Region())
             with ImplicitBuilder(layout.body.block):
+                csl.SetRectangleOp(operands=[param_width, param_height])
                 scf.For(
                     lb=const_0,
                     ub=param_width,
