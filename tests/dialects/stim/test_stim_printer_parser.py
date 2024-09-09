@@ -269,3 +269,12 @@ def test_stim_roundtrip_detector(program: str, expected_stim: str):
 )
 def test_stim_roundtrip_observable(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("M(0.1) 0 \n SHIFT_COORDS(0)", "MZ(0.1) 0\nSHIFT_COORDS(0)\n"),
+    ],
+)
+def test_stim_roundtrip_shift(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)

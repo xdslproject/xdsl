@@ -18,6 +18,7 @@ from xdsl.dialects.stim.ops import (
     PauliAttr,
     PauliOperatorEnum,
     ResetGateOp,
+    ShiftCoordsOp,
     SingleQubitCliffordsEnum,
     TickAnnotationOp,
     TwoQubitCliffordsEnum,
@@ -49,6 +50,7 @@ class AnnotationEnum(StrEnum):
     TICK = "TICK"
     DETECTOR = "DETECTOR"
     OBSERVABLE = "OBSERVABLE_INCLUDE"
+    SHIFT = "SHIFT_COORDS"
 
 
 class SingleQubitUnitaryEnum(StrEnum):
@@ -782,6 +784,13 @@ class StimParser:
                 if (recs := self.parse_optional_recs()) is None:
                     return [], ObservableIncludeOp([], observable)
                 return [], ObservableIncludeOp(recs, observable)
+            case AnnotationEnum.SHIFT:
+                coords = self.build_parens(parens)
+                _, targets = self.parse_targets()
+                if len(targets) != 0:
+                    raise StimParseError(self.pos, f"ValueError: Gate SHIFT_COORDS takes no targets but was given targets {len(targets)}")
+                return [], ShiftCoordsOp(QubitMappingAttr(coords))
+                #TODO: if you actually want this to be used for an optimisation, you might want to be more clever here.
             case AnnotationEnum.COORD:
                 extra_ops, targets = self.parse_targets()
                 coords = self.build_parens(parens)
@@ -800,10 +809,6 @@ class StimParser:
                         f"TICK operation expects no targets but was given targets {len(targets)}.",
                     )
                 return [], TickAnnotationOp()
-            case _:
-                raise StimParseError(
-                    self.pos, f"Annotation {annotation} not currently supported."
-                )
 
     # endregion
 

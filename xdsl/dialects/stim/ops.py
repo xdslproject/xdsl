@@ -886,11 +886,28 @@ class ObservableIncludeOp(AnnotationOp):
         printer.print_recs(self.targets)
         
 
+@irdl_op_definition
+class ShiftCoordsOp(AnnotationOp):
+    """
+    Annotation operation that assigns a qubit reference to a coordinate.
+    """
+
+    name = "stim.shift_coord"
+
+    coord = prop_def(QubitMappingAttr)
+
+    assembly_format = "$coord attr-dict"
+
+    def __init__(self, coord: QubitMappingAttr):
+        super().__init__(properties={"coord": coord})
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string("SHIFT_COORDS")
+        self.coord.print_stim(printer)
+
 """
 @irdl_op_definition
 class MPadAnnotation(AnnotationOp):
-
-class ObservableAnnotation():
 
 class ShiftCoordsAnnotation():
 
