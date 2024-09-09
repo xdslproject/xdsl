@@ -126,6 +126,6 @@ class ConvertScfToCf(ModulePass):
     name = "convert-scf-to-cf"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(GreedyRewritePatternApplier([ForLowering()])).rewrite_op(
-            op
-        )
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([IfLowering(), ForLowering()])
+        ).rewrite_op(op)
