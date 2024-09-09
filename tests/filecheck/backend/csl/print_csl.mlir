@@ -41,6 +41,50 @@
     csl.return
   }
 
+  csl.func @name_collisions() {
+    %align = arith.constant 0 : i32
+    %and = arith.constant 0 : i32
+    %bool = arith.constant 0 : i32
+    %break = arith.constant 0 : i32
+    %comptime_float = arith.constant 0 : i32
+    %comptime_int = arith.constant 0 : i32
+    %comptime_string = arith.constant 0 : i32
+    %comptime_struct = arith.constant 0 : i32
+    %const = arith.constant 0 : i32
+    %continue = arith.constant 0 : i32
+    %else = arith.constant 0 : i32
+    %export = arith.constant 0 : i32
+    %extern = arith.constant 0 : i32
+    %f16 = arith.constant 0 : i32
+    %f32 = arith.constant 0 : i32
+    %false = arith.constant 0 : i32
+    %fn = arith.constant 0 : i32
+    %for = arith.constant 0 : i32
+    %i16 = arith.constant 0 : i32
+    %i32 = arith.constant 0 : i32
+    %i64 = arith.constant 0 : i32
+    %i8 = arith.constant 0 : i32
+    %if = arith.constant 0 : i32
+    %linkname = arith.constant 0 : i32
+    %linksection = arith.constant 0 : i32
+    %or = arith.constant 0 : i32
+    %param = arith.constant 0 : i32
+    %return = arith.constant 0 : i32
+    %switch = arith.constant 0 : i32
+    %task = arith.constant 0 : i32
+    %true = arith.constant 0 : i32
+    %u16 = arith.constant 0 : i32
+    %u32 = arith.constant 0 : i32
+    %u64 = arith.constant 0 : i32
+    %u8 = arith.constant 0 : i32
+    %var = arith.constant 0 : i32
+    %void = arith.constant 0 : i32
+    %while = arith.constant 0 : i32
+
+
+    csl.return
+  }
+
   csl.func @casts() {
     %constI32 = arith.constant 0 : i32
     %constU16 = arith.constant 0 : ui16
@@ -435,6 +479,48 @@ csl.func @builtins() {
 // CHECK-NEXT:   no_args_no_return();
 // CHECK-NEXT:   args_no_return(param_import.f, param_import.f);
 // CHECK-NEXT:   const ret : f32 = no_args_return();
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn name_collisions() void {
+// CHECK-NEXT:   const align0 : i32 = 0;
+// CHECK-NEXT:   const and1 : i32 = 0;
+// CHECK-NEXT:   const bool2 : i32 = 0;
+// CHECK-NEXT:   const break3 : i32 = 0;
+// CHECK-NEXT:   const comptime_float4 : i32 = 0;
+// CHECK-NEXT:   const comptime_int5 : i32 = 0;
+// CHECK-NEXT:   const comptime_string6 : i32 = 0;
+// CHECK-NEXT:   const comptime_struct7 : i32 = 0;
+// CHECK-NEXT:   const const8 : i32 = 0;
+// CHECK-NEXT:   const continue9 : i32 = 0;
+// CHECK-NEXT:   const else10 : i32 = 0;
+// CHECK-NEXT:   const export11 : i32 = 0;
+// CHECK-NEXT:   const extern12 : i32 = 0;
+// CHECK-NEXT:   const f1613 : i32 = 0;
+// CHECK-NEXT:   const f3214 : i32 = 0;
+// CHECK-NEXT:   const false15 : i32 = 0;
+// CHECK-NEXT:   const fn16 : i32 = 0;
+// CHECK-NEXT:   const for17 : i32 = 0;
+// CHECK-NEXT:   const i1618 : i32 = 0;
+// CHECK-NEXT:   const i3219 : i32 = 0;
+// CHECK-NEXT:   const i6420 : i32 = 0;
+// CHECK-NEXT:   const i821 : i32 = 0;
+// CHECK-NEXT:   const if22 : i32 = 0;
+// CHECK-NEXT:   const linkname23 : i32 = 0;
+// CHECK-NEXT:   const linksection24 : i32 = 0;
+// CHECK-NEXT:   const or25 : i32 = 0;
+// CHECK-NEXT:   const param26 : i32 = 0;
+// CHECK-NEXT:   const return27 : i32 = 0;
+// CHECK-NEXT:   const switch28 : i32 = 0;
+// CHECK-NEXT:   const task29 : i32 = 0;
+// CHECK-NEXT:   const true30 : i32 = 0;
+// CHECK-NEXT:   const u1631 : i32 = 0;
+// CHECK-NEXT:   const u3232 : i32 = 0;
+// CHECK-NEXT:   const u6433 : i32 = 0;
+// CHECK-NEXT:   const u834 : i32 = 0;
+// CHECK-NEXT:   const var35 : i32 = 0;
+// CHECK-NEXT:   const void36 : i32 = 0;
+// CHECK-NEXT:   const while37 : i32 = 0;
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
