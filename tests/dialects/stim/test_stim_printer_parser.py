@@ -260,3 +260,12 @@ def test_stim_roundtrip_depolarize_measure(program: str, expected_stim: str):
 )
 def test_stim_roundtrip_detector(program: str, expected_stim: str):
     check_stim_roundtrip(program, expected_stim)
+
+@pytest.mark.parametrize(
+    "program, expected_stim",
+    [
+        ("M(0.1) 0 \n OBSERVABLE_INCLUDE(0) rec[-1]", "MZ(0.1) 0\nOBSERVABLE_INCLUDE(0) rec[-1]\n"),
+    ],
+)
+def test_stim_roundtrip_observable(program: str, expected_stim: str):
+    check_stim_roundtrip(program, expected_stim)

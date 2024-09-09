@@ -4,6 +4,7 @@ from .ops import (
     CliffordGateOp,
     DepolarizingNoiseAttr,
     MeasurementGateOp,
+    ObservableIncludeOp,
     PauliAttr,
     QubitCoordsOp,
     QubitMappingAttr,
@@ -19,6 +20,7 @@ Stim = Dialect(
     [
         CliffordGateOp,
         MeasurementGateOp,
+        ObservableIncludeOp,
         QubitCoordsOp,
         ResetGateOp,
         StimCircuitOp,

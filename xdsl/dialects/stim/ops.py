@@ -848,7 +848,7 @@ class DetectorCoordsOp(AnnotationOp):
     name = "stim.assign_detectors_coord"
 
     detectorcoord = prop_def(QubitMappingAttr)
-    targets = var_operand_def(BoolAttr)
+    targets = var_operand_def(IntAttr)
 
     assembly_format = "$detectorcoord `(` $targets `:` type($targets) `)` attr-dict"
 
@@ -861,6 +861,30 @@ class DetectorCoordsOp(AnnotationOp):
             self.detectorcoord.print_stim(printer)
         printer.print_recs(self.targets)
 
+@irdl_op_definition
+class ObservableIncludeOp(AnnotationOp):
+    """
+    Annotation operation that assigns a qubit reference to a coordinate.
+    """
+
+    name = "stim.assign_observable_coord"
+
+    observable = prop_def(IntAttr)
+    targets = var_operand_def(IntAttr)
+
+    assembly_format = "$observable `(` $targets `:` type($targets) `)` attr-dict"
+
+    def __init__(self, targets: Sequence[SSAValue], observable: int | IntAttr):
+        if isinstance(observable, int):
+            observable = IntAttr(observable)
+        super().__init__(operands=[targets], properties={"observable": observable})
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string("OBSERVABLE_INCLUDE")
+        with printer.in_parens():
+            printer.print_attribute(self.observable)
+        printer.print_recs(self.targets)
+        
 
 """
 @irdl_op_definition

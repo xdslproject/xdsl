@@ -14,6 +14,7 @@ from xdsl.dialects.stim.ops import (
     DepolarizingNoiseAttr,
     DetectorCoordsOp,
     MeasurementGateOp,
+    ObservableIncludeOp,
     PauliAttr,
     PauliOperatorEnum,
     ResetGateOp,
@@ -47,6 +48,7 @@ class AnnotationEnum(StrEnum):
     COORD = "QUBIT_COORDS"
     TICK = "TICK"
     DETECTOR = "DETECTOR"
+    OBSERVABLE = "OBSERVABLE_INCLUDE"
 
 
 class SingleQubitUnitaryEnum(StrEnum):
@@ -753,23 +755,35 @@ class StimParser:
                 f"`{self.input.content[name_start_pos:self.pos]}` is not a known instruction name.",
             )
 
+
         parens = self.parse_optional_parens()
         if parens == []:
             # In line with the behaviour of the Stim parser, parsing an empty parens argument gives a paren with 0 in.
             parens = [0.0]
         elif parens is None:
             # In line with the behaviour of the Stim parser, parsing no parens argument gives an empty list.
-            parens = []
+            parens = []           
 
-        if AnnotationEnum(annotation) == AnnotationEnum.DETECTOR:
-            coords = self.build_parens(parens)
-            if (recs := self.parse_optional_recs()) is None:
-                return [], DetectorCoordsOp([], QubitMappingAttr(coords))
-            return [], DetectorCoordsOp(recs, QubitMappingAttr(coords))
-
-        extra_ops, targets = self.parse_targets()
+        
         match AnnotationEnum(annotation):
+            case AnnotationEnum.DETECTOR:
+                coords = self.build_parens(parens)
+                if (recs := self.parse_optional_recs()) is None:
+                    return [], DetectorCoordsOp([], QubitMappingAttr(coords))
+                return [], DetectorCoordsOp(recs, QubitMappingAttr(coords))
+            case AnnotationEnum.OBSERVABLE:
+                coords = self.build_parens(parens)
+                if len(parens) != 1:
+                    raise StimParseError(self.pos, f"Gate OBSERVABLE_INCLUDE was given {len(parens)} parens arguments ({parens}) but takes 1 parens arguments.")
+                observable = parens[0]
+                if not observable.is_integer():
+                    raise StimParseError(self.pos, f"Gate OBSERVABLE_INCLUDE only takes non-negative integer arguments, but one of its arguments ({observable}) wasn't a non-negative integer.")
+                observable = int(observable)
+                if (recs := self.parse_optional_recs()) is None:
+                    return [], ObservableIncludeOp([], observable)
+                return [], ObservableIncludeOp(recs, observable)
             case AnnotationEnum.COORD:
+                extra_ops, targets = self.parse_targets()
                 coords = self.build_parens(parens)
                 mapping = QubitMappingAttr(coords)
                 return extra_ops, QubitCoordsOp(targets, mapping)
@@ -779,6 +793,7 @@ class StimParser:
                         self.pos,
                         f"TICK operation expects no parens arguments but was given {parens}.",
                     )
+                extra_ops, targets = self.parse_targets()
                 if targets != []:
                     raise StimParseError(
                         self.pos,
