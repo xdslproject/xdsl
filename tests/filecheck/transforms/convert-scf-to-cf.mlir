@@ -15,7 +15,7 @@ func.func @triangle(%n : i32) -> (i32) {
     // if final iteration.
     scf.yield %sum_next : i32
   }
-  return %sum : i32
+  func.return %sum : i32
 }
 
 // CHECK:      func.func @triangle(%n : i32) -> i32 {
@@ -42,7 +42,7 @@ func.func @if(%b : i1) -> (i32) {
     %zero = arith.constant 0 : i32
     scf.yield %zero : i32
   }
-  return %ret : i32
+  func.return %ret : i32
 }
 
 // CHECK:      func.func @if(%b : i1) -> i32 {
@@ -80,7 +80,7 @@ func.func @nested(%n : index) -> (index) {
     }
     scf.yield %sum_next : index
   }
-  return %sum : index
+  func.return %sum : index
 }
 
 // CHECK:      func.func @nested(%n : index) -> index {
