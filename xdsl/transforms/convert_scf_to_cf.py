@@ -121,7 +121,7 @@ class ForLowering(RewritePattern):
 
 
 class ConvertScfToCf(ModulePass):
-    """Lower `scf.for` and `scf.if` to unstructured control flow"""
+    """Lower `scf.for` and `scf.if` to unstructured control flow."""
 
     name = "convert-scf-to-cf"
 
