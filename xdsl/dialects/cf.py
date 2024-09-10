@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Self, cast
+from typing import cast
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerOrIndexType,
