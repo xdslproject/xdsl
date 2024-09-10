@@ -14,7 +14,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     result_def,
 )
 
@@ -27,11 +26,11 @@ class ClampOp(IRDLOperation):
 
     name = "tosa.clamp"
 
-    min_int = opt_attr_def(IntegerAttr[I64])
-    max_int = opt_attr_def(IntegerAttr[I64])
+    min_int = attr_def(IntegerAttr[I64])
+    max_int = attr_def(IntegerAttr[I64])
 
-    min_fp = opt_attr_def(FloatAttr[AnyFloat])
-    max_fp = opt_attr_def(FloatAttr[AnyFloat])
+    min_fp = attr_def(FloatAttr[AnyFloat])
+    max_fp = attr_def(FloatAttr[AnyFloat])
 
     input = operand_def(TensorType)
     output = result_def(TensorType)
