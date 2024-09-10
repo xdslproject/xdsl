@@ -78,4 +78,36 @@ builtin.module {
   // CHECK-GENERIC-NEXT: ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
   // CHECK-GENERIC-NEXT:   "func.return"(%{{.*}}) : (i32) -> ()
   // CHECK-GENERIC-NEXT: }
+
+  func.func @switch(%flag: i32) {
+    %a = arith.constant 0 : i32
+    %b = arith.constant 1 : i32
+    cf.switch %flag : i32, [
+      default: ^bb1(%a : i32),
+      42: ^bb2(%b, %b : i32, i32),
+      43: ^bb3
+    ]
+  ^bb1(%0 : i32):
+    func.return
+  ^bb2(%1 : i32, %2 : i32):
+    func.return
+  ^bb3:
+    func.return
+  }
+
+  // CHECK-NEXT: func.func @switch(%flag : i32) {
+  // CHECK-NEXT:   %a = arith.constant 0 : i32
+  // CHECK-NEXT:   %b = arith.constant 1 : i32
+  // CHECK-NEXT:   cf.switch %flag : i32, [
+  // CHECK-NEXT:     default: ^[[#b0:]](%a : i32),
+  // CHECK-NEXT:     42 : i32: ^[[#b1:]](%b, %b : i32, i32),
+  // CHECK-NEXT:     43 : i32: ^[[#b2:]]
+  // CHECK-NEXT:   ]
+  // CHECK-NEXT: ^[[#b0]](%{{.*}} : i32):
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: ^[[#b1]](%{{.*}} : i32, %{{.*}} : i32):
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: ^[[#b2]]:
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
 }
