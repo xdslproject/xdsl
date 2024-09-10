@@ -95,7 +95,7 @@ builtin.module {
     func.return
   }
 
-  // CHECK-NEXT: func.func @switch(%flag : i32) {
+  // CHECK:      func.func @switch(%flag : i32) {
   // CHECK-NEXT:   %a = arith.constant 0 : i32
   // CHECK-NEXT:   %b = arith.constant 1 : i32
   // CHECK-NEXT:   cf.switch %flag : i32, [
@@ -110,4 +110,17 @@ builtin.module {
   // CHECK-NEXT: ^[[#b2]]:
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
+
+  // CHECK-GENERIC:      "func.func"() <{"sym_name" = "switch", "function_type" = (i32) -> ()}> ({
+  // CHECK-GENERIC-NEXT: ^{{.*}}(%flag : i32):
+  // CHECK-GENERIC-NEXT:   %a = "arith.constant"() <{"value" = 0 : i32}> : () -> i32
+  // CHECK-GENERIC-NEXT:   %b = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  // CHECK-GENERIC-NEXT:   "cf.switch"(%flag, %a, %b, %b) [^[[#b0:]], ^[[#b1:]], ^[[#b2:]]] {"case_operand_segments" = array<i32: 2, 0>, "case_values" = dense<[42, 43]> : vector<2xi32>, "operandSegmentSizes" = array<i32: 1, 1, 2>} : (i32, i32, i32, i32) -> ()
+  // CHECK-GENERIC-NEXT: ^[[#b0]](%{{.*}} : i32):
+  // CHECK-GENERIC-NEXT:   "func.return"() : () -> ()
+  // CHECK-GENERIC-NEXT: ^[[#b1]](%{{.*}} : i32, %{{.*}} : i32):
+  // CHECK-GENERIC-NEXT:   "func.return"() : () -> ()
+  // CHECK-GENERIC-NEXT: ^[[#b2]]:
+  // CHECK-GENERIC-NEXT:   "func.return"() : () -> ()
+  // CHECK-GENERIC-NEXT: }) : () -> ()
 }
