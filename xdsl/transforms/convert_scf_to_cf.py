@@ -17,13 +17,18 @@ from xdsl.traits import IsTerminator
 
 
 class IfLowering(RewritePattern):
-    """Lowers `scf.if` to conditional branching."""
+    """
+    Lowers `scf.if` to conditional branching.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, ifOp: If, rewriter: PatternRewriter, /):
         condition_block = ifOp.parent_block()
         assert condition_block is not None
 
+        # Start by splitting the block containing the 'scf.if' into two parts.
+        # The part before will contain the condition, the part after will be the
+        # continuation point.
         remaining_ops_block = condition_block.split_before(ifOp)
         if ifOp.results:
             parent = condition_block.parent_region()
@@ -36,6 +41,8 @@ class IfLowering(RewritePattern):
         else:
             continue_block = remaining_ops_block
 
+        # Move blocks from the "then" region to the region containing 'scf.if',
+        # place it before the continuation block, and branch to it.
         then_region = ifOp.true_region
         then_block = then_region.first_block
         assert then_block is not None
@@ -51,6 +58,9 @@ class IfLowering(RewritePattern):
         rewriter.erase_op(then_terminator)
         rewriter.inline_region_before(then_region, continue_block)
 
+        # Move blocks from the "else" region (if present) to the region containing
+        # 'scf.if', place it before the continuation block and branch to it.  It
+        # will be placed after the "then" regions.
         else_region = ifOp.false_region
         else_block = else_region.first_block
         assert else_block is not None
@@ -66,11 +76,13 @@ class IfLowering(RewritePattern):
         rewriter.erase_op(else_terminator)
         rewriter.inline_region_before(else_region, continue_block)
 
+        # Branch to either the then_block or else_block
         rewriter.insert_op(
             ConditionalBranch(ifOp.cond, then_block, (), else_block, ()),
             InsertPoint.at_end(condition_block),
         )
 
+        # Remove the original `scf.if` operation
         rewriter.replace_matched_op([], continue_block.args)
 
 
@@ -79,11 +91,18 @@ class ForLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, forOp: For, rewriter: PatternRewriter):
+        # Start by splitting the block containing the 'scf.for' into two parts.
+        # The part before will get the init code, the part after will be the end
+        # point.
         init_block = forOp.parent_block()
         if init_block is None:
             return
         end_block = init_block.split_before(forOp)
 
+        # Use the first block of the loop body as the condition block since it is the
+        # block that has the induction variable and loop-carried values as arguments.
+        # Split out all operations from the first block into a new block. Move all
+        # body blocks from the loop body region to the region containing the loop.
         condition_block = forOp.body.first_block
         assert condition_block is not None
         first_op = condition_block.first_op
@@ -94,6 +113,9 @@ class ForLowering(RewritePattern):
         rewriter.inline_region_before(forOp.body, end_block)
         iv = condition_block.args[0]
 
+        # Append the induction variable stepping logic to the last body block and
+        # branch back to the condition block. Loop-carried values are taken from
+        # operands of the loop terminator.
         terminator = last_body_block.last_op
         assert terminator is not None
         assert terminator.has_trait(IsTerminator)
@@ -105,11 +127,14 @@ class ForLowering(RewritePattern):
             terminator, Branch(condition_block, stepped, *terminator.operands)
         )
 
+        # The initial values of loop-carried values are obtained from the operands
+        # of the loop operation.
         rewriter.insert_op(
             Branch(condition_block, forOp.lb, *forOp.iter_args),
             InsertPoint.at_end(init_block),
         )
 
+        # With the body block done, we can fill in the condition block.
         comparison = Cmpi(iv, forOp.ub, "slt")
         rewriter.insert_op(comparison, InsertPoint.at_end(condition_block))
         cond_branch_op = ConditionalBranch(
@@ -117,11 +142,17 @@ class ForLowering(RewritePattern):
         )
         rewriter.insert_op(cond_branch_op, InsertPoint.at_end(condition_block))
 
+        # The result of the loop operation are the values of the condition block
+        # arguments except the induction variable on the last iteration.
         rewriter.replace_matched_op([], condition_block.args[1:])
 
 
 class ConvertScfToCf(ModulePass):
-    """Lower `scf.for` and `scf.if` to unstructured control flow."""
+    """
+    Lower `scf.for` and `scf.if` to unstructured control flow.
+    Implementations are direct translations of the mlir versions found at
+    https://github.com/llvm/llvm-project/blob/main/mlir/lib/Conversion/SCFToControlFlow/SCFToControlFlow.cpp
+    """
 
     name = "convert-scf-to-cf"
 
