@@ -7,8 +7,10 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerOrIndexType,
+    DenseArrayBase,
     IndexType,
     IntegerType,
+    i64,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -21,11 +23,13 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
+    attr_def,
     irdl_op_definition,
     operand_def,
     region_def,
     traits_def,
     var_operand_def,
+    var_region_def,
     var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -156,7 +160,11 @@ class Yield(AbstractYieldOperation[Attribute]):
 
     traits = traits_def(
         lambda: frozenset(
-            [IsTerminator(), HasParent(For, If, ParallelOp, While), Pure()]
+            [
+                IsTerminator(),
+                HasParent(For, If, ParallelOp, While, IndexSwitchOp),
+                Pure(),
+            ]
         )
     )
 
@@ -689,6 +697,107 @@ class Condition(IRDLOperation):
         return op
 
 
+@irdl_op_definition
+class IndexSwitchOp(IRDLOperation):
+    name = "scf.index_switch"
+
+    arg = operand_def(IndexType)
+    cases = attr_def(DenseArrayBase)
+
+    output = var_result_def(AnyAttr())
+
+    default_region = region_def("single_block")
+    case_regions = var_region_def("single_block")
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        cases: DenseArrayBase,
+        default_region: Region,
+        case_regions: Sequence[Region],
+        result_types: Sequence[Attribute],
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        attributes: dict[str, Attribute] = attr_dict or {}
+        attributes["cases"] = cases
+
+        super().__init__(
+            operands=(arg,),
+            attributes=attributes,
+            regions=(default_region, case_regions),
+            result_types=(result_types,),
+        )
+
+    def verify_(self) -> None:
+        if self.cases.elt_type != i64:
+            raise VerifyException("case values should have type i64")
+
+        if len(self.cases.data) != len(self.case_regions):
+            raise VerifyException(
+                f"has {len(self.case_regions)} case regions but {len(self.cases.data)} case values"
+            )
+
+        cases = self.cases.data.data
+        if len(set(cases)) != len(cases):
+            raise VerifyException("has duplicate case value")
+
+        def verify_region(region: Region, name: str):
+            yield_op = region.block.last_op
+            if not yield_op or not isinstance(yield_op, Yield):
+                raise VerifyException(f"expected region {name} to end with `scf.yield`")
+
+            if yield_op.operand_types != self.result_types:
+                raise VerifyException(
+                    f"region {name} returns values of types {yield_op.operand_types}"
+                    f"but expected {self.result_types}"
+                )
+
+        verify_region(self.default_region, "default")
+        for name, region in zip(cases, self.case_regions):
+            verify_region(region, str(name))
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.arg)
+        attr_dict = {k: v for k, v in self.attributes.items() if k != "cases"}
+        if attr_dict:
+            printer.print_string(" ")
+            printer.print_attr_dict(attr_dict)
+        if self.result_types:
+            printer.print_string(" -> ")
+            printer.print_list(self.result_types, printer.print_attribute)
+        printer.print_string("\n")
+        for case_value, case_region in zip(self.cases.data.data, self.case_regions):
+            printer.print_string(f"case {case_value.data} ")
+            printer.print_region(case_region)
+            printer.print_string("\n")
+
+        printer.print_string("default ")
+        printer.print_region(self.default_region)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        arg = parser.parse_operand()
+        attr_dict = parser.parse_optional_attr_dict()
+        result_types: list[Attribute] = []
+        if parser.parse_optional_punctuation("->"):
+            types = parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_type, parser.parse_type
+            )
+            if types is None:
+                parser.raise_error("result types not found")
+            result_types = types
+        case_values: list[int] = []
+        case_regions: list[Region] = []
+        while parser.parse_optional_keyword("case"):
+            case_values.append(parser.parse_integer())
+            case_regions.append(parser.parse_region())
+        cases = DenseArrayBase.from_list(i64, case_values)
+        parser.parse_keyword("default")
+        default_region = parser.parse_region()
+        return cls(arg, cases, default_region, case_regions, result_types, attr_dict)
+
+
 Scf = Dialect(
     "scf",
     [
@@ -700,6 +809,7 @@ Scf = Dialect(
         ReduceOp,
         ReduceReturnOp,
         While,
+        IndexSwitchOp,
     ],
     [],
 )
