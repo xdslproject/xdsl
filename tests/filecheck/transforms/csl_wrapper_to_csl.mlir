@@ -98,6 +98,7 @@ builtin.module {
 // CHECK-NEXT:     %8 = arith.constant 510 : i16
 // CHECK-NEXT:     %padded_z_dim = "csl.param"(%8) <{"param_name" = "padded_z_dim"}> : (i16) -> i16
 // CHECK-NEXT:     csl.layout {
+// CHECK-NEXT:       "csl.set_rectangle"(%width, %height) : (i16, i16) -> ()
 // CHECK-NEXT:       scf.for %xDim = %3 to %width step %4 : i16 {
 // CHECK-NEXT:         scf.for %yDim = %3 to %height step %4 : i16 {
 // CHECK-NEXT:           %computeAllRoutesRes = "csl.member_call"(%routesMod_1, %xDim, %yDim, %width, %height, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
