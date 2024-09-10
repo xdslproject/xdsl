@@ -24,6 +24,7 @@ class ClampOp(IRDLOperation):
     """
     Computes clamp(features, min, max)
     """
+
     name = "tosa.clamp"
 
     min_int = opt_attr_def(IntegerAttr[I64])
@@ -37,11 +38,13 @@ class ClampOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
+
 @irdl_op_definition
 class RescaleOp(IRDLOperation):
     """
     Tosa Rescale Operator
     """
+
     name = "tosa.rescale"
 
     input_zp = attr_def(IntegerAttr[I32])
@@ -56,5 +59,6 @@ class RescaleOp(IRDLOperation):
     output = result_def(TensorType)
 
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
+
 
 TOSA = Dialect("tosa", [ClampOp, RescaleOp], [])
