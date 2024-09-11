@@ -59,6 +59,21 @@ func.func @if(%b : i1) -> (i32) {
 // CHECK-NEXT:   func.return %ret : i32
 // CHECK-NEXT: }
 
+func.func @if_no_else(%b : i1) {
+  scf.if %b {
+    scf.yield
+  }
+  func.return
+}
+
+// CHECK:      func.func @if_no_else(%b : i1) {
+// CHECK-NEXT:   cf.cond_br %b, ^[[#b1:]], ^[[#b2:]]
+// CHECK-NEXT: ^[[#b1]]:
+// CHECK-NEXT:   cf.br ^{{.*}}
+// CHECK-NEXT: ^[[#b2]]:
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: }
+
 func.func @nested(%n : index) -> (index) {
   // Initial sum set to 0.
   %sum_0 = arith.constant 0 : index

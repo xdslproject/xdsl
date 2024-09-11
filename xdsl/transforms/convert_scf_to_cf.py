@@ -63,18 +63,20 @@ class IfLowering(RewritePattern):
         # will be placed after the "then" regions.
         else_region = ifOp.false_region
         else_block = else_region.first_block
-        assert else_block is not None
-        assert else_region.last_block is not None
-        else_terminator = else_region.last_block.last_op
-        assert else_terminator is not None
-        else_terminator_operands = else_terminator.operands
-        rewriter.insert_op(
-            Branch(continue_block, *else_terminator_operands),
-            InsertPoint.at_end(else_region.last_block),
-        )
+        if else_block is not None:
+            assert else_region.last_block is not None
+            else_terminator = else_region.last_block.last_op
+            assert else_terminator is not None
+            else_terminator_operands = else_terminator.operands
+            rewriter.insert_op(
+                Branch(continue_block, *else_terminator_operands),
+                InsertPoint.at_end(else_region.last_block),
+            )
 
-        rewriter.erase_op(else_terminator)
-        rewriter.inline_region_before(else_region, continue_block)
+            rewriter.erase_op(else_terminator)
+            rewriter.inline_region_before(else_region, continue_block)
+        else:
+            else_block = continue_block
 
         # Branch to either the then_block or else_block
         rewriter.insert_op(
