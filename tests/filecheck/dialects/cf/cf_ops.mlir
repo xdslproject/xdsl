@@ -84,7 +84,7 @@ builtin.module {
     %b = arith.constant 1 : i32
     cf.switch %flag : i32, [
       default: ^bb1(%a : i32),
-      1: ^bb2(%b, %b : i32, i32),
+      42: ^bb2(%b, %b : i32, i32),
       43: ^bb3
     ]
   ^bb1(%0 : i32):
