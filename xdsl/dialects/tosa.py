@@ -60,4 +60,11 @@ class RescaleOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
 
-TOSA = Dialect("tosa", [ClampOp, RescaleOp], [])
+TOSA = Dialect(
+    "tosa",
+    [
+        ClampOp,
+        RescaleOp,
+    ],
+    [],
+)
