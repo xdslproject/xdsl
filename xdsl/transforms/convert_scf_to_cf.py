@@ -1,9 +1,12 @@
+from typing import cast
+
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.dialects.arith import Addi, Cmpi
-from xdsl.dialects.cf import Branch, ConditionalBranch
-from xdsl.dialects.scf import For, If
-from xdsl.ir import Block
+from xdsl.dialects.arith import Addi, Cmpi, IndexCastOp
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, i32
+from xdsl.dialects.cf import Branch, ConditionalBranch, Switch
+from xdsl.dialects.scf import For, If, IndexSwitchOp, Yield
+from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -147,6 +150,67 @@ class ForLowering(RewritePattern):
         # The result of the loop operation are the values of the condition block
         # arguments except the induction variable on the last iteration.
         rewriter.replace_matched_op([], condition_block.args[1:])
+
+
+class SwitchLowering(RewritePattern):
+    """Lowers `scf.index_switch` to `cf.switch`."""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: IndexSwitchOp, rewriter: PatternRewriter):
+        # Split the block at `op`
+        condition_block = op.parent_block()
+        if condition_block is None:
+            return
+
+        continue_block = condition_block.split_before(op)
+
+        # Create the arguments on the continue block with which to replace the
+        # results of the op.
+        for i, ty in enumerate(op.result_types):
+            rewriter.insert_block_argument(continue_block, i, ty)
+
+        # Handle the regions
+        def convert_region(region: Region) -> Block:
+            block = region.first_block
+            assert block is not None
+
+            # Convert yield op to a branch to the continue block
+            yield_op = block.last_op
+            assert isinstance(yield_op, Yield)
+            rewriter.replace_op(yield_op, Branch(continue_block, *yield_op.operands))
+
+            # Inline the region
+            rewriter.inline_region_before(region, continue_block)
+            return block
+
+        # Convert the case regions
+        case_successors = tuple(convert_region(region) for region in op.case_regions)
+        case_values: tuple[int, ...] = tuple(
+            cast(int, i.data) for i in op.cases.data.data
+        )
+
+        # Convert the default region
+        default_block = convert_region(op.default_region)
+
+        # Cast switch index to integer case value
+        case_value = IndexCastOp(op.arg, i32)
+        rewriter.insert_op(case_value, InsertPoint.at_end(condition_block))
+
+        # Create the switch
+        case_operands = tuple(() for _ in case_successors)
+        rewriter.insert_op(
+            Switch(
+                case_value,
+                default_block,
+                (),
+                DenseIntOrFPElementsAttr.vector_from_list(case_values, i32),
+                case_successors,
+                case_operands,
+            ),
+            InsertPoint.at_end(condition_block),
+        )
+
+        rewriter.replace_matched_op((), continue_block.args)
 
 
 class ConvertScfToCf(ModulePass):
