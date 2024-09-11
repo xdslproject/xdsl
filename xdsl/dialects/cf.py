@@ -236,7 +236,7 @@ class Switch(IRDLOperation):
             cases = [("default", self.default_block, self.default_operands)]
             if self.case_values:
                 cases = cases + [
-                    (str(c), block, operands)
+                    (str(c.value.data), block, operands)
                     for (c, block, operands) in zip(
                         self.case_values.data.data, self.case_blocks, self.case_operand
                     )

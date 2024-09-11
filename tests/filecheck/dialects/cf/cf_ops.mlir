@@ -84,7 +84,7 @@ builtin.module {
     %b = arith.constant 1 : i32
     cf.switch %flag : i32, [
       default: ^bb1(%a : i32),
-      42: ^bb2(%b, %b : i32, i32),
+      1: ^bb2(%b, %b : i32, i32),
       43: ^bb3
     ]
   ^bb1(%0 : i32):
@@ -100,8 +100,8 @@ builtin.module {
   // CHECK-NEXT:   %b = arith.constant 1 : i32
   // CHECK-NEXT:   cf.switch %flag : i32, [
   // CHECK-NEXT:     default: ^[[#b0:]](%a : i32),
-  // CHECK-NEXT:     42 : i32: ^[[#b1:]](%b, %b : i32, i32),
-  // CHECK-NEXT:     43 : i32: ^[[#b2:]]
+  // CHECK-NEXT:     42: ^[[#b1:]](%b, %b : i32, i32),
+  // CHECK-NEXT:     43: ^[[#b2:]]
   // CHECK-NEXT:   ]
   // CHECK-NEXT: ^[[#b0]](%{{.*}} : i32):
   // CHECK-NEXT:   func.return
