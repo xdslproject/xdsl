@@ -598,6 +598,7 @@ class DLTIterateRewriter(RewritePattern):
         #     if extent.is_static() and isinstance(extent, dlt.StaticExtentAttr)
         # }
         extent_resolver = ExtentResolver(extent_map, iterate_op.get_scope())
+        full_extent_map = dict(extent_map)
 
         tensor_map = []
 
@@ -617,6 +618,7 @@ class DLTIterateRewriter(RewritePattern):
                 )
                 for extent in tensor_arg.type.filled_extents
             }
+            full_extent_map |= e_map
             tensor_arg_extent_resolver = ExtentResolver(e_map, iterate_op.get_scope())
 
             tensor_map_map = {}
@@ -657,9 +659,11 @@ class DLTIterateRewriter(RewritePattern):
 
             tensor_map.append((tensor_arg, tensor_map_map))
 
+        full_extent_resolver = ExtentResolver(full_extent_map, iterate_op.get_scope())
+
         resulting_iter_args = self._make_for_loop(
             iterate_op,
-            extent_resolver,
+            full_extent_resolver,
             tensor_map,
             iterate_op.order,
             list(iterate_op.iter_args),
