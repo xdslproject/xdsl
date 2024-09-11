@@ -60,11 +60,16 @@ def _try_apply_sparse(layout: dlt.Layout):
         dims = a_layout.common_abstract_dimensions()
         if len(dims) > 1:
             dims = list(dims)
+            # dims.sort(
+            #     key=lambda d: (
+            #         d.extent.value.value.data
+            #         if isinstance(d.extent, dlt.StaticExtentAttr)
+            #         else 0
+            #     )
+            # )
             dims.sort(
                 key=lambda d: (
-                    d.extent.value.value.data
-                    if isinstance(d.extent, dlt.StaticExtentAttr)
-                    else 0
+                    d.dimensionName.data
                 )
             )
             sparse = [dims.pop()]
