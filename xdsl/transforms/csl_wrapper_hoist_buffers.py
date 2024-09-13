@@ -34,13 +34,7 @@ class HoistBuffers(RewritePattern):
         assert len(op.symbol_operands) == 0, "not implemented"
 
         rewriter.insert_op(
-            alloc := memref.Alloc(
-                op.dynamic_sizes,
-                op.symbol_operands,
-                op.memref.type,
-                op.alignment,
-            ),
-            InsertPoint.at_start(wrapper.program_module.block),
+            alloc := op.clone(), InsertPoint.at_start(wrapper.program_module.block)
         )
         rewriter.replace_matched_op([], new_results=[alloc.memref])
 
