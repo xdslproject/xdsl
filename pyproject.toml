@@ -22,7 +22,7 @@ dev = [
     "ipykernel",
     "pytest<8.4",
     "nbval<0.12",
-    "filecheck==1.0.0",
+    "filecheck==1.0.1",
     "lit<19.0.0",
     "marimo==0.8.14",
     "pre-commit==3.8.0",
