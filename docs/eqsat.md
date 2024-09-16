@@ -295,3 +295,24 @@ TODO
 ## How does the e-graph handle blocks?
 
 TODO
+
+## Meeting Notes
+
+### 2024-09-16
+
+Attendees: Janyi, Samuel, Sasha
+
+How do we handle congruence? Like adding `a = b` to the following:
+
+```python
+x = f(a)
+y = f(b)
+# expect x to be equality saturated to y
+```
+
+TODO:
+
+- Sasha to open PR to merge eqsat dialect
+- Janyi open PR to convert standard MLIR function to version with eclass ops
+- Sasha to create GH Project and small tasks
+- Samuel to try extraction and maybe cost model
