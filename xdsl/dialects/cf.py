@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     Successor,
@@ -62,7 +61,7 @@ class Branch(IRDLOperation):
 
     name = "cf.br"
 
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
     successor = successor_def()
 
     traits = frozenset([IsTerminator()])
@@ -80,8 +79,8 @@ class ConditionalBranch(IRDLOperation):
     name = "cf.cond_br"
 
     cond = operand_def(IntegerType(1))
-    then_arguments = var_operand_def(AnyAttr())
-    else_arguments = var_operand_def(AnyAttr())
+    then_arguments = var_operand_def()
+    else_arguments = var_operand_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -120,9 +119,9 @@ class Switch(IRDLOperation):
 
     flag = operand_def(AnySignlessIntegerOrIndexType)
 
-    default_operands = var_operand_def(AnyAttr())
+    default_operands = var_operand_def()
 
-    case_operands = var_operand_def(AnyAttr())
+    case_operands = var_operand_def()
 
     # Copied from AttrSizedSegments
     case_operand_segments = attr_def(attr_constr_coercion(DenseArrayBase))
@@ -145,11 +144,10 @@ class Switch(IRDLOperation):
         case_operands: Sequence[Sequence[Operation | SSAValue]] = [],
         attr_dict: dict[str, Attribute] | None = None,
     ):
-        case_operand_segments: list[int] = []
-        c_operands: list[Operation | SSAValue] = []
-        for case_operand in case_operands:
-            case_operand_segments.append(len(case_operand))
-            c_operands += list(case_operand)
+        case_operand_segments = tuple(len(o) for o in case_operands)
+        c_operands: tuple[SSAValue | Operation, ...] = tuple(
+            o for os in case_operands for o in os
+        )
         operands = [flag, default_operands, c_operands]
         attributes: dict[str, Attribute] = attr_dict or {}
         attributes["case_operand_segments"] = DenseArrayBase.from_list(
