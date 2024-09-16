@@ -24,7 +24,7 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.8.14",
+    "marimo==0.8.15",
     "pre-commit==3.8.0",
     "ruff==0.6.5",
     "asv<0.7",
