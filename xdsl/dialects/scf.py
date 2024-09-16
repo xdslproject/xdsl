@@ -746,8 +746,7 @@ class IndexSwitchOp(IRDLOperation):
 
         def verify_region(region: Region, name: str):
             yield_op = region.block.last_op
-            if not yield_op or not isinstance(yield_op, Yield):
-                raise VerifyException(f"expected region {name} to end with `scf.yield`")
+            assert isinstance(yield_op, Yield)
 
             if yield_op.operand_types != self.result_types:
                 raise VerifyException(

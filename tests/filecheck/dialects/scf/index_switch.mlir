@@ -23,6 +23,18 @@
 }) : () -> ()
 
 // -----
+
+"builtin.module"() ({
+  %0 = "arith.constant"() <{value = 0 : index}> : () -> index
+  "scf.index_switch"(%0) <{cases = array<i64: 0, 1>}> ({
+  // CHECK: 'scf.index_switch' terminates with operation test.termop instead of scf.yield
+    "test.termop"() : () -> ()
+  }, {
+    "scf.yield"() : () -> ()
+  }) : (index) -> ()
+}) : () -> ()
+
+// -----
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = 0 : index}> : () -> index
   "scf.index_switch"(%0) <{cases = array<i64: 0>}> ({
