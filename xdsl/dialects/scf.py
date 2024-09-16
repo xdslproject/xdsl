@@ -719,7 +719,7 @@ class IndexSwitchOp(IRDLOperation):
         result_types: Sequence[Attribute],
         attr_dict: dict[str, Attribute] | None = None,
     ):
-        attributes: dict[str, Attribute] = attr_dict or {}
+        attributes = attr_dict or if attr_dict is not None else {}
         attributes["cases"] = cases
 
         super().__init__(
