@@ -4,6 +4,77 @@ In this note, we will present the `eqsat` dialect with examples.
 
 ## How does a e-graph look like in MLIR?
 
+In our example, we will saturate the expression `lambda x: x + x` with the following rules:
+
+1. `a + b -> b + a`
+2. `x + x -> x * 2`
+3. `x * 2 -> x << 1`
+
+Ultimately, we want to extract `lambda x: x << 1` as the final expression.
+
+We start with the input:
+
+```mlir
+func.func @test(%x : index) -> (index) {
+    %res = arith.addi %x, %x : index
+    func.return %res : index
+}
+```
+
+And the rewrites expressed as PDL: (not yet tested)
+
+```mlir
+// 1. a + b -> b + a
+pdl.pattern @a_plus_b_to_b_plus_a : benefit(1) {
+  %type = pdl.type : index
+  %a = pdl.operand : %type
+  %b = pdl.operand : %type
+  %root = pdl.operation "arith.addi"(%a : !pdl.value, %b : !pdl.value)
+  pdl.rewrite %root {
+    %new = pdl.operation "arith.addi"(%b : !pdl.value, %a : !pdl.value)
+    pdl.replace %root with %new
+  }
+}
+
+// 2. x + x -> x * 2
+pdl.pattern @x_plus_x_to_x_times_2 : benefit(1) {
+  // x
+  %type = pdl.type : index
+  %x = pdl.operand : %type
+  // x + x
+  %root = pdl.operation "arith.addi"(%x : !pdl.value, %x : !pdl.value)
+  pdl.rewrite %root {
+    // 2
+    %two_attr = pdl.attribute = 2 : index
+    %two_op = pdl.operation "arith.constant" { "value" = %two_attr }
+    // x * 2
+    %new = pdl.operation "arith.muli"(%x : !pdl.value, %two_op : !pdl.value)
+    pdl.replace %root with %new
+  }
+}
+
+
+// 3. x * 2 -> x << 1
+pdl.pattern @x_plus_x_to_x_times_2 : benefit(1) {
+  // x
+  %type = pdl.type : index
+  %x = pdl.operand : %type
+  // 2
+  %two_attr = pdl.attribute = 2 : index
+  %two_op = pdl.operation "arith.constant" { "value" = %two_attr }
+  // x * 2
+  %root = pdl.operation "arith.muli"(%x : !pdl.value, %two_op : !pdl.value)
+  pdl.rewrite %root {
+    // 1
+    %one_attr = pdl.attribute = 1 : index
+    %one_op = pdl.operation "arith.constant" { "value" = %one_attr }
+    // x << 1
+    %new = pdl.operation "arith.shli"(%x : !pdl.value, %one_op : !pdl.value)
+    pdl.replace %root with %new
+  }
+}
+```
+
 Let's start with a simple example `2 * x`, and the MLIR code is as follows:
 
 ```mlir
