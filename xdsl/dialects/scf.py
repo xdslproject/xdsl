@@ -22,9 +22,9 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
-    attr_def,
     irdl_op_definition,
     operand_def,
+    prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -701,7 +701,7 @@ class IndexSwitchOp(IRDLOperation):
     name = "scf.index_switch"
 
     arg = operand_def(IndexType)
-    cases = attr_def(DenseArrayBase)
+    cases = prop_def(DenseArrayBase)
 
     output = var_result_def()
 
@@ -719,12 +719,14 @@ class IndexSwitchOp(IRDLOperation):
         result_types: Sequence[Attribute],
         attr_dict: dict[str, Attribute] | None = None,
     ):
-        attributes = attr_dict if attr_dict is not None else {}
-        attributes["cases"] = cases
+        properties = {
+            "cases": cases,
+        }
 
         super().__init__(
             operands=(arg,),
-            attributes=attributes,
+            attributes=attr_dict,
+            properties=properties,
             regions=(default_region, case_regions),
             result_types=(result_types,),
         )
