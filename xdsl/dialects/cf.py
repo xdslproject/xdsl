@@ -149,7 +149,7 @@ class Switch(IRDLOperation):
             o for os in case_operands for o in os
         )
         operands = [flag, default_operands, c_operands]
-        attributes: dict[str, Attribute] = attr_dict or {}
+        attributes = attr_dict if attr_dict is not None else {}
         attributes["case_operand_segments"] = DenseArrayBase.from_list(
             i32, case_operand_segments
         )
