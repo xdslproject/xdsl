@@ -112,14 +112,21 @@ class DsdKind(StrEnum):
     fabout_dsd = "fabout_dsd"
 
 
+class Direction(StrEnum):
+    NORTH = "north"
+    SOUTH = "south"
+    EAST = "east"
+    WEST = "west"
+
+
 class _FuncBase(IRDLOperation, ABC):
     """
     Base class for the shared functionalty of FuncOp and TaskOp
     """
 
-    body: Region = region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    function_type: FunctionType = prop_def(FunctionType)
+    body = region_def()
+    sym_name = prop_def(StringAttr)
+    function_type = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
@@ -276,6 +283,16 @@ class TaskKindAttr(EnumAttribute[TaskKind], SpacedOpaqueSyntaxAttribute):
 
 
 @irdl_attr_definition
+class DirectionAttr(EnumAttribute[Direction], SpacedOpaqueSyntaxAttribute):
+    name = "csl.dir_kind"
+
+
+@irdl_attr_definition
+class DirectionType(ParametrizedAttribute, TypeAttribute):
+    name = "csl.direction"
+
+
+@irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     """
     Represents a typed pointer in CSL.
@@ -353,15 +370,31 @@ ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
 
 
 @irdl_op_definition
+class DirectionOp(IRDLOperation):
+    name = "csl.get_dir"
+
+    dir = prop_def(DirectionAttr)
+
+    res = result_def(DirectionType)
+
+    traits = frozenset([NoMemoryEffect()])
+
+    def __init__(self, direction: DirectionAttr | Direction):
+        if isinstance(direction, Direction):
+            direction = DirectionAttr(direction)
+        super().__init__(properties={"dir": direction}, result_types=[DirectionType()])
+
+
+@irdl_op_definition
 class CslModuleOp(IRDLOperation):
     """
     Separates layout module from program module
     """
 
     name = "csl.module"
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
-    sym_name: StringAttr = attr_def(StringAttr)
+    sym_name = attr_def(StringAttr)
 
     traits = frozenset(
         [
@@ -389,11 +422,15 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
-    def __init__(self, name: str, params: SSAValue | Operation | None = None):
+    def __init__(
+        self, name: str | StringAttr, params: SSAValue | Operation | None = None
+    ):
+        if isinstance(name, str):
+            name = StringAttr(name)
         super().__init__(
             operands=[params],
             result_types=[ImportedModuleType()],
-            properties={"module": StringAttr(name)},
+            properties={"module": name},
         )
 
 
@@ -408,8 +445,8 @@ class ConstStructOp(IRDLOperation):
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
 
-    def __init__(self, *args: tuple[str, Operation]):
-        operands: list[Operation] = []
+    def __init__(self, *args: tuple[str, Operation | SSAValue]):
+        operands: list[Operation | SSAValue] = []
         fields: list[StringAttr] = []
         for fname, op in args:
             fields.append(StringAttr(fname))
@@ -540,7 +577,7 @@ class MemberCallOp(IRDLOperation):
     def __init__(
         self,
         fname: str,
-        result_type: Attribute,
+        result_type: Attribute | None,
         struct: Operation,
         params: Sequence[SSAValue | Operation],
     ):
@@ -759,7 +796,7 @@ class ReturnOp(IRDLOperation):
 class LayoutOp(IRDLOperation):
     name = "csl.layout"
 
-    body: Region = region_def()
+    body = region_def()
 
     traits = frozenset([NoTerminator(), InModuleKind(ModuleKind.LAYOUT)])
 
@@ -1530,6 +1567,45 @@ class SymbolExportOp(IRDLOperation):
 
 
 @irdl_op_definition
+class AddressOfFnOp(IRDLOperation):
+    """
+    Takes the address of a function from symbol ref.
+
+    Result has to have kind SINGLE and constness CONST
+    """
+
+    name = "csl.addressof_fn"
+    fn_name = prop_def(SymbolRefAttr)
+
+    res = result_def(PtrType)
+
+    def __init__(self, fn: FuncOp):
+        fn_name = SymbolRefAttr(fn.sym_name)
+        res = PtrType(
+            [
+                fn.function_type,
+                PtrKindAttr(PtrKind.SINGLE),
+                PtrConstAttr(PtrConst.CONST),
+            ]
+        )
+
+        super().__init__(properties={"fn_name": fn_name}, result_types=[res])
+
+    def verify_(self) -> None:
+        ty = self.res.type
+        assert isa(ty, PtrType)
+        if not isa(ty.type, FunctionType):
+            raise VerifyException("Pointed to type must be a function type")
+        if ty.kind.data != PtrKind.SINGLE:
+            raise VerifyException("Pointer kind must be 'single'")
+
+        if ty.constness.data != PtrConst.CONST:
+            raise VerifyException("Function pointers must be const")
+
+        return super().verify_()
+
+
+@irdl_op_definition
 class AddressOfOp(IRDLOperation):
     """
     Take the address of a scalar or an array (memref)
@@ -1640,9 +1716,11 @@ class ParamOp(IRDLOperation):
 
     res = result_def(T)
 
-    def __init__(self, name: str, result_type: T):
+    def __init__(
+        self, name: str, result_type: T, init_value: SSAValue | Operation | None = None
+    ):
         super().__init__(
-            operands=[[]],
+            operands=[init_value],
             result_types=[result_type],
             properties={"param_name": StringAttr(name)},
         )
@@ -1721,7 +1799,7 @@ class ConcatStructOp(IRDLOperation):
 
     result = result_def(ComptimeStructType)
 
-    def __init__(self, struct_a: Operation, struct_b: Operation):
+    def __init__(self, struct_a: Operation | SSAValue, struct_b: Operation | SSAValue):
         super().__init__(
             operands=[struct_a, struct_b],
             result_types=[ComptimeStructType()],
@@ -1733,6 +1811,7 @@ CSL = Dialect(
     [
         Add16Op,
         Add16cOp,
+        AddressOfFnOp,
         AddressOfOp,
         And16Op,
         CallOp,
@@ -1742,6 +1821,7 @@ CSL = Dialect(
         ConstantsOp,
         CslModuleOp,
         CtzOp,
+        DirectionOp,
         FabshOp,
         FabssOp,
         FaddhOp,
@@ -1808,6 +1888,8 @@ CSL = Dialect(
         ImportedModuleType,
         PtrType,
         ModuleKindAttr,
+        DirectionAttr,
+        DirectionType,
         PtrConstAttr,
         PtrKindAttr,
         TaskKindAttr,

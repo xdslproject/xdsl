@@ -185,7 +185,7 @@ memref_stream.streaming_region {
     %c0 = arith.constant 0 : i32
     %c1 = arith.constant 1 : i32
     %c256 = arith.constant 256 : i32
-    scf.for %i = %c0 to %c256 step %c1 {
+    scf.for %i = %c0 to %c256 step %c1 : i32 {
         memref_stream.write %G to %h_stream : f64
     }
 }

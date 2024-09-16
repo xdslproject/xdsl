@@ -106,6 +106,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_stencil_to_csl_wrapper.CslStencilToCslWrapperPass
 
+    def get_csl_wrapper_to_csl():
+        from xdsl.transforms import csl_wrapper_to_csl
+
+        return csl_wrapper_to_csl.CslWrapperToCslPass
+
+    def get_csl_wrapper_hoist_buffers():
+        from xdsl.transforms import csl_wrapper_hoist_buffers
+
+        return csl_wrapper_hoist_buffers.CslWrapperHoistBuffers
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -155,6 +165,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import lower_affine
 
         return lower_affine.LowerAffinePass
+
+    def get_lower_csl_stencil():
+        from xdsl.transforms import lower_csl_stencil
+
+        return lower_csl_stencil.LowerCslStencil
 
     def get_lower_mpi():
         from xdsl.transforms import lower_mpi
@@ -415,6 +430,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
+        "csl-wrapper-to-csl": get_csl_wrapper_to_csl,
+        "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
@@ -427,6 +444,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
+        "lower-csl-stencil": get_lower_csl_stencil,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
         "lower-riscv-func": get_lower_riscv_func,

@@ -24,8 +24,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -115,16 +113,16 @@ class ApplyOp(IRDLOperation):
 class For(IRDLOperation):
     name = "affine.for"
 
-    lowerBoundOperands: VarOperand = var_operand_def(IndexType)
-    upperBoundOperands: VarOperand = var_operand_def(IndexType)
-    inits: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def(AnyAttr())
+    lowerBoundOperands = var_operand_def(IndexType)
+    upperBoundOperands = var_operand_def(IndexType)
+    inits = var_operand_def()
+    res = var_result_def(AnyAttr())
 
     lowerBoundMap = prop_def(AffineMapAttr)
     upperBoundMap = prop_def(AffineMapAttr)
-    step: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    step = prop_def(AnyIntegerAttr)
 
-    body: Region = region_def()
+    body = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -355,7 +353,7 @@ class MinOp(IRDLOperation):
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def(AnyAttr())
 
     traits = frozenset([IsTerminator(), Pure()])
 

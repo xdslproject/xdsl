@@ -19,12 +19,9 @@ from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
     Block,
     IRDLOperation,
-    Operand,
     Operation,
     Region,
     SSAValue,
-    VarOperand,
-    VarOpResult,
     irdl_op_definition,
     operand_def,
     region_def,
@@ -53,15 +50,15 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
 
 
 class ForRofOperation(IRDLOperation, ABC):
-    lb: Operand = operand_def(IntRegisterType)
-    ub: Operand = operand_def(IntRegisterType)
-    step: Operand = operand_def(IntRegisterType)
+    lb = operand_def(IntRegisterType)
+    ub = operand_def(IntRegisterType)
+    step = operand_def(IntRegisterType)
 
-    iter_args: VarOperand = var_operand_def(RISCVRegisterType)
+    iter_args = var_operand_def(RISCVRegisterType)
 
-    res: VarOpResult = var_result_def(RISCVRegisterType)
+    res = var_result_def(RISCVRegisterType)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset([SingleBlockImplicitTerminator(YieldOp)])
 
@@ -265,11 +262,11 @@ class RofOp(ForRofOperation):
 @irdl_op_definition
 class WhileOp(IRDLOperation):
     name = "riscv_scf.while"
-    arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    arguments = var_operand_def(RISCVRegisterType)
 
-    res: VarOpResult = var_result_def(RISCVRegisterType)
-    before_region: Region = region_def()
-    after_region: Region = region_def()
+    res = var_result_def(RISCVRegisterType)
+    before_region = region_def()
+    after_region = region_def()
 
     def __init__(
         self,
@@ -383,8 +380,8 @@ class WhileOp(IRDLOperation):
 @irdl_op_definition
 class ConditionOp(IRDLOperation):
     name = "riscv_scf.condition"
-    cond: Operand = operand_def(IntRegisterType)
-    arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    cond = operand_def(IntRegisterType)
+    arguments = var_operand_def(RISCVRegisterType)
 
     traits = frozenset([HasParent(WhileOp), IsTerminator()])
 

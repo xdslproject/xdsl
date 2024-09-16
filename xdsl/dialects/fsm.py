@@ -65,7 +65,7 @@ class MachineOp(IRDLOperation):
 
     name = "fsm.machine"
 
-    body: Region = region_def()
+    body = region_def()
 
     sym_name = attr_def(StringAttr)
     initialState = attr_def(StringAttr)
