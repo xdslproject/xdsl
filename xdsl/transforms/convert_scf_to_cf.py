@@ -22,18 +22,18 @@ class IfLowering(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, ifOp: If, rewriter: PatternRewriter, /):
-        condition_block = ifOp.parent_block()
+    def match_and_rewrite(self, if_op: If, rewriter: PatternRewriter, /):
+        condition_block = if_op.parent_block()
         assert condition_block is not None
 
         # Start by splitting the block containing the 'scf.if' into two parts.
         # The part before will contain the condition, the part after will be the
         # continuation point.
-        remaining_ops_block = condition_block.split_before(ifOp)
-        if ifOp.results:
+        remaining_ops_block = condition_block.split_before(if_op)
+        if if_op.results:
             parent = condition_block.parent_region()
             assert parent is not None
-            continue_block = Block(arg_types=ifOp.result_types)
+            continue_block = Block(arg_types=if_op.result_types)
             parent.insert_block_before(continue_block, remaining_ops_block)
             rewriter.insert_op(
                 Branch(remaining_ops_block), InsertPoint.at_end(continue_block)
@@ -43,7 +43,7 @@ class IfLowering(RewritePattern):
 
         # Move blocks from the "then" region to the region containing 'scf.if',
         # place it before the continuation block, and branch to it.
-        then_region = ifOp.true_region
+        then_region = if_op.true_region
         then_block = then_region.first_block
         assert then_block is not None
         assert then_region.last_block is not None
@@ -61,7 +61,7 @@ class IfLowering(RewritePattern):
         # Move blocks from the "else" region (if present) to the region containing
         # 'scf.if', place it before the continuation block and branch to it.  It
         # will be placed after the "then" regions.
-        else_region = ifOp.false_region
+        else_region = if_op.false_region
         else_block = else_region.first_block
         if else_block is not None:
             assert else_region.last_block is not None
@@ -80,7 +80,7 @@ class IfLowering(RewritePattern):
 
         # Branch to either the then_block or else_block
         rewriter.insert_op(
-            ConditionalBranch(ifOp.cond, then_block, (), else_block, ()),
+            ConditionalBranch(if_op.cond, then_block, (), else_block, ()),
             InsertPoint.at_end(condition_block),
         )
 
@@ -92,27 +92,27 @@ class ForLowering(RewritePattern):
     """Lowers `scf.for` to conditional branching."""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, forOp: For, rewriter: PatternRewriter):
+    def match_and_rewrite(self, for_op: For, rewriter: PatternRewriter):
         # Start by splitting the block containing the 'scf.for' into two parts.
         # The part before will get the init code, the part after will be the end
         # point.
-        init_block = forOp.parent_block()
+        init_block = for_op.parent_block()
         if init_block is None:
             return
-        end_block = init_block.split_before(forOp)
+        end_block = init_block.split_before(for_op)
 
         # Use the first block of the loop body as the condition block since it is the
         # block that has the induction variable and loop-carried values as arguments.
         # Split out all operations from the first block into a new block. Move all
         # body blocks from the loop body region to the region containing the loop.
-        condition_block = forOp.body.first_block
+        condition_block = for_op.body.first_block
         assert condition_block is not None
         first_op = condition_block.first_op
         assert first_op is not None
         first_body_block = condition_block.split_before(first_op)
-        last_body_block = forOp.body.last_block
+        last_body_block = for_op.body.last_block
         assert last_body_block is not None
-        rewriter.inline_region_before(forOp.body, end_block)
+        rewriter.inline_region_before(for_op.body, end_block)
         iv = condition_block.args[0]
 
         # Append the induction variable stepping logic to the last body block and
@@ -122,7 +122,7 @@ class ForLowering(RewritePattern):
         assert terminator is not None
         assert terminator.has_trait(IsTerminator)
 
-        stepped = Addi(iv, forOp.step)
+        stepped = Addi(iv, for_op.step)
         rewriter.insert_op(stepped, InsertPoint.before(terminator))
 
         rewriter.replace_op(
@@ -132,12 +132,12 @@ class ForLowering(RewritePattern):
         # The initial values of loop-carried values are obtained from the operands
         # of the loop operation.
         rewriter.insert_op(
-            Branch(condition_block, forOp.lb, *forOp.iter_args),
+            Branch(condition_block, for_op.lb, *for_op.iter_args),
             InsertPoint.at_end(init_block),
         )
 
         # With the body block done, we can fill in the condition block.
-        comparison = Cmpi(iv, forOp.ub, "slt")
+        comparison = Cmpi(iv, for_op.ub, "slt")
         rewriter.insert_op(comparison, InsertPoint.at_end(condition_block))
         cond_branch_op = ConditionalBranch(
             comparison, first_body_block, (), end_block, ()
