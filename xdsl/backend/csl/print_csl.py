@@ -26,11 +26,60 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TypeAttribute,
     UnitAttr,
+    i1,
 )
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
+
+_CSL_KW_SET = {
+    "align",
+    "and",
+    "bool",
+    "break",
+    "comptime_float",
+    "comptime_int",
+    "comptime_string",
+    "comptime_struct",
+    "const",
+    "continue",
+    "else",
+    "export",
+    "extern",
+    "f16",
+    "f32",
+    "false",
+    "fn",
+    "for",
+    "i16",
+    "i32",
+    "i64",
+    "i8",
+    "if",
+    "linkname",
+    "linksection",
+    "or",
+    "param",
+    "return",
+    "switch",
+    "task",
+    "true",
+    "u16",
+    "u32",
+    "u64",
+    "u8",
+    "var",
+    "void",
+    "while",
+}
+"""
+The set of CSL language keywords. These should not be used as variable names.
+
+There is no official list of all reserved keywords in CSL, this list was
+compiled using the keywords found here: https://sdk.cerebras.net/csl/language/syntax
+and should be expanded as needed.
+"""
 
 
 @dataclass
@@ -53,6 +102,8 @@ class CslPrintContext:
     Maps operation name => operand for binary operands
     """
 
+    _cmp_ops: dict[str, dict[str, str | None]] = field(default_factory=dict)
+
     def register_binops(self):
         self._binops.update(
             {
@@ -68,8 +119,63 @@ class CslPrintContext:
                 arith.RemSI.name: "%",
                 arith.RemUI.name: "%",
                 arith.ShLI.name: "<<",
+                arith.AndI.name: "&",
+                arith.OrI.name: "|",
             }
         )
+        self._cmp_ops.update(
+            {
+                arith.Cmpi.name: {
+                    "eq": "==",
+                    "ne": "!=",
+                    "slt": "<",
+                    "sle": "<=",
+                    "sgt": ">",
+                    "sge": ">=",
+                    "ult": "<",
+                    "ule": "<=",
+                    "ugt": ">",
+                    "uge": ">=",
+                },
+                arith.Cmpf.name: {
+                    "false": None,
+                    "oeq": "==",
+                    "ogt": ">",
+                    "oge": ">=",
+                    "olt": "<",
+                    "ole": "<=",
+                    "one": "!=",
+                    "ord": None,
+                    "ueq": "==",
+                    "ugt": ">",
+                    "uge": ">=",
+                    "ult": "<",
+                    "ule": "<=",
+                    "une": "!=",
+                    "uno": None,
+                    "true": None,
+                },
+            }
+        )
+
+    def _cmp_value_expr(self, op: arith.Cmpi | arith.Cmpf):
+        pred = op.predicate.value.data
+        str_pred = {
+            arith.Cmpi.name: arith.CMPI_COMPARISON_OPERATIONS,
+            arith.Cmpf.name: arith.CMPF_COMPARISON_OPERATIONS,
+        }[op.name][pred]
+        lhs_name = self._get_variable_name_for(op.lhs)
+        rhs_name = self._get_variable_name_for(op.rhs)
+
+        if sym := self._cmp_ops[op.name][str_pred]:
+            return f"{lhs_name}  {sym}  {rhs_name}"
+        match str_pred:
+            case "true" | "false":
+                return str_pred
+            case "ord" | "uno":
+                raise RuntimeError(f"{str_pred}: comparison not supported")
+            case unknown:
+                raise RuntimeError(f"Unknown predicate {unknown}")
 
     def _binop_value_expr(self, op: Operation):
         assert len(op.operands) == 2, "binops must have exactly two operands"
@@ -203,7 +309,7 @@ class CslPrintContext:
         if val in self.variables:
             return self.variables[val]
 
-        taken_names = set(self.variables.values())
+        taken_names = set(self.variables.values()) | _CSL_KW_SET
 
         if hint is None:
             hint = val.name_hint
@@ -389,6 +495,17 @@ class CslPrintContext:
         """
         for op in body.ops:
             match op:
+                case (
+                    arith.AndI(lhs=lhs, rhs=rhs, result=res)
+                    | arith.OrI(lhs=lhs, rhs=rhs, result=res)
+                ) if res.type == i1:
+                    lhs_name = self._get_variable_name_for(lhs)
+                    rhs_name = self._get_variable_name_for(rhs)
+                    self._print_or_promote_to_inline_expr(
+                        res,
+                        f"{lhs_name} {'or' if isa(op, arith.OrI) else 'and'} {rhs_name}",
+                        brackets=True,
+                    )
                 # handle all binary ops at once:
                 case Operation() if op.name in self._binops:
                     self._print_or_promote_to_inline_expr(
@@ -502,6 +619,10 @@ class CslPrintContext:
                     type_out = self.mlir_type_to_csl_type(res.type)
                     value_str = f"@as({type_out}, {name_in})"
                     self._print_or_promote_to_inline_expr(res, value_str)
+                case arith.Cmpi(result=res) | arith.Cmpf(result=res):
+                    self._print_or_promote_to_inline_expr(
+                        res, self._cmp_value_expr(op), brackets=True
+                    )
                 case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
                     a_var = self._get_variable_name_for(a)
                     b_var = self._get_variable_name_for(b)
@@ -636,7 +757,7 @@ class CslPrintContext:
                     ]
                     accesses_str = ", ".join(accesses)
                     self.print(
-                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)} .{{"
+                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
                     )
                     self.print(
                         f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
@@ -725,6 +846,7 @@ class CslPrintContext:
             output=self.output,
             variables=self.variables.copy(),
             _symbols_to_export=self._symbols_to_export,
+            _cmp_ops=self._cmp_ops,
             _binops=self._binops,
             _counter=self._counter,
             _prefix=self._prefix + self._INDENT,
@@ -736,7 +858,7 @@ def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
     layouts: list[csl.CslModuleOp] = []
     for op in module.body.ops:
         if isinstance(op, csl.CslModuleOp):
-            if op.kind == csl.ModuleKind.LAYOUT:
+            if op.kind.data == csl.ModuleKind.LAYOUT:
                 layouts.append(op)
                 continue
             yield op

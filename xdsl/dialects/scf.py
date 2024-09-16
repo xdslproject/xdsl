@@ -261,7 +261,7 @@ class If(IRDLOperation):
                 print_block_terminators=print_block_terminators,
             )
 
-        if bool(self.attributes.keys):
+        if bool(self.attributes.keys()):
             printer.print_attr_dict(self.attributes)
 
 
