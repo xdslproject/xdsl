@@ -751,13 +751,13 @@ class IndexSwitchOp(IRDLOperation):
 
             if yield_op.operand_types != self.result_types:
                 raise VerifyException(
-                    f"region {name} returns values of types {yield_op.operand_types}"
-                    f"but expected {self.result_types}"
+                    f'region {name} returns values of types ({", ".join(str(x) for x in yield_op.operand_types)})'
+                    f' but expected ({", ".join(str(x) for x in self.result_types)})'
                 )
 
         verify_region(self.default_region, "default")
         for name, region in zip(cases, self.case_regions):
-            verify_region(region, str(name))
+            verify_region(region, str(name.data))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
