@@ -15,7 +15,7 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK:       .text
 // CHECK-NEXT:  .globl main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 7, "allocated_int": 8}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
 // CHECK-NEXT:  main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -63,7 +63,7 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-OPT:       .text
 // CHECK-OPT-NEXT:  .globl main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1
 // CHECK-OPT-NEXT:  .p2align 2
-// CHECK-OPT-NEXT:  # Regalloc stats: {"preallocated_float": 0, "preallocated_int": 4, "allocated_float": 3, "allocated_int": 14}
+// CHECK-OPT-NEXT:  # Regalloc stats: {"preallocated_float": [], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2"], "allocated_int": ["a0", "a1", "a2", "a3", "a4", "a5", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
 // CHECK-OPT-NEXT:  main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1:
 // CHECK-OPT-NEXT:      mv t4, a0
 // CHECK-OPT-NEXT:      mv t3, a1

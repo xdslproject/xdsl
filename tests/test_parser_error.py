@@ -4,8 +4,6 @@ from xdsl.context import MLContext
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
     irdl_op_definition,
     var_operand_def,
     var_result_def,
@@ -17,8 +15,8 @@ from xdsl.utils.exceptions import ParseError
 @irdl_op_definition
 class UnknownOp(IRDLOperation):
     name = "test.unknown"
-    ops: VarOperand = var_operand_def(AnyAttr())
-    res: VarOpResult = var_result_def(AnyAttr())
+    ops = var_operand_def(AnyAttr())
+    res = var_result_def(AnyAttr())
 
 
 def check_error(prog: str, line: int, column: int, message: str):

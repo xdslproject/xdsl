@@ -16,12 +16,11 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     i64,
 )
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    VarOperand,
     base,
     irdl_op_definition,
     operand_def,
@@ -274,14 +273,14 @@ class ReshapeOp(IRDLOperation):
 class ExtractSliceOp(IRDLOperation):
     name = "tensor.extract_slice"
 
-    source: Operand = operand_def(TensorType)
-    offsets: VarOperand = var_operand_def(IndexType)
-    sizes: VarOperand = var_operand_def(IndexType)
-    strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
-    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
-    result: OpResult = result_def(TensorType)
+    source = operand_def(TensorType)
+    offsets = var_operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+    strides = var_operand_def(IndexType)
+    static_offsets = prop_def(DenseArrayBase)
+    static_sizes = prop_def(DenseArrayBase)
+    static_strides = prop_def(DenseArrayBase)
+    result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -324,15 +323,15 @@ class ExtractSliceOp(IRDLOperation):
 class InsertSliceOp(IRDLOperation):
     name = "tensor.insert_slice"
 
-    source: Operand = operand_def(TensorType)
-    dest: Operand = operand_def(TensorType)
-    offsets: VarOperand = var_operand_def(IndexType)
-    sizes: VarOperand = var_operand_def(IndexType)
-    strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
-    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
-    result: OpResult = result_def(TensorType)
+    source = operand_def(TensorType)
+    dest = operand_def(TensorType)
+    offsets = var_operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+    strides = var_operand_def(IndexType)
+    static_offsets = prop_def(DenseArrayBase)
+    static_sizes = prop_def(DenseArrayBase)
+    static_strides = prop_def(DenseArrayBase)
+    result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 

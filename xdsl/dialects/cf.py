@@ -8,12 +8,9 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
-    Operand,
-    Successor,
-    VarOperand,
+    attr_def,
     irdl_op_definition,
     operand_def,
-    prop_def,
     successor_def,
     var_operand_def,
 )
@@ -22,44 +19,55 @@ from xdsl.traits import IsTerminator
 
 @irdl_op_definition
 class Assert(IRDLOperation):
+    """Assert operation with message attribute"""
+
     name = "cf.assert"
-    arg: Operand = operand_def(IntegerType(1))
-    msg: StringAttr = prop_def(StringAttr)
+
+    arg = operand_def(IntegerType(1))
+    msg = attr_def(StringAttr)
 
     def __init__(self, arg: Operation | SSAValue, msg: str | StringAttr):
         if isinstance(msg, str):
             msg = StringAttr(msg)
         super().__init__(
             operands=[arg],
-            properties={"msg": msg},
+            attributes={"msg": msg},
         )
+
+    assembly_format = "$arg `,` $msg attr-dict"
 
 
 @irdl_op_definition
 class Branch(IRDLOperation):
+    """Branch operation"""
+
     name = "cf.br"
 
-    arguments: VarOperand = var_operand_def(AnyAttr())
-    successor: Successor = successor_def()
+    arguments = var_operand_def(AnyAttr())
+    successor = successor_def()
 
     traits = frozenset([IsTerminator()])
 
     def __init__(self, dest: Block, *ops: Operation | SSAValue):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
 
+    assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
+
 
 @irdl_op_definition
 class ConditionalBranch(IRDLOperation):
+    """Conditional branch operation"""
+
     name = "cf.cond_br"
 
-    cond: Operand = operand_def(IntegerType(1))
-    then_arguments: VarOperand = var_operand_def(AnyAttr())
-    else_arguments: VarOperand = var_operand_def(AnyAttr())
+    cond = operand_def(IntegerType(1))
+    then_arguments = var_operand_def(AnyAttr())
+    else_arguments = var_operand_def(AnyAttr())
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    then_block: Successor = successor_def()
-    else_block: Successor = successor_def()
+    then_block = successor_def()
+    else_block = successor_def()
 
     traits = frozenset([IsTerminator()])
 
@@ -74,6 +82,13 @@ class ConditionalBranch(IRDLOperation):
         super().__init__(
             operands=[cond, then_ops, else_ops], successors=[then_block, else_block]
         )
+
+    assembly_format = """
+    $cond `,`
+    $then_block (`(` $then_arguments^ `:` type($then_arguments) `)`)? `,`
+    $else_block (`(` $else_arguments^ `:` type($else_arguments) `)`)?
+    attr-dict
+    """
 
 
 Cf = Dialect(

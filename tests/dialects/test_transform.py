@@ -213,3 +213,38 @@ def test_split_handle():
         """ %0, %1 = "transform.split_handle"(%2) <{"pass_through_empty_handle" = true, "fail_on_payload_too_small" = true, "overflow_result" = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op) """,
         None,
     )
+
+
+def test_amount_of_loops():
+    block = Block(
+        arg_types=[
+            transform.AnyValueType(),
+            transform.OperationType("linalg.matmul"),
+        ]
+    )
+
+    target = block.args[0]
+    static_sizes = DenseArrayBase.create_dense_int_or_index(IndexType(), [8, 0])
+
+    assert_print_op(
+        transform.TileOp(
+            target=target,
+            dynamic_sizes=[],
+            static_sizes=static_sizes,
+        ),
+        """%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<index: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",
+        None,
+    )
+
+
+def test_structured_match():
+    handle = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
+    assert_print_op(
+        transform.MatchOp(
+            target=handle,
+            ops=[],
+            op_attrs={},
+        ),
+        """ %0 = "transform.structured.match"(%1) <{"ops" = [], "op_attrs" = {}}> : (!transform.any_op) -> !transform.any_op """,
+        None,
+    )

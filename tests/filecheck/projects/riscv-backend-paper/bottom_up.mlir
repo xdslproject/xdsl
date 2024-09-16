@@ -24,7 +24,7 @@ func.func public @ssum(
 // CHECK:       .text
 // CHECK-NEXT:  .globl ssum
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 3, "allocated_int": 8}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
 // CHECK-NEXT:  ssum:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -81,7 +81,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl conv_2d_nchw_fchw_d1_s1_3x3
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 8, "allocated_int": 14}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "a3", "a4", "a5", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
 // CHECK-NEXT:  conv_2d_nchw_fchw_d1_s1_3x3:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -186,7 +186,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         %c0 = arith.constant 0 : i32
         %c1 = arith.constant 1 : i32
         %c128 = arith.constant 128 : i32
-        %g = scf.for %i = %c0 to %c128 step %c1 iter_args(%acc = %zero_float) -> (f64) {
+        %g = scf.for %i = %c0 to %c128 step %c1 iter_args(%acc = %zero_float) -> (f64) : i32 {
           %x = memref_stream.read from %x_stream : f64
           %y = memref_stream.read from %y_stream : f64
           %prod = arith.mulf %x, %y fastmath<fast> : f64
@@ -204,7 +204,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl ddot
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 3, "allocated_int": 8}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft3"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
 // CHECK-NEXT:  ddot:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -251,7 +251,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl dsum
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 3, "allocated_int": 8}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
 // CHECK-NEXT:  dsum:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -295,7 +295,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl fill
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 4, "preallocated_int": 2, "allocated_float": 3, "allocated_int": 4}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["fa0", "ft0", "ft1", "ft2"], "preallocated_int": ["a0", "zero"], "allocated_float": ["fa0", "ft0", "ft3"], "allocated_int": ["a0", "t0", "t1", "zero"]}
 // CHECK-NEXT:  fill:
 // CHECK-NEXT:      fmv.d ft3, fa0
 // CHECK-NEXT:      mv t0, a0
@@ -352,7 +352,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl matmul
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 8, "allocated_int": 8}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
 // CHECK-NEXT:  matmul:
 // CHECK-NEXT:      mv t0, a0
 // CHECK-NEXT:      mv t1, a1
@@ -462,7 +462,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl pooling_nchw_max_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 3, "allocated_float": 7, "allocated_int": 12}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
 // CHECK-NEXT:  pooling_nchw_max_d1_s2_3x3:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
@@ -558,7 +558,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl reluf64
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 3, "allocated_float": 3, "allocated_int": 6}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "zero"]}
 // CHECK-NEXT:  reluf64:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
@@ -609,7 +609,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl reluf32
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 3, "allocated_float": 3, "allocated_int": 6}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "zero"]}
 // CHECK-NEXT:  reluf32:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
@@ -669,7 +669,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl pooling_nchw_sum_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 3, "allocated_float": 7, "allocated_int": 12}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
 // CHECK-NEXT:  pooling_nchw_sum_d1_s2_3x3:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1

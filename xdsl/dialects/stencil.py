@@ -21,7 +21,6 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     Operation,
-    OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -35,12 +34,9 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     MessageConstraint,
-    Operand,
     ParamAttrConstraint,
     ParameterDef,
     VarConstraint,
-    VarOperand,
-    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -464,10 +460,10 @@ class ApplyOp(IRDLOperation):
 
     B = Annotated[Attribute, ConstraintVar("B")]
 
-    args: VarOperand = var_operand_def(Attribute)
+    args = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
-    region: Region = region_def()
-    res: VarOpResult = var_result_def(TempType)
+    region = region_def()
+    res = var_result_def(TempType)
 
     bounds = opt_prop_def(StencilBoundsAttr)
 
@@ -698,7 +694,7 @@ class CastOp(IRDLOperation):
 
     name = "stencil.cast"
 
-    field: Operand = operand_def(
+    field = operand_def(
         ParamAttrConstraint(
             FieldType,
             [
@@ -710,7 +706,7 @@ class CastOp(IRDLOperation):
             ],
         )
     )
-    result: OpResult = result_def(
+    result = result_def(
         ParamAttrConstraint(
             FieldType,
             [
@@ -914,10 +910,8 @@ class ExternalLoadOp(IRDLOperation):
     """
 
     name = "stencil.external_load"
-    field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(
-        base(FieldType[Attribute]) | base(memref.MemRefType[Attribute])
-    )
+    field = operand_def(Attribute)
+    result = result_def(base(FieldType[Attribute]) | base(memref.MemRefType[Attribute]))
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -941,8 +935,8 @@ class ExternalStoreOp(IRDLOperation):
     """
 
     name = "stencil.external_store"
-    temp: Operand = operand_def(FieldType)
-    field: Operand = operand_def(Attribute)
+    temp = operand_def(FieldType)
+    field = operand_def(Attribute)
 
     assembly_format = (
         "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
@@ -1011,7 +1005,7 @@ class AccessOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "stencil.access"
-    temp: Operand = operand_def(
+    temp = operand_def(
         ParamAttrConstraint(
             StencilType,
             [
@@ -1023,9 +1017,9 @@ class AccessOp(IRDLOperation):
             ],
         )
     )
-    offset: IndexAttr = attr_def(IndexAttr)
+    offset = attr_def(IndexAttr)
     offset_mapping = opt_attr_def(IndexAttr)
-    res: OpResult = result_def(
+    res = result_def(
         MessageConstraint(
             VarConstraint("T", AnyAttr()),
             "Expected return type to match the accessed temp's element type.",
@@ -1230,7 +1224,7 @@ class LoadOp(IRDLOperation):
 
     T = Annotated[Attribute, ConstraintVar("T")]
 
-    field: Operand = operand_def(
+    field = operand_def(
         ParamAttrConstraint(
             FieldType,
             [
@@ -1241,7 +1235,7 @@ class LoadOp(IRDLOperation):
             ],
         )
     )
-    res: OpResult = result_def(
+    res = result_def(
         ParamAttrConstraint(
             TempType,
             [
@@ -1277,9 +1271,6 @@ class LoadOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, StoreOp):
-                raise VerifyException("Cannot Load and Store the same field!")
         field = self.field.type
         temp = self.res.type
         assert isa(field, FieldType[Attribute])
@@ -1316,7 +1307,7 @@ class BufferOp(IRDLOperation):
 
     T = Annotated[TempType[_FieldTypeElement], ConstraintVar("T")]
 
-    temp: Operand = operand_def(
+    temp = operand_def(
         ParamAttrConstraint(
             TempType,
             [
@@ -1331,7 +1322,7 @@ class BufferOp(IRDLOperation):
             ],
         )
     )
-    res: OpResult = result_def(
+    res = result_def(
         ParamAttrConstraint(
             StencilType,
             [
@@ -1356,6 +1347,11 @@ class BufferOp(IRDLOperation):
         super().__init__(operands=[temp], result_types=[temp.type])
 
     def verify_(self) -> None:
+        # When used as a bufferization op, it should be flexible.
+        # This is probably something you don't want to see, but should be valid - it just
+        # means bufferization was incomplete.
+        if isinstance(self.res.type, FieldType):
+            return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
             raise VerifyException(
                 f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
@@ -1416,7 +1412,7 @@ class StoreOp(IRDLOperation):
 
     name = "stencil.store"
 
-    temp: Operand = operand_def(
+    temp = operand_def(
         ParamAttrConstraint(
             TempType,
             [
@@ -1433,8 +1429,8 @@ class StoreOp(IRDLOperation):
             ],
         )
     )
-    # field: Operand = operand_def(FieldType)
-    field: Operand = operand_def(
+    # field = operand_def(FieldType)
+    field = operand_def(
         ParamAttrConstraint(
             FieldType,
             [
@@ -1453,7 +1449,7 @@ class StoreOp(IRDLOperation):
             ],
         )
     )
-    bounds: StencilBoundsAttr = attr_def(StencilBoundsAttr)
+    bounds = attr_def(StencilBoundsAttr)
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
@@ -1466,13 +1462,6 @@ class StoreOp(IRDLOperation):
         bounds: StencilBoundsAttr,
     ):
         return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
-
-    def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, LoadOp):
-                raise VerifyException("Cannot Load and Store the same field!")
-            if isa(use.operation, LoadOp) and use.operation is not self:
-                raise VerifyException("Can only store once to a field!")
 
 
 @irdl_op_definition
@@ -1493,7 +1482,7 @@ class StoreResultOp(IRDLOperation):
             "Expected return type to carry the operand type.",
         )
     )
-    res: OpResult = result_def(
+    res = result_def(
         ParamAttrConstraint(
             ResultType,
             [

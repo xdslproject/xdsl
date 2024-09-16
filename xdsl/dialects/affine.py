@@ -24,8 +24,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -38,7 +36,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, Pure
+from xdsl.traits import (
+    IsTerminator,
+    Pure,
+    RecursivelySpeculatable,
+    RecursiveMemoryEffect,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -110,16 +113,16 @@ class ApplyOp(IRDLOperation):
 class For(IRDLOperation):
     name = "affine.for"
 
-    lowerBoundOperands: VarOperand = var_operand_def(IndexType)
-    upperBoundOperands: VarOperand = var_operand_def(IndexType)
-    inits: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def(AnyAttr())
+    lowerBoundOperands = var_operand_def(IndexType)
+    upperBoundOperands = var_operand_def(IndexType)
+    inits = var_operand_def()
+    res = var_result_def(AnyAttr())
 
     lowerBoundMap = prop_def(AffineMapAttr)
     upperBoundMap = prop_def(AffineMapAttr)
-    step: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    step = prop_def(AnyIntegerAttr)
 
-    body: Region = region_def()
+    body = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -204,6 +207,8 @@ class If(IRDLOperation):
 
     then_region = region_def("single_block")
     else_region = region_def()
+
+    traits = frozenset([RecursiveMemoryEffect(), RecursivelySpeculatable()])
 
 
 @irdl_op_definition
@@ -348,9 +353,9 @@ class MinOp(IRDLOperation):
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([IsTerminator(), Pure()])
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
