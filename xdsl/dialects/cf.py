@@ -24,14 +24,15 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     successor_def,
     var_operand_def,
     var_successor_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -115,7 +116,7 @@ class Switch(IRDLOperation):
 
     name = "cf.switch"
 
-    case_values = opt_attr_def(DenseIntOrFPElementsAttr)
+    case_values = opt_prop_def(DenseIntOrFPElementsAttr)
 
     flag = operand_def(AnySignlessIntegerOrIndexType)
 
@@ -124,15 +125,15 @@ class Switch(IRDLOperation):
     case_operands = var_operand_def()
 
     # Copied from AttrSizedSegments
-    case_operand_segments = attr_def(attr_constr_coercion(DenseArrayBase))
+    case_operand_segments = prop_def(attr_constr_coercion(DenseArrayBase))
 
     default_block = successor_def()
 
     case_blocks = var_successor_def()
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([IsTerminator(), Pure()])
 
     def __init__(
         self,
@@ -149,15 +150,20 @@ class Switch(IRDLOperation):
             o for os in case_operands for o in os
         )
         operands = [flag, default_operands, c_operands]
-        attributes = attr_dict if attr_dict is not None else {}
-        attributes["case_operand_segments"] = DenseArrayBase.from_list(
-            i32, case_operand_segments
-        )
+        properties: dict[str, Attribute] = {
+            "case_operand_segments": DenseArrayBase.from_list(
+                i32, case_operand_segments
+            )
+        }
         if case_values:
-            attributes["case_values"] = case_values
+            properties["case_values"] = case_values
+
         successors = [default_block, case_blocks]
         super().__init__(
-            operands=operands, attributes=attributes, successors=successors
+            operands=operands,
+            attributes=attr_dict,
+            properties=properties,
+            successors=successors,
         )
 
     @property
