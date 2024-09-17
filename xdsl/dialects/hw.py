@@ -34,7 +34,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     SingleBlockRegion,
     attr_def,
@@ -1243,7 +1242,7 @@ class InstanceOp(IRDLOperation):
 class OutputOp(IRDLOperation):
     name = "hw.output"
 
-    inputs = var_operand_def(AnyAttr())
+    inputs = var_operand_def()
 
     traits = frozenset([IsTerminator(), HasParent(HWModuleOp)])
 
