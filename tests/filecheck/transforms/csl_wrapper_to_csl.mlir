@@ -98,6 +98,7 @@ builtin.module {
 // CHECK-NEXT:     %8 = arith.constant 510 : i16
 // CHECK-NEXT:     %padded_z_dim = "csl.param"(%8) <{"param_name" = "padded_z_dim"}> : (i16) -> i16
 // CHECK-NEXT:     csl.layout {
+// CHECK-NEXT:       "csl.set_rectangle"(%width, %height) : (i16, i16) -> ()
 // CHECK-NEXT:       scf.for %xDim = %3 to %width step %4 : i16 {
 // CHECK-NEXT:         scf.for %yDim = %3 to %height step %4 : i16 {
 // CHECK-NEXT:           %computeAllRoutesRes = "csl.member_call"(%routesMod_1, %xDim, %yDim, %width, %height, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
@@ -173,6 +174,8 @@ builtin.module {
 // CHECK-NEXT:       }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
+// CHECK-NEXT:   %5 = "csl.member_access"(%memcpyMod_2) <{"field" = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
+// CHECK-NEXT:   "csl.rpc"(%5) : (!csl.color) -> ()
 // CHECK-NEXT:   }) {"sym_name" = "gauss_seidel_func_program"} : () -> ()
 // CHECK-NEXT: }
 // CHECK-EMPTY:

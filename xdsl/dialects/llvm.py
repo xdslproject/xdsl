@@ -41,7 +41,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
@@ -740,8 +739,8 @@ class InlineAsmOp(IRDLOperation):
     asm_string = prop_def(StringAttr)
     constraints = prop_def(StringAttr)
 
-    has_side_effects = opt_attr_def(UnitAttr)
-    is_align_stack = opt_attr_def(UnitAttr)
+    has_side_effects = opt_prop_def(UnitAttr)
+    is_align_stack = opt_prop_def(UnitAttr)
 
     def __init__(
         self,
@@ -753,13 +752,10 @@ class InlineAsmOp(IRDLOperation):
         has_side_effects: bool = False,
         is_align_stack: bool = False,
     ):
-        props: dict[str, Attribute] = {
+        props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
             "constraints": StringAttr(constraints),
             "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
-        }
-
-        attrs = {
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
         }
@@ -769,7 +765,6 @@ class InlineAsmOp(IRDLOperation):
 
         super().__init__(
             operands=[operands],
-            attributes=attrs,
             properties=props,
             result_types=[res_types],
         )

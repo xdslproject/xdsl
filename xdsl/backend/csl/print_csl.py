@@ -33,6 +33,54 @@ from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
 
+_CSL_KW_SET = {
+    "align",
+    "and",
+    "bool",
+    "break",
+    "comptime_float",
+    "comptime_int",
+    "comptime_string",
+    "comptime_struct",
+    "const",
+    "continue",
+    "else",
+    "export",
+    "extern",
+    "f16",
+    "f32",
+    "false",
+    "fn",
+    "for",
+    "i16",
+    "i32",
+    "i64",
+    "i8",
+    "if",
+    "linkname",
+    "linksection",
+    "or",
+    "param",
+    "return",
+    "switch",
+    "task",
+    "true",
+    "u16",
+    "u32",
+    "u64",
+    "u8",
+    "var",
+    "void",
+    "while",
+}
+"""
+The set of CSL language keywords. These should not be used as variable names.
+
+There is no official list of all reserved keywords in CSL, this list was
+compiled using the keywords found here: https://sdk.cerebras.net/csl/language/syntax
+and should be expanded as needed.
+"""
+
 
 @dataclass
 class CslPrintContext:
@@ -261,7 +309,7 @@ class CslPrintContext:
         if val in self.variables:
             return self.variables[val]
 
-        taken_names = set(self.variables.values())
+        taken_names = set(self.variables.values()) | _CSL_KW_SET
 
         if hint is None:
             hint = val.name_hint
@@ -709,7 +757,7 @@ class CslPrintContext:
                     ]
                     accesses_str = ", ".join(accesses)
                     self.print(
-                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)} .{{"
+                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
                     )
                     self.print(
                         f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
@@ -810,7 +858,7 @@ def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
     layouts: list[csl.CslModuleOp] = []
     for op in module.body.ops:
         if isinstance(op, csl.CslModuleOp):
-            if op.kind == csl.ModuleKind.LAYOUT:
+            if op.kind.data == csl.ModuleKind.LAYOUT:
                 layouts.append(op)
                 continue
             yield op
