@@ -126,7 +126,7 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.StencilType[Attribute]) | AnyMemRefTypeConstr | AnyTensorTypeConstr
+        stencil.StencilTypeConstr | AnyMemRefTypeConstr | AnyTensorTypeConstr
     )
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
@@ -202,14 +202,12 @@ class ApplyOp(IRDLOperation):
 
     name = "csl_stencil.apply"
 
-    field = operand_def(
-        base(stencil.StencilType[Attribute]) | AnyMemRefTypeConstr
-    )
+    field = operand_def(stencil.StencilTypeConstr | AnyMemRefTypeConstr)
 
     accumulator = operand_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
     args = var_operand_def(Attribute)
-    dest = var_operand_def(base(stencil.FieldType[Attribute]) | AnyMemRefTypeConstr)
+    dest = var_operand_def(stencil.FieldTypeConstr | AnyMemRefTypeConstr)
 
     receive_chunk = region_def()
     done_exchange = region_def()
@@ -222,7 +220,7 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
-    res = var_result_def(stencil.StencilType)
+    res = var_result_def(stencil.StencilTypeConstr)
 
     traits = frozenset(
         [
@@ -378,7 +376,7 @@ class ApplyOp(IRDLOperation):
             res_type = self.dest[0].type
         else:
             res_type = self.res[0].type
-        if isattr(res_type, base(stencil.StencilType[Attribute])):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return res_type.get_num_dims()
         elif self.bounds:
             return len(self.bounds.ub)
@@ -425,7 +423,7 @@ class AccessOp(IRDLOperation):
 
     name = "csl_stencil.access"
     op = operand_def(
-        AnyMemRefTypeConstr | base(stencil.StencilType[Attribute]) | AnyTensorTypeConstr
+        AnyMemRefTypeConstr | stencil.StencilTypeConstr | AnyTensorTypeConstr
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
@@ -504,7 +502,7 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if isattr(res_type, base(stencil.StencilType[Attribute])):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return cls.build(
                 operands=[temp],
                 result_types=[res_type.get_element_type()],
@@ -537,7 +535,7 @@ class AccessOp(IRDLOperation):
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
                     )
-            elif isattr(self.op.type, base(stencil.StencilType[Attribute])):
+            elif isattr(self.op.type, stencil.StencilTypeConstr):
                 if not self.result.type == self.op.type.get_element_type():
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"

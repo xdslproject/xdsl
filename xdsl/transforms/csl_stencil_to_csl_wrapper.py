@@ -84,15 +84,16 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     apply_op.done_exchange.block.args[1].type.get_shape()[-1],
                 )
 
-            # retrieve z_dim from done_exchange arg[0]
-            if isa(
+            # retrieve z_dim from post_process arg[0]
+            if isattr(
                 field_t := apply_op.done_exchange.block.args[0].type,
-                stencil.StencilType[
-                    TensorType[Attribute] | memref.MemRefType[Attribute]
-                ],
+                stencil.StencilTypeConstr,
+            ) and isattr(
+                el_type := field_t.element_type,
+                AnyTensorTypeConstr | AnyMemRefTypeConstr,
             ):
                 # unbufferized csl_stencil
-                z_dim = max(z_dim, field_t.get_element_type().get_shape()[-1])
+                z_dim = max(z_dim, el_type.get_shape()[-1])
             elif isa(field_t, memref.MemRefType[Attribute]):
                 # bufferized csl_stencil
                 z_dim = max(z_dim, field_t.get_shape()[-1])
