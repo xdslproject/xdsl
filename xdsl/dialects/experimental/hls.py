@@ -9,7 +9,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     ParameterDef,
     attr_def,
@@ -27,7 +26,7 @@ from xdsl.traits import IsTerminator
 @irdl_op_definition
 class HLSYield(IRDLOperation):
     name = "hls.yield"
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
     traits = frozenset([IsTerminator()])
 
@@ -115,7 +114,7 @@ class HLSStream(IRDLOperation):
 @irdl_op_definition
 class HLSStreamWrite(IRDLOperation):
     name = "hls.write"
-    element = operand_def(AnyAttr())
+    element = operand_def()
     stream = operand_def(HLSStreamType)
 
     def __init__(self, element: SSAValue | Operation, stream: SSAValue | Operation):
@@ -126,7 +125,7 @@ class HLSStreamWrite(IRDLOperation):
 class HLSStreamRead(IRDLOperation):
     name = "hls.read"
     stream = operand_def(HLSStreamType)
-    res = result_def(AnyAttr())
+    res = result_def()
 
     def __init__(self, stream: SSAValue):
         assert isinstance(stream.type, HLSStreamType)

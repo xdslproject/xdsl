@@ -362,11 +362,75 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
+@irdl_attr_definition
+class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+    name = "csl.var"
+
+    child_type: ParameterDef[TypeAttribute]
+
+    def get_element_type(self) -> TypeAttribute:
+        return self.child_type
+
+
 ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+
+
+@irdl_op_definition
+class VariableOp(IRDLOperation):
+    name = "csl.variable"
+
+    default = opt_prop_def(ParamAttr)
+    res = result_def(VarType)
+
+    def get_element_type(self):
+        assert isinstance(self.res, VarType)
+        return self.res.get_element_type()
+
+    @staticmethod
+    def from_type(child_type: TypeAttribute) -> VariableOp:
+        return VariableOp(result_types=[child_type])
+
+    @staticmethod
+    def from_value(value: ParamAttr) -> VariableOp:
+        return VariableOp(
+            properties={"default": value},
+            result_types=[VarType([value.type])],
+        )
+
+
+@irdl_op_definition
+class LoadVarOp(IRDLOperation):
+    name = "csl.load_var"
+    var = operand_def(VarType)
+    res = result_def()
+
+    def __init__(self, var: VariableOp):
+        super().__init__(
+            operands=[var],
+            result_types=[var.get_element_type()],
+        )
+
+
+@irdl_op_definition
+class StoreVarOp(IRDLOperation):
+    name = "csl.store_var"
+    var = operand_def(VarType)
+    new_value = operand_def()
+
+    def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
+        super().__init__(operands=[var, new_value])
+
+    def verify_(self) -> None:
+        assert isinstance(self.var.type, VarType)
+        if self.var.type.get_element_type() != self.new_value.type:
+            raise VerifyException(
+                f"New value must match the element type of {self.var.type.name}"
+            )
+        return super().verify_()
 
 
 @irdl_op_definition
@@ -1880,6 +1944,9 @@ CSL = Dialect(
         Xp162fhOp,
         Xp162fsOp,
         ZerosOp,
+        VariableOp,
+        LoadVarOp,
+        StoreVarOp,
     ],
     [
         ColorType,
@@ -1893,5 +1960,6 @@ CSL = Dialect(
         PtrConstAttr,
         PtrKindAttr,
         TaskKindAttr,
+        VarType,
     ],
 )

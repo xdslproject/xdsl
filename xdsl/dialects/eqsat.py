@@ -1,3 +1,14 @@
+"""
+An embedding of equivalence classes in IR, for use in equality saturation with
+non-destructive rewrites.
+
+Please see the Equality Saturation Project for details:
+https://github.com/orgs/xdslproject/projects/23
+
+TODO: add documentation once we have end-to-end flow working:
+https://github.com/xdslproject/xdsl/issues/3174
+"""
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -10,8 +21,6 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -22,6 +31,8 @@ class EClassOp(IRDLOperation):
     name = "eqsat.eclass"
     arguments = var_operand_def(T)
     result = result_def(T)
+
+    assembly_format = "$arguments attr-dict `:` type($result)"
 
     def __init__(self, *arguments: SSAValue, res_type: Attribute | None = None):
         if not arguments:
@@ -68,16 +79,3 @@ EqSat = Dialect(
         EClassOp,
     ],
 )
-
-# // Add 2 * x = x << 1
-# func.func @test(%x : index) -> (index) {
-#     %x_eq = eq.eclass %x : index
-#     %c2 = arith.constant 2 : index
-#     %c2_eq = eq.eclass %c2 : index
-#     %c1 = arith.constant 1 : index
-#     %c1_eq = eq.eclass %c1 : index
-#     %shift = arith.shli %x_eq, %c1_eq : index
-#     %res = arith.muli %x_eq, %c2_eq : index
-#     %res_eq = eq.eclass %res, %shift : index
-#     func.return %res_eq : index
-# }

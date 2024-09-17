@@ -180,4 +180,46 @@ builtin.module {
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
+
+  func.func @index_switch(%flag: index) -> i32 {
+    %a = arith.constant 0 : i32
+    %b = arith.constant 1 : i32
+    %c, %d = scf.index_switch %flag -> i32, i32
+    case 1 {
+      scf.yield %a, %a : i32, i32
+    }
+    default {
+      scf.yield %b, %b : i32, i32
+    }
+    func.return %c : i32
+  }
+
+  // CHECK:      func.func @index_switch(%flag : index) -> i32 {
+  // CHECK-NEXT:   %a = arith.constant 0 : i32
+  // CHECK-NEXT:   %b = arith.constant 1 : i32
+  // CHECK-NEXT:   %c, %d = scf.index_switch %flag -> i32, i32
+  // CHECK-NEXT:   case 1 {
+  // CHECK-NEXT:     scf.yield %a, %a : i32, i32
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   default {
+  // CHECK-NEXT:     scf.yield %b, %b : i32, i32
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return %c : i32
+  // CHECK-NEXT: }
+
+  func.func @switch_trivial(%flag: index) {
+    scf.index_switch %flag
+    default {
+      scf.yield
+    }
+    func.return
+  }
+
+  // CHECK:      func.func @switch_trivial(%flag : index) {
+  // CHECK-NEXT:   scf.index_switch %flag
+  // CHECK-NEXT:   default {
+  // CHECK-NEXT:     scf.yield
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
 }
