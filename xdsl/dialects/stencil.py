@@ -1010,17 +1010,7 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp = operand_def(
         ParamAttrConstraint(
-            TempType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Expected return type to match the accessed temp's element type.",
-                ),
-            ],
-        )
-        | ParamAttrConstraint(
-            FieldType,
+            TempType | FieldType,
             [
                 Attribute,
                 MessageConstraint(
