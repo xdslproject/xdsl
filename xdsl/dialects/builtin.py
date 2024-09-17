@@ -808,6 +808,7 @@ class TensorType(
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
+AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
 
 
 @irdl_attr_definition
@@ -1620,7 +1621,7 @@ class MemRefType(
 
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
-AnyMemRefTypeConstr = base(AnyMemRefType)
+AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
 
 
 @irdl_attr_definition

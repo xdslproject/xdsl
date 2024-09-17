@@ -5,14 +5,14 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyMemRefTypeConstr,
+    AnyTensorTypeConstr,
     IntegerAttr,
-    MemRefType,
     ShapedType,
     TensorType,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
-from xdsl.irdl import base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -87,27 +87,21 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             # retrieve z_dim from post_process arg[0]
             if isattr(
                 field_t := apply_op.post_process.block.args[0].type,
-                base(
-                    stencil.TempType[
-                        TensorType[Attribute] | memref.MemRefType[Attribute]
-                    ]
-                )
-                | base(
-                    stencil.FieldType[
-                        TensorType[Attribute] | memref.MemRefType[Attribute]
-                    ]
-                ),
+                stencil.StencilTypeConstr,
+            ) and isattr(
+                el_type := field_t.element_type,
+                AnyTensorTypeConstr | AnyMemRefTypeConstr,
             ):
                 # unbufferized csl_stencil
-                z_dim = max(z_dim, field_t.get_element_type().get_shape()[-1])
+                z_dim = max(z_dim, el_type.get_shape()[-1])
             elif isa(field_t, memref.MemRefType[Attribute]):
                 # bufferized csl_stencil
                 z_dim = max(z_dim, field_t.get_shape()[-1])
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
-            if isa(
+            if isattr(
                 buf_t := apply_op.chunk_reduce.block.args[0].type,
-                TensorType[Attribute] | MemRefType[Attribute],
+                AnyTensorTypeConstr | AnyMemRefTypeConstr,
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 
