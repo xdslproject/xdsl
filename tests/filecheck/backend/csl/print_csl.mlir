@@ -184,10 +184,10 @@
     %one = arith.constant 1 : i32
     %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
     %variable = "csl.variable"() : () -> !csl.var<i32>
-    %value = "csl.get_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
     %new_value = arith.addi %value, %one : i32
-    "csl.update_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
-    "csl.update_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
 
     csl.return
   }

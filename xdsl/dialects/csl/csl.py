@@ -403,8 +403,8 @@ class VariableOp(IRDLOperation):
 
 
 @irdl_op_definition
-class GetVarOp(IRDLOperation):
-    name = "csl.get_var"
+class LoadVarOp(IRDLOperation):
+    name = "csl.load_var"
     var = operand_def(VarType)
     res = result_def()
 
@@ -416,8 +416,8 @@ class GetVarOp(IRDLOperation):
 
 
 @irdl_op_definition
-class UpdateVarOp(IRDLOperation):
-    name = "csl.update_var"
+class StoreVarOp(IRDLOperation):
+    name = "csl.store_var"
     var = operand_def(VarType)
     new_value = operand_def()
 
@@ -1945,8 +1945,8 @@ CSL = Dialect(
         Xp162fsOp,
         ZerosOp,
         VariableOp,
-        GetVarOp,
-        UpdateVarOp,
+        LoadVarOp,
+        StoreVarOp,
     ],
     [
         ColorType,

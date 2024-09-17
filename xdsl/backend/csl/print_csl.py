@@ -823,11 +823,11 @@ class CslPrintContext:
                         else ""
                     )
                     self.print(f"{var}{init_val};")
-                case csl.GetVarOp(var=var, res=res):
+                case csl.LoadVarOp(var=var, res=res):
                     var = self._var_use(var)
                     const = self._var_use(res)
                     self.print(f"{const} = {var};")
-                case csl.UpdateVarOp(var=var, new_value=new_value):
+                case csl.StoreVarOp(var=var, new_value=new_value):
                     var = self._var_use(var)
                     other = self._var_use(new_value)
                     self.print(f"{var} = {other};")
