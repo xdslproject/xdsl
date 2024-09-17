@@ -42,36 +42,6 @@ class EClassOp(IRDLOperation):
 
         super().__init__(operands=[arguments], result_types=[res_type])
 
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_list(self.arguments, printer.print_ssa_value)
-        printer.print_op_attributes(self.attributes, print_keyword=True)
-        printer.print(" : ")
-        printer.print_attribute(self.arguments[0].type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> EClassOp:
-        pos = parser.pos
-        unresolved_operands = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
-        )
-
-        attrs = parser.parse_optional_attr_dict_with_keyword()
-
-        parser.parse_punctuation(":")
-
-        t = parser.parse_type()
-
-        operands = parser.resolve_operands(
-            unresolved_operands, (t,) * len(unresolved_operands), pos
-        )
-
-        op = EClassOp(*operands)
-        if attrs is not None:
-            op.attributes.update(attrs.data)
-
-        return op
-
 
 EqSat = Dialect(
     "eqsat",
