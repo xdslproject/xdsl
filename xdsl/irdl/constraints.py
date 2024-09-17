@@ -351,21 +351,24 @@ class ParamAttrConstraint(
     and also constrain its parameters with additional constraints.
     """
 
-    base_attr: type[ParametrizedAttributeCovT]
-    """The base attribute type."""
+    base_constr: BaseAttr[ParametrizedAttributeCovT]
+    """The base attribute type constraint."""
 
     param_constrs: tuple[GenericAttrConstraint[Attribute], ...]
     """The attribute parameter constraints"""
 
     def __init__(
         self,
-        base_attr: type[ParametrizedAttributeCovT],
+        base_attr: type[ParametrizedAttributeCovT]
+        | BaseAttr[ParametrizedAttributeCovT],
         param_constrs: Sequence[
             (Attribute | type[Attribute] | GenericAttrConstraint[Attribute])
         ],
     ):
+        if not isinstance(base_attr, BaseAttr):
+            base_attr = BaseAttr(base_attr)
         constrs = tuple(attr_constr_coercion(constr) for constr in param_constrs)
-        object.__setattr__(self, "base_attr", base_attr)
+        object.__setattr__(self, "base_constr", base_attr)
         object.__setattr__(self, "param_constrs", constrs)
 
     def verify(
@@ -373,9 +376,9 @@ class ParamAttrConstraint(
         attr: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if not isinstance(attr, self.base_attr):
+        if not isinstance(attr, self.base_constr.attr):
             raise VerifyException(
-                f"{attr} should be of base attribute {self.base_attr.name}"
+                f"{attr} should be of base attribute {self.base_constr.attr.name}"
             )
         if len(self.param_constrs) != len(attr.parameters):
             raise VerifyException(
@@ -395,8 +398,8 @@ class ParamAttrConstraint(
         }
 
     def get_unique_base(self) -> type[Attribute] | None:
-        if is_runtime_final(self.base_attr):
-            return self.base_attr
+        if is_runtime_final(self.base_constr.attr):
+            return self.base_constr.attr
         return None
 
 
