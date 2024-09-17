@@ -408,8 +408,8 @@ def irdl_to_attr_constraint(
 
         # Map the constraints in the attribute definition
         attr_def = origin.get_irdl_definition()
-        if attr_def is None:
-            assert False
+        # if attr_def is None:
+        #     assert False
         origin_constraints = [
             irdl_to_attr_constraint(
                 param, allow_type_var=True, type_var_mapping=type_var_mapping

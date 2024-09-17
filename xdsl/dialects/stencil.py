@@ -30,6 +30,7 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrSizedOperandSegments,
+    BaseAttr,
     ConstraintContext,
     ConstraintVar,
     IRDLOperation,
@@ -390,7 +391,7 @@ class TempType(
     name = "stencil.temp"
 
 
-StencilTypeConstr = base(FieldType[Attribute]) | base(TempType[Attribute])
+StencilTypeConstr = BaseAttr[StencilType[Attribute]](StencilType)
 
 AnyTempType: TypeAlias = TempType[Attribute]
 
@@ -854,7 +855,7 @@ class DynAccessOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            FieldType | TempType,
+            StencilTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -1010,7 +1011,7 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp = operand_def(
         ParamAttrConstraint(
-            TempType | FieldType,
+            StencilTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -1327,7 +1328,7 @@ class BufferOp(IRDLOperation):
     )
     res = result_def(
         ParamAttrConstraint(
-            FieldType | TempType,
+            StencilTypeConstr,
             [
                 MessageConstraint(
                     VarConstraint("B", AnyAttr()),
