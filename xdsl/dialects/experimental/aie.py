@@ -14,7 +14,6 @@ from typing import Generic
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     I32,
-    AnyAttr,
     AnyIntegerAttr,
     ArrayAttr,
     Block,
@@ -611,7 +610,7 @@ class DMAStartOp(IRDLOperation):
 @irdl_op_definition
 class DebugOp(IRDLOperation):
     name = "aie.debug"
-    arg = operand_def(AnyAttr())
+    arg = operand_def()
 
     def __init__(self, arg: Operation | SSAValue):
         super().__init__(operands=[arg])

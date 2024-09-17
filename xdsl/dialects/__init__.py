@@ -78,6 +78,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_eqsat():
+        from xdsl.dialects.eqsat import EqSat
+
+        return EqSat
+
     def get_fir():
         from xdsl.dialects.experimental.fir import FIR
 
@@ -323,6 +328,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
         "func": get_func,

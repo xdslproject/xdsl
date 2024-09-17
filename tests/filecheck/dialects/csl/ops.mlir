@@ -107,6 +107,15 @@ csl.func @initialize() {
     // this will fail as expected:
     // "csl.faddh"(%f32_ptr, %f16_val, %dsd_1d3)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
 
+
+    %one = "test.op"() : () -> i32
+    %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
+    %variable = "csl.variable"() : () -> !csl.var<i32>
+    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %new_value = arith.addi %value, %one : i32
+    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+
   csl.return
 }
 
@@ -391,6 +400,13 @@ csl.func @builtins() {
 // CHECK-NEXT:       %f16_ptr, %f16_val, %f32_ptr = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-NEXT:       "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-NEXT:       %one = "test.op"() : () -> i32
+// CHECK-NEXT:       %variable_with_default = "csl.variable"() <{"default" = 42 : i32}> : () -> !csl.var<i32>
+// CHECK-NEXT:       %variable = "csl.variable"() : () -> !csl.var<i32>
+// CHECK-NEXT:       %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %new_value = arith.addi %value, %one : i32
+// CHECK-NEXT:       "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+// CHECK-NEXT:       "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @builtins() {
@@ -628,6 +644,13 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %f16_ptr, %f16_val, %f32_ptr = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-GENERIC-NEXT:       "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-GENERIC-NEXT:       "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-GENERIC-NEXT:       %one = "test.op"() : () -> i32
+// CHECK-GENERIC-NEXT:       %variable_with_default = "csl.variable"() <{"default" = 42 : i32}> : () -> !csl.var<i32>
+// CHECK-GENERIC-NEXT:       %variable = "csl.variable"() : () -> !csl.var<i32>
+// CHECK-GENERIC-NEXT:       %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+// CHECK-GENERIC-NEXT:       %new_value = "arith.addi"(%value, %one) : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:       "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+// CHECK-GENERIC-NEXT:       "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.func"() <{"sym_name" = "builtins", "function_type" = () -> ()}> ({

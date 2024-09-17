@@ -20,7 +20,6 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
@@ -116,7 +115,7 @@ class For(IRDLOperation):
     lowerBoundOperands = var_operand_def(IndexType)
     upperBoundOperands = var_operand_def(IndexType)
     inits = var_operand_def()
-    res = var_result_def(AnyAttr())
+    res = var_result_def()
 
     lowerBoundMap = prop_def(AffineMapAttr)
     upperBoundMap = prop_def(AffineMapAttr)
@@ -353,7 +352,7 @@ class MinOp(IRDLOperation):
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
     traits = frozenset([IsTerminator(), Pure()])
 
