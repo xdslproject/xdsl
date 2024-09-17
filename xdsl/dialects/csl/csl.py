@@ -416,7 +416,7 @@ class VariableOp(IRDLOperation):
             self.default.type != self.res.type.get_element_type()
         ):
             raise VerifyException(
-                "The type of the default value has to be the same as the type of the result, if the supplied is present"
+                "The type of the default value has to be the same as the type of the result, if the former is supplied"
             )
         return super().verify_()
 
