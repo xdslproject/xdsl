@@ -381,14 +381,23 @@ ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
 
 @irdl_op_definition
 class VariableOp(IRDLOperation):
+    """
+    Declares a variable.
+
+    The variable cannot be mutated directly. SSA values of the variable have to
+    be loaded and stored using LoadVarOp and StoreVarOp.
+
+    This is similar to how `memref` works.
+    """
+
     name = "csl.variable"
 
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
     def get_element_type(self):
-        assert isinstance(self.res, VarType)
-        return self.res.get_element_type()
+        assert isinstance(self.res.type, VarType)
+        return self.res.type.get_element_type()
 
     @staticmethod
     def from_type(child_type: TypeAttribute) -> VariableOp:
@@ -401,9 +410,24 @@ class VariableOp(IRDLOperation):
             result_types=[VarType([value.type])],
         )
 
+    def verify_(self) -> None:
+        assert isinstance(self.res.type, VarType)
+        if self.default is not None and (
+            self.default.type != self.res.type.get_element_type()
+        ):
+            raise VerifyException(
+                "The type of the default value has to be the same as the type of the result, if the supplied is present"
+            )
+        return super().verify_()
+
 
 @irdl_op_definition
 class LoadVarOp(IRDLOperation):
+    """
+    Obtain the SSA value of a CSL variable. The obtained value itself is not
+    modifiable, but it can be stored in the variable using `StoreVarOp`.
+    """
+
     name = "csl.load_var"
     var = operand_def(VarType)
     res = result_def()
@@ -414,9 +438,21 @@ class LoadVarOp(IRDLOperation):
             result_types=[var.get_element_type()],
         )
 
+    def verify_(self) -> None:
+        assert isinstance(self.var.type, VarType)
+        if self.var.type.get_element_type() != self.res.type:
+            raise VerifyException(
+                "Result type of the load has to match the child type of the variable"
+            )
+        return super().verify_()
+
 
 @irdl_op_definition
 class StoreVarOp(IRDLOperation):
+    """
+    Update the value of a variable.
+    """
+
     name = "csl.store_var"
     var = operand_def(VarType)
     new_value = operand_def()
