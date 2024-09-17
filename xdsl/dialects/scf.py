@@ -731,6 +731,16 @@ class IndexSwitchOp(IRDLOperation):
             result_types=(result_types,),
         )
 
+    def _verify_region(self, region: Region, name: str):
+        yield_op = region.block.last_op
+        assert isinstance(yield_op, Yield)
+
+        if yield_op.operand_types != self.result_types:
+            raise VerifyException(
+                f'region {name} returns values of types ({", ".join(str(x) for x in yield_op.operand_types)})'
+                f' but expected ({", ".join(str(x) for x in self.result_types)})'
+            )
+
     def verify_(self) -> None:
         if self.cases.elt_type != i64:
             raise VerifyException("case values should have type i64")
@@ -744,19 +754,9 @@ class IndexSwitchOp(IRDLOperation):
         if len(set(cases)) != len(cases):
             raise VerifyException("has duplicate case value")
 
-        def verify_region(region: Region, name: str):
-            yield_op = region.block.last_op
-            assert isinstance(yield_op, Yield)
-
-            if yield_op.operand_types != self.result_types:
-                raise VerifyException(
-                    f'region {name} returns values of types ({", ".join(str(x) for x in yield_op.operand_types)})'
-                    f' but expected ({", ".join(str(x) for x in self.result_types)})'
-                )
-
-        verify_region(self.default_region, "default")
+        self._verify_region(self.default_region, "default")
         for name, region in zip(cases, self.case_regions):
-            verify_region(region, str(name.data))
+            self._verify_region(region, str(name.data))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
