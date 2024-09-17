@@ -1577,6 +1577,7 @@ class MemRefType(
 
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
+AnyMemRefTypeConstr = base(AnyMemRefType)
 
 
 @irdl_attr_definition
