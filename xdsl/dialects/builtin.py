@@ -106,6 +106,11 @@ class AnyShapedType(AttrConstraint):
         if not isinstance(attr, ShapedType):
             raise Exception(f"expected type ShapedType but got {attr}")
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> AnyShapedType:
+        return self
+
 
 _ContainerElementTypeT = TypeVar(
     "_ContainerElementTypeT", bound=Attribute | None, covariant=True
@@ -142,6 +147,15 @@ class ArrayOfConstraint(AttrConstraint):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         for e in cast(ArrayAttr[Attribute], attr).data:
             self.elem_constr.verify(e, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> ArrayOfConstraint:
+        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
+        if mapped_constraint is self.elem_constr:
+            return self
+        else:
+            return ArrayOfConstraint(mapped_constraint)
 
 
 @irdl_attr_definition
@@ -271,6 +285,11 @@ class EmptyArrayAttrConstraint(AttrConstraint):
         attr = cast(ArrayAttr[Attribute], attr)
         if attr.data:
             raise VerifyException(f"expected empty array, but got {attr}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> EmptyArrayAttrConstraint:
+        return self
 
 
 FlatSymbolRefAttrConstraint = MessageConstraint(
@@ -828,6 +847,15 @@ class ContainerOf(AttrConstraint):
         else:
             self.elem_constr.verify(attr, constraint_context)
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> ContainerOf:
+        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
+        if mapped_constraint is self.elem_constr:
+            return self
+        else:
+            return ContainerOf(mapped_constraint)
+
 
 VectorOrTensorOf: TypeAlias = (
     VectorType[AttributeCovT]
@@ -855,6 +883,11 @@ class VectorRankConstraint(AttrConstraint):
                 f"Expected vector rank to be {self.expected_rank}, got {attr.get_num_dims()}."
             )
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> VectorRankConstraint:
+        return self
+
 
 @dataclass(frozen=True)
 class VectorBaseTypeConstraint(AttrConstraint):
@@ -875,6 +908,11 @@ class VectorBaseTypeConstraint(AttrConstraint):
             raise VerifyException(
                 f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
             )
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> VectorBaseTypeConstraint:
+        return self
 
 
 @dataclass(frozen=True)
@@ -897,6 +935,11 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
             )
         )
         constraint.verify(attr, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> VectorBaseTypeAndRankConstraint:
+        return self
 
 
 @irdl_attr_definition
@@ -1050,7 +1093,7 @@ class MemrefLayoutAttr(Attribute, ABC):
         layout to the element offset in linear memory. The resulting
         affine map thus has only one result.
         """
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_strides(self) -> Sequence[int | None] | None:
         """
@@ -1575,6 +1618,7 @@ class MemRefType(
 
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
+AnyMemRefTypeConstr = base(AnyMemRefType)
 
 
 @irdl_attr_definition

@@ -27,6 +27,7 @@ from xdsl.dialects.stencil import (
     ReturnOp,
     StencilBoundsAttr,
     StencilType,
+    StencilTypeConstr,
     StoreOp,
     StoreResultOp,
     TempType,
@@ -54,6 +55,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -458,7 +460,7 @@ class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-        assert isa(temp, StencilType[Attribute])
+        assert isattr(temp, StencilTypeConstr)
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
         memref_offset = op.offset
@@ -648,7 +650,9 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 class StencilTypeConversion(TypeConversionPattern):
     @attr_type_rewrite_pattern
-    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+    def convert_type(
+        self, typ: FieldType[Attribute] | TempType[Attribute]
+    ) -> MemRefType[Attribute]:
         return StencilToMemRefType(typ)
 
 

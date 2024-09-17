@@ -17,7 +17,6 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
@@ -47,9 +46,9 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class While(IRDLOperation):
     name = "scf.while"
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
-    res = var_result_def(AnyAttr())
+    res = var_result_def()
     before_region = region_def()
     after_region = region_def()
 
@@ -164,7 +163,7 @@ class Yield(AbstractYieldOperation[Attribute]):
 @irdl_op_definition
 class If(IRDLOperation):
     name = "scf.if"
-    output = var_result_def(AnyAttr())
+    output = var_result_def()
     cond = operand_def(IntegerType(1))
 
     true_region = region_def("single_block")
@@ -283,9 +282,9 @@ class For(IRDLOperation):
     ub = operand_def(T)
     step = operand_def(T)
 
-    iter_args = var_operand_def(AnyAttr())
+    iter_args = var_operand_def()
 
-    res = var_result_def(AnyAttr())
+    res = var_result_def()
 
     body = region_def("single_block")
 
@@ -452,8 +451,8 @@ class ParallelOp(IRDLOperation):
     lowerBound = var_operand_def(IndexType)
     upperBound = var_operand_def(IndexType)
     step = var_operand_def(IndexType)
-    initVals = var_operand_def(AnyAttr())
-    res = var_result_def(AnyAttr())
+    initVals = var_operand_def()
+    res = var_result_def()
 
     body = region_def("single_block")
 
@@ -576,7 +575,7 @@ class ParallelOp(IRDLOperation):
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
     name = "scf.reduce"
-    argument = operand_def(AnyAttr())
+    argument = operand_def()
 
     body = region_def("single_block")
 
@@ -626,7 +625,7 @@ class ReduceOp(IRDLOperation):
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
-    result = operand_def(AnyAttr())
+    result = operand_def()
 
     traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
 
@@ -638,7 +637,7 @@ class ReduceReturnOp(IRDLOperation):
 class Condition(IRDLOperation):
     name = "scf.condition"
     cond = operand_def(IntegerType(1))
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
     traits = frozenset([HasParent(While), IsTerminator(), Pure()])
 

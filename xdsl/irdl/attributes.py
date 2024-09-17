@@ -321,7 +321,11 @@ def irdl_to_attr_constraint(
                 if type_var_mapping is None
                 else type_var_mapping.get(irdl.type_var, irdl.constraint)
             )
-        return cast(AttrConstraint, irdl)
+        irdl = cast(AttrConstraint, irdl)
+        if type_var_mapping is None:
+            return irdl
+        else:
+            return irdl.mapping_type_vars(type_var_mapping)
 
     if isinstance(irdl, Attribute):
         return EqAttrConstraint(irdl)
@@ -402,14 +406,15 @@ def irdl_to_attr_constraint(
             parameter: arg for parameter, arg in zip(generic_args, args)
         }
 
-        # bla
-
-        origin_parameters = irdl_param_attr_get_param_type_hints(origin)
+        # Map the constraints in the attribute definition
+        attr_def = origin.get_irdl_definition()
+        if attr_def is None:
+            assert False
         origin_constraints = [
             irdl_to_attr_constraint(
                 param, allow_type_var=True, type_var_mapping=type_var_mapping
             )
-            for _, param in origin_parameters
+            for _, param in attr_def.parameters
         ]
         return ParamAttrConstraint(origin, origin_constraints)
 

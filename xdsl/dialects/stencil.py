@@ -69,6 +69,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
@@ -388,6 +389,8 @@ class TempType(
 
     name = "stencil.temp"
 
+
+StencilTypeConstr = base(FieldType[Attribute]) | base(TempType[Attribute])
 
 AnyTempType: TypeAlias = TempType[Attribute]
 
@@ -851,7 +854,7 @@ class DynAccessOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            StencilType,
+            FieldType | TempType,
             [
                 Attribute,
                 MessageConstraint(
@@ -1007,7 +1010,17 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp = operand_def(
         ParamAttrConstraint(
-            StencilType,
+            TempType,
+            [
+                Attribute,
+                MessageConstraint(
+                    VarConstraint("T", AnyAttr()),
+                    "Expected return type to match the accessed temp's element type.",
+                ),
+            ],
+        )
+        | ParamAttrConstraint(
+            FieldType,
             [
                 Attribute,
                 MessageConstraint(
@@ -1093,7 +1106,7 @@ class AccessOp(IRDLOperation):
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isa(res_type, StencilType[Attribute]):
+        if not isattr(res_type, StencilTypeConstr):
             parser.raise_error(
                 "Expected return type to be a stencil.temp or stencil.field"
             )
@@ -1141,7 +1154,7 @@ class AccessOp(IRDLOperation):
         apply.verify_()
 
         temp_type = self.temp.type
-        assert isa(temp_type, StencilType[Attribute])
+        assert isattr(temp_type, StencilTypeConstr)
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
@@ -1324,7 +1337,7 @@ class BufferOp(IRDLOperation):
     )
     res = result_def(
         ParamAttrConstraint(
-            StencilType,
+            FieldType | TempType,
             [
                 MessageConstraint(
                     VarConstraint("B", AnyAttr()),

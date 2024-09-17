@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     attr_def,
@@ -43,7 +42,7 @@ class Branch(IRDLOperation):
 
     name = "cf.br"
 
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
     successor = successor_def()
 
     traits = frozenset([IsTerminator()])
@@ -61,8 +60,8 @@ class ConditionalBranch(IRDLOperation):
     name = "cf.cond_br"
 
     cond = operand_def(IntegerType(1))
-    then_arguments = var_operand_def(AnyAttr())
-    else_arguments = var_operand_def(AnyAttr())
+    then_arguments = var_operand_def()
+    else_arguments = var_operand_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 

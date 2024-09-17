@@ -393,6 +393,11 @@ class PositiveIntConstr(AttrConstraint):
         if attr.data <= 0:
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> PositiveIntConstr:
+        return self
+
 
 @irdl_attr_definition
 class PositiveIntAttr(ParametrizedAttribute):
@@ -668,6 +673,15 @@ class DataListAttr(AttrConstraint):
         attr = cast(ListData[Attribute], attr)
         for e in attr.data:
             self.elem_constr.verify(e, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> DataListAttr:
+        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
+        if mapped_constraint is self.elem_constr:
+            return self
+        else:
+            return DataListAttr(mapped_constraint)
 
 
 @irdl_attr_definition

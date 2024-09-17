@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
+from xdsl.irdl import base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -23,6 +24,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms import csl_stencil_bufferize
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @dataclass(frozen=True)
@@ -83,11 +85,18 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 )
 
             # retrieve z_dim from post_process arg[0]
-            if isa(
+            if isattr(
                 field_t := apply_op.post_process.block.args[0].type,
-                stencil.StencilType[
-                    TensorType[Attribute] | memref.MemRefType[Attribute]
-                ],
+                base(
+                    stencil.TempType[
+                        TensorType[Attribute] | memref.MemRefType[Attribute]
+                    ]
+                )
+                | base(
+                    stencil.FieldType[
+                        TensorType[Attribute] | memref.MemRefType[Attribute]
+                    ]
+                ),
             ):
                 # unbufferized csl_stencil
                 z_dim = max(z_dim, field_t.get_element_type().get_shape()[-1])
