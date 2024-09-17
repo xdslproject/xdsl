@@ -180,6 +180,17 @@
     csl.return
   }
 
+  csl.func @variables() {
+    %one = arith.constant 1 : i32
+    %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
+    %variable = "csl.variable"() : () -> !csl.var<i32>
+    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %new_value = arith.addi %value, %one : i32
+    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+
+    csl.return
+  }
 
   "memref.global"() {"sym_name" = "uninit_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value"} : () -> ()
   "memref.global"() {"sym_name" = "global_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value" = dense<4.2> : tensor<1xf32>} : () -> ()
@@ -598,6 +609,15 @@ csl.func @builtins() {
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: task control_task_no_bind() void {
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn variables() void {
+// CHECK-NEXT:   var variable_with_default : i32 = 42;
+// CHECK-NEXT:   var variable : i32;
+// CHECK-NEXT:   const value : i32 = variable_with_default;
+// CHECK-NEXT:   variable_with_default = (value + 1);
+// CHECK-NEXT:   variable = (value + 1);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: var uninit_array : [10]f32;
