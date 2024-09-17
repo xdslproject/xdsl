@@ -19,7 +19,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     attr_def,
     base,
@@ -265,7 +264,7 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
     name = "toy.generic_call"
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
     callee = attr_def(SymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
@@ -351,7 +350,7 @@ class PrintOp(IRDLOperation):
     """
 
     name = "toy.print"
-    input = operand_def(AnyAttr())
+    input = operand_def()
 
     def __init__(self, input: SSAValue):
         return super().__init__(operands=[input])

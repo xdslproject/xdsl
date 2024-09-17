@@ -2,7 +2,6 @@ import pytest
 
 from xdsl.context import MLContext
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     irdl_op_definition,
     var_operand_def,
@@ -15,8 +14,8 @@ from xdsl.utils.exceptions import ParseError
 @irdl_op_definition
 class UnknownOp(IRDLOperation):
     name = "test.unknown"
-    ops = var_operand_def(AnyAttr())
-    res = var_result_def(AnyAttr())
+    ops = var_operand_def()
+    res = var_result_def()
 
 
 def check_error(prog: str, line: int, column: int, message: str):

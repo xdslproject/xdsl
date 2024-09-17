@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     irdl_op_definition,
     operand_def,
@@ -86,7 +85,7 @@ class Store(IRDLOperation):
 @irdl_op_definition
 class Broadcast(IRDLOperation):
     name = "vector.broadcast"
-    source = operand_def(AnyAttr())
+    source = operand_def()
     vector = result_def(VectorType)
     traits = frozenset((Pure(),))
 
@@ -262,7 +261,7 @@ class Maskedstore(IRDLOperation):
 @irdl_op_definition
 class Print(IRDLOperation):
     name = "vector.print"
-    source = operand_def(AnyAttr())
+    source = operand_def()
 
     @staticmethod
     def get(source: Operation | SSAValue) -> Print:
