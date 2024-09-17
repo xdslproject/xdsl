@@ -424,6 +424,8 @@ class CslPrintContext:
                 return "color"
             case csl.DsdType() as dsd:
                 return dsd.data
+            case csl.VarType() as v:
+                return self.mlir_type_to_csl_type(v.get_element_type())
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -813,6 +815,22 @@ class CslPrintContext:
                     self.print(
                         f"@{op.name.removeprefix('csl.')}({', '.join(map(self._get_variable_name_for, ops))});"
                     )
+                case csl.VariableOp(default=default, res=res):
+                    var = self._var_use(res, "var")
+                    init_val = (
+                        f" = {self.attribute_value_to_str(default)}"
+                        if default is not None
+                        else ""
+                    )
+                    self.print(f"{var}{init_val};")
+                case csl.GetVarOp(var=var, res=res):
+                    var = self._var_use(var)
+                    const = self._var_use(res)
+                    self.print(f"{const} = {var};")
+                case csl.UpdateVarOp(var=var, new_value=new_value):
+                    var = self._var_use(var)
+                    other = self._var_use(new_value)
+                    self.print(f"{var} = {other};")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
