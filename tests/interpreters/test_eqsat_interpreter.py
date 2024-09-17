@@ -110,7 +110,7 @@ def swap_arguments_pdl():
                 StringAttr("arith.addi"), operand_values=[x, y], type_values=[pdl_type]
             ).op
 
-            with ImplicitBuilder(pdl.RewriteOp(x_y_z_op).body):
+            with ImplicitBuilder(pdl.RewriteOp(x_y_op).body):
                 y_x_op = pdl.OperationOp(
                     StringAttr("arith.addi"),
                     operand_values=[y, x],
