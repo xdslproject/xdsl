@@ -7,9 +7,9 @@
 %v0, %v1 = "test.op"() : () -> (index, index)
 
 // CHECK-NEXT:    %r0 = eqsat.eclass %v0 : index
-// CHECK-NEXT:    %r1 = eqsat.eclass %v0, %v1 attributes {"hello" = "world"} : index
+// CHECK-NEXT:    %r1 = eqsat.eclass %v0, %v1 {"hello" = "world"} : index
 %r0 = eqsat.eclass %v0 : index
-%r1 = eqsat.eclass %v0, %v1 attributes {"hello"="world"} : index
+%r1 = eqsat.eclass %v0, %v1 {"hello"="world"} : index
 
 // CHECK-NEXT:  }
 

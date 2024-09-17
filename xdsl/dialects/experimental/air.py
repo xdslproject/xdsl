@@ -31,7 +31,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
@@ -333,9 +332,8 @@ class ExecuteOp(IRDLOperation):
 class ExecuteTerminatorOp(IRDLOperation):
     name = "air.execute_terminator"
 
-    results_op = var_operand_def(
-        AnyAttr()
-    )  # even though this is an operand they decided to name it "result" in the original specification
+    # even though this is an operand they decided to name it "result" in the original specification
+    results_op = var_operand_def()
 
     traits = frozenset([HasParent(ExecuteOp), IsTerminator()])
 
@@ -369,7 +367,7 @@ class HerdOp(IRDLOperation):
     sym_name = opt_prop_def(StringAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
-    herd_operands = var_operand_def(AnyAttr())
+    herd_operands = var_operand_def()
     async_token = opt_result_def(AsyncTokenAttr)
     region = opt_region_def()
 
@@ -517,7 +515,7 @@ class LaunchOp(IRDLOperation):
     sym_name = opt_prop_def(StringAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
-    launch_operands = var_operand_def(AnyAttr())
+    launch_operands = var_operand_def()
     async_token = result_def(AsyncTokenAttr)
     body = opt_region_def()
 
@@ -674,7 +672,7 @@ class PipelineStageOp(IRDLOperation):
     name = "air.pipeline.stage"
 
     opers = var_operand_def(Attribute)
-    result = var_result_def(AnyAttr())
+    result = var_result_def()
 
     body = opt_region_def()
 
@@ -751,7 +749,7 @@ class SegmentOp(IRDLOperation):
     sym_name = opt_prop_def(StringAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
-    segment_operands = var_operand_def(AnyAttr())
+    segment_operands = var_operand_def()
     async_token = result_def(AsyncTokenAttr)
 
     body = opt_region_def()
