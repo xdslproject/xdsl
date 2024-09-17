@@ -179,5 +179,3 @@
 #                 pdl.ReplaceOp(x_y_z_op, z_x_y_op)
 #
 #     return pdl_module
-
-
