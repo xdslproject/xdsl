@@ -46,8 +46,6 @@ from xdsl.pattern_rewriter import (
 """
 
 
-
-
 class SwapInputs(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter, /):
@@ -138,5 +136,3 @@ def swap_arguments_pdl():
                 pdl.ReplaceOp(x_y_op, y_x_op)
 
     return pdl_module
-
-
