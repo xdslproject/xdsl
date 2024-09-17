@@ -124,7 +124,7 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.StencilType[Attribute])
+        stencil.StencilTypeConstr
         | base(memref.MemRefType[Attribute])
         | base(TensorType[Attribute])
     )
@@ -203,7 +203,7 @@ class ApplyOp(IRDLOperation):
     name = "csl_stencil.apply"
 
     communicated_stencil = operand_def(
-        base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
+        stencil.StencilTypeConstr | base(memref.MemRefType[Attribute])
     )
 
     iter_arg = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
@@ -222,7 +222,7 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
-    res = var_result_def(stencil.StencilType)
+    res = var_result_def(stencil.StencilTypeConstr)
 
     traits = frozenset(
         [
@@ -377,7 +377,7 @@ class ApplyOp(IRDLOperation):
             res_type = self.dest[0].type
         else:
             res_type = self.res[0].type
-        if isa(res_type, stencil.StencilType[Attribute]):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return res_type.get_num_dims()
         elif self.bounds:
             return len(self.bounds.ub)
@@ -424,7 +424,7 @@ class AccessOp(IRDLOperation):
 
     name = "csl_stencil.access"
     op = operand_def(
-        base(AnyMemRefType) | base(stencil.StencilType) | base(TensorType[Attribute])
+        base(AnyMemRefType) | stencil.StencilTypeConstr | base(TensorType[Attribute])
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
@@ -503,7 +503,7 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if isa(res_type, stencil.StencilType[Attribute]):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return cls.build(
                 operands=[temp],
                 result_types=[res_type.get_element_type()],
@@ -536,7 +536,7 @@ class AccessOp(IRDLOperation):
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
                     )
-            elif isa(self.op.type, stencil.StencilType[Attribute]):
+            elif isattr(self.op.type, stencil.StencilTypeConstr):
                 if not self.result.type == self.op.type.get_element_type():
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
