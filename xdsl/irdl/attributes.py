@@ -315,12 +315,6 @@ def irdl_to_attr_constraint(
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
-        if isinstance(irdl, TypeVarConstraint):
-            return (
-                irdl.constraint
-                if type_var_mapping is None
-                else type_var_mapping.get(irdl.type_var, irdl.constraint)
-            )
         irdl = cast(AttrConstraint, irdl)
         if type_var_mapping is None:
             return irdl
