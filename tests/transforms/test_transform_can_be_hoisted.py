@@ -1,6 +1,5 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import func, scf, test
-from xdsl.dialects.arith import Addf
+from xdsl.dialects import func, test
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -50,50 +49,29 @@ def test_for_with_loop_invariant_verify():
 def test_invariant_loop_dialect():
     """Test for with loop-variant variables"""
     # Create constants
-
-    ci0 = test.TestOp(result_types=[i32])
-    cf7 = test.TestOp(result_types=[f32])
-    cf8 = test.TestOp(result_types=[f32])
-    ci10 = test.TestOp(result_types=[i32])
-    ci1 = test.TestOp(result_types=[i32])
-    co0 = test.TestOp(result_types=[i32])
-    co1 = test.TestOp(result_types=[i32])
-    coi = test.TestOp(result_types=[i32])
-    block = Block(
-        arg_types=(
-            index,
-            index,
-        )
-    )
-    block1 = Block(
-        arg_types=(
-            index,
-            index,
-        )
-    )
-    region_inner = Region(block)
-    with ImplicitBuilder(block) as (_arg0, _):
-        op1 = test.TestOp(result_types=[i32])
-        # Test operation inside the loop
-        hello = test.TestOp([op1], result_types=[i32])
-        test.TestOp([hello], result_types=[])
-        # Floating-point addition inside the loop
-        v0 = Addf(cf7, cf8)
-
-    region = Region(block1)
-    with ImplicitBuilder(block1) as (_arg1, _):
-        scf.For(ci0, ci10, ci1, [], region_inner)
-
-    for_op = For(co0, co1, coi, [], region)
-    body0 = Block([cf7, cf8, for_op])
-    region_outer = Region(body0)
+    outer_region = Region([Block()])
+    with ImplicitBuilder(outer_region):
+        ci32, cf32 = test.TestOp(result_types=[i32, f32]).results
+        outer_for = For(ci32, ci32, ci32, [], Region(Block(arg_types=[index, index])))
+        with ImplicitBuilder(outer_for.body) as (_outer_i, _):
+            inner_for = For(
+                ci32, ci32, ci32, [], Region(Block(arg_types=[index, index]))
+            )
+            with ImplicitBuilder(inner_for.body) as (_inner_i, _):
+                # Self contained Op
+                no_args = test.TestOp(result_types=[i32])
+                # Op with external dependency
+                dep_on_outer = test.TestOp([ci32], result_types=[i32])
+                args_in_inner = test.TestOp([no_args], result_types=[i32])
+                no_results = test.TestOp([args_in_inner], result_types=[])
     func_type = FunctionType.from_lists([], [])
-    function = func.FuncOp("invariant_loop_dialect", func_type, region_outer)
-
+    function = func.FuncOp("invariant_loop_dialect", func_type, outer_region)
     # Wrap all in a ModuleOp
     _mod = ModuleOp([function])
-    assert can_be_hoisted(op1, region)
-    assert not can_be_hoisted(hello, region)
-    assert can_be_hoisted(cf7, region_outer)
-    assert can_be_hoisted(cf8, region_outer)
-    assert can_be_hoisted(v0, region)
+
+    assert can_be_hoisted(no_args, inner_for.body)
+    assert not can_be_hoisted(args_in_inner, inner_for.body)
+    assert not can_be_hoisted(no_results, inner_for.body)
+    assert can_be_hoisted(dep_on_outer, inner_for.body)
+    assert can_be_hoisted(ci32.op, outer_for.body)
+    assert can_be_hoisted(cf32.op, outer_for.body)

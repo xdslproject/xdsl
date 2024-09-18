@@ -22,8 +22,7 @@ def can_be_hoisted(op: Operation, target_region: Region) -> bool | None:
     """
     Checks whether the given op can be hoisted by checking that
     - the op and none of its contained operations depend on values inside of the
-     loop (by means of calling definedOutside).
-    - the op has no side-effects.
+     loop.
     """
     #  Do not move terminators.
     if op.has_trait(IsTerminator):
