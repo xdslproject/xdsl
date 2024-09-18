@@ -1052,7 +1052,7 @@ class MemrefLayoutAttr(Attribute, ABC):
         layout to the element offset in linear memory. The resulting
         affine map thus has only one result.
         """
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_strides(self) -> Sequence[int | None] | None:
         """
