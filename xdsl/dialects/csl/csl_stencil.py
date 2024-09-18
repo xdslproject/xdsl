@@ -6,6 +6,8 @@ from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyMemRefType,
+    AnyMemRefTypeConstr,
+    AnyTensorTypeConstr,
     IndexType,
     MemRefType,
     TensorType,
@@ -124,16 +126,14 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        stencil.StencilTypeConstr
-        | base(memref.MemRefType[Attribute])
-        | base(TensorType[Attribute])
+        stencil.StencilTypeConstr | AnyMemRefTypeConstr | AnyTensorTypeConstr
     )
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    result = result_def(memref.MemRefType | TensorType)
+    result = result_def(AnyMemRefTypeConstr | AnyTensorTypeConstr)
 
     def __init__(
         self,
@@ -202,14 +202,12 @@ class ApplyOp(IRDLOperation):
 
     name = "csl_stencil.apply"
 
-    communicated_stencil = operand_def(
-        stencil.StencilTypeConstr | base(memref.MemRefType[Attribute])
-    )
+    communicated_stencil = operand_def(stencil.StencilTypeConstr | AnyMemRefTypeConstr)
 
-    iter_arg = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
+    iter_arg = operand_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
     args = var_operand_def(Attribute)
-    dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
+    dest = var_operand_def(stencil.FieldTypeConstr | AnyMemRefTypeConstr)
 
     chunk_reduce = region_def()
     post_process = region_def()
@@ -334,8 +332,9 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert isa(
-            self.iter_arg.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+        assert isattr(
+            self.iter_arg.type,
+            AnyTensorTypeConstr | AnyMemRefTypeConstr,
         )
         chunk_reduce_req_types = [
             type(self.iter_arg.type)(
@@ -428,7 +427,7 @@ class AccessOp(IRDLOperation):
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType | AnyMemRefType)
+    result = result_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
     traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
 
@@ -546,9 +545,7 @@ class AccessOp(IRDLOperation):
                     f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
         else:
-            if not isa(
-                self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]
-            ):
+            if not isattr(self.op.type, AnyTensorTypeConstr | AnyMemRefTypeConstr):
                 raise VerifyException(
                     f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
                 )

@@ -9,6 +9,7 @@ from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
+    AnyMemRefTypeConstr,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -392,6 +393,8 @@ class TempType(
 
 
 StencilTypeConstr = BaseAttr[StencilType[Attribute]](StencilType)
+FieldTypeConstr = BaseAttr[FieldType[Attribute]](FieldType)
+TempTypeConstr = BaseAttr[TempType[Attribute]](TempType)
 
 AnyTempType: TypeAlias = TempType[Attribute]
 
@@ -915,7 +918,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | base(memref.MemRefType[Attribute]))
+    result = result_def(base(FieldType[Attribute]) | AnyMemRefTypeConstr)
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
