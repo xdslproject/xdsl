@@ -59,6 +59,7 @@ builtin.module {
         }) to <[0, 0], [1, 1]>
         scf.yield %arg4, %arg3 : memref<512xf32>, memref<512xf32>
       }
+      "csl.member_call"(%33) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
       csl.return
     }
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
