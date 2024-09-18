@@ -405,7 +405,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_bufferize.StencilBufferize
 
-    def get_create_eclasses():
+    def get_eqsat_create_eclasses():
         from xdsl.transforms import eqsat_create_eclasses
 
         return eqsat_create_eclasses.EqsatCreateEclasses
@@ -488,7 +488,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "stencil-bufferize": get_stencil_bufferize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
-        "eqsat-create-eclasses": get_create_eclasses,
+        "eqsat-create-eclasses": get_eqsat_create_eclasses,
     }
 
 
