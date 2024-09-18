@@ -431,6 +431,10 @@ csl.func @builtins() {
   "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
+  csl.activate data, 0 : i32
+  csl.activate local, 1 : i32
+  csl.activate control, 42 : i32
+
   csl.return
 }
 
@@ -791,6 +795,9 @@ csl.func @builtins() {
 // CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, src_dsd2);
 // CHECK-NEXT:   @xp162fh(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @activate(@get_data_task_id(0));
+// CHECK-NEXT:   @activate(@get_local_task_id(1));
+// CHECK-NEXT:   @activate(@get_control_task_id(42));
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // -----
