@@ -104,6 +104,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         )
 
         no_params = FunctionType.from_lists([], [])
+        cond_task_id = self.counter + 1
 
         pre_block = op.parent_block()
         if pre_block is None:
@@ -117,7 +118,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             f"for_cond{self.counter}",
             no_params,
             task_kind=csl.TaskKind.LOCAL,
-            id=self.counter + 1,
+            id=cond_task_id,
         )
         body_func = csl.FuncOp(f"for_body{self.counter}", no_params)
         inc_func = csl.FuncOp(f"for_inc{self.counter}", no_params)
@@ -134,7 +135,8 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         with ImplicitBuilder(pre_block):
             for dst, src in zip(iter_vars, op.iter_args):
                 csl.StoreVarOp(dst, src)
-            csl.CallOp(SymbolRefAttr(cond_func.sym_name))
+            csl.ActivateOp(cond_task_id, csl.TaskKind.LOCAL)
+            # csl.CallOp(SymbolRefAttr(cond_func.sym_name))
             csl.ReturnOp()
 
         # for-loop condition func
@@ -145,8 +147,10 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             branch = scf.If(cond, [], Region(Block()), Region(Block()))
             with ImplicitBuilder(branch.true_region):
                 csl.CallOp(SymbolRefAttr(body_func.sym_name))
+                scf.Yield()
             with ImplicitBuilder(branch.false_region):
                 csl.CallOp(SymbolRefAttr(post_func.sym_name))
+                scf.Yield()
             csl.ReturnOp()
 
         # for-loop inc func
@@ -161,7 +165,8 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
                     op.body.block.args.index(yielded_var) - 1
                 )  # subtract 1 as the first block arg is the loop var
                 csl.StoreVarOp(iter_var, load_vars[idx])
-            csl.CallOp(SymbolRefAttr(cond_func.sym_name))
+            csl.ActivateOp(cond_task_id, csl.TaskKind.LOCAL)
+            # csl.CallOp(SymbolRefAttr(cond_func.sym_name))
             csl.ReturnOp()
 
         # for-loop body func
@@ -208,7 +213,10 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
 @dataclass(frozen=True)
 class CslStencilHandleAsyncControlFlow(ModulePass):
-    """ """
+    """
+    Handles the async control flow of csl_stencil.apply and any enclosing loops
+    by translating control flow into a csl.func call graph.
+    """
 
     name = "csl-stencil-handle-async-flow"
 

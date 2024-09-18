@@ -400,7 +400,7 @@ class VariableOp(IRDLOperation):
         return self.res.type.get_element_type()
 
     @staticmethod
-    def from_type(child_type: TypeAttribute) -> VariableOp:
+    def from_type(child_type: Attribute) -> VariableOp:
         return VariableOp(result_types=[VarType([child_type])])
 
     @staticmethod
@@ -957,6 +957,18 @@ class CallOp(IRDLOperation):
     callee = prop_def(SymbolRefAttr)
     args = var_operand_def(Attribute)
     result = opt_result_def(Attribute)
+
+    def __init__(
+        self,
+        callee: SymbolRefAttr,
+        args: Sequence[SSAValue | Operation] | None = None,
+        result: Attribute | None = None,
+    ):
+        super().__init__(
+            operands=[args] if args else [[]],
+            result_types=[result],
+            properties={"callee": callee},
+        )
 
     # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
 
