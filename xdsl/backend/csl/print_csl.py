@@ -625,6 +625,12 @@ class CslPrintContext:
                     self._print_or_promote_to_inline_expr(
                         res, self._cmp_value_expr(op), brackets=True
                     )
+                case arith.Select(cond=cond, lhs=lhs, rhs=rhs, result=res):
+                    cond = self._get_variable_name_for(cond)
+                    lhs = self._get_variable_name_for(lhs)
+                    rhs = self._get_variable_name_for(rhs)
+                    if_str = f"if ({cond}) {lhs} else {rhs}"
+                    self._print_or_promote_to_inline_expr(res, if_str, brackets=True)
                 case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
                     a_var = self._get_variable_name_for(a)
                     b_var = self._get_variable_name_for(b)
