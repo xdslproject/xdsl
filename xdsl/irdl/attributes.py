@@ -400,7 +400,14 @@ def irdl_to_attr_constraint(
             parameter: arg for parameter, arg in zip(generic_args, args)
         }
 
-        origin_parameters = irdl_param_attr_get_param_type_hints(origin)
+        # Map the constraints in the attribute definition
+        attr_def = origin.get_irdl_definition()
+        if attr_def is None:  # pyright: ignore[reportUnnecessaryComparison]
+            # `attr_def` can be None if `origin``is an abstract base Attribute class
+            origin_parameters = irdl_param_attr_get_param_type_hints(origin)
+        else:
+            origin_parameters = attr_def.parameters
+
         origin_constraints = [
             irdl_to_attr_constraint(
                 param, allow_type_var=True, type_var_mapping=type_var_mapping
