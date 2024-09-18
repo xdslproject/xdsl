@@ -423,7 +423,7 @@ class AccessOp(IRDLOperation):
 
     name = "csl_stencil.access"
     op = operand_def(
-        base(AnyMemRefType) | stencil.StencilTypeConstr | base(TensorType[Attribute])
+        AnyMemRefTypeConstr | stencil.StencilTypeConstr | AnyTensorTypeConstr
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
