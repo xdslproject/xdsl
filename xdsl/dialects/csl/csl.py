@@ -401,7 +401,7 @@ class VariableOp(IRDLOperation):
 
     @staticmethod
     def from_type(child_type: TypeAttribute) -> VariableOp:
-        return VariableOp(result_types=[child_type])
+        return VariableOp(result_types=[VarType([child_type])])
 
     @staticmethod
     def from_value(value: ParamAttr) -> VariableOp:
