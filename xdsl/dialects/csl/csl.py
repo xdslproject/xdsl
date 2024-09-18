@@ -866,6 +866,37 @@ class TaskOp(_FuncBase):
 
 
 @irdl_op_definition
+class ActivateOp(IRDLOperation):
+    """
+    This operation corresponds directly to the builtin `@activate` combined with a call to the
+    corresponding `@get_<kind>_task_id` to convert the numeric ID to a task id, e.g.:
+
+    ```
+    csl.activate local, 0 : i32
+           |
+           V
+    @activate(@get_local_task_id(0));
+
+    ```
+    """
+
+    name = "csl.activate"
+
+    id = prop_def(ColorIdAttr)
+    kind = prop_def(TaskKindAttr)
+
+    assembly_format = "attr-dict $kind `,` $id"
+
+    def __init__(self, id: int | ColorIdAttr, kind: TaskKind | TaskKindAttr):
+        if isinstance(id, int):
+            id = IntegerAttr.from_int_and_width(id, 32)
+        if isinstance(kind, TaskKind):
+            kind = TaskKindAttr(kind)
+
+        super().__init__(properties={"id": id, "kind": kind})
+
+
+@irdl_op_definition
 class ReturnOp(IRDLOperation):
     """
     Return for CSL operations such as functions and tasks.
@@ -1976,6 +2007,7 @@ CSL = Dialect(
         Sub16Op,
         SymbolExportOp,
         TaskOp,
+        ActivateOp,
         Xor16Op,
         Xp162fhOp,
         Xp162fsOp,
