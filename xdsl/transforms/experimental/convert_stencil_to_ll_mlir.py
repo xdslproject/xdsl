@@ -650,9 +650,7 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 class StencilTypeConversion(TypeConversionPattern):
     @attr_type_rewrite_pattern
-    def convert_type(
-        self, typ: FieldType[Attribute] | TempType[Attribute]
-    ) -> MemRefType[Attribute]:
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
         return StencilToMemRefType(typ)
 
 

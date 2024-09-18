@@ -400,15 +400,12 @@ def irdl_to_attr_constraint(
             parameter: arg for parameter, arg in zip(generic_args, args)
         }
 
-        # Map the constraints in the attribute definition
-        attr_def = origin.get_irdl_definition()
-        # if attr_def is None:
-        #     assert False
+        origin_parameters = irdl_param_attr_get_param_type_hints(origin)
         origin_constraints = [
             irdl_to_attr_constraint(
                 param, allow_type_var=True, type_var_mapping=type_var_mapping
             )
-            for _, param in attr_def.parameters
+            for _, param in origin_parameters
         ]
         return ParamAttrConstraint(origin, origin_constraints)
 
