@@ -623,7 +623,7 @@ class GEPOp(IRDLOperation):
             if pointee_type is None:
                 raise ValueError("Opaque types must have a pointee type passed")
             # opaque input ptr => opaque output ptr
-            props["elem_type"] = LLVMPointerType.opaque()
+            props["elem_type"] = pointee_type
 
         if inbounds:
             props["inbounds"] = UnitAttr()
