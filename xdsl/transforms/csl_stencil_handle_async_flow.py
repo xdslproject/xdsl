@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
+    Attribute,
     Block,
     Operation,
     OpResult,
@@ -56,11 +57,14 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
     Translates for-loop to csl functions, to handle async communications in the loop body.
     Splits the body of the enclosing function into: pre_block, loop, post_block.
     Further splits `loop` into for_cond, for_body, for_inc.
+    These can in theory all be functions, yet we setup `for_cond` as a local task
+    to avoid potentially large in-memory call stacks for long-running loops.
     Loop var and iter_args are promoted to module-level csl vars.
 
     Limitations:
       * Loop can only yield its input iter_args (in any order)
       * Loop bounds and step must be arith.constant values
+      * Iter args must currently be stencil buffers (memrefs) of the same data type
     """
 
     counter: int
@@ -95,10 +99,10 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         assert isa(op.step.op.value, IntegerAttr[IndexType])
 
         # limitation: all iter_args must be memrefs (stencil buffers) and have the same data type
-        assert isa(op.iter_args[0].type, MemRefType[csl.ZerosOp.T])
+        assert isa(op.iter_args[0].type, MemRefType[Attribute])
         element_type = op.iter_args[0].type.get_element_type()
         assert all(
-            isa(a.type, MemRefType[csl.ZerosOp.T])
+            isa(a.type, MemRefType[Attribute])
             and element_type == a.type.get_element_type()
             for a in op.iter_args
         )
@@ -136,7 +140,6 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             for dst, src in zip(iter_vars, op.iter_args):
                 csl.StoreVarOp(dst, src)
             csl.ActivateOp(cond_task_id, csl.TaskKind.LOCAL)
-            # csl.CallOp(SymbolRefAttr(cond_func.sym_name))
             csl.ReturnOp()
 
         # for-loop condition func
@@ -159,14 +162,16 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             iv_load = csl.LoadVarOp(iv)
             stepped = arith.Addi(iv_load, step)
             csl.StoreVarOp(iv, stepped)
+
+            # pre-load iter_vars and store them in the order specified in scf.yield
             load_vars = [csl.LoadVarOp(v) for v in iter_vars]
+
+            # for out-of-order yields, store yielded var to iter_var
             for iter_var, yielded_var in zip(iter_vars, terminator.arguments):
-                idx = (
-                    op.body.block.args.index(yielded_var) - 1
-                )  # subtract 1 as the first block arg is the loop var
+                # `idx` is the original index of the yielded var, subtract 1 as the first block arg is the loop var
+                idx = op.body.block.args.index(yielded_var) - 1
                 csl.StoreVarOp(iter_var, load_vars[idx])
             csl.ActivateOp(cond_task_id, csl.TaskKind.LOCAL)
-            # csl.CallOp(SymbolRefAttr(cond_func.sym_name))
             csl.ReturnOp()
 
         # for-loop body func
