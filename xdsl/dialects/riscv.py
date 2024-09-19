@@ -1777,9 +1777,12 @@ class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import XorBySelf
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseXorByZero,
+            XorBySelf,
+        )
 
-        return (XorBySelf(),)
+        return (XorBySelf(), BitwiseXorByZero())
 
 
 @irdl_op_definition
