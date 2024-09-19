@@ -1,6 +1,5 @@
 // RUN: xdsl-opt %s -p "csl-stencil-handle-async-flow" | filecheck %s
 
-builtin.module {
   "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel_func"}> ({
   ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
     %9 = arith.constant 0 : i16
@@ -66,11 +65,9 @@ builtin.module {
     }
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
-}
 
 
-// CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel_func"}> ({
+// CHECK:        "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel_func"}> ({
 // CHECK-NEXT:   ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
 // CHECK-NEXT:     %9 = arith.constant 0 : i16
 // CHECK-NEXT:     %10 = "csl.get_color"(%9) : (i16) -> !csl.color
@@ -171,4 +168,86 @@ builtin.module {
 // CHECK-NEXT:     }
 // CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
 // CHECK-NEXT:   }) : () -> ()
-// CHECK-NEXT: }
+
+"csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [], "program_name" = "sequential_kernels_func"}> ({
+^2(%0 : i16, %1 : i16, %2 : i16, %3 : i16):
+  "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
+}, {
+^1(%26 : i16, %27 : i16):
+  %33 = "csl_wrapper.import"() <{"module" = "<memcpy/memcpy>", "fields" = []}> : () -> !csl.imported_module
+  %arg0 = memref.alloc() : memref<512xf32>
+  %arg1 = memref.alloc() : memref<512xf32>
+  %35 = "csl.addressof"(%arg0) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
+  %36 = "csl.addressof"(%arg1) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
+  "csl.export"(%35) <{"var_name" = "arg0", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+  "csl.export"(%36) <{"var_name" = "arg1", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+  "csl.export"() <{"var_name" = @gauss_seidel_func, "type" = () -> ()}> : () -> ()
+  %37 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
+  csl.func @sequential_kernels_func() {
+    csl_stencil.apply(%arg0 : memref<512xf32>, %37 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
+    ^2(%arg5 : memref<4x255xf32>, %arg6 : index, %arg7 : memref<510xf32>):
+      csl_stencil.yield %arg7 : memref<510xf32>
+    }, {
+    ^3(%arg5_1 : memref<512xf32>, %arg6_1 : memref<510xf32>):
+      %50 = arith.constant 1.666600e-01 : f32
+      csl_stencil.yield %arg6_1 : memref<510xf32>
+    }) to <[0, 0], [1, 1]>
+    csl_stencil.apply(%arg1 : memref<512xf32>, %37 : memref<510xf32>) outs (%arg0 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
+    ^4(%arg5 : memref<4x255xf32>, %arg6 : index, %arg7 : memref<510xf32>):
+      csl_stencil.yield %arg7 : memref<510xf32>
+    }, {
+    ^5(%arg5_1 : memref<512xf32>, %arg6_1 : memref<510xf32>):
+      %50 = arith.constant 1.234567e-01 : f32
+      csl_stencil.yield %arg6_1 : memref<510xf32>
+    }) to <[0, 0], [1, 1]>
+    "csl.member_call"(%33) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
+    csl.return
+  }
+  "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
+}) : () -> ()
+
+
+// CHECK:       "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [], "program_name" = "sequential_kernels_func"}> ({
+// CHECK-NEXT:  ^2(%52 : i16, %53 : i16, %54 : i16, %55 : i16):
+// CHECK-NEXT:    "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
+// CHECK-NEXT:  }, {
+// CHECK-NEXT:  ^3(%56 : i16, %57 : i16):
+// CHECK-NEXT:    %58 = "csl_wrapper.import"() <{"module" = "<memcpy/memcpy>", "fields" = []}> : () -> !csl.imported_module
+// CHECK-NEXT:    %arg0_1 = memref.alloc() : memref<512xf32>
+// CHECK-NEXT:    %arg1_1 = memref.alloc() : memref<512xf32>
+// CHECK-NEXT:    %59 = "csl.addressof"(%arg0_1) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
+// CHECK-NEXT:    %60 = "csl.addressof"(%arg1_1) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
+// CHECK-NEXT:    "csl.export"(%59) <{"var_name" = "arg0", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT:    "csl.export"(%60) <{"var_name" = "arg1", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT:    "csl.export"() <{"var_name" = @gauss_seidel_func, "type" = () -> ()}> : () -> ()
+// CHECK-NEXT:    %61 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
+// CHECK-NEXT:    csl.func @sequential_kernels_func() {
+// CHECK-NEXT:      csl_stencil.apply(%arg0_1 : memref<512xf32>, %61 : memref<510xf32>) outs (%arg1_1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
+// CHECK-NEXT:      ^4(%arg5 : memref<4x255xf32>, %arg6 : index, %arg7 : memref<510xf32>):
+// CHECK-NEXT:        csl_stencil.yield %arg7 : memref<510xf32>
+// CHECK-NEXT:      }, {
+// CHECK-NEXT:      ^5(%arg5_1 : memref<512xf32>, %arg6_1 : memref<510xf32>):
+// CHECK-NEXT:        %62 = arith.constant 1.666600e-01 : f32
+// CHECK-NEXT:        "csl.call"() <{"callee" = @step0}> : () -> ()
+// CHECK-NEXT:        csl_stencil.yield %arg6_1 : memref<510xf32>
+// CHECK-NEXT:      }) to <[0, 0], [1, 1]>
+// CHECK-NEXT:      csl.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    csl.func @step0() {
+// CHECK-NEXT:      csl_stencil.apply(%arg1_1 : memref<512xf32>, %61 : memref<510xf32>) outs (%arg0_1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
+// CHECK-NEXT:      ^4(%arg5 : memref<4x255xf32>, %arg6 : index, %arg7 : memref<510xf32>):
+// CHECK-NEXT:        csl_stencil.yield %arg7 : memref<510xf32>
+// CHECK-NEXT:      }, {
+// CHECK-NEXT:      ^5(%arg5_1 : memref<512xf32>, %arg6_1 : memref<510xf32>):
+// CHECK-NEXT:        %62 = arith.constant 1.234567e-01 : f32
+// CHECK-NEXT:        "csl.call"() <{"callee" = @step0}> : () -> ()
+// CHECK-NEXT:        csl_stencil.yield %arg6_1 : memref<510xf32>
+// CHECK-NEXT:      }) to <[0, 0], [1, 1]>
+// CHECK-NEXT:      csl.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    csl.func @step0() {
+// CHECK-NEXT:      "csl.member_call"(%58) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
+// CHECK-NEXT:      csl.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
+// CHECK-NEXT:  }) : () -> ()

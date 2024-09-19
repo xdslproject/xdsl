@@ -31,24 +31,56 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-@dataclass(frozen=True)
+@dataclass()
 class HandleCslStencilApplyAsyncCF(RewritePattern):
+    """
+    Ensure that the async csl_stencil.apply op is last in its function.
+    Any code following an apply is split off into a separate function.
+    Control flow proceeds from the apply's second callback to the split-off function.
+    """
+
+    counter: int
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
-        if op.next_op and isinstance(op.next_op, csl.ReturnOp):
+        # invalid case
+        if not op.next_op:
             return
+
+        # case 1: apply is last in function, nothing to do
+        if isinstance(op.next_op, csl.ReturnOp):
+            return
+
+        terminator = op.post_process.block.last_op
+        assert isinstance(terminator, csl_stencil.YieldOp)
+
+        # case 2: apply is followed by call_op and return - move call_op to second callback of apply
         if (
-            op.next_op
-            and isinstance(call_op := op.next_op, csl.CallOp)
+            isinstance(call_op := op.next_op, csl.CallOp)
             and op.next_op.next_op
             and isinstance(op.next_op.next_op, csl.ReturnOp)
         ):
-            terminator = op.post_process.block.last_op
-            assert isinstance(terminator, csl_stencil.YieldOp)
             rewriter.insert_op(call_op.clone(), InsertPoint.before(terminator))
             rewriter.erase_op(call_op)
             return
-        # todo there is more code here, split the code into a new func and call this
+
+        parent_func = op.parent_op()
+        while parent_func is not None and not isinstance(parent_func, csl.FuncOp):
+            parent_func = parent_func.parent_op()
+        if not parent_func:
+            return
+
+        # case 3: apply is followed by other code, split it off into a different func, call it from second callback of apply
+        assert (parent_block := op.parent_block()) is not None
+        next_block = parent_block.split_before(op.next_op)
+        rewriter.insert_op(csl.ReturnOp(), InsertPoint.after(op))
+        next_func = csl.FuncOp(f"step{self.counter}", FunctionType.from_lists([], []))
+        rewriter.inline_block(next_block, InsertPoint.at_start(next_func.body.block))
+        rewriter.insert_op(
+            csl.CallOp(SymbolRefAttr(next_func.sym_name)),
+            InsertPoint.before(terminator),
+        )
+        rewriter.insert_op(next_func, InsertPoint.after(parent_func))
 
 
 @dataclass()
@@ -230,7 +262,7 @@ class CslStencilHandleAsyncControlFlow(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ConvertForLoopToCallGraphPass(0),
-                    HandleCslStencilApplyAsyncCF(),
+                    HandleCslStencilApplyAsyncCF(0),
                 ]
             ),
             apply_recursively=False,
