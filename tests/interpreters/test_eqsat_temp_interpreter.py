@@ -55,13 +55,14 @@ class SwapInputs(RewritePattern):
             eclass, eqsat.EClassOp
         ), "Each op result must be in a single eclass"
 
-        for arg in eclass.arguments:
-            # Skip the current op
-            if arg.op == op:
-                continue
-            if isinstance(arg.op, arith.Addi):
-                if arg.op.rhs == op.lhs and arg.op.lhs == op.rhs:
-                    return
+        # # Check if the rewrite is already applied
+        # for arg in eclass.operands:
+        #     # Skip the current op
+        #     if arg.op == op:
+        #         continue
+        #     if isinstance(arg.op, arith.Addi):
+        #         if arg.op.rhs == op.lhs and arg.op.lhs == op.rhs:
+        #             return
 
         # Create a new expression
         new_op = arith.Addi(op.rhs, op.lhs)
