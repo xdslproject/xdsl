@@ -124,6 +124,7 @@ class LowerApplyOp(RewritePattern):
         reduce_fn = csl.FuncOp(
             "chunk_reduce_cb" + str(self.count), FunctionType.from_lists([i16], [])
         )
+        reduce_fn.body.block.args[0].name_hint = "offset"
         post_fn = csl.FuncOp(
             "post_process_cb" + str(self.count),
             FunctionType.from_lists([], []),
