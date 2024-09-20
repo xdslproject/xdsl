@@ -95,7 +95,7 @@ builtin.module {
 // CHECK-NEXT:     "csl.export"(%36) <{"var_name" = "arg1", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:     "csl.export"() <{"var_name" = @gauss_seidel_func, "type" = () -> ()}> : () -> ()
 // CHECK-NEXT:     csl.func @gauss_seidel_func() {
-// CHECK-NEXT:       %arg4 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
+// CHECK-NEXT:       %accumulator = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:       %37 = arith.constant 2 : i16
 // CHECK-NEXT:       %38 = "csl.addressof_fn"() <{"fn_name" = @chunk_reduce_cb0}> : () -> !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %39 = "csl.addressof_fn"() <{"fn_name" = @post_process_cb0}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
@@ -103,7 +103,7 @@ builtin.module {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @chunk_reduce_cb0(%offset : i16) {
-// CHECK-NEXT:       %arg3 = arith.index_cast %offset : i16 to index
+// CHECK-NEXT:       %offset_1 = arith.index_cast %offset : i16 to index
 // CHECK-NEXT:       %40 = arith.constant 1 : i16
 // CHECK-NEXT:       %41 = "csl.get_dir"() <{"dir" = #csl<dir_kind west>}> : () -> !csl.direction
 // CHECK-NEXT:       %42 = "csl.member_call"(%34, %41, %40) <{"field" = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
@@ -120,7 +120,7 @@ builtin.module {
 // CHECK-NEXT:       %53 = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-NEXT:       %54 = "csl.member_call"(%34, %53, %52) <{"field" = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %55 = builtin.unrealized_conversion_cast %54 : !csl<dsd mem1d_dsd> to memref<255xf32>
-// CHECK-NEXT:       %56 = memref.subview %arg4[%arg3] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:       %56 = memref.subview %accumulator[%offset_1] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
 // CHECK-NEXT:       "csl.fadds"(%56, %55, %51) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>, memref<255xf32>) -> ()
 // CHECK-NEXT:       "csl.fadds"(%56, %56, %47) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
 // CHECK-NEXT:       "csl.fadds"(%56, %56, %43) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
@@ -129,12 +129,12 @@ builtin.module {
 // CHECK-NEXT:     csl.func @post_process_cb0() {
 // CHECK-NEXT:       %57 = memref.subview %arg0[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
 // CHECK-NEXT:       %58 = memref.subview %arg0[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
-// CHECK-NEXT:       "csl.fadds"(%arg4, %arg4, %58) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
-// CHECK-NEXT:       "csl.fadds"(%arg4, %arg4, %57) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
+// CHECK-NEXT:       "csl.fadds"(%accumulator, %accumulator, %58) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
+// CHECK-NEXT:       "csl.fadds"(%accumulator, %accumulator, %57) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
 // CHECK-NEXT:       %59 = arith.constant 1.666600e-01 : f32
-// CHECK-NEXT:       "csl.fmuls"(%arg4, %arg4, %59) : (memref<510xf32>, memref<510xf32>, f32) -> ()
+// CHECK-NEXT:       "csl.fmuls"(%accumulator, %accumulator, %59) : (memref<510xf32>, memref<510xf32>, f32) -> ()
 // CHECK-NEXT:       %60 = memref.subview %arg1[1] [510] [1] : memref<512xf32> to memref<510xf32>
-// CHECK-NEXT:       "memref.copy"(%arg4, %60) : (memref<510xf32>, memref<510xf32>) -> ()
+// CHECK-NEXT:       "memref.copy"(%accumulator, %60) : (memref<510xf32>, memref<510xf32>) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()

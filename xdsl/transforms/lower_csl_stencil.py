@@ -152,6 +152,8 @@ class LowerApplyOp(RewritePattern):
             op.accumulator,
             *op.args[len(reduce_arg_m) - 3 :],
         ]
+        index_op.result.name_hint = "offset"
+        op.accumulator.name_hint = "accumulator"
 
         # inlining both regions
         rewriter.inline_block(
