@@ -47,7 +47,6 @@ You're welcome to come up with your own, or do one of the following:
 - `x * 2ⁱ -> x << i`
 - `x & 0 -> 0`
 - `x | 0 -> x`
-- `x ^ 0 -> x`
 
 The patterns are defined in
 [xdsl/transforms/canonicalization_patterns/riscv.py](xdsl/transforms/canonicalization_patterns/riscv.py).

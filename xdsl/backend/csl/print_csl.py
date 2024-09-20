@@ -553,6 +553,9 @@ class CslPrintContext:
                     self._print_bind_task(name.data, kind.data, id)
                 case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
                     self._print_task_or_fn("fn", name, bdy, ftyp)
+                case csl.ActivateOp(id=id, kind=kind):
+                    id = self.attribute_value_to_str(id)
+                    self.print(f"@activate(@get_{kind.data.value}_task_id({id}));")
                 case csl.ReturnOp(ret_val=None):
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:

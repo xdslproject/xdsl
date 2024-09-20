@@ -381,18 +381,27 @@ ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
 
 @irdl_op_definition
 class VariableOp(IRDLOperation):
+    """
+    Declares a variable.
+
+    The variable cannot be mutated directly. SSA values of the variable have to
+    be loaded and stored using LoadVarOp and StoreVarOp.
+
+    This is similar to how `memref` works.
+    """
+
     name = "csl.variable"
 
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
     def get_element_type(self):
-        assert isinstance(self.res, VarType)
-        return self.res.get_element_type()
+        assert isinstance(self.res.type, VarType)
+        return self.res.type.get_element_type()
 
     @staticmethod
-    def from_type(child_type: TypeAttribute) -> VariableOp:
-        return VariableOp(result_types=[child_type])
+    def from_type(child_type: Attribute) -> VariableOp:
+        return VariableOp(result_types=[VarType([child_type])])
 
     @staticmethod
     def from_value(value: ParamAttr) -> VariableOp:
@@ -401,9 +410,24 @@ class VariableOp(IRDLOperation):
             result_types=[VarType([value.type])],
         )
 
+    def verify_(self) -> None:
+        assert isinstance(self.res.type, VarType)
+        if self.default is not None and (
+            self.default.type != self.res.type.get_element_type()
+        ):
+            raise VerifyException(
+                "The type of the default value has to be the same as the type of the result, if the former is supplied"
+            )
+        return super().verify_()
+
 
 @irdl_op_definition
 class LoadVarOp(IRDLOperation):
+    """
+    Obtain the SSA value of a CSL variable. The obtained value itself is not
+    modifiable, but it can be stored in the variable using `StoreVarOp`.
+    """
+
     name = "csl.load_var"
     var = operand_def(VarType)
     res = result_def()
@@ -414,9 +438,21 @@ class LoadVarOp(IRDLOperation):
             result_types=[var.get_element_type()],
         )
 
+    def verify_(self) -> None:
+        assert isinstance(self.var.type, VarType)
+        if self.var.type.get_element_type() != self.res.type:
+            raise VerifyException(
+                "Result type of the load has to match the child type of the variable"
+            )
+        return super().verify_()
+
 
 @irdl_op_definition
 class StoreVarOp(IRDLOperation):
+    """
+    Update the value of a variable.
+    """
+
     name = "csl.store_var"
     var = operand_def(VarType)
     new_value = operand_def()
@@ -830,6 +866,37 @@ class TaskOp(_FuncBase):
 
 
 @irdl_op_definition
+class ActivateOp(IRDLOperation):
+    """
+    This operation corresponds directly to the builtin `@activate` combined with a call to the
+    corresponding `@get_<kind>_task_id` to convert the numeric ID to a task id, e.g.:
+
+    ```
+    csl.activate local, 0 : i32
+           |
+           V
+    @activate(@get_local_task_id(0));
+
+    ```
+    """
+
+    name = "csl.activate"
+
+    id = prop_def(ColorIdAttr)
+    kind = prop_def(TaskKindAttr)
+
+    assembly_format = "attr-dict $kind `,` $id"
+
+    def __init__(self, id: int | ColorIdAttr, kind: TaskKind | TaskKindAttr):
+        if isinstance(id, int):
+            id = IntegerAttr.from_int_and_width(id, 32)
+        if isinstance(kind, TaskKind):
+            kind = TaskKindAttr(kind)
+
+        super().__init__(properties={"id": id, "kind": kind})
+
+
+@irdl_op_definition
 class ReturnOp(IRDLOperation):
     """
     Return for CSL operations such as functions and tasks.
@@ -890,6 +957,18 @@ class CallOp(IRDLOperation):
     callee = prop_def(SymbolRefAttr)
     args = var_operand_def(Attribute)
     result = opt_result_def(Attribute)
+
+    def __init__(
+        self,
+        callee: SymbolRefAttr,
+        args: Sequence[SSAValue | Operation] | None = None,
+        result: Attribute | None = None,
+    ):
+        super().__init__(
+            operands=[args] if args else [[]],
+            result_types=[result],
+            properties={"callee": callee},
+        )
 
     # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
 
@@ -1940,6 +2019,7 @@ CSL = Dialect(
         Sub16Op,
         SymbolExportOp,
         TaskOp,
+        ActivateOp,
         Xor16Op,
         Xp162fhOp,
         Xp162fsOp,

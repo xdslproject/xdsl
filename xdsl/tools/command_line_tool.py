@@ -116,6 +116,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_wrapper_hoist_buffers.CslWrapperHoistBuffers
 
+    def get_csl_stencil_handle_async_flow():
+        from xdsl.transforms import csl_stencil_handle_async_flow
+
+        return csl_stencil_handle_async_flow.CslStencilHandleAsyncControlFlow
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -438,6 +443,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "csl-wrapper-to-csl": get_csl_wrapper_to_csl,
         "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
+        "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,

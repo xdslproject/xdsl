@@ -302,6 +302,8 @@ csl.func @builtins() {
     "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
     "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
 
+    csl.activate local, 0 : i32
+
     csl.return
 }
 
@@ -553,6 +555,7 @@ csl.func @builtins() {
 // CHECK-NEXT:       "csl.xp162fs"(%dest_dsd, %src_dsd1) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
 // CHECK-NEXT:       "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+// CHECK-NEXT:       csl.activate local, 0 : i32
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
@@ -797,6 +800,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       "csl.xp162fs"(%dest_dsd, %src_dsd1) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-GENERIC-NEXT:       "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
 // CHECK-GENERIC-NEXT:       "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+// CHECK-GENERIC-NEXT:       "csl.activate"() <{"kind" = #csl<task_kind local>, "id" = 0 : i32}> : () -> ()
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>

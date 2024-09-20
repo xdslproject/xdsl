@@ -419,6 +419,21 @@ class XorBySelf(RewritePattern):
             )
 
 
+class BitwiseXorByZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter):
+        """
+        x ^ 0 = x
+        """
+        if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+
+        if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
 class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
