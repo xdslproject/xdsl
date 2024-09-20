@@ -99,6 +99,7 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
 // CHECK-NEXT:       csl_stencil.yield %67 : tensor<510xf32>
 // CHECK-NEXT:     })
 // CHECK-NEXT:     stencil.store %42 to %b(<[0, 0], [1, 1]>) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:     "csl.member_call"(%33) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
@@ -168,6 +169,7 @@ func.func @bufferized(%arg0 : memref<512xf32>, %arg1 : memref<512xf32>) {
 // CHECK-NEXT:       linalg.mul ins(%arg3_1, %83 : memref<510xf32>, memref<510xf32>) outs(%arg3_1 : memref<510xf32>)
 // CHECK-NEXT:       csl_stencil.yield %arg3_1 : memref<510xf32>
 // CHECK-NEXT:     }) to <[0, 0], [1, 1]>
+// CHECK-NEXT:     "csl.member_call"(%76) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
