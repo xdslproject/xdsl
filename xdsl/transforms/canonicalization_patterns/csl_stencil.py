@@ -8,7 +8,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class RedundantIterArgInitialisation(RewritePattern):
+class RedundantAccumulatorInitialisation(RewritePattern):
     """
     Removes redundant allocations of empty tensors with no uses other than passed
     as `iter_arg` to `csl_stencil.apply`. Prefer re-use where possible.
@@ -25,9 +25,9 @@ class RedundantIterArgInitialisation(RewritePattern):
         while (next_apply := next_apply.next_op) is not None:
             if (
                 isinstance(next_apply, csl_stencil.ApplyOp)
-                and len(next_apply.iter_arg.uses) == 1
-                and isinstance(next_apply.iter_arg, OpResult)
-                and isinstance(next_apply.iter_arg.op, tensor.EmptyOp)
-                and op.accumulator.type == next_apply.iter_arg.type
+                and len(next_apply.accumulator.uses) == 1
+                and isinstance(next_apply.accumulator, OpResult)
+                and isinstance(next_apply.accumulator.op, tensor.EmptyOp)
+                and op.accumulator.type == next_apply.accumulator.type
             ):
-                rewriter.replace_op(next_apply.iter_arg.op, [], [op.accumulator])
+                rewriter.replace_op(next_apply.accumulator.op, [], [op.accumulator])

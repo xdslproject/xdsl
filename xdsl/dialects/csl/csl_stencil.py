@@ -156,10 +156,10 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl_stencil import (
-            RedundantIterArgInitialisation,
+            RedundantAccumulatorInitialisation,
         )
 
-        return (RedundantIterArgInitialisation(),)
+        return (RedundantAccumulatorInitialisation(),)
 
 
 @irdl_op_definition
