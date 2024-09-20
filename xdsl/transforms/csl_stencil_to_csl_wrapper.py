@@ -123,14 +123,6 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # add yield op args to program_module block args
         module_op.update_program_block_args()
 
-        # replace func.return
-        func_return = op.body.block.last_op
-        assert isinstance(func_return, func.Return)
-        assert (
-            len(func_return.arguments) == 0
-        ), "Non-empty returns currently not supported"
-        rewriter.replace_op(func_return, csl.ReturnOp())
-
         # set up main function and move func.func ops into this csl.func
         main_func = csl.FuncOp(op.sym_name.data, ((), None))
         func_export = csl.SymbolExportOp(main_func.sym_name, main_func.function_type)
@@ -145,6 +137,18 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         self.initialise_program_module(
             module_op, add_ops=[*args_to_ops, func_export, main_func]
         )
+
+        # replace func.return by unblock_cmd_stream and csl.return
+        func_return = main_func.body.block.last_op
+        assert isinstance(func_return, func.Return)
+        assert (
+            len(func_return.arguments) == 0
+        ), "Non-empty returns currently not supported"
+        memcpy = module_op.get_program_import("<memcpy/memcpy>")
+        unblock_call = csl.MemberCallOp(
+            struct=memcpy, fname="unblock_cmd_stream", params=[], result_type=None
+        )
+        rewriter.replace_op(func_return, [unblock_call, csl.ReturnOp()])
 
         # replace (now empty) func by module wrapper
         rewriter.replace_matched_op(module_op)
