@@ -77,12 +77,12 @@ class ApplyOpBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
-        if isa(op.iter_arg.type, memref.MemRefType[Attribute]):
+        if isa(op.accumulator.type, memref.MemRefType[Attribute]):
             return
 
         # convert args
         buf_args: list[SSAValue] = []
-        to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.iter_arg)]
+        to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
         for arg in op.args:
             if isa(arg.type, TensorType[Attribute]):
                 to_memrefs.append(new_arg := to_memref_op(arg))

@@ -18,7 +18,7 @@ class RedundantIterArgInitialisation(RewritePattern):
     def match_and_rewrite(
         self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter
     ) -> None:
-        if len(op.iter_arg.uses) > 1:
+        if len(op.accumulator.uses) > 1:
             return
 
         next_apply = op
@@ -28,6 +28,6 @@ class RedundantIterArgInitialisation(RewritePattern):
                 and len(next_apply.iter_arg.uses) == 1
                 and isinstance(next_apply.iter_arg, OpResult)
                 and isinstance(next_apply.iter_arg.op, tensor.EmptyOp)
-                and op.iter_arg.type == next_apply.iter_arg.type
+                and op.accumulator.type == next_apply.iter_arg.type
             ):
-                rewriter.replace_op(next_apply.iter_arg.op, [], [op.iter_arg])
+                rewriter.replace_op(next_apply.iter_arg.op, [], [op.accumulator])

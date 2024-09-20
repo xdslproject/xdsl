@@ -171,7 +171,7 @@ class ApplyOp(IRDLOperation):
     As communication may be done in chunks, this operation provides two regions for computation:
       - the `chunk_reduce` region to reduce a chunk of data received from several neighbours to one chunk of data.
         this region is invoked once per communicated chunks and effectively acts as a loop body.
-        It uses `iter_arg` to concatenate the chunks
+        It uses `accumulator` to concatenate the chunks
       - the `post_process` region (invoked once when communication has finished) that takes the concatenated
         chunk of the `chunk_reduce` region and applies any further processing here - for instance, it may handle
         the computation of 'own' (non-communicated) or otherwise prefetched data
@@ -191,12 +191,12 @@ class ApplyOp(IRDLOperation):
         stencil.apply( ..some args.. , %communicated_stencil, ..some more args.., %pref)
 
     After lowering:
-        op:             csl_stencil.apply(%communicated_stencil, %iter_arg, chunk_reduce_args..., post_process_args...)
-        chunk_reduce:   block_args(slice of type(%pref), %offset, %iter_arg, args...)
-        post_process:   block_args(%communicated_stencil, %iter_arg, args...)
+        op:             csl_stencil.apply(%communicated_stencil, %accumulator, chunk_reduce_args..., post_process_args...)
+        chunk_reduce:   block_args(slice of type(%pref), %offset, %accumulator, args...)
+        post_process:   block_args(%communicated_stencil, %accumulator, args...)
 
     Note, that %pref can be dropped (as communication is done by the op rather than before the op),
-    and that a new %iter_arg is required, an empty tensor which is filled by `chunk_reduce` and
+    and that a new %accumulator is required, an empty tensor which is filled by `chunk_reduce` and
     consumed by `post_process`
     """
 
@@ -206,7 +206,7 @@ class ApplyOp(IRDLOperation):
         base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
-    iter_arg = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
+    accumulator = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
 
     args = var_operand_def(Attribute)
     dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
@@ -243,7 +243,7 @@ class ApplyOp(IRDLOperation):
         printer.print("(")
 
         # args required by function signature, plus optional args for regions
-        args = [self.communicated_stencil, self.iter_arg, *self.args]
+        args = [self.communicated_stencil, self.accumulator, *self.args]
 
         printer.print_list(args, print_arg)
         if self.dest:
@@ -335,22 +335,22 @@ class ApplyOp(IRDLOperation):
 
         # typecheck required (only) block arguments
         assert isa(
-            self.iter_arg.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+            self.accumulator.type, TensorType[Attribute] | memref.MemRefType[Attribute]
         )
         chunk_reduce_req_types = [
-            type(self.iter_arg.type)(
-                self.iter_arg.type.get_element_type(),
+            type(self.accumulator.type)(
+                self.accumulator.type.get_element_type(),
                 (
                     len(self.swaps),
-                    self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
+                    self.accumulator.type.get_shape()[0] // self.num_chunks.value.data,
                 ),
             ),
             IndexType(),
-            self.iter_arg.type,
+            self.accumulator.type,
         ]
         post_process_req_types = [
             self.communicated_stencil.type,
-            self.iter_arg.type,
+            self.accumulator.type,
         ]
         for arg, expected_type in zip(
             self.chunk_reduce.block.args, chunk_reduce_req_types

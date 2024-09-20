@@ -144,12 +144,12 @@ class LowerApplyOp(RewritePattern):
         reduce_arg_m = [
             op.communicated_stencil,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
-            op.iter_arg,
+            op.accumulator,
             *op.args[: len(op.chunk_reduce.block.args) - 3],
         ]
         post_arg_m = [
             op.communicated_stencil,
-            op.iter_arg,
+            op.accumulator,
             *op.args[len(reduce_arg_m) - 3 :],
         ]
 

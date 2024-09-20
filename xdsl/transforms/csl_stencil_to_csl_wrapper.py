@@ -75,7 +75,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
             # find max z dimension - we could get this from func args, store ops, or apply ops
-            # to support both bufferized and unbufferized csl_stencils, retrieve this from iter_arg
+            # to support both bufferized and unbufferized csl_stencils, retrieve this from accumulator
             if isinstance(apply_op.post_process.block.args[1].type, ShapedType):
                 z_dim_no_ghost_cells = max(
                     z_dim_no_ghost_cells,
