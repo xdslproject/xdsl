@@ -397,7 +397,7 @@ class ConvertApplyOpPattern(RewritePattern):
         nested_rewriter.rewrite_op(op)
 
         # determine how ops should be split across the two regions
-        chunk_region_ops, post_process_ops = get_op_split(
+        chunk_region_ops, done_exchange_ops = get_op_split(
             list(op.region.block.ops), op.region.block.args[prefetch_idx]
         )
 
@@ -418,10 +418,10 @@ class ConvertApplyOpPattern(RewritePattern):
             ),
             key=lambda b: b.index,
         )
-        post_process_used_block_args = sorted(
+        done_exchange_used_block_args = sorted(
             set(
                 x
-                for o in post_process_ops
+                for o in done_exchange_ops
                 for x in o.operands
                 if isinstance(x, BlockArgument) and x.index != communicated_stencil_idx
             ),
@@ -445,37 +445,37 @@ class ConvertApplyOpPattern(RewritePattern):
             # optional args: as needed by the ops
             *[a.type for a in chunk_region_used_block_args],
         ]
-        post_process_args = [
+        done_exchange_args = [
             # required arg 0: stencil.temp to access own data
             communicated_stencil_op_arg.type,
             # required arg 1: %iter_arg
             iter_arg.results[0].type,
             # optional args: as needed by the ops
-            *[a.type for a in post_process_used_block_args],
+            *[a.type for a in done_exchange_used_block_args],
         ]
 
         # set up two regions
         receive_chunk = Region(Block(arg_types=chunk_region_args))
-        post_process = Region(Block(arg_types=post_process_args))
+        done_exchange = Region(Block(arg_types=done_exchange_args))
 
         # translate old to new block arg index for optional args
         chunk_region_oprnd_table = dict[Operand, Operand](
             (old, receive_chunk.block.args[idx])
             for idx, old in enumerate(chunk_region_used_block_args, start=3)
         )
-        post_process_oprnd_table = dict[Operand, Operand](
-            (old, post_process.block.args[idx])
-            for idx, old in enumerate(post_process_used_block_args, start=2)
+        done_exchange_oprnd_table = dict[Operand, Operand](
+            (old, done_exchange.block.args[idx])
+            for idx, old in enumerate(done_exchange_used_block_args, start=2)
         )
 
         # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
         chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
             receive_chunk.block.args[0]
         )
-        post_process_oprnd_table[op.region.block.args[communicated_stencil_idx]] = (
-            post_process.block.args[0]
+        done_exchange_oprnd_table[op.region.block.args[communicated_stencil_idx]] = (
+            done_exchange.block.args[0]
         )
-        post_process_oprnd_table[chunk_res] = post_process.block.args[1]
+        done_exchange_oprnd_table[chunk_res] = done_exchange.block.args[1]
 
         # detach ops from old region
         for o in op.region.block.ops:
@@ -501,10 +501,10 @@ class ConvertApplyOpPattern(RewritePattern):
             ]
         )
 
-        # add operations from list to post_process, use translation table to rebuild operands
-        for o in post_process_ops:
-            o.operands = [post_process_oprnd_table.get(x, x) for x in o.operands]
-            post_process.block.add_op(o)
+        # add operations from list to done_exchange, use translation table to rebuild operands
+        for o in done_exchange_ops:
+            o.operands = [done_exchange_oprnd_table.get(x, x) for x in o.operands]
+            done_exchange.block.add_op(o)
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
 
@@ -514,7 +514,7 @@ class ConvertApplyOpPattern(RewritePattern):
                     communicated_stencil_op_arg,
                     iter_arg,
                     [op.operands[a.index] for a in chunk_region_used_block_args]
-                    + [op.operands[a.index] for a in post_process_used_block_args],
+                    + [op.operands[a.index] for a in done_exchange_used_block_args],
                     op.dest,
                 ],
                 properties={
@@ -525,7 +525,7 @@ class ConvertApplyOpPattern(RewritePattern):
                 },
                 regions=[
                     receive_chunk,
-                    post_process,
+                    done_exchange,
                 ],
                 result_types=[op.result_types],
             )

@@ -96,7 +96,7 @@ class ApplyOpBufferize(RewritePattern):
             result_types=op.res.types or [[]],
             regions=[
                 self._get_empty_bufferized_region(op.receive_chunk.block.args),
-                self._get_empty_bufferized_region(op.post_process.block.args),
+                self._get_empty_bufferized_region(op.done_exchange.block.args),
             ],
             properties=op.properties,
             attributes=op.attributes,
@@ -118,19 +118,19 @@ class ApplyOpBufferize(RewritePattern):
             else:
                 chunk_region_arg_mapping.append(arg)
 
-        post_process_arg_mapping: Sequence[SSAValue] = []
+        done_exchange_arg_mapping: Sequence[SSAValue] = []
         for idx, (old_arg, arg) in enumerate(
-            zip(op.post_process.block.args, buf_apply_op.post_process.block.args)
+            zip(op.done_exchange.block.args, buf_apply_op.done_exchange.block.args)
         ):
             if isattr(old_arg.type, TensorType):
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 1),
-                    InsertPoint.at_end(buf_apply_op.post_process.block),
+                    InsertPoint.at_end(buf_apply_op.done_exchange.block),
                 )
-                post_process_arg_mapping.append(t.tensor)
+                done_exchange_arg_mapping.append(t.tensor)
             else:
-                post_process_arg_mapping.append(arg)
+                done_exchange_arg_mapping.append(arg)
 
         assert isa(typ := op.receive_chunk.block.args[0].type, TensorType[Attribute])
         chunk_type = TensorType(typ.get_element_type(), typ.get_shape()[1:])
@@ -143,9 +143,9 @@ class ApplyOpBufferize(RewritePattern):
         )
 
         rewriter.inline_block(
-            op.post_process.block,
-            InsertPoint.at_end(buf_apply_op.post_process.block),
-            post_process_arg_mapping,
+            op.done_exchange.block,
+            InsertPoint.at_end(buf_apply_op.done_exchange.block),
+            done_exchange_arg_mapping,
         )
 
         self._inject_iter_arg_into_linalg_outs(
