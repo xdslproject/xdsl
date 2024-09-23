@@ -69,8 +69,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 assert isinstance(
                     shape.data[1].data, int
                 ), "Cannot have a float data shape"
-                width = max(width, shape.data[0].data)
-                height = max(height, shape.data[1].data)
+                width = max(width, shape.data[0].data + 2)
+                height = max(height, shape.data[1].data + 2)
             else:
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
