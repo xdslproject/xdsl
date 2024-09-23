@@ -106,10 +106,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_stencil_to_csl_wrapper.CslStencilToCslWrapperPass
 
-    def get_csl_wrapper_to_csl():
-        from xdsl.transforms import csl_wrapper_to_csl
+    def get_lower_csl_wrapper():
+        from xdsl.transforms import lower_csl_wrapper
 
-        return csl_wrapper_to_csl.CslWrapperToCslPass
+        return lower_csl_wrapper.LowerCslWrapperPass
 
     def get_csl_wrapper_hoist_buffers():
         from xdsl.transforms import csl_wrapper_hoist_buffers
@@ -441,7 +441,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
-        "csl-wrapper-to-csl": get_csl_wrapper_to_csl,
         "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
         "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,
         "dce": get_dce,
@@ -457,6 +456,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
         "lower-csl-stencil": get_lower_csl_stencil,
+        "lower-csl-wrapper": get_lower_csl_wrapper,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
         "lower-riscv-func": get_lower_riscv_func,
