@@ -67,9 +67,11 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasAncestor,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -1006,6 +1008,16 @@ class SetTileCodeOp(IRDLOperation):
         super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
 
 
+class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            GetMemDsdAndStrideOpFolding,
+        )
+
+        return (GetMemDsdAndStrideOpFolding(),)
+
+
 class _GetDsdOp(IRDLOperation, ABC):
     """
     Abstract base class for CSL @get_dsd()
@@ -1029,6 +1041,12 @@ class GetMemDsdOp(_GetDsdOp):
     base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    traits = frozenset(
+        [
+            DsdOpHasCanonicalizationPatternsTrait(),
+        ]
+    )
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
