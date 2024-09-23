@@ -376,18 +376,18 @@ class ConvertApplyOpPattern(RewritePattern):
         prefetch = max(candidate_prefetches)[1]
         prefetch_idx = op.operands.index(prefetch)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
-        communicated_stencil_idx = op.operands.index(prefetch.op.input_stencil)
+        field_idx = op.operands.index(prefetch.op.input_stencil)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
         assert isa(prefetch.type, TensorType[Attribute])
-        communicated_stencil_op_arg = prefetch.op.input_stencil
+        field_op_arg = prefetch.op.input_stencil
 
-        # add empty tensor before op to be used as `iter_arg`
+        # add empty tensor before op to be used as `accumulator`
         # this could potentially be re-used if we have one of the same size lying around
-        iter_arg = tensor.EmptyOp(
+        accumulator = tensor.EmptyOp(
             (),
             TensorType(prefetch.type.get_element_type(), prefetch.type.get_shape()[1:]),
         )
-        rewriter.insert_op(iter_arg, InsertPoint.before(op))
+        rewriter.insert_op(accumulator, InsertPoint.before(op))
 
         # run pass (on this apply's region only) to consume data from `prefetch` accesses first
         nested_rewriter = PatternRewriteWalker(
@@ -423,7 +423,7 @@ class ConvertApplyOpPattern(RewritePattern):
                 x
                 for o in done_exchange_ops
                 for x in o.operands
-                if isinstance(x, BlockArgument) and x.index != communicated_stencil_idx
+                if isinstance(x, BlockArgument) and x.index != field_idx
             ),
             key=lambda b: b.index,
         )
@@ -440,16 +440,16 @@ class ConvertApplyOpPattern(RewritePattern):
             ),
             # required arg 1: %offset
             IndexType(),
-            # required arg 2: %iter_arg
-            iter_arg.results[0].type,
+            # required arg 2: %accumulator
+            accumulator.tensor.type,
             # optional args: as needed by the ops
             *[a.type for a in chunk_region_used_block_args],
         ]
         done_exchange_args = [
             # required arg 0: stencil.temp to access own data
-            communicated_stencil_op_arg.type,
-            # required arg 1: %iter_arg
-            iter_arg.results[0].type,
+            field_op_arg.type,
+            # required arg 1: %accumulator
+            accumulator.tensor.type,
             # optional args: as needed by the ops
             *[a.type for a in done_exchange_used_block_args],
         ]
@@ -468,11 +468,11 @@ class ConvertApplyOpPattern(RewritePattern):
             for idx, old in enumerate(done_exchange_used_block_args, start=2)
         )
 
-        # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
+        # add translation from old to new arg index for non-optional args - note, access to accumulator must be handled separately below
         chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
             receive_chunk.block.args[0]
         )
-        done_exchange_oprnd_table[op.region.block.args[communicated_stencil_idx]] = (
+        done_exchange_oprnd_table[op.region.block.args[field_idx]] = (
             done_exchange.block.args[0]
         )
         done_exchange_oprnd_table[chunk_res] = done_exchange.block.args[1]
@@ -488,7 +488,7 @@ class ConvertApplyOpPattern(RewritePattern):
             o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
             receive_chunk.block.add_op(o)
 
-        # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
+        # put `chunk_res` into `accumulator` (using tensor.insert_slice) and yield the result
         receive_chunk.block.add_ops(
             [
                 insert_slice_op := tensor.InsertSliceOp.get(
@@ -511,8 +511,8 @@ class ConvertApplyOpPattern(RewritePattern):
         rewriter.replace_matched_op(
             csl_stencil.ApplyOp(
                 operands=[
-                    communicated_stencil_op_arg,
-                    iter_arg,
+                    field_op_arg,
+                    accumulator,
                     [op.operands[a.index] for a in chunk_region_used_block_args]
                     + [op.operands[a.index] for a in done_exchange_used_block_args],
                     op.dest,

@@ -177,7 +177,7 @@ class ApplyOp(IRDLOperation):
         the computation of 'own' (non-communicated) or otherwise prefetched data
 
     Further fields:
-      - `communicated_stencil` - the stencil to communicate (send and receive)
+      - `field`      - the stencil field to communicate (send and receive)
       - `args`       - arguments to the stencil computation, may include other prefetched buffers
       - `topo`       - as received from `csl_stencil.prefetch`/`dmp.swap`
       - `num_chunks` - number of chunks into which to slice the communication
@@ -187,13 +187,13 @@ class ApplyOp(IRDLOperation):
 
     Function signatures:
     Before lowering (from `csl_stencil.prefetch` and `stencil.apply`):
-        %pref = csl_stencil.prefetch(%communicated_stencil : stencil.Temp)
-        stencil.apply( ..some args.. , %communicated_stencil, ..some more args.., %pref)
+        %pref = csl_stencil.prefetch(%field : stencil.Temp)
+        stencil.apply( ..some args.. , %field, ..some more args.., %pref)
 
     After lowering:
-        op:             csl_stencil.apply(%communicated_stencil, %accumulator, receive_chunk_args..., done_exchange_args...)
+        op:             csl_stencil.apply(%field, %accumulator, receive_chunk_args..., done_exchange_args...)
         receive_chunk:   block_args(slice of type(%pref), %offset, %accumulator, args...)
-        done_exchange:   block_args(%communicated_stencil, %accumulator, args...)
+        done_exchange:   block_args(%field, %accumulator, args...)
 
     Note, that %pref can be dropped (as communication is done by the op rather than before the op),
     and that a new %accumulator is required, an empty tensor which is filled by `receive_chunk` and
@@ -202,7 +202,7 @@ class ApplyOp(IRDLOperation):
 
     name = "csl_stencil.apply"
 
-    communicated_stencil = operand_def(
+    field = operand_def(
         base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
@@ -243,7 +243,7 @@ class ApplyOp(IRDLOperation):
         printer.print("(")
 
         # args required by function signature, plus optional args for regions
-        args = [self.communicated_stencil, self.accumulator, *self.args]
+        args = [self.field, self.accumulator, *self.args]
 
         printer.print_list(args, print_arg)
         if self.dest:
@@ -349,7 +349,7 @@ class ApplyOp(IRDLOperation):
             self.accumulator.type,
         ]
         done_exchange_req_types = [
-            self.communicated_stencil.type,
+            self.field.type,
             self.accumulator.type,
         ]
         for arg, expected_type in zip(

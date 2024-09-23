@@ -92,7 +92,7 @@ class ApplyOpBufferize(RewritePattern):
 
         # create new op
         buf_apply_op = csl_stencil.ApplyOp(
-            operands=[op.communicated_stencil, buf_iter_arg.memref, op.args, op.dest],
+            operands=[op.field, buf_iter_arg.memref, op.args, op.dest],
             result_types=op.res.types or [[]],
             regions=[
                 self._get_empty_bufferized_region(op.receive_chunk.block.args),

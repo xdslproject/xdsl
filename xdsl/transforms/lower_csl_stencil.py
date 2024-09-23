@@ -142,13 +142,13 @@ class LowerApplyOp(RewritePattern):
 
         # arg maps for the regions
         chunk_arg_m = [
-            op.communicated_stencil,  # buffer - this is a placeholder and should not be used after lowering AccessOp
+            op.field,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
             op.accumulator,
             *op.args[: len(op.receive_chunk.block.args) - 3],
         ]
         done_arg_m = [
-            op.communicated_stencil,
+            op.field,
             op.accumulator,
             *op.args[len(chunk_arg_m) - 3 :],
         ]
@@ -177,7 +177,7 @@ class LowerApplyOp(RewritePattern):
             None,
             module_wrapper_op.get_program_import("stencil_comms.csl"),
             [
-                op.communicated_stencil,
+                op.field,
                 num_chunks,
                 chunk_ref,
                 done_ref,
