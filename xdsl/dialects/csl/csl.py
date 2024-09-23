@@ -78,6 +78,7 @@ from xdsl.traits import (
     NoMemoryEffect,
     NoTerminator,
     OpTrait,
+    Pure,
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -1044,6 +1045,7 @@ class GetMemDsdOp(_GetDsdOp):
 
     traits = frozenset(
         [
+            Pure(),
             DsdOpHasCanonicalizationPatternsTrait(),
         ]
     )
@@ -1125,6 +1127,8 @@ class SetDsdBaseAddrOp(IRDLOperation):
     )
     result = result_def(DsdType)
 
+    traits = frozenset([Pure()])
+
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
@@ -1163,6 +1167,8 @@ class IncrementDsdOffsetOp(IRDLOperation):
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
+    traits = frozenset([Pure()])
+
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
@@ -1187,6 +1193,8 @@ class SetDsdLengthOp(IRDLOperation):
     op = operand_def(DsdType)
     length = operand_def(u16_value)
     result = result_def(DsdType)
+
+    traits = frozenset([Pure()])
 
     def verify_(self) -> None:
         if (
@@ -1213,6 +1221,8 @@ class SetDsdStrideOp(IRDLOperation):
     op = operand_def(DsdType)
     stride = operand_def(IntegerType(8, Signedness.SIGNED))
     result = result_def(DsdType)
+
+    traits = frozenset([Pure()])
 
     def verify_(self) -> None:
         if (
