@@ -240,12 +240,12 @@
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:      ^5(%arg5_1 : memref<512xf32>, %arg6_1 : memref<510xf32>):
 // CHECK-NEXT:        %62 = arith.constant 1.234567e-01 : f32
-// CHECK-NEXT:        "csl.call"() <{"callee" = @step0}> : () -> ()
+// CHECK-NEXT:        "csl.call"() <{"callee" = @step1}> : () -> ()
 // CHECK-NEXT:        csl_stencil.yield %arg6_1 : memref<510xf32>
 // CHECK-NEXT:      }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.func @step0() {
+// CHECK-NEXT:    csl.func @step1() {
 // CHECK-NEXT:      "csl.member_call"(%58) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }

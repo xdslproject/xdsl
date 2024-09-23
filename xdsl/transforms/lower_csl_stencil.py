@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func
+from xdsl.dialects import arith, func, memref
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (
     i16,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -21,6 +21,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 
 
 def get_dir_and_distance_ops(
@@ -194,6 +195,31 @@ class LowerYieldOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
+        assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
+
+        # the second callback stores yielded values to dest
+        if op.parent_region() == apply.post_process:
+            views: list[Operation] = []
+            for src, dst in zip(op.arguments, apply.dest):
+                assert isa(src.type, memref.MemRefType[Attribute])
+                assert isa(dst.type, memref.MemRefType[Attribute])
+                views.append(
+                    memref.Subview.get(
+                        dst,
+                        [
+                            (d - s) // 2  # symmetric offset
+                            for s, d in zip(src.type.get_shape(), dst.type.get_shape())
+                        ],
+                        src.type.get_shape(),
+                        len(src.type.get_shape()) * [1],
+                        src.type,
+                    )
+                )
+            copies = [memref.CopyOp(src, dst) for src, dst in zip(op.arguments, views)]
+            rewriter.insert_op(
+                [*views, *copies],
+                InsertPoint.before(op),
+            )
         rewriter.replace_matched_op(csl.ReturnOp())
 
 
@@ -214,12 +240,14 @@ class LowerCslStencil(ModulePass):
     name = "lower-csl-stencil"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        PatternRewriteWalker(
+            LowerYieldOp(),
+        ).rewrite_module(op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     LowerAccessOp(),
                     LowerApplyOp(),
-                    LowerYieldOp(),
                 ]
             )
         )

@@ -75,6 +75,7 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
         next_block = parent_block.split_before(op.next_op)
         rewriter.insert_op(csl.ReturnOp(), InsertPoint.after(op))
         next_func = csl.FuncOp(f"step{self.counter}", FunctionType.from_lists([], []))
+        self.counter += 1
         rewriter.inline_block(next_block, InsertPoint.at_start(next_func.body.block))
         rewriter.insert_op(
             csl.CallOp(SymbolRefAttr(next_func.sym_name)),
