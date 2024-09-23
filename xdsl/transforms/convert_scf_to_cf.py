@@ -155,6 +155,22 @@ class ForLowering(RewritePattern):
 class SwitchLowering(RewritePattern):
     """Lowers `scf.index_switch` to `cf.switch`."""
 
+    @staticmethod
+    def _convert_region(
+        region: Region, continue_block: Block, rewriter: PatternRewriter
+    ) -> Block:
+        block = region.first_block
+        assert block is not None
+
+        # Convert yield op to a branch to the continue block
+        yield_op = block.last_op
+        assert isinstance(yield_op, Yield)
+        rewriter.replace_op(yield_op, Branch(continue_block, *yield_op.operands))
+
+        # Inline the region
+        rewriter.inline_region_before(region, continue_block)
+        return block
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: IndexSwitchOp, rewriter: PatternRewriter):
         # Split the block at `op`
@@ -169,28 +185,19 @@ class SwitchLowering(RewritePattern):
         for i, ty in enumerate(op.result_types):
             rewriter.insert_block_argument(continue_block, i, ty)
 
-        # Handle the regions
-        def convert_region(region: Region) -> Block:
-            block = region.first_block
-            assert block is not None
-
-            # Convert yield op to a branch to the continue block
-            yield_op = block.last_op
-            assert isinstance(yield_op, Yield)
-            rewriter.replace_op(yield_op, Branch(continue_block, *yield_op.operands))
-
-            # Inline the region
-            rewriter.inline_region_before(region, continue_block)
-            return block
-
         # Convert the case regions
-        case_successors = tuple(convert_region(region) for region in op.case_regions)
+        case_successors = tuple(
+            self._convert_region(region, continue_block, rewriter)
+            for region in op.case_regions
+        )
         case_values: tuple[int, ...] = tuple(
             cast(int, i.data) for i in op.cases.data.data
         )
 
         # Convert the default region
-        default_block = convert_region(op.default_region)
+        default_block = self._convert_region(
+            op.default_region, continue_block, rewriter
+        )
 
         # Cast switch index to integer case value
         case_value = IndexCastOp(op.arg, i32)
