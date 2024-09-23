@@ -231,5 +231,11 @@ class ConvertScfToCf(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([SwitchLowering(), IfLowering(), ForLowering(),])
+            GreedyRewritePatternApplier(
+                [
+                    SwitchLowering(),
+                    IfLowering(),
+                    ForLowering(),
+                ]
+            )
         ).rewrite_op(op)
