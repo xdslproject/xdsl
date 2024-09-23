@@ -122,7 +122,7 @@ class LowerApplyOp(RewritePattern):
 
         # set up csl funcs
         reduce_fn = csl.FuncOp(
-            "recv_chunk_cb" + str(self.count), FunctionType.from_lists([i16], [])
+            "receive_chunk_cb" + str(self.count), FunctionType.from_lists([i16], [])
         )
         reduce_fn.body.block.args[0].name_hint = "offset"
         post_fn = csl.FuncOp(
@@ -145,7 +145,7 @@ class LowerApplyOp(RewritePattern):
             op.communicated_stencil,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
             op.accumulator,
-            *op.args[: len(op.recv_chunk_cb.block.args) - 3],
+            *op.args[: len(op.receive_chunk.block.args) - 3],
         ]
         post_arg_m = [
             op.communicated_stencil,
@@ -157,7 +157,7 @@ class LowerApplyOp(RewritePattern):
 
         # inlining both regions
         rewriter.inline_block(
-            op.recv_chunk_cb.block,
+            op.receive_chunk.block,
             InsertPoint.at_end(reduce_fn.body.block),
             reduce_arg_m,
         )
