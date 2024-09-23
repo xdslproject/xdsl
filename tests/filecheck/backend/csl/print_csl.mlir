@@ -222,6 +222,8 @@
   %ptr_1_fn = "csl.addressof_fn"() <{fn_name = @args_no_return}> : () -> !csl.ptr<(i32, i32) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
   %ptr_2_fn = "csl.addressof_fn"() <{fn_name = @no_args_return}> : () -> !csl.ptr<() -> (f32), #csl<ptr_kind single>, #csl<ptr_const const>>
   %dir_test = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
+  // putting dir_test in a struct to make sure it gets correctly inlined
+  %struct_with_dir = "csl.const_struct"(%dir_test) <{ssa_fields = ["dir"]}> : (!csl.direction) -> !csl.comptime_struct
 
 
 
@@ -655,7 +657,9 @@ csl.func @builtins() {
 // CHECK-NEXT: const ptr_to_val : *const i16 = &const27;
 // CHECK-NEXT: const ptr_1_fn : *const fn(i32, i32) void = &args_no_return;
 // CHECK-NEXT: const ptr_2_fn : *const fn() f32 = &no_args_return;
-// CHECK-NEXT: const dir_test : direction = NORTH;
+// CHECK-NEXT: const struct_with_dir : comptime_struct = .{
+// CHECK-NEXT:   .dir = NORTH,
+// CHECK-NEXT: };
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(global_ptr, "ptr_name");
 // CHECK-NEXT: }
