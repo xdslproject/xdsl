@@ -348,7 +348,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
     args:
         num_chunks - number of chunks into which communication and computation should be split.
-                     Effectively, the number of times `csl_stencil.apply.chunk_reduce` will be executed and the
+                     Effectively, the number of times `csl_stencil.apply.recv_chunk_cb` will be executed and the
                      tensor sizes it handles. Higher values may increase compute overhead but reduce size of
                      communication buffers when lowered.
     """
@@ -397,22 +397,22 @@ class ConvertApplyOpPattern(RewritePattern):
         nested_rewriter.rewrite_op(op)
 
         # determine how ops should be split across the two regions
-        chunk_reduce_ops, post_process_ops = get_op_split(
+        chunk_region_ops, post_process_ops = get_op_split(
             list(op.region.block.ops), op.region.block.args[prefetch_idx]
         )
 
-        # fetch what chunk_reduce is computing for
-        if isinstance(chunk_reduce_ops[-1], stencil.ReturnOp):
-            chunk_res = chunk_reduce_ops[-1].operands[0]
+        # fetch what recv_chunk_cb is computing for
+        if isinstance(chunk_region_ops[-1], stencil.ReturnOp):
+            chunk_res = chunk_region_ops[-1].operands[0]
         else:
-            chunk_res = chunk_reduce_ops[-1].results[0]
+            chunk_res = chunk_region_ops[-1].results[0]
 
         # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
         # ignore accesses block args which already are part of the region's required signature
-        chunk_reduce_used_block_args = sorted(
+        chunk_region_used_block_args = sorted(
             set(
                 x
-                for o in chunk_reduce_ops
+                for o in chunk_region_ops
                 for x in o.operands
                 if isinstance(x, BlockArgument) and x.index != prefetch_idx
             ),
@@ -429,7 +429,7 @@ class ConvertApplyOpPattern(RewritePattern):
         )
 
         # set up region signatures, comprising fixed and optional args - see docs on `csl_stencil.apply` for details
-        chunk_reduce_args = [
+        chunk_region_args = [
             # required arg 0: slice of type(%prefetch)
             TensorType(
                 prefetch.type.get_element_type(),
@@ -443,7 +443,7 @@ class ConvertApplyOpPattern(RewritePattern):
             # required arg 2: %iter_arg
             iter_arg.results[0].type,
             # optional args: as needed by the ops
-            *[a.type for a in chunk_reduce_used_block_args],
+            *[a.type for a in chunk_region_used_block_args],
         ]
         post_process_args = [
             # required arg 0: stencil.temp to access own data
@@ -455,13 +455,13 @@ class ConvertApplyOpPattern(RewritePattern):
         ]
 
         # set up two regions
-        chunk_reduce = Region(Block(arg_types=chunk_reduce_args))
+        recv_chunk_cb = Region(Block(arg_types=chunk_region_args))
         post_process = Region(Block(arg_types=post_process_args))
 
         # translate old to new block arg index for optional args
-        chunk_reduce_oprnd_table = dict[Operand, Operand](
-            (old, chunk_reduce.block.args[idx])
-            for idx, old in enumerate(chunk_reduce_used_block_args, start=3)
+        chunk_region_oprnd_table = dict[Operand, Operand](
+            (old, recv_chunk_cb.block.args[idx])
+            for idx, old in enumerate(chunk_region_used_block_args, start=3)
         )
         post_process_oprnd_table = dict[Operand, Operand](
             (old, post_process.block.args[idx])
@@ -469,8 +469,8 @@ class ConvertApplyOpPattern(RewritePattern):
         )
 
         # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
-        chunk_reduce_oprnd_table[op.region.block.args[prefetch_idx]] = (
-            chunk_reduce.block.args[0]
+        chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
+            recv_chunk_cb.block.args[0]
         )
         post_process_oprnd_table[op.region.block.args[communicated_stencil_idx]] = (
             post_process.block.args[0]
@@ -481,20 +481,20 @@ class ConvertApplyOpPattern(RewritePattern):
         for o in op.region.block.ops:
             op.region.block.detach_op(o)
 
-        # add operations from list to chunk_reduce, use translation table to rebuild operands
-        for o in chunk_reduce_ops:
+        # add operations from list to recv_chunk_cb, use translation table to rebuild operands
+        for o in chunk_region_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
                 break
-            o.operands = [chunk_reduce_oprnd_table.get(x, x) for x in o.operands]
-            chunk_reduce.block.add_op(o)
+            o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
+            recv_chunk_cb.block.add_op(o)
 
         # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
-        chunk_reduce.block.add_ops(
+        recv_chunk_cb.block.add_ops(
             [
                 insert_slice_op := tensor.InsertSliceOp.get(
                     source=chunk_res,
-                    dest=chunk_reduce.block.args[2],
-                    offsets=(chunk_reduce.block.args[1],),
+                    dest=recv_chunk_cb.block.args[2],
+                    offsets=(recv_chunk_cb.block.args[1],),
                     static_sizes=(prefetch.type.get_shape()[1] // self.num_chunks,),
                 ),
                 csl_stencil.YieldOp(insert_slice_op.result),
@@ -513,7 +513,7 @@ class ConvertApplyOpPattern(RewritePattern):
                 operands=[
                     communicated_stencil_op_arg,
                     iter_arg,
-                    [op.operands[a.index] for a in chunk_reduce_used_block_args]
+                    [op.operands[a.index] for a in chunk_region_used_block_args]
                     + [op.operands[a.index] for a in post_process_used_block_args],
                     op.dest,
                 ],
@@ -524,7 +524,7 @@ class ConvertApplyOpPattern(RewritePattern):
                     "bounds": op.bounds,
                 },
                 regions=[
-                    chunk_reduce,
+                    recv_chunk_cb,
                     post_process,
                 ],
                 result_types=[op.result_types],

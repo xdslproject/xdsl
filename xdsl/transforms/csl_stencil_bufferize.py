@@ -95,7 +95,7 @@ class ApplyOpBufferize(RewritePattern):
             operands=[op.communicated_stencil, buf_iter_arg.memref, op.args, op.dest],
             result_types=op.res.types or [[]],
             regions=[
-                self._get_empty_bufferized_region(op.chunk_reduce.block.args),
+                self._get_empty_bufferized_region(op.recv_chunk_cb.block.args),
                 self._get_empty_bufferized_region(op.post_process.block.args),
             ],
             properties=op.properties,
@@ -103,20 +103,20 @@ class ApplyOpBufferize(RewritePattern):
         )
 
         # insert to_tensor ops and create arg mappings for block inlining
-        chunk_reduce_arg_mapping: Sequence[SSAValue] = []
+        chunk_region_arg_mapping: Sequence[SSAValue] = []
         for idx, (old_arg, arg) in enumerate(
-            zip(op.chunk_reduce.block.args, buf_apply_op.chunk_reduce.block.args)
+            zip(op.recv_chunk_cb.block.args, buf_apply_op.recv_chunk_cb.block.args)
         ):
             # arg0 has special meaning and does not need a `to_tensor` op
             if isattr(old_arg.type, TensorType) and idx != 0:
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 2),
-                    InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
+                    InsertPoint.at_end(buf_apply_op.recv_chunk_cb.block),
                 )
-                chunk_reduce_arg_mapping.append(t.tensor)
+                chunk_region_arg_mapping.append(t.tensor)
             else:
-                chunk_reduce_arg_mapping.append(arg)
+                chunk_region_arg_mapping.append(arg)
 
         post_process_arg_mapping: Sequence[SSAValue] = []
         for idx, (old_arg, arg) in enumerate(
@@ -132,14 +132,14 @@ class ApplyOpBufferize(RewritePattern):
             else:
                 post_process_arg_mapping.append(arg)
 
-        assert isa(typ := op.chunk_reduce.block.args[0].type, TensorType[Attribute])
+        assert isa(typ := op.recv_chunk_cb.block.args[0].type, TensorType[Attribute])
         chunk_type = TensorType(typ.get_element_type(), typ.get_shape()[1:])
 
         # inline blocks from old into new regions
         rewriter.inline_block(
-            op.chunk_reduce.block,
-            InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
-            chunk_reduce_arg_mapping,
+            op.recv_chunk_cb.block,
+            InsertPoint.at_end(buf_apply_op.recv_chunk_cb.block),
+            chunk_region_arg_mapping,
         )
 
         rewriter.inline_block(
@@ -149,7 +149,7 @@ class ApplyOpBufferize(RewritePattern):
         )
 
         self._inject_iter_arg_into_linalg_outs(
-            buf_apply_op, rewriter, chunk_type, chunk_reduce_arg_mapping[2]
+            buf_apply_op, rewriter, chunk_type, chunk_region_arg_mapping[2]
         )
 
         # insert new op
@@ -185,7 +185,7 @@ class ApplyOpBufferize(RewritePattern):
         and avoiding having an extra alloc + memref.copy.
         """
         linalg_op: linalg.NamedOpBase | None = None
-        for curr_op in op.chunk_reduce.block.ops:
+        for curr_op in op.recv_chunk_cb.block.ops:
             if (
                 isinstance(curr_op, linalg.NamedOpBase)
                 and len(curr_op.outputs) > 0
@@ -201,7 +201,7 @@ class ApplyOpBufferize(RewritePattern):
             linalg_op,
             [
                 extract_slice_op := tensor.ExtractSliceOp(
-                    operands=[iter_arg, [op.chunk_reduce.block.args[1]], [], []],
+                    operands=[iter_arg, [op.recv_chunk_cb.block.args[1]], [], []],
                     result_types=[chunk_type],
                     properties={
                         "static_offsets": DenseArrayBase.from_list(
@@ -228,11 +228,11 @@ class ApplyOpBufferize(RewritePattern):
         op: csl_stencil.ApplyOp, to_tensor: bufferization.ToTensorOp, offset: SSAValue
     ) -> tensor.ExtractSliceOp:
         """
-        Helper function to create an early tensor.extract_slice in the apply.chunk_reduce region needed for bufferization.
+        Helper function to create an early tensor.extract_slice in the apply.recv_chunk_cb region needed for bufferization.
         """
 
         # this is the unbufferized `tensor<(neighbours)x(ZDim)x(type)>` value
-        assert isa(typ := op.chunk_reduce.block.args[0].type, TensorType[Attribute])
+        assert isa(typ := op.recv_chunk_cb.block.args[0].type, TensorType[Attribute])
 
         return tensor.ExtractSliceOp(
             operands=[to_tensor.tensor, [offset], [], []],
@@ -369,7 +369,7 @@ class CslStencilBufferize(ModulePass):
     """
     Bufferizes the csl_stencil dialect.
 
-    Attempts to inject `csl_stencil.apply.chunk_reduce.iter_arg` into linalg compute ops `outs` within that region
+    Attempts to inject `csl_stencil.apply.recv_chunk_cb.accumulator` into linalg compute ops `outs` within that region
     for improved bufferization. Ideally be run after `--lift-arith-to-linalg`.
     """
 

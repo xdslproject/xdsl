@@ -97,7 +97,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
             if isa(
-                buf_t := apply_op.chunk_reduce.block.args[0].type,
+                buf_t := apply_op.recv_chunk_cb.block.args[0].type,
                 TensorType[Attribute] | MemRefType[Attribute],
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])

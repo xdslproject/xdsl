@@ -169,11 +169,11 @@ class ApplyOp(IRDLOperation):
     with a `stencil.apply` (a stencil function plus parameters and applies the stencil function to the output temp).
 
     As communication may be done in chunks, this operation provides two regions for computation:
-      - the `chunk_reduce` region to reduce a chunk of data received from several neighbours to one chunk of data.
+      - the `recv_chunk_cb` region to reduce a chunk of data received from several neighbours to one chunk of data.
         this region is invoked once per communicated chunks and effectively acts as a loop body.
         It uses `accumulator` to concatenate the chunks
       - the `post_process` region (invoked once when communication has finished) that takes the concatenated
-        chunk of the `chunk_reduce` region and applies any further processing here - for instance, it may handle
+        chunk of the `recv_chunk_cb` region and applies any further processing here - for instance, it may handle
         the computation of 'own' (non-communicated) or otherwise prefetched data
 
     Further fields:
@@ -191,12 +191,12 @@ class ApplyOp(IRDLOperation):
         stencil.apply( ..some args.. , %communicated_stencil, ..some more args.., %pref)
 
     After lowering:
-        op:             csl_stencil.apply(%communicated_stencil, %accumulator, chunk_reduce_args..., post_process_args...)
-        chunk_reduce:   block_args(slice of type(%pref), %offset, %accumulator, args...)
+        op:             csl_stencil.apply(%communicated_stencil, %accumulator, recv_chunk_cb_args..., post_process_args...)
+        recv_chunk_cb:   block_args(slice of type(%pref), %offset, %accumulator, args...)
         post_process:   block_args(%communicated_stencil, %accumulator, args...)
 
     Note, that %pref can be dropped (as communication is done by the op rather than before the op),
-    and that a new %accumulator is required, an empty tensor which is filled by `chunk_reduce` and
+    and that a new %accumulator is required, an empty tensor which is filled by `recv_chunk_cb` and
     consumed by `post_process`
     """
 
@@ -211,7 +211,7 @@ class ApplyOp(IRDLOperation):
     args = var_operand_def(Attribute)
     dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
 
-    chunk_reduce = region_def()
+    recv_chunk_cb = region_def()
     post_process = region_def()
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
@@ -259,7 +259,7 @@ class ApplyOp(IRDLOperation):
         printer.print("> ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print("(")
-        printer.print_region(self.chunk_reduce, print_entry_block_args=True)
+        printer.print_region(self.recv_chunk_cb, print_entry_block_args=True)
         printer.print(", ")
         printer.print_region(self.post_process, print_entry_block_args=True)
         printer.print(")")
@@ -298,7 +298,7 @@ class ApplyOp(IRDLOperation):
         if attrs is not None:
             attrs = attrs.data
         parser.parse_punctuation("(")
-        chunk_reduce = parser.parse_region()
+        recv_chunk_cb = parser.parse_region()
         parser.parse_punctuation(",")
         post_process = parser.parse_region()
         parser.parse_punctuation(")")
@@ -309,7 +309,7 @@ class ApplyOp(IRDLOperation):
         return cls(
             operands=[operands[0], operands[1], operands[2:], destinations],
             result_types=[result_types],
-            regions=[chunk_reduce, post_process],
+            regions=[recv_chunk_cb, post_process],
             properties=props,
             attributes=attrs,
         )
@@ -317,14 +317,14 @@ class ApplyOp(IRDLOperation):
     def verify_(self) -> None:
         # typecheck op arguments
         if (
-            len(self.chunk_reduce.block.args) < 3
+            len(self.recv_chunk_cb.block.args) < 3
             or len(self.post_process.block.args) < 2
         ):
             raise VerifyException("Missing required block args on region")
         op_args = (
             self.post_process.block.args[0],
-            self.chunk_reduce.block.args[2],
-            *self.chunk_reduce.block.args[3:],
+            self.recv_chunk_cb.block.args[2],
+            *self.recv_chunk_cb.block.args[3:],
             *self.post_process.block.args[2:],
         )
         for operand, argument in zip(self.operands, op_args):
@@ -337,7 +337,7 @@ class ApplyOp(IRDLOperation):
         assert isa(
             self.accumulator.type, TensorType[Attribute] | memref.MemRefType[Attribute]
         )
-        chunk_reduce_req_types = [
+        chunk_region_req_types = [
             type(self.accumulator.type)(
                 self.accumulator.type.get_element_type(),
                 (
@@ -353,11 +353,11 @@ class ApplyOp(IRDLOperation):
             self.accumulator.type,
         ]
         for arg, expected_type in zip(
-            self.chunk_reduce.block.args, chunk_reduce_req_types
+            self.recv_chunk_cb.block.args, chunk_region_req_types
         ):
             if arg.type != expected_type:
                 raise VerifyException(
-                    f"Unexpected block argument type of chunk_reduce, got {arg.type} != {expected_type} at index {arg.index}"
+                    f"Unexpected block argument type of recv_chunk_cb, got {arg.type} != {expected_type} at index {arg.index}"
                 )
         for arg, expected_type in zip(
             self.post_process.block.args, post_process_req_types
@@ -393,7 +393,7 @@ class ApplyOp(IRDLOperation):
            field of the apply operation.
         """
         # iterate over the block arguments
-        for arg in self.chunk_reduce.block.args + self.post_process.block.args:
+        for arg in self.recv_chunk_cb.block.args + self.post_process.block.args:
             accesses: list[tuple[int, ...]] = []
             # walk the uses of the argument
             for use in arg.uses:
