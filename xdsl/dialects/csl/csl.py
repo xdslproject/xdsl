@@ -1013,10 +1013,48 @@ class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl import (
-            GetMemDsdAndStrideOpFolding,
+            GetDsdAndLengthFolding,
+            GetDsdAndOffsetFolding,
+            GetDsdAndStrideFolding,
         )
 
-        return (GetMemDsdAndStrideOpFolding(),)
+        return (
+            GetDsdAndOffsetFolding(),
+            GetDsdAndLengthFolding(),
+            GetDsdAndStrideFolding(),
+        )
+
+
+class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdOffsetFolding,
+        )
+
+        return (ChainedDsdOffsetFolding(),)
+
+
+class SetDsdLengthOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdLengthFolding,
+        )
+
+        return (ChainedDsdLengthFolding(),)
+
+
+class SetDsdStrideOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdStrideFolding,
+        )
+
+        return (ChainedDsdStrideFolding(),)
 
 
 class _GetDsdOp(IRDLOperation, ABC):
@@ -1167,7 +1205,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), IncrementDsdOffsetOpHasCanonicalizationPatternsTrait()])
 
     def verify_(self) -> None:
         if (
@@ -1194,7 +1232,7 @@ class SetDsdLengthOp(IRDLOperation):
     length = operand_def(u16_value)
     result = result_def(DsdType)
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait()])
 
     def verify_(self) -> None:
         if (
@@ -1222,7 +1260,7 @@ class SetDsdStrideOp(IRDLOperation):
     stride = operand_def(IntegerType(8, Signedness.SIGNED))
     result = result_def(DsdType)
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait()])
 
     def verify_(self) -> None:
         if (
