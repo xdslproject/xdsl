@@ -536,8 +536,8 @@ class ConvertApplyOpPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class StencilToCslStencilPass(ModulePass):
-    name = "stencil-to-csl-stencil"
+class ConvertStencilToCslStencilPass(ModulePass):
+    name = "convert-stencil-to-csl-stencil"
 
     # chunks into which to slice communication
     num_chunks: int = 1
