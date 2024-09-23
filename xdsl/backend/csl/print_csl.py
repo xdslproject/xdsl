@@ -770,7 +770,7 @@ class CslPrintContext:
                         f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
                     )
                     self.print(
-                        f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
+                        f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {self._var_use(base_addr)}[ {accesses_str} ]"
                     )
                     self.print("});")
                 case csl.GetFabDsdOp(
