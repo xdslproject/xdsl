@@ -127,14 +127,17 @@ builtin.module {
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @done_exchange_cb0() {
-// CHECK-NEXT:       %57 = memref.subview %arg0[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
-// CHECK-NEXT:       %58 = memref.subview %arg0[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
-// CHECK-NEXT:       "csl.fadds"(%accumulator, %accumulator, %58) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
-// CHECK-NEXT:       "csl.fadds"(%accumulator, %accumulator, %57) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
-// CHECK-NEXT:       %59 = arith.constant 1.666600e-01 : f32
-// CHECK-NEXT:       "csl.fmuls"(%accumulator, %accumulator, %59) : (memref<510xf32>, memref<510xf32>, f32) -> ()
-// CHECK-NEXT:       %60 = memref.subview %arg1[1] [510] [1] : memref<512xf32> to memref<510xf32>
-// CHECK-NEXT:       "memref.copy"(%accumulator, %60) : (memref<510xf32>, memref<510xf32>) -> ()
+// CHECK-NEXT:       scf.if %isBorderRegionPE {
+// CHECK-NEXT:       } else {
+// CHECK-NEXT:         %57 = memref.subview %arg0[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
+// CHECK-NEXT:         %58 = memref.subview %arg0[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
+// CHECK-NEXT:         "csl.fadds"(%accumulator, %accumulator, %58) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
+// CHECK-NEXT:         "csl.fadds"(%accumulator, %accumulator, %57) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
+// CHECK-NEXT:         %59 = arith.constant 1.666600e-01 : f32
+// CHECK-NEXT:         "csl.fmuls"(%accumulator, %accumulator, %59) : (memref<510xf32>, memref<510xf32>, f32) -> ()
+// CHECK-NEXT:         %60 = memref.subview %arg1[1] [510] [1] : memref<512xf32> to memref<510xf32>
+// CHECK-NEXT:         "memref.copy"(%accumulator, %60) : (memref<510xf32>, memref<510xf32>) -> ()
+// CHECK-NEXT:       }
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()

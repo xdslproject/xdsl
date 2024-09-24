@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func, memref
+from xdsl.dialects import arith, func, memref, scf
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -227,6 +227,38 @@ class LowerYieldOp(RewritePattern):
 
 
 @dataclass(frozen=True)
+class DisableComputeInBorderRegion(RewritePattern):
+    """
+    Processing elements in the border region do not need to do compute or store their values back to a buffer.
+    For simplicity, wrap the full `csl_stencil.apply.done_exchange` region is wrapped in an `scf.if`.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        wrapper_op = op.parent_op()
+        while wrapper_op and not isinstance(wrapper_op, csl_wrapper.ModuleOp):
+            wrapper_op = wrapper_op.parent_op()
+        if not wrapper_op:
+            return
+
+        cond = wrapper_op.get_program_param("isBorderRegionPE")
+        rewriter.insert_op(
+            if_op := scf.If(cond, [], Region(Block()), Region(Block())),
+            InsertPoint.at_start(op.done_exchange.block),
+        )
+
+        assert if_op.next_op, "Block cannot be empty"
+        assert isinstance(term := op.done_exchange.block.last_op, csl.ReturnOp)
+
+        body = op.done_exchange.block.split_before(if_op.next_op)
+        rewriter.inline_block(body, InsertPoint.at_start(if_op.false_region.block))
+
+        rewriter.insert_op(term.clone(), InsertPoint.at_end(op.done_exchange.block))
+        rewriter.replace_op(term, scf.Yield())
+        rewriter.insert_op(scf.Yield(), InsertPoint.at_start(if_op.true_region.block))
+
+
+@dataclass(frozen=True)
 class LowerCslStencil(ModulePass):
     """
     Lowers csl_stencil ops to csl and api calls.
@@ -238,13 +270,17 @@ class LowerCslStencil(ModulePass):
       callbacks to the api call.
     * `csl_stencil.yield` ops are lowered to `csl.return` as they terminate what are now callback functions with no
       return values.
+    * The `csl_stencil.apply.done_exchange` region is wrapped in an check to `isBorderRegionPE`, such that the
+      compute and (most importantly) the store do not happen for PEs of the border region. While technically possible
+      to wrap only the store, it may be beneficial for code optimisation to wrap all rather than wrap minimally.
     """
 
     name = "lower-csl-stencil"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        PatternRewriteWalker(LowerYieldOp()).rewrite_module(op)
         PatternRewriteWalker(
-            LowerYieldOp(),
+            DisableComputeInBorderRegion(), apply_recursively=False
         ).rewrite_module(op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
