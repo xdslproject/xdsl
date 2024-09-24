@@ -51,7 +51,7 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
         if isinstance(op.next_op, csl.ReturnOp):
             return
 
-        terminator = op.post_process.block.last_op
+        terminator = op.done_exchange.block.last_op
         assert isinstance(terminator, csl_stencil.YieldOp)
 
         # case 2: apply is followed by call_op and return - move call_op to second callback of apply
