@@ -148,17 +148,14 @@ class ChainedDsdLengthFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_op(
-            next_op,
-            [
-                csl.SetDsdLengthOp(
-                    operands=[op.op, next_op.length],
-                    properties=op.properties.copy(),
-                    result_types=op.result_types,
-                ),
-            ],
+        rewriter.replace_matched_op(
+            rebuilt := csl.SetDsdLengthOp(
+                operands=[op.op, next_op.length],
+                properties=op.properties.copy(),
+                result_types=op.result_types,
+            ),
         )
-        rewriter.erase_matched_op()
+        rewriter.replace_op(next_op, [], new_results=[rebuilt.result])
 
 
 class ChainedDsdStrideFolding(RewritePattern):
@@ -177,14 +174,11 @@ class ChainedDsdStrideFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_op(
-            next_op,
-            [
-                csl.SetDsdStrideOp(
-                    operands=[op.op, next_op.stride],
-                    properties=op.properties.copy(),
-                    result_types=op.result_types,
-                ),
-            ],
+        rewriter.replace_matched_op(
+            rebuilt := csl.SetDsdStrideOp(
+                operands=[op.op, next_op.stride],
+                properties=op.properties.copy(),
+                result_types=op.result_types,
+            )
         )
-        rewriter.erase_matched_op()
+        rewriter.replace_op(next_op, [], new_results=[rebuilt.result])
