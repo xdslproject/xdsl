@@ -142,11 +142,11 @@ class TblgenLoader:
                     """)
 
                 if "I" in rec["!superclasses"]:
-                    return f"EqAttrConstraint(IntegerType({rec["bitwidth"]}))"
+                    return f"EqAttrConstraint(IntegerType({rec['bitwidth']}))"
                 if "SI" in rec["!superclasses"]:
-                    return f"EqAttrConstraint(IntegerType({rec["bitwidth"]}, Signedness.SIGNED))"
+                    return f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.SIGNED))"
                 if "UI" in rec["!superclasses"]:
-                    return f"EqAttrConstraint(IntegerType({rec["bitwidth"]}, Signedness.UNSIGNED))"
+                    return f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.UNSIGNED))"
                 if "Complex" in rec["!superclasses"]:
                     return textwrap.dedent(f"""
                     ParamAttrConstraint(
@@ -327,7 +327,7 @@ class TblgenLoader:
 class {tblgen_op["!name"]}(IRDLOperation):
     """{tblgen_op["summary"]}"""
 
-{textwrap.indent("\n\n".join(f'{x} = {d}' for x,d in fields.items()), "    ")}
+{textwrap.indent("\n\n".join(f"{x} = {d}" for x,d in fields.items()), "    ")}
 '''
 
         self.operations[tblgen_op["!name"]] = string
