@@ -49,7 +49,7 @@ class GetDsdAndLengthFolding(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
-        # single use that is `@increment_dsd_offset`
+        # single use that is `@set_dsd_length`
         if len(op.result.uses) != 1 or not isinstance(
             size_op := next(iter(op.result.uses)).operation, csl.SetDsdLengthOp
         ):
@@ -76,7 +76,7 @@ class GetDsdAndStrideFolding(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
-        # single use that is `@increment_dsd_offset`
+        # single use that is `@set_dsd_stride`
         if len(op.result.uses) != 1 or not isinstance(
             stride_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp
         ):
