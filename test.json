@@ -8576,14 +8576,6 @@
         ],
         [
           {
-            "def": "anonymous_344",
-            "kind": "def",
-            "printable": "anonymous_344"
-          },
-          "optional"
-        ],
-        [
-          {
             "def": "Test_SingletonCType",
             "kind": "def",
             "printable": "Test_SingletonCType"
