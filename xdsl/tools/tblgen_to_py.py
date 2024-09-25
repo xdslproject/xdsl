@@ -322,12 +322,15 @@ class TblgenLoader:
             else:
                 fields[name] = "successor_def()"
 
+        field_string = textwrap.indent(
+            "\n\n".join(f"{x} = {d}" for x, d in fields.items()), "    "
+        )
         string = f'''
 @irdl_op_definition
 class {tblgen_op["!name"]}(IRDLOperation):
     """{tblgen_op["summary"]}"""
 
-{textwrap.indent("\n\n".join(f"{x} = {d}" for x,d in fields.items()), "    ")}
+{field_string}
 '''
 
         self.operations[tblgen_op["!name"]] = string
