@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p csl-wrapper-to-csl %s | filecheck --match-full-lines %s
+// RUN: xdsl-opt -p lower-csl-wrapper %s | filecheck --match-full-lines %s
 
 builtin.module {
   "csl_wrapper.module"() <{

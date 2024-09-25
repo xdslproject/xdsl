@@ -67,15 +67,18 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasAncestor,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
     OpTrait,
+    Pure,
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -1006,6 +1009,54 @@ class SetTileCodeOp(IRDLOperation):
         super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
 
 
+class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            GetDsdAndLengthFolding,
+            GetDsdAndOffsetFolding,
+            GetDsdAndStrideFolding,
+        )
+
+        return (
+            GetDsdAndOffsetFolding(),
+            GetDsdAndLengthFolding(),
+            GetDsdAndStrideFolding(),
+        )
+
+
+class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdOffsetFolding,
+        )
+
+        return (ChainedDsdOffsetFolding(),)
+
+
+class SetDsdLengthOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdLengthFolding,
+        )
+
+        return (ChainedDsdLengthFolding(),)
+
+
+class SetDsdStrideOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdStrideFolding,
+        )
+
+        return (ChainedDsdStrideFolding(),)
+
+
 class _GetDsdOp(IRDLOperation, ABC):
     """
     Abstract base class for CSL @get_dsd()
@@ -1029,6 +1080,13 @@ class GetMemDsdOp(_GetDsdOp):
     base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    traits = frozenset(
+        [
+            Pure(),
+            DsdOpHasCanonicalizationPatternsTrait(),
+        ]
+    )
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
@@ -1107,6 +1165,8 @@ class SetDsdBaseAddrOp(IRDLOperation):
     )
     result = result_def(DsdType)
 
+    traits = frozenset([Pure()])
+
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
@@ -1145,6 +1205,8 @@ class IncrementDsdOffsetOp(IRDLOperation):
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
+    traits = frozenset([Pure(), IncrementDsdOffsetOpHasCanonicalizationPatternsTrait()])
+
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
@@ -1169,6 +1231,8 @@ class SetDsdLengthOp(IRDLOperation):
     op = operand_def(DsdType)
     length = operand_def(u16_value)
     result = result_def(DsdType)
+
+    traits = frozenset([Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait()])
 
     def verify_(self) -> None:
         if (
@@ -1195,6 +1259,8 @@ class SetDsdStrideOp(IRDLOperation):
     op = operand_def(DsdType)
     stride = operand_def(IntegerType(8, Signedness.SIGNED))
     result = result_def(DsdType)
+
+    traits = frozenset([Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait()])
 
     def verify_(self) -> None:
         if (
