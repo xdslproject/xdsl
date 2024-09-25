@@ -69,8 +69,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 assert isinstance(
                     shape.data[1].data, int
                 ), "Cannot have a float data shape"
-                width = max(width, shape.data[0].data + 2)
-                height = max(height, shape.data[1].data + 2)
+                width = max(width, shape.data[0].data)
+                height = max(height, shape.data[1].data)
             else:
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
@@ -106,8 +106,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # initialise module op
         module_op = csl_wrapper.ModuleOp(
-            width=IntegerAttr(width, 16),
-            height=IntegerAttr(height, 16),
+            width=IntegerAttr(width + (max_distance * 2), 16),
+            height=IntegerAttr(height + (max_distance * 2), 16),
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
                 "pattern": IntegerAttr(max_distance + 1, 16),
