@@ -121,68 +121,71 @@ class LowerApplyOp(RewritePattern):
         ), "Expected csl_stencil.apply to be inside a func.func or csl.func"
 
         # set up csl funcs
-        reduce_fn = csl.FuncOp(
-            "chunk_reduce_cb" + str(self.count), FunctionType.from_lists([i16], [])
+        chunk_fn = csl.FuncOp(
+            "receive_chunk_cb" + str(self.count), FunctionType.from_lists([i16], [])
         )
-        post_fn = csl.FuncOp(
-            "post_process_cb" + str(self.count),
+        chunk_fn.body.block.args[0].name_hint = "offset"
+        done_fn = csl.FuncOp(
+            "done_exchange_cb" + str(self.count),
             FunctionType.from_lists([], []),
             Region(Block()),
         )
         self.count += 1
 
         # the offset arg was of type index and is now i16, so it's cast back to index to be used in the func body
-        reduce_fn.body.block.add_op(
+        chunk_fn.body.block.add_op(
             index_op := arith.IndexCastOp(
-                reduce_fn.body.block.args[0],
+                chunk_fn.body.block.args[0],
                 IndexType(),
             )
         )
 
         # arg maps for the regions
-        reduce_arg_m = [
-            op.communicated_stencil,  # buffer - this is a placeholder and should not be used after lowering AccessOp
+        chunk_arg_m = [
+            op.field,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
-            op.iter_arg,
-            *op.args[: len(op.chunk_reduce.block.args) - 3],
+            op.accumulator,
+            *op.args[: len(op.receive_chunk.block.args) - 3],
         ]
-        post_arg_m = [
-            op.communicated_stencil,
-            op.iter_arg,
-            *op.args[len(reduce_arg_m) - 3 :],
+        done_arg_m = [
+            op.field,
+            op.accumulator,
+            *op.args[len(chunk_arg_m) - 3 :],
         ]
+        index_op.result.name_hint = "offset"
+        op.accumulator.name_hint = "accumulator"
 
         # inlining both regions
         rewriter.inline_block(
-            op.chunk_reduce.block,
-            InsertPoint.at_end(reduce_fn.body.block),
-            reduce_arg_m,
+            op.receive_chunk.block,
+            InsertPoint.at_end(chunk_fn.body.block),
+            chunk_arg_m,
         )
         rewriter.inline_block(
-            op.post_process.block, InsertPoint.at_end(post_fn.body.block), post_arg_m
+            op.done_exchange.block, InsertPoint.at_end(done_fn.body.block), done_arg_m
         )
 
         # place both func next to the enclosing parent func
-        rewriter.insert_op([reduce_fn, post_fn], InsertPoint.after(parent_func))
+        rewriter.insert_op([chunk_fn, done_fn], InsertPoint.after(parent_func))
 
         # add api call
         num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
-        reduce_ref = csl.AddressOfFnOp(reduce_fn)
-        post_ref = csl.AddressOfFnOp(post_fn)
+        chunk_ref = csl.AddressOfFnOp(chunk_fn)
+        done_ref = csl.AddressOfFnOp(done_fn)
         api_call = csl.MemberCallOp(
             "communicate",
             None,
             module_wrapper_op.get_program_import("stencil_comms.csl"),
             [
-                op.communicated_stencil,
+                op.field,
                 num_chunks,
-                reduce_ref,
-                post_ref,
+                chunk_ref,
+                done_ref,
             ],
         )
 
         # replace op with api call
-        rewriter.replace_matched_op([num_chunks, reduce_ref, post_ref, api_call], [])
+        rewriter.replace_matched_op([num_chunks, chunk_ref, done_ref, api_call], [])
 
 
 @dataclass(frozen=True)
@@ -198,7 +201,7 @@ class LowerYieldOp(RewritePattern):
         assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
 
         # the second callback stores yielded values to dest
-        if op.parent_region() == apply.post_process:
+        if op.parent_region() == apply.done_exchange:
             views: list[Operation] = []
             for src, dst in zip(op.arguments, apply.dest):
                 assert isa(src.type, memref.MemRefType[Attribute])

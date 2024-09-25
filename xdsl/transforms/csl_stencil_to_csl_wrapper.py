@@ -75,16 +75,16 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
             # find max z dimension - we could get this from func args, store ops, or apply ops
-            # to support both bufferized and unbufferized csl_stencils, retrieve this from iter_arg
-            if isinstance(apply_op.post_process.block.args[1].type, ShapedType):
+            # to support both bufferized and unbufferized csl_stencils, retrieve this from accumulator
+            if isinstance(apply_op.done_exchange.block.args[1].type, ShapedType):
                 z_dim_no_ghost_cells = max(
                     z_dim_no_ghost_cells,
-                    apply_op.post_process.block.args[1].type.get_shape()[-1],
+                    apply_op.done_exchange.block.args[1].type.get_shape()[-1],
                 )
 
-            # retrieve z_dim from post_process arg[0]
+            # retrieve z_dim from done_exchange arg[0]
             if isa(
-                field_t := apply_op.post_process.block.args[0].type,
+                field_t := apply_op.done_exchange.block.args[0].type,
                 stencil.StencilType[
                     TensorType[Attribute] | memref.MemRefType[Attribute]
                 ],
@@ -97,7 +97,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
             if isa(
-                buf_t := apply_op.chunk_reduce.block.args[0].type,
+                buf_t := apply_op.receive_chunk.block.args[0].type,
                 TensorType[Attribute] | MemRefType[Attribute],
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])
