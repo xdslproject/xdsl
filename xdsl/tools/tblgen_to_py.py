@@ -6,10 +6,6 @@ from enum import Enum
 from keyword import iskeyword
 from typing import Any
 
-from xdsl.irdl import (
-    EqAttrConstraint,
-)
-
 
 @dataclass
 class TblgenLoader:
@@ -187,7 +183,7 @@ class TblgenLoader:
             case "SymbolNameAttr":
                 return "BaseAttr(SymbolNameAttr)"
             case "UnitAttr":
-                return f"{EqAttrConstraint}(UnitAttr())"
+                return "EqAttrConstraint(UnitAttr())"
             case _:
                 rec = self.js[cls_name]
                 if "AnyAttrOf" in rec["!superclasses"]:
