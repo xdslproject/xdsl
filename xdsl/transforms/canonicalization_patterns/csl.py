@@ -170,7 +170,7 @@ class ChainedDsdStrideFolding(RewritePattern):
     def match_and_rewrite(
         self, op: csl.SetDsdStrideOp, rewriter: PatternRewriter
     ) -> None:
-        # single use that is `@set_dsd_length`
+        # single use that is `@set_dsd_stride`
         if len(op.result.uses) != 1 or not isinstance(
             next_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp
         ):
