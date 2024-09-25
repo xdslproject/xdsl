@@ -106,8 +106,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # initialise module op
         module_op = csl_wrapper.ModuleOp(
-            width=IntegerAttr(width, 16),
-            height=IntegerAttr(height, 16),
+            width=IntegerAttr(width + (max_distance * 2), 16),
+            height=IntegerAttr(height + (max_distance * 2), 16),
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
                 "pattern": IntegerAttr(max_distance + 1, 16),
