@@ -2,22 +2,22 @@ import abc
 import typing
 from collections.abc import Callable
 
-from xdsl.dialects import arith, builtin, llvm, printf, scf
+from xdsl.dialects import arith, builtin, llvm, scf
 from xdsl.dialects.builtin import (
     AnyFloat,
     DenseArrayBase,
     FloatAttr,
     IndexType,
-    IntAttr, IntegerAttr,
+    IntegerAttr,
     IntegerType,
-    StringAttr, UnrealizedConversionCastOp,
+    UnrealizedConversionCastOp,
     i64,
 )
 from xdsl.dialects.experimental import dlt
 from xdsl.dialects.experimental.dlt import SetAttr
 from xdsl.ir import Block, Operation, SSAValue
 from xdsl.rewriter import InsertPoint, Rewriter
-from xdsl.transforms.experimental.dlt.layout_manipulation import Manipulator, ManipulatorMap
+from xdsl.transforms.experimental.dlt.layout_manipulation import Manipulator
 
 class NumericResult:
     def __init__(
@@ -2246,6 +2246,8 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
                 )
             )
             while_block.add_ops(w_lin_iter_ops)
+            bool_ops, w_exited_early = _make_bool_ssa(w_exited_early)
+            while_block.add_ops(bool_ops)
             w_new_index_op = arith.Subi(w_index, one_op)
             while_block.add_op(w_new_index_op)
             while_block.add_op(
@@ -2846,11 +2848,12 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
                         reversed_direction=True,
                     )
                 )
+                bool_ops, exited_early = _make_bool_ssa(exited_early)
                 if_op = scf.If(
                     running_known,
                     [IntegerType(1), base_type],
                     [scf.Yield(true_op.result, running_val)],
-                    lin_iter_ops + [scf.Yield(exited_early, callback_results[0])],
+                    lin_iter_ops + bool_ops + [scf.Yield(exited_early, callback_results[0])],
                 )
                 # if_op.attributes["debug"] = StringAttr(f"Struct_ensure")
                 f_ops.append(if_op)
@@ -3962,6 +3965,8 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             direct_data_ptr,
         )
         ops.extend(direct_get_ops)
+        bool_ops, index_range_found = _make_bool_ssa(index_range_found)
+        ops.extend(bool_ops)
 
         if_index_range_found_true = [scf.Yield(index_range)]
         if_index_range_found_false = []
@@ -4967,6 +4972,9 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
                 )
             )
             while_block.add_ops(w_lin_iter_ops)
+            bool_ops, w_exited_early = _make_bool_ssa(w_exited_early)
+            while_block.add_ops(bool_ops)
+
             w_new_index_op = arith.Subi(w_index, one_op)
             while_block.add_op(w_new_index_op)
             while_block.add_op(
@@ -5668,7 +5676,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             # )
             # sparse_iter_block.add_ops(check_non_zero_ops)
             get_non_zeros_ops, found_non_zeros = derived_initialiser.get_non_zero(
-                set(), block_dim_map, self.unpack_coo_layout.child.contents_type
+                set(), {k: ArgIndexGetter(v) for k, v in block_dim_map.items()}, self.unpack_coo_layout.child.contents_type
             )
             sparse_iter_block.add_ops(get_non_zeros_ops)
             bool_ssa_ops, has_non_zero = _make_bool_ssa(found_non_zeros)
@@ -6760,12 +6768,13 @@ class SingletonInitialiser(Initialiser):
             return [], True
         ops = []
         true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.append(true_op)
         found = true_op.result
         for dim in dim_map:
             if dim_map[dim] is not None:
-                other_get_ops, (other_index,) = dim_map[dim].get()
+                other_get_ops, (other_index,) = dim_map[dim].get().output()
                 ops.extend(other_get_ops)
-                self_get_ops, (self_index,) = self.dim_map[dim].get()
+                self_get_ops, (self_index,) = self.dim_map[dim].get().output()
                 ops.extend(self_get_ops)
                 compare = arith.Cmpi(other_index, self_index, "eq")
                 ops.append(compare)
@@ -6954,6 +6963,7 @@ def _pack_indices_in_index_range(
     cast = builtin.UnrealizedConversionCastOp.get(
         [insert_2_op.res], [dlt.IndexRangeType()]
     )
+    ops.append(cast)
     return ops, cast.outputs[0]
 
 

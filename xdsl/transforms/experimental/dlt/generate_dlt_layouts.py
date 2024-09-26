@@ -258,6 +258,7 @@ def _make_index_replacement(
 class ReifyConfig():
     dense: bool = True # do we try dense layouts
     coo_buffer_options: frozenset[int] = frozenset([0, 2, 8, -8]) # do we try coo layouts and if so, what buffer options
+    coo_minimum_dims: int = 2
     arith_replace: bool = True # do we try index replacement layouts
     force_arith_replace_immediate_use: bool = True
     permute_structure_size_threshold: int = -1 # only try permuting struct pairs if the numbers of dimensions in the content types of the 2 children are both less than this threshold (working on the idea that the order is less important for large sub-layouts that will probably use multiple cache lines anyway)
@@ -614,7 +615,7 @@ class LayoutGenerator:
         buffer_options = config.coo_buffer_options if config is not None else [0,2,8,-8]
         layouts = []
         dims = sorted(list(abstract_layout.common_abstract_dimensions()), key = lambda d: d.dimensionName.data)
-        if len(dims) > 1:
+        if len(dims) >= config.coo_minimum_dims:
             # print(f"Common Abstract Dims > 1. dims: {[d.dimensionName for d in dims]}")
             for direct in self._subsets(dims):
                 rest = [d for d in dims if d not in direct]

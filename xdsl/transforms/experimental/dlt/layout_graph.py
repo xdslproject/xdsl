@@ -333,6 +333,7 @@ class LayoutGraph:
             for open in open_set:
                 if distances[open] <= min_distance:
                     min_ident = open
+                    min_distance = distances[open]
             open_set.remove(min_ident)
         distances_tuples = sorted([(-d, i.data, i) for i, d in distances.items()])
         idents = [i for d, i_d, i in distances_tuples]

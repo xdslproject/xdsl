@@ -101,6 +101,7 @@ class ManipulatorMap:
             new_type = new_layout.contents_type.select_members(new_members).select_dimensions(new_dimensions)
             assert new_type == initial_type, "try_reduction failed to provide the same resulting type as an answer"
         return try_result
+
     def structural_reduction(
         self, layout: dlt.Layout, dlt_type: dlt.TypeType
     ) -> None | dlt.Layout:
