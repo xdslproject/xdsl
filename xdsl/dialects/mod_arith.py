@@ -10,7 +10,7 @@ class ModArithOp(IRDLOperation, ABC):
     pass
 
 
-class BinaryOp(ModArithOp):
+class BinaryOp(ModArithOp, ABC):
     lhs = operand_def(signlessIntegerLike)
     rhs = operand_def(signlessIntegerLike)
     output = result_def(signlessIntegerLike)
