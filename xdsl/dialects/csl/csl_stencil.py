@@ -331,15 +331,13 @@ class ApplyOp(IRDLOperation):
         ):
             raise VerifyException("Missing required block args on region")
 
-        op_accumulator_type = self.receive_chunk.block.args[2]
-        if not isa(op_accumulator_type.type, TensorType[Attribute]):
-            op_accumulator_type = tensor.EmptyOp(
-                [], TensorType(op_accumulator_type.type, (1,))
-            ).tensor
+        op_acc_t = self.receive_chunk.block.args[2]
+        if not isa(op_acc_t.type, TensorType[Attribute] | MemRefType[Attribute]):
+            op_acc_t = tensor.EmptyOp([], TensorType(op_acc_t.type, (1,))).tensor
 
         op_args = (
             self.done_exchange.block.args[0],
-            op_accumulator_type,
+            op_acc_t,
             *self.receive_chunk.block.args[3:],
             *self.done_exchange.block.args[2:],
         )
@@ -565,9 +563,9 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         if isa(self.op.type, memref.MemRefType[Attribute]):
-            if not self.result.type == self.op.type:
+            if tuple(self.offset) == (0, 0) and not self.result.type == self.op.type:
                 raise VerifyException(
-                    f"{type(self)} access to memref.MemRefType type requires {self.op.type} but found {self.result.type}"
+                    f"{type(self)} access to own data memref.MemRefType type requires {self.op.type} but found {self.result.type}"
                 )
         elif isa(self.op.type, stencil.StencilType[Attribute]):
             if not self.result.type == self.op.type.get_element_type():
