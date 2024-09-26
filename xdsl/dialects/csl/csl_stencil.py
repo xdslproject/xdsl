@@ -2,10 +2,11 @@ from collections.abc import Iterable, Sequence
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects import builtin, memref, stencil
+from xdsl.dialects import builtin, memref, stencil, tensor
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyMemRefType,
+    ArrayAttr,
     IndexType,
     MemRefType,
     TensorType,
@@ -127,9 +128,12 @@ class PrefetchOp(IRDLOperation):
         base(stencil.StencilType[Attribute])
         | base(memref.MemRefType[Attribute])
         | base(TensorType[Attribute])
+        | base(Attribute)
     )
 
-    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+    swaps = prop_def(
+        builtin.ArrayAttr[ExchangeDeclarationAttr | dmp.ExchangeDeclarationAttr]
+    )
 
     topo = prop_def(dmp.RankTopoAttr)
 
@@ -139,8 +143,11 @@ class PrefetchOp(IRDLOperation):
         self,
         input_stencil: SSAValue | Operation,
         topo: dmp.RankTopoAttr,
-        swaps: Sequence[ExchangeDeclarationAttr],
-        result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
+        swaps: Sequence[ExchangeDeclarationAttr | dmp.ExchangeDeclarationAttr],
+        result_type: memref.MemRefType[Attribute]
+        | TensorType[Attribute]
+        | Attribute
+        | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
@@ -214,7 +221,9 @@ class ApplyOp(IRDLOperation):
     receive_chunk = region_def()
     done_exchange = region_def()
 
-    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+    swaps = prop_def(
+        builtin.ArrayAttr[dmp.ExchangeDeclarationAttr | ExchangeDeclarationAttr]
+    )
 
     topo = prop_def(dmp.RankTopoAttr)
 
@@ -321,12 +330,20 @@ class ApplyOp(IRDLOperation):
             or len(self.done_exchange.block.args) < 2
         ):
             raise VerifyException("Missing required block args on region")
+
+        op_accumulator_type = self.receive_chunk.block.args[2]
+        if not isa(op_accumulator_type.type, TensorType[Attribute]):
+            op_accumulator_type = tensor.EmptyOp(
+                [], TensorType(op_accumulator_type.type, (1,))
+            ).tensor
+
         op_args = (
             self.done_exchange.block.args[0],
-            self.receive_chunk.block.args[2],
+            op_accumulator_type,
             *self.receive_chunk.block.args[3:],
             *self.done_exchange.block.args[2:],
         )
+
         for operand, argument in zip(self.operands, op_args):
             if operand.type != argument.type:
                 raise VerifyException(
@@ -337,21 +354,38 @@ class ApplyOp(IRDLOperation):
         assert isa(
             self.accumulator.type, TensorType[Attribute] | memref.MemRefType[Attribute]
         )
-        chunk_region_req_types = [
-            type(self.accumulator.type)(
+        if isa(self.swaps, ArrayAttr[dmp.ExchangeDeclarationAttr]):
+            # tensorisation has not been run
+            chunk_region_req_types = [
+                self.field.type,
+                IndexType(),
                 self.accumulator.type.get_element_type(),
-                (
-                    len(self.swaps),
-                    self.accumulator.type.get_shape()[0] // self.num_chunks.value.data,
+            ]
+            done_exchange_req_types = [
+                self.field.type,
+                self.accumulator.type.get_element_type(),
+            ]
+        else:
+            # tensorisation has been run
+            chunk_region_req_types = [
+                self.field.type
+                if isa(self.swaps, ArrayAttr[dmp.ExchangeDeclarationAttr])
+                else type(self.accumulator.type)(
+                    self.accumulator.type.get_element_type(),
+                    (
+                        len(self.swaps),
+                        self.accumulator.type.get_shape()[0]
+                        // self.num_chunks.value.data,
+                    ),
                 ),
-            ),
-            IndexType(),
-            self.accumulator.type,
-        ]
-        done_exchange_req_types = [
-            self.field.type,
-            self.accumulator.type,
-        ]
+                IndexType(),
+                self.accumulator.type,
+            ]
+            done_exchange_req_types = [
+                self.field.type,
+                self.accumulator.type,
+            ]
+
         for arg, expected_type in zip(
             self.receive_chunk.block.args, chunk_region_req_types
         ):
@@ -428,7 +462,7 @@ class AccessOp(IRDLOperation):
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType | AnyMemRefType)
+    result = result_def(Attribute | TensorType | AnyMemRefType)
 
     traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
 
@@ -436,7 +470,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute] | MemRefType[Attribute],
+        result_type: Attribute | TensorType[Attribute] | MemRefType[Attribute],
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -530,28 +564,20 @@ class AccessOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if tuple(self.offset) == (0, 0):
-            if isa(self.op.type, memref.MemRefType[Attribute]):
-                if not self.result.type == self.op.type:
-                    raise VerifyException(
-                        f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
-                    )
-            elif isa(self.op.type, stencil.StencilType[Attribute]):
-                if not self.result.type == self.op.type.get_element_type():
-                    raise VerifyException(
-                        f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
-                    )
-            else:
+        if isa(self.op.type, memref.MemRefType[Attribute]):
+            if not self.result.type == self.op.type:
                 raise VerifyException(
-                    f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
+                    f"{type(self)} access to memref.MemRefType type requires {self.op.type} but found {self.result.type}"
                 )
-        else:
-            if not isa(
-                self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]
-            ):
+        elif isa(self.op.type, stencil.StencilType[Attribute]):
+            if not self.result.type == self.op.type.get_element_type():
                 raise VerifyException(
-                    f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
+                    f"{type(self)} access to stencil.StencilType requires {self.op.type.get_element_type()} but found {self.result.type}"
                 )
+        elif not isa(self.op.type, TensorType[Attribute]):
+            raise VerifyException(
+                f"{type(self)} access requires type stencil.StencilType memref.MemRefType or TensorType but found {self.op.type}"
+            )
 
         # As promised by HasAncestor(ApplyOp)
         trait = cast(

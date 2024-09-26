@@ -1,12 +1,10 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from math import prod
 
 from xdsl.context import MLContext
 from xdsl.dialects import arith, stencil, tensor
 from xdsl.dialects.builtin import (
     AnyMemRefType,
-    AnyTensorType,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -16,7 +14,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region
-from xdsl.irdl import Operand, base
+from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -30,7 +28,6 @@ from xdsl.transforms.experimental.stencil_tensorize_z_dimension import (
     BackpropagateStencilShapes,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def get_stencil_access_operands(op: Operand) -> set[Operand]:
@@ -133,13 +130,12 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
-        assert len(op.offset) == 2
+        assert len(op.offset) >= 2
         if op.temp != op.get_apply().region.block.args[self.arg_index]:
             return
 
         # translate access to own data, which operates on stencil.TempType
-        if tuple(op.offset) == (0, 0):
-            assert isattr(op.res.type, base(AnyTensorType))
+        if tuple(op.offset)[:2] == (0, 0):
             rewriter.replace_matched_op(
                 csl_stencil.AccessOp(
                     op=op.temp,
@@ -151,13 +147,20 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
             return
 
         prefetched_arg = op.get_apply().region.block.args[-1]
-        assert isa(t_type := prefetched_arg.type, TensorType[Attribute])
+        if isa(t_type := prefetched_arg.type, TensorType[Attribute]):
+            result_type = TensorType(t_type.get_element_type(), t_type.get_shape()[1:])
+        elif isa(t_type := prefetched_arg.type, stencil.StencilType[Attribute]):
+            result_type = t_type.get_element_type()
+        else:
+            raise ValueError(
+                f"Cannot create csl_stencil.acccess from type {prefetched_arg.type}"
+            )
 
         csl_access_op = csl_stencil.AccessOp(
             op=prefetched_arg,
             offset=op.offset,
             offset_mapping=op.offset_mapping,
-            result_type=TensorType(t_type.get_element_type(), t_type.get_shape()[1:]),
+            result_type=result_type,
         )
 
         # The stencil-tensorize-z-dimension pass inserts tensor.ExtractSliceOps after stencil.access to remove ghost cells.
@@ -183,50 +186,55 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
     Translates dmp.swap to csl_stencil.prefetch
     """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
+    def untensorized_match_and_rewrite(
+        self, op: dmp.SwapOp, rewriter: PatternRewriter, /
+    ):
         # remove op if it contains no swaps
         if len(op.swaps) == 0:
             rewriter.erase_matched_op(False)
             return
 
-        assert all(
-            len(swap.size) == 3 for swap in op.swaps
-        ), "currently only 3-dimensional stencils are supported"
-
-        assert all(
-            swap.size[:2] == (1, 1) for swap in op.swaps
-        ), "invoke dmp to decompose from (x,y,z) to (1,1,z)"
-
-        # check that size is uniform
-        uniform_size = op.swaps.data[0].size[2]
-        assert all(
-            swap.size[2] == uniform_size for swap in op.swaps
-        ), "all swaps need to be of uniform size"
+        # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
+        uses = list(op.input_stencil.uses)
+        apply_op: stencil.ApplyOp | None = None
+        for use in uses:
+            if not isinstance(use.operation, stencil.ApplyOp):
+                continue
+            apply_op = use.operation
+        assert apply_op is not None
+        assert isinstance(apply_op.bounds, stencil.StencilBoundsAttr)
+        uniform_size = tuple(apply_op.bounds.ub)
 
         assert isa(
             op.input_stencil.type,
             AnyMemRefType | stencil.StencilType[Attribute],
         )
-        assert isa(
-            t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
-        )
+        element_t = op.input_stencil.type.get_element_type()
+        if isa(element_t, TensorType[Attribute]):
+            element_t = element_t.get_element_type()
         assert (
             op.strategy.comm_layout() is not None
         ), f"topology on {type(op)} is not given"
+
+        if isa(op.input_stencil.type.get_element_type(), TensorType[Attribute]):
+            swaps = [
+                csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
+                for swap in op.swaps
+            ]
+            result_type = TensorType(
+                element_t,
+                (len(op.swaps), *uniform_size),
+            )
+        else:
+            swaps = op.swaps.data
+            result_type = op.input_stencil.type
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
             input_stencil=op.input_stencil,
             topo=op.strategy.comm_layout(),
-            swaps=[
-                csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
-                for swap in op.swaps
-            ],
-            result_type=TensorType(
-                t_type.get_element_type(),
-                (len(op.swaps), uniform_size),
-            ),
+            swaps=swaps,
+            result_type=result_type,
         )
 
         # if the rewriter needs a result, use `input_stencil` as a drop-in replacement
@@ -236,8 +244,105 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
         )
 
+        # csl_stencil.prefetch, unlike dmp.swap, has a return value. This is added as the last arg
+        # to stencil.apply, before rebuilding the op and replacing stencil.access ops by csl_stencil.access ops
+        # that reference the prefetched buffers (note, this is only done for neighbor accesses)
+        for use in uses:
+            if not isinstance(use.operation, stencil.ApplyOp):
+                continue
+            apply_op = use.operation
+
+            # arg_idx points to the stencil.temp type whose data is prefetched in a separate buffer
+            arg_idx = apply_op.args.index(op.input_stencil)
+
+            # add the prefetched buffer as the last arg to stencil.access
+            apply_op.region.block.insert_arg(
+                prefetch_op.result.type, len(apply_op.args)
+            )
+
+            # rebuild stencil.apply op
+            r_types = apply_op.result_types
+            assert isa(r_types, Sequence[stencil.TempType[Attribute]])
+            new_apply_op = stencil.ApplyOp.build(
+                operands=[[*apply_op.args, prefetch_op.result], apply_op.dest],
+                regions=[apply_op.detach_region(apply_op.region)],
+                result_types=[r_types],
+                properties=apply_op.properties,
+                attributes=apply_op.attributes,
+            )
+            rewriter.replace_op(apply_op, new_apply_op)
+
+            # replace stencil.access (operating on stencil.temp at arg_index)
+            # with csl_stencil.access (operating on memref at last arg index)
+            nested_rewriter = PatternRewriteWalker(
+                ConvertAccessOpFromPrefetchPattern(arg_idx)
+            )
+
+            nested_rewriter.rewrite_op(new_apply_op)
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
+        # remove op if it contains no swaps
+        if len(op.swaps) == 0:
+            rewriter.erase_matched_op(False)
+            return
+
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
-        uses = list(op.input_stencil.uses)
+        if op.swapped_values:
+            uses = list(op.swapped_values.uses)
+        else:
+            uses = list(op.input_stencil.uses)
+        apply_op: stencil.ApplyOp | None = None
+        for use in uses:
+            if not isinstance(use.operation, stencil.ApplyOp):
+                continue
+            apply_op = use.operation
+        assert apply_op is not None
+
+        assert isa(
+            op.input_stencil.type,
+            AnyMemRefType | stencil.StencilType[Attribute],
+        )
+        element_t = op.input_stencil.type.get_element_type()
+        if isa(element_t, TensorType[Attribute]):
+            element_t = element_t.get_element_type()
+        assert (
+            op.strategy.comm_layout() is not None
+        ), f"topology on {type(op)} is not given"
+
+        if isa(op.input_stencil.type.get_element_type(), TensorType[Attribute]):
+            # tensorization has been run
+            uniform_size = op.swaps.data[0].size[2]
+            assert all(
+                swap.size[2] == uniform_size for swap in op.swaps
+            ), "all swaps need to be of uniform size"
+            swaps = [
+                csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
+                for swap in op.swaps
+            ]
+            result_type = TensorType(
+                element_t,
+                (len(op.swaps), uniform_size),
+            )
+        else:
+            # tensorization has not been run
+            swaps = op.swaps.data
+            result_type = op.input_stencil.type
+
+        # when translating swaps, remove third dimension
+        prefetch_op = csl_stencil.PrefetchOp(
+            input_stencil=op.input_stencil,
+            topo=op.strategy.comm_layout(),
+            swaps=swaps,
+            result_type=result_type,
+        )
+
+        # if the rewriter needs a result, use `input_stencil` as a drop-in replacement
+        # prefetch_op produces a result that needs to be handled separately
+        # note, that only un-bufferized dmp.swaps produce a result
+        rewriter.replace_matched_op(
+            prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
+        )
 
         # csl_stencil.prefetch, unlike dmp.swap, has a return value. This is added as the last arg
         # to stencil.apply, before rebuilding the op and replacing stencil.access ops by csl_stencil.access ops
@@ -355,17 +460,13 @@ class ConvertApplyOpPattern(RewritePattern):
 
     num_chunks: int = 1
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
+    def untensorized_match_and_rewrite(
+        self, op: stencil.ApplyOp, rewriter: PatternRewriter, /
+    ):
         # calculate memory cost of all prefetch operands
-        def get_prefetch_overhead(o: OpResult):
-            assert isa(o.type, TensorType[Attribute])
-            buf_count = o.type.get_shape()[0]
-            buf_size = prod(o.type.get_shape()[1:])
-            return buf_count * buf_size
-
+        # tuple[prefetch_overhead, buffer]
         candidate_prefetches = [
-            (get_prefetch_overhead(o), o)
+            (len(o.op.swaps), o)
             for o in op.operands
             if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
         ]
@@ -376,8 +477,170 @@ class ConvertApplyOpPattern(RewritePattern):
         prefetch = max(candidate_prefetches)[1]
         prefetch_idx = op.operands.index(prefetch)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
+        assert isa(prefetch.type, stencil.FieldType[Attribute])
         field_idx = op.operands.index(prefetch.op.input_stencil)
+        field_op_arg = prefetch.op.input_stencil
+
+        # run pass (on this apply's region only) to consume data from `prefetch` accesses first
+        nested_rewriter = PatternRewriteWalker(
+            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx]),
+            walk_reverse=True,
+        )
+        nested_rewriter.rewrite_op(op)
+
+        # add empty tensor before op to be used as `accumulator`
+        # this could potentially be re-used if we have one of the same size lying around
+        accumulator = tensor.EmptyOp(
+            (),
+            TensorType(prefetch.type.get_element_type(), (1,)),
+        )
+        rewriter.insert_op(accumulator, InsertPoint.before(op))
+        assert isa(accumulator.tensor.type, TensorType[Attribute])
+
+        # determine how ops should be split across the two regions
+        chunk_region_ops, done_exchange_ops = get_op_split(
+            list(op.region.block.ops), op.region.block.args[prefetch_idx]
+        )
+
+        # fetch what receive_chunk is computing for
+        if isinstance(chunk_region_ops[-1], stencil.ReturnOp):
+            chunk_res = chunk_region_ops[-1].operands[0]
+        else:
+            chunk_res = chunk_region_ops[-1].results[0]
+
+        # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
+        # ignore accesses block args which already are part of the region's required signature
+        chunk_region_used_block_args = sorted(
+            set(
+                x
+                for o in chunk_region_ops
+                for x in o.operands
+                if isinstance(x, BlockArgument) and x.index != prefetch_idx
+            ),
+            key=lambda b: b.index,
+        )
+        done_exchange_used_block_args = sorted(
+            set(
+                x
+                for o in done_exchange_ops
+                for x in o.operands
+                if isinstance(x, BlockArgument) and x.index != field_idx
+            ),
+            key=lambda b: b.index,
+        )
+
+        # set up region signatures, comprising fixed and optional args - see docs on `csl_stencil.apply` for details
+        chunk_region_args = [
+            # required arg 0: slice of type(%prefetch)
+            field_op_arg.type,
+            # required arg 1: %offset
+            IndexType(),
+            # required arg 2: %accumulator
+            accumulator.tensor.type.get_element_type(),
+            # optional args: as needed by the ops
+            *[a.type for a in chunk_region_used_block_args],
+        ]
+        done_exchange_args = [
+            # required arg 0: stencil.temp to access own data
+            field_op_arg.type,
+            # required arg 1: %accumulator
+            accumulator.tensor.type.get_element_type(),
+            # optional args: as needed by the ops
+            *[a.type for a in done_exchange_used_block_args],
+        ]
+
+        # set up two regions
+        receive_chunk = Region(Block(arg_types=chunk_region_args))
+        done_exchange = Region(Block(arg_types=done_exchange_args))
+
+        # translate old to new block arg index for optional args
+        chunk_region_oprnd_table = dict[Operand, Operand](
+            (old, receive_chunk.block.args[idx])
+            for idx, old in enumerate(chunk_region_used_block_args, start=3)
+        )
+        done_exchange_oprnd_table = dict[Operand, Operand](
+            (old, done_exchange.block.args[idx])
+            for idx, old in enumerate(done_exchange_used_block_args, start=2)
+        )
+
+        # add translation from old to new arg index for non-optional args - note, access to accumulator must be handled separately below
+        chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
+            receive_chunk.block.args[0]
+        )
+        done_exchange_oprnd_table[op.region.block.args[field_idx]] = (
+            done_exchange.block.args[0]
+        )
+        done_exchange_oprnd_table[chunk_res] = done_exchange.block.args[1]
+
+        # detach ops from old region
+        for o in op.region.block.ops:
+            op.region.block.detach_op(o)
+
+        # add operations from list to receive_chunk, use translation table to rebuild operands
+        for o in chunk_region_ops:
+            if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
+                break
+            o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
+            receive_chunk.block.add_op(o)
+
+        # put `chunk_res` into `accumulator` (using tensor.insert_slice) and yield the result
+        receive_chunk.block.add_op(csl_stencil.YieldOp(chunk_res))
+
+        # add operations from list to done_exchange, use translation table to rebuild operands
+        for o in done_exchange_ops:
+            o.operands = [done_exchange_oprnd_table.get(x, x) for x in o.operands]
+            done_exchange.block.add_op(o)
+            if isinstance(o, stencil.ReturnOp):
+                rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
+
+        rewriter.replace_matched_op(
+            csl_stencil.ApplyOp(
+                operands=[
+                    field_op_arg,
+                    accumulator,
+                    [op.operands[a.index] for a in chunk_region_used_block_args]
+                    + [op.operands[a.index] for a in done_exchange_used_block_args],
+                    op.dest,
+                ],
+                properties={
+                    "swaps": prefetch.op.swaps,
+                    "topo": prefetch.op.topo,
+                    "num_chunks": IntegerAttr(self.num_chunks, IntegerType(64)),
+                    "bounds": op.bounds,
+                },
+                regions=[
+                    receive_chunk,
+                    done_exchange,
+                ],
+                result_types=[op.result_types],
+            )
+        )
+
+        if len(prefetch.uses) == 0:
+            rewriter.erase_op(prefetch.op)
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
+        # calculate memory cost of all prefetch operands
+        # return tuple[prefect_overhead, buffer_to_prefetch]
+        candidate_prefetches = [
+            (len(o.op.swaps), o)
+            for o in op.operands
+            if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
+        ]
+        if len(candidate_prefetches) == 0:
+            return
+
+        # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
+        prefetch = max(candidate_prefetches)[1]
+
+        if isa(prefetch.type, stencil.StencilType[Attribute]):
+            self.untensorized_match_and_rewrite(op, rewriter)
+            return
+
+        prefetch_idx = op.operands.index(prefetch)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
+        field_idx = op.operands.index(prefetch.op.input_stencil)
         assert isa(prefetch.type, TensorType[Attribute])
         field_op_arg = prefetch.op.input_stencil
 

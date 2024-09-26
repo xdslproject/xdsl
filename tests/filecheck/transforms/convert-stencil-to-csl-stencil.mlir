@@ -108,5 +108,47 @@ builtin.module {
 // CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
+  func.func @untensorized(%u_vec0 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>, %u_vec1 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>) {
+    "dmp.swap"(%u_vec0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<600x600>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [2, 1, 600] source offset [-2, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-2, 0, 0] size [2, 1, 600] source offset [2, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 2, 600] source offset [0, -2, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -2, 0] size [1, 2, 600] source offset [0, 2, 0] to [0, -1, 0]>]} : (!stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>) -> ()
+    stencil.apply(%u_t0_blk = %u_vec0 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>) outs (%u_vec1 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>) {
+      %0 = stencil.access %u_t0_blk[-2, 0, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+      %1 = stencil.access %u_t0_blk[2, 0, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+      %2 = stencil.access %u_t0_blk[0, -2, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+      %3 = stencil.access %u_t0_blk[0, 2, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+      %4 = stencil.access %u_t0_blk[0, 0, -2] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+      %5 = stencil.access %u_t0_blk[0, 0, 2] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+      %6 = arith.addf %0, %1 : f32
+      %7 = arith.addf %6, %2 : f32
+      %8 = arith.addf %7, %3 : f32
+      %9 = arith.addf %8, %4 : f32
+      %10 = arith.addf %9, %5 : f32
+      stencil.return %10 : f32
+    } to <[0, 0, 0], [1, 1, 600]>
+    func.return
+  }
+
+// CHECK-NEXT: func.func @untensorized(%u_vec0 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>, %u_vec1 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>) {
+// CHECK-NEXT:    %0 = tensor.empty() : tensor<1xf32>
+// CHECK-NEXT:    csl_stencil.apply(%u_vec0 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>, %0 : tensor<1xf32>) outs (%u_vec1 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>) <{"swaps" = [#dmp.exchange<at [1, 0, 0] size [2, 1, 600] source offset [-2, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-2, 0, 0] size [2, 1, 600] source offset [2, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 2, 600] source offset [0, -2, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -2, 0] size [1, 2, 600] source offset [0, 2, 0] to [0, -1, 0]>], "topo" = #dmp.topo<600x600>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0, 0], [1, 1, 600]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>}> ({
+// CHECK-NEXT:    ^0(%1 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>, %2 : index, %3 : f32):
+// CHECK-NEXT:      %4 = csl_stencil.access %1[-2, 0, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+// CHECK-NEXT:      %5 = csl_stencil.access %1[2, 0, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+// CHECK-NEXT:      %6 = csl_stencil.access %1[0, -2, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+// CHECK-NEXT:      %7 = csl_stencil.access %1[0, 2, 0] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+// CHECK-NEXT:      %8 = arith.addf %4, %5 : f32
+// CHECK-NEXT:      %9 = arith.addf %8, %6 : f32
+// CHECK-NEXT:      %10 = arith.addf %9, %7 : f32
+// CHECK-NEXT:      csl_stencil.yield %10 : f32
+// CHECK-NEXT:    }, {
+// CHECK-NEXT:    ^1(%11 : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>, %12 : f32):
+// CHECK-NEXT:      %13 = csl_stencil.access %11[0, 0, -2] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+// CHECK-NEXT:      %14 = csl_stencil.access %11[0, 0, 2] : !stencil.field<[-4,604]x[-4,604]x[-4,604]xf32>
+// CHECK-NEXT:      %15 = arith.addf %12, %13 : f32
+// CHECK-NEXT:      %16 = arith.addf %15, %14 : f32
+// CHECK-NEXT:      csl_stencil.yield %16 : f32
+// CHECK-NEXT:    }) to <[0, 0, 0], [1, 1, 600]>
+// CHECK-NEXT:    func.return
+// CHECK-NEXT:  }
+
 }
 // CHECK-NEXT: }
