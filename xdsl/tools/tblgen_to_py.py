@@ -4,6 +4,7 @@ import textwrap
 from dataclasses import dataclass, field
 from enum import Enum
 from keyword import iskeyword
+from sys import stdin, stdout
 from typing import Any
 
 
@@ -261,8 +262,9 @@ class TblgenLoader:
 
         if "assemblyFormat" in tblgen_op:
             assembly = tblgen_op["assemblyFormat"]
-            if isinstance(assembly, str) and not tblgen_op["assemblyFormat"].contains(
-                "custom"
+            if (
+                isinstance(assembly, str)
+                and not "custom" not in tblgen_op["assemblyFormat"]
             ):
                 fields["assembly_format"] = tblgen_op["assemblyFormat"]
 
@@ -341,17 +343,32 @@ def main():
     arg_parser = argparse.ArgumentParser(
         description="Convert tblgen json to a Python definition of a xDSL dialect."
     )
-    arg_parser.add_argument("-o", "--output-file", type=str, help="path to output file")
-    arg_parser.add_argument("input_file", type=str, help="path to input file")
+    arg_parser.add_argument(
+        "-o", "--output-file", required=False, type=str, help="path to output file"
+    )
+    arg_parser.add_argument(
+        "-i", "--input_file", required=False, type=str, help="path to input file"
+    )
     args = arg_parser.parse_args()
 
-    js = json.load(open(args.input_file))
+    if args.input_file is None:
+        in_file = stdin
+    else:
+        in_file = open(args.input_file)
+
+    with in_file as file:
+        js = json.load(file)
     loader = TblgenLoader(js)
     dialects = js["!instanceof"]["Dialect"]
     [dialect] = dialects
     loader.load_dialect(dialect)
 
-    with open(args.output_file, "w") as stubfile:
+    if args.output_file is not None:
+        out_file = open(args.output_file, "w")
+    else:
+        out_file = stdout
+
+    with out_file as file:
         print(
             textwrap.dedent(f"""\
             \"""
@@ -364,11 +381,11 @@ def main():
             from xdsl.ir import *
             from xdsl.dialects.builtin import *
             """),
-            file=stubfile,
+            file=file,
         )
 
         for attr in loader.attributes.values():
-            print(attr, file=stubfile)
+            print(attr, file=file)
 
         for op in loader.operations.values():
-            print(op, file=stubfile)
+            print(op, file=file)
