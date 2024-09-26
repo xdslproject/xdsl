@@ -10,7 +10,6 @@ class ModArithOp(IRDLOperation, ABC):
     # assemblyFormat = "operands attr-dict `:` functional-type(operands, results)"
     pass
 
-
 class BinaryOp(ModArithOp):
     lhs = operand_def(signlessIntegerLike)
     rhs = operand_def(signlessIntegerLike)
