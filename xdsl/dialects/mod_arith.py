@@ -1,14 +1,14 @@
 from abc import ABC
 
 from xdsl.dialects.arith import signlessIntegerLike
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
 from xdsl.traits import Pure
 
 
 class ModArithOp(IRDLOperation, ABC):
-    # assemblyFormat = "operands attr-dict `:` functional-type(operands, results)"
     pass
+
 
 class BinaryOp(ModArithOp):
     lhs = operand_def(signlessIntegerLike)
@@ -17,7 +17,12 @@ class BinaryOp(ModArithOp):
     # assemblyFormat ="$lhs $rhs attr-dict `:` type($output)"  # operands directive not in asm format
     traits = frozenset((Pure(),))
 
-    def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None):
+    def __init__(
+        self,
+        lhs: SSAValue | Operation,
+        rhs: SSAValue | Operation,
+        result_type: Attribute | None,
+    ):
         if result_type is None:
             result_type = SSAValue.get(lhs).type
 
@@ -34,6 +39,6 @@ class AddOp(BinaryOp):
 
 
 ModArith = Dialect(
-    "modarith",
+    "mod_arith",
     [AddOp],
 )
