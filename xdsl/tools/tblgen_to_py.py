@@ -72,14 +72,14 @@ class TblgenLoader:
 
         self.attributes[tblgen_attr["!name"]] = string
 
-    class ArgType(Enum):
+    class _ArgType(Enum):
         SINGLE = 0
         VARIADIC = 1
         OPTIONAL = 2
         PROP = 3
         OPTIONAL_PROP = 4
 
-    def resolve_type_constraint(self, cls_name: str) -> str:
+    def _resolve_type_constraint(self, cls_name: str) -> str:
         if cls_name in self.attributes:
             return f"BaseAttr({cls_name})"
 
@@ -133,7 +133,7 @@ class TblgenLoader:
                     return textwrap.dedent(f"""
                     AnyOf(
                         (
-                            {",".join(self.resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
+                            {",".join(self._resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
                         )
                     )
                     """)
@@ -142,7 +142,7 @@ class TblgenLoader:
                     return textwrap.dedent(f"""
                     AllOf(
                         (
-                            {",".join(self.resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
+                            {",".join(self._resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
                         )
                     )
                     """)
@@ -165,13 +165,13 @@ class TblgenLoader:
                     return textwrap.dedent(f"""
                     ParamAttrConstraint(
                         ComplexType,
-                        ({self.resolve_type_constraint(rec["elementType"]["def"])},),
+                        ({self._resolve_type_constraint(rec["elementType"]["def"])},),
                     )
                     """)
 
                 return "AnyAttr()"
 
-    def resolve_prop_constraint(self, cls_name: str) -> str:
+    def _resolve_prop_constraint(self, cls_name: str) -> str:
         if cls_name in self.attributes:
             return f"BaseAttr({cls_name})"
 
@@ -203,7 +203,7 @@ class TblgenLoader:
                 if "AnyAttrOf" in rec["!superclasses"]:
                     return textwrap.dedent(f"""
                     AnyOf(
-                        {",".join(self.resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}
+                        {",".join(self._resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}
                         )
                     )
                     """)
@@ -219,7 +219,7 @@ class TblgenLoader:
                         IntegerAttr,
                         (
                             AnyAttr(),
-                            {self.resolve_type_constraint(rec["valueType"]["def"])},
+                            {self._resolve_type_constraint(rec["valueType"]["def"])},
                         ),
                     )
                     """)
@@ -230,14 +230,14 @@ class TblgenLoader:
                         FloatAttr,
                         (
                             AnyAttr(),
-                            {self.resolve_type_constraint(rec["valueType"]["def"])},
+                            {self._resolve_type_constraint(rec["valueType"]["def"])},
                         ),
                     )
                     """)
 
         return "AnyAttr()"
 
-    def resolve_name(self, name: Any) -> str:
+    def _resolve_name(self, name: Any) -> str:
         if isinstance(name, str):
             if iskeyword(name):
                 return f"{name}_"
@@ -246,29 +246,30 @@ class TblgenLoader:
         self.anon_counter += 1
         return f"v{self.anon_counter}"
 
-    def resolve_constraint(self, cls_name: str) -> tuple[ArgType, str]:
+    def _resolve_constraint(self, cls_name: str) -> tuple[_ArgType, str]:
         rec = self.js[cls_name]
         if "Variadic" in rec["!superclasses"]:
             return (
-                self.ArgType.VARIADIC,
-                self.resolve_type_constraint(rec["baseType"]["def"]),
+                self._ArgType.VARIADIC,
+                self._resolve_type_constraint(rec["baseType"]["def"]),
             )
         elif "Optional" in rec["!superclasses"]:
             return (
-                self.ArgType.OPTIONAL,
-                self.resolve_type_constraint(rec["baseType"]["def"]),
+                self._ArgType.OPTIONAL,
+                self._resolve_type_constraint(rec["baseType"]["def"]),
             )
         elif "Type" in rec["!superclasses"]:
-            return (self.ArgType.SINGLE, self.resolve_type_constraint(cls_name))
+            return (self._ArgType.SINGLE, self._resolve_type_constraint(cls_name))
         elif "OptionalAttr" in rec["!superclasses"]:
             return (
-                self.ArgType.OPTIONAL_PROP,
-                self.resolve_prop_constraint(rec["baseAttr"]),
+                self._ArgType.OPTIONAL_PROP,
+                self._resolve_prop_constraint(rec["baseAttr"]),
             )
         else:
-            return (self.ArgType.PROP, self.resolve_prop_constraint(cls_name))
+            return (self._ArgType.PROP, self._resolve_prop_constraint(cls_name))
 
     def load_op(self, op_def: str):
+        """Load an operation from the json dialect."""
         tblgen_op = self.js[op_def]
 
         fields = {"name": f'"{tblgen_op["opName"]}"'}
@@ -282,35 +283,35 @@ class TblgenLoader:
                 fields["assembly_format"] = tblgen_op["assemblyFormat"]
 
         for [arg, name] in tblgen_op["arguments"]["args"]:
-            name = self.resolve_name(name)
-            (variadicity, constraint) = self.resolve_constraint(arg["def"])
+            name = self._resolve_name(name)
+            (variadicity, constraint) = self._resolve_constraint(arg["def"])
             match variadicity:
-                case self.ArgType.SINGLE:
+                case self._ArgType.SINGLE:
                     fields[name] = f"operand_def({constraint})"
-                case self.ArgType.OPTIONAL:
+                case self._ArgType.OPTIONAL:
                     fields[name] = f"opt_operand_def({constraint})"
-                case self.ArgType.VARIADIC:
+                case self._ArgType.VARIADIC:
                     fields[name] = f"var_operand_def({constraint})"
-                case self.ArgType.PROP:
+                case self._ArgType.PROP:
                     fields[name] = f"prop_def({constraint})"
-                case self.ArgType.OPTIONAL_PROP:
+                case self._ArgType.OPTIONAL_PROP:
                     fields[name] = f"opt_prop_def({constraint})"
 
         for [res, name] in tblgen_op["results"]["args"]:
-            name = self.resolve_name(name)
-            (variadicity, constraint) = self.resolve_constraint(res["def"])
+            name = self._resolve_name(name)
+            (variadicity, constraint) = self._resolve_constraint(res["def"])
             match variadicity:
-                case self.ArgType.SINGLE:
+                case self._ArgType.SINGLE:
                     fields[name] = f"result_def({constraint})"
-                case self.ArgType.OPTIONAL:
+                case self._ArgType.OPTIONAL:
                     fields[name] = f"opt_result_def({constraint})"
-                case self.ArgType.VARIADIC:
+                case self._ArgType.VARIADIC:
                     fields[name] = f"var_result_def({constraint})"
                 case _:
                     continue
 
         for [region, name] in tblgen_op["regions"]["args"]:
-            name = self.resolve_name(name)
+            name = self._resolve_name(name)
             rec = self.js[region["def"]]
             variadic = "VariadicRegion" in rec["!superclasses"]
             single_block = (
@@ -330,7 +331,7 @@ class TblgenLoader:
                     pass  # Make pyright happy
 
         for [succ, name] in tblgen_op["successors"]["args"]:
-            name = self.resolve_name(name)
+            name = self._resolve_name(name)
             rec = self.js[succ["def"]]
             if "VariadicRegion" in rec["!superclasses"]:
                 fields[name] = "var_successor_def()"
