@@ -529,6 +529,8 @@ def main():
                 It was generated from {args.input_file}
                 \"""
 
+                # ruff: noqa: F403, F405
+
                 from xdsl.irdl import *
                 from xdsl.ir import *
                 from xdsl.dialects.builtin import *
