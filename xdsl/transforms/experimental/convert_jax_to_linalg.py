@@ -13,6 +13,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.mlir_opt import MLIROptPass
 
 
 @dataclass
@@ -35,6 +36,7 @@ class SubstituteDonatedTensors(RewritePattern):
                     for arg_name, arg in list(donated_inputs.items()):
                         if arg.type.is_same_type_with(output.type):
                             value_mapper[output] = arg
+                            del donated_inputs[arg_name]
                             break
                 new_op = child_op.clone(value_mapper)
                 rewriter.replace_op(child_op, [new_op])
@@ -52,3 +54,4 @@ class ConvertJaxToLinalgPass(ModulePass):
             walk_regions_first=True,
         )
         the_one_pass.rewrite_module(op)
+        MLIROptPass(arguments=["--linalg-fuse-elementwise-ops"]).apply(ctx, op)
