@@ -4,7 +4,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import TensorType
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.linalg import FillOp
+from xdsl.dialects.linalg import NamedOpBase
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -30,11 +30,13 @@ class SubstituteDonatedTensors(RewritePattern):
             donated_inputs[inp.name_hint] = inp
 
         for child_op in op.regions[0].ops:
-            if type(child_op) is FillOp:
+            if issubclass(type(child_op), NamedOpBase):
                 value_mapper = {}
                 for output in child_op.outputs:
                     for arg_name, arg in list(donated_inputs.items()):
-                        if arg.type.is_same_type_with(output.type):
+                        if type(
+                            output.type
+                        ) is TensorType and arg.type.is_same_type_with(output.type):
                             value_mapper[output] = arg
                             del donated_inputs[arg_name]
                             break
