@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from functools import reduce
 from typing import TypeVar, cast
 
+from xdsl.dialects.experimental import dmp
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
@@ -41,6 +42,13 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
     from an LoadOp by walking the def-use chain down to the `apply`
     """
     applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
+    if len(applies) == 0:
+        dmp_swaps: list[dmp.SwapOp] = list(all_matching_uses([op.res], dmp.SwapOp))
+        applies: list[ApplyOp] = list(
+            all_matching_uses(
+                [swp.swapped_values for swp in dmp_swaps if swp.swapped_values], ApplyOp
+            )
+        )
     assert len(applies) > 0, "Load must be followed by Apply!"
 
     shape_lb: None | IndexAttr = None
@@ -49,7 +57,7 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
     for apply in applies:
         # assert apply.lb is not None and apply.ub is not None
         assert apply.res
-        res_type = cast(TempType[Attribute], apply.res[0])
+        res_type = cast(TempType[Attribute], apply.res[0].type)
         assert isinstance(res_type.bounds, StencilBoundsAttr)
         shape_lb = IndexAttr.min(res_type.bounds.lb, shape_lb)
         shape_ub = IndexAttr.max(res_type.bounds.ub, shape_ub)
@@ -176,6 +184,11 @@ class LoadOpShapeInference(RewritePattern):
         assert isa(field, FieldType[Attribute])
         temp = op.res.type
         assert isa(temp, TempType[Attribute])
+        # output_size = temp.bounds
+        # if isinstance(output_size, StencilBoundsAttr):
+        #     return
+        #
+        # update_result_size(op.res, temp.bounds | op.field.type.bounds, rewriter)
 
 
 class StoreOpShapeInference(RewritePattern):
