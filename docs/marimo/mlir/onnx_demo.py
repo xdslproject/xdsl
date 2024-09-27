@@ -1,10 +1,10 @@
 import marimo
 
-__generated_with = "0.7.5"
+__generated_with = "0.8.5"
 app = marimo.App()
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md(
         """
@@ -16,7 +16,7 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     rank = mo.ui.slider(1, 4, value=2, label="Rank")
 
@@ -60,7 +60,7 @@ def __(mo, shape):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __():
     import onnx
     from onnx import AttributeProto, GraphProto, TensorProto, ValueInfoProto, helper
@@ -121,7 +121,7 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo, model_def):
     mo.accordion(
         {
@@ -161,7 +161,7 @@ def __(MLContext, get_all_dialects):
 
 @app.cell
 def __(mo):
-    mo.md("xDSL seamlessly interoperates with MLIR, we the `mlir-opt` tool to compile the input to a form that we want to process:")
+    mo.md("""xDSL seamlessly interoperates with MLIR, we the `mlir-opt` tool to compile the input to a form that we want to process:""")
     return
 
 
