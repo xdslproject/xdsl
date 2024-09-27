@@ -7,6 +7,7 @@ from xdsl.dialects.csl import csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -26,6 +27,8 @@ class MaterializeInApplyDest(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
+        if not len(op.arguments) > 0:
+            return
         assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
 
         # the second callback stores yielded values to dest
@@ -90,6 +93,8 @@ class DisableComputeInBorderRegion(RewritePattern):
             return
 
         cond = wrapper_op.get_program_param("isBorderRegionPE")
+        if cond in op.args:
+            return
 
         op.done_exchange.block.insert_arg(cond.type, len(op.done_exchange.block.args))
 
@@ -145,8 +150,11 @@ class CslStencilMaterializeStores(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            MaterializeInApplyDest(), apply_recursively=False
-        ).rewrite_module(op)
-        PatternRewriteWalker(
-            DisableComputeInBorderRegion(), apply_recursively=False
+            GreedyRewritePatternApplier(
+                [
+                    MaterializeInApplyDest(),
+                    DisableComputeInBorderRegion(),
+                ]
+            ),
+            walk_regions_first=True,
         ).rewrite_module(op)
