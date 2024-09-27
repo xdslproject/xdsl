@@ -1,10 +1,12 @@
 import argparse
 import json
+import subprocess
 import textwrap
 from dataclasses import dataclass, field
 from enum import Enum
+from io import StringIO
 from keyword import iskeyword
-from sys import stdin, stdout
+from sys import stdin
 from typing import Any
 
 
@@ -476,11 +478,6 @@ def main():
     [dialect] = dialects
     loader.load_dialect(dialect)
 
-    if args.output_file is not None:
-        out_file = open(args.output_file, "w")
-    else:
-        out_file = stdout
-
     if args.cull:
         js = loader.js
         required_fields = {
@@ -517,10 +514,13 @@ def main():
             for key in ("TypeDef", "AttrDef", "Op", "Dialect")
         }
 
-        with out_file as file:
-            print(json.dumps(culled), file=file)
+        if args.output_file is not None:
+            with open(args.output_file, "w") as out_file:
+                print(json.dumps(culled), file=out_file)
+        else:
+            print(json.dumps(culled))
     else:
-        with out_file as file:
+        with StringIO() as out_str:
             print(
                 textwrap.dedent(f"""\
                 \"""
@@ -531,15 +531,36 @@ def main():
 
                 # ruff: noqa: F403, F405
 
-                from xdsl.irdl import *
-                from xdsl.ir import *
                 from xdsl.dialects.builtin import *
+                from xdsl.ir import *
+                from xdsl.irdl import *
                 """),
-                file=file,
+                file=out_str,
             )
 
             for attr in loader.attributes.values():
-                print(attr, file=file)
+                print(attr, file=out_str)
 
             for op in loader.operations.values():
-                print(op, file=file)
+                print(op, file=out_str)
+
+            content = out_str.getvalue()
+
+        # Format output
+        output = subprocess.run(
+            [
+                "ruff",
+                "format",
+                "--stdin-filename",
+                f"{dialect}.py",
+            ],
+            input=content,
+            capture_output=True,
+            text=True,
+        )
+
+        if args.output_file is not None:
+            with open(args.output_file, "w") as out_file:
+                print(output.stdout, file=out_file)
+        else:
+            print(output.stdout)
