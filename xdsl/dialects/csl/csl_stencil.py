@@ -46,8 +46,9 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
-    RecursiveMemoryEffect,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -231,13 +232,16 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
+    offsets = opt_prop_def(stencil.IndexAttr)
+
     res = var_result_def(stencil.StencilType)
 
     traits = frozenset(
         [
             IsolatedFromAbove(),
             ApplyOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
+            MemoryReadEffect(),
+            MemoryWriteEffect(),
         ]
     )
 
