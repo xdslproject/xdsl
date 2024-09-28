@@ -41,6 +41,50 @@
     csl.return
   }
 
+  csl.func @name_collisions() {
+    %align = arith.constant 0 : i32
+    %and = arith.constant 0 : i32
+    %bool = arith.constant 0 : i32
+    %break = arith.constant 0 : i32
+    %comptime_float = arith.constant 0 : i32
+    %comptime_int = arith.constant 0 : i32
+    %comptime_string = arith.constant 0 : i32
+    %comptime_struct = arith.constant 0 : i32
+    %const = arith.constant 0 : i32
+    %continue = arith.constant 0 : i32
+    %else = arith.constant 0 : i32
+    %export = arith.constant 0 : i32
+    %extern = arith.constant 0 : i32
+    %f16 = arith.constant 0 : i32
+    %f32 = arith.constant 0 : i32
+    %false = arith.constant 0 : i32
+    %fn = arith.constant 0 : i32
+    %for = arith.constant 0 : i32
+    %i16 = arith.constant 0 : i32
+    %i32 = arith.constant 0 : i32
+    %i64 = arith.constant 0 : i32
+    %i8 = arith.constant 0 : i32
+    %if = arith.constant 0 : i32
+    %linkname = arith.constant 0 : i32
+    %linksection = arith.constant 0 : i32
+    %or = arith.constant 0 : i32
+    %param = arith.constant 0 : i32
+    %return = arith.constant 0 : i32
+    %switch = arith.constant 0 : i32
+    %task = arith.constant 0 : i32
+    %true = arith.constant 0 : i32
+    %u16 = arith.constant 0 : i32
+    %u32 = arith.constant 0 : i32
+    %u64 = arith.constant 0 : i32
+    %u8 = arith.constant 0 : i32
+    %var = arith.constant 0 : i32
+    %void = arith.constant 0 : i32
+    %while = arith.constant 0 : i32
+
+
+    csl.return
+  }
+
   csl.func @casts() {
     %constI32 = arith.constant 0 : i32
     %constU16 = arith.constant 0 : ui16
@@ -54,6 +98,56 @@
     %castI32again = "arith.extsi"(%castI16) : (i16) -> i32
     %castU32 = "arith.extui"(%constU16)  : (ui16) -> ui32
     csl.return
+  }
+
+  csl.func @comparisons() -> i1 {
+    %int1 = arith.constant 0 : i32
+    %int2 = arith.constant 1 : i32
+
+    %float1 = arith.constant 0.0 : f32
+    %float2 = arith.constant 1.1 : f32
+
+    %intEq  = arith.cmpi eq,  %int1, %int2 : i32
+    %intNe  = arith.cmpi ne,  %int1, %int2 : i32
+    %intSlt = arith.cmpi slt, %int1, %int2 : i32
+    %intSle = arith.cmpi sle, %int1, %int2 : i32
+    %intSgt = arith.cmpi sgt, %int1, %int2 : i32
+    %intSge = arith.cmpi sge, %int1, %int2 : i32
+    %intUlt = arith.cmpi ult, %int1, %int2 : i32
+    %intUle = arith.cmpi ule, %int1, %int2 : i32
+    %intUgt = arith.cmpi ugt, %int1, %int2 : i32
+    %intUge = arith.cmpi uge, %int1, %int2 : i32
+
+    %floatFalse = arith.cmpf false, %float1, %float2 : f32
+    %floatOeq   = arith.cmpf oeq,   %float1, %float2 : f32
+    %floatOgt   = arith.cmpf ogt,   %float1, %float2 : f32
+    %floatOge   = arith.cmpf oge,   %float1, %float2 : f32
+    %floatOlt   = arith.cmpf olt,   %float1, %float2 : f32
+    %floatOle   = arith.cmpf ole,   %float1, %float2 : f32
+    %floatOne   = arith.cmpf one,   %float1, %float2 : f32
+    %floatUeq   = arith.cmpf ueq,   %float1, %float2 : f32
+    %floatUgt   = arith.cmpf ugt,   %float1, %float2 : f32
+    %floatUge   = arith.cmpf uge,   %float1, %float2 : f32
+    %floatUlt   = arith.cmpf ult,   %float1, %float2 : f32
+    %floatUle   = arith.cmpf ule,   %float1, %float2 : f32
+    %floatUne   = arith.cmpf une,   %float1, %float2 : f32
+    %floatTrue  = arith.cmpf true,  %float1, %float2 : f32
+
+    %or_ = arith.ori %intSle, %floatUgt : i1
+    %and_ = arith.andi %or_, %floatOge : i1
+
+    csl.return %and_ : i1
+  }
+
+  csl.func @select() -> !csl<dsd mem1d_dsd> {
+    %value1 = arith.constant 100 : si32
+    %value2 = arith.constant 200 : si32
+    %toggle = arith.constant 1 : i1
+    %A = memref.get_global @A : memref<24xf32>
+    %dsd1 = "csl.get_mem_dsd"(%A, %value1) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %dsd2 = "csl.get_mem_dsd"(%A, %value2) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %selected_dsd = arith.select %toggle, %dsd1, %dsd2 : !csl<dsd mem1d_dsd>
+    csl.return %selected_dsd : !csl<dsd mem1d_dsd>
   }
 
   csl.func @constants() {
@@ -97,6 +191,17 @@
     csl.return
   }
 
+  csl.func @variables() {
+    %one = arith.constant 1 : i32
+    %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
+    %variable = "csl.variable"() : () -> !csl.var<i32>
+    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %new_value = arith.addi %value, %one : i32
+    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+
+    csl.return
+  }
 
   "memref.global"() {"sym_name" = "uninit_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value"} : () -> ()
   "memref.global"() {"sym_name" = "global_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value" = dense<4.2> : tensor<1xf32>} : () -> ()
@@ -113,6 +218,13 @@
 
   %ptr_to_arr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const var>>
   %ptr_to_val = "csl.addressof"(%const27) : (i16) -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const const>>
+
+  %ptr_1_fn = "csl.addressof_fn"() <{fn_name = @args_no_return}> : () -> !csl.ptr<(i32, i32) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+  %ptr_2_fn = "csl.addressof_fn"() <{fn_name = @no_args_return}> : () -> !csl.ptr<() -> (f32), #csl<ptr_kind single>, #csl<ptr_const const>>
+  %dir_test = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
+  // putting dir_test in a struct to make sure it gets correctly inlined
+  %struct_with_dir = "csl.const_struct"(%dir_test) <{ssa_fields = ["dir"]}> : (!csl.direction) -> !csl.comptime_struct
+
 
 
   "csl.export"(%global_ptr) <{
@@ -168,7 +280,7 @@ csl.func @initialize() {
   %b = memref.get_global @b : memref<4xf32>
   %y = memref.get_global @y : memref<4xf32>
 
-  scf.for %idx = %lb to %ub step %step {
+  scf.for %idx = %lb to %ub step %step : i16 {
     %idx_f32 = arith.sitofp %idx : i16 to f32
     %idx_index = "arith.index_cast"(%idx) : (i16) -> index
     memref.store %idx_f32, %A[%idx_index] : memref<24xf32>
@@ -176,7 +288,7 @@ csl.func @initialize() {
 
   %ub_6 = arith.constant 6 : i16
 
-  scf.for %j = %lb to %ub_6 step %step {
+  scf.for %j = %lb to %ub_6 step %step : i16 {
     %val = arith.constant 1.0 : f32
     %j_idx = "arith.index_cast"(%j) : (i16) -> index
     memref.store %val, %x[%j_idx] : memref<6xf32>
@@ -184,7 +296,7 @@ csl.func @initialize() {
 
   %ub_4 = arith.constant 6 : i16
 
-  scf.for %i = %lb to %ub_4 step %step {
+  scf.for %i = %lb to %ub_4 step %step : i16 {
     %c2 = arith.constant 2.0 : f32
     %c0 = arith.constant 0.0 : f32
     %i_idx = "arith.index_cast"(%i) : (i16) -> index
@@ -332,6 +444,10 @@ csl.func @builtins() {
   "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
+  csl.activate data, 0 : i32
+  csl.activate local, 1 : i32
+  csl.activate control, 42 : i32
+
   csl.return
 }
 
@@ -394,6 +510,48 @@ csl.func @builtins() {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn name_collisions() void {
+// CHECK-NEXT:   const align0 : i32 = 0;
+// CHECK-NEXT:   const and1 : i32 = 0;
+// CHECK-NEXT:   const bool2 : i32 = 0;
+// CHECK-NEXT:   const break3 : i32 = 0;
+// CHECK-NEXT:   const comptime_float4 : i32 = 0;
+// CHECK-NEXT:   const comptime_int5 : i32 = 0;
+// CHECK-NEXT:   const comptime_string6 : i32 = 0;
+// CHECK-NEXT:   const comptime_struct7 : i32 = 0;
+// CHECK-NEXT:   const const8 : i32 = 0;
+// CHECK-NEXT:   const continue9 : i32 = 0;
+// CHECK-NEXT:   const else10 : i32 = 0;
+// CHECK-NEXT:   const export11 : i32 = 0;
+// CHECK-NEXT:   const extern12 : i32 = 0;
+// CHECK-NEXT:   const f1613 : i32 = 0;
+// CHECK-NEXT:   const f3214 : i32 = 0;
+// CHECK-NEXT:   const false15 : i32 = 0;
+// CHECK-NEXT:   const fn16 : i32 = 0;
+// CHECK-NEXT:   const for17 : i32 = 0;
+// CHECK-NEXT:   const i1618 : i32 = 0;
+// CHECK-NEXT:   const i3219 : i32 = 0;
+// CHECK-NEXT:   const i6420 : i32 = 0;
+// CHECK-NEXT:   const i821 : i32 = 0;
+// CHECK-NEXT:   const if22 : i32 = 0;
+// CHECK-NEXT:   const linkname23 : i32 = 0;
+// CHECK-NEXT:   const linksection24 : i32 = 0;
+// CHECK-NEXT:   const or25 : i32 = 0;
+// CHECK-NEXT:   const param26 : i32 = 0;
+// CHECK-NEXT:   const return27 : i32 = 0;
+// CHECK-NEXT:   const switch28 : i32 = 0;
+// CHECK-NEXT:   const task29 : i32 = 0;
+// CHECK-NEXT:   const true30 : i32 = 0;
+// CHECK-NEXT:   const u1631 : i32 = 0;
+// CHECK-NEXT:   const u3232 : i32 = 0;
+// CHECK-NEXT:   const u6433 : i32 = 0;
+// CHECK-NEXT:   const u834 : i32 = 0;
+// CHECK-NEXT:   const var35 : i32 = 0;
+// CHECK-NEXT:   const void36 : i32 = 0;
+// CHECK-NEXT:   const while37 : i32 = 0;
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn casts() void {
 // CHECK-NEXT:   const castIndex : i32 = @as(i32, 0);
 // CHECK-NEXT:   const castF32 : f32 = @as(f32, @as(f16, 0));
@@ -402,6 +560,41 @@ csl.func @builtins() {
 // CHECK-NEXT:   const castI32again : i32 = @as(i32, @as(i16, 0.0));
 // CHECK-NEXT:   const castU32 : u32 = @as(u32, 0);
 // CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn comparisons() bool {
+// CHECK-NEXT:   const intEq : bool = 0  ==  1;
+// CHECK-NEXT:   const intNe : bool = 0  !=  1;
+// CHECK-NEXT:   const intSlt : bool = 0  <  1;
+// CHECK-NEXT:   const intSgt : bool = 0  >  1;
+// CHECK-NEXT:   const intSge : bool = 0  >=  1;
+// CHECK-NEXT:   const intUlt : bool = 0  <  1;
+// CHECK-NEXT:   const intUle : bool = 0  <=  1;
+// CHECK-NEXT:   const intUgt : bool = 0  >  1;
+// CHECK-NEXT:   const intUge : bool = 0  >=  1;
+// CHECK-NEXT:   const floatFalse : bool = false;
+// CHECK-NEXT:   const floatOeq : bool = 0.0  ==  1.1;
+// CHECK-NEXT:   const floatOgt : bool = 0.0  >  1.1;
+// CHECK-NEXT:   const floatOlt : bool = 0.0  <  1.1;
+// CHECK-NEXT:   const floatOle : bool = 0.0  <=  1.1;
+// CHECK-NEXT:   const floatOne : bool = 0.0  !=  1.1;
+// CHECK-NEXT:   const floatUeq : bool = 0.0  ==  1.1;
+// CHECK-NEXT:   const floatUge : bool = 0.0  >=  1.1;
+// CHECK-NEXT:   const floatUlt : bool = 0.0  <  1.1;
+// CHECK-NEXT:   const floatUle : bool = 0.0  <=  1.1;
+// CHECK-NEXT:   const floatUne : bool = 0.0  !=  1.1;
+// CHECK-NEXT:   const floatTrue : bool = true;
+// CHECK-NEXT:   return (((0  <=  1) or (0.0  >  1.1)) and (0.0  >=  1.1));
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn select() mem1d_dsd {
+// CHECK-NEXT:   const dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
+// CHECK-NEXT:     .tensor_access = | d0 | { 100 } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
+// CHECK-NEXT:     .tensor_access = | d0 | { 200 } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   return (if (true) dsd1 else dsd2);
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn constants() void {
@@ -445,6 +638,15 @@ csl.func @builtins() {
 // CHECK-NEXT: task control_task_no_bind() void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn variables() void {
+// CHECK-NEXT:   var variable_with_default : i32 = 42;
+// CHECK-NEXT:   var variable : i32;
+// CHECK-NEXT:   const value : i32 = variable_with_default;
+// CHECK-NEXT:   variable_with_default = (value + 1);
+// CHECK-NEXT:   variable = (value + 1);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
 // CHECK-NEXT: var uninit_array : [10]f32;
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
@@ -453,6 +655,11 @@ csl.func @builtins() {
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
 // CHECK-NEXT: var ptr_to_arr : *[10]f32 = &uninit_array;
 // CHECK-NEXT: const ptr_to_val : *const i16 = &const27;
+// CHECK-NEXT: const ptr_1_fn : *const fn(i32, i32) void = &args_no_return;
+// CHECK-NEXT: const ptr_2_fn : *const fn() f32 = &no_args_return;
+// CHECK-NEXT: const struct_with_dir : comptime_struct = .{
+// CHECK-NEXT:   .dir = NORTH,
+// CHECK-NEXT: };
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(global_ptr, "ptr_name");
 // CHECK-NEXT: }
@@ -545,16 +752,16 @@ csl.func @builtins() {
 // CHECK-NEXT:   var i32_pointer : *i32 = &i32_value;
 // CHECK-NEXT:   var u16_pointer : *u16 = &u16_value;
 // CHECK-NEXT:   var u32_pointer : *u32 = &u32_value;
-// CHECK-NEXT:   const dsd_2d : mem4d_dsd = @get_dsd( mem4d_dsd .{
+// CHECK-NEXT:   const dsd_2d : mem4d_dsd = @get_dsd( mem4d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0, d1 | { i32_value, i32_value } -> A[ 3 * d0 + 1, 4 * d1 + 2 ]
 // CHECK-NEXT:   });
-// CHECK-NEXT:   const dest_dsd : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:   const dest_dsd : mem1d_dsd = @get_dsd( mem1d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
 // CHECK-NEXT:   });
-// CHECK-NEXT:   const src_dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:   const src_dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
 // CHECK-NEXT:   });
-// CHECK-NEXT:   const src_dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:   const src_dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   const dsd_1d2 : mem1d_dsd = @set_dsd_base_addr(dest_dsd, A);
@@ -613,6 +820,9 @@ csl.func @builtins() {
 // CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, src_dsd2);
 // CHECK-NEXT:   @xp162fh(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @activate(@get_data_task_id(0));
+// CHECK-NEXT:   @activate(@get_local_task_id(1));
+// CHECK-NEXT:   @activate(@get_control_task_id(42));
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // -----

@@ -91,6 +91,13 @@ builtin.module {
 // CHECK-NEXT: %24 = arith.index_cast %12 : index to si16
 // CHECK-NEXT: %25 = "csl.increment_dsd_offset"(%23, %24) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
 
+%31 = "test.op"() : () -> (!csl<dsd mem1d_dsd>)
+%32 = builtin.unrealized_conversion_cast %31 : !csl<dsd mem1d_dsd> to memref<255xf32>
+"csl.fadds"(%32, %32, %32) : (memref<255xf32>, memref<255xf32>, memref<255xf32>) -> ()
+
+// CHECK-NEXT: %26 = "test.op"() : () -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: "csl.fadds"(%26, %26, %26) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+
 }) {sym_name = "program"} :  () -> ()
 }
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()

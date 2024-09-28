@@ -187,7 +187,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         %c0 = arith.constant 0 : i32
         %c1 = arith.constant 1 : i32
         %c128 = arith.constant 128 : i32
-        %g = scf.for %i = %c0 to %c128 step %c1 iter_args(%acc = %zero_float) -> (f64) {
+        %g = scf.for %i = %c0 to %c128 step %c1 iter_args(%acc = %zero_float) -> (f64) : i32 {
           %x = memref_stream.read from %x_stream : f64
           %y = memref_stream.read from %y_stream : f64
           %prod = arith.mulf %x, %y fastmath<fast> : f64

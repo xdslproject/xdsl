@@ -95,7 +95,12 @@ class ParamAttribute(ParametrizedAttribute):
 class ImportOp(IRDLOperation):
     """
     Lightweight wrapper around `csl.import_module` that allows specifying field names directly
-    and removes the need for handling structs or setting up struct operands
+    and removes the need for handling structs or setting up struct operands.
+
+    Where existing structs need to be used in the import, they can be passed
+    with an empty field name. This will concatenate them all together.
+
+    Named fields and empty fields can be used in the same import
     """
 
     name = "csl_wrapper.import"
@@ -158,7 +163,7 @@ class ModuleOp(IRDLOperation):
     width = prop_def(IntegerAttr[IntegerType])
     height = prop_def(IntegerAttr[IntegerType])
     program_name = opt_prop_def(StringAttr)
-    params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
+    params = prop_def(ArrayAttr[ParamAttribute])
 
     layout_module = region_def("single_block")
     program_module = region_def("single_block")

@@ -106,6 +106,21 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_stencil_to_csl_wrapper.CslStencilToCslWrapperPass
 
+    def get_lower_csl_wrapper():
+        from xdsl.transforms import lower_csl_wrapper
+
+        return lower_csl_wrapper.LowerCslWrapperPass
+
+    def get_csl_wrapper_hoist_buffers():
+        from xdsl.transforms import csl_wrapper_hoist_buffers
+
+        return csl_wrapper_hoist_buffers.CslWrapperHoistBuffers
+
+    def get_csl_stencil_handle_async_flow():
+        from xdsl.transforms import csl_stencil_handle_async_flow
+
+        return csl_stencil_handle_async_flow.CslStencilHandleAsyncControlFlow
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -155,6 +170,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import lower_affine
 
         return lower_affine.LowerAffinePass
+
+    def get_lower_csl_stencil():
+        from xdsl.transforms import lower_csl_stencil
+
+        return lower_csl_stencil.LowerCslStencil
 
     def get_lower_mpi():
         from xdsl.transforms import lower_mpi
@@ -308,6 +328,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_qssa_to_qref.ConvertQssaToQRef
 
+    def get_convert_scf_to_cf():
+        from xdsl.transforms import convert_scf_to_cf
+
+        return convert_scf_to_cf.ConvertScfToCf
+
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
 
@@ -365,10 +390,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_tensorize_z_dimension.StencilTensorizeZDimension
 
-    def get_stencil_to_csl_stencil():
-        from xdsl.transforms import stencil_to_csl_stencil
+    def get_convert_stencil_to_csl_stencil():
+        from xdsl.transforms import convert_stencil_to_csl_stencil
 
-        return stencil_to_csl_stencil.StencilToCslStencilPass
+        return convert_stencil_to_csl_stencil.ConvertStencilToCslStencilPass
 
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
@@ -407,14 +432,18 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-qssa-to-qref": get_convert_qssa_to_qref,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
+        "convert-scf-to-cf": get_convert_scf_to_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
+        "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
+        "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
@@ -427,6 +456,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
+        "lower-csl-stencil": get_lower_csl_stencil,
+        "lower-csl-wrapper": get_lower_csl_wrapper,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
         "lower-riscv-func": get_lower_riscv_func,
@@ -455,7 +486,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "shape-inference": get_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
-        "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
         "stencil-bufferize": get_stencil_bufferize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,

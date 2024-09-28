@@ -19,12 +19,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
-    Operand,
-    OptOperand,
-    VarOperand,
-    VarOpResult,
     attr_def,
     base,
     irdl_op_definition,
@@ -79,8 +74,8 @@ class ConstantOp(IRDLOperation):
     """
 
     name = "toy.constant"
-    value: DenseIntOrFPElementsAttr = attr_def(DenseIntOrFPElementsAttr)
-    res: OpResult = result_def(TensorTypeF64)
+    value = attr_def(DenseIntOrFPElementsAttr)
+    res = result_def(TensorTypeF64)
 
     traits = frozenset((Pure(),))
 
@@ -139,9 +134,9 @@ class AddOp(IRDLOperation):
     """
 
     name = "toy.add"
-    lhs: Operand = operand_def(AnyTensorTypeF64Constr)
-    rhs: Operand = operand_def(AnyTensorTypeF64Constr)
-    res: OpResult = result_def(AnyTensorTypeF64Constr)
+    lhs = operand_def(AnyTensorTypeF64Constr)
+    rhs = operand_def(AnyTensorTypeF64Constr)
+    res = result_def(AnyTensorTypeF64Constr)
 
     traits = frozenset((Pure(), InferAddOpShapeTrait()))
 
@@ -204,10 +199,10 @@ class FuncOp(IRDLOperation):
     """
 
     name = "toy.func"
-    body: Region = region_def()
-    sym_name: StringAttr = attr_def(StringAttr)
-    function_type: FunctionType = attr_def(FunctionType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    body = region_def()
+    sym_name = attr_def(StringAttr)
+    function_type = attr_def(FunctionType)
+    sym_visibility = opt_attr_def(StringAttr)
 
     traits = frozenset((SymbolOpInterface(), FuncOpCallableInterface()))
 
@@ -269,11 +264,11 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
     name = "toy.generic_call"
-    arguments: VarOperand = var_operand_def(AnyAttr())
-    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
+    arguments = var_operand_def()
+    callee = attr_def(SymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
-    res: VarOpResult = var_result_def(AnyTensorTypeF64Constr)
+    res = var_result_def(AnyTensorTypeF64Constr)
 
     def __init__(
         self,
@@ -318,9 +313,9 @@ class MulOp(IRDLOperation):
     """
 
     name = "toy.mul"
-    lhs: Operand = operand_def(AnyTensorTypeF64Constr)
-    rhs: Operand = operand_def(AnyTensorTypeF64Constr)
-    res: OpResult = result_def(AnyTensorTypeF64Constr)
+    lhs = operand_def(AnyTensorTypeF64Constr)
+    rhs = operand_def(AnyTensorTypeF64Constr)
+    res = result_def(AnyTensorTypeF64Constr)
 
     traits = frozenset((Pure(), InferMulOpShapeTrait()))
 
@@ -355,7 +350,7 @@ class PrintOp(IRDLOperation):
     """
 
     name = "toy.print"
-    input: Operand = operand_def(AnyAttr())
+    input = operand_def()
 
     def __init__(self, input: SSAValue):
         return super().__init__(operands=[input])
@@ -378,7 +373,7 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "toy.return"
-    input: OptOperand = opt_operand_def(AnyTensorTypeF64Constr)
+    input = opt_operand_def(AnyTensorTypeF64Constr)
 
     traits = frozenset([IsTerminator()])
 
@@ -409,9 +404,9 @@ class ReshapeOp(IRDLOperation):
     """
 
     name = "toy.reshape"
-    arg: Operand = operand_def(AnyTensorTypeF64Constr)
+    arg = operand_def(AnyTensorTypeF64Constr)
     # We expect that the reshape operation returns a statically shaped tensor.
-    res: OpResult = result_def(TensorTypeF64)
+    res = result_def(TensorTypeF64)
 
     traits = frozenset((Pure(), ReshapeOpHasCanonicalizationPatternsTrait()))
 
@@ -470,8 +465,8 @@ class TransposeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTra
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     name = "toy.transpose"
-    arg: Operand = operand_def(AnyTensorTypeF64Constr)
-    res: OpResult = result_def(AnyTensorTypeF64Constr)
+    arg = operand_def(AnyTensorTypeF64Constr)
+    res = result_def(AnyTensorTypeF64Constr)
 
     traits = frozenset(
         (
@@ -517,8 +512,8 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
 @irdl_op_definition
 class CastOp(IRDLOperation):
     name = "toy.cast"
-    arg: Operand = operand_def(AnyTensorTypeF64Constr)
-    res: OpResult = result_def(AnyTensorTypeF64Constr)
+    arg = operand_def(AnyTensorTypeF64Constr)
+    res = result_def(AnyTensorTypeF64Constr)
 
     traits = frozenset((Pure(), InferCastOpShapeTrait()))
 
