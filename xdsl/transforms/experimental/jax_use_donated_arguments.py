@@ -47,8 +47,8 @@ class SubstituteDonatedTensors(RewritePattern):
 
 
 @dataclass(frozen=True)
-class ConvertJaxToLinalgPass(ModulePass):
-    name = "convert-jax-to-linalg"
+class JaxUseDonatedArguments(ModulePass):
+    name = "jax-use-donated-arguments"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         the_one_pass = PatternRewriteWalker(
