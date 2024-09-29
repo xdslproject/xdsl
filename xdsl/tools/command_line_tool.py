@@ -87,7 +87,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
 
     def get_jax_use_donated_arguments():
-        from xdsl.transforms.experimental import jax_use_donated_arguments
+        from xdsl.transforms import jax_use_donated_arguments
 
         return jax_use_donated_arguments.JaxUseDonatedArguments
 
