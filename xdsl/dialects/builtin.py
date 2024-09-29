@@ -800,7 +800,7 @@ class TensorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
-    def is_same_type_with(self, other_tensor: TensorType):
+    def is_same_type_with(self, other_tensor: TensorType[Attribute]) -> bool:
         current_shape = list(self.shape)
         other_shape = list(other_tensor.shape)
         if len(current_shape) != len(other_shape):
