@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-jax-to-linalg --split-input-file --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s -p jax-use-donated-arguments --split-input-file --verify-diagnostics | filecheck %s
 
 #map = affine_map<(d0, d1, d2) -> (d0, d2)>
 #map1 = affine_map<(d0, d1, d2) -> (d2, d1)>
