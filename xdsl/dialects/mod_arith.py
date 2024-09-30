@@ -1,3 +1,8 @@
+"""
+mod_arith is a dialect implementing modular arithmetic, originally
+implemented as part of the HEIR project (https://github.com/google/heir/tree/main).
+"""
+
 from abc import ABC
 from typing import Annotated, Generic, TypeVar
 
@@ -23,6 +28,10 @@ _T = TypeVar("_T", bound=Attribute)
 
 
 class BinaryOp(ModArithOp, ABC, Generic[_T]):
+    """
+    Simple binary operation
+    """
+
     T = Annotated[Attribute, ConstraintVar("T"), _T]
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -42,12 +51,12 @@ class BinaryOp(ModArithOp, ABC, Generic[_T]):
 
         super().__init__(operands=[lhs, rhs], result_types=[result_type])
 
-    def verify_(self) -> None:
-        # todo
-        return super().verify_()
-
 
 class BinaryModuloOp(BinaryOp[_T], ABC, Generic[_T]):
+    """
+    Adds the modulus attribute
+    """
+
     modulus = attr_def(AnyIntegerAttr)
 
 
