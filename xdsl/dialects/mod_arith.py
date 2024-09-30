@@ -1,8 +1,17 @@
 from abc import ABC
+from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.arith import signlessIntegerLike
+from xdsl.dialects.builtin import AnyIntegerAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
+from xdsl.irdl import (
+    ConstraintVar,
+    IRDLOperation,
+    attr_def,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+)
 from xdsl.traits import Pure
 
 
@@ -10,11 +19,16 @@ class ModArithOp(IRDLOperation, ABC):
     pass
 
 
-class BinaryOp(ModArithOp, ABC):
-    lhs = operand_def(signlessIntegerLike)
-    rhs = operand_def(signlessIntegerLike)
-    output = result_def(signlessIntegerLike)
-    # assemblyFormat ="$lhs $rhs attr-dict `:` type($output)"  # operands directive not in asm format
+_T = TypeVar("_T", bound=Attribute)
+
+
+class BinaryOp(ModArithOp, ABC, Generic[_T]):
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    output = result_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($output)"
     traits = frozenset((Pure(),))
 
     def __init__(
@@ -33,8 +47,12 @@ class BinaryOp(ModArithOp, ABC):
         return super().verify_()
 
 
+class BinaryModuloOp(BinaryOp[_T], ABC, Generic[_T]):
+    modulus = attr_def(AnyIntegerAttr)
+
+
 @irdl_op_definition
-class AddOp(BinaryOp):
+class AddOp(BinaryModuloOp[Annotated[Attribute, signlessIntegerLike]]):
     name = "mod_arith.add"
 
 
