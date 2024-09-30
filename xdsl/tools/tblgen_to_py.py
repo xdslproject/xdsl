@@ -231,47 +231,52 @@ class TblgenLoader:
             case "AnyComplex":
                 return "BaseAttr(ComplexType)"
             case _:
-                if "AnyTypeOf" in rec.superclasses:
-                    return textwrap.dedent(f"""
-                    AnyOf(
-                        (
-                            {",".join(self._resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
-                        )
-                    )
-                    """)
+                pass
+        if "AnyTypeOf" in rec.superclasses:
+            return textwrap.dedent(f"""
+            AnyOf(
+                (
+                    {",".join(self._resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
+                )
+            )
+            """)
 
-                if "AllOfType" in rec.superclasses:
-                    return textwrap.dedent(f"""
-                    AllOf(
-                        (
-                            {",".join(self._resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
-                        )
-                    )
-                    """)
+        if "AllOfType" in rec.superclasses:
+            return textwrap.dedent(f"""
+            AllOf(
+                (
+                    {",".join(self._resolve_type_constraint(x["def"]) for x in rec["allowedTypes"])}
+                )
+            )
+            """)
 
-                if "AnyI" in rec.superclasses:
-                    return textwrap.dedent(f"""
-                    ParamAttrConstraint(
-                        IntegerType,
-                        (EqAttrConstraint(IntAttr({rec["bitwidth"]})), AnyAttr()),
-                    )
-                    """)
+        if "AnyI" in rec.superclasses:
+            return textwrap.dedent(f"""
+            ParamAttrConstraint(
+                IntegerType,
+                (EqAttrConstraint(IntAttr({rec["bitwidth"]})), AnyAttr()),
+            )
+            """)
 
-                if "I" in rec.superclasses:
-                    return f"EqAttrConstraint(IntegerType({rec['bitwidth']}))"
-                if "SI" in rec.superclasses:
-                    return f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.SIGNED))"
-                if "UI" in rec.superclasses:
-                    return f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.UNSIGNED))"
-                if "Complex" in rec.superclasses:
-                    return textwrap.dedent(f"""
-                    ParamAttrConstraint(
-                        ComplexType,
-                        ({self._resolve_type_constraint(rec["elementType"]["def"])},),
-                    )
-                    """)
+        if "I" in rec.superclasses:
+            return f"EqAttrConstraint(IntegerType({rec['bitwidth']}))"
+        if "SI" in rec.superclasses:
+            return (
+                f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.SIGNED))"
+            )
+        if "UI" in rec.superclasses:
+            return (
+                f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.UNSIGNED))"
+            )
+        if "Complex" in rec.superclasses:
+            return textwrap.dedent(f"""
+            ParamAttrConstraint(
+                ComplexType,
+                ({self._resolve_type_constraint(rec["elementType"]["def"])},),
+            )
+            """)
 
-                return "AnyAttr()"
+        return "AnyAttr()"
 
     def _resolve_prop_constraint(self, rec: TblgenRecord | str) -> str:
         if isinstance(rec, str):
@@ -304,40 +309,42 @@ class TblgenLoader:
             case "UnitAttr":
                 return "EqAttrConstraint(UnitAttr())"
             case _:
-                if "AnyAttrOf" in rec.superclasses:
-                    return textwrap.dedent(f"""
-                    AnyOf(
-                        {",".join(self._resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}
-                        )
-                    )
-                    """)
+                pass
 
-                if (
-                    "AnyIntegerAttrBase" in rec.superclasses
-                    or "SignlessIntegerAttrBase" in rec.superclasses
-                    or "SignedIntegerAttrBase" in rec.superclasses
-                    or "UnsignedIntegerAttrBase" in rec.superclasses
-                ):
-                    return textwrap.dedent(f"""
-                    ParamAttrConstraint(
-                        IntegerAttr,
-                        (
-                            AnyAttr(),
-                            {self._resolve_type_constraint(rec["valueType"]["def"])},
-                        ),
-                    )
-                    """)
+        if "AnyAttrOf" in rec.superclasses:
+            return textwrap.dedent(f"""
+            AnyOf(
+                {",".join(self._resolve_prop_constraint(x["def"]) for x in rec["allowedAttributes"])}
+                )
+            )
+            """)
 
-                if "FloatAttrBase" in rec.superclasses:
-                    return textwrap.dedent(f"""
-                    ParamAttrConstraint(
-                        FloatAttr,
-                        (
-                            AnyAttr(),
-                            {self._resolve_type_constraint(rec["valueType"]["def"])},
-                        ),
-                    )
-                    """)
+        if (
+            "AnyIntegerAttrBase" in rec.superclasses
+            or "SignlessIntegerAttrBase" in rec.superclasses
+            or "SignedIntegerAttrBase" in rec.superclasses
+            or "UnsignedIntegerAttrBase" in rec.superclasses
+        ):
+            return textwrap.dedent(f"""
+            ParamAttrConstraint(
+                IntegerAttr,
+                (
+                    AnyAttr(),
+                    {self._resolve_type_constraint(rec["valueType"]["def"])},
+                ),
+            )
+            """)
+
+        if "FloatAttrBase" in rec.superclasses:
+            return textwrap.dedent(f"""
+            ParamAttrConstraint(
+                FloatAttr,
+                (
+                    AnyAttr(),
+                    {self._resolve_type_constraint(rec["valueType"]["def"])},
+                ),
+            )
+            """)
 
         return "AnyAttr()"
 
