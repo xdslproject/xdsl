@@ -101,6 +101,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_stencil_bufferize.CslStencilBufferize
 
+    def get_csl_stencil_materialize_stores():
+        from xdsl.transforms import csl_stencil_materialize_stores
+
+        return csl_stencil_materialize_stores.CslStencilMaterializeStores
+
     def get_csl_stencil_to_csl_wrapper():
         from xdsl.transforms import csl_stencil_to_csl_wrapper
 
@@ -446,6 +451,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
+        "csl-stencil-materialize-stores": get_csl_stencil_materialize_stores,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
         "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,

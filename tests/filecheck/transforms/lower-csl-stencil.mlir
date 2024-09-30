@@ -53,7 +53,7 @@ builtin.module {
         "csl.fadds"(%arg3_1, %arg3_1, %43) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
         %45 = arith.constant 1.666600e-01 : f32
         "csl.fmuls"(%arg3_1, %arg3_1, %45) : (memref<510xf32>, memref<510xf32>, f32) -> ()
-        csl_stencil.yield %arg3_1 : memref<510xf32>
+        csl_stencil.yield
       }) to <[0, 0], [1, 1]>
       csl.return
     }
@@ -134,8 +134,6 @@ builtin.module {
 // CHECK-NEXT:       "csl.fadds"(%accumulator, %accumulator, %58) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
 // CHECK-NEXT:       %60 = arith.constant 1.666600e-01 : f32
 // CHECK-NEXT:       "csl.fmuls"(%accumulator, %accumulator, %60) : (memref<510xf32>, memref<510xf32>, f32) -> ()
-// CHECK-NEXT:       %61 = memref.subview %arg1[1] [510] [1] : memref<512xf32> to memref<510xf32>
-// CHECK-NEXT:       "memref.copy"(%accumulator, %61) : (memref<510xf32>, memref<510xf32>) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
