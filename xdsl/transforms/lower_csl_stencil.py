@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func
+from xdsl.dialects import arith, func, memref
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (
     i16,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -21,6 +21,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 
 
 def get_dir_and_distance_ops(
@@ -167,16 +168,33 @@ class LowerApplyOp(RewritePattern):
         # place both func next to the enclosing parent func
         rewriter.insert_op([chunk_fn, done_fn], InsertPoint.after(parent_func))
 
+        # ensure we send only core data
+        assert isa(op.accumulator.type, memref.MemRefType[Attribute])
+        assert isa(op.field.type, memref.MemRefType[Attribute])
+        send_buf = memref.Subview.get(
+            op.field,
+            [
+                (d - s) // 2  # symmetric offset
+                for s, d in zip(
+                    op.accumulator.type.get_shape(), op.field.type.get_shape()
+                )
+            ],
+            op.accumulator.type.get_shape(),
+            len(op.accumulator.type.get_shape()) * [1],
+            op.accumulator.type,
+        )
+
         # add api call
         num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
         chunk_ref = csl.AddressOfFnOp(chunk_fn)
         done_ref = csl.AddressOfFnOp(done_fn)
+        # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
         api_call = csl.MemberCallOp(
             "communicate",
             None,
             module_wrapper_op.get_program_import("stencil_comms.csl"),
             [
-                op.field,
+                send_buf,
                 num_chunks,
                 chunk_ref,
                 done_ref,
@@ -184,7 +202,9 @@ class LowerApplyOp(RewritePattern):
         )
 
         # replace op with api call
-        rewriter.replace_matched_op([num_chunks, chunk_ref, done_ref, api_call], [])
+        rewriter.replace_matched_op(
+            [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
+        )
 
 
 @dataclass(frozen=True)
