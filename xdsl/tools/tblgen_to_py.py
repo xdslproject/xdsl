@@ -116,17 +116,18 @@ class TblgenLoader:
         self.used_records.add(name)
         return TblgenRecord(self.js[name])
 
-    def load_dialect(self, dialect_name: str):
+    def import_dialect(self, dialect_name: str):
         """
-        Load a dialect from the json object, loading all its contained
-        operations, types, and attributes.
+        Import a dialect from the json object, importing all its contained
+        operations, types, and attributes and generating python code which
+        is stored in this class' fields.
         """
         # Get types
         all_types = self.js["!instanceof"]["TypeDef"]
         for t in all_types:
             ty = self._get_type(t)
             if ty.dialect == dialect_name:
-                self.load_type(ty)
+                self.import_type(ty)
 
         # Get attributes
         all_attrs = self.js["!instanceof"]["AttrDef"]
@@ -140,10 +141,13 @@ class TblgenLoader:
         for o in all_ops:
             op = self._get_op(o)
             if op.dialect == dialect_name:
-                self.load_op(op)
+                self.import_op(op)
 
-    def load_type(self, tblgen_type: TblgenType):
-        """Load a type from the json object."""
+    def import_type(self, tblgen_type: TblgenType):
+        """
+        Import a type from the json object, storing python code for it in
+        `self.attributes`.
+        """
 
         string = textwrap.dedent(f'''
         @irdl_attr_definition
@@ -155,7 +159,10 @@ class TblgenLoader:
         self.attributes[tblgen_type.name] = string
 
     def load_attr(self, tblgen_attr: TblgenAttr):
-        """Load an attribute from the json object."""
+        """
+        Import an attribute from the json object, storing python code for it in
+        `self.attributes`.
+        """
 
         string = textwrap.dedent(f'''
         @irdl_attr_definition
@@ -368,8 +375,11 @@ class TblgenLoader:
         else:
             return (self._ArgType.PROP, self._resolve_prop_constraint(rec))
 
-    def load_op(self, tblgen_op: TblgenOp):
-        """Load an operation from the json dialect."""
+    def import_op(self, tblgen_op: TblgenOp):
+        """
+        Import an operation from the json object, storing python code for it in
+        `self.operations`.
+        """
 
         fields = {"name": f'"{tblgen_op.op_name}"'}
 
@@ -476,7 +486,7 @@ def main():
     loader = TblgenLoader(js)
     dialects = js["!instanceof"]["Dialect"]
     [dialect] = dialects
-    loader.load_dialect(dialect)
+    loader.import_dialect(dialect)
 
     if args.cull:
         js = loader.js
