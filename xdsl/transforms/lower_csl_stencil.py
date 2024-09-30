@@ -211,37 +211,13 @@ class LowerApplyOp(RewritePattern):
 class LowerYieldOp(RewritePattern):
     """
     Lowers csl_stencil.yield to csl.return.
-    Note, the callbacks generated return no values, whereas the yield op
-    to be replaced may still report to yield values.
+    Note, the callbacks generated return no values, and the yield op
+    to be replaced should also yield no values. This should be run
+    after `--csl-stencil-materialize-stores`.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
-        assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
-
-        # the second callback stores yielded values to dest
-        if op.parent_region() == apply.done_exchange:
-            views: list[Operation] = []
-            for src, dst in zip(op.arguments, apply.dest):
-                assert isa(src.type, memref.MemRefType[Attribute])
-                assert isa(dst.type, memref.MemRefType[Attribute])
-                views.append(
-                    memref.Subview.get(
-                        dst,
-                        [
-                            (d - s) // 2  # symmetric offset
-                            for s, d in zip(src.type.get_shape(), dst.type.get_shape())
-                        ],
-                        src.type.get_shape(),
-                        len(src.type.get_shape()) * [1],
-                        src.type,
-                    )
-                )
-            copies = [memref.CopyOp(src, dst) for src, dst in zip(op.arguments, views)]
-            rewriter.insert_op(
-                [*views, *copies],
-                InsertPoint.before(op),
-            )
         rewriter.replace_matched_op(csl.ReturnOp())
 
 
