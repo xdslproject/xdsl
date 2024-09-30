@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.5"
+__generated_with = "0.8.20"
 app = marimo.App()
 
 
@@ -27,7 +27,7 @@ def __(mo):
         {rank}
         """
     )
-    return rank,
+    return (rank,)
 
 
 @app.cell(hide_code=True)
@@ -45,7 +45,7 @@ def __(mo, rank):
         ```
         """
     )
-    return shape,
+    return (shape,)
 
 
 @app.cell(hide_code=True)
@@ -147,7 +147,7 @@ def __(html, init_module, mo):
 @app.cell
 def __(build_module, model_def):
     init_module = build_module(model_def.graph)
-    return init_module,
+    return (init_module,)
 
 
 @app.cell(hide_code=True)
@@ -161,7 +161,7 @@ def __(MLContext, get_all_dialects):
 
 @app.cell
 def __(mo):
-    mo.md("xDSL seamlessly interoperates with MLIR, we the `mlir-opt` tool to compile the input to a form that we want to process:")
+    mo.md("""xDSL seamlessly interoperates with MLIR, we the `mlir-opt` tool to compile the input to a form that we want to process:""")
     return
 
 
@@ -248,7 +248,7 @@ def __():
 @app.cell(hide_code=True)
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell(hide_code=True)
@@ -266,7 +266,7 @@ def __(ModuleOp, mo):
 @app.cell(hide_code=True)
 def __():
     from collections import Counter
-    return Counter,
+    return (Counter,)
 
 
 @app.cell(hide_code=True)
