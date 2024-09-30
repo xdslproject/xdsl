@@ -40,11 +40,11 @@ class TblgenOp(TblgenRecord):
         return self["opDialect"]["def"]
 
     @property
-    def opName(self) -> str:
+    def op_name(self) -> str:
         return self["opName"]
 
     @property
-    def assemblyFormat(self) -> str | None:
+    def assembly_format(self) -> str | None:
         if "assemblyFormat" in self.js:
             assembly = self["assemblyFormat"]
             if isinstance(assembly, str):
@@ -74,13 +74,13 @@ class TblgenOp(TblgenRecord):
 
 class TblgenType(TblgenRecord):
     @property
-    def typeName(self) -> str:
+    def type_name(self) -> str:
         return self["typeName"]
 
 
 class TblgenAttr(TblgenRecord):
     @property
-    def attrName(self) -> str:
+    def attr_name(self) -> str:
         return self["attrName"]
 
 
@@ -149,7 +149,7 @@ class TblgenLoader:
         @irdl_attr_definition
         class {tblgen_type.name}(ParametrizedAttribute, TypeAttribute):
            """{tblgen_type.summary}"""
-           name = "{tblgen_type.typeName}"
+           name = "{tblgen_type.type_name}"
         ''')
 
         self.attributes[tblgen_type.name] = string
@@ -161,7 +161,7 @@ class TblgenLoader:
         @irdl_attr_definition
         class {tblgen_attr.name}(ParametrizedAttribute):
            """{tblgen_attr.summary}"""
-           name = "{tblgen_attr.attrName}"
+           name = "{tblgen_attr.attr_name}"
         ''')
 
         self.attributes[tblgen_attr.name] = string
@@ -371,9 +371,9 @@ class TblgenLoader:
     def load_op(self, tblgen_op: TblgenOp):
         """Load an operation from the json dialect."""
 
-        fields = {"name": f'"{tblgen_op.opName}"'}
+        fields = {"name": f'"{tblgen_op.op_name}"'}
 
-        assembly = tblgen_op.assemblyFormat
+        assembly = tblgen_op.assembly_format
         if assembly is not None and "custom" not in assembly:
             fields["assembly_format"] = assembly
 
