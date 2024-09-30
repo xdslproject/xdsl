@@ -191,8 +191,9 @@ class LowerApplyOp(RewritePattern):
 class LowerYieldOp(RewritePattern):
     """
     Lowers csl_stencil.yield to csl.return.
-    Note, the callbacks generated return no values, whereas the yield op
-    to be replaced may still report to yield values.
+    Note, the callbacks generated return no values, and the yield op
+    to be replaced should also yield no values. This should be run
+    after `--csl-stencil-materialize-stores`.
     """
 
     @op_type_rewrite_pattern

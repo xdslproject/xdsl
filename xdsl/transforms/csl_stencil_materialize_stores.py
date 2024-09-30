@@ -20,9 +20,7 @@ from xdsl.utils.hints import isa
 @dataclass(frozen=True)
 class MaterializeInApplyDest(RewritePattern):
     """
-    Lowers csl_stencil.yield to csl.return.
-    Note, the callbacks generated return no values, whereas the yield op
-    to be replaced may still report to yield values.
+    Stores the yielded values to the buffers specified in `apply.dest` instead of yielding them.
     """
 
     @op_type_rewrite_pattern
@@ -31,50 +29,51 @@ class MaterializeInApplyDest(RewritePattern):
             return
         assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
 
-        # the second callback stores yielded values to dest
-        if op.parent_region() == apply.done_exchange:
-            views: list[Operation] = []
-            add_args: list[SSAValue] = []
-            for src, dst in zip(op.arguments, apply.dest):
-                assert isa(src.type, memref.MemRefType[Attribute])
-                assert isa(dst.type, memref.MemRefType[Attribute])
-                dst_arg = apply.done_exchange.block.insert_arg(
-                    dst.type, len(apply.done_exchange.block.args)
-                )
-                views.append(
-                    memref.Subview.get(
-                        dst_arg,
-                        [
-                            (d - s) // 2  # symmetric offset
-                            for s, d in zip(src.type.get_shape(), dst.type.get_shape())
-                        ],
-                        src.type.get_shape(),
-                        len(src.type.get_shape()) * [1],
-                        src.type,
-                    )
-                )
-                add_args.append(dst)
-            copies = [memref.CopyOp(src, dst) for src, dst in zip(op.arguments, views)]
-            rewriter.insert_op(
-                [*views, *copies],
-                InsertPoint.before(op),
-            )
+        if op.parent_region() != apply.done_exchange:
+            return
 
-            rewriter.replace_matched_op(csl_stencil.YieldOp())
-            rewriter.replace_op(
-                apply,
-                csl_stencil.ApplyOp(
-                    operands=[
-                        apply.field,
-                        apply.accumulator,
-                        [*apply.args, *add_args],
-                        apply.dest,
-                    ],
-                    regions=[apply.detach_region(r) for r in apply.regions],
-                    properties=apply.properties,
-                    result_types=apply.result_types or [[]],
-                ),
+        views: list[Operation] = []
+        add_args: list[SSAValue] = []
+        for src, dst in zip(op.arguments, apply.dest, strict=True):
+            assert isa(src.type, memref.MemRefType[Attribute])
+            assert isa(dst.type, memref.MemRefType[Attribute])
+            dst_arg = apply.done_exchange.block.insert_arg(
+                dst.type, len(apply.done_exchange.block.args)
             )
+            views.append(
+                memref.Subview.get(
+                    dst_arg,
+                    [
+                        (d - s) // 2  # symmetric offset
+                        for s, d in zip(src.type.get_shape(), dst.type.get_shape())
+                    ],
+                    src.type.get_shape(),
+                    len(src.type.get_shape()) * [1],
+                    src.type,
+                )
+            )
+            add_args.append(dst)
+        copies = [memref.CopyOp(src, dst) for src, dst in zip(op.arguments, views)]
+        rewriter.insert_op(
+            [*views, *copies],
+            InsertPoint.before(op),
+        )
+
+        rewriter.replace_matched_op(csl_stencil.YieldOp())
+        rewriter.replace_op(
+            apply,
+            csl_stencil.ApplyOp(
+                operands=[
+                    apply.field,
+                    apply.accumulator,
+                    [*apply.args, *add_args],
+                    apply.dest,
+                ],
+                regions=[apply.detach_region(r) for r in apply.regions],
+                properties=apply.properties,
+                result_types=apply.result_types or [[]],
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -109,7 +108,7 @@ class DisableComputeInBorderRegion(RewritePattern):
 
         if (
             not isinstance(yld := op.done_exchange.block.last_op, csl_stencil.YieldOp)
-            or not len(yld.arguments) == 0
+            or len(yld.arguments) > 0
         ):
             return
 
