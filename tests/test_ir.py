@@ -985,3 +985,17 @@ def test_dialect_name():
         name = "dialect.op"
 
     assert MyOperation.dialect_name() == "dialect"
+
+
+def test_replace_by_if():
+    a = TestSSAValue(i32)
+    b = test.TestOp((a,))
+    c = test.TestOp((a,))
+
+    assert set(u.operation for u in a.uses) == {b, c}
+
+    d = TestSSAValue(i32)
+    a.replace_by_if(d, lambda u: u.operation is not c)
+
+    assert set(u.operation for u in a.uses) == {c}
+    assert set(u.operation for u in d.uses) == {b}

@@ -101,6 +101,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return csl_stencil_bufferize.CslStencilBufferize
 
+    def get_csl_stencil_materialize_stores():
+        from xdsl.transforms import csl_stencil_materialize_stores
+
+        return csl_stencil_materialize_stores.CslStencilMaterializeStores
+
     def get_csl_stencil_to_csl_wrapper():
         from xdsl.transforms import csl_stencil_to_csl_wrapper
 
@@ -410,6 +415,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_bufferize.StencilBufferize
 
+    def get_stencil_shape_minimize():
+        from xdsl.transforms import stencil_shape_minimize
+
+        return stencil_shape_minimize.StencilShapeMinimize
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -441,6 +451,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
+        "csl-stencil-materialize-stores": get_csl_stencil_materialize_stores,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "csl-wrapper-hoist-buffers": get_csl_wrapper_hoist_buffers,
         "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,
@@ -488,6 +499,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-unroll": get_stencil_unroll,
         "stencil-bufferize": get_stencil_bufferize,
+        "stencil-shape-minimize": get_stencil_shape_minimize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
     }
 

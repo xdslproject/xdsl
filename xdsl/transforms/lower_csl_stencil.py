@@ -168,16 +168,33 @@ class LowerApplyOp(RewritePattern):
         # place both func next to the enclosing parent func
         rewriter.insert_op([chunk_fn, done_fn], InsertPoint.after(parent_func))
 
+        # ensure we send only core data
+        assert isa(op.accumulator.type, memref.MemRefType[Attribute])
+        assert isa(op.field.type, memref.MemRefType[Attribute])
+        send_buf = memref.Subview.get(
+            op.field,
+            [
+                (d - s) // 2  # symmetric offset
+                for s, d in zip(
+                    op.accumulator.type.get_shape(), op.field.type.get_shape()
+                )
+            ],
+            op.accumulator.type.get_shape(),
+            len(op.accumulator.type.get_shape()) * [1],
+            op.accumulator.type,
+        )
+
         # add api call
         num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
         chunk_ref = csl.AddressOfFnOp(chunk_fn)
         done_ref = csl.AddressOfFnOp(done_fn)
+        # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
         api_call = csl.MemberCallOp(
             "communicate",
             None,
             module_wrapper_op.get_program_import("stencil_comms.csl"),
             [
-                op.field,
+                send_buf,
                 num_chunks,
                 chunk_ref,
                 done_ref,
@@ -185,44 +202,22 @@ class LowerApplyOp(RewritePattern):
         )
 
         # replace op with api call
-        rewriter.replace_matched_op([num_chunks, chunk_ref, done_ref, api_call], [])
+        rewriter.replace_matched_op(
+            [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
+        )
 
 
 @dataclass(frozen=True)
 class LowerYieldOp(RewritePattern):
     """
     Lowers csl_stencil.yield to csl.return.
-    Note, the callbacks generated return no values, whereas the yield op
-    to be replaced may still report to yield values.
+    Note, the callbacks generated return no values, and the yield op
+    to be replaced should also yield no values. This should be run
+    after `--csl-stencil-materialize-stores`.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
-        assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
-
-        # the second callback stores yielded values to dest
-        if op.parent_region() == apply.done_exchange:
-            views: list[Operation] = []
-            for src, dst in zip(op.arguments, apply.dest):
-                assert isa(src.type, memref.MemRefType[Attribute])
-                assert isa(dst.type, memref.MemRefType[Attribute])
-                views.append(
-                    memref.Subview.get(
-                        dst,
-                        [
-                            (d - s) // 2  # symmetric offset
-                            for s, d in zip(src.type.get_shape(), dst.type.get_shape())
-                        ],
-                        src.type.get_shape(),
-                        len(src.type.get_shape()) * [1],
-                        src.type,
-                    )
-                )
-            copies = [memref.CopyOp(src, dst) for src, dst in zip(op.arguments, views)]
-            rewriter.insert_op(
-                [*views, *copies],
-                InsertPoint.before(op),
-            )
         rewriter.replace_matched_op(csl.ReturnOp())
 
 

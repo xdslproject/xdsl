@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Iterable, Iterator, Mapping, Reversible, Sequence
+from collections.abc import (
+    Callable,
+    Hashable,
+    Iterable,
+    Iterator,
+    Mapping,
+    Reversible,
+    Sequence,
+)
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -161,7 +169,19 @@ class SSAValue(ABC):
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
-        assert len(self.uses) == 0, "unexpected error in xdsl"
+        assert not self.uses, "unexpected error in xdsl"
+
+    def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
+        """
+        Replace the value by another value in all its uses that pass the given test
+        function.
+        """
+        for use in self.uses.copy():
+            if test(use):
+                use.operation.operands[use.index] = value
+        # carry over name if possible
+        if value.name_hint is None:
+            value.name_hint = self.name_hint
 
     def erase(self, safe_erase: bool = True) -> None:
         """
