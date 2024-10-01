@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "convert-stencil-to-csl{slices=30,14}" | filecheck %s
+// RUN: xdsl-opt %s -p "test-convert-stencil-to-csl{slices=30,14}" | filecheck %s
 
 builtin.module {
   func.func @gauss_seidel_func(%a : !stencil.field<[-1,31]x[-1,15]x[-1,15]xf32>, %b : !stencil.field<[-1,31]x[-1,15]x[-1,15]xf32>) {

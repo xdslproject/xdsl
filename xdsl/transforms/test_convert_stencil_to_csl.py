@@ -33,13 +33,13 @@ from xdsl.transforms.stencil_bufferize import StencilBufferize
 
 
 @dataclass(frozen=True)
-class ConvertStencilToCslPass(ModulePass):
+class TestConvertStencilToCslPass(ModulePass):
     """
     This is a pass combining all passes currently required to lower code from
     the `stencil` dialect to the `csl` dialect.
     """
 
-    name = "convert-stencil-to-csl"
+    name = "test-convert-stencil-to-csl"
 
     slices: tuple[int, int]
 
