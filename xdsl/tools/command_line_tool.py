@@ -400,6 +400,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_stencil_to_csl_stencil.ConvertStencilToCslStencilPass
 
+    def get_convert_stencil_to_csl():
+        from xdsl.transforms import convert_stencil_to_csl
+
+        return convert_stencil_to_csl.ConvertStencilToCslPass
+
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -442,6 +447,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
+        "convert-stencil-to-csl": get_convert_stencil_to_csl,
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
