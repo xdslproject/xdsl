@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.test import TestType
-from xdsl.ir import Attribute, Block, OpResult, Region
+from xdsl.ir import Attribute, Block, Region
 from xdsl.irdl import (
     AnyAttr,
     AttributeDef,
@@ -26,18 +26,11 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IRDLOperation,
     OpDef,
-    Operand,
     OperandDef,
-    OptOperand,
-    OptOpResult,
-    OptRegion,
     PropertyDef,
     RangeOf,
     RegionDef,
     ResultDef,
-    VarOperand,
-    VarOpResult,
-    VarRegion,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -72,11 +65,11 @@ class OpDefTestOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    operand: Operand = operand_def()
-    result: OpResult = result_def()
-    prop: Attribute = prop_def(Attribute)
-    attr: Attribute = attr_def(Attribute)
-    region: Region = region_def()
+    operand = operand_def()
+    result = result_def()
+    prop = prop_def(Attribute)
+    attr = attr_def(Attribute)
+    region = region_def()
 
     # Check that we can define methods in operation definitions
     def test(self):
@@ -153,7 +146,7 @@ def test_invalid_field():
 @irdl_op_definition
 class AttrOp(IRDLOperation):
     name = "test.two_var_result_op"
-    attr: StringAttr = attr_def(StringAttr)
+    attr = attr_def(StringAttr)
 
 
 def test_attr_verify():
@@ -170,8 +163,8 @@ class ConstraintVarOp(IRDLOperation):
 
     T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    operand = operand_def(T)
+    result = result_def(T)
     attribute = attr_def(T)
 
 
@@ -238,7 +231,7 @@ def test_constraint_var_fail_not_satisfy_constraint():
 class OperationWithoutProperty(IRDLOperation):
     name = "test.op_without_prop"
 
-    prop1: Attribute = prop_def(Attribute)
+    prop1 = prop_def(Attribute)
 
 
 # Check that an operation cannot accept properties that are not defined
@@ -261,9 +254,9 @@ class RegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region = region_def()
-    opt_region: OptRegion = opt_region_def()
-    var_region: VarRegion = var_region_def()
+    region = region_def()
+    opt_region = opt_region_def()
+    var_region = var_region_def()
 
 
 def test_region_accessors():
@@ -293,9 +286,9 @@ class OperandOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    operand: Operand = operand_def()
-    opt_operand: OptOperand = opt_operand_def()
-    var_operand: VarOperand = var_operand_def()
+    operand = operand_def()
+    opt_operand = opt_operand_def()
+    var_operand = var_operand_def()
 
 
 def test_operand_accessors():
@@ -323,9 +316,9 @@ class OpResultOp(IRDLOperation):
 
     irdl_options = [AttrSizedResultSegments()]
 
-    result: OpResult = result_def()
-    opt_result: OptOpResult = opt_result_def()
-    var_result: VarOpResult = var_result_def()
+    result = result_def()
+    opt_result = opt_result_def()
+    var_result = var_result_def()
 
 
 def test_opresult_accessors():
@@ -346,8 +339,8 @@ def test_opresult_accessors():
 class AttributeOp(IRDLOperation):
     name = "test.attribute_op"
 
-    attr: StringAttr = attr_def(StringAttr)
-    opt_attr: StringAttr | None = opt_attr_def(StringAttr)
+    attr = attr_def(StringAttr)
+    opt_attr = opt_attr_def(StringAttr)
 
 
 def test_attribute_accessors():
@@ -382,8 +375,8 @@ def test_attribute_setters():
 class PropertyOp(IRDLOperation):
     name = "test.attribute_op"
 
-    attr: StringAttr = prop_def(StringAttr)
-    opt_attr: StringAttr | None = opt_prop_def(StringAttr)
+    attr = prop_def(StringAttr)
+    opt_attr = opt_prop_def(StringAttr)
 
 
 def test_property_accessors():
@@ -431,10 +424,8 @@ class RenamedAttributeOp(IRDLOperation):
 
     name = "test.renamed_attribute_op"
 
-    accessor: StringAttr = attr_def(StringAttr, attr_name="attr_name")
-    opt_accessor: StringAttr | None = opt_attr_def(
-        StringAttr, attr_name="opt_attr_name"
-    )
+    accessor = attr_def(StringAttr, attr_name="attr_name")
+    opt_accessor = opt_attr_def(StringAttr, attr_name="opt_attr_name")
 
 
 def test_renamed_attributes_verify():
@@ -485,10 +476,8 @@ class RenamedPropertyOp(IRDLOperation):
 
     name = "test.renamed_property_op"
 
-    accessor: StringAttr = prop_def(StringAttr, prop_name="prop_name")
-    opt_accessor: StringAttr | None = opt_prop_def(
-        StringAttr, prop_name="opt_prop_name"
-    )
+    accessor = prop_def(StringAttr, prop_name="prop_name")
+    opt_accessor = opt_prop_def(StringAttr, prop_name="opt_prop_name")
 
 
 def test_renamed_properties_verify():
@@ -547,8 +536,8 @@ class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
     name = "test.string_or_int_generic"
 
     attr: _Attr = attr_def(_Attr)
-    operand: Operand = operand_def(_Operand)
-    result: OpResult = result_def(_Result)
+    operand = operand_def(_Operand)
+    result = result_def(_Result)
 
 
 @irdl_op_definition
@@ -669,3 +658,18 @@ Operation does not verify: region #0 entry arguments do not verify:
 Expected attribute i32 but got i64""",
     ):
         op.verify()
+
+
+class OptionlessMultipleVarOp(IRDLOperation):
+    name = "test.multiple_var_op"
+
+    optional = opt_operand_def()
+    variadic = var_operand_def()
+
+
+def test_no_multiple_var_option():
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
+    ):
+        irdl_op_definition(OptionlessMultipleVarOp)

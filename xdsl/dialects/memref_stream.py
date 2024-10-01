@@ -51,7 +51,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     IsTerminator,
     NoTerminator,
 )
@@ -350,7 +350,7 @@ class StreamingRegionOp(IRDLOperation):
         return generic
 
 
-class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls):
         from xdsl.transforms.canonicalization_patterns.memref_stream import (
@@ -397,10 +397,10 @@ class GenericOp(IRDLOperation):
     Indices into the `outputs` that correspond to the initial values in `inits`.
     """
 
-    doc: StringAttr | None = opt_prop_def(StringAttr)
-    library_call: StringAttr | None = opt_prop_def(StringAttr)
+    doc = opt_prop_def(StringAttr)
+    library_call = opt_prop_def(StringAttr)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
 

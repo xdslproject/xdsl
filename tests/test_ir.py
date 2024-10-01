@@ -16,8 +16,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
-    VarRegion,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -830,7 +828,7 @@ ModuleOp(
 @irdl_op_definition
 class CustomOpWithMultipleRegions(IRDLOperation):
     name = "test.custom_op_with_multiple_regions"
-    region: VarRegion = var_region_def()
+    region = var_region_def()
 
 
 def test_region_index_fetch():
@@ -889,7 +887,7 @@ def test_detach_region():
 @irdl_op_definition
 class CustomVerify(IRDLOperation):
     name = "test.custom_verify_op"
-    val: Operand = operand_def(i64)
+    val = operand_def(i64)
 
     @staticmethod
     def get(val: SSAValue):

@@ -3,9 +3,8 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import Enum
 from types import EllipsisType
-from typing import Annotated, Generic, Literal, TypeVar
+from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (
     I64,
@@ -26,10 +25,9 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    Data,
+    BitEnumAttribute,
     Dialect,
     Operation,
-    OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -38,16 +36,11 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
-    Operand,
-    OptOperand,
-    OptOpResult,
     ParameterDef,
-    VarOperand,
     base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
@@ -58,9 +51,10 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, SymbolOpInterface
+from xdsl.traits import IsTerminator, NoMemoryEffect, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrEnum
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -370,6 +364,8 @@ class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
     rhs = operand_def(T)
     res = result_def(T)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(
         self,
         lhs: SSAValue,
@@ -578,14 +574,16 @@ class GEPOp(IRDLOperation):
 
     name = "llvm.getelementptr"
 
-    ptr: Operand = operand_def(LLVMPointerType)
-    ssa_indices: VarOperand = var_operand_def(IntegerType)
-    elem_type: Attribute | None = opt_prop_def(Attribute)
+    ptr = operand_def(LLVMPointerType)
+    ssa_indices = var_operand_def(IntegerType)
+    elem_type = opt_prop_def(Attribute)
 
-    result: OpResult = result_def(LLVMPointerType)
+    result = result_def(LLVMPointerType)
 
-    rawConstantIndices: DenseArrayBase = prop_def(DenseArrayBase)
-    inbounds: UnitAttr | None = opt_prop_def(UnitAttr)
+    rawConstantIndices = prop_def(DenseArrayBase)
+    inbounds = opt_prop_def(UnitAttr)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -672,12 +670,12 @@ class GEPOp(IRDLOperation):
 class AllocaOp(IRDLOperation):
     name = "llvm.alloca"
 
-    size: Operand = operand_def(IntegerType)
+    size = operand_def(IntegerType)
 
     alignment = opt_prop_def(AnyIntegerAttr)
     elem_type = opt_prop_def(Attribute)
 
-    res: OpResult = result_def()
+    res = result_def()
 
     def __init__(
         self,
@@ -702,9 +700,11 @@ class AllocaOp(IRDLOperation):
 class IntToPtrOp(IRDLOperation):
     name = "llvm.inttoptr"
 
-    input: Operand = operand_def(IntegerType)
+    input = operand_def(IntegerType)
 
-    output: OpResult = result_def(LLVMPointerType)
+    output = result_def(LLVMPointerType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
@@ -725,9 +725,9 @@ class InlineAsmOp(IRDLOperation):
 
     name = "llvm.inline_asm"
 
-    operands_: VarOperand = var_operand_def()
+    operands_ = var_operand_def()
 
-    res: OptOpResult = opt_result_def()
+    res = opt_result_def()
 
     # note: in MLIR upstream this is implemented as AsmDialectAttr;
     # which is an instantiation of an LLVM_EnumAttr
@@ -736,11 +736,11 @@ class InlineAsmOp(IRDLOperation):
     # In this context dialect does not refer to an MLIR dialect
     asm_dialect = opt_prop_def(IntegerAttr[I64])
 
-    asm_string: StringAttr = prop_def(StringAttr)
-    constraints: StringAttr = prop_def(StringAttr)
+    asm_string = prop_def(StringAttr)
+    constraints = prop_def(StringAttr)
 
-    has_side_effects: UnitAttr | None = opt_attr_def(UnitAttr)
-    is_align_stack: UnitAttr | None = opt_attr_def(UnitAttr)
+    has_side_effects = opt_prop_def(UnitAttr)
+    is_align_stack = opt_prop_def(UnitAttr)
 
     def __init__(
         self,
@@ -752,13 +752,10 @@ class InlineAsmOp(IRDLOperation):
         has_side_effects: bool = False,
         is_align_stack: bool = False,
     ):
-        props: dict[str, Attribute] = {
+        props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
             "constraints": StringAttr(constraints),
             "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
-        }
-
-        attrs = {
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
         }
@@ -768,7 +765,6 @@ class InlineAsmOp(IRDLOperation):
 
         super().__init__(
             operands=[operands],
-            attributes=attrs,
             properties=props,
             result_types=[res_types],
         )
@@ -778,9 +774,11 @@ class InlineAsmOp(IRDLOperation):
 class PtrToIntOp(IRDLOperation):
     name = "llvm.ptrtoint"
 
-    input: Operand = operand_def(LLVMPointerType)
+    input = operand_def(LLVMPointerType)
 
-    output: OpResult = result_def(IntegerType)
+    output = result_def(IntegerType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
@@ -790,11 +788,11 @@ class PtrToIntOp(IRDLOperation):
 class LoadOp(IRDLOperation):
     name = "llvm.load"
 
-    ptr: Operand = operand_def(LLVMPointerType)
+    ptr = operand_def(LLVMPointerType)
 
     ordering = opt_prop_def(IntegerAttr[IntegerType])
 
-    dereferenced_value: OpResult = result_def()
+    dereferenced_value = result_def()
 
     def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
@@ -814,13 +812,13 @@ class LoadOp(IRDLOperation):
 class StoreOp(IRDLOperation):
     name = "llvm.store"
 
-    value: Operand = operand_def()
-    ptr: Operand = operand_def(LLVMPointerType)
+    value = operand_def()
+    ptr = operand_def(LLVMPointerType)
 
-    alignment: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
-    ordering: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
-    volatile_: UnitAttr | None = opt_prop_def(UnitAttr)
-    nontemporal: UnitAttr | None = opt_prop_def(UnitAttr)
+    alignment = opt_prop_def(IntegerAttr[IntegerType])
+    ordering = opt_prop_def(IntegerAttr[IntegerType])
+    volatile_ = opt_prop_def(UnitAttr)
+    nontemporal = opt_prop_def(UnitAttr)
 
     def __init__(
         self,
@@ -853,7 +851,9 @@ class StoreOp(IRDLOperation):
 class NullOp(IRDLOperation):
     name = "llvm.mlir.null"
 
-    nullptr: OpResult = result_def(LLVMPointerType)
+    nullptr = result_def(LLVMPointerType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
@@ -871,10 +871,12 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position: DenseArrayBase = prop_def(DenseArrayBase)
-    container: Operand = operand_def(Attribute)
+    position = prop_def(DenseArrayBase)
+    container = operand_def(Attribute)
 
-    res: OpResult = result_def(Attribute)
+    res = result_def(Attribute)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -899,11 +901,13 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position: DenseArrayBase = prop_def(DenseArrayBase)
-    container: Operand = operand_def(Attribute)
-    value: Operand = operand_def(Attribute)
+    position = prop_def(DenseArrayBase)
+    container = operand_def(Attribute)
+    value = operand_def(Attribute)
 
-    res: OpResult = result_def(Attribute)
+    res = result_def(Attribute)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -928,7 +932,9 @@ class UndefOp(IRDLOperation):
 
     name = "llvm.mlir.undef"
 
-    res: OpResult = result_def(Attribute)
+    res = result_def(Attribute)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
@@ -938,23 +944,21 @@ class UndefOp(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
-    global_type: Attribute = prop_def(Attribute)
-    constant: UnitAttr | None = opt_prop_def(UnitAttr)
-    sym_name: StringAttr = prop_def(StringAttr)
-    linkage: LinkageAttr = prop_def(LinkageAttr)
-    dso_local: UnitAttr | None = opt_prop_def(UnitAttr)
-    thread_local_: UnitAttr | None = opt_prop_def(UnitAttr)
-    visibility_: IntegerAttr[IntegerType] | None = opt_prop_def(
-        IntegerAttr[IntegerType]
-    )
-    value: Attribute | None = opt_prop_def(Attribute)
-    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
-    addr_space: AnyIntegerAttr = prop_def(AnyIntegerAttr)
-    unnamed_addr: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
-    section: StringAttr | None = opt_prop_def(StringAttr)
+    global_type = prop_def(Attribute)
+    constant = opt_prop_def(UnitAttr)
+    sym_name = prop_def(StringAttr)
+    linkage = prop_def(LinkageAttr)
+    dso_local = opt_prop_def(UnitAttr)
+    thread_local_ = opt_prop_def(UnitAttr)
+    visibility_ = opt_prop_def(IntegerAttr[IntegerType])
+    value = opt_prop_def(Attribute)
+    alignment = opt_prop_def(AnyIntegerAttr)
+    addr_space = prop_def(AnyIntegerAttr)
+    unnamed_addr = opt_prop_def(AnyIntegerAttr)
+    section = opt_prop_def(StringAttr)
 
     # This always needs an empty region as it is in the top level module definition
-    body: Region = region_def()
+    body = region_def()
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -1015,8 +1019,10 @@ class GlobalOp(IRDLOperation):
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
-    global_name: SymbolRefAttr = prop_def(SymbolRefAttr)
-    result: OpResult = result_def(LLVMPointerType)
+    global_name = prop_def(SymbolRefAttr)
+    result = result_def(LLVMPointerType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -1092,13 +1098,13 @@ class CallingConventionAttr(ParametrizedAttribute):
 class FuncOp(IRDLOperation):
     name = "llvm.func"
 
-    body: Region = region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    function_type: LLVMFunctionType = prop_def(LLVMFunctionType)
-    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
-    linkage: LinkageAttr = prop_def(LinkageAttr)
+    body = region_def()
+    sym_name = prop_def(StringAttr)
+    function_type = prop_def(LLVMFunctionType)
+    CConv = prop_def(CallingConventionAttr)
+    linkage = prop_def(LinkageAttr)
     sym_visibility = opt_prop_def(StringAttr)
-    visibility_: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
+    visibility_ = prop_def(IntegerAttr[IntegerType])
 
     def __init__(
         self,
@@ -1140,9 +1146,9 @@ class ReturnOp(IRDLOperation):
 
     name = "llvm.return"
 
-    arg: OptOperand = opt_operand_def(Attribute)
+    arg = opt_operand_def(Attribute)
 
-    traits = frozenset((IsTerminator(),))
+    traits = frozenset((IsTerminator(), NoMemoryEffect()))
 
     def __init__(self, value: Attribute | None = None):
         super().__init__(attributes={"value": value})
@@ -1151,14 +1157,16 @@ class ReturnOp(IRDLOperation):
 @irdl_op_definition
 class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
-    result: OpResult = result_def(Attribute)
-    value: Attribute = prop_def(Attribute)
+    result = result_def(Attribute)
+    value = prop_def(Attribute)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
 
 
-class FastMathFlag(Enum):
+class FastMathFlag(StrEnum):
     REASSOC = "reassoc"
     NO_NANS = "nnan"
     NO_INFS = "ninf"
@@ -1167,80 +1175,16 @@ class FastMathFlag(Enum):
     ALLOW_CONTRACT = "contract"
     APPROX_FUNC = "afn"
 
-    @staticmethod
-    def try_parse(parser: AttrParser) -> set[FastMathFlag] | None:
-        if parser.parse_optional_characters("none") is not None:
-            return set[FastMathFlag]()
-        if parser.parse_optional_characters("fast") is not None:
-            return set(FastMathFlag)
 
-        for option in FastMathFlag:
-            if parser.parse_optional_characters(option.value) is not None:
-                return {option}
-
-        return None
-
-
-@dataclass(frozen=True)
-class FastMathAttrBase(Data[tuple[FastMathFlag, ...]]):
-    name = "llvm.fastmath"
-
-    @property
-    def flags(self) -> set[FastMathFlag]:
-        """
-        Returns a copy of the fast math flags.
-        """
-        return set(self.data)
-
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
-        flags_: set[FastMathFlag]
-        match flags:
-            case "none" | None:
-                flags_ = set()
-            case "fast":
-                flags_ = set(FastMathFlag)
-            case other:
-                flags_ = set(other)
-
-        super().__init__(tuple(flags_))
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[FastMathFlag, ...]:
-        with parser.in_angle_brackets():
-            flags = FastMathFlag.try_parse(parser)
-            if flags is None:
-                return tuple()
-
-            while parser.parse_optional_punctuation(",") is not None:
-                flag = parser.expect(
-                    lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
-                )
-                flags.update(flag)
-
-            return tuple(flags)
-
-    def print_parameter(self, printer: Printer):
-        with printer.in_angle_brackets():
-            flags = self.data
-            if len(flags) == 0:
-                printer.print("none")
-            elif len(flags) == len(FastMathFlag):
-                printer.print("fast")
-            else:
-                # make sure we emit flags in a consistent order
-                printer.print(
-                    ",".join(flag.value for flag in FastMathFlag if flag in flags)
-                )
+@dataclass(frozen=True, init=False)
+class FastMathAttrBase(BitEnumAttribute[FastMathFlag]):
+    none_value = "none"
+    all_value = "fast"
 
 
 @irdl_attr_definition
 class FastMathAttr(FastMathAttrBase):
     name = "llvm.fastmath"
-
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
-        # irdl_attr_definition defines an __init__ if none is defined, so we need to
-        # explicitely define one here.
-        super().__init__(flags)
 
 
 @irdl_op_definition
@@ -1251,10 +1195,10 @@ class CallIntrinsicOp(IRDLOperation):
 
     name = "llvm.call_intrinsic"
 
-    fastmathFlags: FastMathAttr | None = opt_prop_def(FastMathAttr)
-    intrin: StringAttr = prop_def(StringAttr)
-    args: VarOperand = var_operand_def()
-    ress: OptOpResult = opt_result_def()
+    fastmathFlags = opt_prop_def(FastMathAttr)
+    intrin = prop_def(StringAttr)
+    args = var_operand_def()
+    ress = opt_result_def()
 
     def __init__(
         self,
@@ -1277,12 +1221,12 @@ class CallIntrinsicOp(IRDLOperation):
 class CallOp(IRDLOperation):
     name = "llvm.call"
 
-    args: VarOperand = var_operand_def()
+    args = var_operand_def()
 
-    callee: SymbolRefAttr = prop_def(SymbolRefAttr)
-    callee_type: LLVMFunctionType | None = opt_prop_def(LLVMFunctionType)
-    fastmathFlags: FastMathAttr = prop_def(FastMathAttr)
-    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
+    callee = prop_def(SymbolRefAttr)
+    callee_type = opt_prop_def(LLVMFunctionType)
+    fastmathFlags = prop_def(FastMathAttr)
+    CConv = prop_def(CallingConventionAttr)
     returned = opt_result_def()
 
     def __init__(
@@ -1332,6 +1276,8 @@ class ZeroOp(IRDLOperation):
     name = "llvm.mlir.zero"
 
     assembly_format = "attr-dict `:` type($res)"
+
+    traits = frozenset([NoMemoryEffect()])
 
     res = result_def(LLVMTypeConstr)
 

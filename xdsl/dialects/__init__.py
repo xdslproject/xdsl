@@ -78,6 +78,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_eqsat():
+        from xdsl.dialects.eqsat import EqSat
+
+        return EqSat
+
     def get_fir():
         from xdsl.dialects.experimental.fir import FIR
 
@@ -258,6 +263,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Stencil
 
+    def get_stim():
+        from xdsl.dialects.stim import Stim
+
+        return Stim
+
     def get_stream():
         from xdsl.dialects.stream import Stream
 
@@ -277,6 +287,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.test import Test
 
         return Test
+
+    def get_tosa():
+        from xdsl.dialects.tosa import TOSA
+
+        return TOSA
 
     def get_vector():
         from xdsl.dialects.vector import Vector
@@ -313,6 +328,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
         "func": get_func,
@@ -349,10 +365,12 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "snitch_stream": get_snitch_stream,
         "stablehlo": get_stablehlo,
         "stencil": get_stencil,
+        "stim": get_stim,
         "stream": get_stream,
         "symref": get_symref,
         "tensor": get_tensor,
         "test": get_test,
+        "tosa": get_tosa,
         "vector": get_vector,
         "wasm": get_wasm,
         "x86": get_x86,

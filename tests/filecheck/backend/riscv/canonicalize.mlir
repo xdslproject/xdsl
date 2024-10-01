@@ -108,6 +108,15 @@ builtin.module {
   %and_bitwise_zero_r0 = riscv.and %c0, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
+  %xor_lhs_rhs = riscv.xor %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op"(%xor_lhs_rhs) : (!riscv.reg<a0>) -> ()
+
+  %xor_bitwise_zero_l0 = riscv.xor %c1, %c0 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%xor_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
+
+  %xor_bitwise_zero_r0 = riscv.xor %c0, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%xor_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
   // scfgw immediates
   riscv_snitch.scfgw %i1, %c1 : (!riscv.reg<a1>, !riscv.reg) -> ()
 }
@@ -213,6 +222,16 @@ builtin.module {
 
 // CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.mv %c0_1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %xor_lhs_rhs = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %xor_lhs_rhs_1 = riscv.mv %xor_lhs_rhs : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%xor_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %xor_bitwise_zero_l0 = riscv.mv %c1 : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%xor_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %xor_bitwise_zero_r0 = riscv.mv %c1 : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%xor_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> ()
 

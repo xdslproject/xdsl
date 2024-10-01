@@ -16,6 +16,7 @@ from xdsl.ir import (
     Attribute,
     Data,
     ParametrizedAttribute,
+    Region,
     SSAValue,
     TypedAttribute,
 )
@@ -25,6 +26,7 @@ from xdsl.irdl import (
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
+    Successor,
     VariadicDef,
     VarIRConstruct,
 )
@@ -48,19 +50,18 @@ class ParsingState:
     operands: list[UnresolvedOperand | None | list[UnresolvedOperand | None]]
     operand_types: list[Attribute | None | list[Attribute | None]]
     result_types: list[Attribute | None | list[Attribute | None]]
+    regions: list[Region | None | list[Region]]
+    successors: list[Successor | None | list[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     constraint_context: ConstraintContext
 
     def __init__(self, op_def: OpDef):
-        if op_def.regions or op_def.successors:
-            raise NotImplementedError(
-                "Operation definitions with regions "
-                "or successors are not yet supported"
-            )
         self.operands = [None] * len(op_def.operands)
         self.operand_types = [None] * len(op_def.operands)
         self.result_types = [None] * len(op_def.results)
+        self.regions = [None] * len(op_def.regions)
+        self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
         self.constraint_context = ConstraintContext()
@@ -159,11 +160,14 @@ class FormatProgram:
             properties = state.properties
         else:
             properties = op_def.split_properties(state.attributes)
+
         return op_type.build(
             result_types=result_types,
             operands=operands,
             attributes=state.attributes,
             properties=properties,
+            regions=state.regions,
+            successors=state.successors,
         )
 
     def assign_constraint_variables(
@@ -331,6 +335,15 @@ class VariableDirective(FormatDirective, ABC):
 class TypeDirective(VariableDirective, ABC):
     """
     Base class for Directive meant to parse types.
+    """
+
+    pass
+
+
+class RegionDirective(OptionallyParsableDirective, ABC):
+    """
+    Baseclass to help keep typechecking simple.
+    RegionDirective is for any RegionVariable, which are all OptionallyParsable.
     """
 
     pass
@@ -724,6 +737,154 @@ class OptionalResultTypeDirective(
 
 
 @dataclass(frozen=True)
+class RegionVariable(RegionDirective, VariableDirective):
+    """
+    A region variable, with the following format:
+      region-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        region = parser.parse_optional_region()
+        state.regions[self.index] = region
+        return region is not None
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_region(getattr(op, self.name))
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class VariadicRegionVariable(RegionDirective, VariadicVariable):
+    """
+    A variadic region variable, with the following format:
+      region-directive ::= dollar-ident
+
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        regions: list[Region] = []
+        current_region = parser.parse_optional_region()
+        while current_region is not None:
+            regions.append(current_region)
+            current_region = parser.parse_optional_region()
+
+        state.regions[self.index] = regions
+        return bool(regions)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        region = getattr(op, self.name)
+        if region:
+            printer.print_list(region, printer.print_region, delimiter=" ")
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+
+class OptionalRegionVariable(RegionDirective, OptionalVariable):
+    """
+    An optional region variable, with the following format:
+      region-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        region = parser.parse_optional_region()
+        if region is None:
+            region = list[Region]()
+        state.regions[self.index] = region
+        return bool(region)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        region = getattr(op, self.name)
+        if region:
+            printer.print_region(region)
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+
+class SuccessorVariable(VariableDirective, OptionallyParsableDirective):
+    """
+    A successor variable, with the following format:
+      successor-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        successor = parser.parse_optional_successor()
+
+        state.successors[self.index] = successor
+
+        return successor is not None
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_block_name(getattr(op, self.name))
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+class VariadicSuccessorVariable(VariadicVariable, OptionallyParsableDirective):
+    """
+    A variadic successor variable, with the following format:
+      successor-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        successors: list[Successor] = []
+        current_successor = parser.parse_optional_successor()
+        while current_successor is not None:
+            successors.append(current_successor)
+            current_successor = parser.parse_optional_successor()
+
+        state.successors[self.index] = successors
+
+        return bool(successors)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        successor = getattr(op, self.name)
+        if successor:
+            printer.print_list(successor, printer.print_block_name, delimiter=" ")
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+
+class OptionalSuccessorVariable(OptionalVariable, OptionallyParsableDirective):
+    """
+    An optional successor variable, with the following format:
+      successor-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        successor = parser.parse_optional_successor()
+        if successor is None:
+            successor = list[Successor]()
+        state.successors[self.index] = successor
+        return bool(successor)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        successor = getattr(op, self.name)
+        if successor:
+            printer.print_block_name(successor)
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+
+@dataclass(frozen=True)
 class AttributeVariable(FormatDirective):
     """
     An attribute variable, with the following format:
@@ -822,13 +983,13 @@ class OptionalUnitAttrVariable(OptionalAttributeVariable):
 class WhitespaceDirective(FormatDirective):
     """
     A whitespace directive, with the following format:
-      whitespace-directive ::= `\n` | ` `
+      whitespace-directive ::= `\n` | ` ` | ``
     This directive is only applied during printing, and has no effect during
     parsing.
     The directive will not request any space to be printed after.
     """
 
-    whitespace: Literal[" ", "\n"]
+    whitespace: Literal[" ", "\n", ""]
     """The whitespace that should be printed."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
@@ -836,7 +997,7 @@ class WhitespaceDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         printer.print(self.whitespace)
-        state.last_was_punctuation = False
+        state.last_was_punctuation = self.whitespace == ""
         state.should_emit_space = False
 
 
@@ -908,6 +1069,7 @@ class KeywordDirective(OptionallyParsableDirective):
 @dataclass(frozen=True)
 class OptionalGroupDirective(FormatDirective):
     anchor: AnchorableDirective
+    then_whitespace: tuple[WhitespaceDirective, ...]
     then_first: OptionallyParsableDirective
     then_elements: tuple[FormatDirective, ...]
 
@@ -934,6 +1096,12 @@ class OptionalGroupDirective(FormatDirective):
                     ):
                         state.operand_types[index] = list[Attribute | None]()
                     case (
+                        RegionVariable(_, index)
+                        | VariadicRegionVariable(_, index)
+                        | OptionalRegionVariable(_, index)
+                    ):
+                        state.regions[index] = list[Region]()
+                    case (
                         ResultTypeDirective(_, index)
                         | VariadicResultTypeDirective(_, index)
                         | OptionalResultTypeDirective(_, index)
@@ -944,5 +1112,9 @@ class OptionalGroupDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.anchor.is_present(op):
-            for element in (self.then_first, *self.then_elements):
+            for element in (
+                *self.then_whitespace,
+                self.then_first,
+                *self.then_elements,
+            ):
                 element.print(printer, state, op)

@@ -3,10 +3,15 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
-from xdsl.dialects import arith, builtin, func, stencil
-from xdsl.dialects.builtin import IntegerAttr, TensorType
+from xdsl.dialects import arith, builtin, func, memref, stencil
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    MemRefType,
+    ShapedType,
+    TensorType,
+)
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -16,6 +21,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms import csl_stencil_bufferize
 from xdsl.utils.hints import isa
 
 
@@ -42,6 +48,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         z_dim_no_ghost_cells: int = 1
         z_dim: int = 1
         num_chunks: int = 1
+        chunk_size: int = 1
         for apply_op in apply_ops:
             # loop over accesses to get max_distance (from which we build `pattern`)
             for ap in apply_op.get_accesses():
@@ -68,26 +75,39 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
             # find max z dimension - we could get this from func args, store ops, or apply ops
-            for result in apply_op.results:
-                if isa(result.type, stencil.TempType[TensorType[Attribute]]):
-                    z_dim_no_ghost_cells = max(
-                        z_dim_no_ghost_cells,
-                        result.type.get_element_type().get_shape()[0],
-                    )
-            for arg in op.args:
-                if isa(field_t := arg.type, stencil.FieldType[TensorType[Attribute]]):
-                    z_dim = max(z_dim, field_t.get_element_type().get_shape()[0])
+            # to support both bufferized and unbufferized csl_stencils, retrieve this from accumulator
+            if isinstance(apply_op.done_exchange.block.args[1].type, ShapedType):
+                z_dim_no_ghost_cells = max(
+                    z_dim_no_ghost_cells,
+                    apply_op.done_exchange.block.args[1].type.get_shape()[-1],
+                )
+
+            # retrieve z_dim from done_exchange arg[0]
+            if isa(
+                field_t := apply_op.done_exchange.block.args[0].type,
+                stencil.StencilType[
+                    TensorType[Attribute] | memref.MemRefType[Attribute]
+                ],
+            ):
+                # unbufferized csl_stencil
+                z_dim = max(z_dim, field_t.get_element_type().get_shape()[-1])
+            elif isa(field_t, memref.MemRefType[Attribute]):
+                # bufferized csl_stencil
+                z_dim = max(z_dim, field_t.get_shape()[-1])
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
+            if isa(
+                buf_t := apply_op.receive_chunk.block.args[0].type,
+                TensorType[Attribute] | MemRefType[Attribute],
+            ):
+                chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 
-        # some computations we don't need to do in CSL
-        chunk_size: int = (z_dim // num_chunks) + (0 if z_dim % num_chunks == 0 else 1)
         padded_z_dim: int = chunk_size * num_chunks
 
         # initialise module op
         module_op = csl_wrapper.ModuleOp(
-            width=IntegerAttr(width, 16),
-            height=IntegerAttr(height, 16),
+            width=IntegerAttr(width + (max_distance * 2), 16),
+            height=IntegerAttr(height + (max_distance * 2), 16),
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
                 "pattern": IntegerAttr(max_distance + 1, 16),
@@ -100,29 +120,35 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         self.initialise_layout_module(module_op)
         module_op.program_name = op.sym_name
 
-        # add yield op args (implicit) and func args (explicit) to program_module block args
-        module_op.update_program_block_args(
-            exported_symbols=[(arg.name_hint, arg.type) for arg in op.body.block.args]
+        # add yield op args to program_module block args
+        module_op.update_program_block_args()
+
+        # set up main function and move func.func ops into this csl.func
+        main_func = csl.FuncOp(op.sym_name.data, ((), None))
+        func_export = csl.SymbolExportOp(main_func.sym_name, main_func.function_type)
+        args_to_ops, arg_mappings = self._translate_function_args(op.args)
+        rewriter.inline_block(
+            op.body.block,
+            InsertPoint.at_start(main_func.body.block),
+            arg_mappings,
         )
 
-        # replace func.return
-        func_return = op.body.block.last_op
+        # initialise program_module and add main func and empty yield op
+        self.initialise_program_module(
+            module_op, add_ops=[*args_to_ops, func_export, main_func]
+        )
+
+        # replace func.return by unblock_cmd_stream and csl.return
+        func_return = main_func.body.block.last_op
         assert isinstance(func_return, func.Return)
         assert (
             len(func_return.arguments) == 0
         ), "Non-empty returns currently not supported"
-        rewriter.replace_op(func_return, csl.ReturnOp())
-
-        # set up main function and move func.func ops into this csl.func
-        main_func = csl.FuncOp(op.sym_name.data, ((), None))
-        rewriter.inline_block(
-            op.body.block,
-            InsertPoint.at_start(main_func.body.block),
-            module_op.exported_symbols,
+        memcpy = module_op.get_program_import("<memcpy/memcpy>")
+        unblock_call = csl.MemberCallOp(
+            struct=memcpy, fname="unblock_cmd_stream", params=[], result_type=None
         )
-
-        # initialise program_module and add main func and empty yield op
-        self.initialise_program_module(module_op, add_ops=[main_func])
+        rewriter.replace_op(func_return, [unblock_call, csl.ReturnOp()])
 
         # replace (now empty) func by module wrapper
         rewriter.replace_matched_op(module_op)
@@ -135,6 +161,59 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             if isinstance(apply_op, csl_stencil.ApplyOp):
                 result.append(apply_op)
         return result
+
+    def _translate_function_args(
+        self, args: Sequence[BlockArgument]
+    ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
+        """
+        Args of the top-level function act as the interface to the program and need to be translated to writable buffers.
+        """
+        arg_ops: list[Operation] = []
+        arg_op_mapping: list[SSAValue] = []
+        ptr_converts: list[Operation] = []
+        export_ops: list[Operation] = []
+        cast_ops: list[Operation] = []
+
+        for arg in args:
+            arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
+
+            if isa(arg.type, stencil.FieldType[TensorType[Attribute]]) or isa(
+                arg.type, memref.MemRefType[Attribute]
+            ):
+                arg_t = (
+                    csl_stencil_bufferize.tensor_to_memref_type(
+                        arg.type.get_element_type()
+                    )
+                    if isa(arg.type, stencil.FieldType[TensorType[Attribute]])
+                    else arg.type
+                )
+                arg_ops.append(alloc := memref.Alloc([], [], arg_t))
+                ptr_converts.append(
+                    address := csl.AddressOfOp(
+                        operands=[alloc],
+                        result_types=[
+                            csl.PtrType(
+                                [
+                                    arg_t.get_element_type(),
+                                    csl.PtrKindAttr(csl.PtrKind.MANY),
+                                    csl.PtrConstAttr(csl.PtrConst.VAR),
+                                ]
+                            )
+                        ],
+                    )
+                )
+                export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
+                if arg_t != arg.type:
+                    cast_ops.append(
+                        cast_op := builtin.UnrealizedConversionCastOp.get(
+                            [alloc], [arg.type]
+                        )
+                    )
+                    arg_op_mapping.append(cast_op.outputs[0])
+                else:
+                    arg_op_mapping.append(alloc.memref)
+
+        return [*arg_ops, *cast_ops, *ptr_converts, *export_ops], arg_op_mapping
 
     def initialise_layout_module(self, module_op: csl_wrapper.ModuleOp):
         """Initialises the layout_module (wrapper block) by setting up (esp. stencil-related) program params"""
@@ -195,7 +274,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
             # set up program param `is_border_region_pe`
             one = arith.Constant(IntegerAttr(1, 16))
-            pattern_minus_one = arith.Subi(one, param_pattern)
+            pattern_minus_one = arith.Subi(param_pattern, one)
             width_minus_x = arith.Subi(param_width, param_x)
             height_minus_y = arith.Subi(param_height, param_y)
             x_lt_pattern_minus_one = arith.Cmpi(param_x, pattern_minus_one, "slt")

@@ -15,7 +15,6 @@ from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Successor,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -25,7 +24,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalisationPatternsTrait, IsTerminator
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import VerifyException
 
@@ -43,7 +42,7 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
-class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv_cf import (
@@ -309,7 +308,7 @@ class BranchOp(riscv.RISCVAsmOperation):
 
     block_arguments = var_operand_def(RISCVRegisterType)
     successor = successor_def()
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -397,7 +396,7 @@ class JOp(RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    block_arguments = var_operand_def(RISCVRegisterType)
 
     successor = successor_def()
 

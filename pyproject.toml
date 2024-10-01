@@ -22,21 +22,22 @@ dev = [
     "ipykernel",
     "pytest<8.4",
     "nbval<0.12",
-    "filecheck==1.0.0",
+    "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.7.20",
+    "marimo==0.8.20",
     "pre-commit==3.8.0",
-    "ruff==0.5.7",
+    "ruff==0.6.8",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
-    "textual-dev==1.5.1",
-    "pytest-asyncio==0.23.8",
+    "textual-dev==1.6.1",
+    "pytest-asyncio==0.24.0",
     "pyright==1.1.345",
 ]
-gui = ["textual==0.76.0", "pyclip==0.7"]
-onnx = ["onnx==1.16.2"]
+gui = ["textual==0.81.0", "pyclip==0.7"]
+jax = ["jax==0.4.33", "numpy==2.1.1"]
+onnx = ["onnx==1.16.2", "numpy==2.1.1"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.16.0"]
+wgpu = ["wgpu==0.18.1"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -89,6 +90,7 @@ typeCheckingMode = "strict"
 
 [tool.ruff]
 target-version = "py310"
+extend-include = ["*.ipynb", "*.pyi"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "PT", "TID251"]

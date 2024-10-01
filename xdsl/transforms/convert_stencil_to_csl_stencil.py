@@ -186,7 +186,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         # remove op if it contains no swaps
-        if op.swaps is None or len(op.swaps) == 0:
+        if len(op.swaps) == 0:
             rewriter.erase_matched_op(False)
             return
 
@@ -211,12 +211,14 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
         )
-        assert op.topo is not None, f"topology on {type(op)} is not given"
+        assert (
+            op.strategy.comm_layout() is not None
+        ), f"topology on {type(op)} is not given"
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
             input_stencil=op.input_stencil,
-            topo=op.topo,
+            topo=op.strategy.comm_layout(),
             swaps=[
                 csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
                 for swap in op.swaps
@@ -227,8 +229,12 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             ),
         )
 
-        # a little hack to get around a check that prevents replacing a no-results op with an n-results op
-        rewriter.replace_matched_op(prefetch_op, new_results=[])
+        # if the rewriter needs a result, use `input_stencil` as a drop-in replacement
+        # prefetch_op produces a result that needs to be handled separately
+        # note, that only un-bufferized dmp.swaps produce a result
+        rewriter.replace_matched_op(
+            prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
+        )
 
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
         uses = list(op.input_stencil.uses)
@@ -342,7 +348,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
     args:
         num_chunks - number of chunks into which communication and computation should be split.
-                     Effectively, the number of times `csl_stencil.apply.chunk_reduce` will be executed and the
+                     Effectively, the number of times `csl_stencil.apply.receive_chunk` will be executed and the
                      tensor sizes it handles. Higher values may increase compute overhead but reduce size of
                      communication buffers when lowered.
     """
@@ -370,18 +376,18 @@ class ConvertApplyOpPattern(RewritePattern):
         prefetch = max(candidate_prefetches)[1]
         prefetch_idx = op.operands.index(prefetch)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
-        communicated_stencil_idx = op.operands.index(prefetch.op.input_stencil)
+        field_idx = op.operands.index(prefetch.op.input_stencil)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
         assert isa(prefetch.type, TensorType[Attribute])
-        communicated_stencil_op_arg = prefetch.op.input_stencil
+        field_op_arg = prefetch.op.input_stencil
 
-        # add empty tensor before op to be used as `iter_arg`
+        # add empty tensor before op to be used as `accumulator`
         # this could potentially be re-used if we have one of the same size lying around
-        iter_arg = tensor.EmptyOp(
+        accumulator = tensor.EmptyOp(
             (),
             TensorType(prefetch.type.get_element_type(), prefetch.type.get_shape()[1:]),
         )
-        rewriter.insert_op(iter_arg, InsertPoint.before(op))
+        rewriter.insert_op(accumulator, InsertPoint.before(op))
 
         # run pass (on this apply's region only) to consume data from `prefetch` accesses first
         nested_rewriter = PatternRewriteWalker(
@@ -391,39 +397,39 @@ class ConvertApplyOpPattern(RewritePattern):
         nested_rewriter.rewrite_op(op)
 
         # determine how ops should be split across the two regions
-        chunk_reduce_ops, post_process_ops = get_op_split(
+        chunk_region_ops, done_exchange_ops = get_op_split(
             list(op.region.block.ops), op.region.block.args[prefetch_idx]
         )
 
-        # fetch what chunk_reduce is computing for
-        if isinstance(chunk_reduce_ops[-1], stencil.ReturnOp):
-            chunk_res = chunk_reduce_ops[-1].operands[0]
+        # fetch what receive_chunk is computing for
+        if isinstance(chunk_region_ops[-1], stencil.ReturnOp):
+            chunk_res = chunk_region_ops[-1].operands[0]
         else:
-            chunk_res = chunk_reduce_ops[-1].results[0]
+            chunk_res = chunk_region_ops[-1].results[0]
 
         # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
         # ignore accesses block args which already are part of the region's required signature
-        chunk_reduce_used_block_args = sorted(
+        chunk_region_used_block_args = sorted(
             set(
                 x
-                for o in chunk_reduce_ops
+                for o in chunk_region_ops
                 for x in o.operands
                 if isinstance(x, BlockArgument) and x.index != prefetch_idx
             ),
             key=lambda b: b.index,
         )
-        post_process_used_block_args = sorted(
+        done_exchange_used_block_args = sorted(
             set(
                 x
-                for o in post_process_ops
+                for o in done_exchange_ops
                 for x in o.operands
-                if isinstance(x, BlockArgument) and x.index != communicated_stencil_idx
+                if isinstance(x, BlockArgument) and x.index != field_idx
             ),
             key=lambda b: b.index,
         )
 
         # set up region signatures, comprising fixed and optional args - see docs on `csl_stencil.apply` for details
-        chunk_reduce_args = [
+        chunk_region_args = [
             # required arg 0: slice of type(%prefetch)
             TensorType(
                 prefetch.type.get_element_type(),
@@ -434,81 +440,81 @@ class ConvertApplyOpPattern(RewritePattern):
             ),
             # required arg 1: %offset
             IndexType(),
-            # required arg 2: %iter_arg
-            iter_arg.results[0].type,
+            # required arg 2: %accumulator
+            accumulator.tensor.type,
             # optional args: as needed by the ops
-            *[a.type for a in chunk_reduce_used_block_args],
+            *[a.type for a in chunk_region_used_block_args],
         ]
-        post_process_args = [
+        done_exchange_args = [
             # required arg 0: stencil.temp to access own data
-            communicated_stencil_op_arg.type,
-            # required arg 1: %iter_arg
-            iter_arg.results[0].type,
+            field_op_arg.type,
+            # required arg 1: %accumulator
+            accumulator.tensor.type,
             # optional args: as needed by the ops
-            *[a.type for a in post_process_used_block_args],
+            *[a.type for a in done_exchange_used_block_args],
         ]
 
         # set up two regions
-        chunk_reduce = Region(Block(arg_types=chunk_reduce_args))
-        post_process = Region(Block(arg_types=post_process_args))
+        receive_chunk = Region(Block(arg_types=chunk_region_args))
+        done_exchange = Region(Block(arg_types=done_exchange_args))
 
         # translate old to new block arg index for optional args
-        chunk_reduce_oprnd_table = dict[Operand, Operand](
-            (old, chunk_reduce.block.args[idx])
-            for idx, old in enumerate(chunk_reduce_used_block_args, start=3)
+        chunk_region_oprnd_table = dict[Operand, Operand](
+            (old, receive_chunk.block.args[idx])
+            for idx, old in enumerate(chunk_region_used_block_args, start=3)
         )
-        post_process_oprnd_table = dict[Operand, Operand](
-            (old, post_process.block.args[idx])
-            for idx, old in enumerate(post_process_used_block_args, start=2)
+        done_exchange_oprnd_table = dict[Operand, Operand](
+            (old, done_exchange.block.args[idx])
+            for idx, old in enumerate(done_exchange_used_block_args, start=2)
         )
 
-        # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
-        chunk_reduce_oprnd_table[op.region.block.args[prefetch_idx]] = (
-            chunk_reduce.block.args[0]
+        # add translation from old to new arg index for non-optional args - note, access to accumulator must be handled separately below
+        chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
+            receive_chunk.block.args[0]
         )
-        post_process_oprnd_table[op.region.block.args[communicated_stencil_idx]] = (
-            post_process.block.args[0]
+        done_exchange_oprnd_table[op.region.block.args[field_idx]] = (
+            done_exchange.block.args[0]
         )
-        post_process_oprnd_table[chunk_res] = post_process.block.args[1]
+        done_exchange_oprnd_table[chunk_res] = done_exchange.block.args[1]
 
         # detach ops from old region
         for o in op.region.block.ops:
             op.region.block.detach_op(o)
 
-        # add operations from list to chunk_reduce, use translation table to rebuild operands
-        for o in chunk_reduce_ops:
+        # add operations from list to receive_chunk, use translation table to rebuild operands
+        for o in chunk_region_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
                 break
-            o.operands = [chunk_reduce_oprnd_table.get(x, x) for x in o.operands]
-            chunk_reduce.block.add_op(o)
+            o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
+            receive_chunk.block.add_op(o)
 
-        # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
-        chunk_reduce.block.add_ops(
+        # put `chunk_res` into `accumulator` (using tensor.insert_slice) and yield the result
+        receive_chunk.block.add_ops(
             [
                 insert_slice_op := tensor.InsertSliceOp.get(
                     source=chunk_res,
-                    dest=chunk_reduce.block.args[2],
-                    offsets=(chunk_reduce.block.args[1],),
+                    dest=receive_chunk.block.args[2],
+                    offsets=(receive_chunk.block.args[1],),
                     static_sizes=(prefetch.type.get_shape()[1] // self.num_chunks,),
                 ),
                 csl_stencil.YieldOp(insert_slice_op.result),
             ]
         )
 
-        # add operations from list to post_process, use translation table to rebuild operands
-        for o in post_process_ops:
-            o.operands = [post_process_oprnd_table.get(x, x) for x in o.operands]
-            post_process.block.add_op(o)
+        # add operations from list to done_exchange, use translation table to rebuild operands
+        for o in done_exchange_ops:
+            o.operands = [done_exchange_oprnd_table.get(x, x) for x in o.operands]
+            done_exchange.block.add_op(o)
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
 
         rewriter.replace_matched_op(
             csl_stencil.ApplyOp(
                 operands=[
-                    communicated_stencil_op_arg,
-                    iter_arg,
-                    [op.operands[a.index] for a in chunk_reduce_used_block_args]
-                    + [op.operands[a.index] for a in post_process_used_block_args],
+                    field_op_arg,
+                    accumulator,
+                    [op.operands[a.index] for a in chunk_region_used_block_args]
+                    + [op.operands[a.index] for a in done_exchange_used_block_args],
                     op.dest,
                 ],
                 properties={
@@ -518,8 +524,8 @@ class ConvertApplyOpPattern(RewritePattern):
                     "bounds": op.bounds,
                 },
                 regions=[
-                    chunk_reduce,
-                    post_process,
+                    receive_chunk,
+                    done_exchange,
                 ],
                 result_types=[op.result_types],
             )
@@ -530,8 +536,8 @@ class ConvertApplyOpPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class StencilToCslStencilPass(ModulePass):
-    name = "stencil-to-csl-stencil"
+class ConvertStencilToCslStencilPass(ModulePass):
+    name = "convert-stencil-to-csl-stencil"
 
     # chunks into which to slice communication
     num_chunks: int = 1
