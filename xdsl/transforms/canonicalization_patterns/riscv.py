@@ -407,7 +407,6 @@ class BitwiseOrByZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
         """
-        rewrite pattern to optimize bitwise or by 0
         x | 0 = 0
         """
 
