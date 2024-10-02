@@ -523,6 +523,7 @@ def tblgen_to_dialect(
     output_file: str | None,
     loader: TblgenLoader,
 ):
+    dialect = loader.get_dialect_name(tblgen_dialect)
     with StringIO() as out_str:
         in_file = "stdin" if input_file is None else input_file
         print(
@@ -548,9 +549,18 @@ def tblgen_to_dialect(
         for op in loader.operations.values():
             print(op, file=out_str)
 
+        print(
+            textwrap.dedent(f"""\
+            {tblgen_dialect} = Dialect(
+                "{dialect}",
+                [{" ".join(f"{key}," for key in loader.operations.keys())}],
+                [{" ".join(f"{key}," for key in loader.attributes.keys())}],
+            )"""),
+            file=out_str,
+        )
+
         content = out_str.getvalue()
 
-    dialect = loader.get_dialect_name(tblgen_dialect)
     # Format output
     output = subprocess.run(
         [
@@ -566,9 +576,9 @@ def tblgen_to_dialect(
 
     if output_file is not None:
         with open(output_file, "w") as out_file:
-            print(output.stdout, file=out_file)
+            print(output.stdout, file=out_file, end="")
     else:
-        print(output.stdout)
+        print(output.stdout, end="")
 
 
 def tblgen_to_py(cull: bool, input_file: str | None, output_file: str | None):

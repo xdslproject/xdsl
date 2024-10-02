@@ -146,3 +146,25 @@ class Test_VariadicityOp(IRDLOperation):
     variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 
     required = operand_def(BaseAttr(Test_SingletonCType))
+
+
+Test_Dialect = Dialect(
+    "test",
+    [
+        Test_AndOp,
+        Test_AnyOp,
+        Test_AttributesOp,
+        Test_ConfinedOp,
+        Test_Integers,
+        Test_OrOp,
+        Test_SummaryOp,
+        Test_TypesOp,
+        Test_VariadicityOp,
+    ],
+    [
+        Test_SingletonAType,
+        Test_SingletonBType,
+        Test_SingletonCType,
+        Test_TestAttr,
+    ],
+)
