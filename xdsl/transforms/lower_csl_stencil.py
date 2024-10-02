@@ -21,6 +21,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
 
 
@@ -238,6 +239,12 @@ class InlineApplyOpArgs(RewritePattern):
             *arg_mapping,
         ]:
             if isinstance(arg, OpResult) and arg.op.parent == op.parent:
+                if not (
+                    isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)
+                ):
+                    raise ValueError(
+                        "Can only promote csl.LoadVarOp or side_effect_free op"
+                    )
                 rewriter.insert_op(
                     new_arg := arg.op.clone(),
                     InsertPoint.at_start(op.done_exchange.block),
