@@ -298,7 +298,7 @@
             "kind": "def",
             "printable": "Test_TestAttr"
           },
-          "test_attr"
+          "in"
         ]
       ],
       "kind": "dag",

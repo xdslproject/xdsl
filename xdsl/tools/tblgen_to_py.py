@@ -397,8 +397,8 @@ class TblgenLoader:
         if assembly is not None and "custom" not in assembly:
             fields["assembly_format"] = assembly
 
-        for [arg, name] in tblgen_op.arguments:
-            name = self._resolve_name(name)
+        for [arg, orig_name] in tblgen_op.arguments:
+            name = self._resolve_name(orig_name)
             (variadicity, constraint) = self._resolve_constraint(arg)
             match variadicity:
                 case self._ArgType.SINGLE:
@@ -408,9 +408,15 @@ class TblgenLoader:
                 case self._ArgType.VARIADIC:
                     fields[name] = f"var_operand_def({constraint})"
                 case self._ArgType.PROP:
-                    fields[name] = f"prop_def({constraint})"
+                    name_str = (
+                        f', prop_name = "{orig_name}"' if iskeyword(orig_name) else ""
+                    )
+                    fields[name] = f"prop_def({constraint}{name_str})"
                 case self._ArgType.OPTIONAL_PROP:
-                    fields[name] = f"opt_prop_def({constraint})"
+                    name_str = (
+                        f', prop_name = "{orig_name}"' if iskeyword(orig_name) else ""
+                    )
+                    fields[name] = f"opt_prop_def({constraint}{name_str})"
 
         for [res, name] in tblgen_op.results:
             name = self._resolve_name(name)

@@ -67,7 +67,7 @@ class Test_AttributesOp(IRDLOperation):
         )
     )
 
-    test_attr = prop_def(BaseAttr(Test_TestAttr))
+    in_ = prop_def(BaseAttr(Test_TestAttr), prop_name="in")
 
 
 @irdl_op_definition
