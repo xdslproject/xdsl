@@ -3,7 +3,7 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects import stim
-from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr
+from xdsl.dialects.stim.ops import QubitAttr, QubitCoordsOp, QubitMappingAttr
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
@@ -23,7 +23,7 @@ def check_stim_print(program: StimPrintable, expected_stim: str):
 def test_empty_circuit():
     empty_block = Block()
     empty_region = Region(empty_block)
-    module = stim.StimCircuitOp(empty_region)
+    module = stim.StimCircuitOp(empty_region, None)
 
     assert module.stim() == ""
 
@@ -32,7 +32,7 @@ def test_stim_circuit_ops_stim_printable():
     op = TestOp()
     block = Block([op])
     region = Region(block)
-    module = stim.StimCircuitOp(region)
+    module = stim.StimCircuitOp(region, None)
 
     with pytest.raises(ValueError, match="Cannot print in stim format:"):
         res_io = StringIO()
@@ -52,3 +52,11 @@ def test_print_stim_qubit_coord_attr():
     qubit_coord = QubitMappingAttr([0, 0], qubit)
     expected_stim = "(0, 0) 0"
     check_stim_print(qubit_coord, expected_stim)
+
+
+def test_print_stim_qubit_coord_op():
+    qubit = QubitAttr(0)
+    qubit_coord = QubitMappingAttr([0, 0], qubit)
+    qubit_annotation = QubitCoordsOp(qubit_coord)
+    expected_stim = "QUBIT_COORDS(0, 0) 0"
+    check_stim_print(qubit_annotation, expected_stim)

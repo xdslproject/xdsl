@@ -1,3 +1,4 @@
+from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
 
@@ -9,6 +10,8 @@ from xdsl.irdl import (
     ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_prop_def,
+    prop_def,
     region_def,
 )
 from xdsl.parser import AttrParser
@@ -100,7 +103,6 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
 
     def print_stim(self, printer: StimPrinter):
         printer.print_attribute(self.coords)
-        printer.print_string(" ")
         self.qubit_name.print_stim(printer)
 
 
@@ -114,10 +116,12 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
 
     body = region_def("single_block")
 
-    assembly_format = "attr-dict-with-keyword $body"
+    qubitlayout = opt_prop_def(ArrayAttr[QubitMappingAttr])
 
-    def __init__(self, body: Region):
-        super().__init__(regions=[body])
+    assembly_format = "(`qubitlayout` $qubitlayout^)? attr-dict-with-keyword $body"
+
+    def __init__(self, body: Region, qubitlayout: None | ArrayAttr[QubitMappingAttr]):
+        super().__init__(regions=[body], properties={"qubitlayout": qubitlayout})
 
     def verify(self, verify_nested_ops: bool = True) -> None:
         return
@@ -135,3 +139,48 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
         self.print_stim(printer)
         res = io.getvalue()
         return res
+
+
+"""
+Annotation Operations
+
+Stim contains a number of `Annotations` - instructions which do not affect the operational semantics of the stim circuit -
+but may provide useful information about the circuit being run or how decoding should be done.
+
+These are essentially code-directives for compiler analyses on the circuit.
+
+Here each is attached as an attribute instead - but as they may appear in the code, are also given operations that can
+drive the change of a value and be used to direct printing of stim circuits.
+"""
+
+
+class AnnotationOp(StimPrintable, IRDLOperation, ABC):
+    """
+    Base Annotation operation.
+
+    This is used to indicate operations that are stim annotations,
+    these do not have operational semantics,
+    so this will be used during transforms to ignore these operations.
+    """
+
+    ...
+
+
+@irdl_op_definition
+class QubitCoordsOp(AnnotationOp):
+    """
+    Annotation operation that assigns a qubit reference to a coordinate.
+    """
+
+    name = "stim.assign_qubit_coord"
+
+    qubitmapping = prop_def(QubitMappingAttr)
+
+    assembly_format = "$qubitmapping attr-dict"
+
+    def __init__(self, qubitmapping: QubitMappingAttr):
+        super().__init__(properties={"qubitmapping": qubitmapping})
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string("QUBIT_COORDS")
+        self.qubitmapping.print_stim(printer)
