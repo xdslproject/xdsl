@@ -593,7 +593,9 @@ def tblgen_to_dialect(
     print(output.stdout, file=output_file, end="")
 
 
-def tblgen_to_py(cull: bool, input_file: str | None, output_file: str | None):
+def tblgen_to_py(
+    input_file: str | None, output: IO[str] | None = None, *, cull: bool = False
+):
     if input_file is None:
         in_file = stdin
     else:
@@ -606,18 +608,10 @@ def tblgen_to_py(cull: bool, input_file: str | None, output_file: str | None):
     [dialect] = dialects
     loader.generate_dialect(dialect)
 
-    if output_file is not None:
-        output = open(output_file, "w")
-    else:
-        output = None
-
     if cull:
         cull_json(output, loader)
     else:
         tblgen_to_dialect(input_file, dialect, output, loader)
-
-    if output:
-        output.close()
 
 
 def main():
@@ -639,4 +633,8 @@ def main():
     )
     args = arg_parser.parse_args()
 
-    tblgen_to_py(args.cull, args.input_file, args.output_file)
+    if args.output_file is not None:
+        with open(args.output_file, "w") as output:
+            tblgen_to_py(args.input_file, output, cull=args.cull)
+    else:
+        tblgen_to_py(args.input_file, cull=args.cull)
