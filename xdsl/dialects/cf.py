@@ -74,6 +74,7 @@ class BranchHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
         return (SimplifyPassThroughBr(),)
 
+
 @irdl_op_definition
 class Branch(IRDLOperation):
     """Branch operation"""

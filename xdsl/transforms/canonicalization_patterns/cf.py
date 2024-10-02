@@ -1,7 +1,8 @@
-from typing import Optional, Sequence
+from collections.abc import Sequence
+
 from xdsl.dialects import arith, cf
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir.core import Block, BlockArgument, SSAValue
+from xdsl.ir import Block, BlockArgument, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -29,7 +30,10 @@ class AssertTrue(RewritePattern):
 
         rewriter.replace_matched_op([])
 
-def collapse_branch(successor: Block, successor_operands: Sequence[SSAValue]) -> Optional[tuple[Block, Sequence[SSAValue]]]:
+
+def collapse_branch(
+    successor: Block, successor_operands: Sequence[SSAValue]
+) -> tuple[Block, Sequence[SSAValue]] | None:
     """
     Given a successor, try to collapse it to a new destination if it only
     contains a passthrough unconditional branch. If the successor is
@@ -71,6 +75,7 @@ def collapse_branch(successor: Block, successor_operands: Sequence[SSAValue]) ->
 
     return (branch.successor, new_operands)
 
+
 class SimplifyPassThroughBr(RewritePattern):
     """
       br ^bb1
@@ -93,4 +98,3 @@ class SimplifyPassThroughBr(RewritePattern):
         (block, args) = ret
 
         rewriter.replace_matched_op(cf.Branch(block, *args))
-
