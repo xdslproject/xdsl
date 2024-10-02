@@ -7,14 +7,26 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 """
 
 import abc
+from collections.abc import Sequence
 from typing import Annotated, TypeAlias, cast
 
-from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, IntegerType, TensorType
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    AnyTensorType,
+    ArrayAttr,
+    DenseArrayBase,
+    IntegerAttr,
+    IntegerType,
+    TensorType,
+    i64,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
     ParametrizedAttribute,
+    Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
@@ -23,13 +35,18 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
     var_operand_def,
+    var_region_def,
+    var_result_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
@@ -95,6 +112,93 @@ class TokenType(TypeAttribute, ParametrizedAttribute):
     name = "stablehlo.token"
 
 
+@irdl_attr_definition
+class DotAttr(ParametrizedAttribute):
+    """
+    Attribute that models the dimension information for dot.
+
+    https://github.com/openxla/stablehlo/blob/b075e948092d8a27ed0be48f4f8dbaa6df7e2e3e/stablehlo/dialect/StablehloAttrs.td#L82
+    """
+
+    name = "stablehlo.dot"
+
+    lhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    rhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    lhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    rhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+
+    @staticmethod
+    def _print_parameter(
+        name: str, value: ArrayAttr[IntegerAttr[I64]], printer: Printer
+    ):
+        printer.print_string(f"\n{name} = [")
+        printer.print_list(
+            value.data,
+            lambda dim: printer.print_string(f"{dim.value.data}"),
+        )
+        printer.print_string("]")
+
+    @staticmethod
+    def _parse_parameter(name: str, parser: AttrParser) -> ArrayAttr[IntegerAttr[I64]]:
+        parser.parse_characters(name)
+        parser.parse_punctuation("=")
+        value = parser.parse_comma_separated_list(
+            AttrParser.Delimiter.SQUARE,
+            lambda: IntegerAttr(parser.parse_integer(), i64),
+        )
+        return ArrayAttr(value)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            with printer.indented():
+                DotAttr._print_parameter(
+                    "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
+                )
+                printer.print_string(",")
+                DotAttr._print_parameter(
+                    "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
+                )
+                printer.print_string(",")
+                DotAttr._print_parameter(
+                    "lhs_contracting_dimensions",
+                    self.lhs_contracting_dimensions,
+                    printer,
+                )
+                printer.print_string(",")
+                DotAttr._print_parameter(
+                    "rhs_contracting_dimensions",
+                    self.rhs_contracting_dimensions,
+                    printer,
+                )
+            printer.print_string("\n")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            lhs_batching_dimensions = DotAttr._parse_parameter(
+                "lhs_batching_dimensions", parser
+            )
+            parser.parse_punctuation(",")
+            rhs_batching_dimensions = DotAttr._parse_parameter(
+                "rhs_batching_dimensions", parser
+            )
+            parser.parse_punctuation(",")
+            lhs_contracting_dimensions = DotAttr._parse_parameter(
+                "lhs_contracting_dimensions", parser
+            )
+            parser.parse_punctuation(",")
+            rhs_contracting_dimensions = DotAttr._parse_parameter(
+                "rhs_contracting_dimensions", parser
+            )
+
+            return (
+                lhs_batching_dimensions,
+                rhs_batching_dimensions,
+                lhs_contracting_dimensions,
+                rhs_contracting_dimensions,
+            )
+
+
 # endregion
 
 
@@ -145,6 +249,23 @@ class AddOp(ElementwiseBinaryOperation):
     name = "stablehlo.add"
 
 
+@irdl_op_definition
+class AfterAllOp(IRDLOperation):
+    """
+    Ensures that the operations producing the inputs are executed before any operations that depend on result.
+    Execution of this operation does nothing, it only exists to establish data dependencies from result to inputs.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#after_all
+    """
+
+    name = "stablehlo.after_all"
+    inputs = var_operand_def(TokenType)
+    result = result_def(TokenType)
+
+    def __init__(self, inputs: Sequence[SSAValue]):
+        super().__init__(operands=[inputs], result_types=(TokenType(),))
+
+
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
 
 
@@ -174,6 +295,42 @@ class AndOp(IRDLOperation):
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+# TODO: Change to SI32 once StableHLO adopts signful integer semantics
+# See: https://github.com/openxla/stablehlo/issues/22
+# https://github.com/openxla/stablehlo/issues/2489
+SI32TensorType: TypeAlias = TensorType[I32]
+
+
+@irdl_op_definition
+class CaseOp(IRDLOperation):
+    """
+    Semantics
+
+    Produces the output from executing exactly one function from branches depending on the value of index.
+    More formally, result = selected_branch() where:
+
+    selected_branch = branches[index] if 0 <= index < size(branches).
+    selected_branch = branches[-1] otherwise.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
+    """
+
+    name = "stablehlo.case"
+    index = operand_def(SI32TensorType)
+    branches = var_region_def("single_block")
+    _results = var_result_def(AnyTensorType | TokenType)
+
+    def __init__(
+        self,
+        index: SSAValue,
+        branches: Sequence[Region],
+        result_types: Sequence[AnyTensorType | TokenType],
+    ):
+        super().__init__(
+            operands=(index,), result_types=(result_types,), regions=(branches,)
+        )
 
 
 @irdl_op_definition
@@ -318,14 +475,17 @@ StableHLO = Dialect(
     [
         AbsOp,
         AddOp,
+        AfterAllOp,
         AndOp,
         BitcastConvertOp,
+        CaseOp,
         MultiplyOp,
         ReturnOp,
         SubtractOp,
         TransposeOp,
     ],
     [
+        DotAttr,
         PrecisionAttr,
         TokenType,
     ],

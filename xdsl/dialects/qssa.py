@@ -8,7 +8,6 @@ from xdsl.dialects.quantum import AngleAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
-    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -63,7 +62,7 @@ class QssaBase(IRDLOperation, ABC):
 class QubitAllocOp(QssaBase):
     name = "qssa.alloc"
 
-    res: VarOpResult = var_result_def(qubit)
+    res = var_result_def(qubit)
 
     def __init__(self, num_qubits: int):
         super().__init__(

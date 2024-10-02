@@ -41,8 +41,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
-    VarOperand,
-    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -100,18 +98,18 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
 class Generic(IRDLOperation):
     name = "linalg.generic"
 
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOperand = var_operand_def(AnyShapedType())
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
 
-    res: VarOpResult = var_result_def(AnyTensorType)
+    res = var_result_def(AnyTensorType)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     # Trait attributes
-    indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(ArrayAttr[AffineMapAttr])
-    iterator_types: ArrayAttr[IteratorTypeAttr] = prop_def(ArrayAttr[IteratorTypeAttr])
-    doc: StringAttr | None = opt_prop_def(StringAttr)
-    library_call: StringAttr | None = opt_prop_def(StringAttr)
+    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
+    doc = opt_prop_def(StringAttr)
+    library_call = opt_prop_def(StringAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 

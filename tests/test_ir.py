@@ -16,8 +16,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
-    VarRegion,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -830,7 +828,7 @@ ModuleOp(
 @irdl_op_definition
 class CustomOpWithMultipleRegions(IRDLOperation):
     name = "test.custom_op_with_multiple_regions"
-    region: VarRegion = var_region_def()
+    region = var_region_def()
 
 
 def test_region_index_fetch():
@@ -889,7 +887,7 @@ def test_detach_region():
 @irdl_op_definition
 class CustomVerify(IRDLOperation):
     name = "test.custom_verify_op"
-    val: Operand = operand_def(i64)
+    val = operand_def(i64)
 
     @staticmethod
     def get(val: SSAValue):
@@ -987,3 +985,17 @@ def test_dialect_name():
         name = "dialect.op"
 
     assert MyOperation.dialect_name() == "dialect"
+
+
+def test_replace_by_if():
+    a = TestSSAValue(i32)
+    b = test.TestOp((a,))
+    c = test.TestOp((a,))
+
+    assert set(u.operation for u in a.uses) == {b, c}
+
+    d = TestSSAValue(i32)
+    a.replace_by_if(d, lambda u: u.operation is not c)
+
+    assert set(u.operation for u in a.uses) == {c}
+    assert set(u.operation for u in d.uses) == {b}

@@ -19,7 +19,6 @@ from xdsl.dialects import builtin, stencil
 from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     ParameterDef,
     attr_def,
     irdl_attr_definition,
@@ -628,7 +627,7 @@ class SwapOp(IRDLOperation):
 
     name = "dmp.swap"
 
-    input_stencil: Operand = operand_def(stencil.StencilType[Attribute])
+    input_stencil = operand_def(stencil.StencilType[Attribute])
     swapped_values = opt_result_def(stencil.TempType[Attribute])
 
     swaps = attr_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
