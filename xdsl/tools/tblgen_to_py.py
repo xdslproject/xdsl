@@ -27,7 +27,7 @@ from enum import Enum
 from io import StringIO
 from keyword import iskeyword
 from sys import stdin
-from typing import Any
+from typing import IO, Any
 
 
 @dataclass
@@ -496,7 +496,7 @@ class {tblgen_op.name}(IRDLOperation):
         self.operations[tblgen_op.name] = string
 
 
-def cull_json(output_file: str | None, loader: TblgenLoader):
+def cull_json(output_file: IO[str] | None, loader: TblgenLoader):
     js = loader.js
     required_fields = {
         "!name",
@@ -530,17 +530,13 @@ def cull_json(output_file: str | None, loader: TblgenLoader):
         key: js["!instanceof"][key] for key in ("TypeDef", "AttrDef", "Op", "Dialect")
     }
 
-    if output_file is not None:
-        with open(output_file, "w") as out_file:
-            print(json.dumps(culled), file=out_file)
-    else:
-        print(json.dumps(culled))
+    print(json.dumps(culled), file=output_file)
 
 
 def tblgen_to_dialect(
     input_file: str | None,
     tblgen_dialect: str,
-    output_file: str | None,
+    output_file: IO[str] | None,
     loader: TblgenLoader,
 ):
     dialect = loader.get_dialect_name(tblgen_dialect)
@@ -594,11 +590,7 @@ def tblgen_to_dialect(
         text=True,
     )
 
-    if output_file is not None:
-        with open(output_file, "w") as out_file:
-            print(output.stdout, file=out_file, end="")
-    else:
-        print(output.stdout, end="")
+    print(output.stdout, file=output_file, end="")
 
 
 def tblgen_to_py(cull: bool, input_file: str | None, output_file: str | None):
@@ -614,10 +606,18 @@ def tblgen_to_py(cull: bool, input_file: str | None, output_file: str | None):
     [dialect] = dialects
     loader.generate_dialect(dialect)
 
-    if cull:
-        cull_json(output_file, loader)
+    if output_file is not None:
+        output = open(output_file, "w")
     else:
-        tblgen_to_dialect(input_file, dialect, output_file, loader)
+        output = None
+
+    if cull:
+        cull_json(output, loader)
+    else:
+        tblgen_to_dialect(input_file, dialect, output, loader)
+
+    if output:
+        output.close()
 
 
 def main():
