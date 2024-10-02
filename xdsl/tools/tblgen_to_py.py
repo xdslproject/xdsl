@@ -116,32 +116,35 @@ class TblgenLoader:
         self.used_records.add(name)
         return TblgenRecord(self.js[name])
 
-    def generate_dialect(self, dialect_name: str):
+    def generate_dialect(self, tblgen_dialect: str):
         """
         Generate a dialect from the json object, generating all its contained
         operations, types, and attributes and generating python code which
         is stored in this class' fields.
         """
+        self.used_records.add(tblgen_dialect)
+        dialect_name = self.js[tblgen_dialect]["name"]
+
         # Get types
         all_types = self.js["!instanceof"]["TypeDef"]
         for t in all_types:
             ty = self._get_type(t)
-            if ty.dialect == dialect_name:
+            if ty.dialect == tblgen_dialect:
                 self.generate_type(ty)
 
         # Get attributes
         all_attrs = self.js["!instanceof"]["AttrDef"]
         for a in all_attrs:
             attr = self._get_attr(a)
-            if attr.dialect == dialect_name:
+            if attr.dialect == tblgen_dialect:
                 self.generate_attr(attr)
 
         # Get ops
         all_ops = self.js["!instanceof"]["Op"]
         for o in all_ops:
             op = self._get_op(o)
-            if op.dialect == dialect_name:
-                self.generate_op(op)
+            if op.dialect == tblgen_dialect:
+                self.generate_op(op, dialect_name)
 
     def generate_type(self, tblgen_type: TblgenType):
         """
@@ -382,13 +385,13 @@ class TblgenLoader:
         else:
             return (self._ArgType.PROP, self._resolve_prop_constraint(rec))
 
-    def generate_op(self, tblgen_op: TblgenOp):
+    def generate_op(self, tblgen_op: TblgenOp, dialect_name: str):
         """
         Generate an operation from the json object, storing python code for it in
         `self.operations`.
         """
 
-        fields = {"name": f'"{tblgen_op.op_name}"'}
+        fields = {"name": f'"{dialect_name}.{tblgen_op.op_name}"'}
 
         assembly = tblgen_op.assembly_format
         if assembly is not None and "custom" not in assembly:
@@ -518,6 +521,7 @@ def main():
             "baseType",
             "baseAttr",
             "def",
+            "name",
         }
 
         def cull_field(js_in: dict[str, Any]) -> dict[str, Any]:

@@ -41,21 +41,21 @@ class Test_TestAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class Test_AndOp(IRDLOperation):
-    name = "and"
+    name = "test.and"
 
     in_ = operand_def(AllOf((BaseAttr(Test_SingletonAType), AnyAttr())))
 
 
 @irdl_op_definition
 class Test_AnyOp(IRDLOperation):
-    name = "any"
+    name = "test.any"
 
     in_ = operand_def(AnyAttr())
 
 
 @irdl_op_definition
 class Test_AttributesOp(IRDLOperation):
-    name = "attributes"
+    name = "test.attributes"
 
     int_attr = prop_def(
         ParamAttrConstraint(
@@ -72,7 +72,7 @@ class Test_AttributesOp(IRDLOperation):
 
 @irdl_op_definition
 class Test_ConfinedOp(IRDLOperation):
-    name = "confined"
+    name = "test.confined"
 
     tensor = operand_def(AnyAttr())
 
@@ -81,7 +81,7 @@ class Test_ConfinedOp(IRDLOperation):
 
 @irdl_op_definition
 class Test_Integers(IRDLOperation):
-    name = "integers"
+    name = "test.integers"
 
     any_int = operand_def(
         ParamAttrConstraint(
@@ -95,7 +95,7 @@ class Test_Integers(IRDLOperation):
 
 @irdl_op_definition
 class Test_OrOp(IRDLOperation):
-    name = "or"
+    name = "test.or"
 
     in_ = operand_def(
         AnyOf(
@@ -112,12 +112,12 @@ class Test_OrOp(IRDLOperation):
 class Test_SummaryOp(IRDLOperation):
     """Op with a summary."""
 
-    name = "summary"
+    name = "test.summary"
 
 
 @irdl_op_definition
 class Test_TypesOp(IRDLOperation):
-    name = "types"
+    name = "test.types"
 
     a = operand_def(EqAttrConstraint(IntegerType(32)))
 
@@ -141,7 +141,7 @@ class Test_TypesOp(IRDLOperation):
 
 @irdl_op_definition
 class Test_VariadicityOp(IRDLOperation):
-    name = "variadicity"
+    name = "test.variadicity"
 
     variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 

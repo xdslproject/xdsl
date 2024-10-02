@@ -420,6 +420,14 @@
     },
     "summary": ""
   },
+  "Test_Dialect": {
+    "!name": "Test_Dialect",
+    "!superclasses": [
+      "Dialect"
+    ],
+    "name": "test",
+    "summary": null
+  },
   "Test_Integers": {
     "!name": "Test_Integers",
     "!superclasses": [
