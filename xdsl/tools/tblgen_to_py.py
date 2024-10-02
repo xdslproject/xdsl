@@ -456,7 +456,7 @@ class TblgenLoader:
         string = f'''
 @irdl_op_definition
 class {tblgen_op.name}(IRDLOperation):
-    """{tblgen_op.summary}"""
+    {"" if tblgen_op.summary == "" else f'"""{tblgen_op.summary}"""'}
 
 {field_string}
 '''

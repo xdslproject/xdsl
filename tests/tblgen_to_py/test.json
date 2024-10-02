@@ -13,6 +13,7 @@
       "Test_ConfinedOp",
       "Test_Integers",
       "Test_OrOp",
+      "Test_SummaryOp",
       "Test_TypesOp",
       "Test_VariadicityOp"
     ],
@@ -614,6 +615,61 @@
     },
     "summary": "",
     "typeName": "test.singleton_c"
+  },
+  "Test_SummaryOp": {
+    "!name": "Test_SummaryOp",
+    "!superclasses": [
+      "Op",
+      "Test_Op"
+    ],
+    "arguments": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "ins",
+        "kind": "def",
+        "printable": "ins"
+      },
+      "printable": "(ins)"
+    },
+    "assemblyFormat": null,
+    "opDialect": {
+      "def": "Test_Dialect",
+      "kind": "def",
+      "printable": "Test_Dialect"
+    },
+    "opName": "summary",
+    "regions": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "region",
+        "kind": "def",
+        "printable": "region"
+      },
+      "printable": "(region)"
+    },
+    "results": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "outs",
+        "kind": "def",
+        "printable": "outs"
+      },
+      "printable": "(outs)"
+    },
+    "successors": {
+      "args": [],
+      "kind": "dag",
+      "operator": {
+        "def": "successor",
+        "kind": "def",
+        "printable": "successor"
+      },
+      "printable": "(successor)"
+    },
+    "summary": "Op with a summary."
   },
   "Test_TestAttr": {
     "!name": "Test_TestAttr",
