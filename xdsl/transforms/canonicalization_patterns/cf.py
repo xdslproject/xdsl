@@ -65,13 +65,12 @@ def collapse_branch(
     # Remap operands
     operands = branch.operands
 
-    new_operands: list[SSAValue] = []
-    for operand in operands:
-        op_owner = operand.owner
-        if isinstance(op_owner, BlockArgument) and op_owner.block == successor:
-            new_operands.append(successor_operands[op_owner.index])
-        else:
-            new_operands.append(operand)
+    new_operands = tuple(
+        successor_operands[op_owner.index]
+        if isinstance(op_owner := operand.owner, BlockArgument) and op_owner.block is successor else
+        operand
+        for operand in operands
+    )
 
     return (branch.successor, new_operands)
 
