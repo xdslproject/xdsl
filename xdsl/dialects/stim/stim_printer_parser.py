@@ -7,6 +7,11 @@ from typing import Any, TypeVar, cast
 from xdsl.dialects.builtin import ArrayAttr, IntAttr
 from xdsl.ir import Attribute
 
+"""
+This file implements a printer that prints to the .stim file format.
+Full documentation can be found here: https://github.com/quantumlib/Stim/blob/main/doc/file_format_stim_circuit.md
+"""
+
 
 @dataclass(eq=False, repr=False)
 class StimPrinter:
@@ -25,7 +30,7 @@ class StimPrinter:
     def in_parens(self):
         self.print_string("(")
         yield
-        self.print_string(")")
+        self.print_string(") ")
 
     T = TypeVar("T")
 

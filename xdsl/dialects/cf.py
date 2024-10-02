@@ -67,6 +67,14 @@ class Assert(IRDLOperation):
     assembly_format = "$arg `,` $msg attr-dict"
 
 
+class BranchHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.cf import SimplifyPassThroughBr
+
+        return (SimplifyPassThroughBr(),)
+
+
 @irdl_op_definition
 class Branch(IRDLOperation):
     """Branch operation"""
@@ -76,7 +84,7 @@ class Branch(IRDLOperation):
     arguments = var_operand_def()
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset((IsTerminator(), BranchHasCanonicalizationPatterns()))
 
     def __init__(self, dest: Block, *ops: Operation | SSAValue):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
