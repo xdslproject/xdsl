@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (
     i16,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, Block, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -21,6 +21,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
 
 
@@ -222,6 +223,36 @@ class LowerYieldOp(RewritePattern):
 
 
 @dataclass(frozen=True)
+class InlineApplyOpArgs(RewritePattern):
+    """
+    Inlines apply op args into the callbacks.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        arg_mapping = zip(
+            op.done_exchange.block.args[2:],
+            op.args[-(len(op.done_exchange.block.args) - 2) :],
+        )
+        for block_arg, arg in [
+            (op.done_exchange.block.args[0], op.field),
+            *arg_mapping,
+        ]:
+            if isinstance(arg, OpResult) and arg.op.parent == op.parent:
+                if not (
+                    isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)
+                ):
+                    raise ValueError(
+                        "Can only promote csl.LoadVarOp or side_effect_free op"
+                    )
+                rewriter.insert_op(
+                    new_arg := arg.op.clone(),
+                    InsertPoint.at_start(op.done_exchange.block),
+                )
+                block_arg.replace_by(SSAValue.get(new_arg))
+
+
+@dataclass(frozen=True)
 class LowerCslStencil(ModulePass):
     """
     Lowers csl_stencil ops to csl and api calls.
@@ -239,7 +270,13 @@ class LowerCslStencil(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            LowerYieldOp(),
+            GreedyRewritePatternApplier(
+                [
+                    LowerYieldOp(),
+                    InlineApplyOpArgs(),
+                ]
+            ),
+            apply_recursively=False,
         ).rewrite_module(op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
