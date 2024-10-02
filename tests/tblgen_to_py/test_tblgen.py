@@ -1,18 +1,12 @@
-import subprocess
+from io import StringIO
+
+from xdsl.tools.tblgen_to_py import tblgen_to_py
 
 
 def test_run_tblgen_to_py():
-    output = subprocess.run(
-        [
-            "xdsl-tblgen",
-            "-i",
-            "tests/tblgen_to_py/test.json",
-        ],
-        capture_output=True,
-        text=True,
-    )
-
-    out_str = output.stdout
+    with StringIO() as output:
+        tblgen_to_py("tests/tblgen_to_py/test.json", output)
+        out_str = output.getvalue()
 
     with open("tests/tblgen_to_py/test.py") as f:
         expected = f.read()
