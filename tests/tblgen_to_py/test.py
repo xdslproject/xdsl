@@ -13,29 +13,21 @@ from xdsl.irdl import *
 
 @irdl_attr_definition
 class Test_SingletonAType(ParametrizedAttribute, TypeAttribute):
-    """"""
-
     name = "test.singleton_a"
 
 
 @irdl_attr_definition
 class Test_SingletonBType(ParametrizedAttribute, TypeAttribute):
-    """"""
-
     name = "test.singleton_b"
 
 
 @irdl_attr_definition
 class Test_SingletonCType(ParametrizedAttribute, TypeAttribute):
-    """"""
-
     name = "test.singleton_c"
 
 
 @irdl_attr_definition
 class Test_TestAttr(ParametrizedAttribute):
-    """"""
-
     name = "test.test"
 
 

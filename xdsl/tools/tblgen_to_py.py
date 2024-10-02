@@ -45,6 +45,9 @@ class TblgenRecord:
     def summary(self) -> str:
         return self["summary"]
 
+    def print_summary(self):
+        return "" if self.summary == "" else f'"""{self.summary}"""'
+
     @property
     def superclasses(self) -> set[str]:
         return set(self["!superclasses"])
@@ -175,12 +178,12 @@ class TblgenLoader:
         `self.attributes`.
         """
 
-        string = textwrap.dedent(f'''
+        string = textwrap.dedent(f"""
         @irdl_attr_definition
         class {tblgen_type.name}(ParametrizedAttribute, TypeAttribute):
-           """{tblgen_type.summary}"""
+           {tblgen_type.print_summary()}
            name = "{tblgen_type.type_name}"
-        ''')
+        """)
 
         self.attributes[tblgen_type.name] = string
 
@@ -190,12 +193,12 @@ class TblgenLoader:
         `self.attributes`.
         """
 
-        string = textwrap.dedent(f'''
+        string = textwrap.dedent(f"""
         @irdl_attr_definition
         class {tblgen_attr.name}(ParametrizedAttribute):
-           """{tblgen_attr.summary}"""
+           {tblgen_attr.print_summary()}
            name = "{tblgen_attr.attr_name}"
-        ''')
+        """)
 
         self.attributes[tblgen_attr.name] = string
 
@@ -485,13 +488,13 @@ class TblgenLoader:
         field_string = textwrap.indent(
             "\n\n".join(f"{x} = {d}" for x, d in fields.items()), "    "
         )
-        string = f'''
+        string = f"""
 @irdl_op_definition
 class {tblgen_op.name}(IRDLOperation):
-    {"" if tblgen_op.summary == "" else f'"""{tblgen_op.summary}"""'}
+    {tblgen_op.print_summary()}
 
 {field_string}
-'''
+"""
 
         self.operations[tblgen_op.name] = string
 
