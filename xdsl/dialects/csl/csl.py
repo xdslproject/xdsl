@@ -435,10 +435,15 @@ class LoadVarOp(IRDLOperation):
     var = operand_def(VarType)
     res = result_def()
 
-    def __init__(self, var: VariableOp):
+    def __init__(self, var: VariableOp | SSAValue):
+        if isinstance(var, SSAValue):
+            assert isinstance(var.type, VarType)
+            result_t = var.type.get_element_type()
+        else:
+            result_t = var.get_element_type()
         super().__init__(
             operands=[var],
-            result_types=[var.get_element_type()],
+            result_types=[result_t],
         )
 
     def verify_(self) -> None:
