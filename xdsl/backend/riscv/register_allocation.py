@@ -66,9 +66,9 @@ class RegisterAllocator(abc.ABC):
         raise NotImplementedError()
 
 
-def count_reg_types(regs: Iterable[Attribute]) -> tuple[int, int]:
+def reg_types(regs: Iterable[Attribute]) -> tuple[set[str], set[str]]:
     """
-    Returns a tuple containing the count of IntRegister and FloatRegister in the iterable.
+    Returns a tuple containing the sets of IntRegister and FloatRegister in the iterable.
     """
     int_regs: set[str] = set()
     float_regs: set[str] = set()
@@ -79,7 +79,7 @@ def count_reg_types(regs: Iterable[Attribute]) -> tuple[int, int]:
         elif isinstance(reg, FloatRegisterType):
             float_regs.add(reg.spelling.data)
 
-    return len(int_regs), len(float_regs)
+    return int_regs, float_regs
 
 
 class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
@@ -361,18 +361,19 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.process_operation(op)
 
         if add_regalloc_stats:
-            num_preallocated_int, num_preallocated_float = count_reg_types(preallocated)
-            num_allocated_int, num_allocated_float = count_reg_types(
+            preallocated_int, preallocated_float = reg_types(preallocated)
+            allocated_int, allocated_float = reg_types(
                 val.type
                 for op in block.walk()
                 for vals in (op.results, op.operands)
                 for val in vals
             )
+
             stats = {
-                "preallocated_float": num_preallocated_float,
-                "preallocated_int": num_preallocated_int,
-                "allocated_float": num_allocated_float,
-                "allocated_int": num_allocated_int,
+                "preallocated_float": sorted(preallocated_float),
+                "preallocated_int": sorted(preallocated_int),
+                "allocated_float": sorted(allocated_float),
+                "allocated_int": sorted(allocated_int),
             }
 
             stats_str = json.dumps(stats)

@@ -818,7 +818,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
 
-    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
+    fastmath = opt_attr_def(FastMathFlagsAttr)
 
     def __init__(
         self,

@@ -78,6 +78,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_eqsat():
+        from xdsl.dialects.eqsat import EqSat
+
+        return EqSat
+
     def get_fir():
         from xdsl.dialects.experimental.fir import FIR
 
@@ -283,6 +288,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Test
 
+    def get_tosa():
+        from xdsl.dialects.tosa import TOSA
+
+        return TOSA
+
     def get_vector():
         from xdsl.dialects.vector import Vector
 
@@ -318,6 +328,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
         "func": get_func,
@@ -359,6 +370,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "symref": get_symref,
         "tensor": get_tensor,
         "test": get_test,
+        "tosa": get_tosa,
         "vector": get_vector,
         "wasm": get_wasm,
         "x86": get_x86,

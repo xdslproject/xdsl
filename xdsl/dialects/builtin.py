@@ -51,8 +51,6 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
-    VarOperand,
-    VarOpResult,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -65,6 +63,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import (
     IsolatedFromAbove,
+    NoMemoryEffect,
     NoTerminator,
     OptionalSymbolOpInterface,
     SymbolTable,
@@ -411,10 +410,12 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
 i64 = IntegerType(64)
 i32 = IntegerType(32)
 i16 = IntegerType(16)
+i8 = IntegerType(8)
 i1 = IntegerType(1)
 I64 = Annotated[IntegerType, i64]
 I32 = Annotated[IntegerType, i32]
 I16 = Annotated[IntegerType, i16]
+I8 = Annotated[IntegerType, i8]
 I1 = Annotated[IntegerType, i1]
 
 
@@ -1051,7 +1052,7 @@ class MemrefLayoutAttr(Attribute, ABC):
         layout to the element offset in linear memory. The resulting
         affine map thus has only one result.
         """
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_strides(self) -> Sequence[int | None] | None:
         """
@@ -1197,8 +1198,10 @@ class AffineSetAttr(Data[AffineSet]):
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
 
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOpResult = var_result_def()
+    inputs = var_operand_def()
+    outputs = var_result_def()
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1380,7 +1383,7 @@ class ModuleOp(IRDLOperation):
 
     sym_name = opt_attr_def(StringAttr)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset(
         [

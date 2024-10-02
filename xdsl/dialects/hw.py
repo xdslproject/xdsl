@@ -34,11 +34,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     SingleBlockRegion,
-    VarOperand,
-    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -818,10 +815,10 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name: StringAttr = attr_def(StringAttr)
-    module_type: ModuleType = attr_def(ModuleType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
-    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = attr_def(StringAttr)
+    module_type = attr_def(ModuleType)
+    sym_visibility = opt_attr_def(StringAttr)
+    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
     body: SingleBlockRegion = region_def("single_block")
 
@@ -937,11 +934,11 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name: StringAttr = attr_def(StringAttr)
-    module_type: ModuleType = attr_def(ModuleType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
-    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
-    verilog_name: StringAttr | None = opt_attr_def(StringAttr, attr_name="verilogName")
+    sym_name = attr_def(StringAttr)
+    module_type = attr_def(ModuleType)
+    sym_visibility = opt_attr_def(StringAttr)
+    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
 
     traits = traits_def(
         lambda: frozenset(
@@ -1025,17 +1022,11 @@ class InstanceOp(IRDLOperation):
     name = "hw.instance"
 
     instance_name = attr_def(StringAttr, attr_name="instanceName")
-    module_name: FlatSymbolRefAttr = attr_def(
-        FlatSymbolRefAttrConstr, attr_name="moduleName"
-    )
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOpResult = var_result_def()
-    arg_names: ArrayAttr[StringAttr] = attr_def(
-        ArrayAttr[StringAttr], attr_name="argNames"
-    )
-    result_names: ArrayAttr[StringAttr] = attr_def(
-        ArrayAttr[StringAttr], attr_name="resultNames"
-    )
+    module_name = attr_def(FlatSymbolRefAttrConstr, attr_name="moduleName")
+    inputs = var_operand_def()
+    outputs = var_result_def()
+    arg_names = attr_def(ArrayAttr[StringAttr], attr_name="argNames")
+    result_names = attr_def(ArrayAttr[StringAttr], attr_name="resultNames")
     inner_sym = opt_attr_def(InnerSymAttr)
 
     def __init__(
@@ -1251,7 +1242,7 @@ class InstanceOp(IRDLOperation):
 class OutputOp(IRDLOperation):
     name = "hw.output"
 
-    inputs: VarOperand = var_operand_def(AnyAttr())
+    inputs = var_operand_def()
 
     traits = frozenset([IsTerminator(), HasParent(HWModuleOp)])
 

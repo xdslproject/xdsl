@@ -23,7 +23,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     attr_def,
     irdl_attr_definition,
@@ -65,7 +64,7 @@ class MachineOp(IRDLOperation):
 
     name = "fsm.machine"
 
-    body: Region = region_def()
+    body = region_def()
 
     sym_name = attr_def(StringAttr)
     initialState = attr_def(StringAttr)
@@ -186,7 +185,7 @@ class OutputOp(IRDLOperation):
 
     name = "fsm.output"
 
-    operand = var_operand_def(AnyAttr())
+    operand = var_operand_def()
 
     traits = frozenset([IsTerminator(), HasParent(StateOp)])
 
@@ -412,11 +411,11 @@ class TriggerOp(IRDLOperation):
 
     name = "fsm.trigger"
 
-    inputs = var_operand_def(AnyAttr())
+    inputs = var_operand_def()
 
     instance = operand_def(InstanceType)
 
-    outputs = var_result_def(AnyAttr())
+    outputs = var_result_def()
 
     def __init__(
         self,
@@ -464,11 +463,11 @@ class HWInstanceOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
     machine = attr_def(FlatSymbolRefAttrConstr)
-    inputs = var_operand_def(AnyAttr())
+    inputs = var_operand_def()
     clock = operand_def(signlessIntegerLike)
     reset = operand_def(signlessIntegerLike)
 
-    outputs = var_result_def(AnyAttr())
+    outputs = var_result_def()
 
     def __init__(
         self,

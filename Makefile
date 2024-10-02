@@ -39,7 +39,7 @@ clean: clean-caches
 
 # run filecheck tests
 filecheck:
-	lit -vv tests/filecheck --order=smart --timeout=10
+	lit -vv tests/filecheck --order=smart --timeout=20
 
 # run pytest tests
 pytest:

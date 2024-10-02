@@ -7,8 +7,10 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerOrIndexType,
+    DenseArrayBase,
     IndexType,
     IntegerType,
+    i64,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -17,18 +19,16 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
-    Operand,
-    VarOperand,
-    VarOpResult,
     irdl_op_definition,
     operand_def,
+    prop_def,
     region_def,
     traits_def,
     var_operand_def,
+    var_region_def,
     var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -39,6 +39,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     Pure,
+    RecursivelySpeculatable,
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
@@ -49,11 +50,11 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class While(IRDLOperation):
     name = "scf.while"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
-    res: VarOpResult = var_result_def(AnyAttr())
-    before_region: Region = region_def()
-    after_region: Region = region_def()
+    res = var_result_def()
+    before_region = region_def()
+    after_region = region_def()
 
     traits = frozenset([RecursiveMemoryEffect()])
 
@@ -158,7 +159,11 @@ class Yield(AbstractYieldOperation[Attribute]):
 
     traits = traits_def(
         lambda: frozenset(
-            [IsTerminator(), HasParent(For, If, ParallelOp, While), Pure()]
+            [
+                IsTerminator(),
+                HasParent(For, If, ParallelOp, While, IndexSwitchOp),
+                Pure(),
+            ]
         )
     )
 
@@ -166,14 +171,20 @@ class Yield(AbstractYieldOperation[Attribute]):
 @irdl_op_definition
 class If(IRDLOperation):
     name = "scf.if"
-    output: VarOpResult = var_result_def(AnyAttr())
-    cond: Operand = operand_def(IntegerType(1))
+    output = var_result_def()
+    cond = operand_def(IntegerType(1))
 
-    true_region: Region = region_def()
+    true_region = region_def("single_block")
     # TODO this should be optional under certain conditions
-    false_region: Region = region_def()
+    false_region = region_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield), RecursiveMemoryEffect()])
+    traits = frozenset(
+        [
+            SingleBlockImplicitTerminator(Yield),
+            RecursiveMemoryEffect(),
+            RecursivelySpeculatable(),
+        ]
+    )
 
     def __init__(
         self,
@@ -181,6 +192,7 @@ class If(IRDLOperation):
         return_types: Sequence[Attribute],
         true_region: Region | Sequence[Block] | Sequence[Operation],
         false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         if false_region is None:
             false_region = Region()
@@ -189,7 +201,75 @@ class If(IRDLOperation):
             operands=[cond],
             result_types=[return_types],
             regions=[true_region, false_region],
+            attributes=attr_dict,
         )
+
+    @staticmethod
+    def parse_region_with_yield(parser: Parser) -> Region:
+        region = parser.parse_region()
+        block = region.blocks.last
+        if block is None:
+            block = Block()
+            region.add_block(block)
+        last_op = block.last_op
+        if last_op is not None and last_op.has_trait(IsTerminator):
+            return region
+
+        block.add_op(Yield())
+
+        return region
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        cond = parser.parse_operand()
+        return_types = []
+        if parser.parse_optional_punctuation("->"):
+            return_types = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+        else:
+            return_types = []
+
+        then_region = cls.parse_region_with_yield(parser)
+
+        else_region = (
+            cls.parse_region_with_yield(parser)
+            if parser.parse_optional_keyword("else")
+            else Region()
+        )
+
+        attr_dict = parser.parse_optional_attr_dict()
+
+        return cls(cond, return_types, then_region, else_region, attr_dict)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.cond)
+
+        print_block_terminators = False
+        if bool(self.output):
+            printer.print_string(" -> (")
+            printer.print_list(self.output.types, printer.print_attribute)
+            printer.print_string(")")
+            print_block_terminators = True
+
+        printer.print_string(" ")
+        printer.print_region(
+            self.true_region,
+            print_entry_block_args=False,
+            print_block_terminators=print_block_terminators,
+        )
+
+        if bool(self.false_region.blocks):
+            printer.print_string(" else ")
+            printer.print_region(
+                self.false_region,
+                print_entry_block_args=False,
+                print_block_terminators=print_block_terminators,
+            )
+
+        if bool(self.attributes.keys()):
+            printer.print_attr_dict(self.attributes)
 
 
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -206,15 +286,15 @@ class For(IRDLOperation):
 
     T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
 
-    lb: Operand = operand_def(T)
-    ub: Operand = operand_def(T)
-    step: Operand = operand_def(T)
+    lb = operand_def(T)
+    ub = operand_def(T)
+    step = operand_def(T)
 
-    iter_args: VarOperand = var_operand_def(AnyAttr())
+    iter_args = var_operand_def()
 
-    res: VarOpResult = var_result_def(AnyAttr())
+    res = var_result_def()
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset(
         [
@@ -349,9 +429,12 @@ class For(IRDLOperation):
         )
 
         # Set induction variable type
-        indvar = unresolved_indvar.resolve(lb.type)
-        if parser.parse_optional_characters(":"):
-            indvar.type = parser.parse_type()
+        indvar_type = (
+            parser.parse_type()
+            if parser.parse_optional_characters(":")
+            else IndexType()
+        )
+        indvar = unresolved_indvar.resolve(indvar_type)
 
         # Set block argument types
         iter_args = [
@@ -373,13 +456,13 @@ class For(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     name = "scf.parallel"
-    lowerBound: VarOperand = var_operand_def(IndexType)
-    upperBound: VarOperand = var_operand_def(IndexType)
-    step: VarOperand = var_operand_def(IndexType)
-    initVals: VarOperand = var_operand_def(AnyAttr())
-    res: VarOpResult = var_result_def(AnyAttr())
+    lowerBound = var_operand_def(IndexType)
+    upperBound = var_operand_def(IndexType)
+    step = var_operand_def(IndexType)
+    initVals = var_operand_def()
+    res = var_result_def()
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -500,9 +583,9 @@ class ParallelOp(IRDLOperation):
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
     name = "scf.reduce"
-    argument: Operand = operand_def(AnyAttr())
+    argument = operand_def()
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset([RecursiveMemoryEffect()])
 
@@ -550,7 +633,7 @@ class ReduceOp(IRDLOperation):
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
-    result: Operand = operand_def(AnyAttr())
+    result = operand_def()
 
     traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
 
@@ -561,8 +644,8 @@ class ReduceReturnOp(IRDLOperation):
 @irdl_op_definition
 class Condition(IRDLOperation):
     name = "scf.condition"
-    cond: Operand = operand_def(IntegerType(1))
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    cond = operand_def(IntegerType(1))
+    arguments = var_operand_def()
 
     traits = frozenset([HasParent(While), IsTerminator(), Pure()])
 
@@ -613,6 +696,110 @@ class Condition(IRDLOperation):
         return op
 
 
+@irdl_op_definition
+class IndexSwitchOp(IRDLOperation):
+    name = "scf.index_switch"
+
+    arg = operand_def(IndexType)
+    cases = prop_def(DenseArrayBase)
+
+    output = var_result_def()
+
+    default_region = region_def("single_block")
+    case_regions = var_region_def("single_block")
+
+    traits = frozenset([RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield)])
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        cases: DenseArrayBase,
+        default_region: Region,
+        case_regions: Sequence[Region],
+        result_types: Sequence[Attribute],
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        properties = {
+            "cases": cases,
+        }
+
+        super().__init__(
+            operands=(arg,),
+            attributes=attr_dict,
+            properties=properties,
+            regions=(default_region, case_regions),
+            result_types=(result_types,),
+        )
+
+    def _verify_region(self, region: Region, name: str):
+        yield_op = region.block.last_op
+        assert isinstance(yield_op, Yield)
+
+        if yield_op.operand_types != self.result_types:
+            raise VerifyException(
+                f'region {name} returns values of types ({", ".join(str(x) for x in yield_op.operand_types)})'
+                f' but expected ({", ".join(str(x) for x in self.result_types)})'
+            )
+
+    def verify_(self) -> None:
+        if self.cases.elt_type != i64:
+            raise VerifyException("case values should have type i64")
+
+        if len(self.cases.data) != len(self.case_regions):
+            raise VerifyException(
+                f"has {len(self.case_regions)} case regions but {len(self.cases.data)} case values"
+            )
+
+        cases = self.cases.data.data
+        if len(set(cases)) != len(cases):
+            raise VerifyException("has duplicate case value")
+
+        self._verify_region(self.default_region, "default")
+        for name, region in zip(cases, self.case_regions):
+            self._verify_region(region, str(name.data))
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.arg)
+        attr_dict = {k: v for k, v in self.attributes.items() if k != "cases"}
+        if attr_dict:
+            printer.print_string(" ")
+            printer.print_attr_dict(attr_dict)
+        if self.result_types:
+            printer.print_string(" -> ")
+            printer.print_list(self.result_types, printer.print_attribute)
+        printer.print_string("\n")
+        for case_value, case_region in zip(self.cases.data.data, self.case_regions):
+            printer.print_string(f"case {case_value.data} ")
+            printer.print_region(case_region)
+            printer.print_string("\n")
+
+        printer.print_string("default ")
+        printer.print_region(self.default_region)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        arg = parser.parse_operand()
+        attr_dict = parser.parse_optional_attr_dict()
+        result_types: list[Attribute] = []
+        if parser.parse_optional_punctuation("->"):
+            types = parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_type, parser.parse_type
+            )
+            if types is None:
+                parser.raise_error("result types not found")
+            result_types = types
+        case_values: list[int] = []
+        case_regions: list[Region] = []
+        while parser.parse_optional_keyword("case"):
+            case_values.append(parser.parse_integer())
+            case_regions.append(parser.parse_region())
+        cases = DenseArrayBase.from_list(i64, case_values)
+        parser.parse_keyword("default")
+        default_region = parser.parse_region()
+        return cls(arg, cases, default_region, case_regions, result_types, attr_dict)
+
+
 Scf = Dialect(
     "scf",
     [
@@ -624,6 +811,7 @@ Scf = Dialect(
         ReduceOp,
         ReduceReturnOp,
         While,
+        IndexSwitchOp,
     ],
     [],
 )
