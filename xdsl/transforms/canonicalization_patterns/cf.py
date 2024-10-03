@@ -46,7 +46,7 @@ class SimplifyBrToBlockWithSinglePred(RewritePattern):
             return
 
         # Check that the successor block has a single predecessor
-        if succ == parent or not len(succ.predecessors()) == 1:
+        if succ == parent or len(succ.predecessors()) != 1:
             return
 
         br_operands = op.operands
