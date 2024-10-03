@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Iterable, Sequence
 from math import prod
-from typing import Literal, cast, TypeAlias
+from typing import Literal, cast
 
 from xdsl.dialects import builtin, stencil
 from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
