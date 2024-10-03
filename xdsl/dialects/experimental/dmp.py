@@ -116,7 +116,8 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
             sizes,
             # source_offset (opposite of exchange direction)
             tuple(
-                0 if d != dim else -1 * dir_sign * sizes[dim] for d in range(len(sizes))
+                0 if d != dim else -1 * dir_sign * sizes[dim] * neighbor_offset
+                for d in range(len(sizes))
             ),
             # direction
             tuple(
@@ -625,14 +626,20 @@ def _flat_face_exchanges_for_dim(
         # towards positive dim:
         *(
             ExchangeDeclarationAttr.from_points(
-                ex1_coords, axis, dir_sign=1, neighbor_offset=i + 1
+                ex1_coords,
+                axis,
+                dir_sign=1,
+                neighbor_offset=i + 1,
             )
             for i, ex1_coords in enumerate(coords("end"))
         ),
         # towards negative dim:
         *(
             ExchangeDeclarationAttr.from_points(
-                ex2_coords, axis, dir_sign=-1, neighbor_offset=i + 1
+                ex2_coords,
+                axis,
+                dir_sign=-1,
+                neighbor_offset=i + 1,
             )
             for i, ex2_coords in enumerate(coords("start"))
         ),
