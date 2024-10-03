@@ -70,9 +70,12 @@ class Assert(IRDLOperation):
 class BranchHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.cf import SimplifyPassThroughBr
+        from xdsl.transforms.canonicalization_patterns.cf import (
+            SimplifyBrToBlockWithSinglePred,
+            SimplifyPassThroughBr,
+        )
 
-        return (SimplifyPassThroughBr(),)
+        return (SimplifyBrToBlockWithSinglePred(), SimplifyPassThroughBr())
 
 
 @irdl_op_definition

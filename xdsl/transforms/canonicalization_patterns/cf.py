@@ -8,6 +8,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 class AssertTrue(RewritePattern):
@@ -29,6 +30,28 @@ class AssertTrue(RewritePattern):
             return
 
         rewriter.replace_matched_op([])
+
+
+class SimplifyBrToBlockWithSinglePred(RewritePattern):
+    """
+    Simplify a branch to a block that has a single predecessor. This effectively
+    merges the two blocks.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter, /):
+        succ = op.successor
+        parent = op.parent_block()
+        if parent is None:
+            return
+
+        # Check that the successor block has a single predecessor
+        if succ == parent or not len(succ.predecessors()) == 1:
+            return
+
+        br_operands = op.operands
+        rewriter.erase_matched_op()
+        rewriter.inline_block(succ, InsertPoint.at_end(parent), br_operands)
 
 
 def collapse_branch(
