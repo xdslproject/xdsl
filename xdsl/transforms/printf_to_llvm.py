@@ -78,6 +78,8 @@ def _format_str_for_type(t: Attribute):
             return "%i"
         case builtin.i64:
             return "%li"
+        case llvm.LLVMPointerType():
+            return "%p"
         case _:
             raise ValueError(f"Cannot find printf code for {t}")
 

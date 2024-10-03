@@ -1,6 +1,7 @@
 import abc
 import typing
 from collections.abc import Callable
+from typing import overload
 
 from xdsl.dialects import arith, builtin, llvm, scf
 from xdsl.dialects.builtin import (
@@ -94,7 +95,12 @@ class NumericResult:
         if self.used | other.used:
             raise ValueError()
 
-    def __add__(self, other) -> typing.Self:
+    def __add__(self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]) -> typing.Self:
+        if isinstance(other, int|SSAValue):
+            other = NumericResult.from_mixed([], other)
+        elif isinstance(other, tuple) and all(isinstance(v, int|SSAValue) for v in other):
+            other = NumericResult.from_mixed([], *other)
+
         if not isinstance(other, NumericResult):
             return NotImplemented
         self._check_bin_op_compatibility(other)
@@ -125,7 +131,12 @@ class NumericResult:
         other.used = True
         return NumericResult(all_ops, tuple(new_static), tuple(new_ssa))
 
-    def __sub__(self, other) -> typing.Self:
+    def __sub__(self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]) -> typing.Self:
+        if isinstance(other, int | SSAValue):
+            other = NumericResult.from_mixed([], other)
+        elif isinstance(other, tuple) and all(isinstance(v, int | SSAValue) for v in other):
+            other = NumericResult.from_mixed([], *other)
+
         if not isinstance(other, NumericResult):
             return NotImplemented
         self._check_bin_op_compatibility(other)
@@ -160,7 +171,12 @@ class NumericResult:
         other.used = True
         return NumericResult(all_ops, tuple(new_static), tuple(new_ssa))
 
-    def __mul__(self, other) -> typing.Self:
+    def __mul__(self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]) -> typing.Self:
+        if isinstance(other, int | SSAValue):
+            other = NumericResult.from_mixed([], other)
+        elif isinstance(other, tuple) and all(isinstance(v, int | SSAValue) for v in other):
+            other = NumericResult.from_mixed([], *other)
+
         if not isinstance(other, NumericResult):
             return NotImplemented
         self._check_bin_op_compatibility(other)
@@ -2698,6 +2714,28 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
             result = result + c_size
         return result.extend(0)
 
+    @overload
+    def pick_child(
+            self,
+            starting_layout: dlt.StructLayoutAttr,
+            members: set[dlt.MemberAttr],
+            dimensions: set[dlt.DimensionAttr],
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            none_okay: typing.Literal[False] = False,
+    ) -> tuple[list[Operation], SSAValue, dlt.Layout, int]: ...
+
+    @overload
+    def pick_child(
+            self,
+            starting_layout: dlt.StructLayoutAttr,
+            members: set[dlt.MemberAttr],
+            dimensions: set[dlt.DimensionAttr],
+            extent_resolver: ExtentResolver,
+            input_ptr: SSAValue,
+            none_okay: typing.Literal[True] = False,
+    ) -> tuple[list[Operation], SSAValue, dlt.Layout, int] | None: ...
+
     def pick_child(
         self,
         starting_layout: dlt.StructLayoutAttr,
@@ -2705,8 +2743,8 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         dimensions: set[dlt.DimensionAttr],
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
-        none_okay: bool = False,
-    ) -> tuple[list[Operation], SSAValue, dlt.Layout, int]:
+        none_okay: typing.Literal[True]|typing.Literal[False] = False,
+    ) -> tuple[list[Operation], SSAValue, dlt.Layout, int] | None:
         if (
             sum(
                 1
@@ -4408,6 +4446,8 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops = []
         zero_cmp_ops, is_non_zero = _compare_is_non_zero(set_val)
         ops.extend(zero_cmp_ops)
+        index_range_found_ops, index_range_found = _make_bool_ssa(index_range_found)
+        ops.extend(index_range_found_ops)
         must_start_set_cond_op = arith.OrI(index_range_found, is_non_zero)
         ops.append(must_start_set_cond_op)
 
@@ -4577,6 +4617,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
                 new_size,
                 idx_buffer_ptr,
                 data_buffer_ptr,
+                buffer_size,
                 index,
             )
             if_needs_new_buffers.extend(do_new_buffers_ops)
@@ -4591,15 +4632,25 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
                 data_elem_ptr,
             )
             if_needs_new_buffers.extend(set_up_child_ops)
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4613 new idx {}", new_idx_buffer_ptr))
             if_needs_new_buffers.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4616 new data {}", new_data_buffer_ptr))
             if_needs_new_buffers.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
             if_needs_new_buffers.append(llvm.StoreOp(new_size, buffer_size_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4616 free idx {}", idx_buffer_ptr))
             if_needs_new_buffers.append(llvm.CallOp("free", idx_buffer_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4620 free data {}", data_buffer_ptr))
             if_needs_new_buffers.append(llvm.CallOp("free", data_buffer_ptr))
             if_needs_new_buffers.append(scf.Yield())
 
             # alternatively we don't need new buffers - just need to move the data in the buffers we have
             if_needs_moved_buffers = []
+            calc_old_elems_ops, (elems_to_copy,) = (NumericResult.from_ssa(last_index) - 1).output()
+            if_needs_moved_buffers.extend(calc_old_elems_ops)
             (
                 do_move_buffers_ops,
                 idx_elem_ptr,
@@ -4607,7 +4658,9 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             ) = self.do_move_buffers(
                 starting_layout,
                 extent_resolver,
+                buffer_size,
                 last_index,
+                elems_to_copy,
                 idx_buffer_ptr,
                 data_buffer_ptr,
                 index,
@@ -4629,9 +4682,10 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_found_false.append(if_new_buffers_op)
         else:
             # if it's not buffered then we know we just need to always do new buffers at the size of last_index
-            # if_found_false.append(printf.PrintFormatOp("last_index {} ", last_index))
-
+            # and we know the old buffer size was just one element less than the new last_index
             new_size = last_index
+            calc_old_size_ops, (old_buffer_size,) = (NumericResult.from_ssa(last_index) - 1).output()
+            if_found_false.extend(calc_old_size_ops)
             (
                 do_new_buffers_ops,
                 new_idx_buffer_ptr,
@@ -4644,6 +4698,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
                 new_size,
                 idx_buffer_ptr,
                 data_buffer_ptr,
+                old_buffer_size,
                 index,
             )
             if_found_false.extend(do_new_buffers_ops)
@@ -4661,9 +4716,17 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_found_false.extend(set_up_child_ops)
 
             # The new buffers need to be put in the indexing struct and the old ones freed
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4692 new idx {}", new_idx_buffer_ptr))
             if_found_false.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4696 new data {}", new_data_buffer_ptr))
             if_found_false.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4690 free idx {}", idx_buffer_ptr))
             if_found_false.append(llvm.CallOp("free", idx_buffer_ptr))
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4695 free data {}", data_buffer_ptr))
             if_found_false.append(llvm.CallOp("free", data_buffer_ptr))
 
         if_found_false.append(scf.Yield())
@@ -4802,92 +4865,168 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         # found_index = increment_results[2]
         # found_index will be the index of the element we care about
 
-        # Malloc the new Unpacked COO index Buffer:
-        malloc_ops, new_idx_buffer_ptr, new_data_buffer_ptr = self.malloc_buffers(
-            layout,
-            last_index,
-            self.semantics.get_size(layout.child, extent_resolver),
-        )
-        if_found_false.extend(malloc_ops)
-
-        # Set up for lots of memory copies to move the sparse index tuples and child data into their new larger buffers
-        # Starting with Index tuples
-        # Get their size as it's used repeatedly lots.
-        index_tuple_size_ops, (index_tuple_size,) = (
-            _get_accepted_type_size(IndexType()).keep(1)
-            * NumericResult.from_const(len(layout.dimensions))
-        ).output()
-        if_found_false.extend(index_tuple_size_ops)
-
-        idx_copy_ops, new_idx_elem_ptr = self.copy_to_new_buffers(
-            idx_buffer_ptr,
-            new_idx_buffer_ptr,
-            index_tuple_size,
-            index,
-            last_index,
-            zero_op.result,
-        )
-        if_found_false.extend(idx_copy_ops)
-
-        data_copy_ops, new_data_elem_ptr = self.copy_to_new_buffers(
-            data_buffer_ptr,
-            new_data_buffer_ptr,
-            data_elem_size,
-            index,
-            last_index,
-            data_elem_size_extra,
-        )
-        if_found_false.extend(data_copy_ops)
-
-        # New we fill in the new index tuple and data elem
-
-        running_idx_buffer_ptr = new_idx_elem_ptr
-        for dim in layout.dimensions:
-            idx_arg_ops, (idx_arg,) = dim_mapping[dim].get().output()
-            if_found_false.extend(idx_arg_ops)
-            if_found_false.append(llvm.StoreOp(idx_arg, running_idx_buffer_ptr))
-            idx_size = _get_accepted_type_size(IndexType()).sum()
-            new_idx_ptr_ops, running_idx_buffer_ptr = idx_size.add_to_llvm_pointer(
-                running_idx_buffer_ptr
+        if layout.is_buffered():
+            ptr_size = _get_accepted_type_size(IndexType()).sum()
+            buffer_size_ptr_ops, buffer_size_ptr = ptr_size.add_to_llvm_pointer(
+                data_buffer_ptr_ptr
             )
-            if_found_false.extend(new_idx_ptr_ops)
+            if_found_false.extend(buffer_size_ptr_ops)
+            buffer_size_op = llvm.LoadOp(buffer_size_ptr, IndexType())
+            if_found_false.append(buffer_size_op)
+            buffer_size = buffer_size_op.dereferenced_value
 
-        # This is a new data element and so it needs to be init-ed. we use a callback to write empty index range into
-        # the But first we need to find out what index we should be using to fill in the ranges. To do this we loop
-        # backwards over the data buffer children to find the first IndexRange, and failing that use the provided
-        # fill_value_getter_function
-        get_fill_value_ops, child_fill_value = child_fill_value_getter()
-        if_found_false.extend(get_fill_value_ops)
+            cmp_buffer_size_op = arith.Cmpi(last_index, buffer_size, "ugt")
+            need_bigger_buffers = cmp_buffer_size_op.result
+            if_found_false.append(cmp_buffer_size_op)
 
-        child_init_ops, _ = self.semantics.init_layout(
-            layout.child,
-            extent_resolver,
-            new_data_elem_ptr,
-            self.WriteEmptyRangeInitialiser(
+            # if we need new buffers - handle it
+            if_needs_new_buffers = []
+            buffer_scaler = layout.buffer_scaler.data
+            buffer_scaler_const = arith.Constant(
+                IntegerAttr(abs(buffer_scaler), IndexType())
+            )
+            if_needs_new_buffers.append(buffer_scaler_const)
+            if buffer_scaler > 0:
+                # multiply
+                mul_op = arith.Muli(buffer_size, buffer_scaler_const)
+                if_needs_new_buffers.append(mul_op)
+                new_size_candidate = mul_op.result
+                # if_needs_new_buffers.append(printf.PrintFormatOp("candidate {}   last index {}", new_size_candidate, last_index))
+            else:
+                # add
+                add_op = arith.Addi(buffer_size, buffer_scaler_const)
+                if_needs_new_buffers.append(add_op)
+                new_size_candidate = add_op.result
+                # if_needs_new_buffers.append(
+                #     printf.PrintFormatOp("candidate {}   last index {}", new_size_candidate, last_index))
+            new_size_op = arith.MaxUI(new_size_candidate, last_index)
+            if_needs_new_buffers.append(new_size_op)
+            new_size = new_size_op.result
+            (
+                do_new_buffers_ops,
+                new_idx_buffer_ptr,
+                new_data_buffer_ptr,
+                new_idx_elem_ptr,
+                new_data_elem_ptr,
+            ) = self.do_new_buffers(
+                layout,
+                extent_resolver,
+                new_size,
+                idx_buffer_ptr,
+                data_buffer_ptr,
+                buffer_size,
+                index,
+            )
+            if_needs_new_buffers.extend(do_new_buffers_ops)
+
+            # Now we fill in the new index tuple and data elem
+            get_fill_value_ops, child_fill_value = child_fill_value_getter()
+            if_needs_new_buffers.extend(get_fill_value_ops)
+            initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
-            ),
-            NoCallback(),
-            [],
-            false_op.result,
-            True,
-        )
-        if_found_false.extend(child_init_ops)
+            )
+            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
+                                                     new_idx_elem_ptr, new_data_elem_ptr)
+            if_needs_new_buffers.extend(set_up_child_ops)
 
-        # The new buffers need to be put in the indexing struct and the old ones freed
-        if_found_false.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
-        if_found_false.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
-        if_found_false.append(llvm.CallOp("free", idx_buffer_ptr))
-        if_found_false.append(llvm.CallOp("free", data_buffer_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4907 new idx {}", new_idx_buffer_ptr))
+            if_needs_new_buffers.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4909 new data {}", new_data_buffer_ptr))
+            if_needs_new_buffers.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4912 new size {}", new_size))
+            if_needs_new_buffers.append(llvm.StoreOp(new_size, buffer_size_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4901 free idx {}", idx_buffer_ptr))
+            if_needs_new_buffers.append(llvm.CallOp("free", idx_buffer_ptr))
+            # if_needs_new_buffers.append(
+            #     printf.PrintFormatOp("4905 free data {}", data_buffer_ptr))
+            if_needs_new_buffers.append(llvm.CallOp("free", data_buffer_ptr))
+            if_needs_new_buffers.append(scf.Yield(child_fill_value))
 
-        # child_set_ops = self.semantics.get_setter_for(
-        #     layout.indexedChild.child,
-        #     child_fill_value,
-        #     child_members,
-        #     child_dim_mapping,
-        #     extent_resolver,
-        #     new_data_elem_ptr,
-        # )
-        # if_found_false.extend(child_set_ops)
+            # alternatively we don't need new buffers - just need to move the data in the buffers we have
+            if_needs_moved_buffers = []
+            calc_old_elems_ops, (elems_to_copy,) = (NumericResult.from_ssa(last_index) - 1).output()
+            if_needs_moved_buffers.extend(calc_old_elems_ops)
+            (
+                do_move_buffers_ops,
+                new_idx_elem_ptr,
+                new_data_elem_ptr,
+            ) = self.do_move_buffers(
+                layout,
+                extent_resolver,
+                buffer_size,
+                last_index,
+                elems_to_copy,
+                idx_buffer_ptr,
+                data_buffer_ptr,
+                index,
+            )
+            if_needs_moved_buffers.extend(do_move_buffers_ops)
+
+            # Now we fill in the new index tuple and data elem
+            get_fill_value_ops, child_fill_value = child_fill_value_getter()
+            if_needs_moved_buffers.extend(get_fill_value_ops)
+            initialiser = self.WriteEmptyRangeInitialiser(
+                child_fill_value, child_members, child_dim_mapping
+            )
+            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
+                                                     new_idx_elem_ptr, new_data_elem_ptr)
+            if_needs_moved_buffers.extend(set_up_child_ops)
+
+            if_needs_moved_buffers.append(scf.Yield(child_fill_value))
+
+            if_new_buffers_op = scf.If(need_bigger_buffers, [base_type], if_needs_new_buffers, if_needs_moved_buffers)
+            if_found_false.append(if_new_buffers_op)
+            child_fill_value = if_new_buffers_op.results[0]
+        else:
+            # if it's not buffered then we know we just need to always do new buffers at the size of last_index
+            # and we know the old buffer size was just one element less than the new last_index
+            new_size = last_index
+            calc_old_size_ops, (old_buffer_size,) = (NumericResult.from_ssa(last_index) - 1).output()
+            if_found_false.extend(calc_old_size_ops)
+            (
+                do_new_buffers_ops,
+                new_idx_buffer_ptr,
+                new_data_buffer_ptr,
+                new_idx_elem_ptr,
+                new_data_elem_ptr,
+            ) = self.do_new_buffers(
+                layout,
+                extent_resolver,
+                new_size,
+                idx_buffer_ptr,
+                data_buffer_ptr,
+                old_buffer_size,
+                index,
+            )
+            if_found_false.extend(do_new_buffers_ops)
+
+            # Now we fill in the new index tuple and data elem
+            get_fill_value_ops, child_fill_value = child_fill_value_getter()
+            if_found_false.extend(get_fill_value_ops)
+            initialiser = self.WriteEmptyRangeInitialiser(
+                child_fill_value, child_members, child_dim_mapping
+            )
+            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
+                                                     new_idx_elem_ptr, new_data_elem_ptr)
+            if_found_false.extend(set_up_child_ops)
+
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4987 new idx {}", new_idx_buffer_ptr))
+            if_found_false.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4990 new data {}", new_data_buffer_ptr))
+            if_found_false.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4963 free idx {}", idx_buffer_ptr))
+            if_found_false.append(llvm.CallOp("free", idx_buffer_ptr))
+            # if_found_false.append(
+            #     printf.PrintFormatOp("4966 free data {}", data_buffer_ptr))
+            if_found_false.append(llvm.CallOp("free", data_buffer_ptr))
+
 
         if_found_false.append(scf.Yield(child_fill_value))
 
@@ -5122,8 +5261,11 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         )
         iter_ops, _, _ = direct_iter_func(dealloc_callback, True)
         ops.extend(iter_ops)
-
+        # ops.append(
+        #     printf.PrintFormatOp("5204 free idx {}", idx_buffer_ptr))
         ops.append(llvm.CallOp("free", idx_buffer_ptr))
+        # ops.append(
+        #     printf.PrintFormatOp("5207 free data {}", data_buffer_ptr))
         ops.append(llvm.CallOp("free", data_buffer_ptr))
 
         return ops
@@ -5316,6 +5458,9 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         )
         ops.append(malloc_idx_buffer)
 
+        # c_db_ops, (child_size, child_size_debug) = child_size.split_n(2)
+        # ops.extend(c_db_ops)
+
         # Malloc the Unpacked COO data Buffer:
         alloc_data_buffer_bytes_numeric = (
             child_size * NumericResult.from_mixed([], num_non_zero)
@@ -5329,7 +5474,11 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         )
         ops.append(malloc_data_buffer)
 
-        # ops.append(printf.PrintFormatOp("MALLOC({})", alloc_data_buffer_bytes))
+        # db_ops, (child_size_db_base, child_size_db_extra) = child_size_debug.output()
+        # ops.extend(db_ops)
+        # ops.append(printf.PrintFormatOp("Malloc  capacity:{}  child_size:{} + {}", num_non_zero, child_size_db_base, child_size_db_extra))
+        # ops.append(printf.PrintFormatOp("Malloc  index buffer:{}  data buffer:{}", malloc_idx_buffer.returned, malloc_data_buffer.returned))
+        # ops.append(printf.PrintFormatOp("Malloc  index bytes:{}  data bytes:{} for "+str(upcoo_layout), alloc_idx_buffer_bytes,  alloc_data_buffer_bytes))
 
 
         return ops, malloc_idx_buffer.returned, malloc_data_buffer.returned
@@ -5340,11 +5489,14 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         new_buffer_ptr: SSAValue,
         element_size: SSAValue,
         new_elem_index: SSAValue,
-        last_index: SSAValue,
+        new_capacity: SSAValue,
+        elements_to_copy: SSAValue,
         extra_space: SSAValue,
         shuffle_instead: bool = False,
     ) -> tuple[list[Operation], SSAValue]:
         ops = []
+
+        # ops.append(printf.PrintFormatOp("Copy to new buffers.  elem_size:{}  new_elem_index:{}  new_capacity:{}  elements_to_copy: {}  extra_space:{} shuffle_instead:" + str(shuffle_instead), element_size, new_elem_index, new_capacity, elements_to_copy, extra_space))
         # calculate how many bytes to copy before the new element
         pre_elem_buffer_size_ops, (pre_elem_buffer_size,) = (
             NumericResult.from_ssa(element_size)
@@ -5354,6 +5506,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
 
         if not shuffle_instead:
             # Copy the data before the new element
+            # ops.append(printf.PrintFormatOp("Call memcpy (before elem) dst: {}  src: {}  size: {}", new_buffer_ptr, old_buffer_ptr, pre_elem_buffer_size))
             pre_elem_idx_copy_op = llvm.CallOp(
                 "memcpy",
                 new_buffer_ptr,
@@ -5374,24 +5527,25 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             + NumericResult.from_ssa(element_size)
         ).add_to_llvm_pointer(new_buffer_ptr)
         ops.extend(new_post_elem_buffer_ptr_ops)
-        # calculate how much data to move, this will be the new last_index (number of elements in the new buffer)
+        # calculate how much data to move, this will be the new last_index (new number of elements in the buffer)
         # minus what was copied already (new_elem_index), minus 1 to account for 1 new element
         post_elem_buffer_size_ops, (post_elem_buffer_size,) = (
-            (
-                NumericResult.from_ssa(element_size)
-                * (
-                    (
-                        NumericResult.from_ssa(last_index)
-                        - NumericResult.from_ssa(new_elem_index)
-                    )
-                    - NumericResult.from_const(1)
+                (
+                        NumericResult.from_ssa(element_size)
+                        * (
+                            (
+                                    NumericResult.from_ssa(elements_to_copy)
+                                    - NumericResult.from_ssa(new_elem_index)
+                            )
+                        )
                 )
-            )
-            + NumericResult.from_ssa(extra_space)
+                + NumericResult.from_ssa(extra_space)
         ).output()
         ops.extend(post_elem_buffer_size_ops)
         if shuffle_instead:
             # Copy the elements after the new element - but expect an overlap
+            # ops.append(printf.PrintFormatOp("Call memmove (after elem) dst: {}  src: {}  size: {}", new_post_elem_buffer_ptr,
+            #                                 post_elem_buffer_ptr, post_elem_buffer_size))
             pre_elem_idx_copy_op = llvm.CallOp(
                 "memmove",
                 new_post_elem_buffer_ptr,
@@ -5402,6 +5556,8 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             ops.append(pre_elem_idx_copy_op)
         else:
             # Copy the elements after the new element
+            # ops.append(printf.PrintFormatOp("Call memcpy (after elem) dst: {}  src: {}  size: {}", new_post_elem_buffer_ptr,
+            #                                 post_elem_buffer_ptr, post_elem_buffer_size))
             pre_elem_idx_copy_op = llvm.CallOp(
                 "memcpy",
                 new_post_elem_buffer_ptr,
@@ -5416,6 +5572,8 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             pre_elem_buffer_size
         ).add_to_llvm_pointer(new_buffer_ptr)
         ops.extend(new_elem_ptr_ops)
+        # ops.append(
+        #     printf.PrintFormatOp("new elem ptr {}", new_elem_ptr))
         return ops, new_elem_ptr
 
     class SparseIndexWritingCallback(Callback):
@@ -6386,7 +6544,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         initialiser: Initialiser,
         idx_elem_ptr: SSAValue,
         data_elem_ptr: SSAValue,
-    ):
+    ) -> list[Operation]:
         assert isinstance(idx_elem_ptr.type, llvm.LLVMPointerType)
         assert isinstance(data_elem_ptr.type, llvm.LLVMPointerType)
         ops = []
@@ -6424,6 +6582,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         new_size: SSAValue,
         idx_buffer_ptr: SSAValue,
         data_buffer_ptr: SSAValue,
+        old_size: SSAValue,
         index: SSAValue,
     ) -> tuple[list[Operation], SSAValue, SSAValue, SSAValue, SSAValue]:
         assert isinstance(new_size.type, IndexType)
@@ -6458,6 +6617,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             index_tuple_size,
             index,
             new_size,
+            old_size,
             zero_op.result,
         )
         ops.extend(idx_copy_ops)
@@ -6473,6 +6633,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             data_elem_size,
             index,
             new_size,
+            old_size,
             data_elem_size_extra,
         )
         ops.extend(data_copy_ops)
@@ -6484,6 +6645,8 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         starting_layout: dlt.UnpackedCOOLayoutAttr,
         extent_resolver: ExtentResolver,
         buffer_size: SSAValue,
+        new_number_of_elems: SSAValue,
+        old_number_of_elems: SSAValue,
         idx_buffer_ptr: SSAValue,
         data_buffer_ptr: SSAValue,
         index: SSAValue,
@@ -6510,6 +6673,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             index_tuple_size,
             index,
             buffer_size,
+            old_number_of_elems,
             zero_op.result,
             shuffle_instead=True,
         )
@@ -6526,6 +6690,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             data_elem_size,
             index,
             buffer_size,
+            old_number_of_elems,
             data_elem_size_extra,
             shuffle_instead=True,
         )
@@ -6900,8 +7065,9 @@ def _make_iterate(
     dim_specifiers = []
     dlt_ptrs = []
     for dlt_ptr in ptrs:
-        assert isinstance(dlt_ptr.type, dlt.PtrType)
-        assert dlt_ptr.type.contents_type.has_selectable([], dimensions)
+        ptr_type = typing.cast(dlt.PtrType, dlt_ptr.type)
+        assert isinstance(ptr_type, dlt.PtrType)
+        assert ptr_type.contents_type.has_selectable([], dimensions)
         dim_specifiers.append([[d] for d in dimensions])
         dlt_ptrs.append(dlt_ptr)
 
