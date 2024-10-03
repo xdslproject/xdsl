@@ -1,8 +1,6 @@
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.dialects.cf import Cf
-from xdsl.dialects.func import Func, FuncOp
-from xdsl.dialects.test import Test
+from xdsl.dialects.test import Test, TestOp
 from xdsl.ir import Use
 from xdsl.parser import Parser
 
@@ -33,15 +31,15 @@ def test_main():
 
 
 test_prog_blocks = """
-func.func @blocks() {
+"test.op"() ({
   "test.termop"() [^0, ^1] : () -> ()
 ^0:
-  cf.br ^2
+  "test.termop"()[^2] : () -> ()
 ^1:
-  cf.br ^2
+  "test.termop"()[^2] : () -> ()
 ^2:
-  func.return
-}
+  "test.termop"() : () -> ()
+}) : () -> ()
 """
 
 
@@ -49,16 +47,13 @@ def test_predecessor():
     ctx = MLContext()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Test)
-    ctx.load_dialect(Func)
-    ctx.load_dialect(Cf)
 
     parser = Parser(ctx, test_prog_blocks)
-    func = parser.parse_op()
+    op = parser.parse_op()
 
-    func.verify()
-    assert isinstance(func, FuncOp)
+    assert isinstance(op, TestOp)
 
-    block1, block2, block3, block4 = func.body.blocks
+    block1, block2, block3, block4 = op.regions[0].blocks
 
     assert block1.predecessors() == ()
     assert block2.predecessors() == (block1,)
