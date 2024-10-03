@@ -63,4 +63,4 @@ def test_predecessor():
     assert block1.predecessors() == ()
     assert block2.predecessors() == (block1,)
     assert block3.predecessors() == (block1,)
-    assert set(block4.predecessors()) == set((block2, block3))
+    assert set(block4.predecessors()) == {block2, block3}
