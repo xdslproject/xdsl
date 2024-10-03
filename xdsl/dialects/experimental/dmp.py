@@ -116,7 +116,8 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
             sizes,
             # source_offset (opposite of exchange direction)
             tuple(
-                0 if d != dim else -1 * dir_sign * sizes[dim] for d in range(len(sizes))
+                0 if d != dim else -1 * dir_sign * sizes[dim] * neighbor_offset
+                for d in range(len(sizes))
             ),
             # direction
             tuple(
@@ -545,7 +546,7 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
 
 def _flat_face_exchanges_for_dim(
     shape: ShapeAttr, axis: int
-) -> tuple[ExchangeDeclarationAttr, ExchangeDeclarationAttr]:
+) -> tuple[ExchangeDeclarationAttr, ...]:
     """
     Generate the two exchange delcarations to exchange the faces on the
     axis "axis".
@@ -553,36 +554,94 @@ def _flat_face_exchanges_for_dim(
     dimensions = shape.dims
     assert axis <= dimensions
 
-    def coords(where: Literal["start", "end"]):
-        for d in range(dimensions):
-            # for the dim we want to exchange, return either start or end halo region
-            if d == axis:
-                if where == "start":
-                    # "start" halo goes from buffer start to core start
-                    yield shape.buffer_start(d), shape.core_start(d)
-                else:
-                    # "end" halo goes from core end to buffer end
-                    yield shape.core_end(d), shape.buffer_end(d)
-            else:
-                # for the sliced regions, "extrude" from core
-                # this way we don't exchange edges
-                yield shape.core_start(d), shape.core_end(d)
+    def coords(where: Literal["start", "end"]) -> Iterable[tuple[tuple[int, int], ...]]:
+        """
+        Generate a series of swaps that need to be performed to exchange along "axis".
 
-    ex1_coords = tuple(coords("end"))
-    ex2_coords = tuple(coords("start"))
+        A swap is a set of (lb,ub) tuples, one per axis of shape.
+
+        Takes either "start" or "end" to signify if the lower (buffer start to core start) or upper
+        (core end to buffer end) parts of the halo should be exchanged.
+
+        We need to make sure that if core_size is smaller than halo size, we emit multiple exchanges.
+
+        We need to make sure that we emit the exchanges in a way that the closest neighbor is emitted first.
+        """
+        # we may need to issue multiple swaps per direction, if the core size is smaller than the
+        # exchanged size. This is tracked in the "slice" variable.
+        slice = 0
+
+        while True:
+            swap: list[tuple[int, int]] = []
+            for d in range(dimensions):
+                # for the dim we want to exchange, return exchanges need to exchange either start or end
+                # halo regions
+                if d == axis:
+                    core_size = shape.core_size(d)
+                    if where == "start":
+                        # where == "start" halo goes from buffer start to core start
+                        # the window of data we want to send starts here
+                        start = shape.buffer_start(d)
+                        # calculate where the current slice starts (lowest index, no lower than start)
+                        slice_start = max(
+                            start, shape.core_start(d) - (core_size * (slice + 1))
+                        )
+                        # calculate where the current slice ends (highest index, no higher than core_start)
+                        # because slice >= 0
+                        slice_end = max(
+                            start, shape.core_start(d) - (core_size * slice)
+                        )
+
+                        # stop swapping if swap is empty
+                        if slice_end == slice_start:
+                            return
+                        swap.append((slice_start, slice_end))
+                    else:
+                        # where == "end" halo goes from core end to buffer end
+
+                        # the window of data we want to send ends here (highest index)
+                        end = shape.buffer_end(d)
+                        # calculate where the current slice starts (lowest index, no lower than start)
+                        # because slice >= 0, and no higher than end
+                        slice_start = min(end, shape.core_end(d) + (core_size * slice))
+                        # calculate where the current slice ends (highest index, no higher than core_start)
+                        slice_end = min(
+                            end, shape.core_end(d) + (core_size * (slice + 1))
+                        )
+
+                        # stop swapping if swap is empty
+                        if slice_end == slice_start:
+                            return
+                        swap.append((slice_start, slice_end))
+
+                else:
+                    # for the sliced regions, "extrude" from core
+                    # this way we don't exchange edges
+                    swap.append((shape.core_start(d), shape.core_end(d)))
+
+            slice += 1
+            yield tuple(swap)
 
     return (
         # towards positive dim:
-        ExchangeDeclarationAttr.from_points(
-            ex1_coords,
-            axis,
-            dir_sign=1,
+        *(
+            ExchangeDeclarationAttr.from_points(
+                ex1_coords,
+                axis,
+                dir_sign=1,
+                neighbor_offset=i + 1,
+            )
+            for i, ex1_coords in enumerate(coords("end"))
         ),
         # towards negative dim:
-        ExchangeDeclarationAttr.from_points(
-            ex2_coords,
-            axis,
-            dir_sign=-1,
+        *(
+            ExchangeDeclarationAttr.from_points(
+                ex2_coords,
+                axis,
+                dir_sign=-1,
+                neighbor_offset=i + 1,
+            )
+            for i, ex2_coords in enumerate(coords("start"))
         ),
     )
 
