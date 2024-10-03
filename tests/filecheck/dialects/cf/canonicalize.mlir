@@ -11,6 +11,19 @@ func.func @assert_true() -> i1 {
   func.return %0 : i1
 }
 
+/// Test the folding of BranchOp.
+
+// CHECK:      func.func @br_folding() -> i32 {
+// CHECK-NEXT:   %[[#v0:]] = arith.constant 0 : i32
+// CHECK-NEXT:   func.return %[[#v0]] : i32
+// CHECK-NEXT: }
+func.func @br_folding() -> i32 {
+  %0 = arith.constant 0 : i32
+  cf.br ^0(%0 : i32)
+^0(%1 : i32):
+  return %1 : i32
+}
+
 /// Test that pass-through successors of BranchOp get folded.
 
 // CHECK:      func.func @br_passthrough(%arg0 : i32, %arg1 : i32) -> (i32, i32) {
