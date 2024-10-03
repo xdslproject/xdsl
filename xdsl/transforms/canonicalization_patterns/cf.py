@@ -39,7 +39,7 @@ class SimplifyBrToBlockWithSinglePred(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter):
         succ = op.successor
         parent = op.parent_block()
         if parent is None:
