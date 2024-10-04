@@ -677,7 +677,7 @@ def test_two_var_successor_builder():
     _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
-    assert op2.successors == [block1, block2, block3, block4]
+    assert tuple(op2.successors) == (block1, block2, block3, block4)
     assert op2.attributes[
         AttrSizedSuccessorSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
@@ -699,7 +699,7 @@ def test_two_var_successor_builder2():
     _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
-    assert op2.successors == [block1, block2, block3, block4]
+    assert tuple(op2.successors) == (block1, block2, block3, block4)
     assert op2.attributes[
         AttrSizedSuccessorSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])

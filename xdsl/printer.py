@@ -814,7 +814,7 @@ class Printer:
 
         return
 
-    def print_successors(self, successors: list[Block]):
+    def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:
             return
         self.print_string(" [")

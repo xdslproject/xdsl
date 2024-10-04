@@ -139,6 +139,17 @@
     csl.return %and_ : i1
   }
 
+  csl.func @select() -> !csl<dsd mem1d_dsd> {
+    %value1 = arith.constant 100 : si32
+    %value2 = arith.constant 200 : si32
+    %toggle = arith.constant 1 : i1
+    %A = memref.get_global @A : memref<24xf32>
+    %dsd1 = "csl.get_mem_dsd"(%A, %value1) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %dsd2 = "csl.get_mem_dsd"(%A, %value2) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %selected_dsd = arith.select %toggle, %dsd1, %dsd2 : !csl<dsd mem1d_dsd>
+    csl.return %selected_dsd : !csl<dsd mem1d_dsd>
+  }
+
   csl.func @constants() {
     %inline_const = arith.constant 100 : i32
 
@@ -180,6 +191,17 @@
     csl.return
   }
 
+  csl.func @variables() {
+    %one = arith.constant 1 : i32
+    %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
+    %variable = "csl.variable"() : () -> !csl.var<i32>
+    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %new_value = arith.addi %value, %one : i32
+    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+
+    csl.return
+  }
 
   "memref.global"() {"sym_name" = "uninit_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value"} : () -> ()
   "memref.global"() {"sym_name" = "global_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value" = dense<4.2> : tensor<1xf32>} : () -> ()
@@ -200,6 +222,8 @@
   %ptr_1_fn = "csl.addressof_fn"() <{fn_name = @args_no_return}> : () -> !csl.ptr<(i32, i32) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
   %ptr_2_fn = "csl.addressof_fn"() <{fn_name = @no_args_return}> : () -> !csl.ptr<() -> (f32), #csl<ptr_kind single>, #csl<ptr_const const>>
   %dir_test = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
+  // putting dir_test in a struct to make sure it gets correctly inlined
+  %struct_with_dir = "csl.const_struct"(%dir_test) <{ssa_fields = ["dir"]}> : (!csl.direction) -> !csl.comptime_struct
 
 
 
@@ -420,6 +444,10 @@ csl.func @builtins() {
   "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
+  csl.activate data, 0 : i32
+  csl.activate local, 1 : i32
+  csl.activate control, 42 : i32
+
   csl.return
 }
 
@@ -559,6 +587,16 @@ csl.func @builtins() {
 // CHECK-NEXT:   return (((0  <=  1) or (0.0  >  1.1)) and (0.0  >=  1.1));
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn select() mem1d_dsd {
+// CHECK-NEXT:   const dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
+// CHECK-NEXT:     .tensor_access = | d0 | { 100 } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
+// CHECK-NEXT:     .tensor_access = | d0 | { 200 } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   return (if (true) dsd1 else dsd2);
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn constants() void {
 // CHECK-NEXT:   var v0 : [const27]i16 = @constants([const27]i16, const27);
 // CHECK-NEXT:   const v1 : [const27]i16 = @constants([const27]i16, const27);
@@ -600,6 +638,15 @@ csl.func @builtins() {
 // CHECK-NEXT: task control_task_no_bind() void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn variables() void {
+// CHECK-NEXT:   var variable_with_default : i32 = 42;
+// CHECK-NEXT:   var variable : i32;
+// CHECK-NEXT:   const value : i32 = variable_with_default;
+// CHECK-NEXT:   variable_with_default = (value + 1);
+// CHECK-NEXT:   variable = (value + 1);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
 // CHECK-NEXT: var uninit_array : [10]f32;
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
@@ -610,7 +657,9 @@ csl.func @builtins() {
 // CHECK-NEXT: const ptr_to_val : *const i16 = &const27;
 // CHECK-NEXT: const ptr_1_fn : *const fn(i32, i32) void = &args_no_return;
 // CHECK-NEXT: const ptr_2_fn : *const fn() f32 = &no_args_return;
-// CHECK-NEXT: const dir_test : direction = NORTH;
+// CHECK-NEXT: const struct_with_dir : comptime_struct = .{
+// CHECK-NEXT:   .dir = NORTH,
+// CHECK-NEXT: };
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(global_ptr, "ptr_name");
 // CHECK-NEXT: }
@@ -771,6 +820,9 @@ csl.func @builtins() {
 // CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, src_dsd2);
 // CHECK-NEXT:   @xp162fh(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @activate(@get_data_task_id(0));
+// CHECK-NEXT:   @activate(@get_local_task_id(1));
+// CHECK-NEXT:   @activate(@get_control_task_id(42));
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // -----

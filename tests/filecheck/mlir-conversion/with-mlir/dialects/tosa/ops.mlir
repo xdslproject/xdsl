@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | mlir-opt | filecheck %s
 
 %0 = "test.op"() : () -> tensor<12x34xi32>
 %1 = tosa.clamp %0 {min_fp = 0.0 : f32, max_fp = 1.0: f32, min_int = 0 : i64, max_int = 1 : i64} : (tensor<12x34xi32>) -> tensor<12x34xi32>

@@ -33,7 +33,7 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
   func.return
 }
 
-// CHECK:      "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel"}> ({
+// CHECK:      "csl_wrapper.module"() <{"width" = 1024 : i16, "height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel"}> ({
 // CHECK-NEXT: ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
 // CHECK-NEXT:   %9 = arith.constant 0 : i16
 // CHECK-NEXT:   %10 = "csl.get_color"(%9) : (i16) -> !csl.color
@@ -99,6 +99,7 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
 // CHECK-NEXT:       csl_stencil.yield %67 : tensor<510xf32>
 // CHECK-NEXT:     })
 // CHECK-NEXT:     stencil.store %42 to %b(<[0, 0], [1, 1]>) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:     "csl.member_call"(%33) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
@@ -123,7 +124,7 @@ func.func @bufferized(%arg0 : memref<512xf32>, %arg1 : memref<512xf32>) {
 }
 
 
-// CHECK:      "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "bufferized"}> ({
+// CHECK:      "csl_wrapper.module"() <{"width" = 1024 : i16, "height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "bufferized"}> ({
 // CHECK-NEXT: ^2(%43 : i16, %44 : i16, %45 : i16, %46 : i16, %47 : i16, %48 : i16, %49 : i16, %50 : i16, %51 : i16):
 // CHECK-NEXT:   %52 = arith.constant 0 : i16
 // CHECK-NEXT:   %53 = "csl.get_color"(%52) : (i16) -> !csl.color
@@ -168,6 +169,7 @@ func.func @bufferized(%arg0 : memref<512xf32>, %arg1 : memref<512xf32>) {
 // CHECK-NEXT:       linalg.mul ins(%arg3_1, %83 : memref<510xf32>, memref<510xf32>) outs(%arg3_1 : memref<510xf32>)
 // CHECK-NEXT:       csl_stencil.yield %arg3_1 : memref<510xf32>
 // CHECK-NEXT:     }) to <[0, 0], [1, 1]>
+// CHECK-NEXT:     "csl.member_call"(%76) <{"field" = "unblock_cmd_stream"}> : (!csl.imported_module) -> ()
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT:   "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
