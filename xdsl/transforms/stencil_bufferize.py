@@ -39,7 +39,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import MemoryEffectKind, get_effects
 from xdsl.transforms.canonicalization_patterns.stencil import ApplyUnusedResults
-from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.utils.hints import isa
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
@@ -584,11 +583,11 @@ class StencilBufferize(ModulePass):
                     CombineStoreFold(),
                     LoadBufferFoldPattern(),
                     ApplyStoreFoldPattern(),
-                    RemoveUnusedOperations(),
                     ApplyUnusedResults(),
                     SwapBufferize(),
                 ]
             ),
             apply_recursively=True,
+            dead_code_elimination=True,
         )
         walker.rewrite_module(op)

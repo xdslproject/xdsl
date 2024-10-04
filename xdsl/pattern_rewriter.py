@@ -23,6 +23,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.transforms.dead_code import is_trivially_dead
 from xdsl.utils.hints import isa
 
 
@@ -381,6 +382,15 @@ class RewritePattern(ABC):
         ...
 
 
+class NoRewrite(RewritePattern):
+    """
+    Rewrite pattern which performs no rewrite.
+    """
+
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        pass
+
+
 _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
 _OperationT = TypeVar("_OperationT", bound=Operation)
 
@@ -650,7 +660,7 @@ class PatternRewriteWalker:
     The walker will also walk recursively on the created operations.
     """
 
-    pattern: RewritePattern
+    pattern: RewritePattern = field(default_factory=NoRewrite)
     """Pattern to apply during the walk."""
 
     walk_regions_first: bool = field(default=False)
@@ -666,6 +676,11 @@ class PatternRewriteWalker:
     """
     Walk the regions and blocks in reverse order.
     That way, all uses are replaced before the definitions.
+    """
+
+    dead_code_elimination: bool = field(default=False)
+    """
+    Perform dead code elimination while rewriting.
     """
 
     listener: PatternRewriterListener = field(default_factory=PatternRewriterListener)
@@ -799,7 +814,11 @@ class PatternRewriteWalker:
 
             # Apply the pattern on the operation
             try:
-                self.pattern.match_and_rewrite(op, rewriter)
+                if self.dead_code_elimination:
+                    if is_trivially_dead(op) and op.parent is not None:
+                        rewriter.erase_op(op)
+                if not rewriter.has_done_action:
+                    self.pattern.match_and_rewrite(op, rewriter)
             except Exception as err:
                 op.emit_error(
                     f"Error while applying pattern: {str(err)}",

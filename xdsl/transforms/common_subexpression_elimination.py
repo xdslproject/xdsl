@@ -14,7 +14,7 @@ from xdsl.traits import (
     is_side_effect_free,
     only_has_effect,
 )
-from xdsl.transforms.dead_code_elimination import is_trivially_dead
+from xdsl.transforms.dead_code import is_trivially_dead
 
 
 @dataclass
