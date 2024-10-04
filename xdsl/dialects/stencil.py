@@ -703,7 +703,7 @@ class CastOp(IRDLOperation):
 
     field = operand_def(
         ParamAttrConstraint(
-            FieldType,
+            FieldTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -715,7 +715,7 @@ class CastOp(IRDLOperation):
     )
     result = result_def(
         ParamAttrConstraint(
-            FieldType,
+            FieldTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -858,7 +858,7 @@ class DynAccessOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            StencilType,
+            StencilTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -1014,7 +1014,7 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp = operand_def(
         ParamAttrConstraint(
-            StencilType,
+            StencilTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -1233,7 +1233,7 @@ class LoadOp(IRDLOperation):
 
     field = operand_def(
         ParamAttrConstraint(
-            FieldType,
+            FieldTypeConstr,
             [
                 StencilBoundsAttr,
                 MessageConstraint(
@@ -1244,7 +1244,7 @@ class LoadOp(IRDLOperation):
     )
     res = result_def(
         ParamAttrConstraint(
-            TempType,
+            TempTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -1316,7 +1316,7 @@ class BufferOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            TempType,
+            TempTypeConstr,
             [
                 MessageConstraint(
                     VarConstraint("B", AnyAttr()),
@@ -1331,7 +1331,7 @@ class BufferOp(IRDLOperation):
     )
     res = result_def(
         ParamAttrConstraint(
-            StencilType,
+            StencilTypeConstr,
             [
                 MessageConstraint(
                     VarConstraint("B", AnyAttr()),
@@ -1421,7 +1421,7 @@ class StoreOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            TempType,
+            TempTypeConstr,
             [
                 Attribute,
                 MessageConstraint(
@@ -1439,7 +1439,7 @@ class StoreOp(IRDLOperation):
     # field = operand_def(FieldType)
     field = operand_def(
         ParamAttrConstraint(
-            FieldType,
+            FieldTypeConstr,
             [
                 MessageConstraint(
                     StencilBoundsAttr, "Output type's size must be explicit"
