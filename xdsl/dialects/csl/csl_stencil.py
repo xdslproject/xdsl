@@ -202,9 +202,7 @@ class ApplyOp(IRDLOperation):
 
     name = "csl_stencil.apply"
 
-    field = operand_def(
-        base(stencil.StencilType[Attribute]) | AnyMemRefTypeConstr
-    )
+    field = operand_def(base(stencil.StencilType[Attribute]) | AnyMemRefTypeConstr)
 
     accumulator = operand_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
