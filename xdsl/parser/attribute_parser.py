@@ -889,7 +889,7 @@ class AttrParser(BaseParser):
         self.parse_characters("<", " in dense array")
         element_type = self.parse_attribute()
 
-        if not isinstance(element_type, IntegerType | AnyFloat):
+        if not isinstance(element_type, IntegerType | AnyFloat | IndexType):
             raise ParseError(
                 name,
                 "dense array element type must be an " "integer or floating point type",

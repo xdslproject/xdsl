@@ -19,24 +19,26 @@
     %x7 = "arith.constant"() {"value" = 0 : i64, "test" = array<i32: 2, 3, 4>} : () -> i64
     // CHECK:  "test" = array<f32: 2.1, 3.2, 4.3>
     %x8 = "arith.constant"() {"value" = 0 : i64, "test" = array<f32: 2.1, 3.2, 4.3>} : () -> i64
+    // CHECK:  "test" = array<index: 2, 3, 4>
+    %x9 = "arith.constant"() {"value" = 0 : i64, "test" = array<index: 2, 3, 4>} : () -> i64
     // CHECK:  "test" = #builtin.signedness<signless>
-    %x9 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<signless>} : () -> i64
+    %x10 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<signless>} : () -> i64
     // CHECK:  "test" = #builtin.signedness<signed>
-    %x10 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<signed>} : () -> i64
+    %x11 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<signed>} : () -> i64
     // CHECK:  "test" = #builtin.signedness<unsigned>
-    %x11 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<unsigned>} : () -> i64
+    %x12 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<unsigned>} : () -> i64
     // CHECK:  "test" = @foo
-    %x12 = "arith.constant"() {"value" = 0 : i64, "test" = @foo} : () -> i64
+    %x13 = "arith.constant"() {"value" = 0 : i64, "test" = @foo} : () -> i64
     // CHECK:  "test" = @foo::@bar
-    %x13 = "arith.constant"() {"value" = 0 : i64, "test" = @foo::@bar} : () -> i64
+    %x14 = "arith.constant"() {"value" = 0 : i64, "test" = @foo::@bar} : () -> i64
     // CHECK:  "test" = @foo::@bar::@baz
-    %x14 = "arith.constant"() {"value" = 0 : i64, "test" = @foo::@bar::@baz} : () -> i64
+    %x15 = "arith.constant"() {"value" = 0 : i64, "test" = @foo::@bar::@baz} : () -> i64
     // CHECK:  "test" = loc(unknown)
-    %x15 = "arith.constant"() {"value" = 0 : i64, "test" = loc(unknown)} : () -> i64
+    %x16 = "arith.constant"() {"value" = 0 : i64, "test" = loc(unknown)} : () -> i64
     // CHECK:  "test" = none
-    %x16 = "arith.constant"() {"value" = 0 : i64, "test" = none} : () -> i64
+    %x17 = "arith.constant"() {"value" = 0 : i64, "test" = none} : () -> i64
     // CHECK:  "test" = 0 : i0
-    %x17 = "arith.constant"() {"value" = 0 : i64, "test" = 0 : i0} : () -> i64
+    %x18 = "arith.constant"() {"value" = 0 : i64, "test" = 0 : i0} : () -> i64
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
   "test.op"() {"value"= {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()
