@@ -479,8 +479,6 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
 
-    B = Annotated[Attribute, ConstraintVar("B")]
-
     args = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
     region = region_def()

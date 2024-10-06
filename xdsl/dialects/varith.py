@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     BFloat16Type,
@@ -14,8 +14,8 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     irdl_op_definition,
     result_def,
     var_operand_def,
@@ -43,7 +43,7 @@ class VarithOp(IRDLOperation):
     Variadic arithmetic operation
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), integerOrFloatLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", integerOrFloatLike)
 
     args = var_operand_def(T)
     res = result_def(T)

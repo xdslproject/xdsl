@@ -28,7 +28,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     attr_def,
@@ -524,8 +523,6 @@ class SequenceOp(IRDLOperation):
     """
 
     name = "transform.sequence"
-
-    T = Annotated[AnyIntegerOrFailurePropagationModeAttr, ConstraintVar("T")]
 
     body = region_def("single_block")
     failure_propagation_mode = prop_def(Attribute)

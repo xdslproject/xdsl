@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
@@ -31,7 +31,9 @@ from xdsl.irdl import (
     RangeOf,
     RegionDef,
     ResultDef,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -219,6 +221,78 @@ def test_constraint_var_fail_not_satisfy_constraint():
     """Check that all uses of a constraint variable are satisfying the constraint."""
     test_operand = TestSSAValue(TestType("foo"))
     op = ConstraintVarOp.create(
+        operands=[test_operand],
+        result_types=[TestType("foo")],
+        attributes={"attribute": TestType("foo")},
+    )
+    with pytest.raises(DiagnosticException):
+        op.verify()
+
+
+@irdl_op_definition
+class GenericConstraintVarOp(IRDLOperation):
+    name = "test.constraint_var_op"
+
+    T: ClassVar[VarConstraint[IntegerType | IndexType]] = VarConstraint(
+        "T", base(IntegerType) | base(IndexType)
+    )
+
+    operand = operand_def(T)
+    result = result_def(T)
+    attribute = attr_def(T)
+
+
+def test_generic_constraint_var():
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+    op = GenericConstraintVarOp.create(
+        operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    op.verify()
+
+    op2 = GenericConstraintVarOp.create(
+        operands=[index_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": IndexType()},
+    )
+    op2.verify()
+
+
+def test_generic_constraint_var_fail_non_equal():
+    """Check that all uses of a constraint variable are of the same attribute."""
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+
+    # Fail because of operand
+    op = GenericConstraintVarOp.create(
+        operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    with pytest.raises(DiagnosticException):
+        op.verify()
+
+    # Fail because of result
+    op2 = GenericConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": i32},
+    )
+    with pytest.raises(DiagnosticException):
+        op2.verify()
+
+    # Fail because of attribute
+    op3 = GenericConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[i32],
+        attributes={"attribute": IndexType()},
+    )
+    with pytest.raises(DiagnosticException):
+        op3.verify()
+
+
+def test_generic_constraint_var_fail_not_satisfy_constraint():
+    """Check that all uses of a constraint variable are satisfying the constraint."""
+    test_operand = TestSSAValue(TestType("foo"))
+    op = GenericConstraintVarOp.create(
         operands=[test_operand],
         result_types=[TestType("foo")],
         attributes={"attribute": TestType("foo")},

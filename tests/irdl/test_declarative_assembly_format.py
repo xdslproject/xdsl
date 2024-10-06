@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
@@ -30,6 +30,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     ParsePropInAttrDict,
+    VarConstraint,
     VarOperand,
     VarOpResult,
     attr_def,
@@ -1578,7 +1579,7 @@ def test_basic_inference(format: str):
 
     @irdl_op_definition
     class TwoOperandsOneResultWithVarOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
+        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
