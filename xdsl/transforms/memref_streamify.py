@@ -120,7 +120,7 @@ class StreamifyGenericOpPattern(RewritePattern):
                 op.init_indices,
                 op.doc,
                 op.library_call,
-                op.result_types,
+                output_stream_types,
             ),
             InsertPoint.at_end(new_body),
         )

@@ -381,7 +381,7 @@ class GenericOp(IRDLOperation):
     to.
     """
 
-    res = var_result_def(AnyTensorType)
+    res = var_result_def()
 
     inits = var_operand_def()
     """
