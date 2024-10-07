@@ -1,11 +1,11 @@
 from dataclasses import dataclass
+from pprint import pprint
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import TensorType
 from xdsl.dialects.func import FuncOp
-from xdsl.ir import BlockArgument, SSAValue
-from xdsl.irdl import VarOperand
+from xdsl.ir import BlockArgument
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -16,7 +16,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.transforms.mlir_opt import MLIROptPass
 
-
+"""
 @dataclass
 class SubstituteDonatedTensors(RewritePattern):
     @op_type_rewrite_pattern
@@ -44,6 +44,22 @@ class SubstituteDonatedTensors(RewritePattern):
                             break
                 new_op = child_op.clone(value_mapper)
                 rewriter.replace_op(child_op, [new_op])
+"""
+
+
+@dataclass
+class SubstituteDonatedTensors(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
+        if op.arg_attrs is None:
+            return
+
+        donated_inputs: list[BlockArgument] = []
+        for inp, attr in zip(op.args, op.arg_attrs):
+            if type(inp.type) is TensorType and "tf.aliasing_output" in attr.data:
+                donated_inputs.append(inp)
+
+        pprint(vars(op.body))
 
 
 @dataclass(frozen=True)
@@ -51,6 +67,7 @@ class JaxUseDonatedArguments(ModulePass):
     name = "jax-use-donated-arguments"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        MLIROptPass(arguments=("--linalg-fuse-elementwise-ops",)).apply(ctx, op)
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier([SubstituteDonatedTensors()]),
             apply_recursively=False,
@@ -58,4 +75,3 @@ class JaxUseDonatedArguments(ModulePass):
             walk_regions_first=True,
         )
         the_one_pass.rewrite_module(op)
-        MLIROptPass(arguments=("--linalg-fuse-elementwise-ops",)).apply(ctx, op)

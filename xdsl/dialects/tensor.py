@@ -8,10 +8,14 @@ from typing_extensions import Self
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    Annotated,
     AnySignlessIntegerOrIndexType,
+    ArrayAttr,
     ContainerType,
     DenseArrayBase,
     IndexType,
+    IntegerAttr,
+    IntegerType,
     TensorType,
     UnrankedTensorType,
     i64,
@@ -174,6 +178,25 @@ class EmptyOp(IRDLOperation):
         empty = cls(dynamic_sizes, result_type)
 
         return empty
+
+
+ReassociationAttr = ArrayAttr[
+    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+]
+
+
+@irdl_op_definition
+class CollapseShapeOp(IRDLOperation):
+    name = "tensor.collapse_shape"
+
+    src = operand_def(TensorType[Attribute])
+    result = result_def(TensorType[Attribute])
+    reassociation = prop_def(ReassociationAttr)
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
+    traits = frozenset([NoMemoryEffect()])
 
 
 @irdl_op_definition
@@ -420,6 +443,7 @@ Tensor = Dialect(
         ExtractSliceOp,
         InsertSliceOp,
         ReshapeOp,
+        CollapseShapeOp,
     ],
     [],
 )
