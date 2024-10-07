@@ -84,7 +84,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     apply_op.done_exchange.block.args[1].type.get_shape()[-1],
                 )
 
-            # retrieve z_dim from post_process arg[0]
+            # retrieve z_dim from done_exchange arg[0]
             if isattr(
                 field_t := apply_op.done_exchange.block.args[0].type,
                 stencil.StencilTypeConstr,
