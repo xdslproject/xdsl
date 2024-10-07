@@ -5,7 +5,7 @@ from math import prod
 from xdsl.context import MLContext
 from xdsl.dialects import arith, stencil, tensor
 from xdsl.dialects.builtin import (
-    AnyMemRefType,
+    AnyMemRefTypeConstr,
     AnyTensorType,
     IndexType,
     IntegerAttr,
@@ -204,9 +204,9 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             swap.size[2] == uniform_size for swap in op.swaps
         ), "all swaps need to be of uniform size"
 
-        assert isa(
+        assert isattr(
             op.input_stencil.type,
-            AnyMemRefType | stencil.StencilType[Attribute],
+            AnyMemRefTypeConstr | base(stencil.StencilType[Attribute]),
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
