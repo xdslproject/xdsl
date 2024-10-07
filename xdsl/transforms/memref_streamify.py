@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp, TensorType
 from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -35,15 +35,16 @@ class StreamifyGenericOpPattern(RewritePattern):
             for index, (i, arg) in enumerate(
                 zip(op.inputs, op.body.block.args[:input_count])
             )
-            if isinstance(i.type, memref.MemRefType) and arg.uses
+            if isinstance(i.type, memref.MemRefType) or isinstance(i.type, TensorType) and arg.uses
+
         )
         streamable_output_indices = tuple(
             (index, arg.type)
             for index, (o, arg) in enumerate(
                 zip(op.outputs, op.body.block.args[input_count:])
             )
-            if isinstance(o.type, memref.MemRefType)
-            if index in init_indices or not arg.uses
+            if isinstance(o.type, memref.MemRefType) or isinstance(o.type, TensorType)
+            if index in init_indices or not arg.uses or True
         )
         if not streamable_input_indices and not streamable_output_indices:
             # No memrefs to convert to streams
@@ -83,7 +84,7 @@ class StreamifyGenericOpPattern(RewritePattern):
                         for iterator_type, bound in zip(
                             op.iterator_types, op.bounds.data
                         )
-                        if iterator_type.data != memref_stream.IteratorType.REDUCTION
+                        # if iterator_type.data != memref_stream.IteratorType.REDUCTION
                     )
                 ),
                 indexing_map,
@@ -92,19 +93,20 @@ class StreamifyGenericOpPattern(RewritePattern):
             if (indexing_map := op.indexing_maps.data[output_index + input_count])
         )
 
+
         patterns = ArrayAttr(input_patterns + output_patterns)
-        rewriter.insert_op_before_matched_op(
-            streaming_region_op := memref_stream.StreamingRegionOp(
-                tuple(op.inputs[index] for index, _ in streamed_input_indices),
-                tuple(op.outputs[index] for index, _ in streamable_output_indices),
-                patterns,
-                Region(Block(arg_types=input_stream_types + output_stream_types)),
-            )
+        streaming_region_op = memref_stream.StreamingRegionOp(
+            tuple(op.inputs[index] for index, _ in streamed_input_indices),
+            tuple(op.outputs[index] for index, _ in streamable_output_indices),
+            patterns,
+            Region(Block(arg_types=input_stream_types + output_stream_types)),
+            op.result_types,
         )
         new_body = streaming_region_op.body.block
         new_operands = list(op.operands[: len(op.inputs) + len(op.outputs)])
         for stream_index, (index, _) in enumerate(streamed_operand_indices):
             new_operands[index] = new_body.args[stream_index]
+
 
         rewriter.insert_op(
             memref_stream.GenericOp(
@@ -118,10 +120,11 @@ class StreamifyGenericOpPattern(RewritePattern):
                 op.init_indices,
                 op.doc,
                 op.library_call,
+                op.result_types,
             ),
             InsertPoint.at_end(new_body),
         )
-        rewriter.erase_matched_op()
+        rewriter.replace_matched_op(streaming_region_op)
 
 
 @dataclass(frozen=True)

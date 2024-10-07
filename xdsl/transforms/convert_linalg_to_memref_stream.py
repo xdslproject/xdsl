@@ -24,10 +24,6 @@ def iterator_type_attr(t: linalg.IteratorTypeAttr) -> memref_stream.IteratorType
 class ConvertGenericOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.Generic, rewriter: PatternRewriter) -> None:
-        if op.res:
-            raise NotImplementedError(
-                "converting linalg.generic with results not supported"
-            )
 
         # The memref_stream.generic op may take as arguments memrefs, scalars, or streams,
         # the latter of which does not carry shape information. linalg.generic constructs
@@ -51,6 +47,7 @@ class ConvertGenericOpPattern(RewritePattern):
                 ArrayAttr(()),
                 op.doc,
                 op.library_call,
+                op.result_types,
             )
         )
 

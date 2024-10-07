@@ -17,7 +17,8 @@ from typing_extensions import Self
 from xdsl.dialects import memref, stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyMemRefType,
+    AnyShapedType,
+    AnyTensorType,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -39,7 +40,6 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -48,6 +48,7 @@ from xdsl.irdl import (
     region_def,
     var_operand_def,
 )
+from xdsl.irdl.operations import var_result_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -207,12 +208,14 @@ class StreamingRegionOp(IRDLOperation):
 
     name = "memref_stream.streaming_region"
 
-    inputs = var_operand_def(memref.MemRefType)
+    inputs = var_operand_def(AnyShapedType())
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(memref.MemRefType)
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def()
     """
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
@@ -236,6 +239,7 @@ class StreamingRegionOp(IRDLOperation):
         outputs: Sequence[SSAValue],
         patterns: ArrayAttr[StridePattern],
         body: Region,
+        result_types: Sequence[Attribute] = (),
     ) -> None:
         super().__init__(
             operands=[inputs, outputs],
@@ -243,6 +247,7 @@ class StreamingRegionOp(IRDLOperation):
             properties={
                 "patterns": patterns,
             },
+            result_types=[result_types],
         )
 
     def print(self, printer: Printer):
@@ -369,12 +374,15 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(base(AnyMemRefType) | base(stream.AnyWritableStreamType))
+    outputs = var_operand_def()
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
     to.
     """
+
+    res = var_result_def(AnyTensorType)
+
     inits = var_operand_def()
     """
     Initial values for outputs. The outputs are at corresponding `init_indices`. The inits
@@ -418,6 +426,7 @@ class GenericOp(IRDLOperation):
         init_indices: ArrayAttr[IntAttr],
         doc: StringAttr | None = None,
         library_call: StringAttr | None = None,
+        result_types: Sequence[Attribute] = (),
     ) -> None:
         for m in indexing_maps:
             if m.data.num_symbols:
@@ -435,6 +444,7 @@ class GenericOp(IRDLOperation):
                 "library_call": library_call,
             },
             regions=[body],
+            result_types=[result_types],
         )
 
     def get_static_loop_ranges(
