@@ -77,8 +77,6 @@ class MergeVarithOpsPattern(RewritePattern):
         varith.add(arith.addi(1,2), varith.add(3, 4, 5), 6)
     becomes a
         varith.add(1,2,3,4,5,6)
-
-
     """
 
     @op_type_rewrite_pattern
@@ -148,6 +146,12 @@ def is_integer_like_type(t: Attribute) -> bool:
 
 
 class ConvertArithToVarithPass(ModulePass):
+    """
+    Convert chains of arith.{add|mul}{i,f} operations into a single long variadic add or mul operation.
+
+    Used for simplifying arithmetic operations for rewrites that need to either change the order or
+    completely "cut an equation in half".
+    """
     name = "convert-arith-to-varith"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
