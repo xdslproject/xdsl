@@ -152,6 +152,7 @@ class ConvertArithToVarithPass(ModulePass):
     Used for simplifying arithmetic operations for rewrites that need to either change the order or
     completely "cut an equation in half".
     """
+
     name = "convert-arith-to-varith"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
