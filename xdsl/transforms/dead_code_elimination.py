@@ -15,6 +15,9 @@ from xdsl.traits import (
 
 
 def would_be_trivially_dead(op: Operation):
+    """
+    Returns if the operation would be dead if all its results were dead.
+    """
     return (
         not op.get_trait(IsTerminator)
         and (not op.get_trait(SymbolOpInterface))

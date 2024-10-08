@@ -48,3 +48,18 @@
   %1 = "test.op"(%0) : (i32) -> (i32)
   "test.termop"()[^0] : () -> ()
 }) : () -> ()
+
+/// Recursive test
+// CHECK:      "test.op"() ({
+// CHECK-NEXT:   "test.op"() ({
+// CHECK-NEXT:     "test.termop"() : () -> ()
+// CHECK-NEXT:   }) : () -> ()
+// CHECK-NEXT:   "test.termop"() : () -> ()
+// CHECK-NEXT: }) : () -> ()
+"test.op"() ({
+  "test.op"() ({
+    "test.pureop"() : () -> ()
+    "test.termop"() : () -> ()
+  }) : () -> ()
+  "test.termop"() : () -> ()
+}) : () -> ()
