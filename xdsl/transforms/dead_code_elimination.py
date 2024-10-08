@@ -148,7 +148,6 @@ def region_dce(region: Region) -> bool:
         live_set.changed = False
         live_set.propagate_region_liveness(region)
 
-    live_set.changed = False
     live_set.delete_dead(region)
     return live_set.changed
 
