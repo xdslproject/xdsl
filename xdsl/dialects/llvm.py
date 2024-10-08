@@ -614,9 +614,7 @@ class GEPOp(IRDLOperation):
             raise ValueError("Input must be a pointer")
 
         props: dict[str, Attribute] = {
-            "rawConstantIndices": DenseArrayBase.create_dense_int_or_index(
-                i32, indices
-            ),
+            "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
         }
 
         if not ptr_type.is_typed():
