@@ -39,8 +39,7 @@ func.func @unused_res(%f1 : !stencil.field<[0,64]xf64>, %f2 : !stencil.field<[0,
 
 // CHECK:         func.func @unused_res(%f1 : !stencil.field<[0,64]xf64>, %f2 : !stencil.field<[0,64]xf64>, %of : !stencil.field<[0,64]xf64>) {
 // CHECK-NEXT:      %t1 = stencil.load %f1 : !stencil.field<[0,64]xf64> -> !stencil.temp<?xf64>
-// CHECK-NEXT:      %t2 = stencil.load %f2 : !stencil.field<[0,64]xf64> -> !stencil.temp<?xf64>
-// CHECK-NEXT:      %o1 = stencil.apply(%one = %t1 : !stencil.temp<?xf64>, %two = %t2 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
+// CHECK-NEXT:      %o1 = stencil.apply(%one = %t1 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
 // CHECK-NEXT:        %0 = stencil.access %one[0] : !stencil.temp<?xf64>
 // CHECK-NEXT:        stencil.return %0 : f64
 // CHECK-NEXT:      }

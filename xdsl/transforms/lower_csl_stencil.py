@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (
     i16,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, Block, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -21,6 +21,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
 
 
@@ -121,106 +122,134 @@ class LowerApplyOp(RewritePattern):
         ), "Expected csl_stencil.apply to be inside a func.func or csl.func"
 
         # set up csl funcs
-        reduce_fn = csl.FuncOp(
-            "chunk_reduce_cb" + str(self.count), FunctionType.from_lists([i16], [])
+        chunk_fn = csl.FuncOp(
+            "receive_chunk_cb" + str(self.count), FunctionType.from_lists([i16], [])
         )
-        post_fn = csl.FuncOp(
-            "post_process_cb" + str(self.count),
+        chunk_fn.body.block.args[0].name_hint = "offset"
+        done_fn = csl.FuncOp(
+            "done_exchange_cb" + str(self.count),
             FunctionType.from_lists([], []),
             Region(Block()),
         )
         self.count += 1
 
         # the offset arg was of type index and is now i16, so it's cast back to index to be used in the func body
-        reduce_fn.body.block.add_op(
+        chunk_fn.body.block.add_op(
             index_op := arith.IndexCastOp(
-                reduce_fn.body.block.args[0],
+                chunk_fn.body.block.args[0],
                 IndexType(),
             )
         )
 
         # arg maps for the regions
-        reduce_arg_m = [
-            op.communicated_stencil,  # buffer - this is a placeholder and should not be used after lowering AccessOp
+        chunk_arg_m = [
+            op.field,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
-            op.iter_arg,
-            *op.args[: len(op.chunk_reduce.block.args) - 3],
+            op.accumulator,
+            *op.args[: len(op.receive_chunk.block.args) - 3],
         ]
-        post_arg_m = [
-            op.communicated_stencil,
-            op.iter_arg,
-            *op.args[len(reduce_arg_m) - 3 :],
+        done_arg_m = [
+            op.field,
+            op.accumulator,
+            *op.args[len(chunk_arg_m) - 3 :],
         ]
+        index_op.result.name_hint = "offset"
+        op.accumulator.name_hint = "accumulator"
 
         # inlining both regions
         rewriter.inline_block(
-            op.chunk_reduce.block,
-            InsertPoint.at_end(reduce_fn.body.block),
-            reduce_arg_m,
+            op.receive_chunk.block,
+            InsertPoint.at_end(chunk_fn.body.block),
+            chunk_arg_m,
         )
         rewriter.inline_block(
-            op.post_process.block, InsertPoint.at_end(post_fn.body.block), post_arg_m
+            op.done_exchange.block, InsertPoint.at_end(done_fn.body.block), done_arg_m
         )
 
         # place both func next to the enclosing parent func
-        rewriter.insert_op([reduce_fn, post_fn], InsertPoint.after(parent_func))
+        rewriter.insert_op([chunk_fn, done_fn], InsertPoint.after(parent_func))
+
+        # ensure we send only core data
+        assert isa(op.accumulator.type, memref.MemRefType[Attribute])
+        assert isa(op.field.type, memref.MemRefType[Attribute])
+        send_buf = memref.Subview.get(
+            op.field,
+            [
+                (d - s) // 2  # symmetric offset
+                for s, d in zip(
+                    op.accumulator.type.get_shape(), op.field.type.get_shape()
+                )
+            ],
+            op.accumulator.type.get_shape(),
+            len(op.accumulator.type.get_shape()) * [1],
+            op.accumulator.type,
+        )
 
         # add api call
         num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
-        reduce_ref = csl.AddressOfFnOp(reduce_fn)
-        post_ref = csl.AddressOfFnOp(post_fn)
+        chunk_ref = csl.AddressOfFnOp(chunk_fn)
+        done_ref = csl.AddressOfFnOp(done_fn)
+        # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
         api_call = csl.MemberCallOp(
             "communicate",
             None,
             module_wrapper_op.get_program_import("stencil_comms.csl"),
             [
-                op.communicated_stencil,
+                send_buf,
                 num_chunks,
-                reduce_ref,
-                post_ref,
+                chunk_ref,
+                done_ref,
             ],
         )
 
         # replace op with api call
-        rewriter.replace_matched_op([num_chunks, reduce_ref, post_ref, api_call], [])
+        rewriter.replace_matched_op(
+            [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
+        )
 
 
 @dataclass(frozen=True)
 class LowerYieldOp(RewritePattern):
     """
     Lowers csl_stencil.yield to csl.return.
-    Note, the callbacks generated return no values, whereas the yield op
-    to be replaced may still report to yield values.
+    Note, the callbacks generated return no values, and the yield op
+    to be replaced should also yield no values. This should be run
+    after `--csl-stencil-materialize-stores`.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
-        assert isinstance(apply := op.parent_op(), csl_stencil.ApplyOp)
-
-        # the second callback stores yielded values to dest
-        if op.parent_region() == apply.post_process:
-            views: list[Operation] = []
-            for src, dst in zip(op.arguments, apply.dest):
-                assert isa(src.type, memref.MemRefType[Attribute])
-                assert isa(dst.type, memref.MemRefType[Attribute])
-                views.append(
-                    memref.Subview.get(
-                        dst,
-                        [
-                            (d - s) // 2  # symmetric offset
-                            for s, d in zip(src.type.get_shape(), dst.type.get_shape())
-                        ],
-                        src.type.get_shape(),
-                        len(src.type.get_shape()) * [1],
-                        src.type,
-                    )
-                )
-            copies = [memref.CopyOp(src, dst) for src, dst in zip(op.arguments, views)]
-            rewriter.insert_op(
-                [*views, *copies],
-                InsertPoint.before(op),
-            )
         rewriter.replace_matched_op(csl.ReturnOp())
+
+
+@dataclass(frozen=True)
+class InlineApplyOpArgs(RewritePattern):
+    """
+    Inlines apply op args into the callbacks.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        arg_mapping = zip(
+            op.done_exchange.block.args[2:],
+            op.args[-(len(op.done_exchange.block.args) - 2) :],
+        )
+        for block_arg, arg in [
+            (op.done_exchange.block.args[0], op.field),
+            *arg_mapping,
+        ]:
+            if isinstance(arg, OpResult) and arg.op.parent == op.parent:
+                if not (
+                    isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)
+                ):
+                    raise ValueError(
+                        "Can only promote csl.LoadVarOp or side_effect_free op"
+                    )
+                rewriter.insert_op(
+                    new_arg := arg.op.clone(),
+                    InsertPoint.at_start(op.done_exchange.block),
+                )
+                block_arg.replace_by(SSAValue.get(new_arg))
 
 
 @dataclass(frozen=True)
@@ -241,7 +270,13 @@ class LowerCslStencil(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            LowerYieldOp(),
+            GreedyRewritePatternApplier(
+                [
+                    LowerYieldOp(),
+                    InlineApplyOpArgs(),
+                ]
+            ),
+            apply_recursively=False,
         ).rewrite_module(op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(

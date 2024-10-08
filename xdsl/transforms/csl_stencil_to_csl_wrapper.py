@@ -5,8 +5,9 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyMemRefTypeConstr,
+    AnyTensorTypeConstr,
     IntegerAttr,
-    MemRefType,
     ShapedType,
     TensorType,
 )
@@ -23,6 +24,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms import csl_stencil_bufferize
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @dataclass(frozen=True)
@@ -75,30 +77,31 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
             # find max z dimension - we could get this from func args, store ops, or apply ops
-            # to support both bufferized and unbufferized csl_stencils, retrieve this from iter_arg
-            if isinstance(apply_op.post_process.block.args[1].type, ShapedType):
+            # to support both bufferized and unbufferized csl_stencils, retrieve this from accumulator
+            if isinstance(apply_op.done_exchange.block.args[1].type, ShapedType):
                 z_dim_no_ghost_cells = max(
                     z_dim_no_ghost_cells,
-                    apply_op.post_process.block.args[1].type.get_shape()[-1],
+                    apply_op.done_exchange.block.args[1].type.get_shape()[-1],
                 )
 
-            # retrieve z_dim from post_process arg[0]
-            if isa(
-                field_t := apply_op.post_process.block.args[0].type,
-                stencil.StencilType[
-                    TensorType[Attribute] | memref.MemRefType[Attribute]
-                ],
+            # retrieve z_dim from done_exchange arg[0]
+            if isattr(
+                field_t := apply_op.done_exchange.block.args[0].type,
+                stencil.StencilTypeConstr,
+            ) and isattr(
+                el_type := field_t.element_type,
+                AnyTensorTypeConstr | AnyMemRefTypeConstr,
             ):
                 # unbufferized csl_stencil
-                z_dim = max(z_dim, field_t.get_element_type().get_shape()[-1])
+                z_dim = max(z_dim, el_type.get_shape()[-1])
             elif isa(field_t, memref.MemRefType[Attribute]):
                 # bufferized csl_stencil
                 z_dim = max(z_dim, field_t.get_shape()[-1])
 
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
-            if isa(
-                buf_t := apply_op.chunk_reduce.block.args[0].type,
-                TensorType[Attribute] | MemRefType[Attribute],
+            if isattr(
+                buf_t := apply_op.receive_chunk.block.args[0].type,
+                AnyTensorTypeConstr | AnyMemRefTypeConstr,
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 
@@ -106,8 +109,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # initialise module op
         module_op = csl_wrapper.ModuleOp(
-            width=IntegerAttr(width, 16),
-            height=IntegerAttr(height, 16),
+            width=IntegerAttr(width + (max_distance * 2), 16),
+            height=IntegerAttr(height + (max_distance * 2), 16),
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
                 "pattern": IntegerAttr(max_distance + 1, 16),

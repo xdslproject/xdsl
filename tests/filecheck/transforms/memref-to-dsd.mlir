@@ -98,6 +98,14 @@ builtin.module {
 // CHECK-NEXT: %26 = "test.op"() : () -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.fadds"(%26, %26, %26) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
+%33 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
+%34 = "csl.load_var"(%33) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
+"csl.store_var"(%33, %34) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+
+// CHECK-NEXT: %27 = "csl.variable"() : () -> !csl.var<!csl<dsd mem1d_dsd>>
+// CHECK-NEXT: %28 = "csl.load_var"(%27) : (!csl.var<!csl<dsd mem1d_dsd>>) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: "csl.store_var"(%27, %28) : (!csl.var<!csl<dsd mem1d_dsd>>, !csl<dsd mem1d_dsd>) -> ()
+
 }) {sym_name = "program"} :  () -> ()
 }
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()

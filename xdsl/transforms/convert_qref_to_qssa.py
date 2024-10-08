@@ -30,17 +30,11 @@ class ConvertQRefToQssaPattern(RewritePattern):
         if not new_op.is_gate:
             return
 
-        # For gates we replace any other occurences of the original operands
-        # with the results of the new operation
+        # For gates we replace any other occurences of the original operands with the
+        # results of the new operation, except for when used by the new operation.
 
-        old_operands = tuple(new_op.operands)
-
-        # We do this by replacing all uses of the operand...
         for operand, result in zip(op.operands, new_op.results):
-            operand.replace_by(result)
-
-        # and then resetting the operands of the new operation
-        new_op.operands = old_operands
+            operand.replace_by_if(result, lambda use: use.operation is not new_op)
 
 
 class ConvertQRefToQssa(ModulePass):

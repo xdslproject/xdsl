@@ -310,10 +310,10 @@ class LowerImport(RewritePattern):
 
 
 @dataclass(frozen=True)
-class CslWrapperToCslPass(ModulePass):
+class LowerCslWrapperPass(ModulePass):
     """Unwraps the `csl_wrappermodule` into two `csl.module`s."""
 
-    name = "csl-wrapper-to-csl"
+    name = "lower-csl-wrapper"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(

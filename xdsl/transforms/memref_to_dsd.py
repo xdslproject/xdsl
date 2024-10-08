@@ -261,12 +261,46 @@ class RetainAddressOfOpPass(RewritePattern):
             )
 
 
+class CslVarUpdate(RewritePattern):
+    """Update CSL Variable Definitions."""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl.VariableOp, rewriter: PatternRewriter, /):
+        if (
+            not isinstance(op.res.type, csl.VarType)
+            or not isa(elem_t := op.res.type.get_element_type(), MemRefType[Attribute])
+            or op.default
+        ):
+            return
+        dsd_t = csl.DsdType(
+            csl.DsdKind.mem1d_dsd if len(elem_t.shape) == 1 else csl.DsdKind.mem4d_dsd
+        )
+        rewriter.replace_matched_op(csl.VariableOp.from_type(dsd_t))
+
+
+class CslVarLoad(RewritePattern):
+    """Update CSL Load Variables."""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl.LoadVarOp, rewriter: PatternRewriter, /):
+        if (
+            not isa(op.res.type, MemRefType[Attribute])
+            or not isinstance(op.var.type, csl.VarType)
+            or not isa(op.var.type.get_element_type(), csl.DsdType)
+        ):
+            return
+        rewriter.replace_matched_op(csl.LoadVarOp(op.var))
+
+
 @dataclass(frozen=True)
 class MemrefToDsdPass(ModulePass):
     """
     Lowers memref ops to CSL DSDs.
 
-    Note, that CSL uses memref types in some places
+    Note, that CSL uses memref types in some places.
+
+    This performs a backwards pass translating memref-consuming ops to dsd-consuming ops when all memref type
+    information is known. A second forward pass translates memref-generating ops to dsd-generating ops.
     """
 
     name = "memref-to-dsd"
@@ -287,6 +321,8 @@ class MemrefToDsdPass(ModulePass):
         forward_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    CslVarUpdate(),
+                    CslVarLoad(),
                     LowerAllocOpPass(),
                     DsdOpUpdateType(),
                     RetainAddressOfOpPass(),
