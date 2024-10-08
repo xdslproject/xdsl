@@ -474,7 +474,7 @@ class TblgenLoader:
                     fields[name] = "var_region_def()"
                 case (True, True):
                     fields[name] = 'var_region_def("single_block")'
-                case _:
+                case _:  # pyright: ignore[reportUnnecessaryComparison]
                     pass  # Make pyright happy
 
         for [succ, name] in tblgen_op.successors:
