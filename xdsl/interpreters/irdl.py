@@ -224,7 +224,7 @@ class IRDLFunctions(InterpreterFunctions):
             match entry:
                 case irdl.OperationOp():
                     operations.append(
-                        type(IRDLOperation)(
+                        type(
                             entry.sym_name.data,
                             (IRDLOperation,),
                             dict(IRDLOperation.__dict__)
@@ -234,7 +234,7 @@ class IRDLFunctions(InterpreterFunctions):
 
                 case irdl.TypeOp():
                     attributes.append(
-                        type(ParametrizedAttribute)(
+                        type(
                             entry.sym_name.data,
                             (TypeAttribute, ParametrizedAttribute),
                             dict(ParametrizedAttribute.__dict__)
