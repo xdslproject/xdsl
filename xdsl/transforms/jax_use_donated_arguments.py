@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from pprint import pprint
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
+from xdsl.dialects.bufferization import MaterializeInDestination
 from xdsl.dialects.builtin import TensorType
-from xdsl.dialects.func import FuncOp
-from xdsl.ir import BlockArgument
+from xdsl.dialects.func import Return
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -14,52 +14,46 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.mlir_opt import MLIROptPass
+from xdsl.utils.exceptions import VerifyException
 
-"""
-@dataclass
-class SubstituteDonatedTensors(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        if op.arg_attrs is None:
-            return
 
-        donated_inputs: list[BlockArgument] = []
-        for inp, attr in zip(op.args, op.arg_attrs):
-            if type(inp.type) is TensorType and "tf.aliasing_output" in attr.data:
-                donated_inputs.append(inp)
-
-        for child_op in op.body.ops:
-            if (
-                hasattr(child_op, "outputs")
-                and type(getattr(child_op, "outputs")) is VarOperand
-            ):
-                value_mapper: dict[SSAValue, SSAValue] = {}
-                for output in getattr(child_op, "outputs"):
-                    for i, arg in enumerate(donated_inputs):
-                        if type(getattr(output, "type")) is TensorType and getattr(
-                            arg, "type"
-                        ).is_same_type_with(output.type):
-                            value_mapper[output] = donated_inputs.pop(i)
-                            break
-                new_op = child_op.clone(value_mapper)
-                rewriter.replace_op(child_op, [new_op])
-"""
+def make_materialize_op(source: SSAValue, dest: SSAValue) -> MaterializeInDestination:
+    return MaterializeInDestination(operands=[source, dest], result_types=[source.type])
 
 
 @dataclass
 class SubstituteDonatedTensors(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        if op.arg_attrs is None:
+    def match_and_rewrite(self, op: Return, rewriter: PatternRewriter, /):
+        func_op = op.parent_op()
+        if func_op is None:
+            raise VerifyException("Return operation should be tied to a FuncOp")
+
+        arg_attrs = getattr(func_op, "arg_attrs")
+        args = getattr(func_op, "args")
+
+        if arg_attrs is None:
             return
 
-        donated_inputs: list[BlockArgument] = []
-        for inp, attr in zip(op.args, op.arg_attrs):
-            if type(inp.type) is TensorType and "tf.aliasing_output" in attr.data:
-                donated_inputs.append(inp)
+        donated_inputs = [
+            inp
+            for inp, attr in zip(args, arg_attrs)
+            if isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data
+        ]
 
-        pprint(vars(op.body))
+        value_mapper: dict[SSAValue, SSAValue] = {}
+        new_ops: list[Operation] = []
+        for output in op.arguments:
+            for i, arg in enumerate(donated_inputs):
+                if type(getattr(output, "type")) is TensorType and getattr(
+                    arg, "type"
+                ).is_same_type_with(output.type):
+                    new_ops.append(make_materialize_op(output, donated_inputs.pop(i)))
+                    value_mapper[output] = new_ops[-1].results[0]
+                    break
+
+        new_ops.append(op.clone(value_mapper))
+        rewriter.replace_matched_op(new_ops)
 
 
 @dataclass(frozen=True)
@@ -67,7 +61,6 @@ class JaxUseDonatedArguments(ModulePass):
     name = "jax-use-donated-arguments"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        MLIROptPass(arguments=("--linalg-fuse-elementwise-ops",)).apply(ctx, op)
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier([SubstituteDonatedTensors()]),
             apply_recursively=False,
