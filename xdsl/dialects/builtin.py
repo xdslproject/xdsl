@@ -16,7 +16,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -940,6 +940,18 @@ class DenseArrayBase(ParametrizedAttribute):
                         "dense array of float element type "
                         "should only contain floats"
                     )
+
+    @deprecated("Please use `create_dense_int` instead.")
+    @staticmethod
+    def create_dense_int_or_index(
+        data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase:
+        if len(data) and isinstance(data[0], int):
+            attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
+        else:
+            attr_list = cast(Sequence[IntAttr], data)
+
+        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
 
     @staticmethod
     def create_dense_int(
