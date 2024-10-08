@@ -244,10 +244,14 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
 
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
-            rewriter.insert_op(new_op, InsertPoint.before(old))
+            assert isinstance(new_op, Operation)
+            if new_op.parent is None:
+                rewriter.insert_op(new_op, InsertPoint.before(old))
             # Add new op to eclass
+            results = new_op.results
+            assert len(results) == 1
             eclass_op = self.value_to_eclass[old.results[0]]
-            eclass_op.operands = eclass_op.arguments + (new_op.res,)
+            eclass_op.operands = eclass_op.arguments + results
         elif op.repl_values:
             assert False, "Not implemented"
         else:
