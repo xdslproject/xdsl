@@ -520,8 +520,8 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         if self.name in constraint_context.ranges:
             if tuple(attrs) != constraint_context.ranges[self.name]:
                 raise VerifyException(
-                    f"attributes {map(str, constraint_context.ranges[self.name])} expected from variable "
-                    f"'{self.name}', but got {tuple(attrs)}"
+                    f"attributes {tuple(str(x) for x in constraint_context.ranges[self.name])} expected from variable "
+                    f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
                 )
         else:
             self.constraint.verify(attrs, constraint_context)

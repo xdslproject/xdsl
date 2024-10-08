@@ -360,21 +360,33 @@ def test_range_var_fail_non_equal():
     index_operand = TestSSAValue(IndexType())
 
     op = ConstraintRangeVarOp.create(operands=[index_operand], result_types=[i32])
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('index',\) expected from variable 'T', but got \('i32',\)",
+    ):
         op.verify()
 
     op2 = ConstraintRangeVarOp.create(
         operands=[i32_operand], result_types=[IndexType()]
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('i32',\) expected from variable 'T', but got \('index',\)",
+    ):
         op2.verify()
 
     op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32, i32])
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('i32',\) expected from variable 'T', but got \('i32', 'i32'\)",
+    ):
         op2.verify()
 
     op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[])
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('i32',\) expected from variable 'T', but got \(\)",
+    ):
         op2.verify()
 
 
@@ -384,14 +396,14 @@ def test_range_var_fail_not_satisfy_constraint():
     op = ConstraintRangeVarOp.create(
         operands=[test_operand], result_types=[TestType("foo")]
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
         op.verify()
 
     op = ConstraintRangeVarOp.create(
         operands=[test_operand, test_operand],
         result_types=[TestType("foo"), TestType("foo")],
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
         op.verify()
 
 
