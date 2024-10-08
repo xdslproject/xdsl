@@ -946,12 +946,8 @@ class DenseArrayBase(ParametrizedAttribute):
     def create_dense_int_or_index(
         data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
-        if len(data) and isinstance(data[0], int):
-            attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
-        else:
-            attr_list = cast(Sequence[IntAttr], data)
-
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        assert not isinstance(data_type, IndexType), "Index type is not supported"
+        return DenseArrayBase.create_dense_int(data_type, data)
 
     @staticmethod
     def create_dense_int(
