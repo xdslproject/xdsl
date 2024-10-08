@@ -4,7 +4,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import EllipsisType
-from typing import Annotated
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     I64,
@@ -34,9 +34,10 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    ConstraintVar,
+    BaseAttr,
     IRDLOperation,
     ParameterDef,
+    VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -355,7 +356,7 @@ class LinkageAttr(ParametrizedAttribute):
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
