@@ -226,16 +226,16 @@ class AnyAttr(GenericAttrConstraint[Attribute]):
 class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Ensure that an attribute satisfies one of the given constraints."""
 
-    attr_constrs: tuple[GenericAttrConstraint[Attribute], ...]
+    attr_constrs: tuple[GenericAttrConstraint[AttributeCovT], ...]
     """The list of constraints that are checked."""
 
     def __init__(
         self,
         attr_constrs: Sequence[
-            Attribute | type[Attribute] | GenericAttrConstraint[Attribute]
+            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
         ],
     ):
-        constrs: tuple[GenericAttrConstraint[Attribute], ...] = tuple(
+        constrs: tuple[GenericAttrConstraint[AttributeCovT], ...] = tuple(
             attr_constr_coercion(constr) for constr in attr_constrs
         )
         object.__setattr__(
@@ -495,7 +495,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         raise ValueError("Cannot infer range from constraint")
 
 
-RangeConstraint: TypeAlias = GenericAttrConstraint[Attribute]
+RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
 
 
 @dataclass(frozen=True)
