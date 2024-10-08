@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO, Any
+from typing import IO, Any, cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import eqsat, pdl
@@ -12,13 +12,12 @@ from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.convert_onnx_to_linalg import get_root_op
 from xdsl.utils.exceptions import InterpretationError
 
 
 @dataclass
 class EqsatPDLMatcher(PDLMatcher):
-    value_to_eclass: dict[SSAValue, eqsat.EClassOp] = field(default_factory=dict)
-
     def match_operand(
         self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue
     ):
@@ -29,7 +28,7 @@ class EqsatPDLMatcher(PDLMatcher):
         ), "newly converted eqsat always has 1 element in eclass"
         arg = owner.operands[0]
         res = super().match_operand(ssa_val, pdl_op, arg)
-        self.value_to_eclass[arg] = owner
+        # self.value_to_eclass[arg] = owner
         return res
 
         # res = super().match_operand(ssa_val, pdl_op, xdsl_val)
@@ -39,6 +38,13 @@ class EqsatPDLMatcher(PDLMatcher):
         # assert isinstance(only_use.operation, eqsat.EClassOp)
         # self.value_to_eclass[ssa_val] = only_use.operation
         # return res
+
+
+def _get_root_op(op: Operation | None) -> Operation | None:
+    """
+    Recursively finds and returns the root operation associated with the given operation.
+    """
+    return op if op is None or op.parent_op() is None else get_root_op(op.parent_op())
 
 
 @dataclass
@@ -60,6 +66,9 @@ class EqsatPDLRewritePattern(RewritePattern):
         self.pdl_rewrite_op = pdl_rewrite_op
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
+        if not self.functions.did_populate:
+            self.functions.populate_maps(cast(ModuleOp, _get_root_op(xdsl_op)))
+
         pdl_op_val = self.pdl_rewrite_op.root
         assert pdl_op_val is not None, "TODO: handle None root op in pdl.RewriteOp"
         assert (
@@ -84,13 +93,13 @@ class EqsatPDLRewritePattern(RewritePattern):
         self.interpreter.push_scope("rewrite")
         self.interpreter.set_values(matcher.matching_context.items())
         self.functions.rewriter = rewriter
-        self.functions.value_to_eclass = matcher.value_to_eclass
+        # self.functions.value_to_eclass = matcher.value_to_eclass
 
         self.interpreter.run_ssacfg_region(self.pdl_rewrite_op.body, ())
 
         self.interpreter.pop_scope()
         # Reset values just in case
-        self.functions.value_to_eclass = {}
+        # self.functions.value_to_eclass = {}
 
 
 @register_impls
@@ -106,6 +115,26 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
     ctx: MLContext
     _rewriter: PatternRewriter | None = field(default=None)
     value_to_eclass: dict[SSAValue, eqsat.EClassOp] = field(default_factory=dict)
+    operation_to_eclass: dict[
+        tuple[str, tuple[tuple[str, Attribute], ...], tuple[SSAValue, ...]],
+        eqsat.EClassOp,
+    ] = field(default_factory=dict)
+    did_populate: bool = field(default=False)
+
+    def populate_maps(self, module: ModuleOp):
+        for op in module.walk():
+            if isinstance(op, eqsat.EClassOp):
+                for operand in op.operands:
+                    self.value_to_eclass[operand] = op
+                    if isinstance(operand, OpResult):
+                        source = operand.op
+                        attributes = tuple(
+                            sorted(source.attributes.items(), key=lambda bla: bla[0])
+                        )
+                        self.operation_to_eclass[
+                            (source.name, attributes, tuple(source.operands))
+                        ] = op
+        self.did_populate = True
 
     @property
     def rewriter(self) -> PatternRewriter:
@@ -137,9 +166,6 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
         operand_values = interpreter.get_values(op.operand_values)
         for operand in operand_values:
             assert isinstance(operand, SSAValue)
-        eclass_operand_values = tuple(
-            self.value_to_eclass[operand].result for operand in operand_values
-        )
 
         attribute_values = interpreter.get_values(op.attribute_values)
 
@@ -169,6 +195,17 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
                 properties[attribute_name] = attribute_value
             else:
                 attributes[attribute_name] = attribute_value
+
+        # check if already exists
+        attributes_key = tuple(sorted(attributes.items(), key=lambda bla: bla[0]))
+        key = (op_name, attributes_key, operand_values)
+        existing = self.operation_to_eclass.get(key)
+        if existing is not None:
+            return (existing,)
+
+        eclass_operand_values = tuple(
+            self.value_to_eclass[operand].result for operand in operand_values
+        )
 
         result_op = op_type.create(
             operands=eclass_operand_values,
