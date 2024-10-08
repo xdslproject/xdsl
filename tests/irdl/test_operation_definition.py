@@ -159,15 +159,16 @@ def test_attr_verify():
         op.verify()
 
 
+# TODO: remove this test once the Annotated API is deprecated
 @irdl_op_definition
 class ConstraintVarOp(IRDLOperation):
     name = "test.constraint_var_op"
 
     T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand = operand_def(T)
-    result = result_def(T)
-    attribute = attr_def(T)
+    operand = operand_def(T)  # pyright: ignore[reportArgumentType]
+    result = result_def(T)  # pyright: ignore[reportArgumentType]
+    attribute = attr_def(T)  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
 
 def test_constraint_var():

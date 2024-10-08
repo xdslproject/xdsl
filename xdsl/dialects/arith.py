@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Literal, TypeVar, cast, overload
+from typing import Annotated, ClassVar, Generic, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -28,6 +28,7 @@ from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -290,7 +291,7 @@ class AddUIExtended(IRDLOperation):
 
     traits = frozenset([Pure()])
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -353,7 +354,7 @@ class Muli(SignlessIntegerBinaryOperation):
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
