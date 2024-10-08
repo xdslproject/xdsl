@@ -156,12 +156,33 @@ class ToMemrefOp(IRDLOperation):
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($memref)"
 
 
+# now only works for (tensor, tensor) arguments. need to add memref support as well.
+@irdl_op_definition
+class MaterializeInDestination(IRDLOperation):
+    name = "bufferization.materialize_in_destination"
+
+    source = operand_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+    )
+    dest = operand_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+    )
+    result = result_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+    )
+    restrict = opt_prop_def(UnitAttr)
+    writable = opt_prop_def(UnitAttr)
+
+    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` `(` type($source) `,` type($dest) `)` `->` type($result)"
+
+
 Bufferization = Dialect(
     "bufferization",
     [
         AllocTensorOp,
         ToTensorOp,
         ToMemrefOp,
+        MaterializeInDestination,
     ],
     [],
 )
