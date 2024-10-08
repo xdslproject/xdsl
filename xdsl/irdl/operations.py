@@ -1140,9 +1140,7 @@ class OpDef:
                     case _SuccessorFieldDef():
                         # These asserts are needed as our pyright version currently has a bug
                         assert issubclass(value.cls, SuccessorDef)
-                        successor_def = (
-                            value.cls()
-                        )  # pyright: ignore[reportGeneralTypeIssues]
+                        successor_def = value.cls()  # pyright: ignore[reportGeneralTypeIssues]
                         op_def.successors.append((field_name, successor_def))
                         continue
                     case _:
