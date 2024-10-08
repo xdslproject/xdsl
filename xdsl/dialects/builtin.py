@@ -448,6 +448,8 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
+IndexTypeConstr = BaseAttr(IndexType)
+
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )

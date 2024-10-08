@@ -6,11 +6,12 @@ from typing import cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
-    AnySignlessIntegerOrIndexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     IndexType,
+    IndexTypeConstr,
     IntegerType,
+    SignlessIntegerConstraint,
     StringAttr,
     i32,
 )
@@ -140,7 +141,7 @@ class Switch(IRDLOperation):
 
     case_values = opt_prop_def(DenseIntOrFPElementsAttr)
 
-    flag = operand_def(AnySignlessIntegerOrIndexType)
+    flag = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
 
     default_operands = var_operand_def()
 
