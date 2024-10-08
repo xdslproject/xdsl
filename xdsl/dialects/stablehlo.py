@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     I32,
     I64,
     AnyTensorType,
+    AnyTensorTypeConstr,
     ArrayAttr,
     DenseArrayBase,
     IntegerAttr,
@@ -33,6 +34,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    BaseAttr,
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
@@ -320,7 +322,7 @@ class CaseOp(IRDLOperation):
     name = "stablehlo.case"
     index = operand_def(SI32TensorType)
     branches = var_region_def("single_block")
-    _results = var_result_def(AnyTensorType | TokenType)
+    _results = var_result_def(AnyTensorTypeConstr | BaseAttr(TokenType))
 
     def __init__(
         self,
