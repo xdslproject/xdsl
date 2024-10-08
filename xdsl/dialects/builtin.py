@@ -168,22 +168,8 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        if len(args) == 1:
-            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
-        if len(args) == 0:
-            return ArrayOfConstraint(AnyAttr())
-        raise TypeError(
-            f"Attribute ArrayAttr expects at most 1 type"
-            f" parameter, but {len(args)} were given"
-        )
-
-    def verify(self) -> None:
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but {idx} "
-                    f"element is of type {type(val)}"
-                )
+        assert len(args) == 1
+        return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
 
     def __len__(self):
         return len(self.data)
