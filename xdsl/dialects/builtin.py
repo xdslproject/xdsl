@@ -40,6 +40,7 @@ from xdsl.ir.affine import (
     AffineSymExpr,
 )
 from xdsl.irdl import (
+    ANY_ATTR,
     AllOf,
     AnyAttr,
     AnyOf,

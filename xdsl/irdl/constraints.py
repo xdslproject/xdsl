@@ -221,6 +221,10 @@ class AnyAttr(GenericAttrConstraint[Attribute]):
         pass
 
 
+# TODO: merge after pyright is updated, and update all constrs
+ANY_ATTR = AnyAttr()
+
+
 @dataclass(frozen=True, init=False)
 class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Ensure that an attribute satisfies one of the given constraints."""
