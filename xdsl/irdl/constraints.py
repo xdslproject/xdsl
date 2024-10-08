@@ -450,7 +450,7 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
         return self.constr.infer(constraint_context)
 
 
-class RangeConstraint(Generic[AttributeCovT], ABC):
+class GenericRangeConstraint(Generic[AttributeCovT], ABC):
     """
     Constrain a range of attributes to a certain value.
     """
@@ -484,7 +484,7 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
 
     def infer(
         self, length: int, constraint_context: ConstraintContext
-    ) -> list[Attribute]:
+    ) -> Sequence[Attribute]:
         """
         Infer the range given the constraint variables that are already set.
 
@@ -495,8 +495,11 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
         raise ValueError("Cannot infer range from constraint")
 
 
+RangeConstraint: TypeAlias = GenericAttrConstraint[Attribute]
+
+
 @dataclass(frozen=True)
-class RangeVarConstraint(RangeConstraint):
+class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain an attribute range with the given constraint, and constrain all occurences
     of this constraint (i.e, sharing the same name) to be equal.
@@ -505,7 +508,7 @@ class RangeVarConstraint(RangeConstraint):
     name: str
     """The variable name. All uses of that name refer to the same variable."""
 
-    constraint: RangeConstraint
+    constraint: GenericRangeConstraint[AttributeCovT]
     """The constraint that the variable must satisfy."""
 
     def verify(
@@ -540,7 +543,7 @@ class RangeVarConstraint(RangeConstraint):
 
 
 @dataclass
-class RangeOf(RangeConstraint[AttributeCovT]):
+class RangeOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain each element in a range to satisfy a given constraint.
     """
@@ -568,7 +571,7 @@ class RangeOf(RangeConstraint[AttributeCovT]):
 
 
 @dataclass
-class SingleOf(RangeConstraint[AttributeCovT]):
+class SingleOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain a range to only contain a single element, which should satisfy a given constraint.
     """
@@ -601,15 +604,15 @@ def range_constr_coercion(
         AttributeCovT
         | type[AttributeCovT]
         | GenericAttrConstraint[AttributeCovT]
-        | RangeConstraint[AttributeCovT]
+        | GenericRangeConstraint[AttributeCovT]
     ),
-) -> RangeConstraint[AttributeCovT]:
-    if isinstance(attr, RangeConstraint):
+) -> GenericRangeConstraint[AttributeCovT]:
+    if isinstance(attr, GenericRangeConstraint):
         return attr
     return RangeOf(attr_constr_coercion(attr))
 
 
 def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
-) -> RangeConstraint[AttributeCovT]:
+) -> GenericRangeConstraint[AttributeCovT]:
     return SingleOf(attr_constr_coercion(attr))
