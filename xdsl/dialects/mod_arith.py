@@ -12,9 +12,10 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
-    attr_def,
+    ParsePropInAttrDict,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
 )
 from xdsl.traits import Pure
@@ -33,9 +34,12 @@ class BinaryOp(ModArithOp, ABC, Generic[_T]):
     """
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
+    modulus = prop_def(AnyIntegerAttr)
     lhs = operand_def(T)
     rhs = operand_def(T)
     output = result_def(T)
+
+    irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($output)"
     traits = frozenset((Pure(),))
@@ -52,20 +56,14 @@ class BinaryOp(ModArithOp, ABC, Generic[_T]):
         super().__init__(operands=[lhs, rhs], result_types=[result_type])
 
 
-class BinaryModuloOp(BinaryOp[_T], ABC, Generic[_T]):
-    """
-    Adds the modulus attribute
-    """
-
-    modulus = attr_def(AnyIntegerAttr)
-
-
 @irdl_op_definition
-class AddOp(BinaryModuloOp[Annotated[Attribute, signlessIntegerLike]]):
+class AddOp(BinaryOp[Annotated[Attribute, signlessIntegerLike]]):
     name = "mod_arith.add"
 
 
 ModArith = Dialect(
     "mod_arith",
-    [AddOp],
+    [
+        AddOp,
+    ],
 )
