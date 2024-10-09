@@ -21,7 +21,7 @@ class ConstraintContext:
     """The assignment of constraint variables."""
 
     ranges: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
-    """The constraint range variables."""
+    """The assignment of constraint range variables."""
 
     def copy(self):
         return ConstraintContext(self.variables.copy())
