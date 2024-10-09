@@ -59,7 +59,7 @@ class BinaryOp(ModArithOp, ABC):
 
 
 @irdl_op_definition
-class AddOp(BinaryOp[Annotated[Attribute, signlessIntegerLike]]):
+class AddOp(BinaryOp):
     name = "mod_arith.add"
 
 
