@@ -46,6 +46,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    GenericAttrConstraint,
     GenericData,
     IRDLOperation,
     MessageConstraint,
@@ -439,6 +440,7 @@ IndexTypeConstr = BaseAttr(IndexType)
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -510,6 +512,24 @@ class IntegerAttr(
 
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        # pyright needs updating, with the new one it works fine
+        value: AttrConstraint = AnyAttr(),
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,  # pyright: ignore[reportGeneralTypeIssues]
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
+        if type == AnyAttr():
+            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
+            IntegerAttr,
+            (
+                value,
+                type,
+            ),
+        )
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -644,6 +664,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+AnyFloatAttrConstr: BaseAttr[AnyFloatAttr] = BaseAttr(FloatAttr)
 
 
 @irdl_attr_definition
@@ -1436,7 +1457,7 @@ f80 = Float80Type()
 f128 = Float128Type()
 
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute, covariant=True)
 _UnrankedMemrefTypeElems = TypeVar(
     "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
 )
@@ -1564,6 +1585,27 @@ class MemRefType(
                 return ShapedType.strides_for_shape(self.get_shape())
             case _:
                 return self.layout.get_strides()
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        shape: GenericAttrConstraint[Attribute] | None = None,
+        # pyright needs updating, with the new one it works fine
+        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),  # pyright: ignore[reportGeneralTypeIssues]
+        layout: GenericAttrConstraint[Attribute] | None = None,
+        memory_space: GenericAttrConstraint[Attribute] | None = None,
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
+        if (
+            shape is None
+            and element_type == AnyAttr()
+            and layout is None
+            and memory_space is None
+        ):
+            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
+            MemRefType, (shape, element_type, layout, memory_space)
+        )
 
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
