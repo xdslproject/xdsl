@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyTensorTypeConstr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FunctionType,
@@ -163,7 +164,7 @@ class ApplyOpBufferize(RewritePattern):
                 arg_types=[
                     (
                         tensor_to_memref_type(arg.type)
-                        if isattr(arg.type, TensorType)
+                        if isattr(arg.type, AnyTensorTypeConstr)
                         else arg.type
                     )
                     for arg in args

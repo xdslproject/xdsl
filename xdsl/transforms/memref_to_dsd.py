@@ -27,6 +27,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 class LowerAllocOpPass(RewritePattern):
@@ -34,21 +35,24 @@ class LowerAllocOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
-        assert isa(op.memref.type, MemRefType[csl.ZerosOp.T])
-        zeros_op = csl.ZerosOp(op.memref.type)
+        assert isattr(
+            memref_type := op.memref.type,
+            MemRefType[csl.ZerosOpAttr].constr(element_type=csl.ZerosOpAttrConstr),
+        )
+        zeros_op = csl.ZerosOp(memref_type)
 
         dsd_t = csl.DsdType(
             csl.DsdKind.mem1d_dsd
-            if len(op.memref.type.shape) == 1
+            if len(memref_type.shape) == 1
             else csl.DsdKind.mem4d_dsd
         )
         offsets = None
-        if isinstance(op.memref.type.layout, StridedLayoutAttr) and isinstance(
-            op.memref.type.layout.offset, IntAttr
+        if isinstance(memref_type.layout, StridedLayoutAttr) and isinstance(
+            memref_type.layout.offset, IntAttr
         ):
-            offsets = ArrayAttr([IntegerAttr(op.memref.type.layout.offset, 16)])
+            offsets = ArrayAttr([IntegerAttr(memref_type.layout.offset, 16)])
 
-        shape = [arith.Constant(IntegerAttr(d, 16)) for d in op.memref.type.shape]
+        shape = [arith.Constant(IntegerAttr(d, 16)) for d in memref_type.shape]
         dsd_op = csl.GetMemDsdOp.build(
             operands=[zeros_op, shape],
             result_types=[dsd_t],
