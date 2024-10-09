@@ -2,26 +2,20 @@
 
 %arg0, %arg1 = "test.op"() : () -> (i32, i32)
 
-%add = llvm.add %arg0, %arg1 {"fastmathFlags" = #llvm.fastmath<fast>} : i32
-// CHECK: %add = llvm.add %arg0, %arg1 {"fastmathFlags" = #llvm.fastmath<fast>} : i32
-
-%add_fm_none = llvm.add %arg0, %arg1 {"fastmathFlags" = #llvm.fastmath<none>} : i32
-// CHECK: %add_fm_none = llvm.add %arg0, %arg1 {"fastmathFlags" = #llvm.fastmath<none>} : i32
-
 %add_nsw = llvm.add %arg0, %arg1 overflow<nsw> : i32
 // CHECK: %add_nsw = llvm.add %arg0, %arg1 overflow<nsw> : i32
 
 %add_nuw = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nuw>} : i32
-// CHECK: %add_nuw = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nuw>} : i32
+// CHECK: %add_nuw = llvm.add %arg0, %arg1 overflow<nuw> : i32
 
 %add_none = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<none>} : i32
-// CHECK: %add_none = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<none>} : i32
+// CHECK: %add_none = llvm.add %arg0, %arg1 : i32
 
 %add_both = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nsw, nuw>} : i32
-// CHECK: %add_both = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nsw,nuw>} : i32
+// CHECK: %add_both = llvm.add %arg0, %arg1 overflow<nsw,nuw> : i32
 
 %add_both_reverse = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nuw, nsw>} : i32
-// CHECK: %add_both_reverse = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nsw,nuw>} : i32
+// CHECK: %add_both_reverse = llvm.add %arg0, %arg1 overflow<nsw,nuw> : i32
 
 %add_both_pretty = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
 // CHECK: %add_both_pretty = llvm.add %arg0, %arg1 overflow<nsw,nuw> : i32

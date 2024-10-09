@@ -457,6 +457,10 @@ class ArithmeticBinOpOverflow(Generic[ArgT], IRDLOperation, ABC):
         rhs = parser.parse_unresolved_operand()
         overflowFlags = cls.parse_overflow(parser)
         attributes = parser.parse_optional_attr_dict()
+        if "overflowFlags" in attributes:
+            flags = attributes.pop("overflowFlags")
+            if isinstance(flags, OverflowAttr):
+                overflowFlags = flags
         parser.parse_characters(":")
         type = parser.parse_type()
         operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
