@@ -25,15 +25,12 @@ class ModArithOp(IRDLOperation, ABC):
     pass
 
 
-_T = TypeVar("_T", bound=Attribute)
-
-
-class BinaryOp(ModArithOp, ABC, Generic[_T]):
+class BinaryOp(ModArithOp, ABC):
     """
     Simple binary operation
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
     modulus = prop_def(AnyIntegerAttr)
     lhs = operand_def(T)
     rhs = operand_def(T)
