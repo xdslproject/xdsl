@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     FunctionType,
     IndexType,
     IntegerAttr,
@@ -23,6 +25,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 def get_dir_and_distance_ops(
@@ -253,6 +256,123 @@ class InlineApplyOpArgs(RewritePattern):
 
 
 @dataclass(frozen=True)
+class FullStencilAccessImmediateReductionOptimization(RewritePattern):
+    """
+    If an apply op accesses all points in the stencil shape *and* immediately performs a reduction,
+    lower to an API call that iterates over all receive buffers at once. This requires setting up a
+    4d dsd that disregards all but one dimensions.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        # check that apply is inside a csl_wrapper and retreive `pattern` (stencil arm length + self)
+        if (wrapper := _get_module_wrapper(op)) is None:
+            return
+        pattern = wrapper.get_param_value("pattern").value.data
+
+        # get csl_stencil.access ops and offsets
+        access_ops: list[csl_stencil.AccessOp] = [
+            a for a in op.receive_chunk.walk() if isinstance(a, csl_stencil.AccessOp)
+        ]
+        offsets = set(tuple(a.offset) for a in access_ops)
+
+        # this rewrite only works if all points in the stencil shape are accessed
+        if not self.is_full_2d_starshaped_access(offsets, pattern - 1):
+            return
+
+        # find potential 'reduction' ops
+        reduction_ops: set[Operation] = set(
+            u.operation for a in access_ops for u in a.result.uses
+        )
+
+        # check if reduction ops are of the same type
+        red_op_ts = set(type(r) for r in reduction_ops)
+        if len(red_op_ts) > 1 or (red_op_t := red_op_ts.pop()) not in [
+            csl.FaddsOp,
+            csl.FmulsOp,
+        ]:
+            return
+        red_ops = cast(set[csl.BuiltinDsdOp], reduction_ops)
+
+        # safety check 1: each access has one use
+        acc_ops_uses = set(len(a.result.uses) for a in access_ops)
+        if len(acc_ops_uses) > 1 or acc_ops_uses.pop() != 1:
+            return
+
+        # safety check 2: reduction ops use only access ops
+        # note, we have already checked that each access op is only consumed once
+        red_args = set(arg for r in red_ops for arg in r.ops)
+        nonaccess_args = red_args - set(a.result for a in access_ops)
+        if len(nonaccess_args) > 1:
+            return
+
+        # safety check 3: the non-access op is an accumulator, used as the result param of all reduction ops
+        accumulator = nonaccess_args.pop()
+        if any(accumulator != r.ops[0] for r in red_ops):
+            return
+
+        if not isattr(accumulator.type, memref.MemRefType):
+            raise ValueError("Pass needs to be run on memref types")
+
+        # op.accumulator needs to be a memref alloc for this pass to work
+        if not isinstance(op.accumulator, OpResult) or not isinstance(
+            alloc := op.accumulator.op, memref.Alloc
+        ):
+            return
+
+        dsd_t = csl.DsdType(csl.DsdKind.mem4d_dsd)
+        direction_count = arith.Constant.from_int_and_width(4, 16)
+        pattern = wrapper.get_program_param("pattern")
+        chunk_size = wrapper.get_program_param("chunk_size")
+        acc_dsd = csl.GetMemDsdOp.build(
+            operands=[alloc, [direction_count, pattern, chunk_size]],
+            result_types=[dsd_t],
+            properties={"strides": ArrayAttr([IntegerAttr(i, 16) for i in [0, 0, 1]])},
+        )
+
+        new_ops: list[Operation] = [direction_count, acc_dsd]
+        if (
+            isinstance(accumulator, OpResult)
+            and isinstance(subview := accumulator.op, memref.Subview)
+            and subview.source == op.receive_chunk.block.args[2]
+        ):
+            assert isa(subview.source.type, memref.MemRefType[Attribute])
+            new_ops.append(
+                cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value)
+            )
+            new_ops.append(
+                csl.IncrementDsdOffsetOp.build(
+                    operands=[acc_dsd, cast_op],
+                    properties={"elem_type": subview.source.type.get_element_type()},
+                    result_types=[dsd_t],
+                )
+            )
+        new_acc = new_ops[-1]
+
+        api_call = csl.MemberCallOp(
+            "getRecvBufDsd", dsd_t, wrapper.get_program_import("stencil_comms.csl"), []
+        )
+
+        reduction_func = red_op_t.build(operands=[[new_acc, new_acc, api_call]])
+
+        rewriter.insert_op(
+            [*new_ops, api_call, reduction_func], InsertPoint.after(list(red_ops)[-1])
+        )
+
+        for e in [*access_ops, *red_ops]:
+            rewriter.erase_op(e, safe_erase=False)
+
+    @staticmethod
+    def is_full_2d_starshaped_access(
+        offsets: set[tuple[int, ...]], max_offset: int
+    ) -> bool:
+        """Returns iff the offsets cover all points in a 2d star-shape without the (0,0) point."""
+        x_set = set((x, 0) for x in range(-max_offset, max_offset + 1))
+        y_set = set((0, y) for y in range(-max_offset, max_offset + 1))
+        return offsets == x_set ^ y_set
+
+
+@dataclass(frozen=True)
 class LowerCslStencil(ModulePass):
     """
     Lowers csl_stencil ops to csl and api calls.
@@ -274,6 +394,7 @@ class LowerCslStencil(ModulePass):
                 [
                     LowerYieldOp(),
                     InlineApplyOpArgs(),
+                    FullStencilAccessImmediateReductionOptimization(),
                 ]
             ),
             apply_recursively=False,
