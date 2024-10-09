@@ -4,7 +4,7 @@ implemented as part of the HEIR project (https://github.com/google/heir/tree/mai
 """
 
 from abc import ABC
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated
 
 from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import AnyIntegerAttr
@@ -21,11 +21,7 @@ from xdsl.irdl import (
 from xdsl.traits import Pure
 
 
-class ModArithOp(IRDLOperation, ABC):
-    pass
-
-
-class BinaryOp(ModArithOp, ABC):
+class BinaryOp(IRDLOperation, ABC):
     """
     Simple binary operation
     """
