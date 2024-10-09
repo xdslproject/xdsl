@@ -73,7 +73,9 @@ class ExtractCslModules(RewritePattern):
         )
         return (
             struct,
-            csl.SetTileCodeOp(fname=prog_name, x_coord=x, y_coord=y, params=struct),
+            csl.SetTileCodeOp(
+                fname=f"{prog_name}.csl", x_coord=x, y_coord=y, params=struct
+            ),
         )
 
     def lower_layout_module(
