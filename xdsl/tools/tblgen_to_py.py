@@ -465,7 +465,7 @@ class TblgenLoader:
                 "SizedRegion" in region.superclasses
                 and region.summary == "region with 1 blocks"
             )
-            match (variadic, single_block):
+            match (variadic, single_block):  # pyright: ignore[reportMatchNotExhaustive]
                 case (False, False):
                     fields[name] = "region_def()"
                 case (False, True):
@@ -474,8 +474,6 @@ class TblgenLoader:
                     fields[name] = "var_region_def()"
                 case (True, True):
                     fields[name] = 'var_region_def("single_block")'
-                case _:
-                    pass  # Make pyright happy
 
         for [succ, name] in tblgen_op.successors:
             name = self._resolve_name(name)
