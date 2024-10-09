@@ -152,7 +152,7 @@ RdRsRsFloatOperation = riscv.RdRsRsOperation[
 
 @dataclass
 class LowerBinaryIntegerOp(RewritePattern):
-    arith_op_cls: type[arith.SignlessIntegerBinaryOp]
+    arith_op_cls: type[arith.SignlessIntegerBinaryOperation]
     riscv_op_cls: type[RdRsRsIntegerOperation]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
@@ -169,7 +169,7 @@ class LowerBinaryIntegerOp(RewritePattern):
 
 @dataclass
 class LowerBinaryFloatOp(RewritePattern):
-    arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
+    arith_op_cls: type[arith.FloatingPointLikeBinaryOperation]
     riscv_f_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
     riscv_d_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
 

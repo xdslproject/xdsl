@@ -7,7 +7,6 @@ from xdsl.dialects.arith import (
     Addi,
     AddUIExtended,
     AndI,
-    BinaryOperation,
     CeilDivSI,
     CeilDivUI,
     Cmpf,
@@ -20,7 +19,7 @@ from xdsl.dialects.arith import (
     ExtSIOp,
     ExtUIOp,
     FastMathFlagsAttr,
-    FloatingPointLikeBinaryOp,
+    FloatingPointLikeBinaryOperation,
     FloorDivSI,
     FPToSIOp,
     IndexCastOp,
@@ -41,6 +40,7 @@ from xdsl.dialects.arith import (
     ShLI,
     ShRSI,
     ShRUI,
+    SignlessIntegerBinaryOperation,
     SIToFPOp,
     Subf,
     Subi,
@@ -103,7 +103,7 @@ class Test_integer_arith_construction:
     @pytest.mark.parametrize("return_type", [None, operand_type])
     def test_arith_ops_init(
         self,
-        OpClass: type[BinaryOperation[_BinOpArgT]],
+        OpClass: type[SignlessIntegerBinaryOperation],
         return_type: Attribute,
     ):
         op = OpClass(self.a, self.b)
@@ -210,7 +210,9 @@ class Test_float_arith_construction:
         "flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None]
     )
     def test_arith_ops(
-        self, func: type[FloatingPointLikeBinaryOp], flags: FastMathFlagsAttr | None
+        self,
+        func: type[FloatingPointLikeBinaryOperation],
+        flags: FastMathFlagsAttr | None,
     ):
         op = func(self.a, self.b, flags)
         assert op.operands[0].owner is self.a
