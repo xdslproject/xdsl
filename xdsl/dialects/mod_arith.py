@@ -49,11 +49,16 @@ class BinaryOp(ModArithOp, ABC, Generic[_T]):
         lhs: SSAValue | Operation,
         rhs: SSAValue | Operation,
         result_type: Attribute | None,
+        modulus: Attribute,
     ):
         if result_type is None:
             result_type = SSAValue.get(lhs).type
 
-        super().__init__(operands=[lhs, rhs], result_types=[result_type])
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[result_type],
+            properties={"modulus": modulus},
+        )
 
 
 @irdl_op_definition
