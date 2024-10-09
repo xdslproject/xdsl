@@ -4,7 +4,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import EllipsisType
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated
 
 from xdsl.dialects.builtin import (
     I64,
@@ -352,13 +352,10 @@ class LinkageAttr(ParametrizedAttribute):
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
-ArgT = TypeVar("ArgT", bound=Attribute)
-
-
-class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
+class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T = Annotated[Attribute, ArgT, ConstraintVar("T")]
+    T = Annotated[IntegerType, ConstraintVar("T")]
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -397,67 +394,67 @@ class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class AddOp(ArithmeticBinOpBase[IntegerType]):
+class AddOp(ArithmeticBinOperation):
     name = "llvm.add"
 
 
 @irdl_op_definition
-class SubOp(ArithmeticBinOpBase[IntegerType]):
+class SubOp(ArithmeticBinOperation):
     name = "llvm.sub"
 
 
 @irdl_op_definition
-class MulOp(ArithmeticBinOpBase[IntegerType]):
+class MulOp(ArithmeticBinOperation):
     name = "llvm.mul"
 
 
 @irdl_op_definition
-class UDivOp(ArithmeticBinOpBase[IntegerType]):
+class UDivOp(ArithmeticBinOperation):
     name = "llvm.udiv"
 
 
 @irdl_op_definition
-class SDivOp(ArithmeticBinOpBase[IntegerType]):
+class SDivOp(ArithmeticBinOperation):
     name = "llvm.sdiv"
 
 
 @irdl_op_definition
-class URemOp(ArithmeticBinOpBase[IntegerType]):
+class URemOp(ArithmeticBinOperation):
     name = "llvm.urem"
 
 
 @irdl_op_definition
-class SRemOp(ArithmeticBinOpBase[IntegerType]):
+class SRemOp(ArithmeticBinOperation):
     name = "llvm.srem"
 
 
 @irdl_op_definition
-class AndOp(ArithmeticBinOpBase[IntegerType]):
+class AndOp(ArithmeticBinOperation):
     name = "llvm.and"
 
 
 @irdl_op_definition
-class OrOp(ArithmeticBinOpBase[IntegerType]):
+class OrOp(ArithmeticBinOperation):
     name = "llvm.or"
 
 
 @irdl_op_definition
-class XOrOp(ArithmeticBinOpBase[IntegerType]):
+class XOrOp(ArithmeticBinOperation):
     name = "llvm.xor"
 
 
 @irdl_op_definition
-class ShlOp(ArithmeticBinOpBase[IntegerType]):
+class ShlOp(ArithmeticBinOperation):
     name = "llvm.shl"
 
 
 @irdl_op_definition
-class LShrOp(ArithmeticBinOpBase[IntegerType]):
+class LShrOp(ArithmeticBinOperation):
     name = "llvm.lshr"
 
 
 @irdl_op_definition
-class AShrOp(ArithmeticBinOpBase[IntegerType]):
+class AShrOp(ArithmeticBinOperation):
     name = "llvm.ashr"
 
 
