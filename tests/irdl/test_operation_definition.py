@@ -196,7 +196,10 @@ def test_constraint_var_fail_non_equal():
     op = ConstraintVarOp.create(
         operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
         op.verify()
 
     # Fail because of result
@@ -205,7 +208,10 @@ def test_constraint_var_fail_non_equal():
         result_types=[IndexType()],
         attributes={"attribute": i32},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
         op2.verify()
 
     # Fail because of attribute
@@ -214,7 +220,10 @@ def test_constraint_var_fail_non_equal():
         result_types=[i32],
         attributes={"attribute": IndexType()},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: attribute i32 expected from variable 'T', but got index",
+    ):
         op3.verify()
 
 
@@ -226,7 +235,10 @@ def test_constraint_var_fail_not_satisfy_constraint():
         result_types=[TestType("foo")],
         attributes={"attribute": TestType("foo")},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: operand at position 0 does not verify",
+    ):
         op.verify()
 
 
@@ -268,7 +280,10 @@ def test_generic_constraint_var_fail_non_equal():
     op = GenericConstraintVarOp.create(
         operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
         op.verify()
 
     # Fail because of result
@@ -277,7 +292,10 @@ def test_generic_constraint_var_fail_non_equal():
         result_types=[IndexType()],
         attributes={"attribute": i32},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
         op2.verify()
 
     # Fail because of attribute
@@ -286,7 +304,10 @@ def test_generic_constraint_var_fail_non_equal():
         result_types=[i32],
         attributes={"attribute": IndexType()},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: attribute i32 expected from variable 'T', but got index",
+    ):
         op3.verify()
 
 
@@ -298,7 +319,10 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
         result_types=[TestType("foo")],
         attributes={"attribute": TestType("foo")},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: operand at position 0 does not verify",
+    ):
         op.verify()
 
 
