@@ -518,10 +518,10 @@ class IntegerAttr(
         cls,
         *,
         # pyright needs updating, with the new one it works fine
-        value: AttrConstraint = AnyAttr(),
+        value: AttrConstraint | None = None,
         type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,  # pyright: ignore[reportGeneralTypeIssues]
     ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
-        if type == AnyAttr():
+        if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
         return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
             IntegerAttr,
