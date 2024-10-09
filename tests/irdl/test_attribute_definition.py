@@ -693,14 +693,6 @@ class ListData(GenericData[list[A]]):
     def from_list(data: list[A]) -> ListData[A]:
         return ListData(data)
 
-    def verify(self) -> None:
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but element "
-                    f"{idx} is of type {type(val)}."
-                )
-
 
 AnyListData: TypeAlias = ListData[Attribute]
 
