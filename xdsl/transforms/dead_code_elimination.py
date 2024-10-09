@@ -5,7 +5,12 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, PatternRewriterListener, RewritePattern
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    PatternRewriterListener,
+    PatternRewriteWalker,
+    RewritePattern,
+)
 from xdsl.traits import (
     IsTerminator,
     MemoryEffectKind,
@@ -152,6 +157,7 @@ def region_dce(region: Region, listener: PatternRewriterListener | None = None) 
 
     live_set.delete_dead(region, listener)
     return live_set.changed
+
 
 def op_dce(op: Operation, listener: PatternRewriterListener | None = None):
     changed = tuple(region_dce(region, listener) for region in op.regions)

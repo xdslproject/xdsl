@@ -668,11 +668,12 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
-    post_walk_pass: Callable[[Operation, PatternRewriterListener], bool] | None = field(default=None)
+    post_walk_pass: Callable[[Operation, PatternRewriterListener], bool] | None = field(
+        default=None
+    )
     """
     Pass to call between each walk of the IR.
     """
-
 
     listener: PatternRewriterListener = field(default_factory=PatternRewriterListener)
     """The listener that will be called when an operation or block is modified."""
