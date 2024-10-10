@@ -829,8 +829,8 @@ class Cmpf(ComparisonOperation):
         printer.print(", ")
         printer.print_operand(self.rhs)
         if self.fastmath != FastMathFlagsAttr("none"):
-            printer.print_string(" fastmath")
-            self.fastmath.print_parameter(printer)
+            printer.print(" ")
+            printer.print_attr_dict({"fastmath": self.fastmath})
         printer.print(" : ")
         printer.print_attribute(self.lhs.type)
 

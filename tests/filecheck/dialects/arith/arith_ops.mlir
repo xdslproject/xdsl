@@ -173,7 +173,7 @@
 
   %cmpf_fm = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i64, "fastmath" = #arith.fastmath<fast>} : (f32, f32) -> i1
 
-  // CHECK-NEXT: %cmpf_fm = arith.cmpf ogt, %lhsf32, %rhsf32 fastmath<fast> : f32
+  // CHECK-NEXT: %cmpf_fm = arith.cmpf ogt, %lhsf32, %rhsf32 {"fastmath" = #arith.fastmath<fast>} : f32
 
   %selecti = "arith.select"(%lhsi1, %lhsi32, %rhsi32) : (i1, i32, i32) -> i32
   %selectf = "arith.select"(%lhsi1, %lhsf32, %rhsf32) : (i1, f32, f32) -> f32
