@@ -1,7 +1,7 @@
 from conftest import assert_print_op
 
 from xdsl.dialects import test, transform
-from xdsl.dialects.builtin import DenseArrayBase, IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import DenseArrayBase, IntegerAttr, IntegerType
 from xdsl.ir import Block, Region, SSAValue
 
 
@@ -70,7 +70,7 @@ def test_tileop_init():
     )
 
     target = block.args[0]
-    static_sizes = DenseArrayBase.create_dense_int_or_index(IndexType(), [8, 8])
+    static_sizes = DenseArrayBase.create_dense_int(IntegerType(32), [8, 8])
 
     assert_print_op(
         transform.TileOp(
@@ -78,7 +78,7 @@ def test_tileop_init():
             dynamic_sizes=[],
             static_sizes=static_sizes,
         ),
-        """%0, %1, %2 = "transform.structured.tile_using_for"(%3) <{"static_sizes" = array<index: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",
+        """%0, %1, %2 = "transform.structured.tile_using_for"(%3) <{"static_sizes" = array<i32: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",
         None,
     )
 
@@ -224,7 +224,7 @@ def test_amount_of_loops():
     )
 
     target = block.args[0]
-    static_sizes = DenseArrayBase.create_dense_int_or_index(IndexType(), [8, 0])
+    static_sizes = DenseArrayBase.create_dense_int(IntegerType(32), [8, 0])
 
     assert_print_op(
         transform.TileOp(
@@ -232,7 +232,7 @@ def test_amount_of_loops():
             dynamic_sizes=[],
             static_sizes=static_sizes,
         ),
-        """%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<index: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",
+        """%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<i32: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",
         None,
     )
 
