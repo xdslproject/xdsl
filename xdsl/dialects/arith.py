@@ -173,7 +173,7 @@ _T = TypeVar("_T", bound=Attribute)
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
-    """A generic base class for arith's binary operation on signless integers."""
+    """A generic base class for arith's binary operations on signless integers."""
 
     T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
 
