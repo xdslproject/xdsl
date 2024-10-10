@@ -173,7 +173,7 @@ _T = TypeVar("_T", bound=Attribute)
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
-    """A generic base class for arith's binary operation on signless integers."""
+    """A generic base class for arith's binary operations on signless integers."""
 
     T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
@@ -214,7 +214,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
 
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
-    """A generic base class for arith's binary operation on floats."""
+    """A generic base class for arith's binary operations on floats."""
 
     T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", floatingPointLike)
 
