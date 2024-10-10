@@ -760,11 +760,23 @@ class CslPrintContext:
                     ind_vars = ["d" + str(i) for i in range(len(sizes))]
                     ind_vars_str = ", ".join(ind_vars)
                     accesses = [
-                        (f"{str(strides.data[i].value.data)} * " if strides else "")
+                        (
+                            f"{str(s)} * "
+                            if strides and (s := strides.data[i].value.data) != 1
+                            else ""
+                        )
                         + ind_vars[i]
                         + (f" + {str(offsets.data[i].value.data)}" if offsets else "")
                         for i in range(len(ind_vars))
                     ]
+                    if strides and 0 in (
+                        strides_data := [s.value.data for s in strides.data]
+                    ):
+                        non_zero_stride_idx = [
+                            idx for idx, sd in enumerate(strides_data) if sd != 0
+                        ]
+                        if len(non_zero_stride_idx) == 1:
+                            accesses = [accesses[non_zero_stride_idx[0]]]
                     accesses_str = ", ".join(accesses)
                     self.print(
                         f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
