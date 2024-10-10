@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar
@@ -17,18 +17,66 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: dict[str, Attribute] = field(default_factory=dict)
     """The assignment of constraint variables."""
 
-    range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
     """The assignment of constraint range variables."""
 
+    @property
+    def variables(self) -> Variables:
+        return Variables(self)
+
+    @property
+    def range_variables(self) -> RangeVariables:
+        return RangeVariables(self)
+
     def copy(self):
-        return ConstraintContext(self.variables.copy(), self.range_variables.copy())
+        return ConstraintContext(self._variables.copy(), self._range_variables.copy())
 
     def update(self, other: ConstraintContext):
-        self.variables.update(other.variables)
-        self.range_variables.update(other.range_variables)
+        self._variables.update(other._variables)
+        self._range_variables.update(other._range_variables)
+
+
+_T = TypeVar("_T", bound=Attribute | tuple[Attribute, ...])
+
+
+@dataclass
+class VariableBase(Generic[_T], MutableMapping[str, _T], ABC):
+    _parent: ConstraintContext
+
+    @abstractmethod
+    def _get_dict(self) -> dict[str, _T]: ...
+
+    def __getitem__(self, key: str) -> _T:
+        return self._get_dict()[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._get_dict())
+
+    def __len__(self) -> int:
+        return len(self._get_dict())
+
+    def __setitem__(self, key: str, value: _T) -> None:
+        assert key not in self._parent._variables  # pyright: ignore[reportPrivateUsage]
+        assert key not in self._parent._range_variables  # pyright: ignore[reportPrivateUsage]
+        self._get_dict()[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        self._get_dict().__delitem__(key)
+
+
+@dataclass
+class Variables(VariableBase[Attribute]):
+    def _get_dict(self) -> dict[str, Attribute]:
+        return self._parent._variables  # pyright: ignore[reportPrivateUsage]
+
+
+@dataclass
+class RangeVariables(VariableBase[tuple[Attribute, ...]]):
+    def _get_dict(self) -> dict[str, tuple[Attribute, ...]]:
+        return self._parent._range_variables  # pyright: ignore[reportPrivateUsage]
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
