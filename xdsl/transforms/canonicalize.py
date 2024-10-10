@@ -37,4 +37,4 @@ class CanonicalizePass(ModulePass):
         pattern = GreedyRewritePatternApplier(
             [RemoveUnusedOperations(), CanonicalizationRewritePattern()]
         )
-        PatternRewriteWalker(pattern, post_walk_pass=op_dce).rewrite_module(op)
+        PatternRewriteWalker(pattern, post_walk_func=op_dce).rewrite_module(op)
