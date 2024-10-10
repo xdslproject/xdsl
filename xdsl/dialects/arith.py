@@ -214,7 +214,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
 
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
-    """A generic base class for arith's binary operation on floats."""
+    """A generic base class for arith's binary operations on floats."""
 
     T = Annotated[Attribute, ConstraintVar("T"), floatingPointLike]
 
