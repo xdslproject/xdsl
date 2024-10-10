@@ -15,7 +15,8 @@ from xdsl.utils.hints import isa
 
 # map the arith operation to the right varith op:
 ARITH_TO_VARITH_TYPE_MAP: dict[
-    type[arith.BinaryOperation[Attribute]], type[varith.VarithOp]
+    type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
+    type[varith.VarithOp],
 ] = {
     arith.Addi: varith.VarithAddOp,
     arith.Addf: varith.VarithAddOp,
@@ -35,7 +36,11 @@ class ArithToVarithPattern(RewritePattern):
             return
 
         # this must be true, as all keys of ARITH_TO_VARITH_TYPE_MAP are binary ops
-        op = cast(arith.BinaryOperation[Attribute], op)
+        op = cast(
+            arith.SignlessIntegerBinaryOperation
+            | arith.FloatingPointLikeBinaryOperation,
+            op,
+        )
 
         dest_type = ARITH_TO_VARITH_TYPE_MAP[type(op)]
 
@@ -45,8 +50,10 @@ class ArithToVarithPattern(RewritePattern):
             # if me and the other op are the same op
             # (they must necessarily operate on the same data type)
             if type(op) is type(other):
-                other_op: arith.BinaryOperation[Attribute] = cast(
-                    arith.BinaryOperation[Attribute], other
+                other_op = cast(
+                    arith.SignlessIntegerBinaryOperation
+                    | arith.FloatingPointLikeBinaryOperation,
+                    other,
                 )
                 # instantiate a varith op with three operands
                 rewriter.replace_matched_op(
@@ -60,7 +67,7 @@ class ArithToVarithPattern(RewritePattern):
 # map (int|float)(add|mul) to an arith op type
 ARITH_TYPES: dict[
     tuple[Literal["float", "int"], Literal["add", "mul"]],
-    type[arith.BinaryOperation[Attribute]],
+    type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
 ] = {
     ("int", "add"): arith.Addi,
     ("int", "mul"): arith.Muli,
