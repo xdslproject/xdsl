@@ -11,5 +11,4 @@ def test_run_tblgen_to_py():
     with open("tests/tblgen_to_py/test.py") as f:
         expected = f.read()
 
-        assert len(out_str.strip()) == len(expected.strip())
         assert out_str.strip() == expected.strip()

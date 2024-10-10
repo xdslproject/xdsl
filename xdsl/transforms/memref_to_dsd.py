@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
+    MemRefTypeConstr,
     ModuleOp,
     NoneAttr,
     Signedness,
@@ -37,7 +38,7 @@ class LowerAllocOpPass(RewritePattern):
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
         assert isattr(
             memref_type := op.memref.type,
-            MemRefType[csl.ZerosOpAttr].constr(element_type=csl.ZerosOpAttrConstr),
+            MemRefTypeConstr(element_type=csl.ZerosOpAttrConstr),
         )
         zeros_op = csl.ZerosOp(memref_type)
 

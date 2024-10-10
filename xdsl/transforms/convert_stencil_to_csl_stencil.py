@@ -206,7 +206,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
 
         assert isattr(
             op.input_stencil.type,
-            AnyMemRefTypeConstr | stencil.StencilTypeConstr,
+            AnyMemRefTypeConstr | stencil.AnyStencilTypeConstr,
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]

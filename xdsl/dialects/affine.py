@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefTypeConstr,
     ShapedType,
     StringAttr,
 )
@@ -262,7 +263,7 @@ class Store(IRDLOperation):
     T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefTypeConstr(element_type=T))
     indices = var_operand_def(IndexType)
     map = opt_prop_def(AffineMapAttr)
 
@@ -294,7 +295,7 @@ class Load(IRDLOperation):
 
     T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefTypeConstr(element_type=T))
     indices = var_operand_def(IndexType)
 
     result = result_def(T)

@@ -48,27 +48,37 @@ class StreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    @classmethod
-    def constr(
-        cls,
-        *,
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
-    ) -> GenericAttrConstraint[StreamType[_StreamTypeElement]]:
-        if element_type == AnyAttr():
-            return BaseAttr[StreamType[_StreamTypeElement]](StreamType)
-        return ParamAttrConstraint[StreamType[_StreamTypeElement]](
-            StreamType, (element_type,)
-        )
-
 
 @irdl_attr_definition
 class ReadableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.readable"
 
 
+def ReadableStreamTypeConstr(
+    *,
+    element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+) -> GenericAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
+    if element_type == AnyAttr():
+        return BaseAttr[ReadableStreamType[_StreamTypeElement]](ReadableStreamType)
+    return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
+        ReadableStreamType, (element_type,)
+    )
+
+
 @irdl_attr_definition
 class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.writable"
+
+
+def WritableStreamTypeConstr(
+    *,
+    element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+) -> GenericAttrConstraint[WritableStreamType[_StreamTypeElement]]:
+    if element_type == AnyAttr():
+        return BaseAttr[WritableStreamType[_StreamTypeElement]](WritableStreamType)
+    return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
+        WritableStreamType, (element_type,)
+    )
 
 
 AnyWritableStreamType: TypeAlias = WritableStreamType[Attribute]
@@ -81,7 +91,7 @@ class ReadOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(ReadableStreamType[Attribute].constr(element_type=T))
+    stream = operand_def(ReadableStreamTypeConstr(element_type=T))
     res = result_def(T)
 
     def __init__(self, stream: SSAValue, result_type: Attribute | None = None):
@@ -115,7 +125,7 @@ class WriteOperation(IRDLOperation, abc.ABC):
     T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    stream = operand_def(WritableStreamType[Attribute].constr(element_type=T))
+    stream = operand_def(WritableStreamTypeConstr(element_type=T))
 
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])

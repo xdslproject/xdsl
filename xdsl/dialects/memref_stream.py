@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefTypeConstr,
     StringAttr,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -851,7 +852,7 @@ class FillOp(IRDLOperation):
 
     T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefTypeConstr(element_type=T))
     value = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"
