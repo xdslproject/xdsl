@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 
-from xdsl.dialects import arith, scf
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects import scf
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -9,6 +8,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 
 
 class SimplifyTrivialLoops(RewritePattern):
@@ -77,13 +77,3 @@ def replace_op_with_region(
     rewriter.inline_block(block, InsertPoint.before(op), args)
     rewriter.replace_op(op, (), terminator.operands)
     rewriter.erase_op(terminator)
-
-
-def const_evaluate_operand(operand: SSAValue) -> int | None:
-    """
-    Try to constant evaluate an SSA value, returning None on failure.
-    """
-    if isinstance(op := operand.owner, arith.Constant) and isinstance(
-        val := op.value, IntegerAttr
-    ):
-        return val.value.data
