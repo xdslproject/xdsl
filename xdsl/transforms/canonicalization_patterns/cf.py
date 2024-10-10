@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from xdsl.dialects import arith, cf
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import BoolAttr, IntegerAttr
 from xdsl.ir import Block, BlockArgument, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -209,3 +209,51 @@ class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
         )
 
         rewriter.replace_matched_op(cf.Branch(op.then_block, *merged_operands))
+
+
+class CondBranchTruthPropagation(RewritePattern):
+    """
+      cf.cond_br %arg0, ^trueB, ^falseB
+
+    ^trueB:
+      "test.consumer1"(%arg0) : (i1) -> ()
+       ...
+
+    ^falseB:
+      "test.consumer2"(%arg0) : (i1) -> ()
+      ...
+
+    ->
+
+      cf.cond_br %arg0, ^trueB, ^falseB
+    ^trueB:
+      "test.consumer1"(%true) : (i1) -> ()
+      ...
+
+    ^falseB:
+      "test.consumer2"(%false) : (i1) -> ()
+      ...
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+        if len(op.then_block.predecessors()) == 1:
+            if any(
+                use.operation.parent_block() is op.then_block for use in op.cond.uses
+            ):
+                const_true = arith.Constant(BoolAttr.from_bool(True))
+                rewriter.insert_op(const_true, InsertPoint.before(op))
+                op.cond.replace_by_if(
+                    const_true.result,
+                    lambda use: use.operation.parent_block() is op.then_block,
+                )
+        if len(op.else_block.predecessors()) == 1:
+            if any(
+                use.operation.parent_block() is op.else_block for use in op.cond.uses
+            ):
+                const_false = arith.Constant(BoolAttr.from_bool(False))
+                rewriter.insert_op(const_false, InsertPoint.before(op))
+                op.cond.replace_by_if(
+                    const_false.result,
+                    lambda use: use.operation.parent_block() is op.else_block,
+                )
