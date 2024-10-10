@@ -205,7 +205,7 @@ def test_traits_undefined():
 class WrongTraitsType(IRDLOperation):
     name = "test.no_traits"
 
-    traits = 1  # pyright: ignore[reportGeneralTypeIssues, reportAssignmentType]
+    traits = 1  # pyright: ignore[reportAssignmentType]
 
 
 def test_traits_wrong_type():

@@ -128,7 +128,7 @@ def test_format_and_parse_op():
     ):
 
         @irdl_op_definition
-        class FormatAndParseOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class FormatAndParseOp(IRDLOperation):
             name = "test.format_and_parse"
 
             assembly_format = "attr-dict"

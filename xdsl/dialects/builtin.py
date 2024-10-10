@@ -519,7 +519,7 @@ class IntegerAttr(
         *,
         # pyright needs updating, with the new one it works fine
         value: AttrConstraint | None = None,
-        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,  # pyright: ignore[reportGeneralTypeIssues]
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
     ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
             return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
@@ -1605,7 +1605,7 @@ class MemRefType(
         *,
         shape: GenericAttrConstraint[Attribute] | None = None,
         # pyright needs updating, with the new one it works fine
-        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),  # pyright: ignore[reportGeneralTypeIssues]
+        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
         layout: GenericAttrConstraint[Attribute] | None = None,
         memory_space: GenericAttrConstraint[Attribute] | None = None,
     ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:

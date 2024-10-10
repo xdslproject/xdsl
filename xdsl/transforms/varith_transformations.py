@@ -131,7 +131,7 @@ class MergeVarithOpsPattern(RewritePattern):
         # instantiate a new varith op of the same type as the old op:
         # we can ignore the type error as we know that all VarithOps are instantiated
         # with an *arg of their operands
-        rewriter.replace_matched_op(type(op)(*new_operands))  # pyright: ignore[reportUnknownArgumentType]
+        rewriter.replace_matched_op(type(op)(*new_operands))
 
         # check all ops that may be erased later:
         for old_op in possibly_erased_ops:
