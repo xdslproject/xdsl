@@ -1499,17 +1499,22 @@ class MemRefType(
         layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        if not isinstance(shape, ArrayAttr):
-            shape = ArrayAttr(
+        s: ArrayAttr[IntAttr]
+        if isinstance(shape, ArrayAttr):
+            # Temporary cast until Pyright is fixed to not infer ArrayAttr[int] as a
+            # possible value for shape
+            s = cast(ArrayAttr[IntAttr], shape)
+        else:
+            s = ArrayAttr(
                 [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
             )
         super().__init__(
-            [
-                shape,
+            (
+                s,
                 element_type,
                 layout,
                 memory_space,
-            ]
+            )
         )
 
     def get_num_dims(self) -> int:
