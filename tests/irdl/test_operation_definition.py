@@ -362,7 +362,7 @@ def test_range_var_fail_non_equal():
     op = ConstraintRangeVarOp.create(operands=[index_operand], result_types=[i32])
     with pytest.raises(
         VerifyException,
-        match=r"attributes \('index',\) expected from variable 'T', but got \('i32',\)",
+        match=r"attributes \('index',\) expected from range variable 'T', but got \('i32',\)",
     ):
         op.verify()
 
@@ -371,21 +371,21 @@ def test_range_var_fail_non_equal():
     )
     with pytest.raises(
         VerifyException,
-        match=r"attributes \('i32',\) expected from variable 'T', but got \('index',\)",
+        match=r"attributes \('i32',\) expected from range variable 'T', but got \('index',\)",
     ):
         op2.verify()
 
     op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32, i32])
     with pytest.raises(
         VerifyException,
-        match=r"attributes \('i32',\) expected from variable 'T', but got \('i32', 'i32'\)",
+        match=r"attributes \('i32',\) expected from range variable 'T', but got \('i32', 'i32'\)",
     ):
         op2.verify()
 
     op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[])
     with pytest.raises(
         VerifyException,
-        match=r"attributes \('i32',\) expected from variable 'T', but got \(\)",
+        match=r"attributes \('i32',\) expected from range variable 'T', but got \(\)",
     ):
         op2.verify()
 
