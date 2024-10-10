@@ -5,7 +5,12 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    PatternRewriterListener,
+    PatternRewriteWalker,
+    RewritePattern,
+)
 from xdsl.traits import (
     IsTerminator,
     MemoryEffectKind,
@@ -120,7 +125,7 @@ class LiveSet:
             for operation in reversed(block.ops):
                 self.propagate_op_liveness(operation)
 
-    def delete_dead(self, region: Region):
+    def delete_dead(self, region: Region, listener: PatternRewriterListener | None):
         first = region.first_block
         if first is None:
             return
@@ -135,26 +140,33 @@ class LiveSet:
             for operation in reversed(block.ops):
                 if not self.is_live(operation):
                     self.changed = True
+                    if listener is not None:
+                        listener.handle_operation_removal(operation)
                     block.erase_op(operation, safe_erase=False)
                 else:
                     for r in operation.regions:
-                        self.delete_dead(r)
+                        self.delete_dead(r, listener)
 
 
-def region_dce(region: Region) -> bool:
+def region_dce(region: Region, listener: PatternRewriterListener | None = None) -> bool:
     live_set = LiveSet()
 
     while live_set.changed:
         live_set.changed = False
         live_set.propagate_region_liveness(region)
 
-    live_set.delete_dead(region)
+    live_set.delete_dead(region, listener)
     return live_set.changed
+
+
+def op_dce(op: Operation, listener: PatternRewriterListener | None = None):
+    changed = tuple(region_dce(region, listener) for region in op.regions)
+
+    return any(changed)
 
 
 class DeadCodeElimination(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        for region in op.regions:
-            region_dce(region)
+        op_dce(op)

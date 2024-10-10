@@ -833,9 +833,7 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
             for idx in op.offset.array.data:
                 access_idx.append(idx.data + 1)
 
-            access_idx_array = DenseArrayBase.create_dense_int_or_index(
-                i64, [0] + access_idx
-            )
+            access_idx_array = DenseArrayBase.create_dense_int(i64, [0] + access_idx)
 
             assert isinstance(result_hls_read, OpResult)
             stencil_value = HLSExtractStencilValue(

@@ -196,7 +196,7 @@ class GemmOpLowering(RewritePattern):
             raise NotImplementedError()
 
         perm: list[int] = [1, 0]
-        permutation = DenseArrayBase.create_dense_int_or_index(i64, perm)
+        permutation = DenseArrayBase.create_dense_int(i64, perm)
 
         # if transA is set, trans_a is changed to this op
         trans_a_res = None

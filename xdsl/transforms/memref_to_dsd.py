@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     StridedLayoutAttr,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -62,6 +62,31 @@ class LowerAllocOpPass(RewritePattern):
         )
 
         rewriter.replace_matched_op([zeros_op, *shape, dsd_op])
+
+
+class FixGetDsdOnGetDsd(RewritePattern):
+    """
+    This rewrite pattern resolves GetMemDsdOp being called on GetMemDsdOp instead of the underlying buffer,
+    a side effect created by `LowerAllocOpPass` in case of pre-existing GetMemDsdOp ops being present in
+    the program that were created outside of this pass.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter, /):
+        if isinstance(op.base_addr.type, csl.DsdType):
+            if isinstance(op.base_addr, OpResult) and isinstance(
+                op.base_addr.op, csl.GetMemDsdOp
+            ):
+                rewriter.replace_matched_op(
+                    csl.GetMemDsdOp.build(
+                        operands=[op.base_addr.op.base_addr, op.sizes],
+                        properties=op.properties,
+                        attributes=op.attributes,
+                        result_types=op.result_types,
+                    )
+                )
+            else:
+                raise ValueError("Failed to resolve GetMemDsdOp called on dsd type")
 
 
 class LowerSubviewOpPass(RewritePattern):
@@ -335,3 +360,7 @@ class MemrefToDsdPass(ModulePass):
             apply_recursively=False,
         )
         forward_pass.rewrite_module(op)
+        cleanup_pass = PatternRewriteWalker(
+            FixGetDsdOnGetDsd(),
+        )
+        cleanup_pass.rewrite_module(op)

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Generic, Literal, TypeVar, cast, overload
+from typing import ClassVar, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -25,8 +26,8 @@ from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -171,12 +172,10 @@ class Constant(IRDLOperation):
 _T = TypeVar("_T", bound=Attribute)
 
 
-class BinaryOperation(IRDLOperation, Generic[_T]):
-    """A generic base class for arith's binary operation.
+class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
+    """A generic base class for arith's binary operations on signless integers."""
 
-    They all have two operands and one result of a same type."""
-
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -214,10 +213,15 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         return id(self)
 
 
-SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLike]]
+class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
+    """A generic base class for arith's binary operations on floats."""
 
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", floatingPointLike)
 
-class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
     def __init__(
@@ -227,8 +231,13 @@ class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
         flags: FastMathFlagsAttr | None = None,
         result_type: Attribute | None = None,
     ):
-        super().__init__(operand1, operand2, result_type)
-        self.fastmath = flags
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(
+            operands=[operand1, operand2],
+            result_types=[result_type],
+            properties={"fastmath": flags},
+        )
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -255,13 +264,6 @@ class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
         printer.print_attribute(self.result.type)
 
 
-FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
-    Annotated[Attribute, floatingPointLike]
-]
-
-IntegerBinaryOp = BinaryOperation[IntegerType]
-
-
 class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -271,7 +273,7 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class Addi(SignlessIntegerBinaryOp):
+class Addi(SignlessIntegerBinaryOperation):
     name = "arith.addi"
 
     traits = frozenset([Pure(), AddiOpHasCanonicalizationPatternsTrait()])
@@ -288,7 +290,7 @@ class AddUIExtended(IRDLOperation):
 
     traits = frozenset([Pure()])
 
-    T = Annotated[Attribute, signlessIntegerLike, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -342,7 +344,7 @@ class AddUIExtended(IRDLOperation):
 
 
 @irdl_op_definition
-class Muli(SignlessIntegerBinaryOp):
+class Muli(SignlessIntegerBinaryOperation):
     name = "arith.muli"
 
     traits = frozenset([Pure()])
@@ -351,7 +353,7 @@ class Muli(SignlessIntegerBinaryOp):
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -390,7 +392,7 @@ class MulSIExtended(MulExtendedBase):
 
 
 @irdl_op_definition
-class Subi(SignlessIntegerBinaryOp):
+class Subi(SignlessIntegerBinaryOperation):
     name = "arith.subi"
 
     traits = frozenset([Pure()])
@@ -407,7 +409,7 @@ class DivUISpeculatable(ConditionallySpeculatable):
 
 
 @irdl_op_definition
-class DivUI(SignlessIntegerBinaryOp):
+class DivUI(SignlessIntegerBinaryOperation):
     """
     Unsigned integer division. Rounds towards zero. Treats the leading bit as
     the most significant, i.e. for `i16` given two's complement representation,
@@ -420,7 +422,7 @@ class DivUI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class DivSI(SignlessIntegerBinaryOp):
+class DivSI(SignlessIntegerBinaryOperation):
     """
     Signed integer division. Rounds towards zero. Treats the leading bit as
     sign, i.e. `6 / -2 = -3`.
@@ -432,7 +434,7 @@ class DivSI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class FloorDivSI(SignlessIntegerBinaryOp):
+class FloorDivSI(SignlessIntegerBinaryOperation):
     """
     Signed floor integer division. Rounds towards negative infinity i.e. `5 / -2 = -3`.
     """
@@ -443,82 +445,82 @@ class FloorDivSI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class CeilDivSI(SignlessIntegerBinaryOp):
+class CeilDivSI(SignlessIntegerBinaryOperation):
     name = "arith.ceildivsi"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class CeilDivUI(SignlessIntegerBinaryOp):
+class CeilDivUI(SignlessIntegerBinaryOperation):
     name = "arith.ceildivui"
 
     traits = frozenset([NoMemoryEffect()])
 
 
 @irdl_op_definition
-class RemUI(SignlessIntegerBinaryOp):
+class RemUI(SignlessIntegerBinaryOperation):
     name = "arith.remui"
 
 
 @irdl_op_definition
-class RemSI(SignlessIntegerBinaryOp):
+class RemSI(SignlessIntegerBinaryOperation):
     name = "arith.remsi"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class MinUI(SignlessIntegerBinaryOp):
+class MinUI(SignlessIntegerBinaryOperation):
     name = "arith.minui"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class MaxUI(SignlessIntegerBinaryOp):
+class MaxUI(SignlessIntegerBinaryOperation):
     name = "arith.maxui"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class MinSI(SignlessIntegerBinaryOp):
+class MinSI(SignlessIntegerBinaryOperation):
     name = "arith.minsi"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class MaxSI(SignlessIntegerBinaryOp):
+class MaxSI(SignlessIntegerBinaryOperation):
     name = "arith.maxsi"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class AndI(SignlessIntegerBinaryOp):
+class AndI(SignlessIntegerBinaryOperation):
     name = "arith.andi"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class OrI(SignlessIntegerBinaryOp):
+class OrI(SignlessIntegerBinaryOperation):
     name = "arith.ori"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class XOrI(SignlessIntegerBinaryOp):
+class XOrI(SignlessIntegerBinaryOperation):
     name = "arith.xori"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class ShLI(SignlessIntegerBinaryOp):
+class ShLI(SignlessIntegerBinaryOperation):
     """
     The `shli` operation shifts an integer value to the left by a variable
     amount. The low order bits are filled with zeros.
@@ -530,7 +532,7 @@ class ShLI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class ShRUI(SignlessIntegerBinaryOp):
+class ShRUI(SignlessIntegerBinaryOperation):
     """
     The `shrui` operation shifts an integer value to the right by a variable
     amount. The integer is interpreted as unsigned. The high order bits are
@@ -543,7 +545,7 @@ class ShRUI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class ShRSI(SignlessIntegerBinaryOp):
+class ShRSI(SignlessIntegerBinaryOperation):
     """
     The `shrsi` operation shifts an integer value to the right by a variable
     amount. The integer is interpreted as signed. The high order bits in the
@@ -848,28 +850,28 @@ class Select(IRDLOperation):
 
 
 @irdl_op_definition
-class Addf(FloatingPointLikeBinaryOp):
+class Addf(FloatingPointLikeBinaryOperation):
     name = "arith.addf"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class Subf(FloatingPointLikeBinaryOp):
+class Subf(FloatingPointLikeBinaryOperation):
     name = "arith.subf"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class Mulf(FloatingPointLikeBinaryOp):
+class Mulf(FloatingPointLikeBinaryOperation):
     name = "arith.mulf"
 
     traits = frozenset([Pure()])
 
 
 @irdl_op_definition
-class Divf(FloatingPointLikeBinaryOp):
+class Divf(FloatingPointLikeBinaryOperation):
     name = "arith.divf"
 
     traits = frozenset([Pure()])
@@ -910,7 +912,7 @@ class Negf(IRDLOperation):
 
 
 @irdl_op_definition
-class Maximumf(FloatingPointLikeBinaryOp):
+class Maximumf(FloatingPointLikeBinaryOperation):
     """
     Returns the maximum of the two arguments, treating -0.0 as less than +0.0.
     If one of the arguments is NaN, then the result is also NaN.
@@ -922,7 +924,7 @@ class Maximumf(FloatingPointLikeBinaryOp):
 
 
 @irdl_op_definition
-class Maxnumf(FloatingPointLikeBinaryOp):
+class Maxnumf(FloatingPointLikeBinaryOperation):
     """
     Returns the maximum of the two arguments.
     If the arguments are -0.0 and +0.0, then the result is either of them.
@@ -935,7 +937,7 @@ class Maxnumf(FloatingPointLikeBinaryOp):
 
 
 @irdl_op_definition
-class Minimumf(FloatingPointLikeBinaryOp):
+class Minimumf(FloatingPointLikeBinaryOperation):
     """
     Returns the minimum of the two arguments, treating -0.0 as less than +0.0.
     If one of the arguments is NaN, then the result is also NaN.
@@ -947,7 +949,7 @@ class Minimumf(FloatingPointLikeBinaryOp):
 
 
 @irdl_op_definition
-class Minnumf(FloatingPointLikeBinaryOp):
+class Minnumf(FloatingPointLikeBinaryOperation):
     """
     Returns the minimum of the two arguments. If the arguments are -0.0 and +0.0, then the result is either of them.
     If one of the arguments is NaN, then the result is the other argument.

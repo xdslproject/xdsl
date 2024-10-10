@@ -9,6 +9,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 
 
 class AssertTrue(RewritePattern):
@@ -89,9 +90,8 @@ def collapse_branch(
     operands = branch.operands
 
     new_operands = tuple(
-        successor_operands[op_owner.index]
-        if isinstance(op_owner := operand.owner, BlockArgument)
-        and op_owner.block is successor
+        successor_operands[operand.index]
+        if isinstance(operand, BlockArgument) and operand.owner is successor
         else operand
         for operand in operands
     )
@@ -121,3 +121,54 @@ class SimplifyPassThroughBr(RewritePattern):
         (block, args) = ret
 
         rewriter.replace_matched_op(cf.Branch(block, *args))
+
+
+class SimplifyConstCondBranchPred(RewritePattern):
+    """
+    cf.cond_br true, ^bb1, ^bb2
+     -> br ^bb1
+    cf.cond_br false, ^bb1, ^bb2
+     -> br ^bb2
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+        # Check if cond operand is constant
+        cond = const_evaluate_operand(op.cond)
+
+        if cond == 1:
+            rewriter.replace_matched_op(cf.Branch(op.then_block, *op.then_arguments))
+        elif cond == 0:
+            rewriter.replace_matched_op(cf.Branch(op.else_block, *op.else_arguments))
+
+
+class SimplifyPassThroughCondBranch(RewritePattern):
+    """
+      cf.cond_br %cond, ^bb1, ^bb2
+    ^bb1
+      br ^bbN(...)
+    ^bb2
+      br ^bbK(...)
+
+     -> cf.cond_br %cond, ^bbN(...), ^bbK(...)
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+        # Try to collapse both branches
+        collapsed_then = collapse_branch(op.then_block, op.then_arguments)
+        collapsed_else = collapse_branch(op.else_block, op.else_arguments)
+
+        # If neither collapsed then we return
+        if collapsed_then is None and collapsed_else is None:
+            return
+
+        (new_then, new_then_args) = collapsed_then or (op.then_block, op.then_arguments)
+
+        (new_else, new_else_args) = collapsed_else or (op.else_block, op.else_arguments)
+
+        rewriter.replace_matched_op(
+            cf.ConditionalBranch(
+                op.cond, new_then, new_then_args, new_else, new_else_args
+            )
+        )

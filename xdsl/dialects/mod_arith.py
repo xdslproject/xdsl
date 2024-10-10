@@ -4,15 +4,15 @@ implemented as part of the HEIR project (https://github.com/google/heir/tree/mai
 """
 
 from abc import ABC
-from typing import Annotated
+from typing import ClassVar
 
 from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import AnyIntegerAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    ConstraintVar,
     IRDLOperation,
     ParsePropInAttrDict,
+    VarConstraint,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -26,11 +26,12 @@ class BinaryOp(IRDLOperation, ABC):
     Simple binary operation
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
-    modulus = prop_def(AnyIntegerAttr)
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+
     lhs = operand_def(T)
     rhs = operand_def(T)
     output = result_def(T)
+    modulus = prop_def(AnyIntegerAttr)
 
     irdl_options = [ParsePropInAttrDict()]
 

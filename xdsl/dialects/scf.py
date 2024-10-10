@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import ClassVar
 
 from typing_extensions import Self
 
@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IntegerType,
+    SignlessIntegerConstraint,
     i64,
 )
 from xdsl.dialects.utils import (
@@ -20,8 +21,9 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
+    base,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -284,7 +286,9 @@ class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class For(IRDLOperation):
     name = "scf.for"
 
-    T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[AnySignlessIntegerOrIndexType]] = VarConstraint(
+        "T", base(IndexType) | SignlessIntegerConstraint
+    )
 
     lb = operand_def(T)
     ub = operand_def(T)
