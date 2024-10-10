@@ -154,3 +154,47 @@ func.func @cond_br_same_successor_insert_select(
 ^bb1(%result : i32, %result2 : tensor<2xi32>):
   return %result, %result2 : i32, tensor<2xi32>
 }
+
+/// Test folding conditional branches that are successors of conditional
+/// branches with the same condition.
+// CHECK:      func.func @cond_br_from_cond_br_with_same_condition(%cond : i1) {
+// CHECK-NEXT:   cf.cond_br %cond, ^0, ^1
+// CHECK-NEXT: ^0:
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: ^1:
+// CHECK-NEXT:   "test.termop"() : () -> ()
+// CHECK-NEXT: }
+func.func @cond_br_from_cond_br_with_same_condition(%cond : i1) {
+  cf.cond_br %cond, ^bb1, ^bb2
+^bb1:
+  cf.cond_br %cond, ^bb3, ^bb2
+^bb2:
+  "test.termop"() : () -> ()
+^bb3:
+  return
+}
+
+// CHECK:      func.func @branchCondProp(%arg0 : i1) {
+// CHECK-NEXT:   %arg0_1 = arith.constant true
+// CHECK-NEXT:   %arg0_2 = arith.constant false
+// CHECK-NEXT:   cf.cond_br %arg0, ^0, ^1
+// CHECK-NEXT: ^0:
+// CHECK-NEXT:   "test.op"(%arg0_1) : (i1) -> ()
+// CHECK-NEXT:   cf.br ^2
+// CHECK-NEXT: ^1:
+// CHECK-NEXT:   "test.op"(%arg0_2) : (i1) -> ()
+// CHECK-NEXT:   cf.br ^2
+// CHECK-NEXT: ^2:
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: }
+func.func @branchCondProp(%arg0: i1) {
+  cf.cond_br %arg0, ^trueB, ^falseB
+^trueB:
+  "test.op"(%arg0) : (i1) -> ()
+  cf.br ^exit
+^falseB:
+  "test.op"(%arg0) : (i1) -> ()
+  cf.br ^exit
+^exit:
+  return
+}
