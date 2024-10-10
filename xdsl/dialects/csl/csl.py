@@ -52,10 +52,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyOf,
     BaseAttr,
-    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
+    VarConstraint,
     attr_def,
     base,
     eq,
@@ -597,17 +597,19 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[ZerosOpAttr]] = VarConstraint("T", ZerosOpAttrConstr)
 
     size = opt_operand_def(T)
 
-    result = result_def(MemRefType[T])
+    result = result_def(
+        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
+    )
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
     def __init__(
         self,
-        memref: MemRefType[T],
+        memref: MemRefType[IntegerType | Float32Type | Float16Type],
         dynamic_size: SSAValue | Operation | None = None,
         is_const: builtin.UnitAttr | None = None,
     ):
@@ -630,13 +632,17 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[IntegerType | Float32Type | Float16Type]] = VarConstraint(
+        "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
+    )
 
     size = operand_def(IntegerType)
 
     value = operand_def(T)
 
-    result = result_def(MemRefType[T])
+    result = result_def(
+        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
+    )
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -1942,16 +1948,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T = Annotated[
-        Float16Type
-        | Float32Type
-        | IntegerType
-        | ColorType
-        | FunctionType
-        | ImportedModuleType
-        | ComptimeStructType,
-        ConstraintVar("T"),
-    ]
+    T: ClassVar[VarConstraint[ParamOpAttr]] = VarConstraint("T", ParamOpAttrConstr)
 
     name = "csl.param"
 
@@ -1963,7 +1960,10 @@ class ParamOp(IRDLOperation):
     res = result_def(T)
 
     def __init__(
-        self, name: str, result_type: T, init_value: SSAValue | Operation | None = None
+        self,
+        name: str,
+        result_type: ParamOpAttr,
+        init_value: SSAValue | Operation | None = None,
     ):
         super().__init__(
             operands=[init_value],

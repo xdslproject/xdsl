@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Annotated, Generic, TypeAlias, TypeVar, cast
+from typing import ClassVar, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -18,11 +18,11 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     BaseAttr,
-    ConstraintVar,
     GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParameterDef,
+    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -80,9 +80,9 @@ class ReadOperation(IRDLOperation, abc.ABC):
     Abstract base class for operations that read from a stream.
     """
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(ReadableStreamType[T])
+    stream = operand_def(ReadableStreamType[Attribute].constr(element_type=T))
     res = result_def(T)
 
     def __init__(self, stream: SSAValue, result_type: Attribute | None = None):
@@ -113,10 +113,10 @@ class WriteOperation(IRDLOperation, abc.ABC):
     Abstract base class for operations that write to a stream.
     """
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    stream = operand_def(WritableStreamType[T])
+    stream = operand_def(WritableStreamType[Attribute].constr(element_type=T))
 
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])

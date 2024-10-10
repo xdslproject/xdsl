@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, Generic, TypeVar
+from typing import ClassVar, Generic, TypeVar
 
 import pytest
 
@@ -23,13 +23,13 @@ from xdsl.irdl import (
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
-    ConstraintVar,
     EqAttrConstraint,
     GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParameterDef,
     ParsePropInAttrDict,
+    VarConstraint,
     VarOperand,
     VarOpResult,
     attr_def,
@@ -1578,7 +1578,7 @@ def test_basic_inference(format: str):
 
     @irdl_op_definition
     class TwoOperandsOneResultWithVarOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
+        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
@@ -1678,11 +1678,11 @@ def test_nested_inference():
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
+        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
-        lhs = operand_def(ParamOne[T])
+        lhs = operand_def(ParamOne[Attribute].constr(p=T))
         rhs = operand_def(T)
 
         assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
@@ -1722,11 +1722,11 @@ def test_non_verifying_inference():
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
+        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
         name = "test.one_operand_one_result_nested"
         res = result_def(T)
-        lhs = operand_def(ParamOne[T])
+        lhs = operand_def(ParamOne[Attribute].constr(p=T))
 
         assembly_format = "$lhs attr-dict `:` type($lhs)"
 
