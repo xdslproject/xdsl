@@ -46,3 +46,15 @@ func.func @br_passthrough(%arg0 : i32, %arg1 : i32) -> (i32, i32) {
 ^2(%arg4 : i32, %arg5 : i32):
   return %arg4, %arg5 : i32, i32
 }
+
+/// Test that dead branches don't affect passthrough
+// CHECK:      func.func @br_dead_passthrough() {
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: }
+func.func @br_dead_passthrough() {
+cf.br ^1
+^0:
+cf.br ^1
+^1:
+func.return
+}
