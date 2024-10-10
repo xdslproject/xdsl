@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar
@@ -17,14 +17,66 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: dict[str, Attribute] = field(default_factory=dict)
     """The assignment of constraint variables."""
 
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    """The assignment of constraint range variables."""
+
+    @property
+    def variables(self) -> Variables:
+        return Variables(self)
+
+    @property
+    def range_variables(self) -> RangeVariables:
+        return RangeVariables(self)
+
     def copy(self):
-        return ConstraintContext(self.variables.copy())
+        return ConstraintContext(self._variables.copy(), self._range_variables.copy())
 
     def update(self, other: ConstraintContext):
-        self.variables.update(other.variables)
+        self._variables.update(other._variables)
+        self._range_variables.update(other._range_variables)
+
+
+_T = TypeVar("_T", bound=Attribute | tuple[Attribute, ...])
+
+
+@dataclass
+class VariableBase(Generic[_T], MutableMapping[str, _T], ABC):
+    _parent: ConstraintContext
+
+    @abstractmethod
+    def _get_dict(self) -> dict[str, _T]: ...
+
+    def __getitem__(self, key: str) -> _T:
+        return self._get_dict()[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._get_dict())
+
+    def __len__(self) -> int:
+        return len(self._get_dict())
+
+    def __setitem__(self, key: str, value: _T) -> None:
+        assert key not in self._parent._variables  # pyright: ignore[reportPrivateUsage]
+        assert key not in self._parent._range_variables  # pyright: ignore[reportPrivateUsage]
+        self._get_dict()[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        self._get_dict().__delitem__(key)
+
+
+@dataclass
+class Variables(VariableBase[Attribute]):
+    def _get_dict(self) -> dict[str, Attribute]:
+        return self._parent._variables  # pyright: ignore[reportPrivateUsage]
+
+
+@dataclass
+class RangeVariables(VariableBase[tuple[Attribute, ...]]):
+    def _get_dict(self) -> dict[str, tuple[Attribute, ...]]:
+        return self._parent._range_variables  # pyright: ignore[reportPrivateUsage]
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
@@ -87,10 +139,8 @@ AttrConstraint: TypeAlias = GenericAttrConstraint[Attribute]
 @dataclass(frozen=True)
 class VarConstraint(GenericAttrConstraint[AttributeCovT]):
     """
-    Constraint variable. If the variable is already set, this will constrain
-    the attribute to be equal to the variable. Otherwise, it will first check that the
-    variable satisfies the variable constraint, then set the variable with the
-    attribute.
+    Constrain an attribute with the given constraint, and constrain all occurences
+    of this constraint (i.e, sharing the same name) to be equal.
     """
 
     name: str
@@ -225,16 +275,16 @@ class AnyAttr(GenericAttrConstraint[Attribute]):
 class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Ensure that an attribute satisfies one of the given constraints."""
 
-    attr_constrs: tuple[GenericAttrConstraint[Attribute], ...]
+    attr_constrs: tuple[GenericAttrConstraint[AttributeCovT], ...]
     """The list of constraints that are checked."""
 
     def __init__(
         self,
         attr_constrs: Sequence[
-            Attribute | type[Attribute] | GenericAttrConstraint[Attribute]
+            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
         ],
     ):
-        constrs: tuple[GenericAttrConstraint[Attribute], ...] = tuple(
+        constrs: tuple[GenericAttrConstraint[AttributeCovT], ...] = tuple(
             attr_constr_coercion(constr) for constr in attr_constrs
         )
         object.__setattr__(
@@ -449,7 +499,11 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
         return self.constr.infer(constraint_context)
 
 
-class RangeConstraint(Generic[AttributeCovT], ABC):
+class GenericRangeConstraint(Generic[AttributeCovT], ABC):
+    """
+    Constrain a range of attributes to a certain value.
+    """
+
     @abstractmethod
     def verify(
         self,
@@ -479,7 +533,7 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
 
     def infer(
         self, length: int, constraint_context: ConstraintContext
-    ) -> list[Attribute]:
+    ) -> Sequence[Attribute]:
         """
         Infer the range given the constraint variables that are already set.
 
@@ -490,8 +544,55 @@ class RangeConstraint(Generic[AttributeCovT], ABC):
         raise ValueError("Cannot infer range from constraint")
 
 
+RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
+
+
+@dataclass(frozen=True)
+class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
+    """
+    Constrain an attribute range with the given constraint, and constrain all occurences
+    of this constraint (i.e, sharing the same name) to be equal.
+    """
+
+    name: str
+    """The variable name. All uses of that name refer to the same variable."""
+
+    constraint: GenericRangeConstraint[AttributeCovT]
+    """The constraint that the variable must satisfy."""
+
+    def verify(
+        self,
+        attrs: Sequence[Attribute],
+        constraint_context: ConstraintContext | None = None,
+    ) -> None:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name in constraint_context.range_variables:
+            if tuple(attrs) != constraint_context.range_variables[self.name]:
+                raise VerifyException(
+                    f"attributes {tuple(str(x) for x in constraint_context.range_variables[self.name])} expected from range variable "
+                    f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
+                )
+        else:
+            self.constraint.verify(attrs, constraint_context)
+            constraint_context.range_variables[self.name] = tuple(attrs)
+
+    def get_resolved_variables(self) -> set[str]:
+        return {self.name, *self.constraint.get_resolved_variables()}
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.name in constraint_names
+
+    def infer(
+        self, length: int, constraint_context: ConstraintContext
+    ) -> Sequence[Attribute]:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name not in constraint_context.range_variables:
+            raise ValueError(f"Cannot infer attribute from constraint {self}")
+        return constraint_context.range_variables[self.name]
+
+
 @dataclass
-class RangeOf(RangeConstraint[AttributeCovT]):
+class RangeOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain each element in a range to satisfy a given constraint.
     """
@@ -519,7 +620,7 @@ class RangeOf(RangeConstraint[AttributeCovT]):
 
 
 @dataclass
-class SingleOf(RangeConstraint[AttributeCovT]):
+class SingleOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain a range to only contain a single element, which should satisfy a given constraint.
     """
@@ -552,15 +653,15 @@ def range_constr_coercion(
         AttributeCovT
         | type[AttributeCovT]
         | GenericAttrConstraint[AttributeCovT]
-        | RangeConstraint[AttributeCovT]
+        | GenericRangeConstraint[AttributeCovT]
     ),
-) -> RangeConstraint[AttributeCovT]:
-    if isinstance(attr, RangeConstraint):
+) -> GenericRangeConstraint[AttributeCovT]:
+    if isinstance(attr, GenericRangeConstraint):
         return attr
     return RangeOf(attr_constr_coercion(attr))
 
 
 def single_range_constr_coercion(
     attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
-) -> RangeConstraint[AttributeCovT]:
+) -> GenericRangeConstraint[AttributeCovT]:
     return SingleOf(attr_constr_coercion(attr))
