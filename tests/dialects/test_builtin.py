@@ -293,9 +293,6 @@ def test_dense_as_tuple():
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
 
-    indices = DenseArrayBase.from_list(IndexType(), [1, 1, 2, 3, 5, 8])
-    assert indices.as_tuple() == (1, 1, 2, 3, 5, 8)
-
 
 def test_strides():
     assert ShapedType.strides_for_shape(()) == ()

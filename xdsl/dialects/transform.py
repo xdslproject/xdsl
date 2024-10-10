@@ -281,7 +281,7 @@ class GetResultOp(IRDLOperation):
         if isinstance(result_number, int):
             result_number = IntegerAttr(result_number, IntegerType(64))
         if isinstance(raw_position_list, Sequence):
-            raw_position_list = DenseArrayBase.create_dense_int_or_index(
+            raw_position_list = DenseArrayBase.create_dense_int(
                 IntegerType(64), raw_position_list
             )
         super().__init__(
@@ -588,15 +588,13 @@ class TileOp(IRDLOperation):
         ) = None,
     ):
         if isinstance(static_sizes, Sequence):
-            static_sizes = DenseArrayBase.create_dense_int_or_index(
+            static_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_sizes
             )
         if isinstance(interchange, Sequence):
-            interchange = DenseArrayBase.create_dense_int_or_index(
-                IntegerType(64), interchange
-            )
+            interchange = DenseArrayBase.create_dense_int(IntegerType(64), interchange)
         if isinstance(scalable_sizes, Sequence):
-            scalable_sizes = DenseArrayBase.create_dense_int_or_index(
+            scalable_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(1), scalable_sizes
             )
         super().__init__(
@@ -657,15 +655,15 @@ class TileToForallOp(IRDLOperation):
         mapping: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
     ):
         if isinstance(static_num_threads, Sequence):
-            static_num_threads = DenseArrayBase.create_dense_int_or_index(
+            static_num_threads = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_num_threads
             )
         if isinstance(static_tile_sizes, Sequence):
-            static_tile_sizes = DenseArrayBase.create_dense_int_or_index(
+            static_tile_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_tile_sizes
             )
         if isinstance(mapping, Sequence):
-            mapping = DenseArrayBase.create_dense_int_or_index(IntegerType(64), mapping)
+            mapping = DenseArrayBase.create_dense_int(IntegerType(64), mapping)
 
         super().__init__(
             operands=[

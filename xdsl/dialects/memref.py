@@ -636,15 +636,11 @@ class Subview(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int_or_index(
-                i64, static_offsets
-            )
+            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int_or_index(i64, static_sizes)
+            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int_or_index(
-                i64, static_strides
-            )
+            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
