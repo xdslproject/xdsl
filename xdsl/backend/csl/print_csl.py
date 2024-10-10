@@ -775,6 +775,7 @@ class CslPrintContext:
                         non_zero_stride_idx = [
                             idx for idx, sd in enumerate(strides_data) if sd != 0
                         ]
+                        # if all except one strides are 0, print only the non-0 part (default to printing all dims)
                         if len(non_zero_stride_idx) == 1:
                             accesses = [accesses[non_zero_stride_idx[0]]]
                     accesses_str = ", ".join(accesses)
