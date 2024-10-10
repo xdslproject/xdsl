@@ -1,10 +1,11 @@
 import marimo
 
 __generated_with = "0.8.20"
+
 app = marimo.App()
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md(
         """
@@ -16,7 +17,7 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     rank = mo.ui.slider(1, 4, value=2, label="Rank")
 
@@ -60,7 +61,7 @@ def __(mo, shape):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __():
     import onnx
     from onnx import AttributeProto, GraphProto, TensorProto, ValueInfoProto, helper
@@ -121,7 +122,7 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo, model_def):
     mo.accordion(
         {
