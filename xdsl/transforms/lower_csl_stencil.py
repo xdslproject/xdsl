@@ -394,7 +394,6 @@ class LowerCslStencil(ModulePass):
                 [
                     LowerYieldOp(),
                     InlineApplyOpArgs(),
-                    FullStencilAccessImmediateReductionOptimization(),
                 ]
             ),
             apply_recursively=False,
@@ -402,6 +401,7 @@ class LowerCslStencil(ModulePass):
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    FullStencilAccessImmediateReductionOptimization(),
                     LowerAccessOp(),
                     LowerApplyOp(),
                 ]
