@@ -46,6 +46,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    GenericAttrConstraint,
     GenericData,
     IRDLOperation,
     MessageConstraint,
@@ -168,22 +169,8 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        if len(args) == 1:
-            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
-        if len(args) == 0:
-            return ArrayOfConstraint(AnyAttr())
-        raise TypeError(
-            f"Attribute ArrayAttr expects at most 1 type"
-            f" parameter, but {len(args)} were given"
-        )
-
-    def verify(self) -> None:
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but {idx} "
-                    f"element is of type {type(val)}"
-                )
+        assert len(args) == 1
+        return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
 
     def __len__(self):
         return len(self.data)
@@ -448,9 +435,12 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
+IndexTypeConstr = BaseAttr(IndexType)
+
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -523,8 +513,27 @@ class IntegerAttr(
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
 
+    @classmethod
+    def constr(
+        cls,
+        *,
+        # pyright needs updating, with the new one it works fine
+        value: AttrConstraint | None = None,
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,  # pyright: ignore[reportGeneralTypeIssues]
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
+        if value is None and type == AnyAttr():
+            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
+            IntegerAttr,
+            (
+                value,
+                type,
+            ),
+        )
+
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
@@ -655,6 +664,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+AnyFloatAttrConstr: BaseAttr[AnyFloatAttr] = BaseAttr(FloatAttr)
 
 
 @irdl_attr_definition
@@ -1455,7 +1465,7 @@ f80 = Float80Type()
 f128 = Float128Type()
 
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute, covariant=True)
 _UnrankedMemrefTypeElems = TypeVar(
     "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
 )
@@ -1583,6 +1593,27 @@ class MemRefType(
                 return ShapedType.strides_for_shape(self.get_shape())
             case _:
                 return self.layout.get_strides()
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        shape: GenericAttrConstraint[Attribute] | None = None,
+        # pyright needs updating, with the new one it works fine
+        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),  # pyright: ignore[reportGeneralTypeIssues]
+        layout: GenericAttrConstraint[Attribute] | None = None,
+        memory_space: GenericAttrConstraint[Attribute] | None = None,
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
+        if (
+            shape is None
+            and element_type == AnyAttr()
+            and layout is None
+            and memory_space is None
+        ):
+            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
+            MemRefType, (shape, element_type, layout, memory_space)
+        )
 
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]

@@ -1,6 +1,9 @@
+from dataclasses import dataclass, field
+
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Operation, Region, SSAValue
+from xdsl.ir.post_order import PostOrderIterator
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import (
@@ -11,16 +14,22 @@ from xdsl.traits import (
 )
 
 
+def would_be_trivially_dead(op: Operation):
+    """
+    Returns if the operation would be dead if all its results were dead.
+    """
+    return (
+        not op.get_trait(IsTerminator)
+        and (not op.get_trait(SymbolOpInterface))
+        and result_only_effects(op)
+    )
+
+
 def is_trivially_dead(op: Operation):
     """
     Returns if the operation has no observable effect.
     """
-    return (
-        all(not result.uses for result in op.results)
-        and (not op.get_trait(IsTerminator))
-        and (not op.get_trait(SymbolOpInterface))
-        and result_only_effects(op)
-    )
+    return all(not result.uses for result in op.results) and would_be_trivially_dead(op)
 
 
 def result_only_effects(rootOp: Operation) -> bool:
@@ -73,8 +82,79 @@ def dce(op: ModuleOp):
     walker.rewrite_module(op)
 
 
+@dataclass
+class LiveSet:
+    changed: bool = field(default=True)  # Force first iteration to happen
+    _live_ops: set[Operation] = field(default_factory=set)
+
+    def is_live(self, op: Operation) -> bool:
+        return op in self._live_ops
+
+    def set_live(self, op: Operation):
+        if not self.is_live(op):
+            self.changed = True
+            self._live_ops.add(op)
+
+    def propagate_op_liveness(self, op: Operation):
+        for region in op.regions:
+            self.propagate_region_liveness(region)
+
+        if self.is_live(op):
+            return
+
+        if not would_be_trivially_dead(op):
+            self.set_live(op)
+            return
+
+        if any(
+            self.is_live(use.operation) for result in op.results for use in result.uses
+        ):
+            self.set_live(op)
+
+    def propagate_region_liveness(self, region: Region):
+        first = region.first_block
+        if first is None:
+            return
+        for block in PostOrderIterator(first):
+            # Process operations in reverse order to speed convergence
+            for operation in reversed(block.ops):
+                self.propagate_op_liveness(operation)
+
+    def delete_dead(self, region: Region):
+        first = region.first_block
+        if first is None:
+            return
+
+        for block in reversed(region.blocks):
+            if not any(self.is_live(op) for op in block.ops) and block != first:
+                # If block is not the entry block and has no live ops then delete it
+                self.changed = True
+                region.erase_block(block, safe_erase=False)
+                continue
+
+            for operation in reversed(block.ops):
+                if not self.is_live(operation):
+                    self.changed = True
+                    block.erase_op(operation, safe_erase=False)
+                else:
+                    for r in operation.regions:
+                        self.delete_dead(r)
+
+
+def region_dce(region: Region) -> bool:
+    live_set = LiveSet()
+
+    while live_set.changed:
+        live_set.changed = False
+        live_set.propagate_region_liveness(region)
+
+    live_set.delete_dead(region)
+    return live_set.changed
+
+
 class DeadCodeElimination(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        dce(op)
+        for region in op.regions:
+            region_dce(region)

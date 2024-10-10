@@ -1136,7 +1136,7 @@ class Operation(IRNode):
         """
         if isinstance(trait, type):
             for t in cls.traits:
-                if isinstance(t, trait):
+                if isinstance(t, cast(type[OpTraitInvT], trait)):
                     return t
         else:
             for t in cls.traits:

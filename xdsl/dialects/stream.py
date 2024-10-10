@@ -16,8 +16,12 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    BaseAttr,
     ConstraintVar,
+    GenericAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
@@ -43,6 +47,19 @@ class StreamType(
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        # pyright needs updating, with the new one it works fine
+        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),  # pyright: ignore[reportGeneralTypeIssues]
+    ) -> GenericAttrConstraint[StreamType[_StreamTypeElement]]:
+        if element_type == AnyAttr():
+            return BaseAttr[StreamType[_StreamTypeElement]](StreamType)
+        return ParamAttrConstraint[StreamType[_StreamTypeElement]](
+            StreamType, (element_type,)
+        )
 
 
 @irdl_attr_definition
