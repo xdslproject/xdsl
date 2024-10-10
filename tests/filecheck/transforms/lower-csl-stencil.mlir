@@ -302,27 +302,14 @@ builtin.module {
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @receive_chunk_cb1(%offset_2 : i16) {
 // CHECK-NEXT:      %offset_3 = arith.index_cast %offset_2 : i16 to index
-// CHECK-NEXT:      %86 = arith.constant 1 : i16
-// CHECK-NEXT:      %87 = "csl.get_dir"() <{"dir" = #csl<dir_kind west>}> : () -> !csl.direction
-// CHECK-NEXT:      %88 = "csl.member_call"(%68, %87, %86) <{"field" = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:      %89 = builtin.unrealized_conversion_cast %88 : !csl<dsd mem1d_dsd> to memref<510xf32>
-// CHECK-NEXT:      %90 = arith.constant 1 : i16
-// CHECK-NEXT:      %91 = "csl.get_dir"() <{"dir" = #csl<dir_kind east>}> : () -> !csl.direction
-// CHECK-NEXT:      %92 = "csl.member_call"(%68, %91, %90) <{"field" = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:      %93 = builtin.unrealized_conversion_cast %92 : !csl<dsd mem1d_dsd> to memref<510xf32>
-// CHECK-NEXT:      %94 = arith.constant 1 : i16
-// CHECK-NEXT:      %95 = "csl.get_dir"() <{"dir" = #csl<dir_kind south>}> : () -> !csl.direction
-// CHECK-NEXT:      %96 = "csl.member_call"(%68, %95, %94) <{"field" = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:      %97 = builtin.unrealized_conversion_cast %96 : !csl<dsd mem1d_dsd> to memref<510xf32>
-// CHECK-NEXT:      %98 = arith.constant 1 : i16
-// CHECK-NEXT:      %99 = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
-// CHECK-NEXT:      %100 = "csl.member_call"(%68, %99, %98) <{"field" = "getRecvBufDsdByNeighbor"}> : (!csl.imported_module, !csl.direction, i16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:      %101 = builtin.unrealized_conversion_cast %100 : !csl<dsd mem1d_dsd> to memref<510xf32>
-// CHECK-NEXT:      %102 = memref.subview %accumulator_1[%offset_3] [510] [1] : memref<510xf32> to memref<510xf32, strided<[1], offset: ?>>
-// CHECK-NEXT:      "csl.fadds"(%102, %101, %97) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32>, memref<510xf32>) -> ()
-// CHECK-NEXT:      "csl.fadds"(%102, %102, %93) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>, memref<510xf32>) -> ()
-// CHECK-NEXT:      "csl.fadds"(%102, %102, %89) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>, memref<510xf32>) -> ()
-// CHECK-NEXT:      "memref.copy"(%102, %102) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>) -> ()
+// CHECK-NEXT:      %86 = memref.subview %accumulator_1[%offset_3] [510] [1] : memref<510xf32> to memref<510xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:      %87 = arith.constant 4 : i16
+// CHECK-NEXT:      %88 = "csl.get_mem_dsd"(%accumulator_1, %87, %arg3_1, %arg5_1) <{"strides" = [0 : i16, 0 : i16, 1 : i16]}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:      %89 = arith.index_cast %offset_3 : index to si16
+// CHECK-NEXT:      %90 = "csl.increment_dsd_offset"(%88, %89) <{"elem_type" = f32}> : (!csl<dsd mem4d_dsd>, si16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:      %91 = "csl.member_call"(%68) <{"field" = "getRecvBufDsd"}> : (!csl.imported_module) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:      "csl.fadds"(%90, %90, %91) : (!csl<dsd mem4d_dsd>, !csl<dsd mem4d_dsd>, !csl<dsd mem4d_dsd>) -> ()
+// CHECK-NEXT:      "memref.copy"(%86, %86) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>) -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @done_exchange_cb1() {
@@ -330,27 +317,27 @@ builtin.module {
 // CHECK-NEXT:      %arg11_1 = "csl.load_var"(%74) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
 // CHECK-NEXT:      scf.if %arg9 {
 // CHECK-NEXT:      } else {
-// CHECK-NEXT:        %103 = memref.subview %arg11_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
-// CHECK-NEXT:        %104 = memref.subview %arg11_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
-// CHECK-NEXT:        "csl.fadds"(%accumulator_1, %accumulator_1, %104) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
-// CHECK-NEXT:        "csl.fadds"(%accumulator_1, %accumulator_1, %103) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
-// CHECK-NEXT:        %105 = arith.constant 1.666600e-01 : f32
-// CHECK-NEXT:        "csl.fmuls"(%accumulator_1, %accumulator_1, %105) : (memref<510xf32>, memref<510xf32>, f32) -> ()
-// CHECK-NEXT:        %106 = memref.subview %arg12_1[1] [510] [1] : memref<512xf32> to memref<510xf32>
-// CHECK-NEXT:        "memref.copy"(%accumulator_1, %106) : (memref<510xf32>, memref<510xf32>) -> ()
+// CHECK-NEXT:        %92 = memref.subview %arg11_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
+// CHECK-NEXT:        %93 = memref.subview %arg11_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
+// CHECK-NEXT:        "csl.fadds"(%accumulator_1, %accumulator_1, %93) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
+// CHECK-NEXT:        "csl.fadds"(%accumulator_1, %accumulator_1, %92) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
+// CHECK-NEXT:        %94 = arith.constant 1.666600e-01 : f32
+// CHECK-NEXT:        "csl.fmuls"(%accumulator_1, %accumulator_1, %94) : (memref<510xf32>, memref<510xf32>, f32) -> ()
+// CHECK-NEXT:        %95 = memref.subview %arg12_1[1] [510] [1] : memref<512xf32> to memref<510xf32>
+// CHECK-NEXT:        "memref.copy"(%accumulator_1, %95) : (memref<510xf32>, memref<510xf32>) -> ()
 // CHECK-NEXT:      }
 // CHECK-NEXT:      "csl.call"() <{"callee" = @for_inc0}> : () -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_inc0() {
-// CHECK-NEXT:      %107 = arith.constant 1 : i16
-// CHECK-NEXT:      %108 = "csl.load_var"(%73) : (!csl.var<i16>) -> i16
-// CHECK-NEXT:      %109 = arith.addi %108, %107 : i16
-// CHECK-NEXT:      "csl.store_var"(%73, %109) : (!csl.var<i16>, i16) -> ()
-// CHECK-NEXT:      %110 = "csl.load_var"(%74) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-// CHECK-NEXT:      %111 = "csl.load_var"(%75) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-// CHECK-NEXT:      "csl.store_var"(%74, %111) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-// CHECK-NEXT:      "csl.store_var"(%75, %110) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+// CHECK-NEXT:      %96 = arith.constant 1 : i16
+// CHECK-NEXT:      %97 = "csl.load_var"(%73) : (!csl.var<i16>) -> i16
+// CHECK-NEXT:      %98 = arith.addi %97, %96 : i16
+// CHECK-NEXT:      "csl.store_var"(%73, %98) : (!csl.var<i16>, i16) -> ()
+// CHECK-NEXT:      %99 = "csl.load_var"(%74) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
+// CHECK-NEXT:      %100 = "csl.load_var"(%75) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
+// CHECK-NEXT:      "csl.store_var"(%74, %100) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+// CHECK-NEXT:      "csl.store_var"(%75, %99) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
 // CHECK-NEXT:      csl.activate local, 1 : i32
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
