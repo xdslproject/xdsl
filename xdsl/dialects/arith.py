@@ -720,7 +720,7 @@ class Cmpf(ComparisonOperation):
     predicate = prop_def(AnyIntegerAttr)
     lhs = operand_def(floatingPointLike)
     rhs = operand_def(floatingPointLike)
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     result = result_def(IntegerType(1))
 
     def __init__(
@@ -728,7 +728,7 @@ class Cmpf(ComparisonOperation):
         operand1: SSAValue | Operation,
         operand2: SSAValue | Operation,
         arg: int | str,
-        fastmath: FastMathFlagsAttr | None = None,
+        fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
     ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
@@ -759,8 +759,10 @@ class Cmpf(ComparisonOperation):
         super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
-            attributes={"fastmath": fastmath},
+            properties={
+                "predicate": IntegerAttr.from_int_and_width(arg, 64),
+                "fastmath": fastmath,
+            },
         )
 
     @classmethod
@@ -770,7 +772,7 @@ class Cmpf(ComparisonOperation):
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         operand2 = parser.parse_unresolved_operand()
-        fastmath = None
+        fastmath = FastMathFlagsAttr("none")
         if parser.parse_optional_keyword("fastmath") is not None:
             fastmath = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
         parser.parse_punctuation(":")
@@ -788,9 +790,9 @@ class Cmpf(ComparisonOperation):
         printer.print_operand(self.lhs)
         printer.print(", ")
         printer.print_operand(self.rhs)
-        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
-            printer.print(" fastmath")
-            self.fastmath.print_parameter(printer)
+        if self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" ")
+            printer.print_attr_dict({"fastmath": self.fastmath})
         printer.print(" : ")
         printer.print_attribute(self.lhs.type)
 
