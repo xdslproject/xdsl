@@ -718,6 +718,7 @@ class Cmpf(ComparisonOperation):
     predicate = prop_def(AnyIntegerAttr)
     lhs = operand_def(floatingPointLike)
     rhs = operand_def(floatingPointLike)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def(IntegerType(1))
 
     def __init__(
@@ -725,6 +726,7 @@ class Cmpf(ComparisonOperation):
         operand1: SSAValue | Operation,
         operand2: SSAValue | Operation,
         arg: int | str,
+        fastmath: FastMathFlagsAttr | None = None,
     ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
@@ -756,6 +758,7 @@ class Cmpf(ComparisonOperation):
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            attributes={"fastmath": fastmath},
         )
 
     @classmethod
@@ -765,13 +768,16 @@ class Cmpf(ComparisonOperation):
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         operand2 = parser.parse_unresolved_operand()
+        fastmath = None
+        if parser.parse_optional_keyword("fastmath") is not None:
+            fastmath = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
         (operand1, operand2) = parser.resolve_operands(
             [operand1, operand2], 2 * [input_type], parser.pos
         )
 
-        return cls(operand1, operand2, arg)
+        return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -780,6 +786,9 @@ class Cmpf(ComparisonOperation):
         printer.print_operand(self.lhs)
         printer.print(", ")
         printer.print_operand(self.rhs)
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
         printer.print(" : ")
         printer.print_attribute(self.lhs.type)
 
