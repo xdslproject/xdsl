@@ -63,8 +63,6 @@ func.func @br_dead_passthrough() {
 /// This will reduce further with other rewrites
 
 // CHECK:      func.func @cond_br_folding(%cond : i1, %a : i32) {
-// CHECK-NEXT:   cf.cond_br %cond, ^[[#b0:]], ^[[#b0]]
-// CHECK-NEXT: ^[[#b0]]:
 // CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 func.func @cond_br_folding(%cond : i1, %a : i32) {
@@ -101,8 +99,8 @@ func.func @cond_br_and_br_folding(%a : i32) {
 
 /// Test that pass-through successors of CondBranchOp get folded.
 // CHECK:      func.func @cond_br_passthrough(%arg0 : i32, %arg1 : i32, %arg2 : i32, %cond : i1) -> (i32, i32) {
-// CHECK-NEXT:   cf.cond_br %cond, ^[[#b0:]](%arg0, %arg1 : i32, i32), ^[[#b0]](%arg2, %arg2 : i32, i32)
-// CHECK-NEXT: ^[[#b0]](%arg4 : i32, %arg5 : i32):
+// CHECK-NEXT:   %arg4 = arith.select %cond, %arg0, %arg2 : i32
+// CHECK-NEXT:   %arg5 = arith.select %cond, %arg1, %arg2 : i32
 // CHECK-NEXT:   func.return %arg4, %arg5 : i32, i32
 // CHECK-NEXT: }
 func.func @cond_br_passthrough(%arg0 : i32, %arg1 : i32, %arg2 : i32, %cond : i1) -> (i32, i32) {
@@ -130,4 +128,29 @@ func.func @cond_br_pass_through_fail(%cond : i1) {
   cf.br ^bb2
 ^bb2:
   return
+}
+
+/// Test the folding of CondBranchOp when the successors are identical.
+// CHECK:      func.func @cond_br_same_successor(%cond : i1, %a : i32) {
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: }
+func.func @cond_br_same_successor(%cond : i1, %a : i32) {
+  cf.cond_br %cond, ^bb1(%a : i32), ^bb1(%a : i32)
+^bb1(%result : i32):
+  return
+}
+
+/// Test the folding of CondBranchOp when the successors are identical, but the
+/// arguments are different.
+// CHECK:      func.func @cond_br_same_successor_insert_select(%cond : i1, %a : i32, %b : i32, %c : tensor<2xi32>, %d : tensor<2xi32>) -> (i32, tensor<2xi32>) {
+// CHECK-NEXT:   %result = arith.select %cond, %a, %b : i32
+// CHECK-NEXT:   %result2 = arith.select %cond, %c, %d : tensor<2xi32>
+// CHECK-NEXT:   func.return %result, %result2 : i32, tensor<2xi32>
+// CHECK-NEXT: }
+func.func @cond_br_same_successor_insert_select(
+      %cond : i1, %a : i32, %b : i32, %c : tensor<2xi32>, %d : tensor<2xi32>
+    ) -> (i32, tensor<2xi32>)  {
+  cf.cond_br %cond, ^bb1(%a, %c : i32, tensor<2xi32>), ^bb1(%b, %d : i32, tensor<2xi32>)
+^bb1(%result : i32, %result2 : tensor<2xi32>):
+  return %result, %result2 : i32, tensor<2xi32>
 }

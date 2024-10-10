@@ -172,3 +172,40 @@ class SimplifyPassThroughCondBranch(RewritePattern):
                 op.cond, new_then, new_then_args, new_else, new_else_args
             )
         )
+
+
+class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
+    """
+    cf.cond_br %cond, ^bb1(A, ..., N), ^bb1(A, ..., N)
+     -> br ^bb1(A, ..., N)
+
+    cf.cond_br %cond, ^bb1(A), ^bb1(B)
+     -> %select = arith.select %cond, A, B
+        br ^bb1(%select)
+    """
+
+    @staticmethod
+    def _merge_operand(
+        op1: SSAValue,
+        op2: SSAValue,
+        rewriter: PatternRewriter,
+        cond_br: cf.ConditionalBranch,
+    ) -> SSAValue:
+        if op1 == op2:
+            return op1
+        select = arith.Select(cond_br.cond, op1, op2)
+        rewriter.insert_op(select, InsertPoint.before(cond_br))
+        return select.result
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+        # Check that the true and false destinations are the same
+        if op.then_block != op.else_block:
+            return
+
+        merged_operands = tuple(
+            self._merge_operand(op1, op2, rewriter, op)
+            for (op1, op2) in zip(op.then_arguments, op.else_arguments)
+        )
+
+        rewriter.replace_matched_op(cf.Branch(op.then_block, *merged_operands))
