@@ -24,10 +24,11 @@ class ConstraintContext:
     """The assignment of constraint range variables."""
 
     def copy(self):
-        return ConstraintContext(self.variables.copy())
+        return ConstraintContext(self.variables.copy(), self.range_variables.copy())
 
     def update(self, other: ConstraintContext):
         self.variables.update(other.variables)
+        self.range_variables.update(other.range_variables)
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
