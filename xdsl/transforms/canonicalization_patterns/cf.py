@@ -89,9 +89,8 @@ def collapse_branch(
     operands = branch.operands
 
     new_operands = tuple(
-        successor_operands[op_owner.index]
-        if isinstance(op_owner := operand.owner, BlockArgument)
-        and op_owner.block is successor
+        successor_operands[operand.index]
+        if isinstance(operand, BlockArgument) and operand.owner is successor
         else operand
         for operand in operands
     )

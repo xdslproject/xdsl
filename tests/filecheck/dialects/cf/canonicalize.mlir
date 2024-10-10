@@ -29,7 +29,7 @@ func.func @br_folding() -> i32 {
 // CHECK:      func.func @br_passthrough(%arg0 : i32, %arg1 : i32) -> (i32, i32) {
 // CHECK-NEXT:   "test.termop"() [^[[#b0:]], ^[[#b1:]], ^[[#b2:]]] : () -> ()
 // CHECK-NEXT: ^[[#b0]]:
-// CHECK-NEXT:   cf.br ^[[#b2]](%arg2, %arg1 : i32, i32)
+// CHECK-NEXT:   cf.br ^[[#b2]](%arg0, %arg1 : i32, i32)
 // CHECK-NEXT: ^[[#b1]](%arg2 : i32):
 // CHECK-NEXT:   cf.br ^[[#b2]](%arg2, %arg1 : i32, i32)
 // CHECK-NEXT: ^[[#b2]](%arg4 : i32, %arg5 : i32):
