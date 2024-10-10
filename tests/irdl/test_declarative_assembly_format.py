@@ -22,9 +22,12 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    BaseAttr,
     ConstraintVar,
     EqAttrConstraint,
+    GenericAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     ParsePropInAttrDict,
     VarOperand,
@@ -1559,7 +1562,7 @@ def test_optional_successor(program: str, generic_program: str):
 # Inference                                                                   #
 ################################################################################
 
-_T = TypeVar("_T", bound=Attribute)
+_T = TypeVar("_T", bound=Attribute, covariant=True)
 
 
 @pytest.mark.parametrize(
@@ -1661,6 +1664,18 @@ def test_nested_inference():
         p: ParameterDef[_T]
         q: ParameterDef[Attribute]
 
+        @classmethod
+        def constr(
+            cls,
+            *,
+            n: GenericAttrConstraint[Attribute] | None = None,
+            p: GenericAttrConstraint[_T] | None = None,
+            q: GenericAttrConstraint[Attribute] | None = None,
+        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_T]]:
+            if n is None and p is None and q is None:
+                return BaseAttr(cls)
+            return ParamAttrConstraint(cls, (n, p, q))
+
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
         T = Annotated[Attribute, ConstraintVar("T")]
@@ -1694,6 +1709,16 @@ def test_non_verifying_inference():
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
         p: ParameterDef[_T]
+
+        @classmethod
+        def constr(
+            cls,
+            *,
+            p: GenericAttrConstraint[_T] | None = None,
+        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_T]]:
+            if p is None:
+                return BaseAttr(cls)
+            return ParamAttrConstraint(cls, (p,))
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):

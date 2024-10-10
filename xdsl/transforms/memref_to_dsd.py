@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     StridedLayoutAttr,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -27,6 +27,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 class LowerAllocOpPass(RewritePattern):
@@ -34,21 +35,24 @@ class LowerAllocOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
-        assert isa(op.memref.type, MemRefType[csl.ZerosOp.T])
-        zeros_op = csl.ZerosOp(op.memref.type)
+        assert isattr(
+            memref_type := op.memref.type,
+            MemRefType[csl.ZerosOpAttr].constr(element_type=csl.ZerosOpAttrConstr),
+        )
+        zeros_op = csl.ZerosOp(memref_type)
 
         dsd_t = csl.DsdType(
             csl.DsdKind.mem1d_dsd
-            if len(op.memref.type.shape) == 1
+            if len(memref_type.shape) == 1
             else csl.DsdKind.mem4d_dsd
         )
         offsets = None
-        if isinstance(op.memref.type.layout, StridedLayoutAttr) and isinstance(
-            op.memref.type.layout.offset, IntAttr
+        if isinstance(memref_type.layout, StridedLayoutAttr) and isinstance(
+            memref_type.layout.offset, IntAttr
         ):
-            offsets = ArrayAttr([IntegerAttr(op.memref.type.layout.offset, 16)])
+            offsets = ArrayAttr([IntegerAttr(memref_type.layout.offset, 16)])
 
-        shape = [arith.Constant(IntegerAttr(d, 16)) for d in op.memref.type.shape]
+        shape = [arith.Constant(IntegerAttr(d, 16)) for d in memref_type.shape]
         dsd_op = csl.GetMemDsdOp.build(
             operands=[zeros_op, shape],
             result_types=[dsd_t],
@@ -58,6 +62,31 @@ class LowerAllocOpPass(RewritePattern):
         )
 
         rewriter.replace_matched_op([zeros_op, *shape, dsd_op])
+
+
+class FixGetDsdOnGetDsd(RewritePattern):
+    """
+    This rewrite pattern resolves GetMemDsdOp being called on GetMemDsdOp instead of the underlying buffer,
+    a side effect created by `LowerAllocOpPass` in case of pre-existing GetMemDsdOp ops being present in
+    the program that were created outside of this pass.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter, /):
+        if isinstance(op.base_addr.type, csl.DsdType):
+            if isinstance(op.base_addr, OpResult) and isinstance(
+                op.base_addr.op, csl.GetMemDsdOp
+            ):
+                rewriter.replace_matched_op(
+                    csl.GetMemDsdOp.build(
+                        operands=[op.base_addr.op.base_addr, op.sizes],
+                        properties=op.properties,
+                        attributes=op.attributes,
+                        result_types=op.result_types,
+                    )
+                )
+            else:
+                raise ValueError("Failed to resolve GetMemDsdOp called on dsd type")
 
 
 class LowerSubviewOpPass(RewritePattern):
@@ -331,3 +360,7 @@ class MemrefToDsdPass(ModulePass):
             apply_recursively=False,
         )
         forward_pass.rewrite_module(op)
+        cleanup_pass = PatternRewriteWalker(
+            FixGetDsdOnGetDsd(),
+        )
+        cleanup_pass.rewrite_module(op)

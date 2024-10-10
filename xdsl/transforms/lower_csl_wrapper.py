@@ -5,7 +5,6 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.csl import csl, csl_wrapper
 from xdsl.ir import Block, Operation, Region, SSAValue
-from xdsl.irdl import base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -43,7 +42,7 @@ class ExtractCslModules(RewritePattern):
         """
         params = list[SSAValue]()
         for param in op.params:
-            if isa(param.value, builtin.IntegerAttr):
+            if isattr(param.value, builtin.AnyIntegerAttrConstr):
                 value = arith.Constant(param.value)
             else:
                 value = None
@@ -73,7 +72,9 @@ class ExtractCslModules(RewritePattern):
         )
         return (
             struct,
-            csl.SetTileCodeOp(fname=prog_name, x_coord=x, y_coord=y, params=struct),
+            csl.SetTileCodeOp(
+                fname=f"{prog_name}.csl", x_coord=x, y_coord=y, params=struct
+            ),
         )
 
     def lower_layout_module(
@@ -175,7 +176,7 @@ class ExtractCslModules(RewritePattern):
     def _collect_yield_args(yield_op: csl_wrapper.YieldOp) -> list[csl.ParamOp]:
         params = list[csl.ParamOp]()
         for s, v in yield_op.items():
-            assert isattr(ty := v.type, base(csl.ParamOp.T))
+            assert isattr(ty := v.type, csl.ParamOpAttrConstr)
             params.append(csl.ParamOp(s, ty))
         return params
 

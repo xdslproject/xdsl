@@ -3,7 +3,7 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
-from xdsl.dialects.builtin import IntegerType, UnitAttr, i32
+from xdsl.dialects.builtin import UnitAttr, i32
 from xdsl.ir import Attribute
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -24,8 +24,8 @@ from xdsl.utils.test_value import TestSSAValue
         (llvm.AShrOp, {}),
     ],
 )
-def test_llvm_no_overflow_arithmetic_ops(
-    op_type: type[llvm.ArithmeticBinOpBase[IntegerType]],
+def test_llvm_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOperation],
     attributes: dict[str, Attribute],
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
@@ -47,7 +47,7 @@ def test_llvm_no_overflow_arithmetic_ops(
     ],
 )
 def test_llvm_overflow_arithmetic_ops(
-    op_type: type[llvm.ArithmeticBinOpOverflow[IntegerType]],
+    op_type: type[llvm.ArithmeticBinOpOverflow],
     attributes: dict[str, Attribute],
     overflow: llvm.OverflowAttr,
 ):

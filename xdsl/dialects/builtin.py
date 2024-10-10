@@ -16,7 +16,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -46,6 +46,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    GenericAttrConstraint,
     GenericData,
     IRDLOperation,
     MessageConstraint,
@@ -439,6 +440,7 @@ IndexTypeConstr = BaseAttr(IndexType)
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -510,6 +512,24 @@ class IntegerAttr(
 
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        # pyright needs updating, with the new one it works fine
+        value: AttrConstraint | None = None,
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,  # pyright: ignore[reportGeneralTypeIssues]
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
+        if value is None and type == AnyAttr():
+            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
+            IntegerAttr,
+            (
+                value,
+                type,
+            ),
+        )
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -644,6 +664,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+AnyFloatAttrConstr: BaseAttr[AnyFloatAttr] = BaseAttr(FloatAttr)
 
 
 @irdl_attr_definition
@@ -930,9 +951,17 @@ class DenseArrayBase(ParametrizedAttribute):
                         "should only contain floats"
                     )
 
+    @deprecated("Please use `create_dense_int` instead.")
     @staticmethod
     def create_dense_int_or_index(
         data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase:
+        assert not isinstance(data_type, IndexType), "Index type is not supported"
+        return DenseArrayBase.create_dense_int(data_type, data)
+
+    @staticmethod
+    def create_dense_int(
+        data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
             attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
@@ -974,9 +1003,9 @@ class DenseArrayBase(ParametrizedAttribute):
             | Sequence[FloatData]
         ),
     ) -> DenseArrayBase:
-        if isinstance(data_type, IndexType | IntegerType):
+        if isinstance(data_type, IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
-            return DenseArrayBase.create_dense_int_or_index(data_type, _data)
+            return DenseArrayBase.create_dense_int(data_type, _data)
         elif isattr(data_type, AnyFloatConstr):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
@@ -1436,7 +1465,7 @@ f80 = Float80Type()
 f128 = Float128Type()
 
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute, covariant=True)
 _UnrankedMemrefTypeElems = TypeVar(
     "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
 )
@@ -1564,6 +1593,27 @@ class MemRefType(
                 return ShapedType.strides_for_shape(self.get_shape())
             case _:
                 return self.layout.get_strides()
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        shape: GenericAttrConstraint[Attribute] | None = None,
+        # pyright needs updating, with the new one it works fine
+        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),  # pyright: ignore[reportGeneralTypeIssues]
+        layout: GenericAttrConstraint[Attribute] | None = None,
+        memory_space: GenericAttrConstraint[Attribute] | None = None,
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
+        if (
+            shape is None
+            and element_type == AnyAttr()
+            and layout is None
+            and memory_space is None
+        ):
+            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
+            MemRefType, (shape, element_type, layout, memory_space)
+        )
 
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]

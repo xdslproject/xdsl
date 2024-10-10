@@ -17,7 +17,9 @@ from typing import Annotated, ClassVar, TypeAlias
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
+    AnyFloatAttrConstr,
     AnyIntegerAttr,
+    AnyIntegerAttrConstr,
     AnyMemRefType,
     ArrayAttr,
     BoolAttr,
@@ -48,6 +50,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyOf,
+    BaseAttr,
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
@@ -380,6 +384,7 @@ ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+ParamAttrConstr = AnyFloatAttrConstr | AnyIntegerAttrConstr
 
 
 @irdl_op_definition
@@ -395,7 +400,7 @@ class VariableOp(IRDLOperation):
 
     name = "csl.variable"
 
-    default = opt_prop_def(ParamAttr)
+    default = opt_prop_def(ParamAttrConstr)
     res = result_def(VarType)
 
     def get_element_type(self):
@@ -576,6 +581,12 @@ class ConstStructOp(IRDLOperation):
         raise VerifyException(
             "Number of ssa_fields has to match the number of arguments"
         )
+
+
+ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
+ZerosOpAttrConstr: AnyOf[ZerosOpAttr] = (
+    BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
+)
 
 
 @irdl_op_definition
@@ -1896,6 +1907,27 @@ class RpcOp(IRDLOperation):
     traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
 
     id = operand_def(ColorType)
+
+
+ParamOpAttr: TypeAlias = (
+    Float16Type
+    | Float32Type
+    | IntegerType
+    | ColorType
+    | FunctionType
+    | ImportedModuleType
+    | ComptimeStructType
+)
+
+ParamOpAttrConstr = (
+    BaseAttr(Float16Type)
+    | BaseAttr(Float32Type)
+    | BaseAttr(IntegerType)
+    | BaseAttr(ColorType)
+    | BaseAttr(FunctionType)
+    | BaseAttr(ImportedModuleType)
+    | BaseAttr(ComptimeStructType)
+)
 
 
 @irdl_op_definition
