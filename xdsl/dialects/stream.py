@@ -52,7 +52,6 @@ class StreamType(
     def constr(
         cls,
         *,
-        # pyright needs updating, with the new one it works fine
         element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> GenericAttrConstraint[StreamType[_StreamTypeElement]]:
         if element_type == AnyAttr():
