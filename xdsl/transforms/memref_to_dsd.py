@@ -66,8 +66,8 @@ class LowerAllocOpPass(RewritePattern):
 
 class FixGetDsdOnGetDsd(RewritePattern):
     """
-    This rewrite pattern resolves @get_dsd being called on @get_dsd instead of the underlying buffer,
-    a side effect created by `LowerAllocOpPass` in case of pre-existing @get_dsd ops being present in
+    This rewrite pattern resolves GetMemDsdOp being called on GetMemDsdOp instead of the underlying buffer,
+    a side effect created by `LowerAllocOpPass` in case of pre-existing GetMemDsdOp ops being present in
     the program that were created outside of this pass.
     """
 
