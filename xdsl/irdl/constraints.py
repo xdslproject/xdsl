@@ -20,7 +20,7 @@ class ConstraintContext:
     variables: dict[str, Attribute] = field(default_factory=dict)
     """The assignment of constraint variables."""
 
-    ranges: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
     """The assignment of constraint range variables."""
 
     def copy(self):
@@ -517,15 +517,15 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         constraint_context: ConstraintContext | None = None,
     ) -> None:
         constraint_context = constraint_context or ConstraintContext()
-        if self.name in constraint_context.ranges:
-            if tuple(attrs) != constraint_context.ranges[self.name]:
+        if self.name in constraint_context.range_variables:
+            if tuple(attrs) != constraint_context.range_variables[self.name]:
                 raise VerifyException(
-                    f"attributes {tuple(str(x) for x in constraint_context.ranges[self.name])} expected from range variable "
+                    f"attributes {tuple(str(x) for x in constraint_context.range_variables[self.name])} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
                 )
         else:
             self.constraint.verify(attrs, constraint_context)
-            constraint_context.ranges[self.name] = tuple(attrs)
+            constraint_context.range_variables[self.name] = tuple(attrs)
 
     def get_resolved_variables(self) -> set[str]:
         return {self.name, *self.constraint.get_resolved_variables()}
@@ -537,9 +537,9 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         self, length: int, constraint_context: ConstraintContext
     ) -> Sequence[Attribute]:
         constraint_context = constraint_context or ConstraintContext()
-        if self.name not in constraint_context.ranges:
+        if self.name not in constraint_context.range_variables:
             raise ValueError(f"Cannot infer attribute from constraint {self}")
-        return constraint_context.ranges[self.name]
+        return constraint_context.range_variables[self.name]
 
 
 @dataclass
