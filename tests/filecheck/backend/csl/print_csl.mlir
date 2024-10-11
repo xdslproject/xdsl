@@ -654,6 +654,7 @@ csl.func @builtins() {
 // CHECK-NEXT: var uninit_array : [10]f32;
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
+// CHECK-NEXT: const literal_array : [3]f32 = [3]f32{1.2, 2.3, 3.4};
 // CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
 // CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
