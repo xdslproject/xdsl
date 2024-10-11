@@ -447,6 +447,8 @@ class CslPrintContext:
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
+            case DenseIntOrFPElementsAttr(data=ArrayAttr(data=data), type=typ):
+                return f"{self.mlir_type_to_csl_type(typ)}{{{", ".join(str(d.value.data) for d in data)}}}"
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -514,6 +516,8 @@ class CslPrintContext:
                         op.results[0], self._binop_value_expr(op), brackets=True
                     )
                 case arith.Constant(value=v, result=r):
+                    if isinstance(v, DenseIntOrFPElementsAttr):
+                        pass
                     self._print_or_promote_to_inline_expr(
                         r, self.attribute_value_to_str(v)
                     )

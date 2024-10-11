@@ -212,6 +212,8 @@
   %global_array = memref.get_global @global_array : memref<10xf32>
   %const_array = memref.get_global @const_array : memref<10xi32>
 
+  %literal_array = arith.constant dense<[1.200000e+00, 2.300000e+00, 3.400000e+00]> : memref<3xf32>
+
   %uninit_ptr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
   %global_ptr = "csl.addressof"(%global_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
   %const_ptr  = "csl.addressof"(%const_array) : (memref<10xi32>) -> !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>
