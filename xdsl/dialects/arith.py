@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Literal, TypeVar, cast, overload
+from typing import ClassVar, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -26,8 +26,8 @@ from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -175,7 +175,7 @@ _T = TypeVar("_T", bound=Attribute)
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -216,7 +216,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on floats."""
 
-    T = Annotated[Attribute, ConstraintVar("T"), floatingPointLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", floatingPointLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -290,7 +290,7 @@ class AddUIExtended(IRDLOperation):
 
     traits = frozenset([Pure()])
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -353,7 +353,7 @@ class Muli(SignlessIntegerBinaryOperation):
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)

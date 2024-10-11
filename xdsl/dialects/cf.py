@@ -96,6 +96,17 @@ class Branch(IRDLOperation):
     assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
 
 
+class ConditionalBranchHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.cf import (
+            SimplifyConstCondBranchPred,
+            SimplifyPassThroughCondBranch,
+        )
+
+        return (SimplifyConstCondBranchPred(), SimplifyPassThroughCondBranch())
+
+
 @irdl_op_definition
 class ConditionalBranch(IRDLOperation):
     """Conditional branch operation"""
@@ -111,7 +122,7 @@ class ConditionalBranch(IRDLOperation):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([IsTerminator(), ConditionalBranchHasCanonicalizationPatterns()])
 
     def __init__(
         self,

@@ -240,9 +240,9 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     return runtime_final(
         dataclass(frozen=True, init=False)(
             type.__new__(
-                type(cls),  # pyright: ignore[reportUnknownArgumentType]
+                type(cls),
                 cls.__name__,
-                (cls,),  # pyright: ignore[reportUnknownArgumentType]
+                (cls,),
                 {**cls.__dict__, **new_fields},
             )
         )
