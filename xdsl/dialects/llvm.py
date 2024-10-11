@@ -444,7 +444,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         return OverflowAttr("none")
 
     def print_overflow(self, printer: Printer) -> None:
-        if self.overflowFlags.flags:
+        if self.overflowFlags and self.overflowFlags.flags:
             printer.print(" overflow")
             self.overflowFlags.print_parameter(printer)
 
