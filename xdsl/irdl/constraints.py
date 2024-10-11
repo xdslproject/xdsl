@@ -17,18 +17,38 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: dict[str, Attribute] = field(default_factory=dict)
     """The assignment of constraint variables."""
 
-    range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
     """The assignment of constraint range variables."""
 
+    def get_variable(self, key: str) -> Attribute:
+        return self._variables[key]
+
+    def get_range_variable(self, key: str) -> tuple[Attribute, ...]:
+        return self._range_variables[key]
+
+    def set_variable(self, key: str, attr: Attribute):
+        self._variables[key] = attr
+
+    def set_range_variable(self, key: str, attr: tuple[Attribute, ...]):
+        self._range_variables[key] = attr
+
+    @property
+    def variables(self) -> Sequence[str]:
+        return tuple(self._variables.keys())
+
+    @property
+    def range_variables(self) -> Sequence[str]:
+        return tuple(self._range_variables.keys())
+
     def copy(self):
-        return ConstraintContext(self.variables.copy(), self.range_variables.copy())
+        return ConstraintContext(self._variables.copy(), self._range_variables.copy())
 
     def update(self, other: ConstraintContext):
-        self.variables.update(other.variables)
-        self.range_variables.update(other.range_variables)
+        self._variables.update(other._variables)
+        self._range_variables.update(other._range_variables)
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
@@ -107,14 +127,14 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         constraint_context: ConstraintContext,
     ) -> None:
         if self.name in constraint_context.variables:
-            if attr != constraint_context.variables[self.name]:
+            if attr != constraint_context.get_variable(self.name):
                 raise VerifyException(
-                    f"attribute {constraint_context.variables[self.name]} expected from variable "
+                    f"attribute {constraint_context.get_variable(self.name)} expected from variable "
                     f"'{self.name}', but got {attr}"
                 )
         else:
             self.constraint.verify(attr, constraint_context)
-            constraint_context.variables[self.name] = attr
+            constraint_context.set_variable(self.name, attr)
 
     def get_resolved_variables(self) -> set[str]:
         return {self.name, *self.constraint.get_resolved_variables()}
@@ -126,7 +146,7 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         constraint_context = constraint_context or ConstraintContext()
         if self.name not in constraint_context.variables:
             raise ValueError(f"Cannot infer attribute from constraint {self}")
-        return constraint_context.variables[self.name]
+        return constraint_context.get_variable(self.name)
 
     def get_unique_base(self) -> type[Attribute] | None:
         return self.constraint.get_unique_base()
@@ -325,7 +345,7 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
     def infer(self, constraint_context: ConstraintContext | None = None) -> Attribute:
         constraint_context = constraint_context or ConstraintContext()
         for constr in self.attr_constrs:
-            if constr.can_infer(set(constraint_context.variables.keys())):
+            if constr.can_infer(set(constraint_context.variables)):
                 return constr.infer(constraint_context)
         raise ValueError("Cannot infer attribute from constraint")
 
@@ -519,14 +539,14 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     ) -> None:
         constraint_context = constraint_context or ConstraintContext()
         if self.name in constraint_context.range_variables:
-            if tuple(attrs) != constraint_context.range_variables[self.name]:
+            if tuple(attrs) != constraint_context.get_range_variable(self.name):
                 raise VerifyException(
-                    f"attributes {tuple(str(x) for x in constraint_context.range_variables[self.name])} expected from range variable "
+                    f"attributes {tuple(str(x) for x in constraint_context.get_range_variable(self.name))} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
                 )
         else:
             self.constraint.verify(attrs, constraint_context)
-            constraint_context.range_variables[self.name] = tuple(attrs)
+            constraint_context.set_range_variable(self.name, tuple(attrs))
 
     def get_resolved_variables(self) -> set[str]:
         return {self.name, *self.constraint.get_resolved_variables()}
@@ -540,7 +560,7 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         constraint_context = constraint_context or ConstraintContext()
         if self.name not in constraint_context.range_variables:
             raise ValueError(f"Cannot infer attribute from constraint {self}")
-        return constraint_context.range_variables[self.name]
+        return constraint_context.get_range_variable(self.name)
 
 
 @dataclass

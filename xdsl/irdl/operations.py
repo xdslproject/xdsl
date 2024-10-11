@@ -1125,7 +1125,7 @@ class OpDef:
                                     "opt_operand_def instead."
                                 )
                             constraint = get_constraint(value.param)
-                            operand_def = cast(type[OperandDef], value.cls)(constraint)
+                            operand_def = value.cls(constraint)
                         else:
                             constraint = get_range_constraint(value.param)
                             operand_def = cast(type[VarOperandDef], value.cls)(
