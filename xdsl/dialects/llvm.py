@@ -412,7 +412,7 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
