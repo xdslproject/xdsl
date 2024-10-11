@@ -13,6 +13,10 @@ from xdsl.utils.test_value import TestSSAValue
 @pytest.mark.parametrize(
     "op_type, attributes",
     [
+        (llvm.AddOp, {}),
+        (llvm.AddOp, {"attr1": UnitAttr()}),
+        (llvm.SubOp, {}),
+        (llvm.MulOp, {}),
         (llvm.UDivOp, {}),
         (llvm.SDivOp, {}),
         (llvm.URemOp, {}),
@@ -20,6 +24,7 @@ from xdsl.utils.test_value import TestSSAValue
         (llvm.AndOp, {}),
         (llvm.OrOp, {}),
         (llvm.XOrOp, {}),
+        (llvm.ShlOp, {}),
         (llvm.LShrOp, {}),
         (llvm.AShrOp, {}),
     ],
@@ -33,27 +38,6 @@ def test_llvm_arithmetic_ops(
         op_type.create(
             operands=[op1, op2], result_types=[op1.type], attributes=attributes
         )
-    )
-
-
-@pytest.mark.parametrize(
-    "op_type, attributes, overflow",
-    [
-        (llvm.AddOp, {}, llvm.OverflowAttr(None)),
-        (llvm.AddOp, {"attr1": UnitAttr()}, llvm.OverflowAttr(None)),
-        (llvm.SubOp, {}, llvm.OverflowAttr(None)),
-        (llvm.MulOp, {}, llvm.OverflowAttr(None)),
-        (llvm.ShlOp, {}, llvm.OverflowAttr(None)),
-    ],
-)
-def test_llvm_overflow_arithmetic_ops(
-    op_type: type[llvm.ArithmeticBinOpOverflow],
-    attributes: dict[str, Attribute],
-    overflow: llvm.OverflowAttr,
-):
-    op1, op2 = test.TestOp(result_types=[i32, i32]).results
-    assert op_type(op1, op2, attributes).is_structurally_equivalent(
-        op_type(lhs=op1, rhs=op2, attributes=attributes, overflow=overflow)
     )
 
 
