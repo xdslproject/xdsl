@@ -417,7 +417,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     res = result_def(T)
-    overflowFlags = prop_def(OverflowAttr)
+    overflowFlags = opt_prop_def(OverflowAttr)
 
     traits = frozenset([NoMemoryEffect()])
 
