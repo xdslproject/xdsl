@@ -39,7 +39,7 @@ jobs:
           source .venv/bin/activate
 
       - name: Generate IRDL stubs
-        run: xdsl-stubgen
+        run: uv run xdsl-stubgen
 
       - name: Pyright
         uses: jakebailey/pyright-action@v2
