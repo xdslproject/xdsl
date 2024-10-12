@@ -33,11 +33,13 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
-      - name: Install the project
-        run: uv sync --all-extras
+      - name: Install the project and activate its virtual environment
+        run: |
+          uv sync --all-extras
+          source ./venv/bin/activate
 
       - name: Generate IRDL stubs
-        run: uv run xdsl-stubgen
+        run: xdsl-stubgen
 
       - name: Pyright
         uses: jakebailey/pyright-action@v2
