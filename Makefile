@@ -7,6 +7,9 @@ VENV_DIR ?= venv
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
 
+# allow overriding which extras are installed
+VENV_EXTRAS ?= --all-extras
+
 # use different coverage data file per coverage run, otherwise combine complains
 TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 
@@ -14,16 +17,14 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests
+.PHONY: venv clean clean-caches filecheck pytest pytest-nb tests-toy tests
 .PHONY: rerun-notebooks precommit-install precommit pyright tests-marimo
 .PHONY: tests-marimo-mlir coverage coverage-tests coverage-filecheck-tests
 .PHONY: coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
-${VENV_DIR}/: requirements.txt
-	python3 -m venv ${VENV_DIR}
-	. ${VENV_DIR}/bin/activate
-	python3 -m pip --require-virtualenv install -r requirements.txt
+${VENV_DIR}/:
+	uv sync ${VENV_EXTRAS}
 
 # make sure `make venv` always works no matter what $VENV_DIR is
 venv: ${VENV_DIR}/
