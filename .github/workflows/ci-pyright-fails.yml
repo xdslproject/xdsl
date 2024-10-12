@@ -7,8 +7,8 @@ on:
   # Trigger the workflow on push or pull request,
   # but only for the master branch
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
   pull_request:
 
 jobs:
@@ -16,26 +16,29 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10"] #, "3.11", "3.12"]
 
     env:
       PYRIGHT_VERSION: 1.0
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip' # caching pip dependencies
-          cache-dependency-path: |
-            setup.py
-            requirements.txt
-      - name: Install the package locally
-        run:
-          pip install -r requirements.txt
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install the project
+        run: uv sync --all-extras
+
       - name: Generate IRDL stubs
-        run: xdsl-stubgen
+        run: uv run xdsl-stubgen
+
       - name: Pyright
         uses: jakebailey/pyright-action@v2
         with:
