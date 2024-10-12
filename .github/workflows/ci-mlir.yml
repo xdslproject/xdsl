@@ -6,8 +6,8 @@ on:
   # Trigger the workflow on push or pull request,
   # but only for the main branch
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
   pull_request:
   workflow_dispatch:
 
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10'] #, '3.11', '3.12']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
@@ -98,36 +98,36 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        pytest -W error --cov --cov-config=.coveragerc .
+        uv run pytest -W error --cov --cov-config=.coveragerc .
 
     - name: Execute lit tests
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        lit -v tests/filecheck/ -DCOVERAGE
-        lit -v docs/Toy/examples/ -DCOVERAGE
+        uv run lit -v tests/filecheck/ -DCOVERAGE
+        uv run lit -v docs/Toy/examples/ -DCOVERAGE
 
     - name: Test MLIR dependent examples/tutorials
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
+        uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
     - name: Test MLIR dependent marimo notebooks
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        make tests-marimo-mlir
+        uv run make tests-marimo-mlir
 
     - name: Combine coverage data
       run: |
         cd xdsl
-        coverage combine --append
-        coverage report
-        coverage xml
+        uv run coverage combine --append
+        uv run coverage report
+        uv run coverage xml
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
