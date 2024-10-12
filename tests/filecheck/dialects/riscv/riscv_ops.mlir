@@ -175,6 +175,8 @@
 
     %li = riscv.li 1 : !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg
+    %li_fm = riscv.li 1 fastmath<fast> : !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.li 1 fastmath<fast> : !riscv.reg
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: riscv.ecall
@@ -273,6 +275,12 @@
     // CHECK-NEXT: %{{.*}} = riscv.flt.s %{{.*}}, %{{.*}} : (!riscv.freg, !riscv.freg) -> !riscv.reg
     %fle_s = riscv.fle.s %f0, %f1 : (!riscv.freg, !riscv.freg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.fle.s %{{.*}}, %{{.*}} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    %feq_s_fm = riscv.feq.s %f0, %f1 fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.feq.s %{{.*}}, %{{.*}} fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    %flt_s_fm = riscv.flt.s %f0, %f1 fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.flt.s %{{.*}}, %{{.*}} fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    %fle_s_fm = riscv.fle.s %f0, %f1 fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.fle.s %{{.*}}, %{{.*}} fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
     %fclass_s = riscv.fclass.s %f0 : (!riscv.freg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.fclass.s %{{.*}} : (!riscv.freg) -> !riscv.reg
     %fcvt_s_w = riscv.fcvt.s.w %0 : (!riscv.reg) -> !riscv.freg
@@ -419,6 +427,7 @@
 // CHECK-GENERIC-NEXT:     %rem = "riscv.rem"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %remu = "riscv.remu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %li = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %li_fm = "riscv.li"() {"immediate" = 1 : i32, "fastmath" = #riscv.fastmath<fast>} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.ebreak"() : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.directive"() {"directive" = ".bss"} : () -> ()
@@ -460,6 +469,9 @@
 // CHECK-GENERIC-NEXT:     %feq_s = "riscv.feq.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %flt_s = "riscv.flt.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %fle_s = "riscv.fle.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %feq_s_fm = "riscv.feq.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %flt_s_fm = "riscv.flt.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %fle_s_fm = "riscv.fle.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %fclass_s = "riscv.fclass.s"(%f0) : (!riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %fcvt_s_w = "riscv.fcvt.s.w"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:     %fcvt_s_wu = "riscv.fcvt.s.wu"(%0) : (!riscv.reg) -> !riscv.freg
