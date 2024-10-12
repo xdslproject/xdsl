@@ -36,7 +36,7 @@ jobs:
       - name: Install the project and activate its virtual environment
         run: |
           uv sync --all-extras
-          source ./venv/bin/activate
+          source .venv/bin/activate
 
       - name: Generate IRDL stubs
         run: xdsl-stubgen
