@@ -2,12 +2,8 @@ name: Deploy JupyterLite Page
 
 on:
   # Trigger the workflow every day at 4:15am
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-#   schedule:
-#     - cron: '15 4 * * *'
+  schedule:
+    - cron: '15 4 * * *'
 
 jobs:
   build:
