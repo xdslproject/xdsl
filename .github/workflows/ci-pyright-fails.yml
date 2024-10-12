@@ -7,8 +7,8 @@ on:
   # Trigger the workflow on push or pull request,
   # but only for the master branch
   push:
-    # branches:
-    #   - main
+    branches:
+      - main
   pull_request:
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10"] #, "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     env:
       PYRIGHT_VERSION: 1.0
@@ -40,7 +40,7 @@ jobs:
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Generate IRDL stubs
-        run: uv run xdsl-stubgen
+        run: xdsl-stubgen
 
       - name: Pyright
         uses: jakebailey/pyright-action@v2
