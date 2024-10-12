@@ -7,8 +7,8 @@ on:
   # Trigger the workflow on push or pull request,
   # but only for the master branch
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
   pull_request:
 
 jobs:
@@ -28,28 +28,23 @@ jobs:
         packages: mesa-vulkan-drivers
         version: 1.0
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip' # caching pip dependencies
-        cache-dependency-path: |
-          setup.py
-          requirements.txt
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
 
-    - name: Upgrade pip
-      run: |
-        pip install --upgrade pip
+    - name: Set up Python
+      run: uv python install
 
-    - name: Install the package locally
-      run: pip install -r requirements.txt
+    - name: Install the project
+      run: uv sync --all-extras
 
     - name: Test with pytest
-      run: |
-        pytest -W error
+      run: uv run pytest -W error
 
     - name: Execute lit tests
       run: |
         export PYTHONPATH=$(pwd)
-        lit -v tests/filecheck/
-        lit -v docs/Toy/examples/
+        uv run lit -v tests/filecheck/
+        uv run lit -v docs/Toy/examples/
