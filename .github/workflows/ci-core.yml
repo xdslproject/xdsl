@@ -7,8 +7,8 @@ on:
   # Trigger the workflow on push or pull request,
   # but only for the master branch
   push:
-    # branches:
-    #   - main
+    branches:
+      - main
   pull_request:
 
 jobs:

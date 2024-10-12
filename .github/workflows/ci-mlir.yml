@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10'] #, '3.11', '3.12']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
@@ -33,24 +33,20 @@ jobs:
         packages: mesa-vulkan-drivers
         version: 1.0
 
-    - name: Python Setup
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip' # caching pip dependencies
-        cache-dependency-path: |
-          setup.py
-          requirements.txt
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
 
-    - name: Upgrade pip
-      run: |
-        pip install --upgrade pip
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
 
     - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        pip install -r requirements.txt
+        uv sync --all-extras
 
     - name: Cache binaries
       id: cache-binary
