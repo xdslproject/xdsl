@@ -89,13 +89,16 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ### Developer Installation
 
+We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
+Getting started documentation can be found [here](https://docs.astral.sh/uv/getting-started/),
+and is also printed by the `make uv-installed` and `make venv` targets if it
+is not already installed on your system.
+
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
 cd xdsl
 # set up the venv and install everything
 make venv
-# activate the venv
-source venv/bin/activate
 ```
 
 ### Testing
@@ -105,10 +108,10 @@ be executed from the root directory:
 
 ```bash
 # Executes pytests which are located in tests/
-pytest
+uv run pytest
 
 # Executes filecheck tests
-lit tests/filecheck
+uv run lit tests/filecheck
 
 # run all tests using makefile
 make tests
@@ -128,7 +131,7 @@ make precommit-install
 # to run the hooks:
 make precommit
 # alternatively, run ruff directly:
-ruff format
+uv run ruff format
 ```
 
 Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)
