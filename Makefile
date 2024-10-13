@@ -17,7 +17,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 uv-installed:
 	@command -v uv &> /dev/null ||\
 		(echo "UV doesn't seem to be installed, try the following instructions:" &&\
-		echo "https://docs.astral.sh/uv/getting-started/installation/")
+		echo "https://docs.astral.sh/uv/getting-started/installation/" && false)
 
 # set up the venv with all dependencies for development
 .venv/: uv-installed
