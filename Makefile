@@ -13,8 +13,14 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 # make tasks run all commands in a single shell
 .ONESHELL:
 
+.PHONY: uv-installed
+uv-installed:
+	@command -v uv &> /dev/null ||\
+		(echo "UV doesn't seem to be installed, try the following instructions:" &&\
+		echo "https://docs.astral.sh/uv/getting-started/installation/")
+
 # set up the venv with all dependencies for development
-.venv/:
+.venv/: uv-installed
 	uv sync ${VENV_EXTRAS}
 
 # make sure `make venv` also works correctly
