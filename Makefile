@@ -1,9 +1,6 @@
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-builtin-variables
 
-# allow overriding the name of the venv directory
-VENV_DIR ?= venv
-
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
 
@@ -17,14 +14,12 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # set up the venv with all dependencies for development
-${VENV_DIR}/: requirements.txt
-	python3 -m venv ${VENV_DIR}
-	. ${VENV_DIR}/bin/activate
-	python3 -m pip --require-virtualenv install -r requirements.txt
+.venv/:
+	uv sync ${VENV_EXTRAS}
 
-# make sure `make venv` always works no matter what $VENV_DIR is
+# make sure `make venv` also works correctly
 .PHONY: venv
-venv: ${VENV_DIR}/
+venv: .venv/
 
 # remove all caches
 .PHONY: clean-caches
