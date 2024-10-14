@@ -45,7 +45,7 @@ class SubstituteDonatedTensors(RewritePattern):
         new_ops: list[Operation] = []
         for output in op.arguments:
             if type(getattr(output, "type")) is not TensorType:
-                break
+                continue
 
             for i, arg in enumerate(donated_inputs):
                 if getattr(arg, "type").is_same_type_with(output.type):
