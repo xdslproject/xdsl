@@ -343,7 +343,7 @@ class AddUIExtended(IRDLOperation):
         )
 
 
-class MuliOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class MuliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import MultiplyImmediates
