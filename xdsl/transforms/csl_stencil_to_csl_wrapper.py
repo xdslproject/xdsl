@@ -87,7 +87,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             # retrieve z_dim from done_exchange arg[0]
             if isattr(
                 field_t := apply_op.done_exchange.block.args[0].type,
-                stencil.AnyStencilTypeConstr,
+                stencil.StencilTypeConstr,
             ) and isattr(
                 el_type := field_t.element_type,
                 AnyTensorTypeConstr | AnyMemRefTypeConstr,

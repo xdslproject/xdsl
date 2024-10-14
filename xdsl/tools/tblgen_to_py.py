@@ -351,7 +351,7 @@ class TblgenLoader:
             or "UnsignedIntegerAttrBase" in rec.superclasses
         ):
             return textwrap.dedent(f"""
-            IntegerAttrConstr(type={self._resolve_type_constraint(rec["valueType"]["def"])})
+            IntegerAttr[IntegerType].constr(type={self._resolve_type_constraint(rec["valueType"]["def"])})
             """)
 
         if "FloatAttrBase" in rec.superclasses:

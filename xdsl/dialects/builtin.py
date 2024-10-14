@@ -513,21 +513,22 @@ class IntegerAttr(
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
 
-
-def IntegerAttrConstr(
-    *,
-    value: AttrConstraint | None = None,
-    type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
-) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
-    if value is None and type == AnyAttr():
-        return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
-    return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
-        IntegerAttr,
-        (
-            value,
-            type,
-        ),
-    )
+    @classmethod
+    def constr(
+        cls,
+        *,
+        value: AttrConstraint | None = None,
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
+        if value is None and type == AnyAttr():
+            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
+            IntegerAttr,
+            (
+                value,
+                type,
+            ),
+        )
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -1597,28 +1598,29 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
-
-def MemRefTypeConstr(
-    *,
-    shape: GenericAttrConstraint[Attribute] | None = None,
-    element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
-    layout: GenericAttrConstraint[Attribute] | None = None,
-    memory_space: GenericAttrConstraint[Attribute] | None = None,
-) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
-    if (
-        shape is None
-        and element_type == AnyAttr()
-        and layout is None
-        and memory_space is None
-    ):
-        return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
-    return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
-        MemRefType, (shape, element_type, layout, memory_space)
-    )
+    @classmethod
+    def constr(
+        cls,
+        *,
+        shape: GenericAttrConstraint[Attribute] | None = None,
+        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        layout: GenericAttrConstraint[Attribute] | None = None,
+        memory_space: GenericAttrConstraint[Attribute] | None = None,
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
+        if (
+            shape is None
+            and element_type == AnyAttr()
+            and layout is None
+            and memory_space is None
+        ):
+            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
+            MemRefType, (shape, element_type, layout, memory_space)
+        )
 
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
-AnyMemRefTypeConstr = MemRefTypeConstr()
+AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
 
 
 @irdl_attr_definition

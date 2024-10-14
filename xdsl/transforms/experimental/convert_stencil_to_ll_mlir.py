@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.stencil import (
     AccessOp,
     AllocOp,
-    AnyStencilTypeConstr,
     ApplyOp,
     BufferOp,
     CastOp,
@@ -28,6 +27,7 @@ from xdsl.dialects.stencil import (
     ReturnOp,
     StencilBoundsAttr,
     StencilType,
+    StencilTypeConstr,
     StoreOp,
     StoreResultOp,
     TempType,
@@ -460,7 +460,7 @@ class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-        assert isattr(temp, AnyStencilTypeConstr)
+        assert isattr(temp, StencilTypeConstr)
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
         memref_offset = op.offset
