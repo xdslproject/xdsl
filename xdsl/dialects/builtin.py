@@ -800,19 +800,6 @@ class TensorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
-    def is_same_type_with(self, other_tensor: TensorType[Attribute]) -> bool:
-        current_shape = list(self.shape)
-        other_shape = list(other_tensor.shape)
-        if len(current_shape) != len(other_shape):
-            return False
-
-        return (
-            len(list(filter(lambda x: x[0] != x[1], zip(current_shape, other_shape))))
-            == 0
-            and self.element_type == other_tensor.element_type
-            and self.encoding == other_tensor.encoding
-        )
-
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)

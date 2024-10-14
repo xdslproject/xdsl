@@ -17,10 +17,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.exceptions import VerifyException
 
 
-def make_materialize_op(source: SSAValue, dest: SSAValue) -> MaterializeInDestination:
-    return MaterializeInDestination(operands=[source, dest], result_types=[source.type])
-
-
 @dataclass
 class SubstituteDonatedTensors(RewritePattern):
     @op_type_rewrite_pattern
@@ -42,8 +38,13 @@ class SubstituteDonatedTensors(RewritePattern):
         new_ops: list[Operation] = []
         for output in op.arguments:
             for i, arg in enumerate(donated_inputs):
-                if getattr(arg, "type").is_same_type_with(getattr(output, "type")):
-                    new_ops.append(make_materialize_op(output, donated_inputs.pop(i)))
+                if arg.type == output.type:
+                    new_ops.append(
+                        MaterializeInDestination(
+                            operands=[output, donated_inputs.pop(i)],
+                            result_types=[output.type],
+                        )
+                    )
                     value_mapper[output] = new_ops[-1].results[0]
                     break
 

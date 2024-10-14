@@ -2,53 +2,55 @@
 
 builtin.module {
 func.func public @main(%arg0: tensor<2x3xf32>, %arg1: tensor<3x4xf32>, %arg2: tensor<2x4xf32> {tf.aliasing_output = 0 : i32}) -> (tensor<2x4xf32>) {
-    %0 = tensor.empty() : tensor<2x4xf32>
-    %cst = arith.constant 0.000000e+00 : f32
-    %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<2x4xf32>) -> tensor<2x4xf32>
-    return %1 : tensor<2x4xf32>
+    %res = "test.op"() : () -> tensor<2x4xf32>
+    return %res : tensor<2x4xf32>
   }
 }
 
 // CHECK: builtin.module {
 // CHECK-NEXT: builtin.module {
 // CHECK-NEXT:   func.func public @main(%arg0 : tensor<2x3xf32>, %arg1 : tensor<3x4xf32>, %arg2 : tensor<2x4xf32> {"tf.aliasing_output" = 0 : i32}) -> tensor<2x4xf32> {
-// CHECK-NEXT:      %0 = tensor.empty() : tensor<2x4xf32>
-// CHECK-NEXT:      %cst = arith.constant 0.000000e+00 : f32
-// CHECK-NEXT:      %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<2x4xf32>) -> tensor<2x4xf32>
-// CHECK-NEXT:      %2 = bufferization.materialize_in_destination %1 in %arg2 : (tensor<2x4xf32>, tensor<2x4xf32>) -> tensor<2x4xf32>
-// CHECK-NEXT:      func.return %2 : tensor<2x4xf32>
+// CHECK-NEXT:      %res = "test.op"() : () -> tensor<2x4xf32>
+// CHECK-NEXT:      %0 = bufferization.materialize_in_destination %res in %arg2 : (tensor<2x4xf32>, tensor<2x4xf32>) -> tensor<2x4xf32>
+// CHECK-NEXT:      func.return %0 : tensor<2x4xf32>
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
 builtin.module {
-func.func public @main(%arg0: tensor<2x3xf32> {tf.aliasing_output = 0 : i32}, %arg1: tensor<2x3xf32>, %arg2: tensor<4x5xf32> {tf.aliasing_output = 0 : i32}) -> (tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>) {
-    %cst = arith.constant 0.000000e+00 : f32
-
-    %0 = tensor.empty() : tensor<2x3xf32>
-    %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<2x3xf32>) -> tensor<2x3xf32>
-
-    %2 = tensor.empty() : tensor<2x3xf32>
-    %3 = linalg.fill ins(%cst : f32) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
-
-    %4 = tensor.empty() : tensor<4x5xf32>
-    %5 = linalg.fill ins(%cst : f32) outs(%4 : tensor<4x5xf32>) -> tensor<4x5xf32>
-
-    return %1, %3, %5 : tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>
+func.func public @main(%arg0: tensor<2x3xf32> {tf.aliasing_output = 0 : i32}, %arg1: tensor<2x3xf32> {tf.aliasing_output = 0 : i32}) -> (tensor<2x3xf32>, tensor<2x3xf32>) {
+    %res1 = "test.op"() : () -> tensor<2x3xf32>
+    %res2 = "test.op"() : () -> tensor<2x3xf32>
+    return %res1, %res2 : tensor<2x3xf32>, tensor<2x3xf32>
   }
 }
 
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   func.func public @main(%arg0 : tensor<2x3xf32> {"tf.aliasing_output" = 0 : i32}, %arg1 : tensor<2x3xf32>, %arg2 : tensor<4x5xf32> {"tf.aliasing_output" = 0 : i32}) -> (tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>) {
-// CHECK-NEXT:     %cst = arith.constant 0.000000e+00 : f32
-// CHECK-NEXT:     %0 = tensor.empty() : tensor<2x3xf32>
-// CHECK-NEXT:     %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<2x3xf32>) -> tensor<2x3xf32>
-// CHECK-NEXT:     %2 = tensor.empty() : tensor<2x3xf32>
-// CHECK-NEXT:     %3 = linalg.fill ins(%cst : f32) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
-// CHECK-NEXT:     %4 = tensor.empty() : tensor<4x5xf32>
-// CHECK-NEXT:     %5 = linalg.fill ins(%cst : f32) outs(%4 : tensor<4x5xf32>) -> tensor<4x5xf32>
-// CHECK-NEXT:     %6 = bufferization.materialize_in_destination %1 in %arg0 : (tensor<2x3xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
-// CHECK-NEXT:     %7 = bufferization.materialize_in_destination %5 in %arg2 : (tensor<4x5xf32>, tensor<4x5xf32>) -> tensor<4x5xf32>
-// CHECK-NEXT:     func.return %6, %3, %7 : tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>
+// CHECK-NEXT:   func.func public @main(%arg0 : tensor<2x3xf32> {"tf.aliasing_output" = 0 : i32}, %arg1 : tensor<2x3xf32> {"tf.aliasing_output" = 0 : i32}) -> (tensor<2x3xf32>, tensor<2x3xf32>) {
+// CHECK-NEXT:     %res1 = "test.op"() : () -> tensor<2x3xf32>
+// CHECK-NEXT:     %res2 = "test.op"() : () -> tensor<2x3xf32>
+// CHECK-NEXT:     %0 = bufferization.materialize_in_destination %res1 in %arg0 : (tensor<2x3xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:     %1 = bufferization.materialize_in_destination %res2 in %arg1 : (tensor<2x3xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:     func.return %0, %1 : tensor<2x3xf32>, tensor<2x3xf32>
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+
+builtin.module {
+func.func public @main(%arg0: tensor<4x5xf32> {tf.aliasing_output = 0 : i32}, %arg1: tensor<2x3xf32> {tf.aliasing_output = 0 : i32}, %arg2: tensor<2x3xf32>) -> (tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>) {
+    %res1 = "test.op"() : () -> tensor<2x3xf32>
+    %res2 = "test.op"() : () -> tensor<2x3xf32>
+    %res3 = "test.op"() : () -> tensor<4x5xf32>
+    return %res1, %res2, %res3 : tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>
+  }
+}
+
+// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:   func.func public @main(%arg0 : tensor<4x5xf32> {"tf.aliasing_output" = 0 : i32}, %arg1 : tensor<2x3xf32> {"tf.aliasing_output" = 0 : i32}, %arg2 : tensor<2x3xf32>) -> (tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>) {
+// CHECK-NEXT:      %res1 = "test.op"() : () -> tensor<2x3xf32>
+// CHECK-NEXT:      %res2 = "test.op"() : () -> tensor<2x3xf32>
+// CHECK-NEXT:      %res3 = "test.op"() : () -> tensor<4x5xf32>
+// CHECK-NEXT:      %0 = bufferization.materialize_in_destination %res1 in %arg1 : (tensor<2x3xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:      %1 = bufferization.materialize_in_destination %res3 in %arg0 : (tensor<4x5xf32>, tensor<4x5xf32>) -> tensor<4x5xf32>
+// CHECK-NEXT:      func.return %0, %res2, %1 : tensor<2x3xf32>, tensor<2x3xf32>, tensor<4x5xf32>
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
