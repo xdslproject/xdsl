@@ -14,7 +14,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass
@@ -22,15 +21,14 @@ class SubstituteDonatedTensors(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Return, rewriter: PatternRewriter, /):
         func_op = op.parent_op()
-        if func_op is None or type(func_op) is not FuncOp:
-            raise VerifyException("Return operation should be tied to a FuncOp")
+        assert isinstance(func_op, FuncOp)
 
         if func_op.arg_attrs is None:
             return
 
         donated_inputs = [
             inp
-            for inp, attr in zip(func_op.args, func_op.arg_attrs)
+            for inp, attr in zip(func_op.args, func_op.arg_attrs, strict=True)
             if isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data
         ]
 
