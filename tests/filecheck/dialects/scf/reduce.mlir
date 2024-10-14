@@ -13,7 +13,6 @@ builtin.module {
       %9 = arith.addf %7, %8 : f32
       "scf.reduce.return"(%9) : (f32) -> ()
     }) : (f32) -> ()
-    "scf.yield"() : () -> ()
   }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
 }
 
@@ -30,5 +29,4 @@ builtin.module {
 // CHECK-NEXT:       %9 = arith.addf %7, %8 : f32
 // CHECK-NEXT:       "scf.reduce.return"(%9) : (f32) -> ()
 // CHECK-NEXT:     }) : (f32) -> ()
-// CHECK-NEXT:     scf.yield
 // CHECK-NEXT:   }) : (index, index, index, f32) -> f32
