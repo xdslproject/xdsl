@@ -1,6 +1,10 @@
 from typing import Any
 
 from xdsl.dialects.builtin import (
+    AnyMemRefTypeConstr,
+    AnyTensorTypeConstr,
+    AnyUnrankedMemrefTypeConstr,
+    AnyUnrankedTensorTypeConstr,
     ContainerType,
     IndexType,
     MemRefType,
@@ -39,7 +43,7 @@ class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
 
     def infer(self, constraint_context: ConstraintContext) -> Attribute:
         if self.name in constraint_context.variables:
-            m_type = constraint_context.variables[self.name]
+            m_type = constraint_context.get_variable(self.name)
             if isa(m_type, MemRefType[Attribute]):
                 return TensorType(m_type.get_element_type(), m_type.get_shape())
             if isa(m_type, UnrankedMemrefType[Attribute]):
@@ -48,7 +52,7 @@ class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if self.name in constraint_context.variables:
-            seen = constraint_context.variables[self.name]
+            seen = constraint_context.get_variable(self.name)
             if not (
                 isinstance(attr, ContainerType)
                 and isinstance(seen, ContainerType)
@@ -68,7 +72,7 @@ class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
                 )
         elif isinstance(attr, ContainerType):
             self.constraint.verify(attr, constraint_context)
-            constraint_context.variables[self.name] = attr
+            constraint_context.set_variable(self.name, attr)
         else:
             raise VerifyException(
                 f"Unexpected {self.name} - attribute must be ContainerType"
@@ -80,10 +84,10 @@ class AllocTensorOp(IRDLOperation):
     name = "bufferization.alloc_tensor"
 
     dynamic_sizes = var_operand_def(IndexType())
-    copy = opt_operand_def(AnyOf((TensorType, UnrankedTensorType)))
+    copy = opt_operand_def(AnyOf((AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr)))
     size_hint = opt_operand_def(IndexType())
 
-    tensor = result_def(AnyOf((TensorType, UnrankedTensorType)))
+    tensor = result_def(AnyOf((AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr)))
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -105,10 +109,14 @@ class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
     memref = operand_def(
-        TensorMemrefInferenceConstraint("T", AnyOf([MemRefType, UnrankedMemrefType]))
+        TensorMemrefInferenceConstraint(
+            "T", AnyOf([AnyMemRefTypeConstr, AnyUnrankedMemrefTypeConstr])
+        )
     )
     tensor = result_def(
-        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+        TensorMemrefInferenceConstraint(
+            "T", AnyOf([AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr])
+        )
     )
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
@@ -146,10 +154,14 @@ class ToMemrefOp(IRDLOperation):
     name = "bufferization.to_memref"
 
     tensor = operand_def(
-        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+        TensorMemrefInferenceConstraint(
+            "T", AnyOf([AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr])
+        )
     )
     memref = result_def(
-        TensorMemrefInferenceConstraint("T", AnyOf([MemRefType, UnrankedMemrefType]))
+        TensorMemrefInferenceConstraint(
+            "T", AnyOf([AnyMemRefTypeConstr, AnyUnrankedMemrefTypeConstr])
+        )
     )
     read_only = opt_prop_def(UnitAttr)
 

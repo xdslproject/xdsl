@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p csl-wrapper-to-csl %s | filecheck --match-full-lines %s
+// RUN: xdsl-opt -p lower-csl-wrapper %s | filecheck --match-full-lines %s
 
 builtin.module {
   "csl_wrapper.module"() <{
@@ -115,7 +115,7 @@ builtin.module {
 // CHECK-NEXT:           %18 = arith.ori %17, %15 : i1
 // CHECK-NEXT:           %isBorderRegionPE = arith.ori %18, %16 : i1
 // CHECK-NEXT:           %19 = "csl.const_struct"(%width, %height, %getParamsRes, %computeAllRoutesRes, %isBorderRegionPE) <{"ssa_fields" = ["width", "height", "memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (i16, i16, !csl.comptime_struct, !csl.comptime_struct, i1) -> !csl.comptime_struct
-// CHECK-NEXT:           "csl.set_tile_code"(%xDim, %yDim, %19) <{"file" = "gauss_seidel_func"}> : (i16, i16, !csl.comptime_struct) -> ()
+// CHECK-NEXT:           "csl.set_tile_code"(%xDim, %yDim, %19) <{"file" = "gauss_seidel_func.csl"}> : (i16, i16, !csl.comptime_struct) -> ()
 // CHECK-NEXT:         }
 // CHECK-NEXT:       }
 // CHECK-NEXT:     }

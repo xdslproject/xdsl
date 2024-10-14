@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated, Any, cast
+from typing import Any, ClassVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -22,8 +22,8 @@ from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -116,7 +116,7 @@ class For(IRDLOperation):
     lowerBoundOperands = var_operand_def(IndexType)
     upperBoundOperands = var_operand_def(IndexType)
     inits = var_operand_def()
-    res = var_result_def(AnyAttr())
+    res = var_result_def()
 
     lowerBoundMap = prop_def(AffineMapAttr)
     upperBoundMap = prop_def(AffineMapAttr)
@@ -259,10 +259,10 @@ class ParallelOp(IRDLOperation):
 class Store(IRDLOperation):
     name = "affine.store"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
     indices = var_operand_def(IndexType)
     map = opt_prop_def(AffineMapAttr)
 
@@ -292,9 +292,9 @@ class Store(IRDLOperation):
 class Load(IRDLOperation):
     name = "affine.load"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     result = result_def(T)
@@ -306,7 +306,7 @@ class Load(IRDLOperation):
         memref: SSAValue,
         indices: Sequence[SSAValue],
         map: AffineMapAttr | None = None,
-        result_type: T | None = None,
+        result_type: Attribute | None = None,
     ):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
@@ -353,7 +353,7 @@ class MinOp(IRDLOperation):
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
-    arguments = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
     traits = frozenset([IsTerminator(), Pure()])
 

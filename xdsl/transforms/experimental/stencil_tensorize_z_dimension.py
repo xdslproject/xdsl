@@ -6,10 +6,9 @@ from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import (
     Addf,
-    BinaryOperation,
     Constant,
     Divf,
-    FloatingPointLikeBinaryOp,
+    FloatingPointLikeBinaryOperation,
     Mulf,
     Subf,
 )
@@ -187,7 +186,7 @@ class ArithOpTensorize(RewritePattern):
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
         dest_typ: TensorType[Attribute],
-        op: FloatingPointLikeBinaryOp,
+        op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
         """
@@ -369,7 +368,7 @@ class ExtractSliceOpUpdateShape(RewritePattern):
 
 
 def arithBinaryOpUpdateShape(
-    op: BinaryOperation[Attribute],
+    op: FloatingPointLikeBinaryOperation,
     rewriter: PatternRewriter,
     /,
 ):

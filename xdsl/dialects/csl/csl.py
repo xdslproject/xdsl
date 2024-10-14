@@ -17,7 +17,9 @@ from typing import Annotated, ClassVar, TypeAlias
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
+    AnyFloatAttrConstr,
     AnyIntegerAttr,
+    AnyIntegerAttrConstr,
     AnyMemRefType,
     ArrayAttr,
     BoolAttr,
@@ -48,10 +50,12 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    ConstraintVar,
+    AnyOf,
+    BaseAttr,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
+    VarConstraint,
     attr_def,
     base,
     eq,
@@ -67,15 +71,18 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasAncestor,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
     OpTrait,
+    Pure,
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -362,11 +369,117 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
+@irdl_attr_definition
+class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+    name = "csl.var"
+
+    child_type: ParameterDef[TypeAttribute]
+
+    def get_element_type(self) -> TypeAttribute:
+        return self.child_type
+
+
 ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+ParamAttrConstr = AnyFloatAttrConstr | AnyIntegerAttrConstr
+
+
+@irdl_op_definition
+class VariableOp(IRDLOperation):
+    """
+    Declares a variable.
+
+    The variable cannot be mutated directly. SSA values of the variable have to
+    be loaded and stored using LoadVarOp and StoreVarOp.
+
+    This is similar to how `memref` works.
+    """
+
+    name = "csl.variable"
+
+    default = opt_prop_def(ParamAttrConstr)
+    res = result_def(VarType)
+
+    def get_element_type(self):
+        assert isinstance(self.res.type, VarType)
+        return self.res.type.get_element_type()
+
+    @staticmethod
+    def from_type(child_type: Attribute) -> VariableOp:
+        return VariableOp(result_types=[VarType([child_type])])
+
+    @staticmethod
+    def from_value(value: ParamAttr) -> VariableOp:
+        return VariableOp(
+            properties={"default": value},
+            result_types=[VarType([value.type])],
+        )
+
+    def verify_(self) -> None:
+        assert isinstance(self.res.type, VarType)
+        if self.default is not None and (
+            self.default.type != self.res.type.get_element_type()
+        ):
+            raise VerifyException(
+                "The type of the default value has to be the same as the type of the result, if the former is supplied"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class LoadVarOp(IRDLOperation):
+    """
+    Obtain the SSA value of a CSL variable. The obtained value itself is not
+    modifiable, but it can be stored in the variable using `StoreVarOp`.
+    """
+
+    name = "csl.load_var"
+    var = operand_def(VarType)
+    res = result_def()
+
+    def __init__(self, var: VariableOp | SSAValue):
+        if isinstance(var, SSAValue):
+            assert isinstance(var.type, VarType)
+            result_t = var.type.get_element_type()
+        else:
+            result_t = var.get_element_type()
+        super().__init__(
+            operands=[var],
+            result_types=[result_t],
+        )
+
+    def verify_(self) -> None:
+        assert isinstance(self.var.type, VarType)
+        if self.var.type.get_element_type() != self.res.type:
+            raise VerifyException(
+                "Result type of the load has to match the child type of the variable"
+            )
+        return super().verify_()
+
+
+@irdl_op_definition
+class StoreVarOp(IRDLOperation):
+    """
+    Update the value of a variable.
+    """
+
+    name = "csl.store_var"
+    var = operand_def(VarType)
+    new_value = operand_def()
+
+    def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
+        super().__init__(operands=[var, new_value])
+
+    def verify_(self) -> None:
+        assert isinstance(self.var.type, VarType)
+        if self.var.type.get_element_type() != self.new_value.type:
+            raise VerifyException(
+                f"New value must match the element type of {self.var.type.name}"
+            )
+        return super().verify_()
 
 
 @irdl_op_definition
@@ -470,6 +583,12 @@ class ConstStructOp(IRDLOperation):
         )
 
 
+ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
+ZerosOpAttrConstr: AnyOf[ZerosOpAttr] = (
+    BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
+)
+
+
 @irdl_op_definition
 class ZerosOp(IRDLOperation):
     """
@@ -478,17 +597,19 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[ZerosOpAttr]] = VarConstraint("T", ZerosOpAttrConstr)
 
     size = opt_operand_def(T)
 
-    result = result_def(MemRefType[T])
+    result = result_def(
+        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
+    )
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
     def __init__(
         self,
-        memref: MemRefType[T],
+        memref: MemRefType[IntegerType | Float32Type | Float16Type],
         dynamic_size: SSAValue | Operation | None = None,
         is_const: builtin.UnitAttr | None = None,
     ):
@@ -511,13 +632,17 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[IntegerType | Float32Type | Float16Type]] = VarConstraint(
+        "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
+    )
 
     size = operand_def(IntegerType)
 
     value = operand_def(T)
 
-    result = result_def(MemRefType[T])
+    result = result_def(
+        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
+    )
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -766,6 +891,37 @@ class TaskOp(_FuncBase):
 
 
 @irdl_op_definition
+class ActivateOp(IRDLOperation):
+    """
+    This operation corresponds directly to the builtin `@activate` combined with a call to the
+    corresponding `@get_<kind>_task_id` to convert the numeric ID to a task id, e.g.:
+
+    ```
+    csl.activate local, 0 : i32
+           |
+           V
+    @activate(@get_local_task_id(0));
+
+    ```
+    """
+
+    name = "csl.activate"
+
+    id = prop_def(ColorIdAttr)
+    kind = prop_def(TaskKindAttr)
+
+    assembly_format = "attr-dict $kind `,` $id"
+
+    def __init__(self, id: int | ColorIdAttr, kind: TaskKind | TaskKindAttr):
+        if isinstance(id, int):
+            id = IntegerAttr.from_int_and_width(id, 32)
+        if isinstance(kind, TaskKind):
+            kind = TaskKindAttr(kind)
+
+        super().__init__(properties={"id": id, "kind": kind})
+
+
+@irdl_op_definition
 class ReturnOp(IRDLOperation):
     """
     Return for CSL operations such as functions and tasks.
@@ -827,6 +983,18 @@ class CallOp(IRDLOperation):
     args = var_operand_def(Attribute)
     result = opt_result_def(Attribute)
 
+    def __init__(
+        self,
+        callee: SymbolRefAttr,
+        args: Sequence[SSAValue | Operation] | None = None,
+        result: Attribute | None = None,
+    ):
+        super().__init__(
+            operands=[args] if args else [[]],
+            result_types=[result],
+            properties={"callee": callee},
+        )
+
     # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
 
 
@@ -863,6 +1031,54 @@ class SetTileCodeOp(IRDLOperation):
         super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
 
 
+class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            GetDsdAndLengthFolding,
+            GetDsdAndOffsetFolding,
+            GetDsdAndStrideFolding,
+        )
+
+        return (
+            GetDsdAndOffsetFolding(),
+            GetDsdAndLengthFolding(),
+            GetDsdAndStrideFolding(),
+        )
+
+
+class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdOffsetFolding,
+        )
+
+        return (ChainedDsdOffsetFolding(),)
+
+
+class SetDsdLengthOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdLengthFolding,
+        )
+
+        return (ChainedDsdLengthFolding(),)
+
+
+class SetDsdStrideOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl import (
+            ChainedDsdStrideFolding,
+        )
+
+        return (ChainedDsdStrideFolding(),)
+
+
 class _GetDsdOp(IRDLOperation, ABC):
     """
     Abstract base class for CSL @get_dsd()
@@ -886,6 +1102,13 @@ class GetMemDsdOp(_GetDsdOp):
     base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    traits = frozenset(
+        [
+            Pure(),
+            DsdOpHasCanonicalizationPatternsTrait(),
+        ]
+    )
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
@@ -964,6 +1187,8 @@ class SetDsdBaseAddrOp(IRDLOperation):
     )
     result = result_def(DsdType)
 
+    traits = frozenset([Pure()])
+
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
@@ -1002,6 +1227,8 @@ class IncrementDsdOffsetOp(IRDLOperation):
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
+    traits = frozenset([Pure(), IncrementDsdOffsetOpHasCanonicalizationPatternsTrait()])
+
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
@@ -1026,6 +1253,8 @@ class SetDsdLengthOp(IRDLOperation):
     op = operand_def(DsdType)
     length = operand_def(u16_value)
     result = result_def(DsdType)
+
+    traits = frozenset([Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait()])
 
     def verify_(self) -> None:
         if (
@@ -1052,6 +1281,8 @@ class SetDsdStrideOp(IRDLOperation):
     op = operand_def(DsdType)
     stride = operand_def(IntegerType(8, Signedness.SIGNED))
     result = result_def(DsdType)
+
+    traits = frozenset([Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait()])
 
     def verify_(self) -> None:
         if (
@@ -1684,6 +1915,27 @@ class RpcOp(IRDLOperation):
     id = operand_def(ColorType)
 
 
+ParamOpAttr: TypeAlias = (
+    Float16Type
+    | Float32Type
+    | IntegerType
+    | ColorType
+    | FunctionType
+    | ImportedModuleType
+    | ComptimeStructType
+)
+
+ParamOpAttrConstr = (
+    BaseAttr(Float16Type)
+    | BaseAttr(Float32Type)
+    | BaseAttr(IntegerType)
+    | BaseAttr(ColorType)
+    | BaseAttr(FunctionType)
+    | BaseAttr(ImportedModuleType)
+    | BaseAttr(ComptimeStructType)
+)
+
+
 @irdl_op_definition
 class ParamOp(IRDLOperation):
     """
@@ -1696,16 +1948,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T = Annotated[
-        Float16Type
-        | Float32Type
-        | IntegerType
-        | ColorType
-        | FunctionType
-        | ImportedModuleType
-        | ComptimeStructType,
-        ConstraintVar("T"),
-    ]
+    T: ClassVar[VarConstraint[ParamOpAttr]] = VarConstraint("T", ParamOpAttrConstr)
 
     name = "csl.param"
 
@@ -1717,7 +1960,10 @@ class ParamOp(IRDLOperation):
     res = result_def(T)
 
     def __init__(
-        self, name: str, result_type: T, init_value: SSAValue | Operation | None = None
+        self,
+        name: str,
+        result_type: ParamOpAttr,
+        init_value: SSAValue | Operation | None = None,
     ):
         super().__init__(
             operands=[init_value],
@@ -1876,10 +2122,14 @@ CSL = Dialect(
         Sub16Op,
         SymbolExportOp,
         TaskOp,
+        ActivateOp,
         Xor16Op,
         Xp162fhOp,
         Xp162fsOp,
         ZerosOp,
+        VariableOp,
+        LoadVarOp,
+        StoreVarOp,
     ],
     [
         ColorType,
@@ -1893,5 +2143,6 @@ CSL = Dialect(
         PtrConstAttr,
         PtrKindAttr,
         TaskKindAttr,
+        VarType,
     ],
 )

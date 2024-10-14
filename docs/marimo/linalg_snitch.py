@@ -1,13 +1,13 @@
 import marimo
 
-__generated_with = "0.7.11"
+__generated_with = "0.8.20"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
@@ -406,7 +406,7 @@ def __(asm_html, mo, riscv_asm_module, riscv_code):
     {asm_html(riscv_asm)}
     """
     )
-    return riscv_asm,
+    return (riscv_asm,)
 
 
 @app.cell
@@ -504,7 +504,7 @@ def __(asm_html, mo, riscv_code, snitch_asm_module):
     {asm_html(snitch_asm)}
     """
     )
-    return snitch_asm,
+    return (snitch_asm,)
 
 
 @app.cell
@@ -723,7 +723,7 @@ def __(ModuleOp, mo):
 @app.cell
 def __():
     from collections import Counter
-    return Counter,
+    return (Counter,)
 
 
 @app.cell

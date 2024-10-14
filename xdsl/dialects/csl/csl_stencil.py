@@ -6,6 +6,8 @@ from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyMemRefType,
+    AnyMemRefTypeConstr,
+    AnyTensorTypeConstr,
     IndexType,
     MemRefType,
     TensorType,
@@ -124,16 +126,14 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.StencilType[Attribute])
-        | base(memref.MemRefType[Attribute])
-        | base(TensorType[Attribute])
+        stencil.StencilTypeConstr | AnyMemRefTypeConstr | AnyTensorTypeConstr
     )
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    result = result_def(memref.MemRefType | TensorType)
+    result = result_def(AnyMemRefTypeConstr | AnyTensorTypeConstr)
 
     def __init__(
         self,
@@ -156,10 +156,10 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl_stencil import (
-            RedundantIterArgInitialisation,
+            RedundantAccumulatorInitialisation,
         )
 
-        return (RedundantIterArgInitialisation(),)
+        return (RedundantAccumulatorInitialisation(),)
 
 
 @irdl_op_definition
@@ -169,15 +169,15 @@ class ApplyOp(IRDLOperation):
     with a `stencil.apply` (a stencil function plus parameters and applies the stencil function to the output temp).
 
     As communication may be done in chunks, this operation provides two regions for computation:
-      - the `chunk_reduce` region to reduce a chunk of data received from several neighbours to one chunk of data.
+      - the `receive_chunk` region to reduce a chunk of data received from several neighbours to one chunk of data.
         this region is invoked once per communicated chunks and effectively acts as a loop body.
-        It uses `iter_arg` to concatenate the chunks
-      - the `post_process` region (invoked once when communication has finished) that takes the concatenated
-        chunk of the `chunk_reduce` region and applies any further processing here - for instance, it may handle
+        It uses `accumulator` to concatenate the chunks
+      - the `done_exchange` region (invoked once when communication has finished) that takes the concatenated
+        chunk of the `receive_chunk` region and applies any further processing here - for instance, it may handle
         the computation of 'own' (non-communicated) or otherwise prefetched data
 
     Further fields:
-      - `communicated_stencil` - the stencil to communicate (send and receive)
+      - `field`      - the stencil field to communicate (send and receive)
       - `args`       - arguments to the stencil computation, may include other prefetched buffers
       - `topo`       - as received from `csl_stencil.prefetch`/`dmp.swap`
       - `num_chunks` - number of chunks into which to slice the communication
@@ -187,32 +187,30 @@ class ApplyOp(IRDLOperation):
 
     Function signatures:
     Before lowering (from `csl_stencil.prefetch` and `stencil.apply`):
-        %pref = csl_stencil.prefetch(%communicated_stencil : stencil.Temp)
-        stencil.apply( ..some args.. , %communicated_stencil, ..some more args.., %pref)
+        %pref = csl_stencil.prefetch(%field : stencil.Temp)
+        stencil.apply( ..some args.. , %field, ..some more args.., %pref)
 
     After lowering:
-        op:             csl_stencil.apply(%communicated_stencil, %iter_arg, chunk_reduce_args..., post_process_args...)
-        chunk_reduce:   block_args(slice of type(%pref), %offset, %iter_arg, args...)
-        post_process:   block_args(%communicated_stencil, %iter_arg, args...)
+        op:             csl_stencil.apply(%field, %accumulator, receive_chunk_args..., done_exchange_args...)
+        receive_chunk:   block_args(slice of type(%pref), %offset, %accumulator, args...)
+        done_exchange:   block_args(%field, %accumulator, args...)
 
     Note, that %pref can be dropped (as communication is done by the op rather than before the op),
-    and that a new %iter_arg is required, an empty tensor which is filled by `chunk_reduce` and
-    consumed by `post_process`
+    and that a new %accumulator is required, an empty tensor which is filled by `receive_chunk` and
+    consumed by `done_exchange`
     """
 
     name = "csl_stencil.apply"
 
-    communicated_stencil = operand_def(
-        base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
-    )
+    field = operand_def(stencil.StencilTypeConstr | AnyMemRefTypeConstr)
 
-    iter_arg = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
+    accumulator = operand_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
     args = var_operand_def(Attribute)
-    dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
+    dest = var_operand_def(stencil.FieldTypeConstr | AnyMemRefTypeConstr)
 
-    chunk_reduce = region_def()
-    post_process = region_def()
+    receive_chunk = region_def()
+    done_exchange = region_def()
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
@@ -222,7 +220,7 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
-    res = var_result_def(stencil.StencilType)
+    res = var_result_def(stencil.StencilTypeConstr)
 
     traits = frozenset(
         [
@@ -243,7 +241,7 @@ class ApplyOp(IRDLOperation):
         printer.print("(")
 
         # args required by function signature, plus optional args for regions
-        args = [self.communicated_stencil, self.iter_arg, *self.args]
+        args = [self.field, self.accumulator, *self.args]
 
         printer.print_list(args, print_arg)
         if self.dest:
@@ -259,9 +257,9 @@ class ApplyOp(IRDLOperation):
         printer.print("> ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print("(")
-        printer.print_region(self.chunk_reduce, print_entry_block_args=True)
+        printer.print_region(self.receive_chunk, print_entry_block_args=True)
         printer.print(", ")
-        printer.print_region(self.post_process, print_entry_block_args=True)
+        printer.print_region(self.done_exchange, print_entry_block_args=True)
         printer.print(")")
         if self.bounds is not None:
             printer.print(" to ")
@@ -298,9 +296,9 @@ class ApplyOp(IRDLOperation):
         if attrs is not None:
             attrs = attrs.data
         parser.parse_punctuation("(")
-        chunk_reduce = parser.parse_region()
+        receive_chunk = parser.parse_region()
         parser.parse_punctuation(",")
-        post_process = parser.parse_region()
+        done_exchange = parser.parse_region()
         parser.parse_punctuation(")")
         if parser.parse_optional_keyword("to"):
             props["bounds"] = stencil.StencilBoundsAttr.new(
@@ -309,7 +307,7 @@ class ApplyOp(IRDLOperation):
         return cls(
             operands=[operands[0], operands[1], operands[2:], destinations],
             result_types=[result_types],
-            regions=[chunk_reduce, post_process],
+            regions=[receive_chunk, done_exchange],
             properties=props,
             attributes=attrs,
         )
@@ -317,15 +315,15 @@ class ApplyOp(IRDLOperation):
     def verify_(self) -> None:
         # typecheck op arguments
         if (
-            len(self.chunk_reduce.block.args) < 3
-            or len(self.post_process.block.args) < 2
+            len(self.receive_chunk.block.args) < 3
+            or len(self.done_exchange.block.args) < 2
         ):
             raise VerifyException("Missing required block args on region")
         op_args = (
-            self.post_process.block.args[0],
-            self.chunk_reduce.block.args[2],
-            *self.chunk_reduce.block.args[3:],
-            *self.post_process.block.args[2:],
+            self.done_exchange.block.args[0],
+            self.receive_chunk.block.args[2],
+            *self.receive_chunk.block.args[3:],
+            *self.done_exchange.block.args[2:],
         )
         for operand, argument in zip(self.operands, op_args):
             if operand.type != argument.type:
@@ -334,37 +332,38 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert isa(
-            self.iter_arg.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+        assert isattr(
+            self.accumulator.type,
+            AnyTensorTypeConstr | AnyMemRefTypeConstr,
         )
-        chunk_reduce_req_types = [
-            type(self.iter_arg.type)(
-                self.iter_arg.type.get_element_type(),
+        chunk_region_req_types = [
+            type(self.accumulator.type)(
+                self.accumulator.type.get_element_type(),
                 (
                     len(self.swaps),
-                    self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
+                    self.accumulator.type.get_shape()[0] // self.num_chunks.value.data,
                 ),
             ),
             IndexType(),
-            self.iter_arg.type,
+            self.accumulator.type,
         ]
-        post_process_req_types = [
-            self.communicated_stencil.type,
-            self.iter_arg.type,
+        done_exchange_req_types = [
+            self.field.type,
+            self.accumulator.type,
         ]
         for arg, expected_type in zip(
-            self.chunk_reduce.block.args, chunk_reduce_req_types
+            self.receive_chunk.block.args, chunk_region_req_types
         ):
             if arg.type != expected_type:
                 raise VerifyException(
-                    f"Unexpected block argument type of chunk_reduce, got {arg.type} != {expected_type} at index {arg.index}"
+                    f"Unexpected block argument type of receive_chunk, got {arg.type} != {expected_type} at index {arg.index}"
                 )
         for arg, expected_type in zip(
-            self.post_process.block.args, post_process_req_types
+            self.done_exchange.block.args, done_exchange_req_types
         ):
             if arg.type != expected_type:
                 raise VerifyException(
-                    f"Unexpected block argument type of post_process, got {arg.type} != {expected_type} at index {arg.index}"
+                    f"Unexpected block argument type of done_exchange, got {arg.type} != {expected_type} at index {arg.index}"
                 )
 
         if (len(self.res) == 0) == (len(self.dest) == 0):
@@ -377,7 +376,7 @@ class ApplyOp(IRDLOperation):
             res_type = self.dest[0].type
         else:
             res_type = self.res[0].type
-        if isa(res_type, stencil.StencilType[Attribute]):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return res_type.get_num_dims()
         elif self.bounds:
             return len(self.bounds.ub)
@@ -393,7 +392,7 @@ class ApplyOp(IRDLOperation):
            field of the apply operation.
         """
         # iterate over the block arguments
-        for arg in self.chunk_reduce.block.args + self.post_process.block.args:
+        for arg in self.receive_chunk.block.args + self.done_exchange.block.args:
             accesses: list[tuple[int, ...]] = []
             # walk the uses of the argument
             for use in arg.uses:
@@ -424,11 +423,11 @@ class AccessOp(IRDLOperation):
 
     name = "csl_stencil.access"
     op = operand_def(
-        base(AnyMemRefType) | base(stencil.StencilType) | base(TensorType[Attribute])
+        AnyMemRefTypeConstr | stencil.StencilTypeConstr | AnyTensorTypeConstr
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType | AnyMemRefType)
+    result = result_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
     traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
 
@@ -503,7 +502,7 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if isa(res_type, stencil.StencilType[Attribute]):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return cls.build(
                 operands=[temp],
                 result_types=[res_type.get_element_type()],
@@ -536,7 +535,7 @@ class AccessOp(IRDLOperation):
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
                     )
-            elif isa(self.op.type, stencil.StencilType[Attribute]):
+            elif isattr(self.op.type, stencil.StencilTypeConstr):
                 if not self.result.type == self.op.type.get_element_type():
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
@@ -546,9 +545,7 @@ class AccessOp(IRDLOperation):
                     f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
         else:
-            if not isa(
-                self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]
-            ):
+            if not isattr(self.op.type, AnyTensorTypeConstr | AnyMemRefTypeConstr):
                 raise VerifyException(
                     f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
                 )

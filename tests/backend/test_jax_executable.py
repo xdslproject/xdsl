@@ -170,7 +170,7 @@ def test_return_annotation_tuple_type():
         ),
     ):
 
-        @executable  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
+        @executable  # pyright: ignore[reportArgumentType]
         def abs_wrong_tuple_type(a: jax.Array) -> tuple[int]: ...  # pyright: ignore[reportUnusedFunction]
 
 
@@ -190,7 +190,7 @@ def test_return_annotation_single():
         match="Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray",
     ):
 
-        @executable  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
+        @executable  # pyright: ignore[reportArgumentType]
         def abs_wrong_single_type(a: jax.Array) -> int: ...  # pyright: ignore[reportUnusedFunction]
 
 

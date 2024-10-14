@@ -51,6 +51,7 @@ from .constraints import (  # noqa: TID251
     ConstraintContext,
     ConstraintVar,
     GenericAttrConstraint,
+    GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
     attr_constr_coercion,
@@ -314,7 +315,7 @@ class OptionalDef(VariadicDef):
 class OperandDef(OperandOrResultDef):
     """An IRDL operand definition."""
 
-    constr: RangeConstraint[Attribute]
+    constr: GenericRangeConstraint[Attribute]
     """The operand constraint."""
 
     def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
@@ -330,7 +331,10 @@ class VarOperandDef(OperandDef, VariadicDef):
 
     def __init__(
         self,
-        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint[Attribute],
+        attr: Attribute
+        | type[Attribute]
+        | AttrConstraint
+        | GenericRangeConstraint[Attribute],
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -353,12 +357,15 @@ OptOperand: TypeAlias = SSAValue | None
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
 
-    constr: RangeConstraint[Attribute]
+    constr: GenericRangeConstraint[Attribute]
     """The result constraint."""
 
     def __init__(
         self,
-        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint[Attribute],
+        attr: Attribute
+        | type[Attribute]
+        | AttrConstraint
+        | GenericRangeConstraint[Attribute],
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -369,7 +376,10 @@ class VarResultDef(ResultDef, VariadicDef):
 
     def __init__(
         self,
-        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint[Attribute],
+        attr: Attribute
+        | type[Attribute]
+        | AttrConstraint
+        | GenericRangeConstraint[Attribute],
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -394,7 +404,7 @@ class RegionDef:
     An IRDL region definition.
     """
 
-    entry_args: RangeConstraint[Attribute] = field(
+    entry_args: GenericRangeConstraint[Attribute] = field(
         default_factory=lambda: RangeOf(AnyAttr())
     )
 
@@ -500,6 +510,30 @@ class _OpDefField(Generic[_ClsT]):
         self.cls = cls
 
 
+class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
+    param: (
+        RangeConstraint
+        | AttrConstraint
+        | Attribute
+        | type[Attribute]
+        | TypeVar
+        | ConstraintVar
+    )
+
+    def __init__(
+        self,
+        cls: type[_ClsT],
+        param: RangeConstraint
+        | AttrConstraint
+        | Attribute
+        | type[Attribute]
+        | TypeVar
+        | ConstraintVar,
+    ):
+        super().__init__(cls)
+        self.param = param
+
+
 class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
     param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
 
@@ -512,11 +546,11 @@ class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
         self.param = param
 
 
-class _OperandFieldDef(_ConstrainedOpDefField[OperandDef,]):
+class _OperandFieldDef(_RangeConstrainedOpDefField[OperandDef,]):
     pass
 
 
-class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
+class _ResultFieldDef(_RangeConstrainedOpDefField[ResultDef]):
     pass
 
 
@@ -552,7 +586,7 @@ class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
     entry_args: (
-        RangeConstraint[Attribute]
+        GenericRangeConstraint[Attribute]
         | AttrConstraint
         | Attribute
         | type[Attribute]
@@ -563,7 +597,7 @@ class _RegionFieldDef(_OpDefField[RegionDef]):
         self,
         cls: type[RegionDef],
         entry_args: (
-            RangeConstraint[Attribute]
+            GenericRangeConstraint[Attribute]
             | AttrConstraint
             | Attribute
             | type[Attribute]
@@ -601,7 +635,9 @@ def result_def(
 
 
 def var_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -614,7 +650,9 @@ def var_result_def(
 
 
 def opt_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -701,7 +739,9 @@ def operand_def(
 
 
 def var_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -714,7 +754,9 @@ def var_operand_def(
 
 
 def opt_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -730,7 +772,7 @@ def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
     entry_args: (
-        RangeConstraint[Attribute]
+        GenericRangeConstraint[Attribute]
         | AttrConstraint
         | Attribute
         | type[Attribute]
@@ -751,7 +793,7 @@ def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
     entry_args: (
-        RangeConstraint[Attribute]
+        GenericRangeConstraint[Attribute]
         | AttrConstraint
         | Attribute
         | type[Attribute]
@@ -772,7 +814,7 @@ def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
     entry_args: (
-        RangeConstraint[Attribute]
+        GenericRangeConstraint[Attribute]
         | AttrConstraint
         | Attribute
         | type[Attribute]
@@ -1044,14 +1086,15 @@ class OpDef:
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_range_constraint(
                     pyrdl_constr: (
-                        RangeConstraint[Attribute]
+                        GenericRangeConstraint[Attribute]
                         | AttrConstraint
                         | Attribute
                         | type[Attribute]
                         | TypeVar
+                        | ConstraintVar
                     ),
-                ) -> RangeConstraint[Attribute]:
-                    if isinstance(pyrdl_constr, RangeConstraint):
+                ) -> GenericRangeConstraint[Attribute]:
+                    if isinstance(pyrdl_constr, GenericRangeConstraint):
                         return pyrdl_constr
                     return RangeOf(get_constraint(pyrdl_constr))
 
@@ -1059,16 +1102,41 @@ class OpDef:
 
                 match value:
                     case _ResultFieldDef():
-                        constraint = get_constraint(value.param)
-                        result_def = value.cls(constraint)
+                        if not issubclass(value.cls, VariadicDef):
+                            if isinstance(value.param, GenericRangeConstraint):
+                                raise TypeError(
+                                    "Cannot use a RangeConstraint in result_def, use an "
+                                    "AttrConstraint or var_result_def or "
+                                    "opt_result_def instead."
+                                )
+                            constraint = get_constraint(value.param)
+                            result_def = value.cls(constraint)
+                        else:
+                            constraint = get_range_constraint(value.param)
+                            result_def = value.cls(constraint)
                         op_def.results.append((field_name, result_def))
                         continue
                     case _OperandFieldDef():
-                        constraint = get_constraint(value.param)
-                        attribute_def = value.cls(constraint)
-                        op_def.operands.append((field_name, attribute_def))
+                        if not issubclass(value.cls, VariadicDef):
+                            if isinstance(value.param, GenericRangeConstraint):
+                                raise TypeError(
+                                    "Cannot use a RangeConstraint in operand_def, use an "
+                                    "AttrConstraint or var_operand_def or "
+                                    "opt_operand_def instead."
+                                )
+                            constraint = get_constraint(value.param)
+                            operand_def = value.cls(constraint)
+                        else:
+                            constraint = get_range_constraint(value.param)
+                            operand_def = cast(type[VarOperandDef], value.cls)(
+                                constraint
+                            )
+                        op_def.operands.append((field_name, operand_def))
                         continue
                     case _AttributeFieldDef():
+                        # These asserts are needed as our pyright version currently has a bug
+                        assert not isinstance(value.param, GenericRangeConstraint)
+                        assert issubclass(value.cls, AttributeDef)
                         constraint = get_constraint(value.param)
                         attribute_def = value.cls(constraint)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1076,6 +1144,9 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "attribute")
                         continue
                     case _PropertyFieldDef():
+                        # These asserts are needed as our pyright version currently has a bug
+                        assert not isinstance(value.param, GenericRangeConstraint)
+                        assert issubclass(value.cls, PropertyDef)
                         constraint = get_constraint(value.param)
                         property_def = value.cls(constraint)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1083,12 +1154,16 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "property")
                         continue
                     case _RegionFieldDef():
+                        # These asserts are needed as our pyright version currently has a bug
+                        assert issubclass(value.cls, RegionDef)
                         constraint = get_range_constraint(value.entry_args)
                         region_def = value.cls(constraint)
                         op_def.regions.append((field_name, region_def))
                         continue
                     case _SuccessorFieldDef():
-                        successor_def = value.cls()
+                        # These asserts are needed as our pyright version currently has a bug
+                        assert issubclass(value.cls, SuccessorDef)
+                        successor_def = value.cls()  # pyright: ignore[reportGeneralTypeIssues]
                         op_def.successors.append((field_name, successor_def))
                         continue
                     case _:

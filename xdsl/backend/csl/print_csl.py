@@ -424,6 +424,8 @@ class CslPrintContext:
                 return "color"
             case csl.DsdType() as dsd:
                 return dsd.data
+            case csl.VarType() as v:
+                return self.mlir_type_to_csl_type(v.get_element_type())
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -445,6 +447,8 @@ class CslPrintContext:
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
+            case DenseIntOrFPElementsAttr(data=ArrayAttr(data=data), type=typ):
+                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(d) for d in data)} }}"
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -551,6 +555,9 @@ class CslPrintContext:
                     self._print_bind_task(name.data, kind.data, id)
                 case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
                     self._print_task_or_fn("fn", name, bdy, ftyp)
+                case csl.ActivateOp(id=id, kind=kind):
+                    id = self.attribute_value_to_str(id)
+                    self.print(f"@activate(@get_{kind.data.value}_task_id({id}));")
                 case csl.ReturnOp(ret_val=None):
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
@@ -623,6 +630,12 @@ class CslPrintContext:
                     self._print_or_promote_to_inline_expr(
                         res, self._cmp_value_expr(op), brackets=True
                     )
+                case arith.Select(cond=cond, lhs=lhs, rhs=rhs, result=res):
+                    cond = self._get_variable_name_for(cond)
+                    lhs = self._get_variable_name_for(lhs)
+                    rhs = self._get_variable_name_for(rhs)
+                    if_str = f"if ({cond}) {lhs} else {rhs}"
+                    self._print_or_promote_to_inline_expr(res, if_str, brackets=True)
                 case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
                     a_var = self._get_variable_name_for(a)
                     b_var = self._get_variable_name_for(b)
@@ -673,8 +686,7 @@ class CslPrintContext:
                     use = self._var_use(res, ty.constness.data.value)
                     self.print(f"{use} = &{name.string_value()};")
                 case csl.DirectionOp(dir=d, res=res):
-                    use = self._var_use(res)
-                    self.print(f"{use} = {str.upper(d.data)};")
+                    self._print_or_promote_to_inline_expr(res, str.upper(d.data))
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
                     name = exp.get_name()
                     q_name = f'"{name}"'
@@ -750,17 +762,30 @@ class CslPrintContext:
                     ind_vars = ["d" + str(i) for i in range(len(sizes))]
                     ind_vars_str = ", ".join(ind_vars)
                     accesses = [
-                        (f"{str(strides.data[i].value.data)} * " if strides else "")
+                        (
+                            f"{str(s)} * "
+                            if strides and (s := strides.data[i].value.data) != 1
+                            else ""
+                        )
                         + ind_vars[i]
                         + (f" + {str(offsets.data[i].value.data)}" if offsets else "")
                         for i in range(len(ind_vars))
                     ]
+                    if strides and 0 in (
+                        strides_data := [s.value.data for s in strides.data]
+                    ):
+                        non_zero_stride_idx = [
+                            idx for idx, sd in enumerate(strides_data) if sd != 0
+                        ]
+                        # if all except one strides are 0, print only the non-0 part (default to printing all dims)
+                        if len(non_zero_stride_idx) == 1:
+                            accesses = [accesses[non_zero_stride_idx[0]]]
                     accesses_str = ", ".join(accesses)
                     self.print(
                         f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
                     )
                     self.print(
-                        f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
+                        f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {self._var_use(base_addr)}[ {accesses_str} ]"
                     )
                     self.print("});")
                 case csl.GetFabDsdOp(
@@ -813,6 +838,22 @@ class CslPrintContext:
                     self.print(
                         f"@{op.name.removeprefix('csl.')}({', '.join(map(self._get_variable_name_for, ops))});"
                     )
+                case csl.VariableOp(default=default, res=res):
+                    var = self._var_use(res, "var")
+                    init_val = (
+                        f" = {self.attribute_value_to_str(default)}"
+                        if default is not None
+                        else ""
+                    )
+                    self.print(f"{var}{init_val};")
+                case csl.LoadVarOp(var=var, res=res):
+                    var = self._var_use(var)
+                    const = self._var_use(res)
+                    self.print(f"{const} = {var};")
+                case csl.StoreVarOp(var=var, new_value=new_value):
+                    var = self._var_use(var)
+                    other = self._var_use(new_value)
+                    self.print(f"{var} = {other};")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 

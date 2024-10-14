@@ -16,7 +16,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -46,6 +46,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    GenericAttrConstraint,
     GenericData,
     IRDLOperation,
     MessageConstraint,
@@ -168,22 +169,8 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        if len(args) == 1:
-            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
-        if len(args) == 0:
-            return ArrayOfConstraint(AnyAttr())
-        raise TypeError(
-            f"Attribute ArrayAttr expects at most 1 type"
-            f" parameter, but {len(args)} were given"
-        )
-
-    def verify(self) -> None:
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but {idx} "
-                    f"element is of type {type(val)}"
-                )
+        assert len(args) == 1
+        return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
 
     def __len__(self):
         return len(self.data)
@@ -448,9 +435,12 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
+IndexTypeConstr = BaseAttr(IndexType)
+
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -523,8 +513,26 @@ class IntegerAttr(
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
 
+    @classmethod
+    def constr(
+        cls,
+        *,
+        value: AttrConstraint | None = None,
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
+        if value is None and type == AnyAttr():
+            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
+            IntegerAttr,
+            (
+                value,
+                type,
+            ),
+        )
+
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
@@ -655,6 +663,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+AnyFloatAttrConstr: BaseAttr[AnyFloatAttr] = BaseAttr(FloatAttr)
 
 
 @irdl_attr_definition
@@ -789,6 +798,7 @@ class TensorType(
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
+AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
 
 
 @irdl_attr_definition
@@ -810,6 +820,7 @@ class UnrankedTensorType(
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
+AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
 @dataclass(frozen=True, init=False)
@@ -940,9 +951,17 @@ class DenseArrayBase(ParametrizedAttribute):
                         "should only contain floats"
                     )
 
+    @deprecated("Please use `create_dense_int` instead.")
     @staticmethod
     def create_dense_int_or_index(
         data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase:
+        assert not isinstance(data_type, IndexType), "Index type is not supported"
+        return DenseArrayBase.create_dense_int(data_type, data)
+
+    @staticmethod
+    def create_dense_int(
+        data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
             attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
@@ -984,9 +1003,9 @@ class DenseArrayBase(ParametrizedAttribute):
             | Sequence[FloatData]
         ),
     ) -> DenseArrayBase:
-        if isinstance(data_type, IndexType | IntegerType):
+        if isinstance(data_type, IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
-            return DenseArrayBase.create_dense_int_or_index(data_type, _data)
+            return DenseArrayBase.create_dense_int(data_type, _data)
         elif isattr(data_type, AnyFloatConstr):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
@@ -1052,7 +1071,7 @@ class MemrefLayoutAttr(Attribute, ABC):
         layout to the element offset in linear memory. The resulting
         affine map thus has only one result.
         """
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_strides(self) -> Sequence[int | None] | None:
         """
@@ -1446,7 +1465,7 @@ f80 = Float80Type()
 f128 = Float128Type()
 
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute, covariant=True)
 _UnrankedMemrefTypeElems = TypeVar(
     "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
 )
@@ -1480,17 +1499,22 @@ class MemRefType(
         layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        if not isinstance(shape, ArrayAttr):
-            shape = ArrayAttr(
+        s: ArrayAttr[IntAttr]
+        if isinstance(shape, ArrayAttr):
+            # Temporary cast until Pyright is fixed to not infer ArrayAttr[int] as a
+            # possible value for shape
+            s = cast(ArrayAttr[IntAttr], shape)
+        else:
+            s = ArrayAttr(
                 [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
             )
         super().__init__(
-            [
-                shape,
+            (
+                s,
                 element_type,
                 layout,
                 memory_space,
-            ]
+            )
         )
 
     def get_num_dims(self) -> int:
@@ -1575,8 +1599,29 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
+    @classmethod
+    def constr(
+        cls,
+        *,
+        shape: GenericAttrConstraint[Attribute] | None = None,
+        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        layout: GenericAttrConstraint[Attribute] | None = None,
+        memory_space: GenericAttrConstraint[Attribute] | None = None,
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
+        if (
+            shape is None
+            and element_type == AnyAttr()
+            and layout is None
+            and memory_space is None
+        ):
+            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
+            MemRefType, (shape, element_type, layout, memory_space)
+        )
+
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
+AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
 
 
 @irdl_attr_definition
@@ -1603,6 +1648,7 @@ class UnrankedMemrefType(
 
 
 AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
+AnyUnrankedMemrefTypeConstr = BaseAttr[AnyUnrankedMemrefType](UnrankedMemrefType)
 
 RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]

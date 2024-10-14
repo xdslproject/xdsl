@@ -78,6 +78,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_eqsat():
+        from xdsl.dialects.eqsat import EqSat
+
+        return EqSat
+
     def get_fir():
         from xdsl.dialects.experimental.fir import FIR
 
@@ -152,6 +157,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.ml_program import MLProgram
 
         return MLProgram
+
+    def get_mod_arith():
+        from xdsl.dialects.mod_arith import ModArith
+
+        return ModArith
 
     def get_mpi():
         from xdsl.dialects.mpi import MPI
@@ -288,6 +298,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return TOSA
 
+    def get_varith():
+        from xdsl.dialects.varith import Varith
+
+        return Varith
+
     def get_vector():
         from xdsl.dialects.vector import Vector
 
@@ -323,6 +338,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_stencil": get_csl_stencil,
         "csl_wrapper": get_csl_wrapper,
         "dmp": get_dmp,
+        "eqsat": get_eqsat,
         "fir": get_fir,
         "fsm": get_fsm,
         "func": get_func,
@@ -338,6 +354,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "memref": get_memref,
         "memref_stream": get_memref_stream,
         "ml_program": get_ml_program,
+        "mod_arith": get_mod_arith,
         "mpi": get_mpi,
         "omp": get_omp,
         "onnx": get_onnx,
@@ -365,6 +382,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "tensor": get_tensor,
         "test": get_test,
         "tosa": get_tosa,
+        "varith": get_varith,
         "vector": get_vector,
         "wasm": get_wasm,
         "x86": get_x86,
