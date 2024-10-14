@@ -76,7 +76,7 @@ class Load(IRDLOperation):
 
     nontemporal = opt_prop_def(BoolAttr)
 
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
     res = result_def(T)
 
@@ -116,7 +116,7 @@ class Store(IRDLOperation):
     nontemporal = opt_prop_def(BoolAttr)
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
 
     irdl_options = [ParsePropInAttrDict()]
@@ -365,9 +365,7 @@ class AtomicRMWOp(IRDLOperation):
     )
 
     value = operand_def(T)
-    memref = operand_def(
-        MemRefType[AnyFloat | AnySignlessIntegerType].constr(element_type=T)
-    )
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     kind = prop_def(IntegerAttr[I64])
