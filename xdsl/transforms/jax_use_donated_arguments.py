@@ -41,11 +41,8 @@ class SubstituteDonatedTensors(RewritePattern):
         value_mapper: dict[SSAValue, SSAValue] = {}
         new_ops: list[Operation] = []
         for output in op.arguments:
-            if type(getattr(output, "type")) is not TensorType:
-                continue
-
             for i, arg in enumerate(donated_inputs):
-                if getattr(arg, "type").is_same_type_with(output.type):
+                if getattr(arg, "type").is_same_type_with(getattr(output, "type")):
                     new_ops.append(make_materialize_op(output, donated_inputs.pop(i)))
                     value_mapper[output] = new_ops[-1].results[0]
                     break
