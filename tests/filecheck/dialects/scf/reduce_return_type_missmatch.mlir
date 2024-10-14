@@ -13,7 +13,6 @@
         %11 = "arith.addf"(%9, %10) : (f32, f32) -> f32
         "scf.reduce.return"(%11) : (f32) -> ()
       }) : (f32) -> ()
-      "scf.yield"() : () -> ()
     }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f64
 }) : () -> ()
 
