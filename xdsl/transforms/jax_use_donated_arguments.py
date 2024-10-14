@@ -4,7 +4,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.bufferization import MaterializeInDestination
 from xdsl.dialects.builtin import TensorType
-from xdsl.dialects.func import Return
+from xdsl.dialects.func import FuncOp, Return
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -26,18 +26,15 @@ class SubstituteDonatedTensors(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Return, rewriter: PatternRewriter, /):
         func_op = op.parent_op()
-        if func_op is None:
+        if func_op is None or type(func_op) is not FuncOp:
             raise VerifyException("Return operation should be tied to a FuncOp")
 
-        arg_attrs = getattr(func_op, "arg_attrs")
-        args = getattr(func_op, "args")
-
-        if arg_attrs is None:
+        if func_op.arg_attrs is None:
             return
 
         donated_inputs = [
             inp
-            for inp, attr in zip(args, arg_attrs)
+            for inp, attr in zip(func_op.args, func_op.arg_attrs)
             if isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data
         ]
 
