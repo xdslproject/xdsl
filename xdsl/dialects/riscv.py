@@ -43,7 +43,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
-    opt_prop_def,
     region_def,
     result_def,
     var_operand_def,
@@ -3028,7 +3027,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    fastmath = opt_prop_def(FastMathFlagsAttr)
+    fastmath = attr_def(FastMathFlagsAttr)
 
     def __init__(
         self,
@@ -3048,11 +3047,9 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
 
         super().__init__(
             operands=[rs1, rs2],
-            properties={
-                "fastmath": fastmath,
-            },
             attributes={
                 "comment": comment,
+                "fastmath": fastmath,
             },
             result_types=[rd],
         )
@@ -3066,8 +3063,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
         fast = FastMathFlagsAttr("none")
         if parser.parse_optional_keyword("fastmath") is not None:
             fast = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
-            if fast != FastMathFlagsAttr("none"):
-                attributes["fastmath"] = fast
+        attributes["fastmath"] = fast
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
