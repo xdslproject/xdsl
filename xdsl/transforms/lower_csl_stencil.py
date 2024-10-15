@@ -13,7 +13,15 @@ from xdsl.dialects.builtin import (
     i16,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -241,18 +249,31 @@ class InlineApplyOpArgs(RewritePattern):
             (op.done_exchange.block.args[0], op.field),
             *arg_mapping,
         ]:
-            if isinstance(arg, OpResult) and arg.op.parent == op.parent:
-                if not (
-                    isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)
-                ):
-                    raise ValueError(
-                        "Can only promote csl.LoadVarOp or side_effect_free op"
-                    )
-                rewriter.insert_op(
-                    new_arg := arg.op.clone(),
-                    InsertPoint.at_start(op.done_exchange.block),
+            self._replace_block_arg(block_arg, arg, op.done_exchange, op, rewriter)
+        for block_arg, arg in zip(
+            op.receive_chunk.block.args[3:],
+            op.args[: len(op.receive_chunk.block.args) - 3],
+        ):
+            self._replace_block_arg(block_arg, arg, op.receive_chunk, op, rewriter)
+
+    @staticmethod
+    def _replace_block_arg(
+        block_arg: BlockArgument,
+        arg: SSAValue,
+        region: Region,
+        apply: csl_stencil.ApplyOp,
+        rewriter: PatternRewriter,
+    ):
+        if isinstance(arg, OpResult) and arg.op.parent == apply.parent:
+            if not (isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)):
+                raise ValueError(
+                    "Can only promote csl.LoadVarOp or side_effect_free op"
                 )
-                block_arg.replace_by(SSAValue.get(new_arg))
+            rewriter.insert_op(
+                new_arg := arg.op.clone(),
+                InsertPoint.at_start(region.block),
+            )
+            block_arg.replace_by(SSAValue.get(new_arg))
 
 
 @dataclass(frozen=True)
