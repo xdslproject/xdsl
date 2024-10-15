@@ -360,14 +360,17 @@ def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
     case_values = () if switch.case_values is None else switch.case_values.data.data
 
     new_block, new_operands = next(
-        ((block, operand) 
-        for (c, block, operand) in zip(case_values, switch.case_blocks, switch.case_operands, strict=True)
-        if flag == c.value.data),
-        (switch.default_block, switch.default_operands)
-
-    rewriter.replace_matched_op(
-        cf.Branch(new_block, *new_operands)
+        (
+            (block, operand)
+            for (c, block, operand) in zip(
+                case_values, switch.case_blocks, switch.case_operand, strict=True
+            )
+            if flag == c.value.data
+        ),
+        (switch.default_block, switch.default_operands),
     )
+
+    rewriter.replace_matched_op(cf.Branch(new_block, *new_operands))
 
 
 class SimplifyConstSwitchValue(RewritePattern):
