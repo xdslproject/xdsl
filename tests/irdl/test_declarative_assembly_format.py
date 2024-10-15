@@ -8,7 +8,7 @@ from typing import ClassVar, Generic, TypeVar
 import pytest
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import I32, IntegerAttr, ModuleOp, UnitAttr
+from xdsl.dialects.builtin import I32, BoolAttr, IntegerAttr, ModuleOp, UnitAttr
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -2041,3 +2041,79 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+@irdl_op_definition
+class DefaultOp(IRDLOperation):
+    name = "test.default"
+
+    def_prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+    def_opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    assembly_format = "(`prop` $def_prop^)? (`opt_prop` $def_opt_prop^)? attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program, output, generic",
+    [
+        (
+            "test.default",
+            "test.default",
+            '"test.default"() <{"def_prop" = false}> : () -> ()',
+        ),
+        (
+            "test.default prop false opt_prop true",
+            "test.default",
+            '"test.default"() <{"def_prop" = false, "def_opt_prop" = true}> : () -> ()',
+        ),
+        (
+            '"test.default"() <{"def_prop" = false, "def_opt_prop" = true}> : () -> ()',
+            "test.default",
+            '"test.default"() <{"def_prop" = false, "def_opt_prop" = true}> : () -> ()',
+        ),
+        (
+            '"test.default"() <{"def_prop" = false}> : () -> ()',
+            "test.default",
+            '"test.default"() <{"def_prop" = false}> : () -> ()',
+        ),
+        (
+            "test.default prop true opt_prop false",
+            "test.default prop 1 opt_prop 0",
+            '"test.default"() <{"def_prop" = true, "def_opt_prop" = false}> : () -> ()',
+        ),
+    ],
+)
+def test_default_properties(program: str, output: str, generic: str):
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(ctx, program).parse_operation()
+    assert isinstance(parsed, DefaultOp)
+
+    stream = StringIO()
+    printer = Printer(stream=stream)
+    printer.print_op(parsed)
+
+    assert output == stream.getvalue()
+
+    stream = StringIO()
+    printer = Printer(stream=stream, print_generic_format=True)
+    printer.print_op(parsed)
+
+    assert generic == stream.getvalue()
+
+
+def test_default_accessors():
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(ctx, "test.default").parse_operation()
+
+    assert isinstance(parsed, DefaultOp)
+
+    assert parsed.def_prop.value.data == 0
+
+    assert parsed.def_opt_prop is not None
+
+    assert parsed.def_opt_prop.value.data == 1
