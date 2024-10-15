@@ -175,17 +175,17 @@ class MaterializeInDestination(IRDLOperation):
 
     source = operand_def(
         TensorMemrefInferenceConstraint(
-            "T", AnyOf([AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr])
+            "T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr
         )
     )
     dest = operand_def(
         TensorMemrefInferenceConstraint(
-            "T", AnyOf([AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr])
+            "T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr
         )
     )
     result = result_def(
         TensorMemrefInferenceConstraint(
-            "T", AnyOf([AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr])
+            "T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr
         )
     )
     restrict = opt_prop_def(UnitAttr)
