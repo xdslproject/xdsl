@@ -357,17 +357,16 @@ def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
     ]
     -> br ^bb2
     """
-    case_values = switch.case_values
-    if case_values is not None:
-        for i, c in enumerate(case_values.data.data):
-            if flag == c.value.data:
-                rewriter.replace_matched_op(
-                    cf.Branch(switch.case_blocks[i], *switch.case_operand[i])
-                )
-                return
+    case_values = () if switch.case_values is None else switch.case_values.data.data
+
+    new_block, new_operands = next(
+        ((block, operand) 
+        for (c, block, operand) in zip(case_values, switch.case_blocks, switch.case_operands, strict=True)
+        if flag == c.value.data),
+        (switch.default_block, switch.default_operands)
 
     rewriter.replace_matched_op(
-        cf.Branch(switch.default_block, *switch.default_operands)
+        cf.Branch(new_block, *new_operands)
     )
 
 
