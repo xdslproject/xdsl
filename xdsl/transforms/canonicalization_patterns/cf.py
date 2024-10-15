@@ -275,7 +275,7 @@ class SimplifySwitchWithOnlyDefault(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
-        if len(op.case_blocks) == 0:
+        if not op.case_blocks:
             rewriter.replace_matched_op(
                 cf.Branch(op.default_block, *op.default_operands)
             )
@@ -296,7 +296,10 @@ def drop_case_helper(
     new_case_operands: list[Sequence[Operation | SSAValue]] = []
 
     for switch_case, block, operands in zip(
-        case_values.data.data, op.case_blocks, op.case_operand
+        case_values.data.data,
+        op.case_blocks,
+        op.case_operand,
+        strict=True,
     ):
         int_switch_case = cast(AnyIntegerAttr, switch_case)
         if predicate(int_switch_case, block, operands):
@@ -411,7 +414,7 @@ class SimplifyPassThroughSwitch(RewritePattern):
         new_case_blocks: list[Block] = []
         new_case_operands: list[Sequence[Operation | SSAValue]] = []
 
-        for block, operands in zip(op.case_blocks, op.case_operand):
+        for block, operands in zip(op.case_blocks, op.case_operand, strict=True):
             collapsed = collapse_branch(block, operands)
             requires_change |= collapsed is not None
             (new_block, new_operands) = collapsed or (block, operands)
