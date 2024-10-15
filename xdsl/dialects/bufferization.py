@@ -168,7 +168,6 @@ class ToMemrefOp(IRDLOperation):
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($memref)"
 
 
-# now only works for (tensor, tensor) arguments. need to add memref support as well.
 @irdl_op_definition
 class MaterializeInDestination(IRDLOperation):
     name = "bufferization.materialize_in_destination"
