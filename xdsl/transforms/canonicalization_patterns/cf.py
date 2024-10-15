@@ -205,7 +205,7 @@ class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
 
         merged_operands = tuple(
             self._merge_operand(op1, op2, rewriter, op)
-            for (op1, op2) in zip(op.then_arguments, op.else_arguments)
+            for (op1, op2) in zip(op.then_arguments, op.else_arguments, strict=True)
         )
 
         rewriter.replace_matched_op(cf.Branch(op.then_block, *merged_operands))
