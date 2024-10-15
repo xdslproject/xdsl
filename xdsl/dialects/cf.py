@@ -100,11 +100,16 @@ class ConditionalBranchHasCanonicalizationPatterns(HasCanonicalizationPatternsTr
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.cf import (
+            SimplifyCondBranchIdenticalSuccessors,
             SimplifyConstCondBranchPred,
             SimplifyPassThroughCondBranch,
         )
 
-        return (SimplifyConstCondBranchPred(), SimplifyPassThroughCondBranch())
+        return (
+            SimplifyConstCondBranchPred(),
+            SimplifyPassThroughCondBranch(),
+            SimplifyCondBranchIdenticalSuccessors(),
+        )
 
 
 @irdl_op_definition
