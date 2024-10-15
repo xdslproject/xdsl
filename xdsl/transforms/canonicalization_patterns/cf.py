@@ -347,7 +347,7 @@ class DropSwitchCasesThatMatchDefault(RewritePattern):
         drop_case_helper(rewriter, op, predicate)
 
 
-def foldSwitch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
+def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
     """
     Helper for folding a switch with a constant value.
     switch %c_42 : i32, [
@@ -384,7 +384,7 @@ class SimplifyConstSwitchValue(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
         if (flag := const_evaluate_operand(op.flag)) is not None:
-            foldSwitch(op, rewriter, flag)
+            fold_switch(op, rewriter, flag)
 
 
 class SimplifyPassThroughSwitch(RewritePattern):
@@ -521,7 +521,7 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
             return
 
         if pred.index != 0:
-            foldSwitch(
+            fold_switch(
                 op,
                 rewriter,
                 cast(int, case_values.data.data[pred.index - 1].value.data),
