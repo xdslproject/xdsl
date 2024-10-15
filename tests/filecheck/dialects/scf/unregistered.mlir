@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic --allow-unregistered-dialect | xdsl-opt --split-input-file | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic --allow-unregistered-dialect | xdsl-opt --allow-unregistered-dialect | filecheck %s
 
 // CHECK:      func.func @for_unregistered() {
 // CHECK-NEXT:   %lb = arith.constant 0 : index
