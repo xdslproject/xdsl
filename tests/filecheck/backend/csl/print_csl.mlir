@@ -374,6 +374,26 @@ csl.func @ctrlflow() {
   csl.return
 }
 
+%tsc = "csl.import_module"() <{"module" = "<time>"}> : () -> !csl.imported_module
+%tsc_buf = "csl.zeros"() : () -> memref<6xui16>
+
+csl.func @timestamp_start() {
+  %addr_of_1 = "csl.addressof"(%tsc_buf) : (memref<6xui16>) -> !csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>
+  %ptrcast_1 = "csl.ptrcast"(%addr_of_1) : (!csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  "csl.member_call"(%tsc) <{"field" = "enable_tsc"}> : (!csl.imported_module) -> ()
+  "csl.member_call"(%tsc, %ptrcast_1) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
+  csl.return
+}
+
+csl.func @timestamp_stop() {
+  %three = arith.constant 3 : index
+  %ld = memref.load %tsc_buf[%three] : memref<6xui16>
+  %addr_of_2 = "csl.addressof"(%ld) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %ptrcast_2 = "csl.ptrcast"(%addr_of_2) : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  "csl.member_call"(%tsc, %ptrcast_2) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
+  csl.return
+}
+
 csl.func @builtins() {
   %i8_value = arith.constant 10 : si8
   %i16_value = arith.constant 10 : si16
@@ -740,6 +760,21 @@ csl.func @builtins() {
 // CHECK-NEXT:   else {
 // CHECK-NEXT:     i32ret = 222;
 // CHECK-NEXT:   }
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: const tsc : imported_module = @import_module("<time>");
+// CHECK-NEXT: var tsc_buf : [6]u16 = @zeros([6]u16);
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn timestamp_start() void {
+// CHECK-NEXT:   var addr_of : [*]u16 = &tsc_buf;
+// CHECK-NEXT:   tsc.enable_tsc();
+// CHECK-NEXT:   const ptrcast : *[3]u16 = @ptrcast(*[3]u16, addr_of);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn timestamp_stop() void {
+// CHECK-NEXT:   var addr_of : *u16 = &(tsc_buf[3]);
+// CHECK-NEXT:   tsc.get_timestamp(@ptrcast(*[3]u16, addr_of));
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
