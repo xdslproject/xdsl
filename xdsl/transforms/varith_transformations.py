@@ -81,7 +81,6 @@ class VarithToArithPattern(RewritePattern):
     """
 
     def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
-
         dest_type = VARITH_TO_ARITH_TYPE_MAP[type(op)]
         varith_type = type(op)
 
