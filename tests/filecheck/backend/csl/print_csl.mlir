@@ -768,7 +768,7 @@ csl.func @builtins() {
 // CHECK-NEXT: fn timestamp_start() void {
 // CHECK-NEXT:   var addr_of : [*]u16 = &tsc_buf;
 // CHECK-NEXT:   tsc.enable_tsc();
-// CHECK-NEXT:   const ptrcast : *[3]u16 = @ptrcast(*[3]u16, addr_of);
+// CHECK-NEXT:   tsc.get_timestamp(@ptrcast(*[3]u16, addr_of));
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
