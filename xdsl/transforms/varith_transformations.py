@@ -24,6 +24,17 @@ ARITH_TO_VARITH_TYPE_MAP: dict[
     arith.Mulf: varith.VarithMulOp,
 }
 
+# map the arith operation to the right varith op:
+VARITH_TO_ARITH_TYPE_MAP: dict[
+    type[varith.VarithOp],
+    type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
+] = {
+    varith.VarithAddOp: arith.Addi,
+    varith.VarithAddOp: arith.Addf,
+    varith.VarithMulOp: arith.Muli,
+    varith.VarithMulOp: arith.Mulf,
+}
+
 
 class ArithToVarithPattern(RewritePattern):
     """
@@ -62,6 +73,36 @@ class ArithToVarithPattern(RewritePattern):
                 if len(other_op.result.uses) == 0:
                     rewriter.erase_op(other_op)
                 return
+
+
+class VarithToArithPattern(RewritePattern):
+    """
+    Splits a varith operation into two arith operations.
+    """
+
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        # check that the op is of a type that we can convert to arith
+        if type(op) not in VARITH_TO_ARITH_TYPE_MAP:
+            return
+
+        # this must be true, as all keys of VARITH_TO_ARITH_TYPE_MAP are varith ops
+        op = cast(
+            varith.VarithOp,
+            op,
+        )
+
+        dest_type = VARITH_TO_ARITH_TYPE_MAP[type(op)]
+        varith_type = type(op)
+
+        if len(op.operands) > 2:
+            first_arg = varith_type(*op.operands[:-1])
+        else:
+            first_arg = op.operands[0]
+
+        # instantiate a varith op with three operands
+        rewriter.replace_matched_op(dest_type(first_arg, op.operands[-1]))
+
+        return
 
 
 # map (int|float)(add|mul) to an arith op type
@@ -168,6 +209,25 @@ class ConvertArithToVarithPass(ModulePass):
                 [
                     ArithToVarithPattern(),
                     MergeVarithOpsPattern(),
+                ]
+            ),
+        ).rewrite_op(op)
+
+
+class ConvertVarithToArithPass(ModulePass):
+    """
+    Convert a single long variadic add or mul operation into a chain of arith.{add|mul}{i,f} operations.
+    Reverses ConvertArithToVarithPass.
+
+    """
+
+    name = "convert-varith-to-arith"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    VarithToArithPattern(),
                 ]
             ),
         ).rewrite_op(op)
