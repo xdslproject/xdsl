@@ -2099,6 +2099,11 @@ class DefaultOp(IRDLOperation):
             "test.default attr 1 opt_attr 0",
             '"test.default"() <{"prop" = false}> {"attr" = true, "opt_attr" = false} : () -> ()',
         ),
+        (
+            '"test.default"() : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+        ),
     ],
 )
 def test_default_properties(program: str, output: str, generic: str):

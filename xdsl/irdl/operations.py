@@ -130,6 +130,28 @@ class IRDLOperation(Operation):
             regions=regions,
         )
 
+    def __post_init__(self):
+        op_def = self.get_irdl_definition()
+        # Fill in default properties
+        for prop_name, prop_def in op_def.properties.items():
+            if (
+                prop_name not in self.properties
+                and not isinstance(prop_def, OptionalDef)
+                and prop_def.default_value is not None
+            ):
+                self.properties[prop_name] = prop_def.default_value
+
+        # Fill in default attributes
+        for attr_name, attr_def in op_def.attributes.items():
+            if (
+                attr_name not in self.attributes
+                and not isinstance(attr_def, OptionalDef)
+                and attr_def.default_value is not None
+            ):
+                self.attributes[attr_name] = attr_def.default_value
+
+        return super().__post_init__()
+
     @classmethod
     def build(
         cls: type[IRDLOperationInvT],
