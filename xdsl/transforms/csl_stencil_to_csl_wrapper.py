@@ -60,6 +60,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
+        # erase timer stubs
+        if op.is_declaration and op.sym_name.data in _TIMER_FUNC_NAMES:
+            rewriter.erase_matched_op()
+            return
         # find csl_stencil.apply ops, abort if there are none
         apply_ops = self.get_csl_stencil_apply_ops(op)
         if len(apply_ops) == 0:
@@ -383,7 +387,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
 @dataclass(frozen=True)
 class LowerTimerFuncCall(RewritePattern):
-    """ """
+    """
+    Lowers calls to the start and end timer to csl API calls.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.StoreOp, rewriter: PatternRewriter, /):
