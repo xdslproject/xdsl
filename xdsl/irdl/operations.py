@@ -445,18 +445,12 @@ OptSingleBlockRegion: TypeAlias = Annotated[
 ]
 
 
-@dataclass(init=False)
+@dataclass
 class AttrOrPropDef:
     """An IRDL attribute or property definition."""
 
     constr: AttrConstraint
-    """The attribute or property constraint"""
-
-    def __init__(
-        self,
-        attr: Attribute | type[Attribute] | AttrConstraint,
-    ):
-        self.constr = attr_constr_coercion(attr)
+    default_value: Attribute | None = None
 
 
 @dataclass
@@ -474,7 +468,7 @@ class PropertyDef(AttrOrPropDef):
     """An IRDL property definition."""
 
 
-@dataclass(init=False)
+@dataclass
 class OptPropertyDef(PropertyDef, OptionalDef):
     """An IRDL property definition for an optional property."""
 
@@ -565,15 +559,18 @@ class _AttrOrPropFieldDef(
     The name of the attribute or property in the IR,
     in case it is different from the field name.
     """
+    default_value: Attribute | None = None
 
     def __init__(
         self,
         cls: type[AttrOrPropInvT],
         param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
         ir_name: str | None = None,
+        default_value: Attribute | None = None,
     ):
         super().__init__(cls, param)
         self.ir_name = ir_name
+        self.default_value = default_value
 
 
 class _AttributeFieldDef(_AttrOrPropFieldDef[AttributeDef]):
@@ -666,6 +663,7 @@ def opt_result_def(
 
 def prop_def(
     constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -673,11 +671,39 @@ def prop_def(
     init: Literal[False] = False,
 ) -> AttributeInvT:
     """Defines a property of an operation."""
-    return cast(AttributeInvT, _PropertyFieldDef(PropertyDef, constraint, prop_name))
+    return cast(
+        AttributeInvT,
+        _PropertyFieldDef(PropertyDef, constraint, prop_name, default_value),
+    )
+
+
+@overload
+def opt_prop_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: None = None,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+@overload
+def opt_prop_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: Attribute,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT: ...
 
 
 def opt_prop_def(
     constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -685,7 +711,10 @@ def opt_prop_def(
     init: Literal[False] = False,
 ) -> AttributeInvT | None:
     """Defines an optional property of an operation."""
-    return cast(AttributeInvT, _PropertyFieldDef(OptPropertyDef, constraint, prop_name))
+    return cast(
+        AttributeInvT,
+        _PropertyFieldDef(OptPropertyDef, constraint, prop_name, default_value),
+    )
 
 
 def attr_def(
@@ -695,6 +724,7 @@ def attr_def(
         | GenericAttrConstraint[AttributeInvT]
         | ConstraintVar
     ),
+    default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -704,11 +734,39 @@ def attr_def(
     """
     Defines an attribute of an operation.
     """
-    return cast(AttributeInvT, _AttributeFieldDef(AttributeDef, constraint, attr_name))
+    return cast(
+        AttributeInvT,
+        _AttributeFieldDef(AttributeDef, constraint, attr_name, default_value),
+    )
+
+
+@overload
+def opt_attr_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: None = None,
+    *,
+    attr_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+@overload
+def opt_attr_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: Attribute,
+    *,
+    attr_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT: ...
 
 
 def opt_attr_def(
     constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -719,7 +777,8 @@ def opt_attr_def(
     Defines an optional attribute of an operation.
     """
     return cast(
-        AttributeInvT, _AttributeFieldDef(OptAttributeDef, constraint, attr_name)
+        AttributeInvT,
+        _AttributeFieldDef(OptAttributeDef, constraint, attr_name, default_value),
     )
 
 
@@ -1138,7 +1197,7 @@ class OpDef:
                         assert not isinstance(value.param, GenericRangeConstraint)
                         assert issubclass(value.cls, AttributeDef)
                         constraint = get_constraint(value.param)
-                        attribute_def = value.cls(constraint)
+                        attribute_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
                         op_def.attributes[ir_name] = attribute_def
                         op_def.accessor_names[field_name] = (ir_name, "attribute")
@@ -1148,7 +1207,7 @@ class OpDef:
                         assert not isinstance(value.param, GenericRangeConstraint)
                         assert issubclass(value.cls, PropertyDef)
                         constraint = get_constraint(value.param)
-                        property_def = value.cls(constraint)
+                        property_def = value.cls(constraint, value.default_value)
                         ir_name = field_name if value.ir_name is None else value.ir_name
                         op_def.properties[ir_name] = property_def
                         op_def.accessor_names[field_name] = (ir_name, "property")
@@ -1940,7 +1999,9 @@ def get_accessors_from_op_def(
 
     def optional_attribute_field(attribute_name: str):
         def field_getter(self: IRDLOperation):
-            return self.attributes.get(attribute_name, None)
+            return self.attributes.get(
+                attribute_name, op_def.attributes[attribute_name].default_value
+            )
 
         def field_setter(self: IRDLOperation, value: Attribute | None):
             if value is None:
@@ -1961,7 +2022,9 @@ def get_accessors_from_op_def(
 
     def optional_property_field(property_name: str):
         def field_getter(self: IRDLOperation):
-            return self.properties.get(property_name, None)
+            return self.properties.get(
+                property_name, op_def.properties[property_name].default_value
+            )
 
         def field_setter(self: IRDLOperation, value: Attribute | None):
             if value is None:
