@@ -2133,15 +2133,11 @@ def test_default_accessors():
 
     assert parsed.properties.get("opt_prop") is None
 
-    assert parsed.opt_prop is not None
-
     assert parsed.opt_prop.value.data == 1
 
     assert parsed.attr.value.data == 0
 
     assert parsed.attributes.get("opt_attr") is None
-
-    assert parsed.opt_attr is not None
 
     assert parsed.opt_attr.value.data == 1
 

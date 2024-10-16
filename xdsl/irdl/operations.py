@@ -677,6 +677,30 @@ def prop_def(
     )
 
 
+@overload
+def opt_prop_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: None = None,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+@overload
+def opt_prop_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: Attribute,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT: ...
+
+
 def opt_prop_def(
     constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
@@ -714,6 +738,30 @@ def attr_def(
         AttributeInvT,
         _AttributeFieldDef(AttributeDef, constraint, attr_name, default_value),
     )
+
+
+@overload
+def opt_attr_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: None = None,
+    *,
+    attr_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None: ...
+
+
+@overload
+def opt_attr_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    default_value: Attribute,
+    *,
+    attr_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT: ...
 
 
 def opt_attr_def(
