@@ -161,6 +161,24 @@ class FormatProgram:
         else:
             properties = op_def.split_properties(state.attributes)
 
+        # Fill in default properties
+        for prop_name, prop_def in op_def.properties.items():
+            if (
+                prop_name not in properties
+                and not isinstance(prop_def, OptionalDef)
+                and prop_def.default_value is not None
+            ):
+                properties[prop_name] = prop_def.default_value
+
+        # Fill in default attributes
+        for attr_name, attr_def in op_def.attributes.items():
+            if (
+                attr_name not in state.attributes
+                and not isinstance(attr_def, OptionalDef)
+                and attr_def.default_value is not None
+            ):
+                state.attributes[attr_name] = attr_def.default_value
+
         return op_type.build(
             result_types=result_types,
             operands=operands,
@@ -951,12 +969,37 @@ class AttributeVariable(FormatDirective):
         raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
 
-class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
+@dataclass(frozen=True)
+class DefaultValuedAttributeVariable(AttributeVariable, AnchorableDirective):
+    """
+    An attribute variable with default value, with the following format:
+      result-directive ::= dollar-ident
+    The directive will request a space to be printed right after.
+    """
+
+    default_value: Attribute
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        if self.is_property:
+            attr = op.properties.get(self.name)
+        else:
+            attr = op.attributes.get(self.name)
+        return attr is not None and attr != self.default_value
+
+
+class OptionalAttributeVariable(AttributeVariable, AnchorableDirective):
     """
     An optional attribute variable, with the following format:
       operand-directive ::= ( percent-ident )?
     The directive will request a space to be printed after.
     """
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        if self.is_property:
+            attr = op.properties.get(self.name)
+        else:
+            attr = op.attributes.get(self.name)
+        return attr is not None
 
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):
