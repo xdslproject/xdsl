@@ -980,16 +980,26 @@ class DefaultValuedAttributeVariable(AttributeVariable, AnchorableDirective):
     default_value: Attribute
 
     def is_present(self, op: IRDLOperation) -> bool:
-        attr = getattr(op, self.name)
+        if self.is_property:
+            attr = op.properties.get(self.name)
+        else:
+            attr = op.attributes.get(self.name)
         return attr is not None and attr != self.default_value
 
 
-class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
+class OptionalAttributeVariable(AttributeVariable, AnchorableDirective):
     """
     An optional attribute variable, with the following format:
       operand-directive ::= ( percent-ident )?
     The directive will request a space to be printed after.
     """
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        if self.is_property:
+            attr = op.properties.get(self.name)
+        else:
+            attr = op.attributes.get(self.name)
+        return attr is not None
 
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):

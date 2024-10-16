@@ -2119,3 +2119,55 @@ def test_default_properties(program: str, output: str, generic: str):
     printer.print_op(parsed)
 
     assert generic == stream.getvalue()
+
+
+@irdl_op_definition
+class RenamedPropOp(IRDLOperation):
+    name = "test.renamed"
+
+    prop1 = prop_def(
+        BoolAttr, default_value=BoolAttr.from_bool(False), prop_name="test_prop1"
+    )
+    prop2 = opt_prop_def(BoolAttr, prop_name="test_prop2")
+
+    assembly_format = "(`prop1` $test_prop1^)? (`prop2` $test_prop2^)? attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program, output, generic",
+    [
+        (
+            "test.renamed",
+            "test.renamed",
+            '"test.renamed"() <{"test_prop1" = false}> : () -> ()',
+        ),
+        (
+            "test.renamed prop1 false prop2 false",
+            "test.renamed prop2 0",
+            '"test.renamed"() <{"test_prop1" = false, "test_prop2" = false}> : () -> ()',
+        ),
+        (
+            "test.renamed prop1 true prop2 true",
+            "test.renamed prop1 1 prop2 1",
+            '"test.renamed"() <{"test_prop1" = true, "test_prop2" = true}> : () -> ()',
+        ),
+    ],
+)
+def test_renamed_optional_prop(program: str, output: str, generic: str):
+    ctx = MLContext()
+    ctx.load_op(RenamedPropOp)
+
+    parsed = Parser(ctx, program).parse_operation()
+    assert isinstance(parsed, RenamedPropOp)
+
+    stream = StringIO()
+    printer = Printer(stream=stream)
+    printer.print_op(parsed)
+
+    assert output == stream.getvalue()
+
+    stream = StringIO()
+    printer = Printer(stream=stream, print_generic_format=True)
+    printer.print_op(parsed)
+
+    assert generic == stream.getvalue()
