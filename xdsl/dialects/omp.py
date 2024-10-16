@@ -20,6 +20,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    SameVariadicOperandSize,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -66,12 +67,22 @@ class OrderKindAttr(EnumAttribute[OrderKind], SpacedOpaqueSyntaxAttribute):
 
 
 @irdl_op_definition
-class WsLoopOp(IRDLOperation):
-    name = "omp.wsloop"
+class LoopNestOp(IRDLOperation):
+    name = "omp.loop_nest"
 
     lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
     upperBound = var_operand_def(base(IntegerType) | base(IndexType))
     step = var_operand_def(base(IntegerType) | base(IndexType))
+
+    body = region_def("single_block")
+
+    irdl_options = [SameVariadicOperandSize()]
+
+
+@irdl_op_definition
+class WsLoopOp(IRDLOperation):
+    name = "omp.wsloop"
+
     linear_vars = var_operand_def()
     linear_step_vars = var_operand_def(i32)
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
@@ -88,7 +99,7 @@ class WsLoopOp(IRDLOperation):
     order_val = opt_prop_def(OrderKindAttr)
     inclusive = opt_prop_def(UnitAttr)
 
-    body = region_def()
+    body = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -115,11 +126,13 @@ class ParallelOp(IRDLOperation):
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
     reduction_vars = var_operand_def()
+    private_vars = var_operand_def()
 
     region = region_def()
 
     reductions = opt_prop_def(ArrayAttr[SymbolRefAttr])
     proc_bind_val = opt_prop_def(ProcBindKindAttr)
+    privatizers = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -144,6 +157,7 @@ OMP = Dialect(
         ParallelOp,
         TerminatorOp,
         WsLoopOp,
+        LoopNestOp,
         YieldOp,
     ],
     [
