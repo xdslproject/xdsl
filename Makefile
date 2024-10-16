@@ -5,7 +5,7 @@ MAKEFLAGS += --no-builtin-variables
 COVERAGE_FILE ?= .coverage
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --all-extras
+VENV_EXTRAS ?= --extra gui --extra dev
 
 # use different coverage data file per coverage run, otherwise combine complains
 TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
