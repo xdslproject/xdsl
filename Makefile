@@ -40,35 +40,35 @@ clean: clean-caches
 
 # run filecheck tests
 .PHONY: filecheck
-filecheck:
+filecheck: uv-installed
 	uv run lit -vv tests/filecheck --order=smart --timeout=20
 
 # run pytest tests
 .PHONY: pytest
-pytest:
+pytest: uv-installed
 	uv run pytest tests -W error -vv
 
 # run pytest on notebooks
 .PHONY: pytest-nb
-pytest-nb:
+pytest-nb: uv-installed
 	uv run pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
 		--nbval-current-env
 
 # run tests for Toy tutorial
 .PHONY: filecheck-toy
-filecheck-toy:
+filecheck-toy: uv-installed
 	uv run lit -v docs/Toy/examples --order=smart
 
 .PHONY: pytest-toy
-pytest-toy:
+pytest-toy: uv-installed
 	uv run pytest docs/Toy/toy/tests
 
 .PHONY: tests-toy
 tests-toy: filecheck-toy pytest-toy
 
 .PHONY: tests-marimo
-tests-marimo:
+tests-marimo: uv-installed
 	@for file in docs/marimo/*.py; do \
 		echo "Running $$file"; \
 		error_message=$$(uv run python3 "$$file" 2>&1) || { \
@@ -80,7 +80,7 @@ tests-marimo:
 	@echo "All marimo tests passed successfully."
 
 .PHONY: tests-marimo-mlir
-tests-marimo-mlir:
+tests-marimo-mlir: uv-installed
 	@if ! command -v mlir-opt > /dev/null 2>&1; then \
 		echo "MLIR is not installed, skipping tests."; \
 		exit 0; \
@@ -103,7 +103,7 @@ tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-mlir pyrig
 
 # re-generate the output from all jupyter notebooks in the docs directory
 .PHONY: rerun-notebooks
-rerun-notebooks:
+rerun-notebooks: uv-installed
 	uv run jupyter nbconvert \
 		--ClearMetadataPreprocessor.enabled=True \
 		--inplace \
@@ -112,42 +112,42 @@ rerun-notebooks:
 
 # set up all precommit hooks
 .PHONY: precommit-install
-precommit-install:
+precommit-install: uv-installed
 	uv run pre-commit install
 
 # run all precommit hooks and apply them
 .PHONY: precommit
-precommit:
+precommit: uv-installed
 	uv run pre-commit run --all
 
 # run pyright on all files in the current git commit
 .PHONY: pyright
-pyright:
+pyright: uv-installed
     # We make sure to generate the python typing stubs before running pyright
 	uv run xdsl-stubgen
 	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run coverage over all tests and combine data files
 .PHONY: coverage
-coverage: coverage-tests coverage-filecheck-tests
+coverage: uv-installed coverage-tests coverage-filecheck-tests
 	uv run coverage combine --append
 
 # run coverage over tests
 .PHONY: coverage-tests
-coverage-tests:
+coverage-tests: uv-installed
 	COVERAGE_FILE=${TESTS_COVERAGE_FILE} uv run pytest -W error --cov --cov-config=.coveragerc
 
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
-coverage-filecheck-tests:
+coverage-filecheck-tests: uv-installed
 	uv run lit -v tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
 .PHONY: coverage-report-html
-coverage-report-html:
+coverage-report-html: uv-installed
 	uv run coverage html
 
 # generate markdown coverage report
 .PHONY: coverage-report-html
-coverage-report-md:
+coverage-report-md: uv-installed
 	uv run coverage report --format=markdown
