@@ -39,18 +39,19 @@ class ExtractEclass(RewritePattern):
                 index = ind
                 break
             elif "cost" in operand.op.attributes:
-                if operand.op.attributes["cost"].data < min_cost or index==-1:
+                if operand.op.attributes["cost"].data < min_cost or index == -1:
                     min_cost = operand.op.attributes["cost"].data
                     index = ind
             else:
                 # If no cost has been assigned to an operator - assume ???
-                index = ind 
+                index = ind
                 break
-        
+
         assert index != -1
 
         # Replace the e-class operator by the operand with the minimal cost
         rewriter.replace_op(op, (), (op.operands[index],))
+
 
 class EqsatExtractExpressions(ModulePass):
     """
@@ -60,8 +61,8 @@ class EqsatExtractExpressions(ModulePass):
        ```mlir
         func.func @test(%a : index, %b : index) -> (index) {
             %a_eq = eqsat.eclass %a : index
-            %one  = arith.constant 1 : index 
-            %amul = arith.muli %a_eq, %one   : index 
+            %one  = arith.constant 1 : index
+            %amul = arith.muli %a_eq, %one   : index
 
             %out  = eqsat.eclass %amul, %a_eq : index
             func.return %out : index
@@ -79,10 +80,8 @@ class EqsatExtractExpressions(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([
-                AddCostEclass(),
-                ExtractEclass(),
-                RemoveUnusedOperations()
-                ]), # list of rewrite patterns 
-            apply_recursively=True,                                                  # do we apply rewrites in a while loop
+            GreedyRewritePatternApplier(
+                [AddCostEclass(), ExtractEclass(), RemoveUnusedOperations()]
+            ),  # list of rewrite patterns
+            apply_recursively=True,  # do we apply rewrites in a while loop
         ).rewrite_module(op)

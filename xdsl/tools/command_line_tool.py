@@ -409,15 +409,15 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import eqsat_create_eclasses
 
         return eqsat_create_eclasses.EqsatCreateEclasses
-    
+
     def get_eqsat_extract_expressions():
         from xdsl.transforms import eqsat_extract_expressions
 
         return eqsat_extract_expressions.EqsatExtractExpressions
-    
+
     def get_eqsat_add_costs():
         from xdsl.transforms import eqsat_add_costs
-        
+
         return eqsat_add_costs.EqsatAddCosts
 
     return {
