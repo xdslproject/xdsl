@@ -124,8 +124,8 @@ def test_get_result():
     target = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
     result_number = 0
     assert_print_op(
-        transform.GetResultOp(target=target, result_number=result_number),
-        """%0 = "transform.get_result"(%1) <{"result_number" = 0 : i64}> : (!transform.any_op) -> !transform.any_value""",
+        transform.GetResultOp(target=target, raw_position_list=[result_number]),
+        """%0 = "transform.get_result"(%1) <{"raw_position_list" = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value""",
         None,
     )
 
