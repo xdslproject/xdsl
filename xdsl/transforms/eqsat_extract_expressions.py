@@ -1,6 +1,6 @@
 from xdsl.context import MLContext
-from xdsl.dialects import builtin, eqsat, func
-from xdsl.ir import Block, Attribute, OpResult
+from xdsl.dialects import builtin, eqsat
+from xdsl.ir import OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -9,17 +9,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    StringAttr,
-    i32,
-    i64,
-)
-from xdsl.dialects.builtin import IntAttr
-from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.transforms.eqsat_add_costs import AddCostEclass
 
