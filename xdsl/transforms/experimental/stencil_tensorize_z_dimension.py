@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TypeGuard, cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
     Addf,
     Constant,
@@ -388,6 +388,17 @@ class ArithOpUpdateShape(RewritePattern):
         arithBinaryOpUpdateShape(op, rewriter)
 
 
+class VarithOpUpdateShape(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+        type_constructor = type(op)
+        if typ := get_required_result_type(op):
+            if needs_update_shape(op.result_types[0], typ):
+                rewriter.replace_matched_op(
+                    type_constructor.build(operands=[op.args], result_types=[typ])
+                )
+
+
 class EmptyOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: EmptyOp, rewriter: PatternRewriter, /):
@@ -436,6 +447,7 @@ class BackpropagateStencilShapes(ModulePass):
                     EmptyOpUpdateShape(),
                     FillOpUpdateShape(),
                     ArithOpUpdateShape(),
+                    VarithOpUpdateShape(),
                     ConstOpUpdateShape(),
                 ]
             ),

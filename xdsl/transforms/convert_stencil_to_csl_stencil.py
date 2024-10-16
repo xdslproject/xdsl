@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from math import prod
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, stencil, tensor
+from xdsl.dialects import arith, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     AnyMemRefTypeConstr,
     AnyTensorType,
@@ -15,7 +15,15 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import Operand, base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -53,7 +61,40 @@ def get_stencil_access_operands(op: Operand) -> set[Operand]:
     return res
 
 
-@dataclass(frozen=True)
+def _get_prefetch_buf(op: stencil.ApplyOp) -> int | None:
+    # calculate memory cost of all prefetch operands
+    def get_prefetch_overhead(o: OpResult):
+        assert isa(o.type, TensorType[Attribute])
+        buf_count = o.type.get_shape()[0]
+        buf_size = prod(o.type.get_shape()[1:])
+        return buf_count * buf_size
+
+    candidate_prefetches = [
+        (get_prefetch_overhead(o), o)
+        for o in op.operands
+        if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
+    ]
+    if len(candidate_prefetches) == 0:
+        return
+
+    # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
+    prefetch = max(candidate_prefetches)[1]
+    return op.operands.index(prefetch)
+
+
+def _get_apply_op(op: Operation) -> stencil.ApplyOp | None:
+    """
+    Return the enclosing csl_wrapper.module
+    """
+    parent_op = op.parent_op()
+    while parent_op:
+        if isinstance(parent_op, stencil.ApplyOp):
+            return parent_op
+        parent_op = parent_op.parent_op()
+    return None
+
+
+@dataclass(frozen=False)
 class RestructureSymmetricReductionPattern(RewritePattern):
     """
     Consume data first where that data comes from stencil accesses to `buf`.
@@ -80,6 +121,10 @@ class RestructureSymmetricReductionPattern(RewritePattern):
     def match_and_rewrite(
         self, op: arith.Addf | arith.Mulf, rewriter: PatternRewriter, /
     ):
+        # if not (apply := _get_apply_op(op)) or not (buf_idx := _get_prefetch_buf(apply)):
+        #     return
+        # self.buf = apply.region.block.args[buf_idx]
+
         # this rewrite requires exactly 1 use which is the same type of operation
         if len(op.result.uses) != 1 or not isinstance(
             use := list(op.result.uses)[0].operation, type(op)
@@ -296,6 +341,8 @@ def get_op_split(
     for op in ops:
         if isinstance(op, csl_stencil.AccessOp):
             (b, a)[op.op == buf].append(op)
+        elif isinstance(op, arith.Constant):
+            a.append(op)
         else:
             rem.append(op)
 
@@ -329,12 +376,59 @@ def get_op_split(
                         a.append(use.operation)
                         rem.remove(use.operation)
 
-    if len(a_exports) == 1:
-        return a, b + rem
+    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.Constant)]
+    if len(a_exports) == 1 + len(cnst_exports):
+        recv_chunk_ops, done_exch_ops = list[Operation](), list[Operation]()
+        for op in ops:
+            if op in a:
+                recv_chunk_ops.append(op)
+                if op in cnst_exports:
+                    done_exch_ops.append(cln := op.clone())
+                    op.result.replace_by_if(
+                        cln.result,
+                        lambda use: use.operation in b or use.operation in rem,
+                    )
+            else:
+                done_exch_ops.append(op)
+
+        return recv_chunk_ops, done_exch_ops
 
     # fallback
     # always place `stencil.return` in second block
     return ops[:-1], [ops[-1]]
+
+
+@dataclass(frozen=True)
+class SplitVarithOpPattern(RewritePattern):
+    """
+    Splits a varith op into two, depending on whether the operands holds stencil accesses to `buf` (only)
+    or any other accesses.
+
+    This pass is intended to be run with `buf` set to the block arg indicating data received from neighbours.
+    """
+
+    buf: BlockArgument
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+        if not (apply := _get_apply_op(op)) or not (
+            buf_idx := _get_prefetch_buf(apply)
+        ):
+            return
+        buf = apply.region.block.args[buf_idx]
+        buf_accesses, others = list[SSAValue](), list[SSAValue]()
+
+        for arg in op.args:
+            accs = get_stencil_access_operands(arg)
+            (others, buf_accesses)[buf in accs and len(accs) == 1].append(arg)
+
+        if len(others) > 1 and len(buf_accesses) > 1:
+            rewriter.replace_matched_op(
+                [
+                    n_op := type(op)(*buf_accesses),
+                    type(op)(n_op, *others),
+                ]
+            )
 
 
 @dataclass(frozen=True)
@@ -357,24 +451,12 @@ class ConvertApplyOpPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
-        # calculate memory cost of all prefetch operands
-        def get_prefetch_overhead(o: OpResult):
-            assert isa(o.type, TensorType[Attribute])
-            buf_count = o.type.get_shape()[0]
-            buf_size = prod(o.type.get_shape()[1:])
-            return buf_count * buf_size
-
-        candidate_prefetches = [
-            (get_prefetch_overhead(o), o)
-            for o in op.operands
-            if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
-        ]
-        if len(candidate_prefetches) == 0:
+        if not (prefetch_idx := _get_prefetch_buf(op)):
             return
 
         # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
-        prefetch = max(candidate_prefetches)[1]
-        prefetch_idx = op.operands.index(prefetch)
+        prefetch = op.operands[prefetch_idx]
+        assert isinstance(prefetch, OpResult)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
         field_idx = op.operands.index(prefetch.op.input_stencil)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
@@ -389,12 +471,20 @@ class ConvertApplyOpPattern(RewritePattern):
         )
         rewriter.insert_op(accumulator, InsertPoint.before(op))
 
+        # # find varith ops and split according to neighbour data
+        has_varith = PatternRewriteWalker(
+            SplitVarithOpPattern(op.region.block.args[prefetch_idx]),
+            apply_recursively=False,
+        ).rewrite_op(op)
         # run pass (on this apply's region only) to consume data from `prefetch` accesses first
-        nested_rewriter = PatternRewriteWalker(
-            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx]),
-            walk_reverse=True,
-        )
-        nested_rewriter.rewrite_op(op)
+        if not has_varith:
+            nested_rewriter = PatternRewriteWalker(
+                RestructureSymmetricReductionPattern(
+                    op.region.block.args[prefetch_idx]
+                ),
+                walk_reverse=True,
+            )
+            nested_rewriter.rewrite_op(op)
 
         # determine how ops should be split across the two regions
         chunk_region_ops, done_exchange_ops = get_op_split(
@@ -551,7 +641,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
                 ]
             ),
             walk_reverse=False,
-            apply_recursively=True,
+            # apply_recursively=True,
         )
         module_pass.rewrite_module(op)
 
