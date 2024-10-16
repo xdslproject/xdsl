@@ -26,6 +26,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.printer import Printer
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -70,6 +71,9 @@ def test_rewrite_swap_inputs_pdl():
         apply_recursively=False,
     ).rewrite_module(input_module)
 
+    printer = Printer(print_generic_format=True)
+    print(input_module.print(printer))
+    print(output_module.print(printer))
     assert input_module.is_structurally_equivalent(output_module)
 
 
@@ -119,10 +123,13 @@ def swap_arguments_pdl():
             ).op
             x_y = pdl.ResultOp(IntegerAttr(0, 32), parent=x_y_op).val
             z = pdl.OperandOp().value
+            overflow = pdl.AttributeOp().output
             x_y_z_op = pdl.OperationOp(
                 op_name=StringAttr("arith.addi"),
                 operand_values=[x_y, z],
                 type_values=[pdl_type],
+                attribute_value_names=(StringAttr("overflowFlags"),),
+                attribute_values=(overflow,),
             ).op
 
             with ImplicitBuilder(pdl.RewriteOp(x_y_z_op).body):
@@ -130,6 +137,8 @@ def swap_arguments_pdl():
                     StringAttr("arith.addi"),
                     operand_values=[z, x_y],
                     type_values=[pdl_type],
+                    attribute_value_names=(StringAttr("overflowFlags"),),
+                    attribute_values=(overflow,),
                 ).op
                 pdl.ReplaceOp(x_y_z_op, z_x_y_op)
 

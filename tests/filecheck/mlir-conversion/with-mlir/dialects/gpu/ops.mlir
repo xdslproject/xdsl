@@ -133,7 +133,7 @@
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
 // CHECK-NEXT:             ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32):
-// CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
+// CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-NEXT:             }) : (i32) -> i32
 
@@ -144,7 +144,7 @@
 // CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:             }) : (i32) -> i32
-// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
+// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kernel" = @gpu::@foo, "operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>}> : (index, index, index, index, index, index, index, index, index, i32, index) -> ()

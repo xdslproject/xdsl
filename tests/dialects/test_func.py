@@ -202,7 +202,7 @@ def test_call():
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "func0", "function_type" = (i32, i32) -> i32}> ({
   ^0(%0 : i32, %1 : i32):
-    %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+    %2 = "arith.addi"(%0, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) : () -> ()
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
@@ -248,7 +248,7 @@ def test_call_II():
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "func1", "function_type" = (i32) -> i32}> ({
   ^0(%0 : i32):
-    %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+    %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
   }) : () -> ()
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
