@@ -555,11 +555,11 @@ class _AttrOrPropFieldDef(
     Generic[AttrOrPropInvT], _ConstrainedOpDefField[AttrOrPropInvT]
 ):
     ir_name: str | None = None
-    default_value: Attribute | None = None
     """
     The name of the attribute or property in the IR,
     in case it is different from the field name.
     """
+    default_value: Attribute | None = None
 
     def __init__(
         self,
