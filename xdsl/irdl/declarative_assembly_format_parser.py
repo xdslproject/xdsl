@@ -250,6 +250,11 @@ class FormatParser(BaseParser):
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
                 seen_variables |= result_def.constr.get_resolved_variables()
+        for i, prop_def in enumerate(self.op_def.properties.values()):
+            seen_variables |= prop_def.constr.get_resolved_variables()
+        for i, attr_def in enumerate(self.op_def.attributes.values()):
+            seen_variables |= attr_def.constr.get_resolved_variables()
+
         return seen_variables
 
     def verify_operands(self, seen_variables: set[str]):

@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
     AnyIntegerAttr,
+    AnyIntegerAttrConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -25,9 +26,13 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AnyOf,
+    AttrConstraint,
+    BaseAttr,
     IRDLOperation,
     VarConstraint,
+    WithTypeConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -47,7 +52,6 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.isattr import isattr
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -105,10 +109,20 @@ class FastMathFlagsAttr(FastMathAttrBase):
 @irdl_op_definition
 class Constant(IRDLOperation):
     name = "arith.constant"
-    result = result_def(Attribute)
-    value = prop_def(Attribute)
+    _T: ClassVar[AttrConstraint] = VarConstraint("T", AnyAttr())
+    result = result_def(_T)
+    value = prop_def(
+        WithTypeConstraint(
+            AnyIntegerAttrConstr
+            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
+            | BaseAttr(DenseIntOrFPElementsAttr),
+            _T,
+        )
+    )
 
     traits = frozenset((ConstantLike(), Pure()))
+
+    assembly_format = "attr-dict $value"
 
     @overload
     def __init__(
@@ -143,30 +157,30 @@ class Constant(IRDLOperation):
             properties={"value": IntegerAttr(value, value_type)},
         )
 
-    def print(self, printer: Printer):
-        printer.print_op_attributes(self.attributes)
+    # def print(self, printer: Printer):
+    #     printer.print_op_attributes(self.attributes)
 
-        printer.print(" ")
-        printer.print_attribute(self.value)
+    #     printer.print(" ")
+    #     printer.print_attribute(self.value)
 
-    @classmethod
-    def parse(cls: type[Constant], parser: Parser) -> Constant:
-        attrs = parser.parse_optional_attr_dict()
+    # @classmethod
+    # def parse(cls: type[Constant], parser: Parser) -> Constant:
+    #     attrs = parser.parse_optional_attr_dict()
 
-        p0 = parser.pos
-        value = parser.parse_attribute()
+    #     p0 = parser.pos
+    #     value = parser.parse_attribute()
 
-        if not isattr(
-            value,
-            base(AnyIntegerAttr)
-            | base(FloatAttr[AnyFloat])
-            | base(DenseIntOrFPElementsAttr),
-        ):
-            parser.raise_error("Invalid constant value", p0, parser.pos)
+    #     if not isattr(
+    #         value,
+    #         base(AnyIntegerAttr)
+    #         | base(FloatAttr[AnyFloat])
+    #         | base(DenseIntOrFPElementsAttr),
+    #     ):
+    #         parser.raise_error("Invalid constant value", p0, parser.pos)
 
-        c = Constant(value)
-        c.attributes.update(attrs)
-        return c
+    #     c = Constant(value)
+    #     c.attributes.update(attrs)
+    #     return c
 
 
 _T = TypeVar("_T", bound=Attribute)
