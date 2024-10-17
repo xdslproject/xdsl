@@ -157,12 +157,12 @@ class LowerApplyOp(RewritePattern):
             op.field,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
             op.accumulator,
-            *op.args[: len(op.receive_chunk.block.args) - 3],
+            *op.args_rchunk,
         ]
         done_arg_m = [
             op.field,
             op.accumulator,
-            *op.args[len(chunk_arg_m) - 3 :],
+            *op.args_dexchng,
         ]
         index_op.result.name_hint = "offset"
         op.accumulator.name_hint = "accumulator"
@@ -243,7 +243,7 @@ class InlineApplyOpArgs(RewritePattern):
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
         arg_mapping = zip(
             op.done_exchange.block.args[2:],
-            op.args[-(len(op.done_exchange.block.args) - 2) :],
+            op.args_dexchng,
         )
         for block_arg, arg in [
             (op.done_exchange.block.args[0], op.field),
@@ -252,7 +252,7 @@ class InlineApplyOpArgs(RewritePattern):
             self._replace_block_arg(block_arg, arg, op.done_exchange, op, rewriter)
         for block_arg, arg in zip(
             op.receive_chunk.block.args[3:],
-            op.args[: len(op.receive_chunk.block.args) - 3],
+            op.args_rchunk,
         ):
             self._replace_block_arg(block_arg, arg, op.receive_chunk, op, rewriter)
 

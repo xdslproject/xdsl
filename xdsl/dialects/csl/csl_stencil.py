@@ -178,6 +178,8 @@ class ApplyOp(IRDLOperation):
 
     Further fields:
       - `field`      - the stencil field to communicate (send and receive)
+      - `args_rchunk`  - arguments passed to the `receive_chunk` region, may include other prefetched buffers
+      - `args_dexchng` - arguments passed to the `done_exchange` region, may include other prefetched buffers
       - `args`       - arguments to the stencil computation, may include other prefetched buffers
       - `topo`       - as received from `csl_stencil.prefetch`/`dmp.swap`
       - `num_chunks` - number of chunks into which to slice the communication
@@ -206,7 +208,8 @@ class ApplyOp(IRDLOperation):
 
     accumulator = operand_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
-    args = var_operand_def(Attribute)
+    args_rchunk = var_operand_def(Attribute)
+    args_dexchng = var_operand_def(Attribute)
     dest = var_operand_def(stencil.FieldTypeConstr | AnyMemRefTypeConstr)
 
     receive_chunk = region_def()
@@ -241,7 +244,7 @@ class ApplyOp(IRDLOperation):
         printer.print("(")
 
         # args required by function signature, plus optional args for regions
-        args = [self.field, self.accumulator, *self.args]
+        args = [self.field, self.accumulator, *self.args_rchunk, *self.args_dexchng]
 
         printer.print_list(args, print_arg)
         if self.dest:
@@ -274,7 +277,7 @@ class ApplyOp(IRDLOperation):
             value = parser.resolve_operand(value, type)
             return value
 
-        operands = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
+        ops = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
@@ -304,8 +307,10 @@ class ApplyOp(IRDLOperation):
             props["bounds"] = stencil.StencilBoundsAttr.new(
                 stencil.StencilBoundsAttr.parse_parameters(parser)
             )
+        # `-3` fixed block args, `+2` offset for operands with fixed use
+        split = len(receive_chunk.block.args) - 3 + 2
         return cls(
-            operands=[operands[0], operands[1], operands[2:], destinations],
+            operands=[ops[0], ops[1], ops[2:split], ops[split:], destinations],
             result_types=[result_types],
             regions=[receive_chunk, done_exchange],
             properties=props,

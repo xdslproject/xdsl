@@ -72,7 +72,7 @@ func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>,
 // CHECK-NEXT:   csl.func @gauss_seidel() {
 // CHECK-NEXT:     %40 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:     %41 = tensor.empty() : tensor<510xf32>
-// CHECK-NEXT:     %42 = csl_stencil.apply(%40 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %41 : tensor<510xf32>, %c : memref<255xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
+// CHECK-NEXT:     %42 = csl_stencil.apply(%40 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %41 : tensor<510xf32>, %c : memref<255xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> ({
 // CHECK-NEXT:     ^2(%43 : tensor<4x255xf32>, %44 : index, %45 : tensor<510xf32>, %46 : memref<255xf32>):
 // CHECK-NEXT:       %47 = csl_stencil.access %43[1, 0] : tensor<4x255xf32>
 // CHECK-NEXT:       %48 = csl_stencil.access %43[-1, 0] : tensor<4x255xf32>
@@ -170,7 +170,7 @@ func.func private @timer_end(f64) -> f64
 // CHECK-NEXT:     "csl.member_call"(%81) <{"field" = "enable_tsc"}> : (!csl.imported_module) -> ()
 // CHECK-NEXT:     "csl.member_call"(%81, %83) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:     %84 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
-// CHECK-NEXT:     csl_stencil.apply(%arg0 : memref<512xf32>, %84 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
+// CHECK-NEXT:     csl_stencil.apply(%arg0 : memref<512xf32>, %84 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
 // CHECK-NEXT:     ^4(%arg2 : memref<4x255xf32>, %arg3 : index, %arg4 : memref<510xf32>):
 // CHECK-NEXT:       %85 = csl_stencil.access %arg2[1, 0] : memref<4x255xf32>
 // CHECK-NEXT:       %86 = memref.subview %arg4[%arg3] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
