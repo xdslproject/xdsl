@@ -317,6 +317,23 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
+@irdl_op_definition
+class PtrCastOp(IRDLOperation):
+    """
+    Implements `@ptrcast(destination_ptr_type, ptr)`
+    """
+
+    name = "csl.ptrcast"
+
+    ptr = operand_def(PtrType)
+    result = result_def(PtrType)
+
+    traits = frozenset([NoMemoryEffect()])
+
+    def __init__(self, ptr: Operation | SSAValue, result_type: PtrType):
+        super().__init__(operands=[ptr], result_types=[result_type])
+
+
 DsdElementTypeConstr = (
     base(Float16Type)
     | base(Float32Type)
@@ -2108,6 +2125,7 @@ CSL = Dialect(
         Or16Op,
         ParamOp,
         PopcntOp,
+        PtrCastOp,
         ReturnOp,
         RpcOp,
         Sar16Op,

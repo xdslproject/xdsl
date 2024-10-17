@@ -4,7 +4,9 @@ from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseArrayBase,
     IndexType,
     IntAttr,
@@ -50,6 +52,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.traits import NoTerminator
 from xdsl.utils.exceptions import (
     DiagnosticException,
@@ -853,3 +856,60 @@ def test_no_multiple_var_option():
         match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
+
+
+@irdl_op_definition
+class DefaultOp(IRDLOperation):
+    name = "test.default"
+
+    prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_attr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    assembly_format = "(`prop` $prop^)? (`opt_prop` $opt_prop^)? (`attr` $attr^)? (`opt_attr` $opt_attr^)? attr-dict"
+
+
+def test_default_accessors():
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(ctx, "test.default").parse_operation()
+
+    assert isinstance(parsed, DefaultOp)
+
+    assert parsed.prop.value.data == 0
+
+    assert parsed.properties.get("opt_prop") is None
+
+    assert parsed.opt_prop.value.data == 1
+
+    assert parsed.attr.value.data == 0
+
+    assert parsed.attributes.get("opt_attr") is None
+
+    assert parsed.opt_attr.value.data == 1
+
+
+def test_generic_accessors():
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(
+        ctx, '"test.default"() <{ "prop" = false }> {"attr" = false} : () -> ()'
+    ).parse_operation()
+
+    assert isinstance(parsed, DefaultOp)
+
+    assert parsed.prop.value.data == 0
+
+    assert parsed.properties.get("opt_prop") is None
+
+    assert parsed.opt_prop.value.data == 1
+
+    assert parsed.attr.value.data == 0
+
+    assert parsed.attributes.get("opt_attr") is None
+
+    assert parsed.opt_attr.value.data == 1

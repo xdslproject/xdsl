@@ -238,6 +238,7 @@ class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
         return 1
 
 
+@irdl_op_definition
 class OpWithInterface(IRDLOperation):
     name = "test.op_with_interface"
     traits = frozenset([GetNumResultsTraitForOpWithOneResult()])

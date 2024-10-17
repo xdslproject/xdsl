@@ -245,9 +245,10 @@ class ApplyOpTensorize(RewritePattern):
 class FuncOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        for arg in op.args:
-            if isa(arg.type, FieldType[Attribute]):
-                op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
+        if not op.is_declaration:
+            for arg in op.args:
+                if isa(arg.type, FieldType[Attribute]):
+                    op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
 
 
 def is_tensorized(

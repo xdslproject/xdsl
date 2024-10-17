@@ -37,6 +37,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
     AttrDictDirective,
     AttributeVariable,
+    DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
     KeywordDirective,
@@ -506,6 +507,15 @@ class FormatParser(BaseParser):
 
                 # Chill pyright with TypedAttribute without parameter
                 unique_base = cast(type[Attribute] | None, unique_base)
+
+                if attr_def.default_value is not None:
+                    return DefaultValuedAttributeVariable(
+                        variable_name,
+                        is_property,
+                        unique_base,
+                        unique_type,
+                        attr_def.default_value,
+                    )
 
                 variable_type = (
                     OptionalAttributeVariable
