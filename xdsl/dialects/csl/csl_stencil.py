@@ -308,7 +308,7 @@ class ApplyOp(IRDLOperation):
         # `-3` fixed block args, `+2` offset for operands with fixed use
         split = len(receive_chunk.block.args) - 3 + 2
         return cls(
-            operands=[ops[0], ops[1], ops[:split], ops[split:], destinations],
+            operands=[ops[0], ops[1], ops[2:split], ops[split:], destinations],
             result_types=[result_types],
             regions=[receive_chunk, done_exchange],
             properties=props,
