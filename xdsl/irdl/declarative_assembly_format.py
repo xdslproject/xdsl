@@ -126,23 +126,24 @@ class FormatProgram:
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
         assert isa(
-            unresolved_operands, list[UnresolvedOperand | list[UnresolvedOperand]]
+            unresolved_operands,
+            Sequence[UnresolvedOperand | Sequence[UnresolvedOperand]],
         ), unresolved_operands
         self.resolve_operand_types(state, op_def)
         operand_types = state.operand_types
-        assert isa(operand_types, list[Attribute | list[Attribute]])
+        assert isa(operand_types, Sequence[Attribute | Sequence[Attribute]])
 
         # Infer result types that should be inferred
         self.resolve_result_types(state, op_def)
         result_types = state.result_types
-        assert isa(result_types, list[Attribute | list[Attribute]])
+        assert isa(result_types, Sequence[Attribute | Sequence[Attribute]])
 
         # Resolve all operands
         operands: Sequence[SSAValue | Sequence[SSAValue]] = []
         for uo, ot in zip(unresolved_operands, operand_types, strict=True):
-            if isinstance(uo, list):
+            if isinstance(uo, Sequence):
                 assert isinstance(
-                    ot, list
+                    ot, Sequence
                 ), "Something went wrong with the declarative assembly format parser."
                 "Variadic or optional operand has no type or a single type "
                 operands.append(parser.resolve_operands(uo, ot, parser.pos))
