@@ -438,13 +438,13 @@ class LowerCslStencil(ModulePass):
             ),
             apply_recursively=False,
         ).rewrite_module(op)
-        # module_pass = PatternRewriteWalker(
-        #     GreedyRewritePatternApplier(
-        #         [
-        #             FullStencilAccessImmediateReductionOptimization(),
-        #             LowerAccessOp(),
-        #             LowerApplyOp(),
-        #         ]
-        #     )
-        # )
-        # module_pass.rewrite_module(op)
+        module_pass = PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    FullStencilAccessImmediateReductionOptimization(),
+                    LowerAccessOp(),
+                    LowerApplyOp(),
+                ]
+            )
+        )
+        module_pass.rewrite_module(op)
