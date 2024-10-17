@@ -123,6 +123,12 @@ class FormatProgram:
         # Get constraint variables from the parsed operand and result types
         self.assign_constraint_variables(parser, state, op_def)
 
+        # Solve constraint variables form properties and attributes
+        for prop_name, prop in state.properties.items():
+            op_def.properties[prop_name].constr.verify(prop, state.constraint_context)
+        for prop_name, prop in state.properties.items():
+            op_def.properties[prop_name].constr.verify(prop, state.constraint_context)
+
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
         assert isa(
