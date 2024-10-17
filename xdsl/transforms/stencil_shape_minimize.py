@@ -38,7 +38,8 @@ class ShapeMinimisation(TypeConversionPattern):
 class FuncOpShapeUpdate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
-        op.update_function_type()
+        if not op.is_declaration:
+            op.update_function_type()
 
 
 @dataclass(frozen=True)
