@@ -178,6 +178,8 @@ class ApplyOp(IRDLOperation):
 
     Further fields:
       - `field`      - the stencil field to communicate (send and receive)
+      - `args_rchunk`  - arguments passed to the `receive_chunk` region, may include other prefetched buffers
+      - `args_dexchng` - arguments passed to the `done_exchange` region, may include other prefetched buffers
       - `args`       - arguments to the stencil computation, may include other prefetched buffers
       - `topo`       - as received from `csl_stencil.prefetch`/`dmp.swap`
       - `num_chunks` - number of chunks into which to slice the communication
