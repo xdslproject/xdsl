@@ -50,6 +50,9 @@ class HasParent(OpTrait):
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
+        # Don't check parent when op is detached
+        if parent is None:
+            return
         if isinstance(parent, self.op_types):
             return
         if len(self.op_types) == 1:

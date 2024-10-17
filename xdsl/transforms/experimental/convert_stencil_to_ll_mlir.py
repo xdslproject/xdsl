@@ -269,7 +269,7 @@ def prepare_apply_body(op: ApplyOp):
     for operand, arg in zip(op.operands, entry.args):
         arg.replace_by(operand)
         entry.erase_arg(arg)
-    entry.add_op(scf.Yield())
+    entry.add_op(scf.ReduceOp())
     for _ in range(op.get_rank()):
         entry.insert_arg(builtin.IndexType(), 0)
 

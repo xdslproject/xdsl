@@ -8,7 +8,7 @@ func.func @tile_partial() {
   %size = arith.constant 64 : index
     "scf.parallel"(%zero, %zero, %zero, %size, %size, %size, %one, %one, %one) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
     ^5(%arg2_2 : index, %arg3_2 : index, %arg4_2 : index):
-    scf.yield
+    "scf.reduce"() : () -> ()
     }) : (index, index, index, index, index, index, index, index, index) -> ()
   func.return
 }
@@ -30,9 +30,9 @@ func.func @tile_partial() {
 // CHECK-NEXT:     ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
-// CHECK-NEXT:       scf.yield
+// CHECK-NEXT:       "scf.reduce"() : () -> ()
 // CHECK-NEXT:     }) : (index, index, index, index, index, index, index, index, index) -> ()
-// CHECK-NEXT:     scf.yield
+// CHECK-NEXT:     "scf.reduce"() : () -> ()
 // CHECK-NEXT:   }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:   func.return
 // CHECK-NEXT: }
@@ -54,9 +54,9 @@ func.func @tile_partial() {
 // CHECK-FIRST-NEXT:     ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-FIRST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK-FIRST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
-// CHECK-FIRST-NEXT:       scf.yield
+// CHECK-FIRST-NEXT:       "scf.reduce"() : () -> ()
 // CHECK-FIRST-NEXT:     }) : (index, index, index, index, index, index, index, index, index) -> ()
-// CHECK-FIRST-NEXT:     scf.yield
+// CHECK-FIRST-NEXT:     "scf.reduce"() : () -> ()
 // CHECK-FIRST-NEXT:   }) : (index, index, index, index, index, index) -> ()
 // CHECK-FIRST-NEXT:   func.return
 // CHECK-FIRST-NEXT: }
@@ -78,9 +78,9 @@ func.func @tile_partial() {
 // CHECK-LAST-NEXT:     ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-LAST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK-LAST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
-// CHECK-LAST-NEXT:       scf.yield
+// CHECK-LAST-NEXT:       "scf.reduce"() : () -> ()
 // CHECK-LAST-NEXT:     }) : (index, index, index, index, index, index, index, index, index) -> ()
-// CHECK-LAST-NEXT:     scf.yield
+// CHECK-LAST-NEXT:     "scf.reduce"() : () -> ()
 // CHECK-LAST-NEXT:   }) : (index, index, index, index, index, index) -> ()
 // CHECK-LAST-NEXT:   func.return
 // CHECK-LAST-NEXT: }
@@ -91,7 +91,7 @@ func.func @tile_partial_1d() {
   %size = arith.constant 64 : index
     "scf.parallel"(%zero, %size, %one) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
     ^5(%arg1: index):
-    scf.yield
+    "scf.reduce"() : () -> ()
     }) : (index, index, index) -> ()
   func.return
 }
@@ -109,9 +109,9 @@ func.func @tile_partial_1d() {
 // CHECK-NEXT:        "scf.parallel"(%0, %4, %one) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-NEXT:        ^1(%arg1 : index):
 // CHECK-NEXT:          %5 = arith.addi %3, %arg1 : index
-// CHECK-NEXT:          scf.yield
+// CHECK-NEXT:          "scf.reduce"() : () -> ()
 // CHECK-NEXT:        }) : (index, index, index) -> ()
-// CHECK-NEXT:        scf.yield
+// CHECK-NEXT:        "scf.reduce"() : () -> ()
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
@@ -123,7 +123,7 @@ func.func @tile_partial_1d() {
 // CHECK-FIRST-NEXT:      %size = arith.constant 64 : index
 // CHECK-FIRST-NEXT:      "scf.parallel"(%zero, %size, %one) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-FIRST-NEXT:      ^0(%arg1 : index):
-// CHECK-FIRST-NEXT:        scf.yield
+// CHECK-FIRST-NEXT:        "scf.reduce"() : () -> ()
 // CHECK-FIRST-NEXT:      }) : (index, index, index) -> ()
 // CHECK-FIRST-NEXT:      func.return
 // CHECK-FIRST-NEXT:    }
@@ -142,9 +142,9 @@ func.func @tile_partial_1d() {
 // CHECK-LAST-NEXT:        "scf.parallel"(%0, %4, %one) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-LAST-NEXT:        ^1(%arg1 : index):
 // CHECK-LAST-NEXT:          %5 = arith.addi %3, %arg1 : index
-// CHECK-LAST-NEXT:          scf.yield
+// CHECK-LAST-NEXT:          "scf.reduce"() : () -> ()
 // CHECK-LAST-NEXT:        }) : (index, index, index) -> ()
-// CHECK-LAST-NEXT:        scf.yield
+// CHECK-LAST-NEXT:        "scf.reduce"() : () -> ()
 // CHECK-LAST-NEXT:      }) : (index, index, index) -> ()
 // CHECK-LAST-NEXT:      func.return
 // CHECK-LAST-NEXT:    }
