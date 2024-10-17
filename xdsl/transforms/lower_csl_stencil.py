@@ -40,28 +40,10 @@ def get_dir_and_distance_ops(
     op: csl_stencil.AccessOp,
 ) -> tuple[csl.DirectionOp, arith.Constant]:
     """
-    Given an access op, return the distance and direction, assuming as access
+    Given an access op, return the distance and direction ops, assuming as access
     to a neighbour (not self) in a star-shape pattern
     """
-
-    offset = tuple(op.offset)
-    assert len(offset) == 2, "Expecting 2-dimensional access"
-    assert (offset[0] == 0) != (
-        offset[1] == 0
-    ), "Expecting neighbour access in a star-shape pattern"
-    if offset[0] < 0:
-        d = csl.Direction.EAST
-    elif offset[0] > 0:
-        d = csl.Direction.WEST
-    elif offset[1] < 0:
-        d = csl.Direction.NORTH
-    elif offset[1] > 0:
-        d = csl.Direction.SOUTH
-    else:
-        raise ValueError(
-            "Invalid offset, expecting 2-dimensional star-shape neighbor access"
-        )
-    max_distance = abs(max(offset, key=abs))
+    d, max_distance = csl_stencil.get_dir_and_distance(op.offset)
     return csl.DirectionOp(d), arith.Constant(IntegerAttr(max_distance, 16))
 
 
