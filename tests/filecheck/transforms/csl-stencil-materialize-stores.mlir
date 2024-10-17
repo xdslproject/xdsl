@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p csl-stencil-materialize-stores %s | filecheck %s
 
 builtin.module {
-  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel", "width" = 1024 : i16}> ({
+  "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" value=512 : i16>, #csl_wrapper.param<"pattern" value=2 : i16>, #csl_wrapper.param<"num_chunks" value=1 : i16>, #csl_wrapper.param<"chunk_size" value=510 : i16>, #csl_wrapper.param<"padded_z_dim" value=510 : i16>], "program_name" = "gauss_seidel", "width" = 1024 : i16}> ({
   ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
     %0 = arith.constant 0 : i16
     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
@@ -65,7 +65,7 @@ builtin.module {
 }
 
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel", "width" = 1024 : i16}> ({
+// CHECK-NEXT:   "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" value=512 : i16>, #csl_wrapper.param<"pattern" value=2 : i16>, #csl_wrapper.param<"num_chunks" value=1 : i16>, #csl_wrapper.param<"chunk_size" value=510 : i16>, #csl_wrapper.param<"padded_z_dim" value=510 : i16>], "program_name" = "gauss_seidel", "width" = 1024 : i16}> ({
 // CHECK-NEXT:   ^0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
 // CHECK-NEXT:     %0 = arith.constant 0 : i16
 // CHECK-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
