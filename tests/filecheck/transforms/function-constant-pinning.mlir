@@ -2,7 +2,7 @@
 
 
 func.func @basic() -> i32 {
-    %v = "test.op"() {pin_to_constants = [0]} : () -> i32
+    %v = "test.op"() {pin_to_constants = [0 : i32]} : () -> i32
     func.return %v : i32
 }
 
@@ -11,7 +11,7 @@ func.func @basic() -> i32 {
 // CHECK-NEXT:   func.func @basic() -> i32 {
 // CHECK-NEXT:     %v = "test.op"() : () -> i32
                    // compare the value to the constant we want to specialize for
-// CHECK-NEXT:     %0 = arith.constant 0 : i64
+// CHECK-NEXT:     %0 = arith.constant 0 : i32
 // CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
 // CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
                      // if they are equal, branch to specialized function
@@ -25,7 +25,7 @@ func.func @basic() -> i32 {
                  // specialized function here
 // CHECK-NEXT:   func.func @basic_pinned() -> i32 {
                    // original op is replaced by constant instantiation
-// CHECK-NEXT:     %v = arith.constant 0 : i64
+// CHECK-NEXT:     %v = arith.constant 0 : i32
 // CHECK-NEXT:     func.return %v : i32
 // CHECK-NEXT:   }
 
@@ -79,7 +79,7 @@ func.func @control_flow() {
 
 
 func.func @function_args(%arg0: memref<100xf32>) -> i32 {
-    %v = "test.op"() {pin_to_constants = [0]} : () -> i32
+    %v = "test.op"() {pin_to_constants = [0 : i32]} : () -> i32
 
     "test.op"(%v, %arg0) : (i32, memref<100xf32>) -> ()
 
@@ -89,7 +89,7 @@ func.func @function_args(%arg0: memref<100xf32>) -> i32 {
 
 // CHECK-NEXT:   func.func @function_args(%arg0 : memref<100xf32>) -> i32 {
 // CHECK-NEXT:     %v = "test.op"() : () -> i32
-// CHECK-NEXT:     %0 = arith.constant 0 : i64
+// CHECK-NEXT:     %0 = arith.constant 0 : i32
 // CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
 // CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
                      // make sure that we forward function args to the specialized function
@@ -103,7 +103,7 @@ func.func @function_args(%arg0: memref<100xf32>) -> i32 {
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   func.func @function_args_pinned(%arg0 : memref<100xf32>) -> i32 {
-// CHECK-NEXT:     %v = arith.constant 0 : i64
+// CHECK-NEXT:     %v = arith.constant 0 : i32
                    // here the function arg is used
 // CHECK-NEXT:     "test.op"(%v, %arg0) : (i32, memref<100xf32>) -> ()
 // CHECK-NEXT:     func.return %v : i32
@@ -155,7 +155,7 @@ func.func @control_flow_and_function_args(%arg: i32) -> i32 {
 
 
 func.func @specialize_multi_case() -> i32 {
-    %v = "test.op"() {pin_to_constants = [0, 1]} : () -> i32
+    %v = "test.op"() {pin_to_constants = [0 : i32, 1 : i32]} : () -> i32
     func.return %v : i32
 }
 
@@ -164,13 +164,13 @@ func.func @specialize_multi_case() -> i32 {
 
 // CHECK-NEXT:   func.func @specialize_multi_case() -> i32 {
 // CHECK-NEXT:     %v = "test.op"() : () -> i32
-// CHECK-NEXT:     %0 = arith.constant 0 : i64
+// CHECK-NEXT:     %0 = arith.constant 0 : i32
 // CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
 // CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
 // CHECK-NEXT:       %3 = func.call @specialize_multi_case_pinned_1() : () -> i32
 // CHECK-NEXT:       scf.yield %3 : i32
 // CHECK-NEXT:     } else {
-// CHECK-NEXT:       %4 = arith.constant 1 : i64
+// CHECK-NEXT:       %4 = arith.constant 1 : i32
 // CHECK-NEXT:       %5 = arith.cmpi eq, %v, %4 : i32
 // CHECK-NEXT:       %6 = scf.if %5 -> (i32) {
 // CHECK-NEXT:         %7 = func.call @specialize_multi_case_pinned() : () -> i32
@@ -185,8 +185,8 @@ func.func @specialize_multi_case() -> i32 {
 // CHECK-NEXT:   func.func @specialize_multi_case_pinned_1() -> i32 {
                    // this function still carries the old specialization check within it, but MLIR can see that
                    // the branch is never taken, so it's completely removed.
-// CHECK-NEXT:     %v = arith.constant 0 : i64
-// CHECK-NEXT:     %0 = arith.constant 1 : i64
+// CHECK-NEXT:     %v = arith.constant 0 : i32
+// CHECK-NEXT:     %0 = arith.constant 1 : i32
 // CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
 // CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
 // CHECK-NEXT:       %3 = func.call @specialize_multi_case_pinned() : () -> i32
@@ -197,7 +197,7 @@ func.func @specialize_multi_case() -> i32 {
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   func.func @specialize_multi_case_pinned() -> i32 {
-// CHECK-NEXT:     %v = arith.constant 1 : i64
+// CHECK-NEXT:     %v = arith.constant 1 : i32
 // CHECK-NEXT:     func.return %v : i32
 // CHECK-NEXT:   }
 

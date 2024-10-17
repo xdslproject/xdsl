@@ -254,6 +254,19 @@ class FormatParser(BaseParser):
                 types = (types,)
             return self.inner.extract_var(types)
 
+    @dataclass(frozen=True)
+    class _AttrExtractor(VarExtractor[ParsingState]):
+        name: str
+        is_prop: bool
+        inner: VarExtractor[Attribute]
+
+        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
+            if self.is_prop:
+                attr = a.properties[self.name]
+            else:
+                attr = a.attributes[self.name]
+            return self.inner.extract_var(attr)
+
     def extractors_by_name(self) -> dict[str, VarExtractor[ParsingState]]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
@@ -275,6 +288,20 @@ class FormatParser(BaseParser):
                         for v, r in result_def.constr.get_variable_extractors().items()
                     }
                 )
+        for prop_name, prop_def in self.op_def.properties.items():
+            extractor_dicts.append(
+                {
+                    v: self._AttrExtractor(prop_name, True, r)
+                    for v, r in prop_def.constr.get_variable_extractors().items()
+                }
+            )
+        for attr_name, attr_def in self.op_def.attributes.items():
+            extractor_dicts.append(
+                {
+                    v: self._AttrExtractor(attr_name, False, r)
+                    for v, r in attr_def.constr.get_variable_extractors().items()
+                }
+            )
         return merge_extractor_dicts(*extractor_dicts)
 
     def verify_operands(self, var_constraint_names: Set[str]):
