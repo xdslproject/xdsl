@@ -52,6 +52,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
+    WithType,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -454,6 +455,7 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 class IntegerAttr(
     Generic[_IntegerAttrType],
     TypedAttribute[_IntegerAttrType],
+    WithType,
 ):
     name = "integer"
     value: ParameterDef[IntAttr]
@@ -519,6 +521,9 @@ class IntegerAttr(
 
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
+
+    def get_type(self) -> Attribute:
+        return self.type
 
     @staticmethod
     def constr(
@@ -633,7 +638,7 @@ _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
+class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute, WithType):
     name = "float"
 
     value: ParameterDef[FloatData]
@@ -666,6 +671,9 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
         super().__init__([data_attr, type])
+
+    def get_type(self) -> Attribute:
+        return self.type
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -1665,7 +1673,7 @@ RankedStructure: TypeAlias = (
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
-    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat]
+    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat], WithType
 ):
     name = "dense"
     type: ParameterDef[
@@ -1817,6 +1825,9 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr:
         t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
+
+    def get_type(self) -> Attribute:
+        return self.type
 
 
 Builtin = Dialect(

@@ -628,6 +628,8 @@ class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
     @abstractmethod
     def print_without_type(self, printer: Printer): ...
 
+    def get_type(self) -> Attribute: ...
+
 
 @dataclass(init=False)
 class IRNode(ABC):

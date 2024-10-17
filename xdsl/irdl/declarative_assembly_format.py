@@ -26,6 +26,7 @@ from xdsl.irdl import (
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
+    ParsePropInAttrDict,
     Successor,
     VariadicDef,
     VarIRConstruct,
@@ -122,6 +123,26 @@ class FormatProgram:
 
         # Get constraint variables from the parsed operand and result types
         self.assign_constraint_variables(parser, state, op_def)
+
+        # Solve constraint variables form properties and attributes
+        for prop_name, prop_def in op_def.properties.items():
+            prop = state.properties.get(prop_name)
+            if not prop and ParsePropInAttrDict() in op_def.options:
+                prop = state.attributes.get(prop_name)
+            if not prop:
+                # Check for default value
+                prop = prop_def.default_value
+            if not prop:
+                continue
+            prop_def.constr.verify(prop, state.constraint_context)
+        for attr_name, attr_def in op_def.attributes.items():
+            attr = state.properties.get(attr_name)
+            if not attr:
+                # Check for default value
+                prop = attr_def.default_value
+            if not attr:
+                continue
+            attr_def.constr.verify(attr, state.constraint_context)
 
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
