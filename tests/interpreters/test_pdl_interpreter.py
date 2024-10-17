@@ -26,7 +26,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.printer import Printer
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -71,9 +70,6 @@ def test_rewrite_swap_inputs_pdl():
         apply_recursively=False,
     ).rewrite_module(input_module)
 
-    printer = Printer(print_generic_format=True)
-    print(input_module.print(printer))
-    print(output_module.print(printer))
     assert input_module.is_structurally_equivalent(output_module)
 
 
