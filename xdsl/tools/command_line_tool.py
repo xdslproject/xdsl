@@ -410,6 +410,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_create_eclasses.EqsatCreateEclasses
 
+    def get_eqsat_add_costs():
+        from xdsl.transforms import eqsat_add_costs
+
+        return eqsat_add_costs.EqsatAddCosts
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -489,6 +494,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-bufferize": get_stencil_bufferize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "eqsat-extract-expressions": get_eqsat_extract_expressions,
+        "eqsat-add-costs": get_eqsat_add_costs,
     }
 
 
