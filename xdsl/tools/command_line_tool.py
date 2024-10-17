@@ -415,6 +415,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_test_convert_stencil_to_csl():
+        from xdsl.transforms import test_convert_stencil_to_csl
+
+        return test_convert_stencil_to_csl.TestConvertStencilToCslPass
+
     def get_stencil_bufferize():
         from xdsl.transforms import stencil_bufferize
 
@@ -507,6 +512,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-bufferize": get_stencil_bufferize,
         "stencil-shape-minimize": get_stencil_shape_minimize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-convert-stencil-to-csl": get_test_convert_stencil_to_csl,
     }
 
 
