@@ -66,7 +66,8 @@ class MaterializeInApplyDest(RewritePattern):
                 operands=[
                     apply.field,
                     apply.accumulator,
-                    [*apply.args, *add_args],
+                    apply.args_rchunk,
+                    [*apply.args_dexchng, *add_args],
                     apply.dest,
                 ],
                 regions=[apply.detach_region(r) for r in apply.regions],
@@ -92,7 +93,7 @@ class DisableComputeInBorderRegion(RewritePattern):
             return
 
         cond = wrapper_op.get_program_param("isBorderRegionPE")
-        if cond in op.args:
+        if cond in op.args_dexchng:
             return
 
         op.done_exchange.block.insert_arg(cond.type, len(op.done_exchange.block.args))
@@ -125,7 +126,8 @@ class DisableComputeInBorderRegion(RewritePattern):
                 operands=[
                     op.field,
                     op.accumulator,
-                    [*op.args, cond],
+                    op.args_rchunk,
+                    [*op.args_dexchng, cond],
                     op.dest,
                 ],
                 regions=[op.detach_region(r) for r in op.regions],

@@ -513,8 +513,8 @@ class ConvertApplyOpPattern(RewritePattern):
                 operands=[
                     field_op_arg,
                     accumulator,
-                    [op.operands[a.index] for a in chunk_region_used_block_args]
-                    + [op.operands[a.index] for a in done_exchange_used_block_args],
+                    [op.operands[a.index] for a in chunk_region_used_block_args],
+                    [op.operands[a.index] for a in done_exchange_used_block_args],
                     op.dest,
                 ],
                 properties={
