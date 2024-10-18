@@ -1563,6 +1563,7 @@ def test_optional_successor(program: str, generic_program: str):
 ################################################################################
 
 _T = TypeVar("_T", bound=Attribute, covariant=True)
+_ConstrT = TypeVar("_ConstrT", bound=Attribute, covariant=True)
 
 
 @pytest.mark.parametrize(
@@ -1664,17 +1665,16 @@ def test_nested_inference():
         p: ParameterDef[_T]
         q: ParameterDef[Attribute]
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
             n: GenericAttrConstraint[Attribute] | None = None,
-            p: GenericAttrConstraint[_T] | None = None,
+            p: GenericAttrConstraint[_ConstrT] | None = None,
             q: GenericAttrConstraint[Attribute] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_T]]:
+        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
             if n is None and p is None and q is None:
-                return BaseAttr(cls)
-            return ParamAttrConstraint(cls, (n, p, q))
+                return BaseAttr[ParamOne[Attribute]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (n, p, q))
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
@@ -1682,7 +1682,7 @@ def test_nested_inference():
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
-        lhs = operand_def(ParamOne[Attribute].constr(p=T))
+        lhs = operand_def(ParamOne.constr(p=T))
         rhs = operand_def(T)
 
         assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
@@ -1710,15 +1710,14 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: ParameterDef[_T]
 
-        @classmethod
+        @staticmethod
         def constr(
-            cls,
             *,
-            p: GenericAttrConstraint[_T] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_T]]:
+            p: GenericAttrConstraint[_ConstrT] | None = None,
+        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
             if p is None:
-                return BaseAttr(cls)
-            return ParamAttrConstraint(cls, (p,))
+                return BaseAttr[ParamOne[Attribute]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (p,))
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
@@ -1726,7 +1725,7 @@ def test_non_verifying_inference():
 
         name = "test.one_operand_one_result_nested"
         res = result_def(T)
-        lhs = operand_def(ParamOne[Attribute].constr(p=T))
+        lhs = operand_def(ParamOne.constr(p=T))
 
         assembly_format = "$lhs attr-dict `:` type($lhs)"
 
