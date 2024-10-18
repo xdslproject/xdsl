@@ -503,7 +503,7 @@ ReassociationAttr = ArrayAttr[
 ]
 
 
-class AlterShapeOp(IRDLOperation):
+class AlterShapeOperation(IRDLOperation, abc.ABC):
     result = result_def(MemRefType)
     reassociation = prop_def(ReassociationAttr)
 
