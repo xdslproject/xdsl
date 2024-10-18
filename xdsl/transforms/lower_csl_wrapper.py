@@ -26,14 +26,15 @@ This is the name which will be used by the layout module when calling
 
 @dataclass(frozen=True)
 class ExtractCslModules(RewritePattern):
+    params_as_consts: bool
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
         program_module = self.lower_program_module(op, rewriter)
         layout_module = self.lower_layout_module(op, rewriter)
         rewriter.replace_matched_op([layout_module, program_module])
 
-    @staticmethod
-    def _collect_params(op: csl_wrapper.ModuleOp) -> list[SSAValue]:
+    def _collect_params(self, op: csl_wrapper.ModuleOp) -> list[SSAValue]:
         """
         Creates a list of `csl.param`s which should replace the block arguments in the
         layout and program regions of the wrapper.
@@ -46,8 +47,11 @@ class ExtractCslModules(RewritePattern):
                 value = arith.Constant(param.value)
             else:
                 value = None
-            p = csl.ParamOp(param.key.data, param.type, value)
-            params.append(p.res)
+            if value and self.params_as_consts:
+                params.append(value.result)
+            else:
+                p = csl.ParamOp(param.key.data, param.type, value)
+                params.append(p.res)
         return params
 
     def add_tile_code(
@@ -316,8 +320,15 @@ class LowerCslWrapperPass(ModulePass):
 
     name = "lower-csl-wrapper"
 
+    params_as_consts: bool = False
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ExtractCslModules(), LowerImport()]),
+            GreedyRewritePatternApplier(
+                [
+                    ExtractCslModules(params_as_consts=self.params_as_consts),
+                    LowerImport(),
+                ]
+            ),
             apply_recursively=False,
         ).rewrite_module(op)
