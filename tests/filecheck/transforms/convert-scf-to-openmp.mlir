@@ -11,7 +11,7 @@ builtin.module {
     "scf.parallel"(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
     ^0(%arg6 : index, %arg7 : index):
       "test.op"(%arg6, %arg7) : (index, index) -> ()
-      "scf.reduce"() : () -> ()
+      scf.reduce
     }) : (index, index, index, index, index, index) -> ()
     func.return
   }
@@ -46,7 +46,7 @@ builtin.module {
 // COLLAPSE-NEXT:              "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
 // COLLAPSE-NEXT:              ^{{.*}}(%{{.*}} : index):
 // COLLAPSE-NEXT:                "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
-// COLLAPSE-NEXT:                "scf.reduce"() : () -> ()
+// COLLAPSE-NEXT:                scf.reduce
 // COLLAPSE-NEXT:              }) : (index, index, index) -> ()
 // COLLAPSE-NEXT:              "memref.alloca_scope.return"() : () -> ()
 // COLLAPSE-NEXT:            }) : () -> ()
@@ -106,9 +106,9 @@ builtin.module {
       "scf.parallel"(%arg1_1, %arg3_1, %arg5_1) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
       ^2(%arg7_1 : index):
         "test.op"(%arg6_1, %arg7_1) : (index, index) -> ()
-        "scf.reduce"() : () -> ()
+        scf.reduce
       }) : (index, index, index) -> ()
-      "scf.reduce"() : () -> ()
+      scf.reduce
     }) : (index, index, index) -> ()
     func.return
   }
@@ -123,7 +123,7 @@ builtin.module {
 // CHECK-NEXT:              "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-NEXT:              ^{{.*}}(%{{.*}} : index):
 // CHECK-NEXT:                "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
-// CHECK-NEXT:                "scf.reduce"() : () -> ()
+// CHECK-NEXT:                scf.reduce
 // CHECK-NEXT:              }) : (index, index, index) -> ()
 // CHECK-NEXT:              "memref.alloca_scope.return"() : () -> ()
 // CHECK-NEXT:            }) : () -> ()
@@ -172,12 +172,12 @@ builtin.module {
     "scf.parallel"(%arg0_2, %arg2_2, %arg4_2) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
     ^3(%arg6_2 : index):
       "test.op"(%arg6_2) : (index) -> ()
-      "scf.reduce"() : () -> ()
+      scf.reduce
     }) : (index, index, index) -> ()
     "scf.parallel"(%arg1_2, %arg3_2, %arg5_2) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
     ^4(%arg6_3 : index):
       "test.op"(%arg6_3) : (index) -> ()
-      "scf.reduce"() : () -> ()
+      scf.reduce
     }) : (index, index, index) -> ()
     func.return
   }
@@ -221,11 +221,11 @@ builtin.module {
     %2 = "scf.parallel"(%arg0_1, %arg1_1, %arg2_1, %arg3_1, %arg4_1, %0, %1) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 1>}> ({
     ^5(%arg5_1 : index, %arg6_1 : index):
       %3 = arith.constant 1.000000e+00 : f32
-      "scf.reduce"(%3) ({
+      scf.reduce(%3 : f32) {
       ^6(%arg7_1 : f32, %arg8 : f32):
         %4 = arith.addf %arg7_1, %arg8 : f32
-        "scf.reduce.return"(%4) : (f32) -> ()
-      }) : (f32) -> ()
+        scf.reduce.return %4 : f32
+      }
     }) : (index, index, index, index, index, index, f32) -> f32
     func.return
   }
@@ -237,11 +237,11 @@ builtin.module {
 // CHECK-NEXT:      %{{.*}} = "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 1>}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
 // CHECK-NEXT:        %{{.*}} = arith.constant 1.000000e+00 : f32
-// CHECK-NEXT:        "scf.reduce"(%{{.*}}) ({
+// CHECK-NEXT:        scf.reduce(%{{.*}} : f32) {
 // CHECK-NEXT:        ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
 // CHECK-NEXT:          %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
-// CHECK-NEXT:          "scf.reduce.return"(%{{.*}}) : (f32) -> ()
-// CHECK-NEXT:        }) : (f32) -> ()
+// CHECK-NEXT:          scf.reduce.return %{{.*}} : f32
+// CHECK-NEXT:        }
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, f32) -> f32
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }

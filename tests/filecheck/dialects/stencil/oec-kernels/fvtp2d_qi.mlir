@@ -407,7 +407,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        %40 = arith.mulf %26, %38 : f64
 // MLIR-NEXT:        %41 = arith.addf %39, %40 : f64
 // MLIR-NEXT:        memref.store %41, %arg8[%22, %23, %24] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
-// MLIR-NEXT:        "scf.reduce"() : () -> ()
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %42 = arith.constant 0 : index
 // MLIR-NEXT:      %43 = arith.constant -1 : index
@@ -437,7 +437,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        memref.store %60, %arg10[%51, %52, %53] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:        memref.store %61, %arg11[%51, %52, %53] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:        memref.store %64, %arg12[%51, %52, %53] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:        "scf.reduce"() : () -> ()
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %65 = arith.constant 0 : index
 // MLIR-NEXT:      %66 = arith.constant 0 : index
@@ -496,7 +496,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:          scf.yield %111 : f64
 // MLIR-NEXT:        }
 // MLIR-NEXT:        memref.store %105, %arg8_1[%74, %75, %76] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        "scf.reduce"() : () -> ()
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %112 = arith.constant 0 : index
 // MLIR-NEXT:      %113 = arith.constant 0 : index
@@ -513,7 +513,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        %125 = memref.load %arg8_1[%121, %122, %123] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %126 = arith.mulf %124, %125 : f64
 // MLIR-NEXT:        memref.store %126, %arg9_1[%121, %122, %123] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
-// MLIR-NEXT:        "scf.reduce"() : () -> ()
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %127 = arith.constant 0 : index
 // MLIR-NEXT:      %128 = arith.constant 0 : index
@@ -538,7 +538,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        %148 = memref.load %10[%136, %137, %138] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %149 = arith.divf %147, %148 : f64
 // MLIR-NEXT:        memref.store %149, %6[%136, %137, %138] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        "scf.reduce"() : () -> ()
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      memref.dealloc %arg9_1 : memref<64x65x64xf64, strided<[4160, 64, 1]>>
 // MLIR-NEXT:      memref.dealloc %arg12 : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>

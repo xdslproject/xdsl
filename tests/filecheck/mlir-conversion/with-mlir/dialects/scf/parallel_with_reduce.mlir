@@ -8,11 +8,11 @@
   %4 = "arith.constant"() {"value" = 100 : i32} : () -> i32
   %7 = "scf.parallel"(%0, %1, %2, %3) ({
     ^0(%8 : index):
-      "scf.reduce"(%4) ({
+      scf.reduce(%4 : i32) {
       ^1(%9 : i32, %10 : i32):
         %11 = "arith.addi"(%9, %10) : (i32, i32) -> i32
-        "scf.reduce.return"(%11) : (i32) -> ()
-      }) : (i32) -> ()
+        scf.reduce.return %11 : i32
+      }
     }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, i32) -> i32
 }) : () -> ()
 

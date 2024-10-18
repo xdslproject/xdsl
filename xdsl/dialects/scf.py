@@ -582,6 +582,8 @@ class ReduceOp(IRDLOperation):
         )
     )
 
+    assembly_format = "(`(` $args^ `:` type($args) `)`)? $reductions attr-dict"
+
     def __init__(
         self,
         args: Sequence[SSAValue | Operation] = (),
@@ -633,6 +635,8 @@ class ReduceReturnOp(IRDLOperation):
     result = operand_def()
 
     traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
+
+    assembly_format = "$result attr-dict `:` type($result)"
 
     def __init__(self, result: SSAValue | Operation):
         super().__init__(operands=[result])
