@@ -68,6 +68,20 @@ class HasMultipleParentOp(IRDLOperation):
     traits = frozenset([HasParent(ParentOp, Parent2Op)])
 
 
+def test_has_parent_no_parent():
+    """
+    A detached op with a HasParent trait should be verifyable when detached
+    """
+
+    single_parent = HasParentOp()
+
+    single_parent.verify()
+
+    multiple_parent = HasMultipleParentOp()
+
+    multiple_parent.verify()
+
+
 def test_has_parent_wrong_parent():
     """
     Test that an operation with an HasParentOp trait
