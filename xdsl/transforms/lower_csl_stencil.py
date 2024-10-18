@@ -278,6 +278,7 @@ class GenerateCoeffAPICalls(RewritePattern):
                 south := addrs[csl.Direction.SOUTH],
                 east := addrs[csl.Direction.EAST],
                 west := addrs[csl.Direction.WEST],
+                flse := arith.Constant(IntegerAttr.from_bool(False)),
                 csl.MemberCallOp(
                     "setCoeffs",
                     None,
@@ -287,6 +288,7 @@ class GenerateCoeffAPICalls(RewritePattern):
                         west,
                         south,
                         north,
+                        flse,
                     ],
                 ),
             ],
