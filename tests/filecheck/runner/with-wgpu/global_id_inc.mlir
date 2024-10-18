@@ -40,7 +40,7 @@ builtin.module attributes {gpu.container_module} {
     %hmemref = "memref.alloc"() {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<4x4xindex>
     "gpu.memcpy"(%hmemref, %memref) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<4x4xindex>, memref<4x4xindex>) -> ()
     printf.print_format "Result : {}", %hmemref : memref<4x4xindex>
-    %zero  = "arith.constant"() {"value" = 0} : () -> (index)
+    %zero  = "arith.constant"() {"value" = 0 : index} : () -> (index)
     "func.return"(%zero) : (index) -> ()
   }
 }
