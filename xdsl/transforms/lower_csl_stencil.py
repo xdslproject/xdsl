@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func, memref
+from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FunctionType,
@@ -36,6 +36,36 @@ from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 
+def get_dir_and_distance(
+    offset: stencil.IndexAttr | tuple[int, ...],
+) -> tuple[csl.Direction, int]:
+    """
+    Given an access op, return the distance and direction, assuming as access
+    to a neighbour (not self) in a star-shape pattern
+    """
+
+    if isinstance(offset, stencil.IndexAttr):
+        offset = tuple(offset)
+    assert len(offset) == 2, "Expecting 2-dimensional access"
+    assert (offset[0] == 0) != (
+        offset[1] == 0
+    ), "Expecting neighbour access in a star-shape pattern"
+    if offset[0] < 0:
+        d = csl.Direction.EAST
+    elif offset[0] > 0:
+        d = csl.Direction.WEST
+    elif offset[1] < 0:
+        d = csl.Direction.NORTH
+    elif offset[1] > 0:
+        d = csl.Direction.SOUTH
+    else:
+        raise ValueError(
+            "Invalid offset, expecting 2-dimensional star-shape neighbor access"
+        )
+    max_distance = abs(max(offset, key=abs))
+    return d, max_distance
+
+
 def get_dir_and_distance_ops(
     op: csl_stencil.AccessOp,
 ) -> tuple[csl.DirectionOp, arith.Constant]:
@@ -43,7 +73,7 @@ def get_dir_and_distance_ops(
     Given an access op, return the distance and direction ops, assuming as access
     to a neighbour (not self) in a star-shape pattern
     """
-    d, max_distance = csl_stencil.get_dir_and_distance(op.offset)
+    d, max_distance = get_dir_and_distance(op.offset)
     return csl.DirectionOp(d), arith.Constant(IntegerAttr(max_distance, 16))
 
 
