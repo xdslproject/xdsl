@@ -245,7 +245,7 @@ def test_parallel_verify_reduction_and_block_type():
     reduce_block = Block(arg_types=[i32, i32])
     reduce_block.add_ops([reduce_constant, rro])
 
-    b.add_op(ReduceOp((init_val,), (reduce_block,)))
+    b.add_op(ReduceOp((init_val,), (Region(reduce_block),)))
 
     body = Region(b)
     p = ParallelOp([lbi], [ubi], [si], body, initVals)
@@ -269,7 +269,7 @@ def test_parallel_verify_reduction_and_block_type_fails():
     reduce_block = Block(arg_types=[i32, i32])
     reduce_block.add_ops([reduce_constant, rro])
 
-    b.add_op(ReduceOp((init_val,), (reduce_block,)))
+    b.add_op(ReduceOp((init_val,), (Region(reduce_block),)))
 
     body = Region(b)
     p = ParallelOp([lbi], [ubi], [si], body, initVals)
@@ -280,7 +280,7 @@ def test_parallel_verify_reduction_and_block_type_fails():
 def test_reduce_op():
     init_val = Constant.from_int_and_width(10, i32)
 
-    reduce_op = ReduceOp((init_val,), (Block(arg_types=[i32, i32]),))
+    reduce_op = ReduceOp((init_val,), (Region(Block(arg_types=[i32, i32])),))
 
     assert reduce_op.args[0] is init_val.results[0]
     assert reduce_op.args[0].type is i32
@@ -302,21 +302,23 @@ def test_reduce_op_num_block_args():
         match="scf.reduce block must have exactly two arguments, but ",
     ):
         rro = ReduceReturnOp(reduce_constant)
-        ReduceOp((init_val,), (Block([rro], arg_types=[i32, i32, i32]),)).verify()
+        ReduceOp(
+            (init_val,), (Region(Block([rro], arg_types=[i32, i32, i32])),)
+        ).verify()
 
     with pytest.raises(
         VerifyException,
         match="scf.reduce block must have exactly two arguments, but ",
     ):
         rro = ReduceReturnOp(reduce_constant)
-        ReduceOp((init_val,), (Block([rro], arg_types=[i32]),)).verify()
+        ReduceOp((init_val,), (Region(Block([rro], arg_types=[i32])),)).verify()
 
     with pytest.raises(
         VerifyException,
         match="scf.reduce block must have exactly two arguments, but ",
     ):
         rro = ReduceReturnOp(reduce_constant)
-        ReduceOp((init_val,), (Block([rro], arg_types=[]),)).verify()
+        ReduceOp((init_val,), (Region(Block([rro], arg_types=[])),)).verify()
 
 
 def test_reduce_op_num_block_arg_types():
@@ -328,21 +330,21 @@ def test_reduce_op_num_block_arg_types():
         match="scf.reduce block argument types must be the same but have",
     ):
         rro = ReduceReturnOp(reduce_constant)
-        ReduceOp((init_val,), (Block([rro], arg_types=[i32, i64]),)).verify()
+        ReduceOp((init_val,), (Region(Block([rro], arg_types=[i32, i64])),)).verify()
 
     with pytest.raises(
         VerifyException,
         match="scf.reduce block argument types must be the same but have",
     ):
         rro = ReduceReturnOp(reduce_constant)
-        ReduceOp((init_val,), (Block([rro], arg_types=[i64, i32]),)).verify()
+        ReduceOp((init_val,), (Region(Block([rro], arg_types=[i64, i32])),)).verify()
 
 
 def test_reduce_op_num_block_arg_types_match_operand_type():
     init_val = Constant.from_int_and_width(10, i32)
 
     with pytest.raises(VerifyException):
-        ReduceOp((init_val,), (Block(arg_types=[i64, i64]),)).verify()
+        ReduceOp((init_val,), (Region(Block(arg_types=[i64, i64])),)).verify()
 
 
 def test_reduce_return_op_at_end():
@@ -352,14 +354,14 @@ def test_reduce_return_op_at_end():
     reduce_block.add_ops([reduce_constant, rro])
 
     init_val = Constant.from_int_and_width(10, i32)
-    ReduceOp((init_val,), (reduce_block,)).verify()
+    ReduceOp((init_val,), (Region(reduce_block),)).verify()
 
     with pytest.raises(
         VerifyException,
         match="'scf.reduce' terminates with operation test.termop instead of scf.reduce.return",
     ):
         ReduceOp(
-            (init_val,), (Block([TestTermOp.create()], arg_types=[i32, i32]),)
+            (init_val,), (Region(Block([TestTermOp.create()], arg_types=[i32, i32])),)
         ).verify()
 
 
@@ -371,7 +373,7 @@ def test_reduce_return_type_is_arg_type():
 
     init_val = Constant.from_int_and_width(10, i64)
     with pytest.raises(VerifyException):
-        ReduceOp((init_val,), (reduce_block,)).verify()
+        ReduceOp((init_val,), (Region(reduce_block),)).verify()
 
 
 def test_reduce_return_op():
@@ -394,7 +396,7 @@ def test_reduce_return_type_is_operand_type():
         VerifyException,
         match="scf.reduce.return result type at end of scf.reduce block must",
     ):
-        ReduceOp((init_val,), (reduce_block,)).verify()
+        ReduceOp((init_val,), (Region(reduce_block),)).verify()
 
 
 def test_empty_else():

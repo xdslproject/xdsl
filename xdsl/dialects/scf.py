@@ -585,11 +585,9 @@ class ReduceOp(IRDLOperation):
     def __init__(
         self,
         args: Sequence[SSAValue | Operation] = (),
-        blocks: Sequence[Block] = (),
+        regions: Sequence[Region] = (),
     ):
-        super().__init__(
-            operands=(args,), regions=(tuple(Region(block) for block in blocks),)
-        )
+        super().__init__(operands=(args,), regions=(regions,))
 
     def verify_(self) -> None:
         if len(self.args) != len(self.reductions):

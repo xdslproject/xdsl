@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Iterable, Sequence
 from typing import Annotated, ClassVar, cast
 
@@ -511,7 +512,7 @@ class AlterShapeOperation(IRDLOperation, abc.ABC):
 
 
 @irdl_op_definition
-class CollapseShapeOp(AlterShapeOp):
+class CollapseShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
     """
@@ -526,7 +527,7 @@ class CollapseShapeOp(AlterShapeOp):
 
 
 @irdl_op_definition
-class ExpandShapeOp(AlterShapeOp):
+class ExpandShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
     """
