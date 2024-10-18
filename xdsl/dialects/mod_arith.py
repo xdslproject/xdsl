@@ -26,7 +26,7 @@ class BinaryOp(IRDLOperation, ABC):
     Simple binary operation
     """
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)

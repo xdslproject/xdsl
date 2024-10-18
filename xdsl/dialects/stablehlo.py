@@ -59,7 +59,7 @@ from xdsl.utils.exceptions import VerifyException
 
 class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
     # TODO: Remove this constraint for complex types.
-    T: ClassVar[VarConstraint[AnyTensorType]] = VarConstraint("T", base(AnyTensorType))
+    T: ClassVar = VarConstraint("T", base(AnyTensorType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -223,7 +223,7 @@ class AbsOp(IRDLOperation):
     name = "stablehlo.abs"
 
     # TODO: Remove this constraint for complex types.
-    T: ClassVar[VarConstraint[AnyTensorType]] = VarConstraint("T", base(AnyTensorType))
+    T: ClassVar = VarConstraint("T", base(AnyTensorType))
 
     operand = operand_def(T)
     result = result_def(T)
@@ -286,9 +286,7 @@ class AndOp(IRDLOperation):
 
     name = "stablehlo.and"
 
-    T: ClassVar[VarConstraint[IntegerTensorType]] = VarConstraint(
-        "T", base(IntegerTensorType)
-    )
+    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)

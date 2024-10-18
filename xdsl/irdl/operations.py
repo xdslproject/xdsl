@@ -966,6 +966,23 @@ def traits_def(
 _OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
 
+def _is_const_classvar(field_name: str, annotation: Any) -> bool:
+    """
+    Operation definitions may only have `*_def` fields or constant class variables,
+    where the constness is defined by convention with an UPPER_CASE name and enforced by
+    pyright.
+    The type annotation can be one of
+     * `ClassVar[MyType]`,
+     * `ClassVar`, or
+     * `"ClassVar[MyType]"`.
+    """
+    return field_name.isupper() and (
+        get_origin(annotation) is ClassVar
+        or annotation is ClassVar
+        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
+    )
+
+
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -1030,15 +1047,6 @@ class OpDef:
                 "and constants (indicated by uppercase field names) as ClassVar."
             )
 
-        def is_const_classvar(field_name: str, annotations: dict[str, Any]) -> bool:
-            return field_name.isupper() and (
-                get_origin(annotations[field_name]) is ClassVar
-                or (
-                    isinstance(annotations[field_name], str)
-                    and annotations[field_name].startswith("ClassVar")
-                )
-            )
-
         op_def = OpDef(pyrdl_def.name)
 
         # If an operation subclass overrides a superclass field, only keep the definition
@@ -1060,7 +1068,7 @@ class OpDef:
             annotations = parent_cls.__annotations__
 
             for field_name in annotations:
-                if is_const_classvar(field_name, annotations):
+                if _is_const_classvar(field_name, annotations[field_name]):
                     continue
                 if field_name not in clsdict:
                     raise wrong_field_exception(field_name)
@@ -1074,8 +1082,8 @@ class OpDef:
                 if field_name in field_names:
                     # already registered value for field name
                     continue
-                if field_name in annotations and is_const_classvar(
-                    field_name, annotations
+                if field_name in annotations and _is_const_classvar(
+                    field_name, annotations[field_name]
                 ):
                     continue
 

@@ -72,7 +72,7 @@ from xdsl.utils.hints import isa
 class Load(IRDLOperation):
     name = "memref.load"
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     nontemporal = opt_prop_def(BoolAttr)
 
@@ -109,7 +109,7 @@ class Load(IRDLOperation):
 
 @irdl_op_definition
 class Store(IRDLOperation):
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "memref.store"
 
@@ -360,9 +360,7 @@ class Alloca(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T: ClassVar[VarConstraint[AnyFloat | AnySignlessIntegerType]] = VarConstraint(
-        "T", AnyFloatConstr | SignlessIntegerConstraint
-    )
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
 
     value = operand_def(T)
     memref = operand_def(

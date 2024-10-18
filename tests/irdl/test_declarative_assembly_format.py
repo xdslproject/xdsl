@@ -1578,7 +1578,7 @@ def test_basic_inference(format: str):
 
     @irdl_op_definition
     class TwoOperandsOneResultWithVarOp(IRDLOperation):
-        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
@@ -1678,7 +1678,7 @@ def test_nested_inference():
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
-        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
@@ -1722,7 +1722,7 @@ def test_non_verifying_inference():
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
-        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.one_operand_one_result_nested"
         res = result_def(T)
