@@ -26,6 +26,7 @@ from xdsl.irdl import (
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
+    ParsePropInAttrDict,
     Successor,
     VariadicDef,
     VarIRConstruct,
@@ -125,7 +126,9 @@ class FormatProgram:
 
         # Solve constraint variables form properties and attributes
         for prop_name, prop_def in op_def.properties.items():
-            prop = state.properties[prop_name]
+            prop = state.properties.get(prop_name)
+            if not prop and ParsePropInAttrDict() in op_def.options:
+                prop = state.attributes.get(prop_name)
             if not prop:
                 # Check for default value
                 prop = prop_def.default_value
@@ -133,7 +136,7 @@ class FormatProgram:
                 continue
             prop_def.constr.verify(prop, state.constraint_context)
         for attr_name, attr_def in op_def.attributes.items():
-            attr = state.properties[attr_name]
+            attr = state.properties.get(attr_name)
             if not attr:
                 # Check for default value
                 prop = attr_def.default_value
