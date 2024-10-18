@@ -614,7 +614,7 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T: ClassVar[VarConstraint[ZerosOpAttr]] = VarConstraint("T", ZerosOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
 
     size = opt_operand_def(T)
 
@@ -649,7 +649,7 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T: ClassVar[VarConstraint[IntegerType | Float32Type | Float16Type]] = VarConstraint(
+    T: ClassVar = VarConstraint(
         "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
     )
 
@@ -1965,7 +1965,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T: ClassVar[VarConstraint[ParamOpAttr]] = VarConstraint("T", ParamOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ParamOpAttrConstr)
 
     name = "csl.param"
 

@@ -79,7 +79,7 @@ class ReadOperation(IRDLOperation, abc.ABC):
     Abstract base class for operations that read from a stream.
     """
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     stream = operand_def(ReadableStreamType[Attribute].constr(element_type=T))
     res = result_def(T)
@@ -112,7 +112,7 @@ class WriteOperation(IRDLOperation, abc.ABC):
     Abstract base class for operations that write to a stream.
     """
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
     stream = operand_def(WritableStreamType[Attribute].constr(element_type=T))
