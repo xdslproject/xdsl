@@ -555,6 +555,42 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
 RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
 
 
+class WithRangeType(Attribute, ABC):
+    def get_types(self) -> Sequence[Attribute]: ...
+
+
+@dataclass(frozen=True)
+class WithRangeTypeConstraint(GenericAttrConstraint[AttributeCovT]):
+    """
+    Constrains the range type of a typed attribute.
+    """
+
+    attr_constraint: GenericAttrConstraint[AttributeCovT]
+
+    type_constraint: RangeConstraint
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        self.attr_constraint.verify(attr, constraint_context)
+        if not isinstance(attr, WithRangeType):
+            raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
+        self.type_constraint.verify(attr.get_types(), constraint_context)
+
+    def get_resolved_variables(self) -> set[str]:
+        return (
+            self.attr_constraint.get_resolved_variables()
+            | self.type_constraint.get_resolved_variables()
+        )
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.attr_constraint.can_infer(constraint_names)
+
+    def infer(self, constraint_context: ConstraintContext) -> Attribute:
+        inferred = self.attr_constraint.infer(constraint_context)
+        assert isinstance(inferred, WithRangeType)
+        self.type_constraint.verify(inferred.get_types(), constraint_context)
+        return inferred
+
+
 @dataclass(frozen=True)
 class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     """
