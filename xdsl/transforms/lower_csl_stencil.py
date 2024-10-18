@@ -4,7 +4,11 @@ from typing import cast
 from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
     ArrayAttr,
+    DenseIntOrFPElementsAttr,
+    Float32Type,
+    FloatAttr,
     FunctionType,
     IndexType,
     IntegerAttr,
@@ -232,6 +236,66 @@ class LowerApplyOp(RewritePattern):
 
 
 @dataclass(frozen=True)
+class GenerateCoeffAPICalls(RewritePattern):
+    """
+    Generates calls to the stencil_comms API to set coefficients.
+
+    The API currently supports only f32 coeffs.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        if not (wrapper := _get_module_wrapper(op)) or op.coeffs is None:
+            return
+        coeffs = list(op.coeffs)
+        elem_t = coeffs[0].coeff.type
+        pattern = wrapper.get_param_value("pattern").value.data
+        neighbours = pattern - 1
+        cmap: dict[csl.Direction, list[AnyFloatAttr]] = {
+            csl.Direction.NORTH: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
+            csl.Direction.SOUTH: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
+            csl.Direction.EAST: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
+            csl.Direction.WEST: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
+        }
+
+        for c in coeffs:
+            direction, distance = get_dir_and_distance(c.offset)
+            cmap[direction][distance] = c.coeff
+
+        memref_t = memref.MemRefType(Float32Type(), (pattern,))
+        ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
+
+        cnsts = {
+            d: arith.Constant(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
+            for d, v in cmap.items()
+        }
+        addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
+
+        rewriter.insert_op(
+            [
+                *cnsts.values(),
+                north := addrs[csl.Direction.NORTH],
+                south := addrs[csl.Direction.SOUTH],
+                east := addrs[csl.Direction.EAST],
+                west := addrs[csl.Direction.WEST],
+                csl.MemberCallOp(
+                    "setCoeffs",
+                    None,
+                    wrapper.get_program_import("stencil_comms.csl"),
+                    [
+                        east,
+                        west,
+                        south,
+                        north,
+                    ],
+                ),
+            ],
+            InsertPoint.before(op),
+        )
+        op.coeffs = None
+
+
+@dataclass(frozen=True)
 class LowerYieldOp(RewritePattern):
     """
     Lowers csl_stencil.yield to csl.return.
@@ -454,6 +518,7 @@ class LowerCslStencil(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     FullStencilAccessImmediateReductionOptimization(),
+                    GenerateCoeffAPICalls(),
                     LowerAccessOp(),
                     LowerApplyOp(),
                 ]

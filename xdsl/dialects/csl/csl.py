@@ -313,6 +313,16 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     kind: ParameterDef[PtrKindAttr]
     constness: ParameterDef[PtrConstAttr]
 
+    @staticmethod
+    def get(typ: TypeAttribute, is_single: bool, is_const: bool):
+        return PtrType(
+            [
+                typ,
+                PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),
+                PtrConstAttr(PtrConst.CONST if is_const else PtrConst.VAR),
+            ]
+        )
+
     def get_element_type(self) -> Attribute:
         return self.type
 
@@ -1868,6 +1878,9 @@ class AddressOfOp(IRDLOperation):
     res = result_def(PtrType)
 
     traits = frozenset([NoMemoryEffect()])
+
+    def __init__(self, value: SSAValue | Operation, result_type: PtrType):
+        super().__init__(operands=[value], result_types=[result_type])
 
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
         """
