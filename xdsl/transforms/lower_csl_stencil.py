@@ -241,6 +241,11 @@ class GenerateCoeffAPICalls(RewritePattern):
     Generates calls to the stencil_comms API to set coefficients.
 
     The API currently supports only f32 coeffs.
+
+    Todo:
+      * reset coeffs for any subsequent apply op that does not generate a `setCoeffs` API call
+      * check if coeffs need to be set repeatedly (in loops or for multiple applies)
+      * hoist API call for loops with exactly one apply op
     """
 
     @op_type_rewrite_pattern
@@ -271,13 +276,17 @@ class GenerateCoeffAPICalls(RewritePattern):
         }
         addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
 
+        # pretty-printing
+        for d, c in cnsts.items():
+            c.result.name_hint = str(d)
+
         rewriter.insert_op(
             [
                 *cnsts.values(),
-                north := addrs[csl.Direction.NORTH],
-                south := addrs[csl.Direction.SOUTH],
                 east := addrs[csl.Direction.EAST],
                 west := addrs[csl.Direction.WEST],
+                south := addrs[csl.Direction.SOUTH],
+                north := addrs[csl.Direction.NORTH],
                 flse := arith.Constant(IntegerAttr.from_bool(False)),
                 csl.MemberCallOp(
                     "setCoeffs",
@@ -516,11 +525,14 @@ class LowerCslStencil(ModulePass):
             ),
             apply_recursively=False,
         ).rewrite_module(op)
+        PatternRewriteWalker(
+            GenerateCoeffAPICalls(),
+            apply_recursively=False,
+        ).rewrite_module(op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     FullStencilAccessImmediateReductionOptimization(),
-                    GenerateCoeffAPICalls(),
                     LowerAccessOp(),
                     LowerApplyOp(),
                 ]

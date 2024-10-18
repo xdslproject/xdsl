@@ -162,7 +162,7 @@ CslFloat: TypeAlias = Float16Type | Float32Type
 
 
 @irdl_attr_definition
-class CslStencilCoeffAttr(ParametrizedAttribute):
+class CoeffAttr(ParametrizedAttribute):
     name = "csl_stencil.coeff"
     offset: ParameterDef[stencil.IndexAttr]
     coeff: ParameterDef[FloatAttr[AnyFloat]]
@@ -242,7 +242,7 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
-    coeffs = opt_prop_def(builtin.ArrayAttr[CslStencilCoeffAttr])
+    coeffs = opt_prop_def(builtin.ArrayAttr[CoeffAttr])
 
     res = var_result_def(stencil.StencilTypeConstr)
 
@@ -438,7 +438,7 @@ class ApplyOp(IRDLOperation):
 
     def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
         self.coeffs = builtin.ArrayAttr(
-            list(self.coeffs or []) + [CslStencilCoeffAttr(offset, coeff)]
+            list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
         )
 
 
@@ -654,5 +654,6 @@ CSL_STENCIL = Dialect(
     ],
     [
         ExchangeDeclarationAttr,
+        CoeffAttr,
     ],
 )
