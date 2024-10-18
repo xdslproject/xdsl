@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import affine, arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
-from xdsl.dialects.scf import ParallelOp, Yield
+from xdsl.dialects.scf import ParallelOp, ReduceOp
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -54,7 +54,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
             outter_step,
             Region(
                 Block(
-                    [(outter_yield := Yield())],
+                    [(outter_reduce := ReduceOp())],
                     arg_types=[IndexType()] * len(outter_lower),
                 )
             ),
@@ -128,7 +128,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                     if use.operation is iv:
                         continue
                     use.operation.operands[use.index] = iv.result
-        outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_yield)
+        outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_reduce)
         rewriter.replace_matched_op(
             [zero, *tile_sizes.values(), *outter_step, outter_loop]
         )

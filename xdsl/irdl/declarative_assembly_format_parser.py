@@ -24,6 +24,7 @@ from xdsl.irdl import (
     OptOperandDef,
     OptRegionDef,
     OptResultDef,
+    OptSingleBlockRegionDef,
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
@@ -31,6 +32,7 @@ from xdsl.irdl import (
     VarOperandDef,
     VarRegionDef,
     VarResultDef,
+    VarSingleBlockRegionDef,
     VarSuccessorDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
@@ -430,9 +432,9 @@ class FormatParser(BaseParser):
                 continue
             self.seen_regions[idx] = True
             match region_def:
-                case OptRegionDef():
+                case OptRegionDef() | OptSingleBlockRegionDef():
                     return OptionalRegionVariable(variable_name, idx)
-                case VarRegionDef():
+                case VarRegionDef() | VarSingleBlockRegionDef():
                     return VariadicRegionVariable(variable_name, idx)
                 case _:
                     return RegionVariable(variable_name, idx)

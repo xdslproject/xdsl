@@ -93,7 +93,7 @@
             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
             %final = "arith.muli"(%sum, %one) : (index, index) -> index
             "gpu.terminator"() : () -> ()
-        }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+        }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
@@ -108,7 +108,7 @@
         %one = "arith.constant"() {"value" = 1 : index} : () -> index
 
         "gpu.launch"(%one, %one, %n, %one, %one, %one) ({})
-        {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+        {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
@@ -136,7 +136,7 @@
     }) {} : () -> ()
 }) {} : () -> ()
 
-// CHECK: attribute sym_name expected
+// CHECK: property sym_name expected
 
 // -----
 

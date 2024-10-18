@@ -20,7 +20,7 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: 98e674c9f16d677d95c67bc130e267fae331e43c
+      MLIR-Version: d401987fe349a87c53fe25829215b080b70c0c1a
     steps:
     - uses: actions/checkout@v4
       with:

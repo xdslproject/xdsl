@@ -104,12 +104,12 @@ def test_non_recursive_rewrite():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class RewriteConst(RewritePattern):
@@ -134,12 +134,12 @@ def test_non_recursive_rewrite_reversed():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class RewriteConst(RewritePattern):
@@ -166,12 +166,12 @@ def test_op_type_rewrite_pattern_method_decorator():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class RewriteConst(RewritePattern):
@@ -195,7 +195,7 @@ def test_op_type_rewrite_pattern_union_type():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %2 = "test"(%0, %1) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -231,13 +231,13 @@ def test_recursive_rewriter():
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %1 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %2 = "arith.addi"(%0, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %4 = "arith.addi"(%2, %3) : (i32, i32) -> i32
+  %4 = "arith.addi"(%2, %3) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %5 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %6 = "arith.addi"(%4, %5) : (i32, i32) -> i32
+  %6 = "arith.addi"(%4, %5) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %7 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
+  %8 = "arith.addi"(%6, %7) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
@@ -274,13 +274,13 @@ def test_recursive_rewriter_reversed():
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %1 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %2 = "arith.addi"(%0, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %4 = "arith.addi"(%2, %3) : (i32, i32) -> i32
+  %4 = "arith.addi"(%2, %3) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %5 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %6 = "arith.addi"(%4, %5) : (i32, i32) -> i32
+  %6 = "arith.addi"(%4, %5) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %7 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
+  %8 = "arith.addi"(%6, %7) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
@@ -312,12 +312,12 @@ def test_greedy_rewrite_pattern_applier():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.muli"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.muli"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class ConstantRewrite(RewritePattern):
@@ -537,7 +537,7 @@ def test_operation_deletion_reversed():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
@@ -566,7 +566,7 @@ def test_operation_deletion_failure():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
@@ -1391,7 +1391,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi32>}> : () -> f32
   %3 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
-  %4 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1405,7 +1405,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xindex>}> : () -> f32
   %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
-  %4 = "arith.addi"(%0, %0) : (index, index) -> index
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1454,7 +1454,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi32>}> : () -> f32
   %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
-  %4 = "arith.addi"(%0, %0) : (index, index) -> index
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1496,7 +1496,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xindex>}> : () -> f32
   %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
-  %4 = "arith.addi"(%0, %0) : (index, index) -> i32
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (index, index) -> i32
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1551,7 +1551,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> i32
   %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xi32>
-  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i6, i6) -> i6
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1565,7 +1565,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> index
   %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xindex>
-  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i6, i6) -> i6
   "func.return"() : () -> ()
 }) : () -> ()
 """

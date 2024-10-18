@@ -56,14 +56,14 @@ def test_replace_op_one_op():
     prog = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -81,15 +81,15 @@ def test_replace_op_multiple_op():
     prog = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
-  %2 = "arith.addi"(%1, %1) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %2 = "arith.addi"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -109,15 +109,15 @@ def test_replace_op_new_results():
     prog = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
-  %2 = "arith.muli"(%1, %1) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %2 = "arith.muli"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %1 = "arith.muli"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.muli"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -370,14 +370,14 @@ def test_preserve_naming_single_op():
     prog = """\
 "builtin.module"() ({
   %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%i, %i) : (i32, i32) -> i32
+  %1 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
   %i = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %0 = "arith.addi"(%i, %i) : (i32, i32) -> i32
+  %0 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -396,15 +396,15 @@ def test_preserve_naming_multiple_ops():
     prog = """\
 "builtin.module"() ({
   %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%i, %i) : (i32, i32) -> i32
+  %1 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
   %i = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %i_1 = "arith.addi"(%i, %i) : (i32, i32) -> i32
-  %0 = "arith.addi"(%i_1, %i_1) : (i32, i32) -> i32
+  %i_1 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.addi"(%i_1, %i_1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -448,13 +448,13 @@ def test_erase_op():
     prog = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.addi"(%1, %1) : (i32, i32) -> i32
+  %0 = "arith.addi"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 

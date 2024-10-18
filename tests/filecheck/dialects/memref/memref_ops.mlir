@@ -34,7 +34,8 @@ builtin.module {
     %17 = "memref.alloca"(%12) {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 1, 0>} : (index) -> memref<?xindex>
     %18 = "memref.alloca"(%12, %13, %14) {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 3, 0>} : (index, index, index) -> memref<?x?x?xindex>
     %19 = memref.collapse_shape %5 [[0, 1]] : memref<10x2xindex> into memref<20xindex>
-    %20 = memref.expand_shape %19 [[0, 1]] : memref<20xindex> into memref<2x10xindex>
+    %20 = arith.constant 2 : index
+    %21 = memref.expand_shape %19 [[0, 1]] output_shape [%20, 10] : memref<20xindex> into memref<?x10xindex>
     memref.dealloc %2 : memref<1xindex>
     memref.dealloc %5 : memref<10x2xindex>
     memref.dealloc %8 : memref<1xindex>
@@ -83,8 +84,9 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"(%{{.*}}, %{{.*}}, %{{.*}}) <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 3, 0>}> : (index, index, index) -> memref<?x?x?xindex>
 // CHECK-NEXT:    %{{.*}} = memref.collapse_shape %{{\S*}}
 // CHECK-SAME{LITERAL}: [[0 : i64, 1 : i64]] : memref<10x2xindex> into memref<20xindex>
+// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
 // CHECK-NEXT:    %{{.*}} = memref.expand_shape %{{\S*}}
-// CHECK-SAME{LITERAL}: [[0 : i64, 1 : i64]] : memref<20xindex> into memref<2x10xindex>
+// CHECK-SAME{LITERAL}: [[0 : i64, 1 : i64]] output_shape [%20, 10] : memref<20xindex> into memref<?x10xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<10x2xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>
