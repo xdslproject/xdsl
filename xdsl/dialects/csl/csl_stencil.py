@@ -1,13 +1,17 @@
 from collections.abc import Iterable, Sequence
 from itertools import pairwise
-from typing import cast
+from typing import TypeAlias, cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyIntegerAttr,
     AnyMemRefType,
     AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
+    Float16Type,
+    Float32Type,
+    FloatAttr,
     IndexType,
     MemRefType,
     TensorType,
@@ -47,6 +51,8 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
     RecursiveMemoryEffect,
 )
@@ -152,6 +158,19 @@ class PrefetchOp(IRDLOperation):
         )
 
 
+CslFloat: TypeAlias = Float16Type | Float32Type
+
+
+@irdl_attr_definition
+class CoeffAttr(ParametrizedAttribute):
+    name = "csl_stencil.coeff"
+    offset: ParameterDef[stencil.IndexAttr]
+    coeff: ParameterDef[FloatAttr[AnyFloat]]
+
+    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        super().__init__([offset, coeff])
+
+
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -223,12 +242,16 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
+    coeffs = opt_prop_def(builtin.ArrayAttr[CoeffAttr])
+
     res = var_result_def(stencil.StencilTypeConstr)
 
     traits = frozenset(
         [
             IsolatedFromAbove(),
             ApplyOpHasCanonicalizationPatternsTrait(),
+            MemoryReadEffect(),
+            MemoryWriteEffect(),
             RecursiveMemoryEffect(),
         ]
     )
@@ -412,6 +435,11 @@ class ApplyOp(IRDLOperation):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield stencil.AccessPattern(tuple(accesses))
+
+    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        self.coeffs = builtin.ArrayAttr(
+            list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
+        )
 
 
 @irdl_op_definition
@@ -626,5 +654,6 @@ CSL_STENCIL = Dialect(
     ],
     [
         ExchangeDeclarationAttr,
+        CoeffAttr,
     ],
 )
