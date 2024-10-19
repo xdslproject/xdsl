@@ -12,8 +12,8 @@ func.func @test(%a : index, %b : index) -> (index) {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    func.func @test(%a : index, %b : index) -> index {
-// CHECK-NEXT:      %a_eq = eqsat.eclass %a {"cost" = #builtin.int<1>} : index
-// CHECK-NEXT:      %one = arith.constant {"cost" = #builtin.int<1>} 1 : index
+// CHECK-NEXT:      %a_eq = eqsat.eclass %a {"eqsat_cost" = #builtin.int<1>} : index
+// CHECK-NEXT:      %one = arith.constant {"eqsat_cost" = #builtin.int<1>} 1 : index
 // CHECK-NEXT:      %one_eq = eqsat.eclass %one : index
 // CHECK-NEXT:      %amul = arith.muli %a_eq, %one_eq : index
 // CHECK-NEXT:      %out = eqsat.eclass %amul, %a_eq : index
