@@ -181,6 +181,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     rhs = operand_def(T)
     result = result_def(T)
 
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
     def __init__(
         self,
         operand1: Operation | SSAValue,
@@ -190,24 +192,6 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         if result_type is None:
             result_type = SSAValue.get(operand1).type
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
-
-    @classmethod
-    def parse(cls, parser: Parser):
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        rhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
-        return cls(lhs, rhs, result_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_ssa_value(self.lhs)
-        printer.print(", ")
-        printer.print_ssa_value(self.rhs)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
 
     def __hash__(self) -> int:
         return id(self)
