@@ -6,6 +6,7 @@ from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import individual_rewrite
 from xdsl.transforms import (
+    convert_riscv_to_llvm,
     reconcile_unrealized_casts,
     test_lower_linalg_to_snitch,
 )
@@ -35,6 +36,11 @@ def test_get_all_available_passes():
 
     expected_res = tuple(
         (
+            AvailablePass(
+                display_name="convert-riscv-to-llvm",
+                module_pass=convert_riscv_to_llvm.ConvertRiscvToLLVMPass,
+                pass_spec=None,
+            ),
             AvailablePass(
                 display_name="reconcile-unrealized-casts",
                 module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
