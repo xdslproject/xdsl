@@ -51,8 +51,9 @@ OPTIMISE_MEMREF_STREAM_PASSES: tuple[ModulePass, ...] = (
 
 LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
-    convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
     lower_affine.LowerAffinePass(),
+    canonicalize.CanonicalizePass(),
+    convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
     convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
     convert_arith_to_riscv_snitch.ConvertArithToRiscvSnitchPass(),
     convert_arith_to_riscv.ConvertArithToRiscvPass(),
