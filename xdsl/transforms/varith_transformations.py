@@ -99,6 +99,11 @@ class VarithToArithPattern(RewritePattern):
 
         # Break the varith op down into a sequence of arith ops
         first_arg = op.operands[0]
+
+        if len(op.operands) == 1:
+            rewriter.replace_matched_op([], new_results=[first_arg])
+            return
+
         for i in range(1, len(op.operands)):
             newop = target_arith_type(first_arg, op.operands[i])
             arith_ops.append(newop)
