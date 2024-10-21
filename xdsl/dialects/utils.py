@@ -183,7 +183,7 @@ def parse_func_op_like(
     # Parse function name
     name = parser.parse_symbol_name().data
 
-    def parse_fun_input() -> Attribute | tuple[parser.Argument, dict[str, Attribute]]:
+    def parse_fun_input() -> Attribute | tuple[Parser.Argument, dict[str, Attribute]]:
         arg = parser.parse_optional_argument()
         if arg is None:
             ret = parser.parse_optional_type()
@@ -200,7 +200,7 @@ def parse_func_op_like(
         parse_fun_input,
     )
 
-    entry_arg_tuples: list[tuple[parser.Argument, dict[str, Attribute]]] = []
+    entry_arg_tuples: list[tuple[Parser.Argument, dict[str, Attribute]]] = []
     input_types: list[Attribute] = []
     for arg in args:
         if isinstance(arg, Attribute):

@@ -123,3 +123,42 @@ func.func @nested(%n : index) -> (index) {
 // CHECK-NEXT: ^[[#b2]]:
 // CHECK-NEXT:   func.return %sum_iter : index
 // CHECK-NEXT: }
+
+func.func @index_switch(%flag: index) -> i32 {
+  %a = arith.constant 0 : i32
+  %b = arith.constant 1 : i32
+  %c, %d = scf.index_switch %flag -> i32, i32
+  case 0 {
+    %0 = arith.constant 0 : i32
+    %1 = arith.constant 1 : i32
+    scf.yield %0, %1 : i32, i32
+  }
+  case 1 {
+    scf.yield %a, %a : i32, i32
+  }
+  default {
+    scf.yield %b, %b : i32, i32
+  }
+  func.return %c : i32
+}
+
+// CHECK:      func.func @index_switch(%flag : index) -> i32 {
+// CHECK-NEXT:   %a = arith.constant 0 : i32
+// CHECK-NEXT:   %b = arith.constant 1 : i32
+// CHECK-NEXT:   %[[#v0:]] = arith.index_cast %flag : index to i32
+// CHECK-NEXT:   cf.switch %[[#v0]] : i32, [
+// CHECK-NEXT:     default: ^[[#b0:]],
+// CHECK-NEXT:     0: ^[[#b1:]],
+// CHECK-NEXT:     1: ^[[#b2:]]
+// CHECK-NEXT:   ]
+// CHECK-NEXT: ^[[#b1]]:
+// CHECK-NEXT:   %[[#v1:]] = arith.constant 0 : i32
+// CHECK-NEXT:   %[[#v2:]] = arith.constant 1 : i32
+// CHECK-NEXT:   cf.br ^[[#b3]](%[[#v1]], %[[#v2]] : i32, i32)
+// CHECK-NEXT: ^[[#b2]]:
+// CHECK-NEXT:   cf.br ^[[#b3]](%a, %a : i32, i32)
+// CHECK-NEXT: ^[[#b0]]:
+// CHECK-NEXT:   cf.br ^[[#b3]](%b, %b : i32, i32)
+// CHECK-NEXT: ^[[#b3]](%c : i32, %d : i32):
+// CHECK-NEXT:   func.return %c : i32
+// CHECK-NEXT: }

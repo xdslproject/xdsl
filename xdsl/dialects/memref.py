@@ -8,6 +8,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     I64,
     AnyFloat,
+    AnyFloatConstr,
     AnyIntegerAttr,
     AnySignlessIntegerType,
     ArrayAttr,
@@ -21,6 +22,7 @@ from xdsl.dialects.builtin import (
     MemrefLayoutAttr,
     MemRefType,
     NoneAttr,
+    SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
@@ -35,11 +37,12 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicResultSize,
+    VarConstraint,
     base,
     irdl_op_definition,
     operand_def,
@@ -67,13 +70,13 @@ from xdsl.utils.hints import isa
 
 @irdl_op_definition
 class Load(IRDLOperation):
-    T = Annotated[Attribute, ConstraintVar("T")]
-
     name = "memref.load"
+
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
     nontemporal = opt_prop_def(BoolAttr)
 
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
     indices = var_operand_def(IndexType())
     res = result_def(T)
 
@@ -106,14 +109,14 @@ class Load(IRDLOperation):
 
 @irdl_op_definition
 class Store(IRDLOperation):
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
 
     name = "memref.store"
 
     nontemporal = opt_prop_def(BoolAttr)
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
     indices = var_operand_def(IndexType())
 
     irdl_options = [ParsePropInAttrDict()]
@@ -357,13 +360,14 @@ class Alloca(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T = Annotated[
-        AnyFloat | AnySignlessIntegerType,
-        ConstraintVar("T"),
-    ]
+    T: ClassVar[VarConstraint[AnyFloat | AnySignlessIntegerType]] = VarConstraint(
+        "T", AnyFloatConstr | SignlessIntegerConstraint
+    )
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(
+        MemRefType[AnyFloat | AnySignlessIntegerType].constr(element_type=T)
+    )
     indices = var_operand_def(IndexType)
 
     kind = prop_def(IntegerAttr[I64])
@@ -632,15 +636,11 @@ class Subview(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int_or_index(
-                i64, static_offsets
-            )
+            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int_or_index(i64, static_sizes)
+            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int_or_index(
-                i64, static_strides
-            )
+            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],

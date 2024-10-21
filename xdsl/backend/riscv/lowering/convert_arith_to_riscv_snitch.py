@@ -26,7 +26,7 @@ _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
 
 @dataclass
 class LowerBinaryFloatVectorOp(RewritePattern):
-    arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
+    arith_op_cls: type[arith.FloatingPointLikeBinaryOperation]
     riscv_d_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
     riscv_snitch_v_f32_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
     riscv_snitch_v_f16_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]

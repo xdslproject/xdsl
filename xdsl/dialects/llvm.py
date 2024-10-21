@@ -4,7 +4,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import EllipsisType
-from typing import Annotated, Generic, TypeVar
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     I64,
@@ -34,9 +34,10 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    ConstraintVar,
+    BaseAttr,
     IRDLOperation,
     ParameterDef,
+    VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -352,13 +353,10 @@ class LinkageAttr(ParametrizedAttribute):
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
-ArgT = TypeVar("ArgT", bound=Attribute)
-
-
-class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
+class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T = Annotated[Attribute, ArgT, ConstraintVar("T")]
+    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -396,68 +394,142 @@ class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
         printer.print(self.lhs.type)
 
 
+class OverflowFlag(StrEnum):
+    NO_SIGNED_WRAP = "nsw"
+    NO_UNSIGNED_WRAP = "nuw"
+
+
+@dataclass(frozen=True, init=False)
+class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
+    none_value = "none"
+
+
+@irdl_attr_definition
+class OverflowAttr(OverflowAttrBase):
+    name = "llvm.overflow"
+
+
+class ArithmeticBinOpOverflow(IRDLOperation, ABC):
+    """Class for arithmetic binary operations that use overflow flags."""
+
+    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+    overflowFlags = opt_prop_def(OverflowAttr)
+
+    traits = frozenset([NoMemoryEffect()])
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+        overflow: OverflowAttr = OverflowAttr(None),
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+            properties={
+                "overflowFlags": overflow,
+            },
+        )
+
+    @classmethod
+    def parse_overflow(cls, parser: Parser) -> OverflowAttr:
+        if parser.parse_optional_keyword("overflow") is not None:
+            return OverflowAttr(OverflowAttr.parse_parameter(parser))
+        return OverflowAttr("none")
+
+    def print_overflow(self, printer: Printer) -> None:
+        if self.overflowFlags and self.overflowFlags.flags:
+            printer.print(" overflow")
+            self.overflowFlags.print_parameter(printer)
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        overflowFlags = cls.parse_overflow(parser)
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], attributes, overflowFlags)
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        self.print_overflow(printer)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.lhs.type)
+
+
 @irdl_op_definition
-class AddOp(ArithmeticBinOpBase[IntegerType]):
+class AddOp(ArithmeticBinOpOverflow):
     name = "llvm.add"
 
 
 @irdl_op_definition
-class SubOp(ArithmeticBinOpBase[IntegerType]):
+class SubOp(ArithmeticBinOpOverflow):
     name = "llvm.sub"
 
 
 @irdl_op_definition
-class MulOp(ArithmeticBinOpBase[IntegerType]):
+class MulOp(ArithmeticBinOpOverflow):
     name = "llvm.mul"
 
 
 @irdl_op_definition
-class UDivOp(ArithmeticBinOpBase[IntegerType]):
+class UDivOp(ArithmeticBinOperation):
     name = "llvm.udiv"
 
 
 @irdl_op_definition
-class SDivOp(ArithmeticBinOpBase[IntegerType]):
+class SDivOp(ArithmeticBinOperation):
     name = "llvm.sdiv"
 
 
 @irdl_op_definition
-class URemOp(ArithmeticBinOpBase[IntegerType]):
+class URemOp(ArithmeticBinOperation):
     name = "llvm.urem"
 
 
 @irdl_op_definition
-class SRemOp(ArithmeticBinOpBase[IntegerType]):
+class SRemOp(ArithmeticBinOperation):
     name = "llvm.srem"
 
 
 @irdl_op_definition
-class AndOp(ArithmeticBinOpBase[IntegerType]):
+class AndOp(ArithmeticBinOperation):
     name = "llvm.and"
 
 
 @irdl_op_definition
-class OrOp(ArithmeticBinOpBase[IntegerType]):
+class OrOp(ArithmeticBinOperation):
     name = "llvm.or"
 
 
 @irdl_op_definition
-class XOrOp(ArithmeticBinOpBase[IntegerType]):
+class XOrOp(ArithmeticBinOperation):
     name = "llvm.xor"
 
 
 @irdl_op_definition
-class ShlOp(ArithmeticBinOpBase[IntegerType]):
+class ShlOp(ArithmeticBinOpOverflow):
     name = "llvm.shl"
 
 
 @irdl_op_definition
-class LShrOp(ArithmeticBinOpBase[IntegerType]):
+class LShrOp(ArithmeticBinOperation):
     name = "llvm.lshr"
 
 
 @irdl_op_definition
-class AShrOp(ArithmeticBinOpBase[IntegerType]):
+class AShrOp(ArithmeticBinOperation):
     name = "llvm.ashr"
 
 
@@ -614,9 +686,7 @@ class GEPOp(IRDLOperation):
             raise ValueError("Input must be a pointer")
 
         props: dict[str, Attribute] = {
-            "rawConstantIndices": DenseArrayBase.create_dense_int_or_index(
-                i32, indices
-            ),
+            "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
         }
 
         if not ptr_type.is_typed():
@@ -1326,5 +1396,6 @@ LLVM = Dialect(
         LinkageAttr,
         CallingConventionAttr,
         FastMathAttr,
+        OverflowAttr,
     ],
 )

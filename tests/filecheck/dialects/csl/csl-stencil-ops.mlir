@@ -142,7 +142,7 @@ builtin.module {
 // CHECK-NEXT:   func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
 // CHECK-NEXT:     %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:     %1 = tensor.empty() : tensor<510xf32>
-// CHECK-NEXT:     %2 = csl_stencil.apply(%0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %1 : tensor<510xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) <{"num_chunks" = 2 : i64, "topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "operandSegmentSizes" = array<i32: 1, 1, 0, 0>}> ({
+// CHECK-NEXT:     %2 = csl_stencil.apply(%0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %1 : tensor<510xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) <{"num_chunks" = 2 : i64, "topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0>}> ({
 // CHECK-NEXT:     ^0(%recv : tensor<4x255xf32>, %offset : index, %iter_arg : tensor<510xf32>):
 // CHECK-NEXT:       %3 = csl_stencil.access %recv[1, 0] : tensor<4x255xf32>
 // CHECK-NEXT:       %4 = csl_stencil.access %recv[-1, 0] : tensor<4x255xf32>
@@ -177,7 +177,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:   ^0(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>):
 // CHECK-GENERIC-NEXT:     %0 = "stencil.load"(%a) : (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-GENERIC-NEXT:     %1 = "tensor.empty"() : () -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:     %2 = "csl_stencil.apply"(%0, %1) <{"num_chunks" = 2 : i64, "topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "operandSegmentSizes" = array<i32: 1, 1, 0, 0>}> ({
+// CHECK-GENERIC-NEXT:     %2 = "csl_stencil.apply"(%0, %1) <{"num_chunks" = 2 : i64, "topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0>}> ({
 // CHECK-GENERIC-NEXT:     ^1(%recv : tensor<4x255xf32>, %offset : index, %iter_arg : tensor<510xf32>):
 // CHECK-GENERIC-NEXT:       %3 = "csl_stencil.access"(%recv) <{"offset" = #stencil.index<[1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x255xf32>) -> tensor<255xf32>
 // CHECK-GENERIC-NEXT:       %4 = "csl_stencil.access"(%recv) <{"offset" = #stencil.index<[-1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x255xf32>) -> tensor<255xf32>
@@ -216,7 +216,7 @@ builtin.module {
 builtin.module {
   func.func @bufferized_stencil(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
     %0 = tensor.empty() : tensor<510xf32>
-    csl_stencil.apply(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %0 : tensor<510xf32>) outs (%b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>}> ({
+    csl_stencil.apply(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %0 : tensor<510xf32>) outs (%b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>}> ({
     ^0(%1 : tensor<4x255xf32>, %2 : index, %3 : tensor<510xf32>):
       %4 = csl_stencil.access %1[1, 0] : tensor<4x255xf32>
       %5 = csl_stencil.access %1[-1, 0] : tensor<4x255xf32>
@@ -245,7 +245,7 @@ builtin.module {
 //CHECK:      builtin.module {
 //CHECK-NEXT:   func.func @bufferized_stencil(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
 //CHECK-NEXT:     %0 = tensor.empty() : tensor<510xf32>
-//CHECK-NEXT:     csl_stencil.apply(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %0 : tensor<510xf32>) outs (%b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>}> ({
+//CHECK-NEXT:     csl_stencil.apply(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %0 : tensor<510xf32>) outs (%b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>}> ({
 //CHECK-NEXT:     ^0(%1 : tensor<4x255xf32>, %2 : index, %3 : tensor<510xf32>):
 //CHECK-NEXT:       %4 = csl_stencil.access %1[1, 0] : tensor<4x255xf32>
 //CHECK-NEXT:       %5 = csl_stencil.access %1[-1, 0] : tensor<4x255xf32>
@@ -275,7 +275,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:   "func.func"() <{"sym_name" = "bufferized_stencil", "function_type" = (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()}> ({
 // CHECK-GENERIC-NEXT:   ^0(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>):
 // CHECK-GENERIC-NEXT:     %0 = "tensor.empty"() : () -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:     "csl_stencil.apply"(%a, %0, %b) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>}> ({
+// CHECK-GENERIC-NEXT:     "csl_stencil.apply"(%a, %0, %b) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>}> ({
 // CHECK-GENERIC-NEXT:     ^1(%1 : tensor<4x255xf32>, %2 : index, %3 : tensor<510xf32>):
 // CHECK-GENERIC-NEXT:       %4 = "csl_stencil.access"(%1) <{"offset" = #stencil.index<[1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x255xf32>) -> tensor<255xf32>
 // CHECK-GENERIC-NEXT:       %5 = "csl_stencil.access"(%1) <{"offset" = #stencil.index<[-1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x255xf32>) -> tensor<255xf32>

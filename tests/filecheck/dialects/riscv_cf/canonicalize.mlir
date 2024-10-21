@@ -46,15 +46,9 @@ riscv_func.func @never() {
 
 // CHECK-NEXT:  riscv_func.func @never() {
 // CHECK-NEXT:    %one = riscv.li 1 : !riscv.reg
-// CHECK-NEXT:    %three = riscv.li 3 : !riscv.reg
-// CHECK-NEXT:    %{{.*}} = riscv.mv %one : (!riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    riscv_cf.j ^{{\d+}}(%{{.*}} : !riscv.reg) attributes {"comment" = "Constant folded riscv_cf.bge"}
-// CHECK-NEXT:  ^{{\d+}}(%i : !riscv.reg):
-// CHECK-NEXT:    riscv.label "scf_body_0_for"
-// CHECK-NEXT:    "test.op"(%i) : (!riscv.reg) -> ()
-// CHECK-NEXT:    %{{\d+}} = riscv.addi %i, 1 : (!riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    riscv_cf.blt %{{\d+}} : !riscv.reg, %three : !riscv.reg, ^{{\d+}}(%{{\d+}} : !riscv.reg), ^{{\d+}}(%{{\d+}} : !riscv.reg)
-// CHECK-NEXT:  ^{{\d+}}(%{{\d+}} : !riscv.reg):
+// CHECK-NEXT:    %0 = riscv.mv %one : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    riscv_cf.j ^0(%0 : !riscv.reg) attributes {"comment" = "Constant folded riscv_cf.bge"}
+// CHECK-NEXT:  ^0(%1 : !riscv.reg):
 // CHECK-NEXT:    riscv.label "scf_body_end_0_for"
 // CHECK-NEXT:    riscv_func.return
 // CHECK-NEXT:  }
