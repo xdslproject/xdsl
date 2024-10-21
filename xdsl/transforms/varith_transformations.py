@@ -28,12 +28,7 @@ ARITH_TO_VARITH_TYPE_MAP: dict[
 VARITH_TO_ARITH_TYPE_MAP: dict[
     type[varith.VarithOp],
     type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
-] = {
-    varith.VarithAddOp: arith.Addi,
-    varith.VarithAddOp: arith.Addf,
-    varith.VarithMulOp: arith.Muli,
-    varith.VarithMulOp: arith.Mulf,
-}
+] = {varith.VarithAddOp: arith.Addi}
 
 
 class ArithToVarithPattern(RewritePattern):
@@ -77,20 +72,32 @@ class ArithToVarithPattern(RewritePattern):
 
 class VarithToArithPattern(RewritePattern):
     """
-    Splits a varith operation into two arith operations.
+    Splits a varith operation into a sequence of arith operations.
     """
 
-    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+        # check that the op is of a type that we can convert to arith
+        if type(op) not in VARITH_TO_ARITH_TYPE_MAP:
+            return
+
+        # this must be true, as all keys of VARITH_TO_ARITH_TYPE_MAP are varith ops
+        op = cast(
+            varith.VarithOp,
+            op,
+        )
+
         dest_type = VARITH_TO_ARITH_TYPE_MAP[type(op)]
-        varith_type = type(op)
 
-        if len(op.operands) > 2:
-            first_arg = varith_type(*op.operands[:-1])
-        else:
-            first_arg = op.operands[0]
+        arith_ops: list[Operation] = []
 
-        # instantiate a varith op with three operands
-        rewriter.replace_matched_op(dest_type(first_arg, op.operands[-1]))
+        # Break the varith op down into a sequence of arith ops
+        first_arg = op.operands[0]
+        for i in range(1, len(op.operands)):
+            newop = dest_type(first_arg, op.operands[i])
+            arith_ops.append(newop)
+            first_arg = newop.result
+
+        rewriter.replace_matched_op(arith_ops)
 
         return
 
