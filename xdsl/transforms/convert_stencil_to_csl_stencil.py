@@ -5,8 +5,10 @@ from math import prod
 from xdsl.context import MLContext
 from xdsl.dialects import arith, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
     AnyMemRefTypeConstr,
     AnyTensorType,
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -535,6 +537,37 @@ class ConvertApplyOpPattern(RewritePattern):
             rewriter.erase_op(prefetch.op)
 
 
+class PromoteCoefficients(RewritePattern):
+    """
+    Promotes constant coefficients to attributes. When a `csl_stencil.access` is immediately multiplied by
+    an `arith.constant` as the sole use of the accessed data, the constant is promoted to a coefficient property
+    in the `csl_stencil.apply` op.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
+        if (
+            not isinstance(apply := op.get_apply(), csl_stencil.ApplyOp)
+            or not op.op == apply.receive_chunk.block.args[0]
+            or len(op.result.uses) != 1
+            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.Mulf)
+        ):
+            return
+
+        coeff = mulf.lhs if op.result == mulf.rhs else mulf.rhs
+
+        if (
+            not isinstance(cnst := coeff.owner, arith.Constant)
+            or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
+            or dense.data.data.count(val := dense.data.data[0]) != len(dense.data.data)
+        ):
+            return
+
+        assert isattr(val, AnyFloatAttr)
+        apply.add_coeff(op.offset, val)
+        rewriter.replace_op(mulf, [], new_results=[op.result])
+
+
 @dataclass(frozen=True)
 class ConvertStencilToCslStencilPass(ModulePass):
     name = "convert-stencil-to-csl-stencil"
@@ -548,6 +581,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
                 [
                     ConvertSwapToPrefetchPattern(),
                     ConvertApplyOpPattern(num_chunks=self.num_chunks),
+                    PromoteCoefficients(),
                 ]
             ),
             walk_reverse=False,

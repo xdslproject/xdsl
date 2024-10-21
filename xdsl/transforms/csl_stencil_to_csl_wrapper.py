@@ -218,16 +218,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 arg_ops.append(alloc := memref.Alloc([], [], arg_t))
                 ptr_converts.append(
                     address := csl.AddressOfOp(
-                        operands=[alloc],
-                        result_types=[
-                            csl.PtrType(
-                                [
-                                    arg_t.get_element_type(),
-                                    csl.PtrKindAttr(csl.PtrKind.MANY),
-                                    csl.PtrConstAttr(csl.PtrConst.VAR),
-                                ]
-                            )
-                        ],
+                        alloc,
+                        csl.PtrType.get(
+                            arg_t.get_element_type(), is_single=False, is_const=False
+                        ),
                     )
                 )
                 export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
@@ -255,16 +249,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 arg_ops.append(alloc := memref.Alloc([], [], arg_t))
                 ptr_converts.append(
                     address := csl.AddressOfOp(
-                        operands=[alloc],
-                        result_types=[
-                            csl.PtrType(
-                                [
-                                    arg_t.get_element_type(),
-                                    csl.PtrKindAttr(csl.PtrKind.MANY),
-                                    csl.PtrConstAttr(csl.PtrConst.VAR),
-                                ]
-                            )
-                        ],
+                        alloc,
+                        csl.PtrType.get(
+                            arg_t.get_element_type(), is_single=False, is_const=False
+                        ),
                     )
                 )
                 export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
@@ -418,16 +406,10 @@ class LowerTimerFuncCall(RewritePattern):
                 three := arith.Constant.from_int_and_width(3, IndexType()),
                 load_three := memref.Load.get(op.ptr, [three]),
                 addr_of := csl.AddressOfOp(
-                    operands=[load_three],
-                    result_types=[
-                        csl.PtrType(
-                            [
-                                op.ptr.type.get_element_type(),
-                                csl.PtrKindAttr(csl.PtrKind.SINGLE),
-                                csl.PtrConstAttr(csl.PtrConst.VAR),
-                            ]
-                        )
-                    ],
+                    load_three,
+                    csl.PtrType.get(
+                        op.ptr.type.get_element_type(), is_single=True, is_const=False
+                    ),
                 ),
                 ptrcast := csl.PtrCastOp(addr_of, three_elem_ptr_type),
                 csl.MemberCallOp("get_timestamp", None, time_lib, [ptrcast]),
@@ -438,16 +420,10 @@ class LowerTimerFuncCall(RewritePattern):
         rewriter.insert_op(
             [
                 addr_of := csl.AddressOfOp(
-                    operands=[op.ptr],
-                    result_types=[
-                        csl.PtrType(
-                            [
-                                op.ptr.type.get_element_type(),
-                                csl.PtrKindAttr(csl.PtrKind.MANY),
-                                csl.PtrConstAttr(csl.PtrConst.VAR),
-                            ]
-                        )
-                    ],
+                    op.ptr,
+                    csl.PtrType.get(
+                        op.ptr.type.get_element_type(), is_single=False, is_const=False
+                    ),
                 ),
                 ptrcast := csl.PtrCastOp(addr_of, three_elem_ptr_type),
                 csl.MemberCallOp("enable_tsc", None, time_lib, []),
