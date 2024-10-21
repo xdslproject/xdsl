@@ -50,7 +50,7 @@ class LayoutGraph:
             set() if extent_constraints is None else set(extent_constraints)
         )
 
-    def matches(self, other: Self):
+    def matches(self, other: "LayoutGraph") -> bool:
         if not isinstance(other, LayoutGraph):
             return False
         if self.ident_count != other.ident_count:
