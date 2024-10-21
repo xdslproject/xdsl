@@ -146,13 +146,13 @@ def _try_apply_index_replace(layout: dlt.Layout):
             failed = False
             picked_list = set()
             ruled_out = set()
-            children = sorted(
+            a_children = sorted(
                 [
                     (len(possible := (set(child.dimensions) & dims)), possible, child)
                     for child in a_layout.children
                 ]
             )
-            for _, possible, child in children:
+            for _, possible, child in a_children:
                 possible = possible - ruled_out
                 must_use = possible & picked_list
                 if len(must_use) == 0:
