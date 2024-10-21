@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file -p convert-arith-to-varith %s
+// RUN: xdsl-opt --split-input-file -p convert-arith-to-varith %s | filecheck %s
 
 func.func @test_addi() {
     %a, %b, %c = "test.op"() : () -> (i32, i32, i32)
