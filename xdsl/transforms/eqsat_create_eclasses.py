@@ -17,7 +17,12 @@ def insert_eclass_ops(block: Block):
     # Insert eqsat.eclass for each operation
     for op in block.ops:
         results = op.results
-        if not isinstance(op, func.ReturnOp) and len(results) != 1:
+
+        # Skip special ops such as return ops
+        if isinstance(op, func.Return):
+            continue
+
+        if len(results) != 1:
             raise DiagnosticException("Ops with non-single results not handled")
 
         eclass_op = eqsat.EClassOp(results[0])
