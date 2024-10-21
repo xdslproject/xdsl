@@ -809,8 +809,8 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     be annotated with fastmath flags.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar[VarConstraint[FloatRegisterType]] = (
-        VarConstraint("SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType))
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
+        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
@@ -873,8 +873,8 @@ class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
     that also acts as a source register, and a source floating-point register.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar[VarConstraint[FloatRegisterType]] = (
-        VarConstraint("SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType))
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
+        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
     )
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)

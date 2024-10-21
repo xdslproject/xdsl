@@ -251,9 +251,7 @@ def test_constraint_var_fail_not_satisfy_constraint():
 class GenericConstraintVarOp(IRDLOperation):
     name = "test.constraint_var_op"
 
-    T: ClassVar[VarConstraint[IntegerType | IndexType]] = VarConstraint(
-        "T", base(IntegerType) | base(IndexType)
-    )
+    T: ClassVar = VarConstraint("T", base(IntegerType) | base(IndexType))
 
     operand = operand_def(T)
     result = result_def(T)
