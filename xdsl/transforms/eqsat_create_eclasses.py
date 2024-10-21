@@ -28,18 +28,18 @@ def insert_eclass_ops(block: Block):
         eclass_op = eqsat.EClassOp(results[0])
         insertion_point = InsertPoint.after(op)
         Rewriter.insert_op(eclass_op, insertion_point)
-        results[0].replace_by(eclass_op.results[0])
-        # Redirect eclassop operand back to the original value
-        eclass_op.operands[0] = results[0]
+        results[0].replace_by_if(
+            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+        )
 
     # Insert eqsat.eclass for each arg
     for arg in block.args:
         eclass_op = eqsat.EClassOp(arg)
         insertion_point = InsertPoint.at_start(block)
         Rewriter.insert_op(eclass_op, insertion_point)
-        arg.replace_by(eclass_op.results[0])
-        # Redirect eclassop operand back to the original value
-        eclass_op.operands[0] = arg
+        arg.replace_by_if(
+            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+        )
 
 
 class InsertEclassOps(RewritePattern):
