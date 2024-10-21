@@ -13,10 +13,10 @@ func.func @test_varith_addi() {
     // CHECK-LABEL: @test_varith_addi
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (i32, i32, i32)
     // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (i32, i32, i32)
-    // CHECK-NEXT:   %x1 = arith.add %a, %b : i32
-    // CHECK-NEXT:   %x2 = arith.add %x1, %c : i32
-    // CHECK-NEXT:   %x3 = arith.add %x2, %0 : i32
-    // CHECK-NEXT:   %x4 = arith.add %x3, %1 : i32
-    // CHECK-NEXT:   %x5 = arith.add %x4, %2 : i32
-    // CHECK-NEXT:   "test.op"(%r) : (i32) -> ()
+    // CHECK-NEXT:   %r = arith.addi %a, %b : i32
+    // CHECK-NEXT:   %r_1 = arith.addi %r, %c : i32
+    // CHECK-NEXT:   %r_2 = arith.addi %r_1, %0 : i32
+    // CHECK-NEXT:   %r_3 = arith.addi %r_2, %1 : i32
+    // CHECK-NEXT:   %r_4 = arith.addi %r_3, %2 : i32
+    // CHECK-NEXT:   "test.op"(%r_4) : (i32) -> ()
 }
