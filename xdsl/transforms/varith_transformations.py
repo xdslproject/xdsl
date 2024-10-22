@@ -226,9 +226,6 @@ class ConvertVarithToArithPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    VarithToArithPattern(),
-                ]
-            ),
+            VarithToArithPattern(),
+            apply_recursively=False,
         ).rewrite_op(op)
