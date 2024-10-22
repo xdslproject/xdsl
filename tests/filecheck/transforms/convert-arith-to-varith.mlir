@@ -76,8 +76,8 @@ func.func @test_mulf() {
 func.func @test() {
     %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (f32, f32, f32, f32, f32, f32)
     %6 = arith.constant 1.234500e-01 : f32
-    %b = arith.addf %a, %3 : f32
     %a = arith.addf %5, %4 : f32
+    %b = arith.addf %a, %3 : f32
     %c = arith.addf %b, %2 : f32
     %d = arith.addf %c, %1 : f32
     %e = arith.addf %d, %0 : f32
