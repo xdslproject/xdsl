@@ -100,11 +100,18 @@ class ConditionalBranchHasCanonicalizationPatterns(HasCanonicalizationPatternsTr
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.cf import (
+            CondBranchTruthPropagation,
+            SimplifyCondBranchIdenticalSuccessors,
             SimplifyConstCondBranchPred,
             SimplifyPassThroughCondBranch,
         )
 
-        return (SimplifyConstCondBranchPred(), SimplifyPassThroughCondBranch())
+        return (
+            SimplifyConstCondBranchPred(),
+            SimplifyPassThroughCondBranch(),
+            SimplifyCondBranchIdenticalSuccessors(),
+            CondBranchTruthPropagation(),
+        )
 
 
 @irdl_op_definition
@@ -144,6 +151,26 @@ class ConditionalBranch(IRDLOperation):
     """
 
 
+class SwitchHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.cf import (
+            DropSwitchCasesThatMatchDefault,
+            SimplifyConstSwitchValue,
+            SimplifyPassThroughSwitch,
+            SimplifySwitchFromSwitchOnSameCondition,
+            SimplifySwitchWithOnlyDefault,
+        )
+
+        return (
+            SimplifySwitchWithOnlyDefault(),
+            SimplifyConstSwitchValue(),
+            SimplifyPassThroughSwitch(),
+            DropSwitchCasesThatMatchDefault(),
+            SimplifySwitchFromSwitchOnSameCondition(),
+        )
+
+
 @irdl_op_definition
 class Switch(IRDLOperation):
     """Switch operation"""
@@ -167,7 +194,7 @@ class Switch(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([IsTerminator(), Pure()])
+    traits = frozenset([IsTerminator(), Pure(), SwitchHasCanonicalizationPatterns()])
 
     def __init__(
         self,

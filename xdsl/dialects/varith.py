@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
     IRDLOperation,
@@ -43,7 +43,7 @@ class VarithOp(IRDLOperation):
     Variadic arithmetic operation
     """
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", integerOrFloatLike)
+    T: ClassVar = VarConstraint("T", integerOrFloatLike)
 
     args = var_operand_def(T)
     res = result_def(T)

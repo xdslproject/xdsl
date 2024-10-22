@@ -70,22 +70,16 @@ class HasMultipleParentOp(IRDLOperation):
 
 def test_has_parent_no_parent():
     """
-    Test that an operation with an HasParentOp trait
-    fails with no parents.
+    A detached op with a HasParent trait should be verifyable when detached
     """
-    has_parent_op = HasParentOp()
-    with pytest.raises(
-        VerifyException, match="'test.has_parent' expects parent op 'test.parent'"
-    ):
-        has_parent_op.verify()
 
-    has_multiple_parent_op = HasMultipleParentOp()
-    message = (
-        "'test.has_multiple_parent' expects parent op to "
-        "be one of 'test.parent', 'test.parent2'"
-    )
-    with pytest.raises(VerifyException, match=message):
-        has_multiple_parent_op.verify()
+    single_parent = HasParentOp()
+
+    single_parent.verify()
+
+    multiple_parent = HasMultipleParentOp()
+
+    multiple_parent.verify()
 
 
 def test_has_parent_wrong_parent():

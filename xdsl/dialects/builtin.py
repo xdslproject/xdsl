@@ -488,6 +488,10 @@ class IntegerAttr(
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
 
+    @staticmethod
+    def from_bool(value: bool) -> BoolAttr:
+        return IntegerAttr(value, 1)
+
     def verify(self) -> None:
         if isinstance(int_type := self.type, IndexType):
             return
@@ -822,6 +826,7 @@ class UnrankedTensorType(
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
+AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
 @dataclass(frozen=True, init=False)
@@ -1651,6 +1656,7 @@ class UnrankedMemrefType(
 
 
 AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
+AnyUnrankedMemrefTypeConstr = BaseAttr[AnyUnrankedMemrefType](UnrankedMemrefType)
 
 RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]

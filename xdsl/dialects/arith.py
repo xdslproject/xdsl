@@ -175,11 +175,13 @@ _T = TypeVar("_T", bound=Attribute)
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
     result = result_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -191,24 +193,6 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
             result_type = SSAValue.get(operand1).type
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        rhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
-        return cls(lhs, rhs, result_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_ssa_value(self.lhs)
-        printer.print(", ")
-        printer.print_ssa_value(self.rhs)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
-
     def __hash__(self) -> int:
         return id(self)
 
@@ -216,7 +200,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on floats."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", floatingPointLike)
+    T: ClassVar = VarConstraint("T", floatingPointLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -290,7 +274,7 @@ class AddUIExtended(IRDLOperation):
 
     traits = frozenset([Pure()])
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -353,7 +337,7 @@ class Muli(SignlessIntegerBinaryOperation):
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)

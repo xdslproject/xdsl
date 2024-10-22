@@ -259,7 +259,7 @@ class ParallelOp(IRDLOperation):
 class Store(IRDLOperation):
     name = "affine.store"
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
     memref = operand_def(MemRefType.constr(element_type=T))
@@ -292,7 +292,7 @@ class Store(IRDLOperation):
 class Load(IRDLOperation):
     name = "affine.load"
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)

@@ -8,7 +8,7 @@ from typing import ClassVar, Generic, TypeVar
 import pytest
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import I32, IntegerAttr, ModuleOp, UnitAttr
+from xdsl.dialects.builtin import I32, BoolAttr, IntegerAttr, ModuleOp, UnitAttr
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -1579,7 +1579,7 @@ def test_basic_inference(format: str):
 
     @irdl_op_definition
     class TwoOperandsOneResultWithVarOp(IRDLOperation):
-        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
@@ -1678,7 +1678,7 @@ def test_nested_inference():
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
-        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
@@ -1721,7 +1721,7 @@ def test_non_verifying_inference():
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
-        T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.one_operand_one_result_nested"
         res = result_def(T)
@@ -2040,3 +2040,138 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+@irdl_op_definition
+class DefaultOp(IRDLOperation):
+    name = "test.default"
+
+    prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_attr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    assembly_format = "(`prop` $prop^)? (`opt_prop` $opt_prop^)? (`attr` $attr^)? (`opt_attr` $opt_attr^)? attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program, output, generic",
+    [
+        (
+            "test.default",
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+        ),
+        (
+            "test.default prop false opt_prop true",
+            "test.default",
+            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+        ),
+        (
+            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+        ),
+        (
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+        ),
+        (
+            "test.default prop true opt_prop false",
+            "test.default prop 1 opt_prop 0",
+            '"test.default"() <{"prop" = true, "opt_prop" = false}> {"attr" = false} : () -> ()',
+        ),
+        (
+            "test.default attr false opt_attr true",
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+        ),
+        (
+            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+        ),
+        (
+            "test.default attr true opt_attr false",
+            "test.default attr 1 opt_attr 0",
+            '"test.default"() <{"prop" = false}> {"attr" = true, "opt_attr" = false} : () -> ()',
+        ),
+        (
+            '"test.default"() : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+        ),
+    ],
+)
+def test_default_properties(program: str, output: str, generic: str):
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(ctx, program).parse_operation()
+    assert isinstance(parsed, DefaultOp)
+
+    stream = StringIO()
+    printer = Printer(stream=stream)
+    printer.print_op(parsed)
+
+    assert output == stream.getvalue()
+
+    stream = StringIO()
+    printer = Printer(stream=stream, print_generic_format=True)
+    printer.print_op(parsed)
+
+    assert generic == stream.getvalue()
+
+
+@irdl_op_definition
+class RenamedPropOp(IRDLOperation):
+    name = "test.renamed"
+
+    prop1 = prop_def(
+        BoolAttr, default_value=BoolAttr.from_bool(False), prop_name="test_prop1"
+    )
+    prop2 = opt_prop_def(BoolAttr, prop_name="test_prop2")
+
+    assembly_format = "(`prop1` $test_prop1^)? (`prop2` $test_prop2^)? attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program, output, generic",
+    [
+        (
+            "test.renamed",
+            "test.renamed",
+            '"test.renamed"() <{"test_prop1" = false}> : () -> ()',
+        ),
+        (
+            "test.renamed prop1 false prop2 false",
+            "test.renamed prop2 0",
+            '"test.renamed"() <{"test_prop1" = false, "test_prop2" = false}> : () -> ()',
+        ),
+        (
+            "test.renamed prop1 true prop2 true",
+            "test.renamed prop1 1 prop2 1",
+            '"test.renamed"() <{"test_prop1" = true, "test_prop2" = true}> : () -> ()',
+        ),
+    ],
+)
+def test_renamed_optional_prop(program: str, output: str, generic: str):
+    ctx = MLContext()
+    ctx.load_op(RenamedPropOp)
+
+    parsed = Parser(ctx, program).parse_operation()
+    assert isinstance(parsed, RenamedPropOp)
+
+    stream = StringIO()
+    printer = Printer(stream=stream)
+    printer.print_op(parsed)
+
+    assert output == stream.getvalue()
+
+    stream = StringIO()
+    printer = Printer(stream=stream, print_generic_format=True)
+    printer.print_op(parsed)
+
+    assert generic == stream.getvalue()
