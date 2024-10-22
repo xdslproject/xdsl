@@ -72,16 +72,8 @@ class VarithToArithPattern(RewritePattern):
     Splits a varith operation into a sequence of arith operations.
     """
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        # check that the op is of a type that we can convert to arith
-        if type(op) not in VARITH_TYPES:
-            return
-
-        # this must be true, as all keys of VARITH_TO_ARITH_TYPE_MAP are varith ops
-        op = cast(
-            varith.VarithOp,
-            op,
-        )
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
 
         # get the type kind of the target arith ops (float|int)
         type_name: Literal["float", "int"] = (
