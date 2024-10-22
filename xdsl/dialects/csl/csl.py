@@ -314,7 +314,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     constness: ParameterDef[PtrConstAttr]
 
     @staticmethod
-    def get(typ: Attribute, is_single: bool, is_const: bool):
+    def get(typ: TypeAttribute, is_single: bool, is_const: bool):
         return PtrType(
             [
                 typ,

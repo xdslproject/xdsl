@@ -250,17 +250,22 @@ class GenerateCoeffAPICalls(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
-        if not (wrapper := _get_module_wrapper(op)) or op.coeffs is None:
+        if (
+            not (wrapper := _get_module_wrapper(op))
+            or op.coeffs is None
+            or len(op.coeffs) == 0
+        ):
             return
         coeffs = list(op.coeffs)
         elem_t = coeffs[0].coeff.type
         pattern = wrapper.get_param_value("pattern").value.data
         neighbours = pattern - 1
+        empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
         cmap: dict[csl.Direction, list[AnyFloatAttr]] = {
-            csl.Direction.NORTH: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
-            csl.Direction.SOUTH: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
-            csl.Direction.EAST: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
-            csl.Direction.WEST: [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]],
+            csl.Direction.NORTH: empty,
+            csl.Direction.SOUTH: empty.copy(),
+            csl.Direction.EAST: empty.copy(),
+            csl.Direction.WEST: empty.copy(),
         }
 
         for c in coeffs:
