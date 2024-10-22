@@ -291,6 +291,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.ConvertArithToVarithPass
 
+    def get_convert_varith_to_arith():
+        from xdsl.transforms import varith_transformations
+
+        return varith_transformations.ConvertVarithToArithPass
+
     def get_convert_arith_to_riscv_snitch():
         from xdsl.backend.riscv.lowering import convert_arith_to_riscv_snitch
 
@@ -420,6 +425,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_bufferize.StencilBufferize
 
+    def get_eqsat_create_eclasses():
+        from xdsl.transforms import eqsat_create_eclasses
+
+        return eqsat_create_eclasses.EqsatCreateEclasses
+
     def get_stencil_shape_minimize():
         from xdsl.transforms import stencil_shape_minimize
 
@@ -435,6 +445,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-arith-to-varith": get_convert_arith_to_varith,
+        "convert-varith-to-arith": get_convert_varith_to_arith,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
@@ -507,6 +518,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-bufferize": get_stencil_bufferize,
         "stencil-shape-minimize": get_stencil_shape_minimize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "eqsat-create-eclasses": get_eqsat_create_eclasses,
     }
 
 

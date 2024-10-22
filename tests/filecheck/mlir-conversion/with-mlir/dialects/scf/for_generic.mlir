@@ -23,7 +23,7 @@
 // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 36 : index}> : () -> index
 // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
 // CHECK-NEXT:   ^0(%{{.*}} : index, %{{.*}} : index):
-// CHECK-NEXT:     %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (index, index) -> index
+// CHECK-NEXT:     %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{"overflowFlags" = #arith.overflow<none>}> : (index, index) -> index
 // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:   }) : (index, index, index, index) -> index
 // CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
