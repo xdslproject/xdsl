@@ -74,7 +74,6 @@ class VarithToArithPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
-
         # get the type kind of the target arith ops (float|int)
         type_name: Literal["float", "int"] = (
             "int" if is_integer_like_type(op.res.type) else "float"
