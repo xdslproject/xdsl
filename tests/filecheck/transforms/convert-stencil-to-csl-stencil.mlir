@@ -111,7 +111,7 @@ builtin.module {
 // CHECK-NEXT: }
 
 
-func.func @xDSLDiffusionOperator(%arg0 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %arg1 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) {
+func.func @xdiff(%arg0 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %arg1 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) {
   %0 = arith.constant 41 : index
   %1 = arith.constant 0 : index
   %2 = arith.constant 1 : index
@@ -138,13 +138,13 @@ func.func @xDSLDiffusionOperator(%arg0 : !stencil.field<[-2,3]x[-2,3]xtensor<604
   func.return
 }
 
-// CHECK-NEXT: func.func @xDSLDiffusionOperator(%arg0 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %arg1 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) {
+// CHECK-NEXT: func.func @xdiff(%arg0 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %arg1 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) {
 // CHECK-NEXT:   %0 = arith.constant 41 : index
 // CHECK-NEXT:   %1 = arith.constant 0 : index
 // CHECK-NEXT:   %2 = arith.constant 1 : index
 // CHECK-NEXT:   %3, %4 = scf.for %arg2 = %1 to %0 step %2 iter_args(%arg3 = %arg0, %arg4 = %arg1) -> (!stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) {
 // CHECK-NEXT:     %5 = tensor.empty() : tensor<600xf32>
-// CHECK-NEXT:     csl_stencil.apply(%arg3 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %5 : tensor<600xf32>) outs (%arg4 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [2, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [-2, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, 2]>, #csl_stencil.exchange<to [0, -1]>, #csl_stencil.exchange<to [0, -2]>], "topo" = #dmp.topo<600x600>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>}> ({
+// CHECK-NEXT:     csl_stencil.apply(%arg3 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %5 : tensor<600xf32>) outs (%arg4 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [2, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [-2, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, 2]>, #csl_stencil.exchange<to [0, -1]>, #csl_stencil.exchange<to [0, -2]>], "topo" = #dmp.topo<600x600>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>}> ({
 // CHECK-NEXT:     ^0(%6 : tensor<8x300xf32>, %7 : index, %8 : tensor<600xf32>):
 // CHECK-NEXT:       %9 = arith.constant dense<1.287158e+09> : tensor<600xf32>
 // CHECK-NEXT:       %10 = arith.constant dense<1.196003e+05> : tensor<300xf32>
@@ -236,7 +236,7 @@ func.func @xDSLDiffusionOperator(%arg0 : !stencil.field<[-2,3]x[-2,3]xtensor<604
 // CHECK-NEXT:    %2 = arith.constant 1 : index
 // CHECK-NEXT:    %3, %4 = scf.for %arg2 = %1 to %0 step %2 iter_args(%arg3 = %arg0, %arg4 = %arg1) -> (!stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) {
 // CHECK-NEXT:      %5 = tensor.empty() : tensor<600xf32>
-// CHECK-NEXT:      csl_stencil.apply(%arg3 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %5 : tensor<600xf32>) outs (%arg4 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [2, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [-2, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, 2]>, #csl_stencil.exchange<to [0, -1]>, #csl_stencil.exchange<to [0, -2]>], "topo" = #dmp.topo<600x600>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>}> ({
+// CHECK-NEXT:      csl_stencil.apply(%arg3 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %5 : tensor<600xf32>) outs (%arg4 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [2, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [-2, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, 2]>, #csl_stencil.exchange<to [0, -1]>, #csl_stencil.exchange<to [0, -2]>], "topo" = #dmp.topo<600x600>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>}> ({
 // CHECK-NEXT:      ^0(%6 : tensor<8x300xf32>, %7 : index, %8 : tensor<600xf32>):
 // CHECK-NEXT:        %9 = arith.constant dense<1.287158e+09> : tensor<600xf32>
 // CHECK-NEXT:        %10 = arith.constant dense<1.196003e+05> : tensor<300xf32>
@@ -260,34 +260,46 @@ func.func @xDSLDiffusionOperator(%arg0 : !stencil.field<[-2,3]x[-2,3]xtensor<604
 // CHECK-NEXT:        %28 = arith.mulf %27, %12 : tensor<300xf32>
 // CHECK-NEXT:        %29 = csl_stencil.access %6[0, 2] : tensor<8x300xf32>
 // CHECK-NEXT:        %30 = arith.mulf %29, %12 : tensor<300xf32>
-// CHECK-NEXT:        %31 = varith.add %22, %16, %18, %20, %30, %24, %26, %28 : tensor<300xf32>
-// CHECK-NEXT:        %32 = "tensor.insert_slice"(%31, %8, %7) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 300>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<300xf32>, tensor<600xf32>, index) -> tensor<600xf32>
-// CHECK-NEXT:        csl_stencil.yield %32 : tensor<600xf32>
+// CHECK-NEXT:        %31 = arith.addf %22, %16 : tensor<300xf32>
+// CHECK-NEXT:        %32 = arith.addf %31, %18 : tensor<300xf32>
+// CHECK-NEXT:        %33 = arith.addf %32, %20 : tensor<300xf32>
+// CHECK-NEXT:        %34 = arith.addf %33, %30 : tensor<300xf32>
+// CHECK-NEXT:        %35 = arith.addf %34, %24 : tensor<300xf32>
+// CHECK-NEXT:        %36 = arith.addf %35, %26 : tensor<300xf32>
+// CHECK-NEXT:        %37 = arith.addf %36, %28 : tensor<300xf32>
+// CHECK-NEXT:        %38 = "tensor.insert_slice"(%37, %8, %7) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 300>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<300xf32>, tensor<600xf32>, index) -> tensor<600xf32>
+// CHECK-NEXT:        csl_stencil.yield %38 : tensor<600xf32>
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:      ^1(%33 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %34 : tensor<600xf32>):
-// CHECK-NEXT:        %35 = arith.constant dense<1.287158e+09> : tensor<600xf32>
-// CHECK-NEXT:        %36 = arith.constant dense<1.196003e+05> : tensor<600xf32>
-// CHECK-NEXT:        %37 = arith.constant dense<-2.242506e+05> : tensor<600xf32>
-// CHECK-NEXT:        %38 = arith.constant dense<-7.475020e+03> : tensor<600xf32>
-// CHECK-NEXT:        %39 = arith.constant dense<9.000000e-01> : tensor<600xf32>
-// CHECK-NEXT:        %40 = arith.constant dense<1.033968e-08> : tensor<600xf32>
-// CHECK-NEXT:        %41 = csl_stencil.access %33[0, 0] : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>
-// CHECK-NEXT:        %42 = "tensor.extract_slice"(%41) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
-// CHECK-NEXT:        %43 = arith.mulf %42, %37 : tensor<600xf32>
-// CHECK-NEXT:        %44 = "tensor.extract_slice"(%41) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
-// CHECK-NEXT:        %45 = arith.mulf %44, %36 : tensor<600xf32>
-// CHECK-NEXT:        %46 = "tensor.extract_slice"(%41) <{"static_offsets" = array<i64: 3>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
-// CHECK-NEXT:        %47 = arith.mulf %46, %36 : tensor<600xf32>
-// CHECK-NEXT:        %48 = "tensor.extract_slice"(%41) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
-// CHECK-NEXT:        %49 = arith.mulf %48, %38 : tensor<600xf32>
-// CHECK-NEXT:        %50 = "tensor.extract_slice"(%41) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
-// CHECK-NEXT:        %51 = arith.mulf %50, %38 : tensor<600xf32>
-// CHECK-NEXT:        %52 = varith.add %34, %51, %43, %45, %47, %49, %43, %43 : tensor<600xf32>
-// CHECK-NEXT:        %53 = arith.mulf %52, %39 : tensor<600xf32>
-// CHECK-NEXT:        %54 = arith.mulf %42, %35 : tensor<600xf32>
-// CHECK-NEXT:        %55 = arith.addf %54, %53 : tensor<600xf32>
-// CHECK-NEXT:        %56 = arith.mulf %55, %40 : tensor<600xf32>
-// CHECK-NEXT:        csl_stencil.yield %56 : tensor<600xf32>
+// CHECK-NEXT:      ^1(%39 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, %40 : tensor<600xf32>):
+// CHECK-NEXT:        %41 = arith.constant dense<1.287158e+09> : tensor<600xf32>
+// CHECK-NEXT:        %42 = arith.constant dense<1.196003e+05> : tensor<600xf32>
+// CHECK-NEXT:        %43 = arith.constant dense<-2.242506e+05> : tensor<600xf32>
+// CHECK-NEXT:        %44 = arith.constant dense<-7.475020e+03> : tensor<600xf32>
+// CHECK-NEXT:        %45 = arith.constant dense<9.000000e-01> : tensor<600xf32>
+// CHECK-NEXT:        %46 = arith.constant dense<1.033968e-08> : tensor<600xf32>
+// CHECK-NEXT:        %47 = csl_stencil.access %39[0, 0] : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>
+// CHECK-NEXT:        %48 = "tensor.extract_slice"(%47) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
+// CHECK-NEXT:        %49 = arith.mulf %48, %43 : tensor<600xf32>
+// CHECK-NEXT:        %50 = "tensor.extract_slice"(%47) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
+// CHECK-NEXT:        %51 = arith.mulf %50, %42 : tensor<600xf32>
+// CHECK-NEXT:        %52 = "tensor.extract_slice"(%47) <{"static_offsets" = array<i64: 3>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
+// CHECK-NEXT:        %53 = arith.mulf %52, %42 : tensor<600xf32>
+// CHECK-NEXT:        %54 = "tensor.extract_slice"(%47) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
+// CHECK-NEXT:        %55 = arith.mulf %54, %44 : tensor<600xf32>
+// CHECK-NEXT:        %56 = "tensor.extract_slice"(%47) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 600>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<604xf32>) -> tensor<600xf32>
+// CHECK-NEXT:        %57 = arith.mulf %56, %44 : tensor<600xf32>
+// CHECK-NEXT:        %58 = arith.addf %40, %57 : tensor<600xf32>
+// CHECK-NEXT:        %59 = arith.addf %58, %49 : tensor<600xf32>
+// CHECK-NEXT:        %60 = arith.addf %59, %51 : tensor<600xf32>
+// CHECK-NEXT:        %61 = arith.addf %60, %53 : tensor<600xf32>
+// CHECK-NEXT:        %62 = arith.addf %61, %55 : tensor<600xf32>
+// CHECK-NEXT:        %63 = arith.addf %62, %49 : tensor<600xf32>
+// CHECK-NEXT:        %64 = arith.addf %63, %49 : tensor<600xf32>
+// CHECK-NEXT:        %65 = arith.mulf %64, %45 : tensor<600xf32>
+// CHECK-NEXT:        %66 = arith.mulf %48, %41 : tensor<600xf32>
+// CHECK-NEXT:        %67 = arith.addf %66, %65 : tensor<600xf32>
+// CHECK-NEXT:        %68 = arith.mulf %67, %46 : tensor<600xf32>
+// CHECK-NEXT:        csl_stencil.yield %68 : tensor<600xf32>
 // CHECK-NEXT:      }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:      scf.yield %arg4, %arg3 : !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>, !stencil.field<[-2,3]x[-2,3]xtensor<604xf32>>
 // CHECK-NEXT:    }

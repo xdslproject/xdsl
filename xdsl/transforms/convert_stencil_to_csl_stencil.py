@@ -37,6 +37,10 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms.experimental.stencil_tensorize_z_dimension import (
     BackpropagateStencilShapes,
 )
+from xdsl.transforms.varith_transformations import (
+    ConvertArithToVarithPass,
+    ConvertVarithToArithPass,
+)
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
@@ -92,75 +96,6 @@ def _get_apply_op(op: Operation) -> stencil.ApplyOp | None:
             return parent_op
         parent_op = parent_op.parent_op()
     return None
-
-
-@dataclass(frozen=False)
-class RestructureSymmetricReductionPattern(RewritePattern):
-    """
-    Consume data first where that data comes from stencil accesses to `buf`.
-
-    Identifies a pattern of 2 connected binary ops with 3 args, e.g. of the form `(a+b)+c` with different ops and
-    bracketings supported, and attempts to re-structure the order of computation.
-
-    Being in principle similarly to constant folding, the difference is that args are *not* required to be stencil
-    accesses, but could have further compute applied before being passed to the reduction function.
-    Uses helper function `get_stencil_accessed_symbols` to check which bufs are stencil-accessed in each of these args,
-    and to distinguish the following three cases:
-
-     (1) all accesses in an arg tree are to `buf`  - arg should be moved forward in the computation
-     (2) no accesses are to `buf`                  - arg should be moved backward in the computation
-     (3) there's a mix                             - unknown, take any or no action
-
-    If two args are identified that should be moved forward, or two args are identified that should be moved backwards,
-    the computation is restructured accordingly.
-    """
-
-    buf: BlockArgument
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: arith.Addf | arith.Mulf, rewriter: PatternRewriter, /
-    ):
-        # if not (apply := _get_apply_op(op)) or not (buf_idx := _get_prefetch_buf(apply)):
-        #     return
-        # self.buf = apply.region.block.args[buf_idx]
-
-        # this rewrite requires exactly 1 use which is the same type of operation
-        if len(op.result.uses) != 1 or not isinstance(
-            use := list(op.result.uses)[0].operation, type(op)
-        ):
-            return
-        c_op = use.operands[0] if use.operands[1] == op.result else use.operands[1]
-
-        def rewrite(one: Operand, two: Operand, three: Operand):
-            """Builds `(one+two)+three` where `'+' == type(op)`"""
-
-            first_compute = type(op)(one, two)
-            second_compute = type(op)(first_compute, three)
-
-            # Both ops are inserted at the later point to ensure all dependencies are present when moving compute around.
-            # Moving the replacement of `op` backwards is safe because we previously asserted at `op` only has one use (ie. in `use`)
-            rewriter.replace_op(op, [], [first_compute.results[0]])
-            rewriter.replace_op(
-                use, [first_compute, second_compute], [second_compute.results[0]]
-            )
-
-        a = get_stencil_access_operands(a_op := op.lhs)
-        b = get_stencil_access_operands(b_op := op.rhs)
-        c = get_stencil_access_operands(c_op)
-
-        if self.move_fwd(a) and self.move_fwd(b):
-            return
-        elif self.move_back(a) and self.move_back(b):
-            return
-        elif self.move_fwd(c) and self.move_back(b):
-            rewrite(a_op, c_op, b_op)
-
-    def move_fwd(self, accs: set[Operand]) -> bool:
-        return self.buf in accs and len(accs) == 1
-
-    def move_back(self, accs: set[Operand]) -> bool:
-        return self.buf not in accs
 
 
 @dataclass(frozen=True)
@@ -422,7 +357,7 @@ class SplitVarithOpPattern(RewritePattern):
             accs = get_stencil_access_operands(arg)
             (others, buf_accesses)[buf in accs and len(accs) == 1].append(arg)
 
-        if len(others) > 1 and len(buf_accesses) > 1:
+        if len(others) > 0 and len(buf_accesses) > 0:
             rewriter.replace_matched_op(
                 [
                     n_op := type(op)(*buf_accesses),
@@ -471,20 +406,12 @@ class ConvertApplyOpPattern(RewritePattern):
         )
         rewriter.insert_op(accumulator, InsertPoint.before(op))
 
-        # # find varith ops and split according to neighbour data
-        has_varith = PatternRewriteWalker(
+        # run pass (on this apply's region only) to consume data from `prefetch` accesses first
+        # find varith ops and split according to neighbour data
+        PatternRewriteWalker(
             SplitVarithOpPattern(op.region.block.args[prefetch_idx]),
             apply_recursively=False,
         ).rewrite_op(op)
-        # run pass (on this apply's region only) to consume data from `prefetch` accesses first
-        if not has_varith:
-            nested_rewriter = PatternRewriteWalker(
-                RestructureSymmetricReductionPattern(
-                    op.region.block.args[prefetch_idx]
-                ),
-                walk_reverse=True,
-            )
-            nested_rewriter.rewrite_op(op)
 
         # determine how ops should be split across the two regions
         chunk_region_ops, done_exchange_ops = get_op_split(
@@ -633,6 +560,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
     num_chunks: int = 1
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        ConvertArithToVarithPass().apply(ctx, op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -644,6 +572,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
             # apply_recursively=True,
         )
         module_pass.rewrite_module(op)
+        ConvertVarithToArithPass().apply(ctx, op)
 
         if self.num_chunks > 1:
             BackpropagateStencilShapes().apply(ctx, op)
