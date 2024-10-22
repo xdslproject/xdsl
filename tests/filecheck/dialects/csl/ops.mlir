@@ -658,7 +658,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %variable_with_default = "csl.variable"() <{"default" = 42 : i32}> : () -> !csl.var<i32>
 // CHECK-GENERIC-NEXT:       %variable = "csl.variable"() : () -> !csl.var<i32>
 // CHECK-GENERIC-NEXT:       %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
-// CHECK-GENERIC-NEXT:       %new_value = "arith.addi"(%value, %one) : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:       %new_value = "arith.addi"(%value, %one) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:       "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
 // CHECK-GENERIC-NEXT:       "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()

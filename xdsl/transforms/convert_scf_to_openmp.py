@@ -41,7 +41,7 @@ class ConvertParallel(RewritePattern):
 
         parallel = omp.ParallelOp(
             regions=[Region(Block())],
-            operands=[[], [], [], [], []],
+            operands=[[], [], [], [], [], []],
         )
         with ImplicitBuilder(parallel.region):
             if self.chunk is None:
@@ -51,15 +51,12 @@ class ConvertParallel(RewritePattern):
                 chunk_op = [arith.Constant.from_int_and_width(self.chunk, IndexType())]
             wsloop = omp.WsLoopOp(
                 operands=[
-                    loop.lowerBound[:collapse],
-                    loop.upperBound[:collapse],
-                    loop.step[:collapse],
                     [],
                     [],
                     [],
                     chunk_op,
                 ],
-                regions=[Region(Block(arg_types=[IndexType()] * collapse))],
+                regions=[Region(Block())],
             )
             if self.schedule is not None:
                 wsloop.schedule_val = omp.ScheduleKindAttr(
@@ -67,12 +64,22 @@ class ConvertParallel(RewritePattern):
                 )
             omp.TerminatorOp()
         with ImplicitBuilder(wsloop.body):
+            loop_nest = omp.LoopNestOp(
+                operands=[
+                    loop.lowerBound[:collapse],
+                    loop.upperBound[:collapse],
+                    loop.step[:collapse],
+                ],
+                regions=[Region(Block(arg_types=[IndexType()] * collapse))],
+            )
+            omp.TerminatorOp()
+        with ImplicitBuilder(loop_nest.body):
             scope = memref.AllocaScopeOp(result_types=[[]], regions=[Region(Block())])
             omp.YieldOp()
         with ImplicitBuilder(scope.scope):
             scope_terminator = memref.AllocaScopeReturnOp(operands=[[]])
         for newarg, oldarg in zip(
-            wsloop.body.block.args, loop.body.block.args[:collapse]
+            loop_nest.body.block.args, loop.body.block.args[:collapse]
         ):
             oldarg.replace_by(newarg)
         for _ in range(collapse):

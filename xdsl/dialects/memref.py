@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Iterable, Sequence
 from typing import Annotated, ClassVar, cast
 
@@ -7,10 +8,8 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     I64,
-    AnyFloat,
     AnyFloatConstr,
     AnyIntegerAttr,
-    AnySignlessIntegerType,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
@@ -72,11 +71,11 @@ from xdsl.utils.hints import isa
 class Load(IRDLOperation):
     name = "memref.load"
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     nontemporal = opt_prop_def(BoolAttr)
 
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
     res = result_def(T)
 
@@ -109,14 +108,14 @@ class Load(IRDLOperation):
 
 @irdl_op_definition
 class Store(IRDLOperation):
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "memref.store"
 
     nontemporal = opt_prop_def(BoolAttr)
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
 
     irdl_options = [ParsePropInAttrDict()]
@@ -360,14 +359,10 @@ class Alloca(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T: ClassVar[VarConstraint[AnyFloat | AnySignlessIntegerType]] = VarConstraint(
-        "T", AnyFloatConstr | SignlessIntegerConstraint
-    )
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
 
     value = operand_def(T)
-    memref = operand_def(
-        MemRefType[AnyFloat | AnySignlessIntegerType].constr(element_type=T)
-    )
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     kind = prop_def(IntegerAttr[I64])
@@ -503,33 +498,95 @@ ReassociationAttr = ArrayAttr[
 ]
 
 
-class AlterShapeOp(IRDLOperation):
-    src = operand_def(MemRefType)
+class AlterShapeOperation(IRDLOperation, abc.ABC):
     result = result_def(MemRefType)
     reassociation = prop_def(ReassociationAttr)
-    assembly_format = (
-        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
-    )
 
     traits = frozenset([NoMemoryEffect()])
 
 
 @irdl_op_definition
-class CollapseShapeOp(AlterShapeOp):
+class CollapseShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
     """
 
     name = "memref.collapse_shape"
 
+    src = operand_def(MemRefType)
+
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
 
 @irdl_op_definition
-class ExpandShapeOp(AlterShapeOp):
+class ExpandShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
     """
 
     name = "memref.expand_shape"
+
+    src = operand_def(MemRefType)
+    output_shape = var_operand_def(IndexType)
+
+    static_output_shape = prop_def(DenseArrayBase)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ExpandShapeOp:
+        src = parser.parse_unresolved_operand()
+        reassociation = parser.parse_attribute()
+        parser.parse_keyword("output_shape")
+        parser.parse_punctuation("[")
+        output_shape: list[SSAValue] = []
+        static_output_shape: list[int] = []
+        while (
+            x := parser.parse_optional_operand() or parser.parse_optional_integer()
+        ) is not None:
+            if isinstance(x, int):
+                static_output_shape.append(x)
+            else:
+                output_shape.append(x)
+            parser.parse_optional_punctuation(",")
+        parser.parse_punctuation("]")
+        attr_dict = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        src = parser.resolve_operand(src, parser.parse_type())
+        parser.parse_keyword("into")
+        result_type = parser.parse_type()
+
+        return cls(
+            operands=[src, output_shape],
+            properties={
+                "reassociation": reassociation,
+                "static_output_shape": DenseArrayBase.create_dense_int(
+                    IntegerType(64), static_output_shape
+                ),
+            },
+            attributes=attr_dict,
+            result_types=[result_type],
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.src)
+        printer.print_string(" ")
+        printer.print_attribute(self.reassociation)
+        printer.print_string(" output_shape [")
+        printer.print_list(self.output_shape, printer.print_operand)
+        t = self.static_output_shape.as_tuple()
+        if self.output_shape and t:
+            printer.print_string(", ")
+        printer.print_list(t, lambda x: printer.print_string(str(x)))
+        printer.print_string("]")
+        if self.attributes:
+            printer.print(" ")
+            printer.print_attr_dict(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.src.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
