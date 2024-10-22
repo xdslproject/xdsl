@@ -20,7 +20,7 @@ func.func @test_addi() {
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (i32, i32, i32)
     // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (i32, i32, i32)
     // CHECK-NEXT:   %x2 = arith.addi %0, %1 : i32
-    // CHECK-NEXT:   %r = varith.add %c, %a, %b, %2, %0, %1 : i32
+    // CHECK-NEXT:   %r = varith.add %a, %b, %c, %0, %1, %2 : i32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (i32, i32) -> ()
 }
 
@@ -45,7 +45,7 @@ func.func @test_addf() {
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %x2 = arith.addf %0, %1 : f32
-    // CHECK-NEXT:   %r = varith.add %c, %a, %b, %2, %0, %1 : f32
+    // CHECK-NEXT:   %r = varith.add %a, %b, %c, %0, %1, %2 : f32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (f32, f32) -> ()
 }
 
@@ -69,6 +69,46 @@ func.func @test_mulf() {
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %x2 = arith.mulf %0, %1 : f32
-    // CHECK-NEXT:   %r = varith.mul %c, %a, %b, %2, %0, %1 : f32
+    // CHECK-NEXT:   %r = varith.mul %a, %b, %c, %0, %1, %2 : f32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (f32, f32) -> ()
+}
+
+func.func @test() {
+    %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>)
+    %6 = arith.constant dense<1.234500e-01> : tensor<8xf32>
+    %a = arith.addf %5, %4 : tensor<8xf32>
+    %b = arith.addf %a, %3 : tensor<8xf32>
+    %c = arith.addf %b, %2 : tensor<8xf32>
+    %d = arith.addf %c, %1 : tensor<8xf32>
+    %e = arith.addf %d, %0 : tensor<8xf32>
+    %12 = arith.mulf %e, %6 : tensor<8xf32>
+    "test.op"(%12) : (tensor<8xf32>) -> ()
+    func.return
+
+    // CHECK-LABEL: @test
+    // CHECK-NEXT:   %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>)
+    // CHECK-NEXT:   %6 = arith.constant dense<1.234500e-01> : tensor<8xf32>
+    // CHECK-NEXT:   %e = varith.add %5, %4, %3, %2, %1, %0 : tensor<8xf32>
+    // CHECK-NEXT:   %7 = arith.mulf %e, %6 : tensor<8xf32>
+    // CHECK-NEXT:   "test.op"(%7) : (tensor<8xf32>) -> ()
+}
+
+func.func @test2() {
+    %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>)
+    %6 = arith.constant dense<1.234500e-01> : tensor<8xf32>
+    %a = arith.addf %5, %4 : tensor<8xf32>
+    %b = arith.addf %3, %a : tensor<8xf32>
+    %c = arith.addf %2, %b : tensor<8xf32>
+    %d = arith.addf %1, %c : tensor<8xf32>
+    %e = arith.addf %0, %d : tensor<8xf32>
+    %12 = arith.mulf %e, %6 : tensor<8xf32>
+    "test.op"(%12) : (tensor<8xf32>) -> ()
+    func.return
+
+    // CHECK-LABEL: @test
+    // CHECK-NEXT:   %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>)
+    // CHECK-NEXT:   %6 = arith.constant dense<1.234500e-01> : tensor<8xf32>
+    // CHECK-NEXT:   %e = varith.add %1, %2, %3, %5, %4, %0 : tensor<8xf32>
+    // CHECK-NEXT:   %7 = arith.mulf %e, %6 : tensor<8xf32>
+    // CHECK-NEXT:   "test.op"(%7) : (tensor<8xf32>) -> ()
 }
