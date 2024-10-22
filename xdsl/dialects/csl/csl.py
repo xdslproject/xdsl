@@ -317,6 +317,23 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
+@irdl_op_definition
+class PtrCastOp(IRDLOperation):
+    """
+    Implements `@ptrcast(destination_ptr_type, ptr)`
+    """
+
+    name = "csl.ptrcast"
+
+    ptr = operand_def(PtrType)
+    result = result_def(PtrType)
+
+    traits = frozenset([NoMemoryEffect()])
+
+    def __init__(self, ptr: Operation | SSAValue, result_type: PtrType):
+        super().__init__(operands=[ptr], result_types=[result_type])
+
+
 DsdElementTypeConstr = (
     base(Float16Type)
     | base(Float32Type)
@@ -597,13 +614,11 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T: ClassVar[VarConstraint[ZerosOpAttr]] = VarConstraint("T", ZerosOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
 
     size = opt_operand_def(T)
 
-    result = result_def(
-        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
-    )
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -632,7 +647,7 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T: ClassVar[VarConstraint[IntegerType | Float32Type | Float16Type]] = VarConstraint(
+    T: ClassVar = VarConstraint(
         "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
     )
 
@@ -640,9 +655,7 @@ class ConstantsOp(IRDLOperation):
 
     value = operand_def(T)
 
-    result = result_def(
-        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
-    )
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -1948,7 +1961,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T: ClassVar[VarConstraint[ParamOpAttr]] = VarConstraint("T", ParamOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ParamOpAttrConstr)
 
     name = "csl.param"
 
@@ -2108,6 +2121,7 @@ CSL = Dialect(
         Or16Op,
         ParamOp,
         PopcntOp,
+        PtrCastOp,
         ReturnOp,
         RpcOp,
         Sar16Op,

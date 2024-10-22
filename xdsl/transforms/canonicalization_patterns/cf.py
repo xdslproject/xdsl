@@ -1,8 +1,14 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from typing import cast
 
 from xdsl.dialects import arith, cf
-from xdsl.dialects.builtin import BoolAttr, IntegerAttr
-from xdsl.ir import Block, BlockArgument, SSAValue
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    BoolAttr,
+    DenseIntOrFPElementsAttr,
+    IntegerAttr,
+)
+from xdsl.ir import Block, BlockArgument, Operation, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -257,3 +263,281 @@ class CondBranchTruthPropagation(RewritePattern):
                     const_false.result,
                     lambda use: use.operation.parent_block() is op.else_block,
                 )
+
+
+class SimplifySwitchWithOnlyDefault(RewritePattern):
+    """
+    switch %flag : i32, [
+      default:  ^bb1
+    ]
+     -> br ^bb1
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+        if not op.case_blocks:
+            rewriter.replace_matched_op(
+                cf.Branch(op.default_block, *op.default_operands)
+            )
+
+
+def drop_case_helper(
+    rewriter: PatternRewriter,
+    op: cf.Switch,
+    predicate: Callable[[AnyIntegerAttr, Block, Sequence[Operation | SSAValue]], bool],
+):
+    case_values = op.case_values
+    if case_values is None:
+        return
+    requires_change = False
+
+    new_case_values: list[int] = []
+    new_case_blocks: list[Block] = []
+    new_case_operands: list[Sequence[Operation | SSAValue]] = []
+
+    for switch_case, block, operands in zip(
+        case_values.data.data,
+        op.case_blocks,
+        op.case_operand,
+        strict=True,
+    ):
+        int_switch_case = cast(AnyIntegerAttr, switch_case)
+        if predicate(int_switch_case, block, operands):
+            requires_change = True
+            continue
+        new_case_values.append(cast(AnyIntegerAttr, switch_case).value.data)
+        new_case_blocks.append(block)
+        new_case_operands.append(operands)
+
+    if requires_change:
+        rewriter.replace_matched_op(
+            cf.Switch(
+                op.flag,
+                op.default_block,
+                op.default_operands,
+                DenseIntOrFPElementsAttr.vector_from_list(
+                    new_case_values, case_values.get_element_type()
+                ),
+                new_case_blocks,
+                new_case_operands,
+            )
+        )
+
+
+class DropSwitchCasesThatMatchDefault(RewritePattern):
+    """
+    switch %flag : i32, [
+      default: ^bb1,
+      42: ^bb1,
+      43: ^bb2
+    ]
+    ->
+    switch %flag : i32, [
+      default: ^bb1,
+      43: ^bb2
+    ]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+        def predicate(
+            switch_case: AnyIntegerAttr,
+            block: Block,
+            operands: Sequence[Operation | SSAValue],
+        ) -> bool:
+            return block == op.default_block and operands == op.default_operands
+
+        drop_case_helper(rewriter, op, predicate)
+
+
+def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
+    """
+    Helper for folding a switch with a constant value.
+    switch %c_42 : i32, [
+      default: ^bb1 ,
+      42: ^bb2,
+      43: ^bb3
+    ]
+    -> br ^bb2
+    """
+    case_values = () if switch.case_values is None else switch.case_values.data.data
+
+    new_block, new_operands = next(
+        (
+            (block, operand)
+            for (c, block, operand) in zip(
+                case_values, switch.case_blocks, switch.case_operand, strict=True
+            )
+            if flag == c.value.data
+        ),
+        (switch.default_block, switch.default_operands),
+    )
+
+    rewriter.replace_matched_op(cf.Branch(new_block, *new_operands))
+
+
+class SimplifyConstSwitchValue(RewritePattern):
+    """
+    switch %c_42 : i32, [
+      default: ^bb1,
+      42: ^bb2,
+      43: ^bb3
+    ]
+    -> br ^bb2
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+        if (flag := const_evaluate_operand(op.flag)) is not None:
+            fold_switch(op, rewriter, flag)
+
+
+class SimplifyPassThroughSwitch(RewritePattern):
+    """
+    switch %c_42 : i32, [
+      default: ^bb1,
+      42: ^bb2,
+    ]
+    ^bb2:
+      br ^bb3
+    ->
+    switch %c_42 : i32, [
+      default: ^bb1,
+      42: ^bb3,
+    ]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+        requires_change = False
+
+        new_case_blocks: list[Block] = []
+        new_case_operands: list[Sequence[Operation | SSAValue]] = []
+
+        for block, operands in zip(op.case_blocks, op.case_operand, strict=True):
+            collapsed = collapse_branch(block, operands)
+            requires_change |= collapsed is not None
+            (new_block, new_operands) = collapsed or (block, operands)
+            new_case_blocks.append(new_block)
+            new_case_operands.append(new_operands)
+
+        collapsed = collapse_branch(op.default_block, op.default_operands)
+
+        requires_change |= collapsed is not None
+
+        (default_block, default_operands) = collapsed or (
+            op.default_block,
+            op.default_operands,
+        )
+
+        if requires_change:
+            rewriter.replace_matched_op(
+                cf.Switch(
+                    op.flag,
+                    default_block,
+                    default_operands,
+                    op.case_values,
+                    new_case_blocks,
+                    new_case_operands,
+                )
+            )
+
+
+class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
+    """
+    switch %flag : i32, [
+      default: ^bb1,
+      42: ^bb2,
+    ]
+    ^bb2:
+      switch %flag : i32, [
+        default: ^bb3,
+        42: ^bb4
+      ]
+    ->
+    switch %flag : i32, [
+      default: ^bb1,
+      42: ^bb2,
+    ]
+    ^bb2:
+      br ^bb4
+
+     and
+
+    switch %flag : i32, [
+      default: ^bb1,
+      42: ^bb2,
+    ]
+    ^bb2:
+      switch %flag : i32, [
+        default: ^bb3,
+        43: ^bb4
+      ]
+    ->
+    switch %flag : i32, [
+      default: ^bb1,
+      42: ^bb2,
+    ]
+    ^bb2:
+      br ^bb3
+
+    and
+
+    switch %flag : i32, [
+      default: ^bb1,
+      42: ^bb2
+    ]
+    ^bb1:
+      switch %flag : i32, [
+        default: ^bb3,
+        42: ^bb4,
+        43: ^bb5
+      ]
+    ->
+    switch %flag : i32, [
+      default: ^bb1,
+      42: ^bb2,
+    ]
+    ^bb1:
+      switch %flag : i32, [
+        default: ^bb3,
+        43: ^bb5
+      ]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+        block = op.parent_block()
+        if block is None:
+            return
+        preds = block.uses
+        if len(preds) != 1:
+            return
+        pred = next(iter(preds))
+        switch = pred.operation
+        if not isinstance(switch, cf.Switch):
+            return
+
+        if switch.flag != op.flag:
+            return
+
+        case_values = switch.case_values
+        if case_values is None:
+            return
+
+        if pred.index != 0:
+            fold_switch(
+                op,
+                rewriter,
+                cast(int, case_values.data.data[pred.index - 1].value.data),
+            )
+        else:
+
+            def predicate(
+                switch_case: AnyIntegerAttr,
+                block: Block,
+                operands: Sequence[Operation | SSAValue],
+            ) -> bool:
+                return switch_case in case_values.data.data
+
+            drop_case_helper(rewriter, op, predicate)

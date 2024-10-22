@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file -p convert-arith-to-varith %s
+// RUN: xdsl-opt --split-input-file -p convert-arith-to-varith %s | filecheck %s
 
 func.func @test_addi() {
     %a, %b, %c = "test.op"() : () -> (i32, i32, i32)
@@ -18,8 +18,8 @@ func.func @test_addi() {
 
     // CHECK-LABEL: @test_addi
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (i32, i32, i32)
-    // CHECK-NEXT:   %1, %2, %3 = "test.op"() : () -> (i32, i32, i32)
-    // CHECK-NEXT:   %x2 = arith.addf %0, %1 : i32
+    // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (i32, i32, i32)
+    // CHECK-NEXT:   %x2 = arith.addi %0, %1 : i32
     // CHECK-NEXT:   %r = varith.add %c, %a, %b, %2, %0, %1 : i32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (i32, i32) -> ()
 }
@@ -43,7 +43,7 @@ func.func @test_addf() {
 
     // CHECK-LABEL: @test_addf
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (f32, f32, f32)
-    // CHECK-NEXT:   %1, %2, %3 = "test.op"() : () -> (f32, f32, f32)
+    // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %x2 = arith.addf %0, %1 : f32
     // CHECK-NEXT:   %r = varith.add %c, %a, %b, %2, %0, %1 : f32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (f32, f32) -> ()
@@ -67,7 +67,7 @@ func.func @test_mulf() {
 
     // CHECK-LABEL: @test_mulf
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (f32, f32, f32)
-    // CHECK-NEXT:   %1, %2, %3 = "test.op"() : () -> (f32, f32, f32)
+    // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %x2 = arith.mulf %0, %1 : f32
     // CHECK-NEXT:   %r = varith.mul %c, %a, %b, %2, %0, %1 : f32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (f32, f32) -> ()

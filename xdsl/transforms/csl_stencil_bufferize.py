@@ -84,7 +84,7 @@ class ApplyOpBufferize(RewritePattern):
         # convert args
         buf_args: list[SSAValue] = []
         to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
-        for arg in op.args:
+        for arg in [*op.args_rchunk, *op.args_dexchng]:
             if isa(arg.type, TensorType[Attribute]):
                 to_memrefs.append(new_arg := to_memref_op(arg))
                 buf_args.append(new_arg.memref)
@@ -93,7 +93,13 @@ class ApplyOpBufferize(RewritePattern):
 
         # create new op
         buf_apply_op = csl_stencil.ApplyOp(
-            operands=[op.field, buf_iter_arg.memref, op.args, op.dest],
+            operands=[
+                op.field,
+                buf_iter_arg.memref,
+                op.args_rchunk,
+                op.args_dexchng,
+                op.dest,
+            ],
             result_types=op.res.types or [[]],
             regions=[
                 self._get_empty_bufferized_region(op.receive_chunk.block.args),

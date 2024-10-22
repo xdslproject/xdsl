@@ -168,12 +168,38 @@ class ToMemrefOp(IRDLOperation):
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($memref)"
 
 
+@irdl_op_definition
+class MaterializeInDestination(IRDLOperation):
+    name = "bufferization.materialize_in_destination"
+
+    source = operand_def(
+        TensorMemrefInferenceConstraint(
+            "T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr
+        )
+    )
+    dest = operand_def(
+        TensorMemrefInferenceConstraint(
+            "T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr
+        )
+    )
+    result = result_def(
+        TensorMemrefInferenceConstraint(
+            "T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr
+        )
+    )
+    restrict = opt_prop_def(UnitAttr)
+    writable = opt_prop_def(UnitAttr)
+
+    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` `(` type($source) `,` type($dest) `)` `->` type($result)"
+
+
 Bufferization = Dialect(
     "bufferization",
     [
         AllocTensorOp,
         ToTensorOp,
         ToMemrefOp,
+        MaterializeInDestination,
     ],
     [],
 )
