@@ -102,6 +102,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.gpu import GPU
 
         return GPU
+    
+    def get_hida_func():
+        from xdsl.dialects.experimental.hida_functional import HIDA_func
+
+        return HIDA_func
+
+    def get_hida_struct():
+        from xdsl.dialects.experimental.hida_structural import HIDA_struct
+
+        return HIDA_struct
 
     def get_hlfir():
         from xdsl.dialects.experimental.hlfir import HLFIR
@@ -343,6 +353,8 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "fsm": get_fsm,
         "func": get_func,
         "gpu": get_gpu,
+        "hida_func" : get_hida_func,
+        "hida_struct" : get_hida_struct,
         "hlfir": get_hlfir,
         "hls": get_hls,
         "hw": get_hw,

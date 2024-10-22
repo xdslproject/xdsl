@@ -166,3 +166,5 @@ docs/ret.xdsl
 # direnv
 .direnv
 .envrc
+
+xdsl-venv/
