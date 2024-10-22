@@ -58,6 +58,7 @@ from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
+from xdsl.traits import IsContraction
 
 
 class IteratorType(StrEnum):
@@ -834,6 +835,8 @@ class MatmulOp(NamedOpBase):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
+    traits = frozenset([IsContraction()])
+
     def __init__(
         self,
         inputs: Sequence[SSAValue],
@@ -995,6 +998,16 @@ class PoolingNchwMaxOp(PoolingOpsBase):
     """
 
     name = "linalg.pooling_nchw_max"
+
+@irdl_op_definition
+class PoolingNchwSumOp(PoolingOpsBase):
+    """
+    Performs sum pooling
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_sum-linalgpoolingnchwsumop
+    """
+
+    name = "linalg.pooling_nchw_sum"
 
 
 class ConvOpsBase(IRDLOperation, ABC):
@@ -1170,6 +1183,7 @@ Linalg = Dialect(
         MatmulOp,
         QuantizedMatmulOp,
         PoolingNchwMaxOp,
+        PoolingNchwSumOp,
         Conv2DNchwFchwOp,
         BroadcastOp,
     ],
