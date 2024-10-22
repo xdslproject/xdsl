@@ -113,6 +113,10 @@
   // CHECK-NEXT: %minf = arith.minnumf %lhsf32, %rhsf32 : f32
   // CHECK-NEXT: %minf_vector = arith.minnumf %lhsvec, %rhsvec : vector<4xf32>
 
+  %addi = arith.addi %lhsi32, %rhsi32 {"hello" = "world"} : i32
+
+  // CHECK-NEXT: %addi = arith.addi %lhsi32, %rhsi32 {"hello" = "world"} : i32
+
   %addf = arith.addf %lhsf32, %rhsf32 : f32
   %addf_vector = arith.addf %lhsvec, %rhsvec : vector<4xf32>
 
