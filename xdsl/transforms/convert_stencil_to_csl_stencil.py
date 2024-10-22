@@ -569,7 +569,6 @@ class ConvertStencilToCslStencilPass(ModulePass):
                 ]
             ),
             walk_reverse=False,
-            # apply_recursively=True,
         )
         module_pass.rewrite_module(op)
         ConvertVarithToArithPass().apply(ctx, op)
