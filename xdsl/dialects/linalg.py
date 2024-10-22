@@ -996,6 +996,16 @@ class PoolingNchwMaxOp(PoolingOpsBase):
 
     name = "linalg.pooling_nchw_max"
 
+@irdl_op_definition
+class PoolingNchwSumOp(PoolingOpsBase):
+    """
+    Performs sum pooling
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_sum-linalgpoolingnchwsumop
+    """
+
+    name = "linalg.pooling_nchw_sum"
+
 
 class ConvOpsBase(IRDLOperation, ABC):
     """Base class for linalg convolution operations."""
@@ -1170,6 +1180,7 @@ Linalg = Dialect(
         MatmulOp,
         QuantizedMatmulOp,
         PoolingNchwMaxOp,
+        PoolingNchwSumOp,
         Conv2DNchwFchwOp,
         BroadcastOp,
     ],
