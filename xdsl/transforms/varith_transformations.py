@@ -103,8 +103,6 @@ class VarithToArithPattern(RewritePattern):
 
         rewriter.replace_matched_op(arith_ops)
 
-        return
-
 
 # map (int|float)(add|mul) to an arith op type
 ARITH_TYPES: dict[
