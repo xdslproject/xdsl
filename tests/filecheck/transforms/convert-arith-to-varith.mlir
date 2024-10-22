@@ -87,7 +87,7 @@ func.func @test() {
 
     // CHECK-LABEL: @test
     // CHECK-NEXT:   %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (f32, f32, f32, f32, f32, f32)
-    // CHECK-NEXT:   %6 = arith.constant 1.234500e-01 : 8xf32
+    // CHECK-NEXT:   %6 = arith.constant 1.234500e-01 : f32
     // CHECK-NEXT:   %e = varith.add %5, %4, %3, %2, %1, %0 : f32
     // CHECK-NEXT:   %7 = arith.mulf %e, %6 : f32
     // CHECK-NEXT:   "test.op"(%7) : (f32) -> ()
