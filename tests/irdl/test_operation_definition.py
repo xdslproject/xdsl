@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseArrayBase,
     IndexType,
     IntAttr,
@@ -17,6 +19,7 @@ from xdsl.dialects.test import TestType
 from xdsl.ir import Attribute, Block, Region
 from xdsl.irdl import (
     AnyAttr,
+    AnyOf,
     AttributeDef,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
@@ -29,9 +32,12 @@ from xdsl.irdl import (
     OperandDef,
     PropertyDef,
     RangeOf,
+    RangeVarConstraint,
     RegionDef,
     ResultDef,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -46,6 +52,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.traits import NoTerminator
 from xdsl.utils.exceptions import (
     DiagnosticException,
@@ -157,15 +164,16 @@ def test_attr_verify():
         op.verify()
 
 
+# TODO: remove this test once the Annotated API is deprecated
 @irdl_op_definition
 class ConstraintVarOp(IRDLOperation):
     name = "test.constraint_var_op"
 
     T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand = operand_def(T)
-    result = result_def(T)
-    attribute = attr_def(T)
+    operand = operand_def(T)  # pyright: ignore[reportArgumentType]
+    result = result_def(T)  # pyright: ignore[reportArgumentType]
+    attribute = attr_def(T)  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
 
 def test_constraint_var():
@@ -193,7 +201,10 @@ def test_constraint_var_fail_non_equal():
     op = ConstraintVarOp.create(
         operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
         op.verify()
 
     # Fail because of result
@@ -202,7 +213,10 @@ def test_constraint_var_fail_non_equal():
         result_types=[IndexType()],
         attributes={"attribute": i32},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
         op2.verify()
 
     # Fail because of attribute
@@ -211,7 +225,10 @@ def test_constraint_var_fail_non_equal():
         result_types=[i32],
         attributes={"attribute": IndexType()},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: attribute i32 expected from variable 'T', but got index",
+    ):
         op3.verify()
 
 
@@ -223,7 +240,171 @@ def test_constraint_var_fail_not_satisfy_constraint():
         result_types=[TestType("foo")],
         attributes={"attribute": TestType("foo")},
     )
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: operand at position 0 does not verify",
+    ):
+        op.verify()
+
+
+@irdl_op_definition
+class GenericConstraintVarOp(IRDLOperation):
+    name = "test.constraint_var_op"
+
+    T: ClassVar = VarConstraint("T", base(IntegerType) | base(IndexType))
+
+    operand = operand_def(T)
+    result = result_def(T)
+    attribute = attr_def(T)
+
+
+def test_generic_constraint_var():
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+    op = GenericConstraintVarOp.create(
+        operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    op.verify()
+
+    op2 = GenericConstraintVarOp.create(
+        operands=[index_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": IndexType()},
+    )
+    op2.verify()
+
+
+def test_generic_constraint_var_fail_non_equal():
+    """Check that all uses of a constraint variable are of the same attribute."""
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+
+    # Fail because of operand
+    op = GenericConstraintVarOp.create(
+        operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
+        op.verify()
+
+    # Fail because of result
+    op2 = GenericConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": i32},
+    )
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: result at position 0 does not verify",
+    ):
+        op2.verify()
+
+    # Fail because of attribute
+    op3 = GenericConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[i32],
+        attributes={"attribute": IndexType()},
+    )
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: attribute i32 expected from variable 'T', but got index",
+    ):
+        op3.verify()
+
+
+def test_generic_constraint_var_fail_not_satisfy_constraint():
+    """Check that all uses of a constraint variable are satisfying the constraint."""
+    test_operand = TestSSAValue(TestType("foo"))
+    op = GenericConstraintVarOp.create(
+        operands=[test_operand],
+        result_types=[TestType("foo")],
+        attributes={"attribute": TestType("foo")},
+    )
+    with pytest.raises(
+        DiagnosticException,
+        match="Operation does not verify: operand at position 0 does not verify",
+    ):
+        op.verify()
+
+
+@irdl_op_definition
+class ConstraintRangeVarOp(IRDLOperation):
+    name = "test.constraint_range_var"
+
+    operand = var_operand_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
+    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
+
+
+def test_range_var():
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+    op = ConstraintRangeVarOp.create(operands=[], result_types=[])
+    op.verify()
+    op = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32])
+    op.verify()
+    op = ConstraintRangeVarOp.create(
+        operands=[i32_operand, i32_operand], result_types=[i32, i32]
+    )
+    op.verify()
+
+    op2 = ConstraintRangeVarOp.create(
+        operands=[index_operand], result_types=[IndexType()]
+    )
+    op2.verify()
+
+
+def test_range_var_fail_non_equal():
+    """Check that all uses of a range variable are of the same attribute."""
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+
+    op = ConstraintRangeVarOp.create(operands=[index_operand], result_types=[i32])
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('index',\) expected from range variable 'T', but got \('i32',\)",
+    ):
+        op.verify()
+
+    op2 = ConstraintRangeVarOp.create(
+        operands=[i32_operand], result_types=[IndexType()]
+    )
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('i32',\) expected from range variable 'T', but got \('index',\)",
+    ):
+        op2.verify()
+
+    op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32, i32])
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('i32',\) expected from range variable 'T', but got \('i32', 'i32'\)",
+    ):
+        op2.verify()
+
+    op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[])
+    with pytest.raises(
+        VerifyException,
+        match=r"attributes \('i32',\) expected from range variable 'T', but got \(\)",
+    ):
+        op2.verify()
+
+
+def test_range_var_fail_not_satisfy_constraint():
+    """Check that all uses of a range variable are satisfying the constraint."""
+    test_operand = TestSSAValue(TestType("foo"))
+    op = ConstraintRangeVarOp.create(
+        operands=[test_operand], result_types=[TestType("foo")]
+    )
+    with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
+        op.verify()
+
+    op = ConstraintRangeVarOp.create(
+        operands=[test_operand, test_operand],
+        result_types=[TestType("foo"), TestType("foo")],
+    )
+    with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
         op.verify()
 
 
@@ -673,3 +854,60 @@ def test_no_multiple_var_option():
         match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
+
+
+@irdl_op_definition
+class DefaultOp(IRDLOperation):
+    name = "test.default"
+
+    prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_attr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    assembly_format = "(`prop` $prop^)? (`opt_prop` $opt_prop^)? (`attr` $attr^)? (`opt_attr` $opt_attr^)? attr-dict"
+
+
+def test_default_accessors():
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(ctx, "test.default").parse_operation()
+
+    assert isinstance(parsed, DefaultOp)
+
+    assert parsed.prop.value.data == 0
+
+    assert parsed.properties.get("opt_prop") is None
+
+    assert parsed.opt_prop.value.data == 1
+
+    assert parsed.attr.value.data == 0
+
+    assert parsed.attributes.get("opt_attr") is None
+
+    assert parsed.opt_attr.value.data == 1
+
+
+def test_generic_accessors():
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(
+        ctx, '"test.default"() <{ "prop" = false }> {"attr" = false} : () -> ()'
+    ).parse_operation()
+
+    assert isinstance(parsed, DefaultOp)
+
+    assert parsed.prop.value.data == 0
+
+    assert parsed.properties.get("opt_prop") is None
+
+    assert parsed.opt_prop.value.data == 1
+
+    assert parsed.attr.value.data == 0
+
+    assert parsed.attributes.get("opt_attr") is None
+
+    assert parsed.opt_attr.value.data == 1

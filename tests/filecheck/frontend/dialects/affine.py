@@ -75,7 +75,7 @@ try:
         # CHECK: Expected integer constant for loop end, got 'float'.
         def test_not_supported_affine_loop_I():
             for _ in range(
-                12.0  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
+                12.0  # pyright: ignore[reportArgumentType]
             ):
                 pass
             return
@@ -90,7 +90,7 @@ try:
         # CHECK: Expected integer constant for loop start, got 'str'.
         def test_not_supported_affine_loop_II():
             for _ in range(
-                "boom",  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
+                "boom",  # pyright: ignore[reportArgumentType]
                 100,
             ):
                 pass
@@ -108,7 +108,7 @@ try:
             for _ in range(
                 0,
                 100,
-                1.0,  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
+                1.0,  # pyright: ignore[reportArgumentType]
             ):
                 pass
             return

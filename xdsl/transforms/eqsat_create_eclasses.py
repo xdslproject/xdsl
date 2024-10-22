@@ -10,36 +10,36 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.utils.exceptions import DiagnosticException
 
 
 def insert_eclass_ops(block: Block):
     # Insert eqsat.eclass for each operation
     for op in block.ops:
         results = op.results
-        if len(results) != 1:
+
+        # Skip special ops such as return ops
+        if isinstance(op, func.Return):
             continue
-            # TODO: ignore operations with no result for now
-            # raise DiagnosticException("Ops with non-single results not handled")
+
+        if len(results) != 1:
+            raise DiagnosticException("Ops with non-single results not handled")
 
         eclass_op = eqsat.EClassOp(results[0])
         insertion_point = InsertPoint.after(op)
         Rewriter.insert_op(eclass_op, insertion_point)
-        results[0].replace_by(eclass_op.results[0])
-        # Redirect eclassop operand back to the original value
-        # TODO: do we need a `replace_by_except` function, e.g.
-        # eclass_op.result.replace_by_except(eclass_op.results[0], [eclass_op.result])
-        eclass_op.operands[0] = results[0]
+        results[0].replace_by_if(
+            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+        )
 
     # Insert eqsat.eclass for each arg
     for arg in block.args:
         eclass_op = eqsat.EClassOp(arg)
         insertion_point = InsertPoint.at_start(block)
         Rewriter.insert_op(eclass_op, insertion_point)
-        arg.replace_by(eclass_op.results[0])
-        # Redirect eclassop operand back to the original value
-        # TODO: do we need a `replace_by_except` function, e.g.
-        # arg.replace_by_except(eclass_op.results[0], [arg])
-        eclass_op.operands[0] = arg
+        arg.replace_by_if(
+            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
+        )
 
 
 class InsertEclassOps(RewritePattern):
@@ -50,13 +50,6 @@ class InsertEclassOps(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
         insert_eclass_ops(op.body.block)
-
-    # ops, indices = insert_affine_map_ops(op.map, op.indices, [])
-    # rewriter.insert_op_before_matched_op(ops)
-
-    # # TODO: add nontemporal=false once that's added to memref
-    # # https://github.com/xdslproject/xdsl/issues/1482
-    # rewriter.replace_matched_op(memref.Store.get(op.value, op.memref, indices))
 
 
 class EqsatCreateEclasses(ModulePass):

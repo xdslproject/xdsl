@@ -24,20 +24,20 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.8.15",
-    "pre-commit==3.8.0",
-    "ruff==0.6.5",
+    "marimo==0.9.11",
+    "pre-commit==4.0.1",
+    "ruff==0.7.0",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.6.1",
     "pytest-asyncio==0.24.0",
-    "pyright==1.1.345",
+    "pyright==1.1.385",
 ]
-gui = ["textual==0.79.1", "pyclip==0.7"]
-jax = ["jax==0.4.33", "numpy==2.1.1"]
-onnx = ["onnx==1.16.2", "numpy==2.1.1"]
+gui = ["textual==0.83.0", "pyclip==0.7"]
+jax = ["jax==0.4.34", "numpy==2.1.2"]
+onnx = ["onnx==1.17.0", "numpy==2.1.2"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.18.0"]
+wgpu = ["wgpu==0.18.1"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -50,6 +50,7 @@ irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
 xdsl-run = "xdsl.tools.xdsl_run:main"
 xdsl-gui = "xdsl.interactive.app:main"
 xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
+xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]

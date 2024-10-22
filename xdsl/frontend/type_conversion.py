@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     TypeAlias,
-    _GenericAlias,  # pyright: ignore[reportPrivateUsage, reportGeneralTypeIssues, reportUnknownVariableType, reportAttributeAccessIssue]
+    _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
 )
 
 import xdsl.dialects.builtin as xdsl_builtin
