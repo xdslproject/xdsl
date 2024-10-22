@@ -113,6 +113,10 @@
   // CHECK-NEXT: %minf = arith.minnumf %lhsf32, %rhsf32 : f32
   // CHECK-NEXT: %minf_vector = arith.minnumf %lhsvec, %rhsvec : vector<4xf32>
 
+  %addi = arith.addi %lhsi32, %rhsi32 {"hello" = "world"} : i32
+
+  // CHECK-NEXT: %addi = arith.addi %lhsi32, %rhsi32 {"hello" = "world"} : i32
+
   %addf = arith.addf %lhsf32, %rhsf32 : f32
   %addf_vector = arith.addf %lhsvec, %rhsvec : vector<4xf32>
 
@@ -166,6 +170,10 @@
   %cmpf = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i64} : (f32, f32) -> i1
 
   // CHECK-NEXT: %cmpf = arith.cmpf ogt, %lhsf32, %rhsf32 : f32
+
+  %cmpf_fm = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i64, "fastmath" = #arith.fastmath<fast>} : (f32, f32) -> i1
+
+  // CHECK-NEXT: %cmpf_fm = arith.cmpf ogt, %lhsf32, %rhsf32 fastmath<fast> : f32
 
   %selecti = "arith.select"(%lhsi1, %lhsi32, %rhsi32) : (i1, i32, i32) -> i32
   %selectf = "arith.select"(%lhsi1, %lhsf32, %rhsf32) : (i1, f32, f32) -> f32

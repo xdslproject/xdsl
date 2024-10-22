@@ -624,13 +624,11 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T: ClassVar[VarConstraint[ZerosOpAttr]] = VarConstraint("T", ZerosOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
 
     size = opt_operand_def(T)
 
-    result = result_def(
-        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
-    )
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -659,7 +657,7 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T: ClassVar[VarConstraint[IntegerType | Float32Type | Float16Type]] = VarConstraint(
+    T: ClassVar = VarConstraint(
         "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
     )
 
@@ -667,9 +665,7 @@ class ConstantsOp(IRDLOperation):
 
     value = operand_def(T)
 
-    result = result_def(
-        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
-    )
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -1978,7 +1974,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T: ClassVar[VarConstraint[ParamOpAttr]] = VarConstraint("T", ParamOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ParamOpAttrConstr)
 
     name = "csl.param"
 

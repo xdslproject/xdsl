@@ -7,7 +7,7 @@
   %3 = "arith.constant"() {"value" = 3 : i32} : () -> i32
   %4 = "scf.parallel"(%0, %1, %2, %3) ({
     ^bb0(%i: index):
-      "scf.yield"() : () -> ()
+      "scf.reduce"() : () -> ()
   }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, i32) -> (i64)
 }) : () -> ()
 

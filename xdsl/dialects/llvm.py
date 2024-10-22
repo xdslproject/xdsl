@@ -27,6 +27,7 @@ from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
     Dialect,
+    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -356,7 +357,7 @@ class LinkageAttr(ParametrizedAttribute):
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -412,7 +413,7 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -1287,16 +1288,41 @@ class CallIntrinsicOp(IRDLOperation):
         )
 
 
+class TailCallKind(StrEnum):
+    NONE = "none"
+    TAIL = "tail"
+    MUST_TAIL = "musttail"
+    NOTAIL = "notail"
+
+
+@irdl_attr_definition
+class TailCallKindAttr(EnumAttribute[TailCallKind]):
+    name = "llvm.tailcallkind"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> TailCallKind:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string("<")
+        super().print_parameter(printer)
+        printer.print_string(">")
+
+
 @irdl_op_definition
 class CallOp(IRDLOperation):
     name = "llvm.call"
 
     args = var_operand_def()
 
-    callee = prop_def(SymbolRefAttr)
-    callee_type = opt_prop_def(LLVMFunctionType)
-    fastmathFlags = prop_def(FastMathAttr)
-    CConv = prop_def(CallingConventionAttr)
+    callee = opt_prop_def(SymbolRefAttr)
+    var_callee_type = opt_prop_def(LLVMFunctionType)
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
+    CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
+    TailCallKind = prop_def(
+        TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
+    )
     returned = opt_result_def()
 
     def __init__(
@@ -1316,12 +1342,12 @@ class CallOp(IRDLOperation):
         input_types = [
             SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
         ]
-        callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
+        var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
             operands=[args],
             properties={
                 "callee": callee,
-                "callee_type": callee_type,
+                "var_callee_type": var_callee_type,
                 "fastmathFlags": fastmath,
                 "CConv": calling_convention,
             },
@@ -1395,6 +1421,7 @@ LLVM = Dialect(
         LLVMFunctionType,
         LinkageAttr,
         CallingConventionAttr,
+        TailCallKindAttr,
         FastMathAttr,
         OverflowAttr,
     ],
