@@ -24,9 +24,6 @@ ARITH_TO_VARITH_TYPE_MAP: dict[
     arith.Mulf: varith.VarithMulOp,
 }
 
-# map the arith operation to the right varith op:
-VARITH_TYPES = [varith.VarithAddOp, varith.VarithMulOp]
-
 
 class ArithToVarithPattern(RewritePattern):
     """
