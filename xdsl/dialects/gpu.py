@@ -360,7 +360,7 @@ class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body = region_def("single_block")
-    sym_name = attr_def(StringAttr)
+    sym_name = prop_def(StringAttr)
 
     traits = frozenset(
         [
@@ -372,7 +372,7 @@ class ModuleOp(IRDLOperation):
     )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
-        super().__init__(attributes={"sym_name": name}, regions=[ops])
+        super().__init__(properties={"sym_name": name}, regions=[ops])
 
 
 @irdl_op_definition
@@ -504,6 +504,9 @@ class LaunchOp(IRDLOperation):
     blockSizeX = operand_def(IndexType)
     blockSizeY = operand_def(IndexType)
     blockSizeZ = operand_def(IndexType)
+    clusterSizeX = opt_operand_def(IndexType)
+    clusterSizeY = opt_operand_def(IndexType)
+    clusterSizeZ = opt_operand_def(IndexType)
     dynamicSharedMemorySize = opt_operand_def(i32)
     asyncToken = opt_result_def(AsyncTokenType)
     body = region_def()
@@ -514,6 +517,7 @@ class LaunchOp(IRDLOperation):
         body: Region,
         gridSize: Sequence[SSAValue | Operation],
         blockSize: Sequence[SSAValue | Operation],
+        clusterSize: Sequence[SSAValue | Operation] = [],
         async_launch: bool = False,
         asyncDependencies: Sequence[SSAValue | Operation] | None = None,
         dynamicSharedMemorySize: SSAValue | Operation | None = None,
@@ -522,6 +526,10 @@ class LaunchOp(IRDLOperation):
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+        if len(clusterSize) != 3 and len(clusterSize) != 0:
+            raise ValueError(
+                f"LaunchOp must have 0 or 3 clusterSizes, got {len(clusterSize)}"
+            )
         operands = [
             (
                 []
@@ -532,6 +540,10 @@ class LaunchOp(IRDLOperation):
 
         operands += [SSAValue.get(gs) for gs in gridSize]
         operands += [SSAValue.get(bs) for bs in blockSize]
+        if clusterSize:
+            operands += [(SSAValue.get(cs),) for cs in clusterSize]
+        else:
+            operands += [(), (), ()]
         operands += [
             (
                 []
