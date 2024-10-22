@@ -356,7 +356,7 @@ class LinkageAttr(ParametrizedAttribute):
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -412,7 +412,7 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)

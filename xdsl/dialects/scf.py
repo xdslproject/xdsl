@@ -6,7 +6,6 @@ from typing import ClassVar
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
-    AnySignlessIntegerOrIndexType,
     DenseArrayBase,
     IndexType,
     IntegerType,
@@ -286,9 +285,7 @@ class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class For(IRDLOperation):
     name = "scf.for"
 
-    T: ClassVar[VarConstraint[AnySignlessIntegerOrIndexType]] = VarConstraint(
-        "T", base(IndexType) | SignlessIntegerConstraint
-    )
+    T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
 
     lb = operand_def(T)
     ub = operand_def(T)

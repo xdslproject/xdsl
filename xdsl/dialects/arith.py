@@ -175,7 +175,7 @@ _T = TypeVar("_T", bound=Attribute)
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -200,7 +200,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on floats."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", floatingPointLike)
+    T: ClassVar = VarConstraint("T", floatingPointLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -274,7 +274,7 @@ class AddUIExtended(IRDLOperation):
 
     traits = frozenset([Pure()])
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -337,7 +337,7 @@ class Muli(SignlessIntegerBinaryOperation):
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
