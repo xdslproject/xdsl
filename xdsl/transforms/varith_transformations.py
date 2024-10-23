@@ -24,47 +24,35 @@ ARITH_TO_VARITH_TYPE_MAP: dict[
     arith.Mulf: varith.VarithMulOp,
 }
 
-# map the arith operation to the right varith op:
-VARITH_TYPES = [varith.VarithAddOp, varith.VarithMulOp]
-
 
 class ArithToVarithPattern(RewritePattern):
     """
     Merges two arith operations into a varith operation.
     """
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        # check that the op is of a type that we can convert to varith
-        if type(op) not in ARITH_TO_VARITH_TYPE_MAP:
-            return
-
-        # this must be true, as all keys of ARITH_TO_VARITH_TYPE_MAP are binary ops
-        op = cast(
-            arith.SignlessIntegerBinaryOperation
-            | arith.FloatingPointLikeBinaryOperation,
-            op,
-        )
-
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self,
+        op: arith.Addi | arith.Addf | arith.Muli | arith.Mulf,
+        rewriter: PatternRewriter,
+        /,
+    ):
         dest_type = ARITH_TO_VARITH_TYPE_MAP[type(op)]
 
-        # check LHS and the RHS to see if they can be folded
-        # but abort after one is merged
-        for other in (op.rhs.owner, op.lhs.owner):
-            # if me and the other op are the same op
-            # (they must necessarily operate on the same data type)
-            if type(op) is type(other):
-                other_op = cast(
-                    arith.SignlessIntegerBinaryOperation
-                    | arith.FloatingPointLikeBinaryOperation,
-                    other,
-                )
-                # instantiate a varith op with three operands
-                rewriter.replace_matched_op(
-                    dest_type(op.rhs, other_op.lhs, other_op.rhs)
-                )
-                if len(other_op.result.uses) == 0:
-                    rewriter.erase_op(other_op)
-                return
+        if len(op.result.uses) != 1:
+            return
+        if type(use_op := list(op.result.uses)[0].operation) not in (
+            type(op),
+            dest_type,
+        ):
+            return
+
+        other_operands = [o for o in use_op.operands if o != op.result]
+        rewriter.replace_op(
+            use_op,
+            dest_type(op.lhs, op.rhs, *other_operands),
+        )
+        rewriter.erase_matched_op()
 
 
 class VarithToArithPattern(RewritePattern):
@@ -209,6 +197,7 @@ class ConvertArithToVarithPass(ModulePass):
                     MergeVarithOpsPattern(),
                 ]
             ),
+            walk_reverse=True,
         ).rewrite_op(op)
 
 
