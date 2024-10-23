@@ -34,13 +34,24 @@ class ExtractCslModules(RewritePattern):
         layout_module = self.lower_layout_module(op, rewriter)
         rewriter.replace_matched_op([layout_module, program_module])
 
-    def _collect_params(self, op: csl_wrapper.ModuleOp) -> list[SSAValue]:
+    def _collect_params(
+        self, op: csl_wrapper.ModuleOp
+    ) -> tuple[SSAValue, SSAValue, list[SSAValue]]:
         """
         Creates a list of `csl.param`s which should replace the block arguments in the
         layout and program regions of the wrapper.
 
         To be called in an `ImplicitBuilder`
+
+        Returns width, height, and a list of other params as SSAValues.
+        Params can alternatively be lowered to constants via the `params_as_consts` flag.
         """
+        width = arith.Constant(op.width).result
+        height = arith.Constant(op.height).result
+        if not self.params_as_consts:
+            width = csl.ParamOp("width", op.width.type, width).res
+            height = csl.ParamOp("height", op.height.type, height).res
+
         params = list[SSAValue]()
         for param in op.params:
             if isattr(param.value, builtin.AnyIntegerAttrConstr):
@@ -52,14 +63,14 @@ class ExtractCslModules(RewritePattern):
             else:
                 p = csl.ParamOp(param.key.data, param.type, value)
                 params.append(p.res)
-        return params
+        return width, height, params
 
     def add_tile_code(
         self,
         x: SSAValue,
         y: SSAValue,
-        width: csl.ParamOp,
-        height: csl.ParamOp,
+        width: SSAValue,
+        height: SSAValue,
         yield_op: csl_wrapper.YieldOp,
         prog_name: str,
     ) -> tuple[csl.ConstStructOp, csl.SetTileCodeOp]:
@@ -119,13 +130,7 @@ class ExtractCslModules(RewritePattern):
             const_0 = arith.Constant.from_int_and_width(0, builtin.IntegerType(16))
             const_1 = arith.Constant.from_int_and_width(1, builtin.IntegerType(16))
 
-            const_width = arith.Constant(op.width)
-            param_width = csl.ParamOp("width", op.width.type, const_width)
-
-            const_height = arith.Constant(op.height)
-            param_height = csl.ParamOp("height", op.height.type, const_height)
-
-            params_from_block_args = self._collect_params(op)
+            param_width, param_height, params_from_block_args = self._collect_params(op)
 
             layout = csl.LayoutOp(Region())
             with ImplicitBuilder(layout.body.block):
@@ -153,8 +158,8 @@ class ExtractCslModules(RewritePattern):
             arg_values=[
                 SSAValue.get(x),
                 SSAValue.get(y),
-                param_width.res,
-                param_height.res,
+                param_width,
+                param_height,
                 *params_from_block_args,
             ],
         )
@@ -204,10 +209,7 @@ class ExtractCslModules(RewritePattern):
         prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
         module_block = Block()
         with ImplicitBuilder(module_block):
-            param_width = csl.ParamOp("width", op.width.type)
-            param_height = csl.ParamOp("height", op.height.type)
-
-            params_from_block_args = self._collect_params(op)
+            param_width, param_height, params_from_block_args = self._collect_params(op)
 
         assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
         yield_args = self._collect_yield_args(yield_op)
@@ -219,8 +221,8 @@ class ExtractCslModules(RewritePattern):
             op.program_module.block,
             InsertPoint.at_end(module_block),
             arg_values=[
-                param_width.res,
-                param_height.res,
+                param_width,
+                param_height,
                 *params_from_block_args,
                 *(y.res for y in yield_args),
             ],
@@ -321,6 +323,9 @@ class LowerCslWrapperPass(ModulePass):
     name = "lower-csl-wrapper"
 
     params_as_consts: bool = False
+    """
+    Set to lower numerical params that have a default value to constants.
+    """
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
