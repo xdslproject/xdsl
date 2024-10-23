@@ -324,7 +324,10 @@ class LowerCslWrapperPass(ModulePass):
 
     params_as_consts: bool = False
     """
-    Set to lower numerical params that have a default value to constants.
+    Set to lower numerical module wrapper params that have a default value to constants,
+    instead of lowering to csl params. Set flag to disallow command line overrides.
+    Module wrapper params without a default value will always be lowered to csl params
+    (hint: consider removing default values in cases where this is desired).
     """
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
