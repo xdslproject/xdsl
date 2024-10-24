@@ -374,12 +374,9 @@ class MemrefToDsdPass(ModulePass):
                     DsdOpUpdateType(),
                     RetainAddressOfOpPass(),
                     FixMemrefLoadOnGetDsd(),
+                    FixGetDsdOnGetDsd(),
                 ]
             ),
             apply_recursively=False,
         )
         forward_pass.rewrite_module(op)
-        cleanup_pass = PatternRewriteWalker(
-            FixGetDsdOnGetDsd(),
-        )
-        cleanup_pass.rewrite_module(op)
