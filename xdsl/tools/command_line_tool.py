@@ -86,6 +86,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
 
+    def get_jax_use_donated_arguments():
+        from xdsl.transforms import jax_use_donated_arguments
+
+        return jax_use_donated_arguments.JaxUseDonatedArguments
+
     def get_convert_riscv_scf_to_riscv_cf():
         from xdsl.backend.riscv.lowering import convert_riscv_scf_to_riscv_cf
 
@@ -466,6 +471,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
+        "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-materialize-stores": get_csl_stencil_materialize_stores,
