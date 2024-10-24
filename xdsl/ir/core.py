@@ -1234,6 +1234,7 @@ class Operation(IRNode):
 
         diagnostic = Diagnostic()
         diagnostic.add_message(self, message)
+        print("OPERATION ERROR: ", self)
         diagnostic.raise_exception(message, self, exception_type, underlying_error)
 
     @classmethod

@@ -429,6 +429,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import stencil_shape_minimize
 
         return stencil_shape_minimize.StencilShapeMinimize
+    
+    def get_hida_create_dataflow_from_linalg():
+        from xdsl.transforms.experimental.hida import create_dataflow_from_linalg
+
+        return create_dataflow_from_linalg.CreateDataflowFromLinalg
 
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -513,6 +518,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-shape-minimize": get_stencil_shape_minimize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "hida-create-dataflow-from-linalg" : get_hida_create_dataflow_from_linalg,
     }
 
 
