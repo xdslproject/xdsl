@@ -67,13 +67,11 @@ def get_stencil_access_operands(op: Operand) -> set[Operand]:
     return res
 
 
-def _get_prefetch_buf(op: stencil.ApplyOp) -> int | None:
+def _get_prefetch_buf_idx(op: stencil.ApplyOp) -> int | None:
     # calculate memory cost of all prefetch operands
     def get_prefetch_overhead(o: OpResult):
         assert isa(o.type, TensorType[Attribute])
-        buf_count = o.type.get_shape()[0]
-        buf_size = prod(o.type.get_shape()[1:])
-        return buf_count * buf_size
+        return prod(o.type.get_shape())
 
     candidate_prefetches = [
         (get_prefetch_overhead(o), o)
@@ -258,7 +256,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             nested_rewriter.rewrite_op(new_apply_op)
 
 
-def get_op_split(
+def split_ops(
     ops: Sequence[Operation], buf: BlockArgument
 ) -> tuple[Sequence[Operation], Sequence[Operation]]:
     """
@@ -313,14 +311,19 @@ def get_op_split(
                         a.append(use.operation)
                         rem.remove(use.operation)
 
+    # find constants in `a` needed outside of `a`
     cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.Constant)]
+
+    # `a` exports one value plus any number of constants - duplicate exported constants and return op split
     if len(a_exports) == 1 + len(cnst_exports):
         recv_chunk_ops, done_exch_ops = list[Operation](), list[Operation]()
         for op in ops:
             if op in a:
                 recv_chunk_ops.append(op)
                 if op in cnst_exports:
+                    # create a copy of the constant in the second region
                     done_exch_ops.append(cln := op.clone())
+                    # rewire ops of the second region to use the copied constant
                     op.result.replace_by_if(
                         cln.result,
                         lambda use: use.operation in b or use.operation in rem,
@@ -349,7 +352,7 @@ class SplitVarithOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
         if not (apply := _get_apply_op(op)) or not (
-            buf_idx := _get_prefetch_buf(apply)
+            buf_idx := _get_prefetch_buf_idx(apply)
         ):
             return
         buf = apply.region.block.args[buf_idx]
@@ -388,7 +391,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
-        if not (prefetch_idx := _get_prefetch_buf(op)):
+        if not (prefetch_idx := _get_prefetch_buf_idx(op)):
             return
 
         # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
@@ -416,7 +419,7 @@ class ConvertApplyOpPattern(RewritePattern):
         ).rewrite_op(op)
 
         # determine how ops should be split across the two regions
-        chunk_region_ops, done_exchange_ops = get_op_split(
+        chunk_region_ops, done_exchange_ops = split_ops(
             list(op.region.block.ops), op.region.block.args[prefetch_idx]
         )
 
