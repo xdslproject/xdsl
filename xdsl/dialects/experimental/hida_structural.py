@@ -1,6 +1,7 @@
-from xdsl.irdl import irdl_op_definition, IRDLOperation, region_def
-from xdsl.ir import Region, Dialect
+from xdsl.irdl import irdl_op_definition, IRDLOperation, region_def, result_def
+from xdsl.ir import Region, Dialect, Attribute
 from xdsl.traits import IsolatedFromAbove
+from xdsl.dialects import memref
 
 @irdl_op_definition
 class Node(IRDLOperation):
@@ -25,11 +26,14 @@ class Schedule(IRDLOperation):
         super().__init__(regions=[region])
 
 @irdl_op_definition
-class Buffer(IRDLOperation):
+class BufferOp(IRDLOperation):
     name = "hida_struct.buffer"
 
-    def _init_(self):
-        super().__init__()
+    res = result_def()
+
+    def _init_(self, buf_type : memref.MemRefType[Attribute]):
+        super().__init__(result_types=[buf_type])
+
 
 @irdl_op_definition
 class Stream(IRDLOperation):
@@ -43,7 +47,7 @@ HIDA_struct = Dialect(
     [
         Node,
         Schedule,
-        Buffer,
+        BufferOp,
         Stream
     ],
     [],

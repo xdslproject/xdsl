@@ -15,11 +15,14 @@ class DispatchOp(IRDLOperation):
     name = "hida_func.dispatch"
 
     region: Region = region_def()
+    _results: VarOpResult = var_result_def()
 
     def __init__(self, block : Block):
         block.add_op(YieldOp())
         region = Region(block)
-        super().__init__(regions=[region])
+        super().__init__(regions=[region], result_types=[])
+
+    assembly_format = "attr-dict-with-keyword ( `:` type($_results)^ )? $region"
 
 
 @irdl_op_definition
@@ -27,7 +30,7 @@ class TaskOp(IRDLOperation):
     name = "hida_func.task"
 
     region: Region = region_def()
-    res: VarOpResult = var_result_def()
+    _results: VarOpResult = var_result_def()
 
     traits = frozenset([SingleBlockImplicitTerminator(YieldOp), HasParent(DispatchOp)])
 
@@ -35,11 +38,14 @@ class TaskOp(IRDLOperation):
         region = Region(Block(ops))
         super().__init__(regions=[region], result_types=[res_types])
 
+    assembly_format = "attr-dict-with-keyword ( `:` type($_results)^ )? $region"
+
 HIDA_func = Dialect(
     "hida_func",
     [
         TaskOp,
         DispatchOp,
+        YieldOp
     ],
     [],
 )
