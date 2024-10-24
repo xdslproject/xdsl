@@ -53,14 +53,14 @@ class ParamAttribute(ParametrizedAttribute):
     name = "csl_wrapper.param"
 
     key: ParameterDef[StringAttr]
-    value: ParameterDef[IntegerAttr[IntegerType] | NoneAttr]
+    value: ParameterDef[IntegerAttr[IntegerType]]
     type: ParameterDef[IntegerType]
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string_literal(self.key.data)
             if not isinstance(self.value, NoneAttr):
-                printer.print(" default=")
+                printer.print(" value=")
                 printer.print_attribute(self.value)
             else:
                 printer.print(" : ")
@@ -70,7 +70,7 @@ class ParamAttribute(ParametrizedAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             key = StringAttr(parser.parse_str_literal())
-            if parser.parse_optional_keyword("default"):
+            if parser.parse_optional_keyword("value"):
                 parser.parse_punctuation("=")
                 val = parser.parse_attribute()
                 assert isa(val, AnyIntegerAttr)
@@ -328,13 +328,10 @@ class ModuleOp(IRDLOperation):
             return self.width
         elif name == "height":
             return self.height
-        res = NoneAttr()
         for param in self.params.data:
             if name == param.key.data:
-                res = param.value
-        if isinstance(res, NoneAttr):
-            raise ValueError(f"Parameter name is unknown or has no value: {name}")
-        return res
+                return param.value
+        raise ValueError(f"Parameter name is unknown: {name}")
 
     @property
     def layout_yield_op(self) -> YieldOp:
