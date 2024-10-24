@@ -213,6 +213,7 @@
   %const_array = memref.get_global @const_array : memref<10xi32>
 
   %literal_array = arith.constant dense<[1.200000e+00, 2.300000e+00, 3.400000e+00]> : memref<3xf32>
+  %literal_array_w_zeros = arith.constant dense<[1.200000e+00, 0, 3.400000e+00, 0]> : memref<4xf32>
 
   %uninit_ptr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
   %global_ptr = "csl.addressof"(%global_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
@@ -675,6 +676,7 @@ csl.func @builtins() {
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
 // CHECK-NEXT: const literal_array : [3]f32 = [3]f32 { 1.2, 2.3, 3.4 };
+// CHECK-NEXT: const literal_array_w_zeros : [4]f32 = [4]f32 { 1.2, 0.0, 3.4, 0.0 };
 // CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
 // CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
