@@ -11,16 +11,21 @@ Up to date as of CIRCT commit `2e23cda6c2cbedb118b92fab755f1e36d80b13f5`.
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import Annotated
+from typing import ClassVar
 
-from xdsl.dialects.builtin import I32, I64, IntegerAttr, IntegerType, UnitAttr, i32
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    IntegerAttr,
+    IntegerType,
+    UnitAttr,
+)
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
-    ConstraintVar,
     IRDLOperation,
-    Operand,
-    VarOperand,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -51,17 +56,17 @@ class BinCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    lhs: Operand = operand_def(T)
-    rhs: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
     """
     "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
     used for operations which have extended truth table for non-2-state logic for various target
     languages. The two_state variable describes if we are using 2-state (binary) logic or not."
     """
-    two_state: UnitAttr | None = opt_attr_def(UnitAttr)
+    two_state = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -98,16 +103,16 @@ class VariadicCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    inputs: VarOperand = var_operand_def(T)
-    result: OpResult = result_def(T)
+    inputs = var_operand_def(T)
+    result = result_def(T)
     """
     "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
     used for operations which have extended truth table for non-2-state logic for various target
     languages. The two_state variable describes if we are using 2-state (binary) logic or not."
     """
-    two_state: UnitAttr | None = opt_attr_def(UnitAttr)
+    two_state = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -255,14 +260,14 @@ class ICmpOp(IRDLOperation, ABC):
 
     name = "comb.icmp"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    predicate: IntegerAttr[IntegerType] = attr_def(IntegerAttr[I64])
-    lhs: Operand = operand_def(T)
-    rhs: Operand = operand_def(T)
-    result: OpResult = result_def(IntegerType(1))
+    predicate = attr_def(IntegerAttr[I64])
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(IntegerType(1))
 
-    two_state: UnitAttr | None = opt_attr_def(UnitAttr, attr_name="twoState")
+    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
     @staticmethod
     def _get_comparison_predicate(
@@ -344,10 +349,10 @@ class ParityOp(IRDLOperation):
 
     name = "comb.parity"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType(1))
+    input = operand_def(IntegerType)
+    result = result_def(IntegerType(1))
 
-    two_state: UnitAttr | None = opt_attr_def(UnitAttr, attr_name="twoState")
+    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
     def __init__(
         self, operand: Operation | SSAValue, two_state: UnitAttr | None = None
@@ -393,11 +398,9 @@ class ExtractOp(IRDLOperation):
 
     name = "comb.extract"
 
-    input: Operand = operand_def(IntegerType)
-    low_bit: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
-        IntegerAttr[I32], attr_name="lowBit"
-    )
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(IntegerType)
+    low_bit = attr_def(IntegerAttr[I32], attr_name="lowBit")
+    result = result_def(IntegerType)
 
     def __init__(
         self,
@@ -472,8 +475,8 @@ class ConcatOp(IRDLOperation):
 
     name = "comb.concat"
 
-    inputs: VarOperand = var_operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    inputs = var_operand_def(IntegerType)
+    result = result_def(IntegerType)
 
     def __init__(self, ops: Sequence[SSAValue | Operation], target_type: IntegerType):
         return super().__init__(operands=[ops], result_types=[target_type])
@@ -530,8 +533,8 @@ class ReplicateOp(IRDLOperation):
 
     name = "comb.replicate"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(IntegerType)
+    result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -559,12 +562,12 @@ class MuxOp(IRDLOperation):
 
     name = "comb.mux"
 
-    T = Annotated[TypeAttribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(TypeAttribute))
 
-    cond: Operand = operand_def(IntegerType(1))
-    true_value: Operand = operand_def(T)
-    false_value: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    cond = operand_def(IntegerType(1))
+    true_value = operand_def(T)
+    false_value = operand_def(T)
+    result = result_def(T)
 
     def __init__(
         self,

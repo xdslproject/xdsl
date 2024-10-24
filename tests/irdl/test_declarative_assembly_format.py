@@ -3,12 +3,12 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, Generic, TypeVar
+from typing import ClassVar, Generic, TypeVar
 
 import pytest
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import I32, IntegerAttr, ModuleOp, UnitAttr
+from xdsl.dialects.builtin import I32, BoolAttr, IntegerAttr, ModuleOp, UnitAttr
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -20,12 +20,16 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AttrSizedOperandSegments,
+    AttrSizedRegionSegments,
     AttrSizedResultSegments,
-    ConstraintVar,
+    BaseAttr,
     EqAttrConstraint,
+    GenericAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     ParsePropInAttrDict,
+    VarConstraint,
     VarOperand,
     VarOpResult,
     attr_def,
@@ -35,11 +39,17 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     opt_prop_def,
+    opt_region_def,
     opt_result_def,
+    opt_successor_def,
     prop_def,
+    region_def,
     result_def,
+    successor_def,
     var_operand_def,
+    var_region_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -118,7 +128,7 @@ def test_format_and_parse_op():
     ):
 
         @irdl_op_definition
-        class FormatAndParseOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        class FormatAndParseOp(IRDLOperation):
             name = "test.format_and_parse"
 
             assembly_format = "attr-dict"
@@ -858,29 +868,41 @@ def test_optional_operand(format: str, program: str, generic_program: str):
 
 
 @pytest.mark.parametrize(
-    "program, generic_program",
+    "program, generic_program, as_property",
     [
         (
             '%0 = "test.op"() : () -> i32\n'
             "test.variadic_operands(%0 : i32) [%0 : i32]",
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+            False,
+        ),
+        (
+            '%0 = "test.op"() : () -> i32\n'
+            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operands"(%0, %0) <{operandSegmentSizes = array<i32:1,1>}> : (i32,i32) -> ()',
+            True,
         ),
         (
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             "test.variadic_operands(%0, %1 : i32, i64) [%1, %0 : i64, i32]",
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             '"test.variadic_operands"(%0, %1, %1, %0) {operandSegmentSizes = array<i32:2,2>} : (i32, i64, i64, i32) -> ()',
+            False,
         ),
         (
             '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
             "test.variadic_operands(%0, %1, %2 : i32, i64, i128) [%2, %1, %0 : i128, i64, i32]",
             '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
             '"test.variadic_operands"(%0, %1, %2, %2, %1, %0) {operandSegmentSizes = array<i32:3,3>} : (i32, i64, i128, i128, i64, i32) -> ()',
+            False,
         ),
     ],
 )
-def test_multiple_variadic_operands(program: str, generic_program: str):
+def test_multiple_variadic_operands(
+    program: str, generic_program: str, as_property: bool
+):
     """Test the parsing of variadic operands"""
 
     @irdl_op_definition
@@ -889,7 +911,7 @@ def test_multiple_variadic_operands(program: str, generic_program: str):
         args1 = var_operand_def()
         args2 = var_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments()]
+        irdl_options = [AttrSizedOperandSegments(as_property=as_property)]
 
         assembly_format = (
             "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
@@ -1120,10 +1142,428 @@ def test_optional_result(format: str, program: str, generic_program: str):
 
 
 ################################################################################
+# Regions                                                                     #
+################################################################################
+
+
+def test_missing_region():
+    """Test that regions should be parsed."""
+    with pytest.raises(PyRDLOpDefinitionError, match="region 'region' not found"):
+
+        @irdl_op_definition
+        class NoRegionOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.no_region_op"
+            region = region_def()
+
+            assembly_format = "attr-dict-with-keyword"
+
+
+def test_attr_dict_directly_before_region_variable():
+    """Test that regions require an 'attr-dict' directive."""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="An `attr-dict' directive without keyword cannot be directly followed by a region variable",
+    ):
+
+        @irdl_op_definition
+        class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.region_op_missing_keyword"
+            region = region_def()
+
+            assembly_format = "attr-dict $region"
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "$region attr-dict",
+            'test.region_attr_dict {\n} {"a" = 2 : i32}',
+            '"test.region_attr_dict"() ({}) {"a" = 2 : i32} : () -> ()',
+        ),
+        (
+            "attr-dict `,` $region",
+            'test.region_attr_dict {"a" = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
+            '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {"a" = 2 : i32} : () -> ()',
+        ),
+    ],
+)
+def test_regions_with_attr_dict(format: str, program: str, generic_program: str):
+    """Test the parsing of regions"""
+
+    @irdl_op_definition
+    class RegionsOp(IRDLOperation):
+        name = "test.region_attr_dict"
+        region = region_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(RegionsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "attr-dict-with-keyword $fst $snd",
+            "test.two_regions {\n} {\n}",
+            '"test.two_regions"() ({}, {}) : () -> ()',
+        ),
+        (
+            "attr-dict-with-keyword $fst $snd",
+            'test.two_regions {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
+        ),
+        (
+            "attr-dict-with-keyword $fst $snd",
+            'test.two_regions attributes {"a" = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {"a" = 2 : i32} : () -> ()',
+        ),
+    ],
+)
+def test_regions(format: str, program: str, generic_program: str):
+    """Test the parsing of regions"""
+
+    @irdl_op_definition
+    class TwoRegionsOp(IRDLOperation):
+        name = "test.two_regions"
+        fst = region_def()
+        snd = region_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(TwoRegionsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "attr-dict-with-keyword $region",
+            "test.variadic_region ",
+            '"test.variadic_region"() : () -> ()',
+        ),
+        (
+            "attr-dict-with-keyword $region",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n}',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}) : () -> ()',
+        ),
+        (
+            "attr-dict-with-keyword $region",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) : () -> ()',
+        ),
+        (
+            "attr-dict-with-keyword $region",
+            'test.variadic_region {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.variadic_region"() ({ "test.op"() : () -> ()}, {"test.op"() : () -> ()}, {\n  "test.op"() : () -> ()\n}) : () -> ()',
+        ),
+    ],
+)
+def test_variadic_region(format: str, program: str, generic_program: str):
+    """Test the parsing of variadic regions"""
+
+    @irdl_op_definition
+    class VariadicRegionOp(IRDLOperation):
+        name = "test.variadic_region"
+        region = var_region_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(VariadicRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "attr-dict-with-keyword $region",
+            "test.optional_region ",
+            '"test.optional_region"() : () -> ()',
+        ),
+        (
+            "attr-dict-with-keyword $region",
+            'test.optional_region {\n  "test.op"() : () -> ()\n}',
+            '"test.optional_region"() ({ "test.op"() : () -> ()}) : () -> ()',
+        ),
+    ],
+)
+def test_optional_region(format: str, program: str, generic_program: str):
+    """Test the parsing of optional regions"""
+
+    @irdl_op_definition
+    class OptionalRegionOp(IRDLOperation):
+        name = "test.optional_region"
+        region = opt_region_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(OptionalRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+def test_multiple_optional_regions():
+    """Test that a variadic region variable cannot directly follow another variadic region variable."""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic region variable cannot be followed by another variadic region variable.",
+    ):
+
+        @irdl_op_definition
+        class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.optional_regions"
+            irdl_options = [AttrSizedRegionSegments()]
+            region1 = opt_region_def()
+            region2 = opt_region_def()
+
+            assembly_format = "attr-dict-with-keyword $region1 $region2"
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "($opt_region^ `keyword`)? attr-dict",
+            "test.optional_region_group",
+            '"test.optional_region_group"() : () -> ()',
+        ),
+        (
+            "($opt_region^ `keyword`)? attr-dict",
+            'test.optional_region_group {\n  "test.op"() : () -> ()\n} keyword',
+            '"test.optional_region_group"() ({"test.op"() : () -> ()}) : () -> ()',
+        ),
+        (
+            "(`keyword` $opt_region^)? attr-dict",
+            "test.optional_region_group",
+            '"test.optional_region_group"() : () -> ()',
+        ),
+        (
+            "(`keyword` $opt_region^)? attr-dict",
+            'test.optional_region_group keyword {\n  "test.op"() : () -> ()\n}',
+            '"test.optional_region_group"() ({ "test.op"() : () -> ()}) : () -> ()',
+        ),
+    ],
+)
+def test_optional_groups_regions(format: str, program: str, generic_program: str):
+    """Test the parsing of optional regions in an optional group"""
+
+    @irdl_op_definition
+    class OptionalRegionOp(IRDLOperation):
+        name = "test.optional_region_group"
+        irdl_options = [AttrSizedRegionSegments]
+        opt_region = opt_region_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(OptionalRegionOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
+# Successors                                                                   #
+################################################################################
+
+
+def test_missing_successor():
+    """Test that successors should be parsed."""
+    with pytest.raises(PyRDLOpDefinitionError, match="successor 'successor' not found"):
+
+        @irdl_op_definition
+        class NoSuccessorOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.no_successor_op"
+            successor = successor_def()
+
+            assembly_format = "attr-dict-with-keyword"
+
+
+def test_successors():
+    """Test the parsing of successors"""
+
+    program = textwrap.dedent(
+        """\
+        "test.op"() ({
+          "test.op"() [^0] : () -> ()
+        ^0:
+          test.two_successors ^0 ^0
+        }) : () -> ()"""
+    )
+
+    generic_program = textwrap.dedent(
+        """\
+        "test.op"() ({
+          "test.op"() [^0] : () -> ()
+        ^0:
+          "test.two_successors"() [^0, ^0] : () -> ()
+        }) : () -> ()"""
+    )
+
+    @irdl_op_definition
+    class TwoSuccessorsOp(IRDLOperation):
+        name = "test.two_successors"
+        fst = successor_def()
+        snd = successor_def()
+
+        assembly_format = "$fst $snd attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(TwoSuccessorsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.var_successor \n}) : () -> ()',
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.var_successor"() : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+        (
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  test.var_successor ^0
+                }) : () -> ()"""
+            ),
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.var_successor"() [^0] : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+        (
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  test.var_successor ^0 ^0
+                }) : () -> ()"""
+            ),
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.var_successor"() [^0, ^0] : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+    ],
+)
+def test_variadic_successor(program: str, generic_program: str):
+    """Test the parsing of successors"""
+
+    @irdl_op_definition
+    class VarSuccessorOp(IRDLOperation):
+        name = "test.var_successor"
+        succ = var_successor_def()
+
+        assembly_format = "$succ attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(VarSuccessorOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.opt_successor \n}) : () -> ()',
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.opt_successor"() : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+        (
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  test.opt_successor ^0
+                }) : () -> ()"""
+            ),
+            textwrap.dedent(
+                """\
+                "test.op"() ({
+                  "test.op"() [^0] : () -> ()
+                ^0:
+                  "test.opt_successor"() [^0] : () -> ()
+                }) : () -> ()"""
+            ),
+        ),
+    ],
+)
+def test_optional_successor(program: str, generic_program: str):
+    """Test the parsing of successors"""
+
+    @irdl_op_definition
+    class OptSuccessorOp(IRDLOperation):
+        name = "test.opt_successor"
+        succ = opt_successor_def()
+
+        assembly_format = "$succ attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptSuccessorOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
 # Inference                                                                   #
 ################################################################################
 
-_T = TypeVar("_T", bound=Attribute)
+_T = TypeVar("_T", bound=Attribute, covariant=True)
+_ConstrT = TypeVar("_ConstrT", bound=Attribute, covariant=True)
 
 
 @pytest.mark.parametrize(
@@ -1139,7 +1579,7 @@ def test_basic_inference(format: str):
 
     @irdl_op_definition
     class TwoOperandsOneResultWithVarOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
@@ -1225,13 +1665,24 @@ def test_nested_inference():
         p: ParameterDef[_T]
         q: ParameterDef[Attribute]
 
+        @staticmethod
+        def constr(
+            *,
+            n: GenericAttrConstraint[Attribute] | None = None,
+            p: GenericAttrConstraint[_ConstrT] | None = None,
+            q: GenericAttrConstraint[Attribute] | None = None,
+        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+            if n is None and p is None and q is None:
+                return BaseAttr[ParamOne[Attribute]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (n, p, q))
+
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.two_operands_one_result_with_var"
         res = result_def(T)
-        lhs = operand_def(ParamOne[T])
+        lhs = operand_def(ParamOne.constr(p=T))
         rhs = operand_def(T)
 
         assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
@@ -1259,13 +1710,22 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: ParameterDef[_T]
 
+        @staticmethod
+        def constr(
+            *,
+            p: GenericAttrConstraint[_ConstrT] | None = None,
+        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+            if p is None:
+                return BaseAttr[ParamOne[Attribute]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (p,))
+
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
+        T: ClassVar = VarConstraint("T", AnyAttr())
 
         name = "test.one_operand_one_result_nested"
         res = result_def(T)
-        lhs = operand_def(ParamOne[T])
+        lhs = operand_def(ParamOne.constr(p=T))
 
         assembly_format = "$lhs attr-dict `:` type($lhs)"
 
@@ -1580,3 +2040,138 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+@irdl_op_definition
+class DefaultOp(IRDLOperation):
+    name = "test.default"
+
+    prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_attr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    assembly_format = "(`prop` $prop^)? (`opt_prop` $opt_prop^)? (`attr` $attr^)? (`opt_attr` $opt_attr^)? attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program, output, generic",
+    [
+        (
+            "test.default",
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+        ),
+        (
+            "test.default prop false opt_prop true",
+            "test.default",
+            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+        ),
+        (
+            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+        ),
+        (
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+        ),
+        (
+            "test.default prop true opt_prop false",
+            "test.default prop 1 opt_prop 0",
+            '"test.default"() <{"prop" = true, "opt_prop" = false}> {"attr" = false} : () -> ()',
+        ),
+        (
+            "test.default attr false opt_attr true",
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+        ),
+        (
+            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+        ),
+        (
+            "test.default attr true opt_attr false",
+            "test.default attr 1 opt_attr 0",
+            '"test.default"() <{"prop" = false}> {"attr" = true, "opt_attr" = false} : () -> ()',
+        ),
+        (
+            '"test.default"() : () -> ()',
+            "test.default",
+            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+        ),
+    ],
+)
+def test_default_properties(program: str, output: str, generic: str):
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(ctx, program).parse_operation()
+    assert isinstance(parsed, DefaultOp)
+
+    stream = StringIO()
+    printer = Printer(stream=stream)
+    printer.print_op(parsed)
+
+    assert output == stream.getvalue()
+
+    stream = StringIO()
+    printer = Printer(stream=stream, print_generic_format=True)
+    printer.print_op(parsed)
+
+    assert generic == stream.getvalue()
+
+
+@irdl_op_definition
+class RenamedPropOp(IRDLOperation):
+    name = "test.renamed"
+
+    prop1 = prop_def(
+        BoolAttr, default_value=BoolAttr.from_bool(False), prop_name="test_prop1"
+    )
+    prop2 = opt_prop_def(BoolAttr, prop_name="test_prop2")
+
+    assembly_format = "(`prop1` $test_prop1^)? (`prop2` $test_prop2^)? attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program, output, generic",
+    [
+        (
+            "test.renamed",
+            "test.renamed",
+            '"test.renamed"() <{"test_prop1" = false}> : () -> ()',
+        ),
+        (
+            "test.renamed prop1 false prop2 false",
+            "test.renamed prop2 0",
+            '"test.renamed"() <{"test_prop1" = false, "test_prop2" = false}> : () -> ()',
+        ),
+        (
+            "test.renamed prop1 true prop2 true",
+            "test.renamed prop1 1 prop2 1",
+            '"test.renamed"() <{"test_prop1" = true, "test_prop2" = true}> : () -> ()',
+        ),
+    ],
+)
+def test_renamed_optional_prop(program: str, output: str, generic: str):
+    ctx = MLContext()
+    ctx.load_op(RenamedPropOp)
+
+    parsed = Parser(ctx, program).parse_operation()
+    assert isinstance(parsed, RenamedPropOp)
+
+    stream = StringIO()
+    printer = Printer(stream=stream)
+    printer.print_op(parsed)
+
+    assert output == stream.getvalue()
+
+    stream = StringIO()
+    printer = Printer(stream=stream, print_generic_format=True)
+    printer.print_op(parsed)
+
+    assert generic == stream.getvalue()

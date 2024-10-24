@@ -3,13 +3,12 @@ from dataclasses import dataclass
 from typing import TypeGuard, cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
     Addf,
-    BinaryOperation,
     Constant,
     Divf,
-    FloatingPointLikeBinaryOp,
+    FloatingPointLikeBinaryOperation,
     Mulf,
     Subf,
 )
@@ -24,13 +23,13 @@ from xdsl.dialects.builtin import (
     TensorType,
 )
 from xdsl.dialects.csl import csl_stencil
+from xdsl.dialects.experimental import dmp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.linalg import FillOp
 from xdsl.dialects.stencil import (
     AccessOp,
     AccessPattern,
     ApplyOp,
-    ExternalLoadOp,
     FieldType,
     IndexAttr,
     LoadOp,
@@ -53,6 +52,8 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    TypeConversionPattern,
+    attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
@@ -117,6 +118,12 @@ def stencil_temp_to_tensor(field: TempType[Attribute]) -> TempType[Attribute]:
     return TempType[Attribute](bounds, typ)
 
 
+class StencilTypeConversion(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: FieldType[Attribute]) -> FieldType[Attribute]:
+        return stencil_field_to_tensor(typ)
+
+
 @dataclass(frozen=True)
 class AccessOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
@@ -127,7 +134,7 @@ class AccessOpTensorize(RewritePattern):
             tuple(o for o in op.offset)[:-1],
             tuple(o for o in op.offset)[-1],
         )
-        a = AccessOp.get(op.temp, xy_offsets, op.offset_mapping)
+        a = AccessOp.get(op.temp, xy_offsets)
         # this conditional controls if ExtractSliceOps for x/y accesses should be generated
         # if xy_offsets[0] != 0 or xy_offsets[1] != 0:
         #     rewriter.replace_matched_op(a)
@@ -179,7 +186,7 @@ class ArithOpTensorize(RewritePattern):
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
         dest_typ: TensorType[Attribute],
-        op: FloatingPointLikeBinaryOp,
+        op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
         """
@@ -204,9 +211,7 @@ class ArithOpTensorize(RewritePattern):
 class ApplyOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        if all(is_tensorized(arg.type) for arg in op.args) and all(
-            not is_tensorized(r.type) for r in op.res
-        ):
+        if all(is_tensorized(arg.type) for arg in op.args):
             b = op.region.block
             access_patterns = dict[Operand, AccessPattern](
                 zip(op.region.block.args, op.get_accesses())
@@ -240,9 +245,10 @@ class ApplyOpTensorize(RewritePattern):
 class FuncOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        for arg in op.args:
-            if isa(arg.type, FieldType[Attribute]):
-                op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
+        if not op.is_declaration:
+            for arg in op.args:
+                if isa(arg.type, FieldType[Attribute]):
+                    op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
 
 
 def is_tensorized(
@@ -261,28 +267,30 @@ def is_scalar(typ: Attribute) -> TypeGuard[AnyFloat]:
     return isinstance(typ, AnyFloat)
 
 
-class ExternalLoadOpTensorize(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
-        if not is_tensorized(op.result.type):
-            assert isa(op.result.type, FieldType[Attribute])
-            rewriter.replace_matched_op(
-                ExternalLoadOp.get(op.field, stencil_field_to_tensor(op.result.type))
-            )
-
-
 class LoadOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        if is_tensorized(op.field.type) and not is_tensorized(op.res.type):
-            assert isa(op.res.type, TempType[Attribute])
-            assert isinstance(bounds := op.res.type.bounds, StencilBoundsAttr)
+        assert isa(op.res.type, TempType[Attribute])
+        assert isinstance(bounds := op.res.type.bounds, StencilBoundsAttr)
+        rewriter.replace_matched_op(
+            LoadOp.get(
+                op.field,
+                IndexAttr.get(*[lb for lb in bounds.lb][:-1]),
+                IndexAttr.get(*[ub for ub in bounds.ub][:-1]),
+            )
+        )
+
+
+class DmpSwapOpTensorize(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
+        if (
+            is_tensorized(op.input_stencil.type)
+            and op.swapped_values
+            and not is_tensorized(op.swapped_values.type)
+        ):
             rewriter.replace_matched_op(
-                LoadOp.get(
-                    op.field,
-                    IndexAttr.get(*[lb for lb in bounds.lb][:-1]),
-                    IndexAttr.get(*[ub for ub in bounds.ub][:-1]),
-                )
+                dmp.SwapOp.get(op.input_stencil, op.strategy, ArrayAttr(op.swaps.data)),
             )
 
 
@@ -361,7 +369,7 @@ class ExtractSliceOpUpdateShape(RewritePattern):
 
 
 def arithBinaryOpUpdateShape(
-    op: BinaryOperation[Attribute],
+    op: FloatingPointLikeBinaryOperation,
     rewriter: PatternRewriter,
     /,
 ):
@@ -379,6 +387,17 @@ class ArithOpUpdateShape(RewritePattern):
         self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
     ):
         arithBinaryOpUpdateShape(op, rewriter)
+
+
+class VarithOpUpdateShape(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+        type_constructor = type(op)
+        if typ := get_required_result_type(op):
+            if needs_update_shape(op.result_types[0], typ):
+                rewriter.replace_matched_op(
+                    type_constructor.build(operands=[op.args], result_types=[typ])
+                )
 
 
 class EmptyOpUpdateShape(RewritePattern):
@@ -429,6 +448,7 @@ class BackpropagateStencilShapes(ModulePass):
                     EmptyOpUpdateShape(),
                     FillOpUpdateShape(),
                     ArithOpUpdateShape(),
+                    VarithOpUpdateShape(),
                     ConstOpUpdateShape(),
                 ]
             ),
@@ -447,10 +467,11 @@ class StencilTensorizeZDimension(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     FuncOpTensorize(),
-                    ExternalLoadOpTensorize(),
+                    StencilTypeConversion(),  # this needs to come after FuncOpTensorize()
                     LoadOpTensorize(),
                     ApplyOpTensorize(),
                     StoreOpTensorize(),
+                    DmpSwapOpTensorize(),
                     # AccessOpTensorize(),   # this doesn't work here, using second pass
                 ]
             ),

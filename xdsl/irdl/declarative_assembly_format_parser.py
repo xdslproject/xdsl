@@ -17,21 +17,29 @@ from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
+    AttrSizedSegments,
     ConstraintContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
+    OptRegionDef,
     OptResultDef,
+    OptSingleBlockRegionDef,
+    OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     VariadicDef,
     VarOperandDef,
+    VarRegionDef,
     VarResultDef,
+    VarSingleBlockRegionDef,
+    VarSuccessorDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
     AttrDictDirective,
     AttributeVariable,
+    DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
     KeywordDirective,
@@ -43,20 +51,27 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionallyParsableDirective,
     OptionalOperandTypeDirective,
     OptionalOperandVariable,
+    OptionalRegionVariable,
     OptionalResultTypeDirective,
     OptionalResultVariable,
+    OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
     PunctuationDirective,
+    RegionDirective,
+    RegionVariable,
     ResultTypeDirective,
     ResultVariable,
+    SuccessorVariable,
     VariableDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
     VariadicLikeVariable,
     VariadicOperandTypeDirective,
     VariadicOperandVariable,
+    VariadicRegionVariable,
     VariadicResultTypeDirective,
     VariadicResultVariable,
+    VariadicSuccessorVariable,
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -123,6 +138,10 @@ class FormatParser(BaseParser):
     """The attributes that are already parsed."""
     seen_properties: set[str]
     """The properties that are already parsed."""
+    seen_regions: list[bool]
+    """The region variables that are already parsed."""
+    seen_successors: list[bool]
+    """The successor variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -141,6 +160,8 @@ class FormatParser(BaseParser):
         self.seen_result_types = [False] * len(op_def.results)
         self.seen_attributes = set[str]()
         self.seen_properties = set[str]()
+        self.seen_regions = [False] * len(op_def.regions)
+        self.seen_successors = [False] * len(op_def.successors)
         self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
@@ -161,6 +182,8 @@ class FormatParser(BaseParser):
         self.verify_properties()
         self.verify_operands(seen_variables)
         self.verify_results(seen_variables)
+        self.verify_regions()
+        self.verify_successors()
         return FormatProgram(elements)
 
     def verify_directives(self, elements: list[FormatDirective]):
@@ -178,12 +201,27 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
-                case VariadicLikeVariable(), VariadicLikeVariable() if not (
-                    isinstance(a, VariadicLikeTypeDirective)
-                    or isinstance(b, VariadicLikeTypeDirective)
-                ):
+                case VariadicLikeVariable(), VariadicLikeVariable():
+                    if not (
+                        isinstance(a, RegionDirective | VariadicLikeTypeDirective)
+                        or isinstance(b, RegionDirective | VariadicLikeTypeDirective)
+                    ):
+                        self.raise_error(
+                            "A variadic operand variable cannot be followed by another variadic operand variable."
+                        )
+                    elif isinstance(a, RegionDirective) and isinstance(
+                        b, RegionDirective
+                    ):
+                        self.raise_error(
+                            "A variadic region variable cannot be followed by another variadic region variable."
+                        )
+                case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
                     self.raise_error(
-                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
+                    )
+                case AttrDictDirective(), RegionVariable() if not (a.with_keyword):
+                    self.raise_error(
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
                     )
                 case _:
                     pass
@@ -283,13 +321,57 @@ class FormatParser(BaseParser):
                     "parsed from the attribute dictionary."
                 )
             return
+
         missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
+
+        for option in self.op_def.options:
+            if isinstance(option, AttrSizedSegments) and option.as_property:
+                missing_properties.remove(option.attribute_name)
+
         if missing_properties:
             self.raise_error(
                 f"{', '.join(missing_properties)} properties are missing from "
                 "the declarative format. If this is intentional, consider using "
                 "'ParsePropInAttrDict' IRDL option."
             )
+
+    def verify_regions(self):
+        """
+        Check that all regions are present.
+        """
+        for (
+            seen_region,
+            (region_name, _),
+        ) in zip(
+            self.seen_regions,
+            self.op_def.regions,
+            strict=True,
+        ):
+            if not seen_region:
+                self.raise_error(
+                    f"region '{region_name}' "
+                    f"not found, consider adding a '${region_name}' "
+                    "directive to the custom assembly format."
+                )
+
+    def verify_successors(self):
+        """
+        Check that all successors are present.
+        """
+        for (
+            seen_successor,
+            (successor_name, _),
+        ) in zip(
+            self.seen_successors,
+            self.op_def.successors,
+            strict=True,
+        ):
+            if not seen_successor:
+                self.raise_error(
+                    f"successor '{successor_name}' "
+                    f"not found, consider adding a '${successor_name}' "
+                    "directive to the custom assembly format."
+                )
 
     def parse_optional_variable(
         self,
@@ -343,6 +425,32 @@ class FormatParser(BaseParser):
                 return VariadicResultVariable(variable_name, idx)
             else:
                 return ResultVariable(variable_name, idx)
+
+        # Check if the variable is a region
+        for idx, (region_name, region_def) in enumerate(self.op_def.regions):
+            if variable_name != region_name:
+                continue
+            self.seen_regions[idx] = True
+            match region_def:
+                case OptRegionDef() | OptSingleBlockRegionDef():
+                    return OptionalRegionVariable(variable_name, idx)
+                case VarRegionDef() | VarSingleBlockRegionDef():
+                    return VariadicRegionVariable(variable_name, idx)
+                case _:
+                    return RegionVariable(variable_name, idx)
+
+        # Check if the variable is a successor
+        for idx, (successor_name, successor_def) in enumerate(self.op_def.successors):
+            if variable_name != successor_name:
+                continue
+            self.seen_successors[idx] = True
+            match successor_def:
+                case OptSuccessorDef():
+                    return OptionalSuccessorVariable(variable_name, idx)
+                case VarSuccessorDef():
+                    return VariadicSuccessorVariable(variable_name, idx)
+                case _:
+                    return SuccessorVariable(variable_name, idx)
 
         attr_or_prop_by_name = {
             attr_name: attr_or_prop
@@ -401,6 +509,15 @@ class FormatParser(BaseParser):
 
                 # Chill pyright with TypedAttribute without parameter
                 unique_base = cast(type[Attribute] | None, unique_base)
+
+                if attr_def.default_value is not None:
+                    return DefaultValuedAttributeVariable(
+                        variable_name,
+                        is_property,
+                        unique_base,
+                        unique_type,
+                        attr_def.default_value,
+                    )
 
                 variable_type = (
                     OptionalAttributeVariable

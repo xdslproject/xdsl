@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import Annotated, TypeAlias, TypeVar, cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
@@ -39,8 +39,9 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    ConstraintVar,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -801,9 +802,6 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     traits = frozenset((Pure(),))
 
 
-RdRsFloatInvT = TypeVar("RdRsFloatInvT", bound=FloatRegisterType)
-
-
 class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
@@ -811,14 +809,16 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
     be annotated with fastmath flags.
     """
 
-    SameFloatRegisterType: TypeAlias = Annotated[RdRsFloatInvT, ConstraintVar("RdRs")]
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
+        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    )
 
-    rd_out = result_def(SameFloatRegisterType)
-    rd_in = operand_def(SameFloatRegisterType)
+    rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
+    rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
 
-    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
+    fastmath = opt_attr_def(FastMathFlagsAttr)
 
     def __init__(
         self,
@@ -873,10 +873,12 @@ class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
     that also acts as a source register, and a source floating-point register.
     """
 
-    SameFloatRegisterType: TypeAlias = Annotated[RdRsFloatInvT, ConstraintVar("RdRs")]
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
+        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    )
 
-    rd_out = result_def(SameFloatRegisterType)
-    rd_in = operand_def(SameFloatRegisterType)
+    rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
+    rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
     rs = operand_def(FloatRegisterType)
 
     def __init__(

@@ -9,6 +9,7 @@ from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
+    AnyMemRefTypeConstr,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -21,7 +22,6 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     Operation,
-    OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -29,18 +29,16 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     AttrSizedOperandSegments,
+    BaseAttr,
     ConstraintContext,
     ConstraintVar,
+    GenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
-    Operand,
     ParamAttrConstraint,
     ParameterDef,
     VarConstraint,
-    VarOperand,
-    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -73,6 +71,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
@@ -356,6 +355,20 @@ class StencilType(
             nbounds = bounds
         return super().__init__([nbounds, element_type])
 
+    @classmethod
+    def constr(
+        cls,
+        *,
+        bounds: GenericAttrConstraint[Attribute] | None = None,
+        element_type: GenericAttrConstraint[_FieldTypeElement] | None = None,
+    ) -> (
+        BaseAttr[StencilType[Attribute]]
+        | ParamAttrConstraint[StencilType[_FieldTypeElement]]
+    ):
+        if bounds is None and element_type is None:
+            return BaseAttr(cls)
+        return ParamAttrConstraint(cls, (bounds, element_type))
+
 
 @irdl_attr_definition
 class FieldType(
@@ -388,6 +401,10 @@ class TempType(
 
     name = "stencil.temp"
 
+
+StencilTypeConstr = StencilType[Attribute].constr()
+FieldTypeConstr = FieldType[Attribute].constr()
+TempTypeConstr = TempType[Attribute].constr()
 
 AnyTempType: TypeAlias = TempType[Attribute]
 
@@ -458,10 +475,10 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
 
-    args: VarOperand = var_operand_def(Attribute)
+    args = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
-    region: Region = region_def()
-    res: VarOpResult = var_result_def(TempType)
+    region = region_def()
+    res = var_result_def(TempType)
 
     bounds = opt_prop_def(StencilBoundsAttr)
 
@@ -685,28 +702,20 @@ class CastOp(IRDLOperation):
 
     name = "stencil.cast"
 
-    field: Operand = operand_def(
-        ParamAttrConstraint(
-            FieldType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+    field = operand_def(
+        FieldType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            )
         )
     )
-    result: OpResult = result_def(
-        ParamAttrConstraint(
-            FieldType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+    result = result_def(
+        FieldType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            )
         )
     )
 
@@ -841,17 +850,14 @@ class DynAccessOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     temp = operand_def(
-        ParamAttrConstraint(
-            StencilType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Expected result type to be the accessed temp's element type.",
-                ),
-            ],
+        StencilType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Expected result type to be the accessed temp's element type.",
+            )
         )
     )
+
     offset = var_operand_def(builtin.IndexType())
     lb = attr_def(IndexAttr)
     ub = attr_def(IndexAttr)
@@ -901,10 +907,8 @@ class ExternalLoadOp(IRDLOperation):
     """
 
     name = "stencil.external_load"
-    field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(
-        base(FieldType[Attribute]) | base(memref.MemRefType[Attribute])
-    )
+    field = operand_def(Attribute)
+    result = result_def(base(FieldType[Attribute]) | AnyMemRefTypeConstr)
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -928,8 +932,8 @@ class ExternalStoreOp(IRDLOperation):
     """
 
     name = "stencil.external_store"
-    temp: Operand = operand_def(FieldType)
-    field: Operand = operand_def(Attribute)
+    temp = operand_def(FieldType)
+    field = operand_def(Attribute)
 
     assembly_format = (
         "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
@@ -998,21 +1002,17 @@ class AccessOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "stencil.access"
-    temp: Operand = operand_def(
-        ParamAttrConstraint(
-            StencilType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Expected return type to match the accessed temp's element type.",
-                ),
-            ],
+    temp = operand_def(
+        StencilType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Expected return type to match the accessed temp's element type.",
+            )
         )
     )
-    offset: IndexAttr = attr_def(IndexAttr)
+    offset = attr_def(IndexAttr)
     offset_mapping = opt_attr_def(IndexAttr)
-    res: OpResult = result_def(
+    res = result_def(
         MessageConstraint(
             VarConstraint("T", AnyAttr()),
             "Expected return type to match the accessed temp's element type.",
@@ -1086,7 +1086,7 @@ class AccessOp(IRDLOperation):
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isa(res_type, StencilType[Attribute]):
+        if not isattr(res_type, StencilTypeConstr):
             parser.raise_error(
                 "Expected return type to be a stencil.temp or stencil.field"
             )
@@ -1134,7 +1134,7 @@ class AccessOp(IRDLOperation):
         apply.verify_()
 
         temp_type = self.temp.type
-        assert isa(temp_type, StencilType[Attribute])
+        assert isattr(temp_type, StencilTypeConstr)
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
@@ -1217,26 +1217,19 @@ class LoadOp(IRDLOperation):
 
     T = Annotated[Attribute, ConstraintVar("T")]
 
-    field: Operand = operand_def(
-        ParamAttrConstraint(
-            FieldType,
-            [
-                StencilBoundsAttr,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()), "Expected element types to match."
-                ),
-            ],
+    field = operand_def(
+        FieldType[Attribute].constr(
+            bounds=base(StencilBoundsAttr),
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()), "Expected element types to match."
+            ),
         )
     )
-    res: OpResult = result_def(
-        ParamAttrConstraint(
-            TempType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()), "Expected element types to match."
-                ),
-            ],
+    res = result_def(
+        TempType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()), "Expected element types to match."
+            )
         )
     )
 
@@ -1264,9 +1257,6 @@ class LoadOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, StoreOp):
-                raise VerifyException("Cannot Load and Store the same field!")
         field = self.field.type
         temp = self.res.type
         assert isa(field, FieldType[Attribute])
@@ -1303,34 +1293,28 @@ class BufferOp(IRDLOperation):
 
     T = Annotated[TempType[_FieldTypeElement], ConstraintVar("T")]
 
-    temp: Operand = operand_def(
-        ParamAttrConstraint(
-            TempType,
-            [
-                MessageConstraint(
-                    VarConstraint("B", AnyAttr()),
-                    "Expected input and output to have the same bounds",
-                ),
-                MessageConstraint(
-                    VarConstraint("E", AnyAttr()),
-                    "Expected input and output to have the same element type",
-                ),
-            ],
+    temp = operand_def(
+        TempType[Attribute].constr(
+            bounds=MessageConstraint(
+                VarConstraint("B", AnyAttr()),
+                "Expected input and output to have the same bounds",
+            ),
+            element_type=MessageConstraint(
+                VarConstraint("E", AnyAttr()),
+                "Expected input and output to have the same element type",
+            ),
         )
     )
-    res: OpResult = result_def(
-        ParamAttrConstraint(
-            StencilType,
-            [
-                MessageConstraint(
-                    VarConstraint("B", AnyAttr()),
-                    "Expected input and output to have the same bounds",
-                ),
-                MessageConstraint(
-                    VarConstraint("E", AnyAttr()),
-                    "Expected input and output to have the same element type",
-                ),
-            ],
+    res = result_def(
+        StencilType[Attribute].constr(
+            bounds=MessageConstraint(
+                VarConstraint("B", AnyAttr()),
+                "Expected input and output to have the same bounds",
+            ),
+            element_type=MessageConstraint(
+                VarConstraint("E", AnyAttr()),
+                "Expected input and output to have the same element type",
+            ),
         )
     )
 
@@ -1343,6 +1327,11 @@ class BufferOp(IRDLOperation):
         super().__init__(operands=[temp], result_types=[temp.type])
 
     def verify_(self) -> None:
+        # When used as a bufferization op, it should be flexible.
+        # This is probably something you don't want to see, but should be valid - it just
+        # means bufferization was incomplete.
+        if isinstance(self.res.type, FieldType):
+            return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
             raise VerifyException(
                 f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
@@ -1370,7 +1359,7 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
         constraint_context = constraint_context or ConstraintContext()
         if self.name in constraint_context.variables:
             if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
-                attr, constraint_context.variables[self.name]
+                attr, constraint_context.get_variable(self.name)
             ):
                 return
         super().verify(attr, constraint_context)
@@ -1403,44 +1392,28 @@ class StoreOp(IRDLOperation):
 
     name = "stencil.store"
 
-    temp: Operand = operand_def(
-        ParamAttrConstraint(
-            TempType,
-            [
-                Attribute,
-                MessageConstraint(
-                    AnyOf(
-                        [
-                            VarConstraint("T", AnyAttr()),
-                            TensorIgnoreSizeConstraint("T", AnyAttr()),
-                        ]
-                    ),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+    temp = operand_def(
+        TempType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            ),
         )
     )
-    # field: Operand = operand_def(FieldType)
-    field: Operand = operand_def(
-        ParamAttrConstraint(
-            FieldType,
-            [
-                MessageConstraint(
-                    StencilBoundsAttr, "Output type's size must be explicit"
-                ),
-                MessageConstraint(
-                    AnyOf(
-                        [
-                            VarConstraint("T", AnyAttr()),
-                            TensorIgnoreSizeConstraint("T", AnyAttr()),
-                        ]
-                    ),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+    field = operand_def(
+        FieldType[Attribute].constr(
+            bounds=MessageConstraint(
+                StencilBoundsAttr, "Output type's size must be explicit"
+            ),
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            ),
         )
     )
-    bounds: StencilBoundsAttr = attr_def(StencilBoundsAttr)
+    bounds = attr_def(StencilBoundsAttr)
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
@@ -1453,13 +1426,6 @@ class StoreOp(IRDLOperation):
         bounds: StencilBoundsAttr,
     ):
         return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
-
-    def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, LoadOp):
-                raise VerifyException("Cannot Load and Store the same field!")
-            if isa(use.operation, LoadOp) and use.operation is not self:
-                raise VerifyException("Can only store once to a field!")
 
 
 @irdl_op_definition
@@ -1480,7 +1446,7 @@ class StoreResultOp(IRDLOperation):
             "Expected return type to carry the operand type.",
         )
     )
-    res: OpResult = result_def(
+    res = result_def(
         ParamAttrConstraint(
             ResultType,
             [

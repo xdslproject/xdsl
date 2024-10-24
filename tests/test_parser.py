@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, ParametrizedAttribute, Region
+from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -398,8 +398,8 @@ def test_parse_region_with_args_fail(text: str):
 @irdl_op_definition
 class MultiRegionOp(IRDLOperation):
     name = "test.multi_region"
-    r1: Region = region_def()
-    r2: Region = region_def()
+    r1 = region_def()
+    r2 = region_def()
 
 
 def test_parse_multi_region_mlir():
@@ -426,7 +426,7 @@ def test_parse_block_name():
 
     ctx = MLContext()
     parser = Parser(ctx, block_str)
-    block = parser._parse_block()  # pyright: ignore[reportPrivateUsage]
+    block = parser._parse_block()
 
     assert block.args[0].name_hint == "name"
     assert block.args[1].name_hint is None

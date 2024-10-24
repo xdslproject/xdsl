@@ -8,20 +8,23 @@ from typing_extensions import Self
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    Annotated,
     AnySignlessIntegerOrIndexType,
+    ArrayAttr,
     ContainerType,
     DenseArrayBase,
     IndexType,
+    IntegerAttr,
+    IntegerType,
     TensorType,
     UnrankedTensorType,
     i64,
 )
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    VarOperand,
     base,
     irdl_op_definition,
     operand_def,
@@ -31,7 +34,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import NoMemoryEffect
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -52,6 +55,8 @@ class CastOp(IRDLOperation):
     dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
@@ -86,6 +91,8 @@ class DimOp(IRDLOperation):
     )
     index = operand_def(IndexType)
     result = result_def(IndexType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -130,7 +137,7 @@ class EmptyOp(IRDLOperation):
 
     tensor = result_def(TensorType[Attribute])
 
-    traits = frozenset([Pure()])
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, dynamic_sizes: Sequence[SSAValue], tensor_type: Attribute):
         super().__init__(
@@ -173,6 +180,25 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
+ReassociationAttr = ArrayAttr[
+    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+]
+
+
+@irdl_op_definition
+class CollapseShapeOp(IRDLOperation):
+    name = "tensor.collapse_shape"
+
+    src = operand_def(TensorType[Attribute])
+    result = result_def(TensorType[Attribute])
+    reassociation = prop_def(ReassociationAttr)
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
+    traits = frozenset([NoMemoryEffect()])
+
+
 @irdl_op_definition
 class ReshapeOp(IRDLOperation):
     name = "tensor.reshape"
@@ -180,6 +206,8 @@ class ReshapeOp(IRDLOperation):
     source = operand_def(TensorType[Attribute])
     shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
     result = result_def(TensorType[Attribute])
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(self, source: SSAValue, shape: SSAValue, result_type: Attribute):
         super().__init__(
@@ -268,16 +296,18 @@ class ReshapeOp(IRDLOperation):
 class ExtractSliceOp(IRDLOperation):
     name = "tensor.extract_slice"
 
-    source: Operand = operand_def(TensorType)
-    offsets: VarOperand = var_operand_def(IndexType)
-    sizes: VarOperand = var_operand_def(IndexType)
-    strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
-    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
-    result: OpResult = result_def(TensorType)
+    source = operand_def(TensorType)
+    offsets = var_operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+    strides = var_operand_def(IndexType)
+    static_offsets = prop_def(DenseArrayBase)
+    static_sizes = prop_def(DenseArrayBase)
+    static_strides = prop_def(DenseArrayBase)
+    result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def from_static_parameters(
@@ -316,17 +346,19 @@ class ExtractSliceOp(IRDLOperation):
 class InsertSliceOp(IRDLOperation):
     name = "tensor.insert_slice"
 
-    source: Operand = operand_def(TensorType)
-    dest: Operand = operand_def(TensorType)
-    offsets: VarOperand = var_operand_def(IndexType)
-    sizes: VarOperand = var_operand_def(IndexType)
-    strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
-    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
-    result: OpResult = result_def(TensorType)
+    source = operand_def(TensorType)
+    dest = operand_def(TensorType)
+    offsets = var_operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+    strides = var_operand_def(IndexType)
+    static_offsets = prop_def(DenseArrayBase)
+    static_sizes = prop_def(DenseArrayBase)
+    static_strides = prop_def(DenseArrayBase)
+    result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def get(
@@ -411,6 +443,7 @@ Tensor = Dialect(
         ExtractSliceOp,
         InsertSliceOp,
         ReshapeOp,
+        CollapseShapeOp,
     ],
     [],
 )

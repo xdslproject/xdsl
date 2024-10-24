@@ -31,16 +31,12 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
-    OpResult,
     Region,
     SSAValue,
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     OptSingleBlockRegion,
-    VarOperand,
-    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -454,7 +450,7 @@ class RISCVInstruction(RISCVAsmOperation, ABC):
     The name of the operation will be used as the RISC-V assembly instruction name.
     """
 
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -563,9 +559,9 @@ class RdRsRsOperation(Generic[RDInvT, RS1InvT, RS2InvT], RISCVInstruction, ABC):
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(RDInvT)
-    rs1: Operand = operand_def(RS1InvT)
-    rs2: Operand = operand_def(RS2InvT)
+    rd = result_def(RDInvT)
+    rs1 = operand_def(RS1InvT)
+    rs2 = operand_def(RS2InvT)
 
     def __init__(
         self,
@@ -598,10 +594,10 @@ class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
-    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
+    rd = result_def(FloatRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    fastmath = opt_attr_def(FastMathFlagsAttr)
 
     def __init__(
         self,
@@ -649,8 +645,8 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    immediate: Imm20Attr | LabelAttr = attr_def(base(Imm20Attr) | base(LabelAttr))
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(base(Imm20Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -701,7 +697,7 @@ class RdImmJumpOperation(RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rd: IntRegisterType | None = opt_attr_def(IntRegisterType)
+    rd = opt_attr_def(IntRegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
@@ -889,8 +885,8 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rd: IntRegisterType | None = opt_attr_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    rd = opt_attr_def(IntRegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
@@ -951,8 +947,8 @@ class RdRsOperation(Generic[RDInvT, RSInvT], RISCVInstruction, ABC):
     source register.
     """
 
-    rd: OpResult = result_def(RDInvT)
-    rs: Operand = operand_def(RSInvT)
+    rd = result_def(RDInvT)
+    rs = operand_def(RSInvT)
 
     def __init__(
         self,
@@ -981,8 +977,8 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
     This is called B-Type in the RISC-V specification.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(IntRegisterType)
     offset = attr_def(base(SImm12Attr) | base(LabelAttr))
 
     def __init__(
@@ -1079,8 +1075,8 @@ class RsRsIntegerOperation(RISCVInstruction, ABC):
     registers.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(IntRegisterType)
 
     def __init__(
         self,
@@ -1148,10 +1144,10 @@ class CsrReadWriteOperation(RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    writeonly = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -1226,10 +1222,10 @@ class CsrBitwiseOperation(RISCVInstruction, ABC):
       to writing to a CSR takes place even if the mask in rs has no actual bits set.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    readonly: UnitAttr | None = opt_attr_def(UnitAttr)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    readonly = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -1302,10 +1298,10 @@ class CsrReadWriteImmOperation(RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
+    rd = result_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    writeonly = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -1384,9 +1380,9 @@ class CsrBitwiseImmOperation(RISCVInstruction, ABC):
       place.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    rd = result_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1765,6 +1761,14 @@ class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     traits = frozenset((BitwiseAndHasCanonicalizationPatternsTrait(),))
 
 
+class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseOrByZero
+
+        return (BitwiseOrByZero(),)
+
+
 @irdl_op_definition
 class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
@@ -1776,6 +1780,19 @@ class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.or"
+
+    traits = frozenset((BitwiseOrHasCanonicalizationPatternsTrait(),))
+
+
+class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseXorByZero,
+            XorBySelf,
+        )
+
+        return (XorBySelf(), BitwiseXorByZero())
 
 
 @irdl_op_definition
@@ -1789,6 +1806,8 @@ class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.xor"
+
+    traits = frozenset((BitwiseXorHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
@@ -2470,8 +2489,8 @@ class LiOp(RISCVInstruction, ABC):
 
     name = "riscv.li"
 
-    rd: OpResult = result_def(IntRegisterType)
-    immediate: Imm32Attr | LabelAttr = attr_def(base(Imm32Attr) | base(LabelAttr))
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(base(Imm32Attr) | base(LabelAttr))
 
     traits = frozenset((Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()))
 
@@ -2513,7 +2532,7 @@ class LiOp(RISCVInstruction, ABC):
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
         print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+        return {"immediate", "fastmath"}
 
     @classmethod
     def parse_op_type(
@@ -2553,8 +2572,8 @@ class LabelOp(RISCVAsmOperation):
     """
 
     name = "riscv.label"
-    label: LabelAttr = attr_def(LabelAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    label = attr_def(LabelAttr)
+    comment = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2609,8 +2628,8 @@ class DirectiveOp(RISCVAsmOperation):
     """
 
     name = "riscv.directive"
-    directive: StringAttr = attr_def(StringAttr)
-    value: StringAttr | None = opt_attr_def(StringAttr)
+    directive = attr_def(StringAttr)
+    value = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2679,8 +2698,8 @@ class AssemblySectionOp(RISCVAsmOperation):
     """
 
     name = "riscv.assembly_section"
-    directive: StringAttr = attr_def(StringAttr)
-    data: Region = region_def("single_block")
+    directive = attr_def(StringAttr)
+    data = region_def("single_block")
 
     traits = frozenset([NoTerminator(), IsolatedFromAbove()])
 
@@ -2749,10 +2768,10 @@ class CustomAssemblyInstructionOp(RISCVInstruction):
     """
 
     name = "riscv.custom_assembly_instruction"
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOpResult = var_result_def()
-    instruction_name: StringAttr = attr_def(StringAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    inputs = var_operand_def()
+    outputs = var_result_def()
+    instruction_name = attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2786,7 +2805,7 @@ class CustomAssemblyInstructionOp(RISCVInstruction):
 @irdl_op_definition
 class CommentOp(RISCVAsmOperation):
     name = "riscv.comment"
-    comment: StringAttr = attr_def(StringAttr)
+    comment = attr_def(StringAttr)
 
     def __init__(self, comment: str | StringAttr):
         if isinstance(comment, str):
@@ -2876,7 +2895,7 @@ class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
     ```
     """
 
-    res: OpResult = result_def(RDInvT)
+    res = result_def(RDInvT)
 
     traits = frozenset((Pure(),))
 
@@ -2925,10 +2944,10 @@ class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
     e.g: fused-multiply-add (FMA) instructions.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
-    rs3: Operand = operand_def(FloatRegisterType)
+    rd = result_def(FloatRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    rs3 = operand_def(FloatRegisterType)
 
     traits = frozenset((RegisterAllocatedMemoryEffect(),))
 
@@ -2966,9 +2985,9 @@ class RdRsRsFloatFloatIntegerOperation(RISCVInstruction, ABC):
     two floating-point input registers and an integer destination register.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
 
     def __init__(
         self,
@@ -2995,6 +3014,63 @@ class RdRsRsFloatFloatIntegerOperation(RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
+
+
+class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have two source floating-point
+    registers with an integer destination register, and can be annotated with fastmath flags.
+
+    This is called R-Type in the RISC-V specification.
+    """
+
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    fastmath = attr_def(FastMathFlagsAttr)
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: IntRegisterType | str | None = None,
+        fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
+        comment: str | StringAttr | None = None,
+    ):
+        if rd is None:
+            rd = IntRegisterType.unallocated()
+        elif isinstance(rd, str):
+            rd = IntRegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs1, rs2],
+            attributes={
+                "comment": comment,
+                "fastmath": fastmath,
+            },
+            result_types=[rd],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.rs2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        fast = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            fast = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        attributes["fastmath"] = fast
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        return {"fastmath"}
 
 
 class RsRsImmFloatOperation(RISCVInstruction, ABC):
@@ -3333,7 +3409,7 @@ class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FeqSOP(RdRsRsFloatFloatIntegerOperation):
+class FeqSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -3348,7 +3424,7 @@ class FeqSOP(RdRsRsFloatFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FltSOP(RdRsRsFloatFloatIntegerOperation):
+class FltSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet less comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -3363,7 +3439,7 @@ class FltSOP(RdRsRsFloatFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FleSOP(RdRsRsFloatFloatIntegerOperation):
+class FleSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet less or equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.

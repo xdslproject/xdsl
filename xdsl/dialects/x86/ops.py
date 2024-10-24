@@ -27,7 +27,6 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     Successor,
-    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -156,7 +155,7 @@ class X86Instruction(X86Op):
     The name of the operation will be used as the x86 assembly instruction name.
     """
 
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -532,7 +531,7 @@ class R_RM_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(R1InvT)
 
@@ -675,7 +674,7 @@ class R_RI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
 
     r1 = operand_def(R1InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     result = result_def(R1InvT)
 
@@ -795,7 +794,7 @@ class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -912,8 +911,8 @@ class M_MI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
 
     r1 = operand_def(R1InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1041,7 +1040,7 @@ class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
     """
 
     r2 = operand_def(R2InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     r1 = result_def(R1InvT)
 
@@ -1102,8 +1101,8 @@ class R_RMI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
     """
 
     r2 = operand_def(R2InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     r1 = result_def(R1InvT)
 
@@ -1185,7 +1184,7 @@ class M_PushOp(IRDLOperation, X86Instruction):
 
     rsp_input = operand_def(GeneralRegisterType("rsp"))
     source = operand_def(R1InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1247,7 +1246,7 @@ class M_PopOp(IRDLOperation, X86Instruction):
     destination = operand_def(
         GeneralRegisterType
     )  # the destination is a pointer to the memory location and the register itself is not modified
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1299,7 +1298,7 @@ class M_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
 
     source = operand_def(R1InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1399,7 +1398,7 @@ class M_IDivOp(IRDLOperation, X86Instruction):
     r1 = operand_def(R1InvT)
     rdx_input = operand_def(GeneralRegisterType("rdx"))
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1462,7 +1461,7 @@ class M_ImulOp(IRDLOperation, X86Instruction):
 
     r1 = operand_def(GeneralRegisterType)
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1520,8 +1519,8 @@ class LabelOp(IRDLOperation, X86Op):
     """
 
     name = "x86.label"
-    label: LabelAttr = attr_def(LabelAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    label = attr_def(LabelAttr)
+    comment = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -1573,8 +1572,8 @@ class DirectiveOp(IRDLOperation, X86Op):
 
     name = "x86.directive"
 
-    directive: StringAttr = attr_def(StringAttr)
-    value: StringAttr | None = opt_attr_def(StringAttr)
+    directive = attr_def(StringAttr)
+    value = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -1638,7 +1637,7 @@ class S_JmpOp(IRDLOperation, X86Instruction):
 
     name = "x86.s.jmp"
 
-    block_values: VarOperand = var_operand_def(X86RegisterType)
+    block_values = var_operand_def(X86RegisterType)
 
     successor = successor_def()
 
@@ -1752,7 +1751,7 @@ class RM_CmpOp(IRDLOperation, X86Instruction):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1810,7 +1809,7 @@ class RI_CmpOp(IRDLOperation, X86Instruction):
     name = "x86.ri.cmp"
 
     r1 = operand_def(GeneralRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1863,7 +1862,7 @@ class MR_CmpOp(IRDLOperation, X86Instruction):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1921,8 +1920,8 @@ class MI_CmpOp(IRDLOperation, X86Instruction):
     name = "x86.mi.cmp"
 
     r1 = operand_def(GeneralRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 

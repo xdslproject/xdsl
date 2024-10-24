@@ -111,5 +111,83 @@ builtin.module {
 // CHECK-NEXT:       func.return
 // CHECK-NEXT:     }
 
+
+  func.func @dmp_swap(%a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, %b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+    %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32> -> !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+    %1 = "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>) -> !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+    func.return
+  }
+
+// CHECK:       func.func @dmp_swap(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
+// CHECK-NEXT:    %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:    %1 = "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:    func.return
+// CHECK-NEXT:  }
+
+   func.func @iter(%a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, %b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+    %time_m = arith.constant 0 : index
+    %time_M = arith.constant 1000 : index
+    %step = arith.constant 1 : index
+    %fnp1, %fn = scf.for %time = %time_m to %time_M step %step iter_args(%fi = %a, %fip1 = %b) -> (!stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+      %0 = stencil.load %fi : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32> -> !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+      %1 = "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>) -> !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+      %2 = stencil.apply(%3 = %1 : !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>) -> (!stencil.temp<[0,1]x[0,1]x[0,510]xf32>) {
+        %4 = arith.constant 1.666600e-01 : f32
+        %5 = stencil.access %3[1, 0, 0] : !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+        %6 = stencil.access %3[-1, 0, 0] : !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+        %7 = stencil.access %3[0, 0, 1] : !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+        %8 = stencil.access %3[0, 0, -1] : !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+        %9 = stencil.access %3[0, 1, 0] : !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+        %10 = stencil.access %3[0, -1, 0] : !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+        %11 = arith.addf %10, %9 : f32
+        %12 = arith.addf %11, %8 : f32
+        %13 = arith.addf %12, %7 : f32
+        %14 = arith.addf %13, %6 : f32
+        %15 = arith.addf %14, %5 : f32
+        %16 = arith.mulf %15, %4 : f32
+        stencil.return %16 : f32
+      }
+      stencil.store %2 to %fip1(<[0, 0, 0], [1, 1, 510]>) : !stencil.temp<[0,1]x[0,1]x[0,510]xf32> to !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>
+      scf.yield %fip1, %fi : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>
+    }
+    func.return
+  }
+
+// CHECK:       func.func @iter(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
+// CHECK-NEXT:    %time_m = arith.constant 0 : index
+// CHECK-NEXT:    %time_M = arith.constant 1000 : index
+// CHECK-NEXT:    %step = arith.constant 1 : index
+// CHECK-NEXT:    %fnp1, %fn = scf.for %time = %time_m to %time_M step %step iter_args(%fi = %a, %fip1 = %b) -> (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
+// CHECK-NEXT:      %0 = stencil.load %fi : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:      %1 = "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:      %2 = stencil.apply(%3 = %1 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) {
+// CHECK-NEXT:        %4 = arith.constant dense<1.666600e-01> : tensor<510xf32>
+// CHECK-NEXT:        %5 = arith.constant 1.666600e-01 : f32
+// CHECK-NEXT:        %6 = stencil.access %3[1, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:        %7 = "tensor.extract_slice"(%6) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:        %8 = stencil.access %3[-1, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:        %9 = "tensor.extract_slice"(%8) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:        %10 = stencil.access %3[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:        %11 = "tensor.extract_slice"(%10) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:        %12 = stencil.access %3[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:        %13 = "tensor.extract_slice"(%12) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:        %14 = stencil.access %3[0, 1] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:        %15 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:        %16 = stencil.access %3[0, -1] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:        %17 = "tensor.extract_slice"(%16) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:        %18 = arith.addf %17, %15 : tensor<510xf32>
+// CHECK-NEXT:        %19 = arith.addf %18, %13 : tensor<510xf32>
+// CHECK-NEXT:        %20 = arith.addf %19, %11 : tensor<510xf32>
+// CHECK-NEXT:        %21 = arith.addf %20, %9 : tensor<510xf32>
+// CHECK-NEXT:        %22 = arith.addf %21, %7 : tensor<510xf32>
+// CHECK-NEXT:        %23 = arith.mulf %22, %4 : tensor<510xf32>
+// CHECK-NEXT:        stencil.return %23 : tensor<510xf32>
+// CHECK-NEXT:      }
+// CHECK-NEXT:      stencil.store %2 to %fip1(<[0, 0], [1, 1]>) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:      scf.yield %fip1, %fi : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.return
+// CHECK-NEXT:  }
+
 }
 // CHECK-NEXT:    }

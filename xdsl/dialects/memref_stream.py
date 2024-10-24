@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from enum import auto
 from itertools import product
-from typing import Annotated, Any, cast
+from typing import Any, ClassVar, cast
 
 from typing_extensions import Self
 
@@ -35,10 +35,11 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     ParameterDef,
+    VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -397,10 +398,10 @@ class GenericOp(IRDLOperation):
     Indices into the `outputs` that correspond to the initial values in `inits`.
     """
 
-    doc: StringAttr | None = opt_prop_def(StringAttr)
-    library_call: StringAttr | None = opt_prop_def(StringAttr)
+    doc = opt_prop_def(StringAttr)
+    library_call = opt_prop_def(StringAttr)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
     traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
 
@@ -848,9 +849,9 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 class FillOp(IRDLOperation):
     name = "memref_stream.fill"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType[T])
+    memref = operand_def(memref.MemRefType.constr(element_type=T))
     value = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"

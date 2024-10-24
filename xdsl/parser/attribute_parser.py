@@ -721,24 +721,29 @@ class AttrParser(BaseParser):
 
         # Use struct builtin package for unpacking f32, f64
         format_str: str = ""
+        num_chunks = 0
         match element_type:
             case Float32Type():
                 chunk_size = 4
-                format_str = "@f"  # @ in format string implies native endianess
+                num_chunks = len(byte_list) // chunk_size
+                format_str = (
+                    f"@{num_chunks}f"  # @ in format string implies native endianess
+                )
             case Float64Type():
                 chunk_size = 8
-                format_str = "@d"
+                num_chunks = len(byte_list) // chunk_size
+                format_str = f"@{num_chunks}d"
             case IntegerType():
                 if element_type.width.data % 8 != 0:
                     self.raise_error(
                         "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
                     )
                 chunk_size = element_type.width.data // 8
+                num_chunks = len(byte_list) // chunk_size
             case _:
                 self.raise_error(
                     "Hex strings for dense literals are only supported for int, f32 and f64 types"
                 )
-        num_chunks = len(byte_list) // chunk_size
 
         data_values: list[int] | list[float] = []
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
@@ -28,7 +28,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     attr_def,
@@ -262,8 +261,7 @@ class GetResultOp(IRDLOperation):
 
     name = "transform.get_result"
 
-    result_number = prop_def(AnyIntegerAttr)
-    raw_position_list = opt_prop_def(DenseArrayBase)
+    raw_position_list = prop_def(DenseArrayBase)
     is_inverted = opt_prop_def(UnitAttr)
     is_all = opt_prop_def(UnitAttr)
     target = operand_def(TransformOpHandleType)
@@ -271,23 +269,17 @@ class GetResultOp(IRDLOperation):
 
     def __init__(
         self,
-        result_number: int | AnyIntegerAttr,
         target: SSAValue,
-        raw_position_list: (
-            Sequence[int] | Sequence[IntAttr] | DenseArrayBase | None
-        ) = None,
+        raw_position_list: (Sequence[int] | Sequence[IntAttr] | DenseArrayBase),
         is_inverted: bool = False,
         is_all: bool = False,
     ):
-        if isinstance(result_number, int):
-            result_number = IntegerAttr(result_number, IntegerType(64))
         if isinstance(raw_position_list, Sequence):
-            raw_position_list = DenseArrayBase.create_dense_int_or_index(
+            raw_position_list = DenseArrayBase.create_dense_int(
                 IntegerType(64), raw_position_list
             )
         super().__init__(
             properties={
-                "result_number": result_number,
                 "raw_position_list": raw_position_list,
                 "is_inverted": UnitAttr() if is_inverted else None,
                 "is_all": UnitAttr() if is_all else None,
@@ -525,8 +517,6 @@ class SequenceOp(IRDLOperation):
 
     name = "transform.sequence"
 
-    T = Annotated[AnyIntegerOrFailurePropagationModeAttr, ConstraintVar("T")]
-
     body = region_def("single_block")
     failure_propagation_mode = prop_def(Attribute)
     root = var_operand_def(AnyOpType)
@@ -591,15 +581,13 @@ class TileOp(IRDLOperation):
         ) = None,
     ):
         if isinstance(static_sizes, Sequence):
-            static_sizes = DenseArrayBase.create_dense_int_or_index(
+            static_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_sizes
             )
         if isinstance(interchange, Sequence):
-            interchange = DenseArrayBase.create_dense_int_or_index(
-                IntegerType(64), interchange
-            )
+            interchange = DenseArrayBase.create_dense_int(IntegerType(64), interchange)
         if isinstance(scalable_sizes, Sequence):
-            scalable_sizes = DenseArrayBase.create_dense_int_or_index(
+            scalable_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(1), scalable_sizes
             )
         super().__init__(
@@ -614,8 +602,11 @@ class TileOp(IRDLOperation):
                 [
                     AnyOpType()
                     for _ in range(
-                        len(static_sizes.as_tuple())
-                        if isinstance(static_sizes, DenseArrayBase)
+                        (
+                            len(static_sizes.as_tuple())
+                            - static_sizes.as_tuple().count(0)
+                        )
+                        if static_sizes
                         else 0
                     )
                 ],
@@ -657,15 +648,15 @@ class TileToForallOp(IRDLOperation):
         mapping: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
     ):
         if isinstance(static_num_threads, Sequence):
-            static_num_threads = DenseArrayBase.create_dense_int_or_index(
+            static_num_threads = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_num_threads
             )
         if isinstance(static_tile_sizes, Sequence):
-            static_tile_sizes = DenseArrayBase.create_dense_int_or_index(
+            static_tile_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_tile_sizes
             )
         if isinstance(mapping, Sequence):
-            mapping = DenseArrayBase.create_dense_int_or_index(IntegerType(64), mapping)
+            mapping = DenseArrayBase.create_dense_int(IntegerType(64), mapping)
 
         super().__init__(
             operands=[
@@ -765,6 +756,62 @@ class CastOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[AnyOpType()])
 
 
+@irdl_op_definition
+class MatchOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredmatch-transformmatchop
+    """
+
+    name = "transform.structured.match"
+
+    ops = opt_prop_def(ArrayAttr[StringAttr])
+    interface = opt_prop_def(AnyIntegerAttr)
+    op_attrs = opt_prop_def(DictionaryAttr)
+    filter_result_types = opt_prop_def(TypeAttribute)
+    filter_operand_types = opt_prop_def(TypeAttribute)
+
+    target = operand_def(TransformOpHandleType)
+    result = result_def(TransformOpHandleType)
+
+    def __init__(
+        self,
+        target: SSAValue,
+        ops: Sequence[str] | ArrayAttr[StringAttr] | None = None,
+        interface: int | AnyIntegerAttr | str | None = None,
+        op_attrs: dict[str, Attribute] | DictionaryAttr | None = None,
+        filter_result_types: TypeAttribute | None = None,
+        filter_operand_types: TypeAttribute | None = None,
+    ):
+        if isinstance(ops, Sequence):
+            ops = ArrayAttr([StringAttr(op) for op in ops])
+        if isinstance(interface, str):
+            match interface:
+                case "LinalgOp":
+                    interface = IntegerAttr(0, IntegerType(32))
+                case "TilingInterface":
+                    interface = IntegerAttr(1, IntegerType(32))
+                case "LoopLikeInterface":
+                    interface = IntegerAttr(2, IntegerType(32))
+                case _:
+                    raise ValueError(f"Unknown interface: {interface}")
+        if isinstance(interface, int):
+            interface = IntegerAttr(interface, IntegerType(32))
+
+        if isinstance(op_attrs, Mapping):
+            op_attrs = DictionaryAttr(op_attrs)
+        super().__init__(
+            properties={
+                "ops": ops,
+                "interface": interface,
+                "op_attrs": op_attrs,
+                "filter_result_types": filter_result_types,
+                "filter_operand_types": filter_operand_types,
+            },
+            operands=[target],
+            result_types=[AnyOpType()],
+        )
+
+
 Transform = Dialect(
     "transform",
     [
@@ -788,6 +835,7 @@ Transform = Dialect(
         SelectOp,
         NamedSequenceOp,
         CastOp,
+        MatchOp,
     ],
     [
         # Types

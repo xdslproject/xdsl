@@ -1,14 +1,18 @@
 from collections.abc import Generator
 from dataclasses import dataclass
+from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
+from xdsl.dialects.experimental.dmp import SwapOp
 from xdsl.dialects.stencil import (
+    AccessOp,
     AllocOp,
     ApplyOp,
     BufferOp,
     CombineOp,
+    DynAccessOp,
     FieldType,
     IndexAttr,
     LoadOp,
@@ -121,15 +125,39 @@ def walk_from(a: Operation) -> Generator[Operation, Any, None]:
         a = a.next_op
 
 
-def walk_from_to(a: Operation, b: Operation):
+def walk_from_to(a: Operation, b: Operation, *, inclusive: bool = False):
     """
     Walk through all operations recursively inside a or its block, until b is met, if
     ever.
     """
     for o in walk_from(a):
         if o == b:
+            if inclusive:
+                yield o
             return
         yield o
+
+
+def is_inplace(apply: ApplyOp, field: SSAValue):
+    """
+    Check if the passed `stencil.apply` has any non-zero offset access to the passed
+    `stencil.field`.
+    """
+    # Get all block arguments matching this field
+    field_args = set(
+        apply.region.block.args[i] for (i, a) in enumerate(apply.args) if a is field
+    )
+    # Is there any non-zero access on those arguments?
+    return not any(
+        access
+        for access in apply.walk()
+        if isinstance(access, AccessOp)
+        and access.temp in field_args
+        and any(o != 0 for o in access.offset)
+        or isinstance(access, DynAccessOp)
+        and access.temp in field_args
+        and any(o != 0 for o in chain(access.lb, access.ub))
+    )
 
 
 class LoadBufferFoldPattern(RewritePattern):
@@ -166,19 +194,29 @@ class LoadBufferFoldPattern(RewritePattern):
 
         underlying = load.field
 
-        # TODO: propery analysis of effects in between
-        # For illustration, only fold a single use of the handle
-        # (Requires more boilerplate to analyse the whole live range otherwise)
+        # TODO: further analysis
+        # For now, only handle usages in the same block
         uses = op.res.uses.copy()
-        if len(uses) > 1:
+        block = op.parent
+        if not block or any(use.operation.parent is not block for use in uses):
             return
-        user = uses.pop().operation
+        last_user = max(
+            uses, key=lambda u: block.get_operation_index(u.operation)
+        ).operation
 
         effecting = [
             o
-            for o in walk_from_to(load, user)
+            for o in walk_from_to(load, last_user, inclusive=True)
             if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
         ]
+
+        # If the last effecting op is a stencil, handle the safe inplace case
+        if (
+            effecting
+            and isinstance(effecting[-1], ApplyOp)
+            and is_inplace(effecting[-1], op.res)
+        ):
+            effecting.pop()
         if effecting:
             return
 
@@ -210,9 +248,6 @@ class ApplyStoreFoldPattern(RewritePattern):
     def is_dest_safe(apply: ApplyOp, store: StoreOp) -> bool:
         # Check that the destination is not used between the apply and store.
         dest = store.field
-        start = dest.owner
-        if isinstance(start, Block):
-            start = cast(Operation, start.first_op)
         effecting = [
             o
             for o in walk_from_to(apply, store)
@@ -498,6 +533,37 @@ class CombineStoreFold(RewritePattern):
             return
 
 
+class SwapBufferize(RewritePattern):
+    """
+    Bufferize a dmp.swap operation.
+
+    NB: This should most likely consider a shared pass following canonicalize and
+    shape-inference.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: SwapOp, rewriter: PatternRewriter):
+        temp = op.input_stencil
+
+        if not isa(temp_t := temp.type, TempType[Attribute]):
+            return
+
+        load = temp.owner
+        if not isinstance(load, LoadOp):
+            return
+
+        buffer = BufferOp.create(
+            operands=[temp], result_types=[field_from_temp(temp_t)]
+        )
+        new_swap = SwapOp.get(buffer.res, op.strategy)
+        new_swap.swaps = op.swaps
+        load = LoadOp(operands=[buffer.res], result_types=[temp_t])
+
+        rewriter.replace_matched_op(
+            new_ops=[buffer, new_swap, load],
+        )
+
+
 @dataclass(frozen=True)
 class StencilBufferize(ModulePass):
     """
@@ -520,7 +586,9 @@ class StencilBufferize(ModulePass):
                     ApplyStoreFoldPattern(),
                     RemoveUnusedOperations(),
                     ApplyUnusedResults(),
+                    SwapBufferize(),
                 ]
-            )
+            ),
+            apply_recursively=True,
         )
         walker.rewrite_module(op)

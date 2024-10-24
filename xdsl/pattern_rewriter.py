@@ -668,6 +668,13 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
+    post_walk_func: Callable[[Operation, PatternRewriterListener], bool] | None = field(
+        default=None
+    )
+    """
+    Function to call between each walk of the IR.
+    """
+
     listener: PatternRewriterListener = field(default_factory=PatternRewriterListener)
     """The listener that will be called when an operation or block is modified."""
 
@@ -755,6 +762,8 @@ class PatternRewriteWalker:
 
         self._populate_worklist(op)
         op_was_modified = self._process_worklist(pattern_listener)
+        if self.post_walk_func is not None:
+            op_was_modified |= self.post_walk_func(op, pattern_listener)
 
         if not self.apply_recursively:
             return op_was_modified
@@ -764,6 +773,8 @@ class PatternRewriteWalker:
         while op_was_modified:
             self._populate_worklist(op)
             op_was_modified = self._process_worklist(pattern_listener)
+            if self.post_walk_func is not None:
+                op_was_modified |= self.post_walk_func(op, pattern_listener)
 
         return result
 

@@ -69,10 +69,10 @@ class FuncOpCallableInterface(CallableOpInterface):
 class FuncOp(IRDLOperation):
     name = "func.func"
 
-    body: Region = region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    function_type: FunctionType = prop_def(FunctionType)
-    sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
+    body = region_def()
+    sym_name = prop_def(StringAttr)
+    function_type = prop_def(FunctionType)
+    sym_visibility = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 

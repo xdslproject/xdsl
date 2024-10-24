@@ -27,6 +27,7 @@ from xdsl.dialects.stencil import (
     ReturnOp,
     StencilBoundsAttr,
     StencilType,
+    StencilTypeConstr,
     StoreOp,
     StoreResultOp,
     TempType,
@@ -54,6 +55,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -229,6 +231,11 @@ def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
 class LoadOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
+        for use in op.field.uses:
+            if isa(use.operation, StoreOp):
+                raise VerifyException(
+                    "Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before."
+                )
         field = op.field.type
         assert isa(field, FieldType[Attribute])
         assert isa(field.bounds, StencilBoundsAttr)
@@ -262,7 +269,7 @@ def prepare_apply_body(op: ApplyOp):
     for operand, arg in zip(op.operands, entry.args):
         arg.replace_by(operand)
         entry.erase_arg(arg)
-    entry.add_op(scf.Yield())
+    entry.add_op(scf.ReduceOp())
     for _ in range(op.get_rank()):
         entry.insert_arg(builtin.IndexType(), 0)
 
@@ -453,7 +460,7 @@ class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-        assert isa(temp, StencilType[Attribute])
+        assert isattr(temp, StencilTypeConstr)
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
         memref_offset = op.offset
@@ -501,6 +508,15 @@ class StencilStoreToSubview(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+        for use in op.field.uses:
+            if isa(use.operation, LoadOp):
+                raise VerifyException(
+                    "Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before."
+                )
+            if isa(use.operation, StoreOp) and use.operation is not op:
+                raise VerifyException(
+                    "Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before."
+                )
         field = op.field
         assert isa(field.type, FieldType[Attribute])
         assert isa(field.type.bounds, StencilBoundsAttr)

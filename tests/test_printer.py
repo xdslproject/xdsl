@@ -23,16 +23,12 @@ from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
     Block,
-    OpResult,
     ParametrizedAttribute,
     Region,
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     ParameterDef,
-    VarOperand,
-    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -58,7 +54,7 @@ def test_simple_forgotten_op():
 
     add.verify()
 
-    expected = """%0 = "arith.addi"(%1, %1) : (i32, i32) -> i32"""
+    expected = """%0 = "arith.addi"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32"""
 
     assert_print_op(add, expected, None)
 
@@ -81,7 +77,7 @@ def test_print_op_location():
 class UnitAttrOp(IRDLOperation):
     name = "unit_attr_op"
 
-    parallelize: UnitAttr | None = opt_attr_def(UnitAttr)
+    parallelize = opt_attr_def(UnitAttr)
 
 
 def test_unit_attr():
@@ -123,7 +119,7 @@ def test_op_message():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -133,7 +129,7 @@ def test_op_message():
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message
   ---------------------
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -157,7 +153,7 @@ def test_two_different_op_messages():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
@@ -166,7 +162,7 @@ def test_two_different_op_messages():
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
   ---------------------
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   ^^^^^^^^^^^^^^^^^
   | Test message 2
   -----------------
@@ -192,7 +188,7 @@ def test_two_same_op_messages():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
@@ -204,7 +200,7 @@ def test_two_same_op_messages():
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 2
   ---------------------
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -228,7 +224,7 @@ def test_op_message_with_region():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
@@ -237,7 +233,7 @@ def test_op_message_with_region():
 | Test
 ----------------
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -261,7 +257,7 @@ def test_op_message_with_region_and_overflow():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
@@ -270,7 +266,7 @@ def test_op_message_with_region_and_overflow():
 | Test long message
 -------------------
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -293,7 +289,7 @@ def test_diagnostic():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -324,14 +320,14 @@ def test_print_custom_name():
     prog = """\
 "builtin.module"() ({
   %i = arith.constant 42 : i32
-  %213 = "arith.addi"(%i, %i) : (i32, i32) -> i32
+  %213 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
   %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %0 = "arith.addi"(%i, %i) : (i32, i32) -> i32
+  %0 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -545,9 +541,9 @@ def test_print_region_empty_block_with_args():
 @irdl_op_definition
 class PlusCustomFormatOp(IRDLOperation):
     name = "test.add"
-    lhs: Operand = operand_def(IntegerType)
-    rhs: Operand = operand_def(IntegerType)
-    res: OpResult = result_def(IntegerType)
+    lhs = operand_def(IntegerType)
+    rhs = operand_def(IntegerType)
+    res = result_def(IntegerType)
 
     @classmethod
     def parse(cls, parser: Parser) -> PlusCustomFormatOp:
@@ -653,8 +649,8 @@ def test_custom_format_II():
 class NoCustomFormatOp(IRDLOperation):
     name = "test.no_custom_format"
 
-    ops: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def()
+    ops = var_operand_def()
+    res = var_result_def()
 
 
 def test_missing_custom_format():

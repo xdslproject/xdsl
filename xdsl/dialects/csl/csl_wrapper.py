@@ -95,7 +95,12 @@ class ParamAttribute(ParametrizedAttribute):
 class ImportOp(IRDLOperation):
     """
     Lightweight wrapper around `csl.import_module` that allows specifying field names directly
-    and removes the need for handling structs or setting up struct operands
+    and removes the need for handling structs or setting up struct operands.
+
+    Where existing structs need to be used in the import, they can be passed
+    with an empty field name. This will concatenate them all together.
+
+    Named fields and empty fields can be used in the same import
     """
 
     name = "csl_wrapper.import"
@@ -144,6 +149,10 @@ class ModuleOp(IRDLOperation):
     The layout module has two additional block args `x` and `y` as part of the `@set_tile_code` loop nest.
     Operations using these args need to be lowered to the correct place in the loop nest.
 
+    The layout module has the following args (in order):
+      * set_tile_code params:  `x` and `y`
+      * general params:        `width` and `height` followed by everything specified in `params`
+
     The program module has the following args (in order):
       * general params:        `width` and `height` followed by everything specified in `params`
       * params from layout:    everything defined by `layout_yield_op.fields`
@@ -154,7 +163,7 @@ class ModuleOp(IRDLOperation):
     width = prop_def(IntegerAttr[IntegerType])
     height = prop_def(IntegerAttr[IntegerType])
     program_name = opt_prop_def(StringAttr)
-    params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
+    params = prop_def(ArrayAttr[ParamAttribute])
 
     layout_module = region_def("single_block")
     program_module = region_def("single_block")

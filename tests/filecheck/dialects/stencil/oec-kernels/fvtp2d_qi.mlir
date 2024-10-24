@@ -63,7 +63,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
     %22 = arith.addf %17, %21 : f64
     %23 = stencil.access %arg8 [0, 0, 0] : !stencil.temp<?x?x?xf64>
     %24 = arith.cmpf ogt, %23, %cst : f64
-    %25 = "scf.if"(%24) ({
+    %25 = scf.if %24 -> (f64) {
       %29 = stencil.access %arg10 [0, -1, 0] : !stencil.temp<?x?x?xf64>
       %30 = stencil.access %arg11 [0, -1, 0] : !stencil.temp<?x?x?xf64>
       %31 = arith.mulf %23, %30 : f64
@@ -71,7 +71,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
       %33 = arith.subf %cst_0, %23 : f64
       %34 = arith.mulf %33, %32 : f64
       scf.yield %34 : f64
-    }, {
+    } else {
       %29 = stencil.access %arg9 [0, 0, 0] : !stencil.temp<?x?x?xf64>
       %30 = stencil.access %arg11 [0, 0, 0] : !stencil.temp<?x?x?xf64>
       %31 = arith.mulf %23, %30 : f64
@@ -79,17 +79,17 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
       %33 = arith.addf %cst_0, %23 : f64
       %34 = arith.mulf %33, %32 : f64
       scf.yield %34 : f64
-    }) : (i1) -> (f64)
+    }
     %26 = arith.mulf %25, %22 : f64
-    %27 = "scf.if"(%24) ({
+    %27 = scf.if %24 -> (f64) {
       %29 = stencil.access %arg7 [0, -1, 0] : !stencil.temp<?x?x?xf64>
       %30 = arith.addf %29, %26 : f64
       scf.yield %30 : f64
-    }, {
+    } else {
       %29 = stencil.access %arg7 [0, 0, 0] : !stencil.temp<?x?x?xf64>
       %30 = arith.addf %29, %26 : f64
       scf.yield %30 : f64
-    }) : (i1) -> (f64)
+    }
     %28 = stencil.store_result %27 : !stencil.result<f64>
     stencil.return %28 : !stencil.result<f64>
   }
@@ -178,7 +178,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // CHECK-NEXT:        %23 = arith.addf %18, %22 : f64
 // CHECK-NEXT:        %24 = stencil.access %arg8[0, 0, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:        %25 = arith.cmpf ogt, %24, %cst : f64
-// CHECK-NEXT:        %26 = "scf.if"(%25) ({
+// CHECK-NEXT:        %26 = scf.if %25 -> (f64) {
 // CHECK-NEXT:          %27 = stencil.access %arg10[0, -1, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:          %28 = stencil.access %arg11[0, -1, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:          %29 = arith.mulf %24, %28 : f64
@@ -186,7 +186,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // CHECK-NEXT:          %31 = arith.subf %cst_1, %24 : f64
 // CHECK-NEXT:          %32 = arith.mulf %31, %30 : f64
 // CHECK-NEXT:          scf.yield %32 : f64
-// CHECK-NEXT:        }, {
+// CHECK-NEXT:        } else {
 // CHECK-NEXT:          %33 = stencil.access %arg9[0, 0, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:          %34 = stencil.access %arg11[0, 0, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:          %35 = arith.mulf %24, %34 : f64
@@ -194,17 +194,17 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // CHECK-NEXT:          %37 = arith.addf %cst_1, %24 : f64
 // CHECK-NEXT:          %38 = arith.mulf %37, %36 : f64
 // CHECK-NEXT:          scf.yield %38 : f64
-// CHECK-NEXT:        }) : (i1) -> f64
+// CHECK-NEXT:        }
 // CHECK-NEXT:        %39 = arith.mulf %26, %23 : f64
-// CHECK-NEXT:        %40 = "scf.if"(%25) ({
+// CHECK-NEXT:        %40 = scf.if %25 -> (f64) {
 // CHECK-NEXT:          %41 = stencil.access %arg7[0, -1, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:          %42 = arith.addf %41, %39 : f64
 // CHECK-NEXT:          scf.yield %42 : f64
-// CHECK-NEXT:        }, {
+// CHECK-NEXT:        } else {
 // CHECK-NEXT:          %43 = stencil.access %arg7[0, 0, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:          %44 = arith.addf %43, %39 : f64
 // CHECK-NEXT:          scf.yield %44 : f64
-// CHECK-NEXT:        }) : (i1) -> f64
+// CHECK-NEXT:        }
 // CHECK-NEXT:        %45 = stencil.store_result %40 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %45 : !stencil.result<f64>
 // CHECK-NEXT:      }
@@ -298,7 +298,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // SHAPE-NEXT:        %28 = arith.addf %23, %27 : f64
 // SHAPE-NEXT:        %29 = stencil.access %arg8[0, 0, 0] : !stencil.temp<[0,64]x[0,65]x[0,64]xf64>
 // SHAPE-NEXT:        %30 = arith.cmpf ogt, %29, %cst : f64
-// SHAPE-NEXT:        %31 = "scf.if"(%30) ({
+// SHAPE-NEXT:        %31 = scf.if %30 -> (f64) {
 // SHAPE-NEXT:          %32 = stencil.access %arg10[0, -1, 0] : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:          %33 = stencil.access %arg11[0, -1, 0] : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:          %34 = arith.mulf %29, %33 : f64
@@ -306,7 +306,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // SHAPE-NEXT:          %36 = arith.subf %cst_1, %29 : f64
 // SHAPE-NEXT:          %37 = arith.mulf %36, %35 : f64
 // SHAPE-NEXT:          scf.yield %37 : f64
-// SHAPE-NEXT:        }, {
+// SHAPE-NEXT:        } else {
 // SHAPE-NEXT:          %38 = stencil.access %arg9[0, 0, 0] : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:          %39 = stencil.access %arg11[0, 0, 0] : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:          %40 = arith.mulf %29, %39 : f64
@@ -314,17 +314,17 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // SHAPE-NEXT:          %42 = arith.addf %cst_1, %29 : f64
 // SHAPE-NEXT:          %43 = arith.mulf %42, %41 : f64
 // SHAPE-NEXT:          scf.yield %43 : f64
-// SHAPE-NEXT:        }) : (i1) -> f64
+// SHAPE-NEXT:        }
 // SHAPE-NEXT:        %44 = arith.mulf %31, %28 : f64
-// SHAPE-NEXT:        %45 = "scf.if"(%30) ({
+// SHAPE-NEXT:        %45 = scf.if %30 -> (f64) {
 // SHAPE-NEXT:          %46 = stencil.access %arg7[0, -1, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
 // SHAPE-NEXT:          %47 = arith.addf %46, %44 : f64
 // SHAPE-NEXT:          scf.yield %47 : f64
-// SHAPE-NEXT:        }, {
+// SHAPE-NEXT:        } else {
 // SHAPE-NEXT:          %48 = stencil.access %arg7[0, 0, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
 // SHAPE-NEXT:          %49 = arith.addf %48, %44 : f64
 // SHAPE-NEXT:          scf.yield %49 : f64
-// SHAPE-NEXT:        }) : (i1) -> f64
+// SHAPE-NEXT:        }
 // SHAPE-NEXT:        %50 = stencil.store_result %45 : !stencil.result<f64>
 // SHAPE-NEXT:        stencil.return %50 : !stencil.result<f64>
 // SHAPE-NEXT:      }
@@ -407,7 +407,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        %40 = arith.mulf %26, %38 : f64
 // MLIR-NEXT:        %41 = arith.addf %39, %40 : f64
 // MLIR-NEXT:        memref.store %41, %arg8[%22, %23, %24] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
-// MLIR-NEXT:        scf.yield
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %42 = arith.constant 0 : index
 // MLIR-NEXT:      %43 = arith.constant -1 : index
@@ -437,7 +437,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        memref.store %60, %arg10[%51, %52, %53] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:        memref.store %61, %arg11[%51, %52, %53] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:        memref.store %64, %arg12[%51, %52, %53] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:        scf.yield
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %65 = arith.constant 0 : index
 // MLIR-NEXT:      %66 = arith.constant 0 : index
@@ -462,7 +462,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        %84 = arith.addf %79, %83 : f64
 // MLIR-NEXT:        %85 = memref.load %9[%74, %75, %76] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %86 = arith.cmpf ogt, %85, %cst_5 : f64
-// MLIR-NEXT:        %87 = "scf.if"(%86) ({
+// MLIR-NEXT:        %87 = scf.if %86 -> (f64) {
 // MLIR-NEXT:          %88 = arith.constant -1 : index
 // MLIR-NEXT:          %89 = arith.addi %75, %88 : index
 // MLIR-NEXT:          %90 = memref.load %arg10[%74, %89, %76] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
@@ -474,7 +474,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:          %96 = arith.subf %cst_6, %85 : f64
 // MLIR-NEXT:          %97 = arith.mulf %96, %95 : f64
 // MLIR-NEXT:          scf.yield %97 : f64
-// MLIR-NEXT:        }, {
+// MLIR-NEXT:        } else {
 // MLIR-NEXT:          %98 = memref.load %arg9[%74, %75, %76] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:          %99 = memref.load %arg11[%74, %75, %76] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:          %100 = arith.mulf %85, %99 : f64
@@ -482,21 +482,21 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:          %102 = arith.addf %cst_6, %85 : f64
 // MLIR-NEXT:          %103 = arith.mulf %102, %101 : f64
 // MLIR-NEXT:          scf.yield %103 : f64
-// MLIR-NEXT:        }) : (i1) -> f64
+// MLIR-NEXT:        }
 // MLIR-NEXT:        %104 = arith.mulf %87, %84 : f64
-// MLIR-NEXT:        %105 = "scf.if"(%86) ({
+// MLIR-NEXT:        %105 = scf.if %86 -> (f64) {
 // MLIR-NEXT:          %106 = arith.constant -1 : index
 // MLIR-NEXT:          %107 = arith.addi %75, %106 : index
 // MLIR-NEXT:          %108 = memref.load %8[%74, %107, %76] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:          %109 = arith.addf %108, %104 : f64
 // MLIR-NEXT:          scf.yield %109 : f64
-// MLIR-NEXT:        }, {
+// MLIR-NEXT:        } else {
 // MLIR-NEXT:          %110 = memref.load %8[%74, %75, %76] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:          %111 = arith.addf %110, %104 : f64
 // MLIR-NEXT:          scf.yield %111 : f64
-// MLIR-NEXT:        }) : (i1) -> f64
+// MLIR-NEXT:        }
 // MLIR-NEXT:        memref.store %105, %arg8_1[%74, %75, %76] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        scf.yield
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %112 = arith.constant 0 : index
 // MLIR-NEXT:      %113 = arith.constant 0 : index
@@ -513,7 +513,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        %125 = memref.load %arg8_1[%121, %122, %123] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %126 = arith.mulf %124, %125 : f64
 // MLIR-NEXT:        memref.store %126, %arg9_1[%121, %122, %123] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
-// MLIR-NEXT:        scf.yield
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      %127 = arith.constant 0 : index
 // MLIR-NEXT:      %128 = arith.constant 0 : index
@@ -538,7 +538,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:        %148 = memref.load %10[%136, %137, %138] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %149 = arith.divf %147, %148 : f64
 // MLIR-NEXT:        memref.store %149, %6[%136, %137, %138] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        scf.yield
+// MLIR-NEXT:        scf.reduce
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      memref.dealloc %arg9_1 : memref<64x65x64xf64, strided<[4160, 64, 1]>>
 // MLIR-NEXT:      memref.dealloc %arg12 : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
@@ -610,7 +610,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // BUFF-NEXT:        %18 = arith.addf %13, %17 : f64
 // BUFF-NEXT:        %19 = stencil.access %arg8[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // BUFF-NEXT:        %20 = arith.cmpf ogt, %19, %cst : f64
-// BUFF-NEXT:        %21 = "scf.if"(%20) ({
+// BUFF-NEXT:        %21 = scf.if %20 -> (f64) {
 // BUFF-NEXT:          %22 = stencil.access %arg10[0, -1, 0] : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>
 // BUFF-NEXT:          %23 = stencil.access %arg11[0, -1, 0] : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>
 // BUFF-NEXT:          %24 = arith.mulf %19, %23 : f64
@@ -618,7 +618,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // BUFF-NEXT:          %26 = arith.subf %cst_1, %19 : f64
 // BUFF-NEXT:          %27 = arith.mulf %26, %25 : f64
 // BUFF-NEXT:          scf.yield %27 : f64
-// BUFF-NEXT:        }, {
+// BUFF-NEXT:        } else {
 // BUFF-NEXT:          %28 = stencil.access %arg9[0, 0, 0] : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>
 // BUFF-NEXT:          %29 = stencil.access %arg11[0, 0, 0] : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>
 // BUFF-NEXT:          %30 = arith.mulf %19, %29 : f64
@@ -626,17 +626,17 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // BUFF-NEXT:          %32 = arith.addf %cst_1, %19 : f64
 // BUFF-NEXT:          %33 = arith.mulf %32, %31 : f64
 // BUFF-NEXT:          scf.yield %33 : f64
-// BUFF-NEXT:        }) : (i1) -> f64
+// BUFF-NEXT:        }
 // BUFF-NEXT:        %34 = arith.mulf %21, %18 : f64
-// BUFF-NEXT:        %35 = "scf.if"(%20) ({
+// BUFF-NEXT:        %35 = scf.if %20 -> (f64) {
 // BUFF-NEXT:          %36 = stencil.access %arg7[0, -1, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // BUFF-NEXT:          %37 = arith.addf %36, %34 : f64
 // BUFF-NEXT:          scf.yield %37 : f64
-// BUFF-NEXT:        }, {
+// BUFF-NEXT:        } else {
 // BUFF-NEXT:          %38 = stencil.access %arg7[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // BUFF-NEXT:          %39 = arith.addf %38, %34 : f64
 // BUFF-NEXT:          scf.yield %39 : f64
-// BUFF-NEXT:        }) : (i1) -> f64
+// BUFF-NEXT:        }
 // BUFF-NEXT:        %40 = stencil.store_result %35 : !stencil.result<f64>
 // BUFF-NEXT:        stencil.return %40 : !stencil.result<f64>
 // BUFF-NEXT:      } to <[0, 0, 0], [64, 65, 64]>

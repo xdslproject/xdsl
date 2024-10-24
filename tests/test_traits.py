@@ -5,6 +5,7 @@ Test the definition and usage of traits and interfaces.
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pytest
@@ -20,11 +21,10 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Operation, OpResult, OpTrait
+from xdsl.ir import Operation, OpTrait
 from xdsl.irdl import (
     Block,
     IRDLOperation,
-    Operand,
     Region,
     attr_def,
     irdl_op_definition,
@@ -37,11 +37,15 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import (
+    AlwaysSpeculatable,
+    ConditionallySpeculatable,
     HasAncestor,
     HasParent,
     OptionalSymbolOpInterface,
+    RecursivelySpeculatable,
     SymbolOpInterface,
     SymbolTable,
+    is_speculatable,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
@@ -108,8 +112,8 @@ class TestOp(IRDLOperation):
     name = "test.test"
     traits = frozenset([LargerOperandTrait(), BitwidthSumLessThanTrait(64)])
 
-    ops: Operand = operand_def(IntegerType)
-    res: OpResult = result_def(IntegerType)
+    ops = operand_def(IntegerType)
+    res = result_def(IntegerType)
 
 
 def test_has_trait_object():
@@ -201,7 +205,7 @@ def test_traits_undefined():
 class WrongTraitsType(IRDLOperation):
     name = "test.no_traits"
 
-    traits = 1  # pyright: ignore[reportGeneralTypeIssues, reportAssignmentType]
+    traits = 1  # pyright: ignore[reportAssignmentType]
 
 
 def test_traits_wrong_type():
@@ -234,11 +238,12 @@ class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
         return 1
 
 
+@irdl_op_definition
 class OpWithInterface(IRDLOperation):
     name = "test.op_with_interface"
     traits = frozenset([GetNumResultsTraitForOpWithOneResult()])
 
-    res: OpResult = result_def(IntegerType)
+    res = result_def(IntegerType)
 
 
 def test_interface():
@@ -288,7 +293,7 @@ def test_symbol_op_interface():
     class SymNameWrongTypeOp(IRDLOperation):
         name = "wrong_sym_name_type"
 
-        sym_name: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+        sym_name = attr_def(AnyIntegerAttr)
         traits = frozenset((SymbolOpInterface(),))
 
     op1 = SymNameWrongTypeOp(
@@ -495,3 +500,49 @@ def test_insert_or_update():
     assert trait.insert_or_update(op, symbol2) is None
     assert len(op.reg.ops) == 3
     assert symbol2 in list(op.reg.ops)
+
+
+def nonpure():
+    return TestOp.create()
+
+
+def pure():
+    return test.TestPureOp.create()
+
+
+@pytest.mark.parametrize(
+    ("trait", "speculatability", "nested_ops"),
+    [
+        ([], False, []),
+        ([], False, [nonpure()]),
+        ([], False, [pure()]),
+        ([AlwaysSpeculatable()], True, []),
+        ([AlwaysSpeculatable()], True, [nonpure()]),
+        ([AlwaysSpeculatable()], True, [pure()]),
+        ([RecursivelySpeculatable()], True, []),
+        ([RecursivelySpeculatable()], False, [nonpure()]),
+        ([RecursivelySpeculatable()], True, [pure()]),
+    ],
+)
+def test_speculability(
+    trait: tuple[ConditionallySpeculatable] | tuple[()],
+    speculatability: bool,
+    nested_ops: Sequence[Operation],
+):
+    @irdl_op_definition
+    class SupeculatabilityTestOp(IRDLOperation):
+        name = "test.speculatability"
+        region = region_def()
+
+        traits = frozenset(trait)
+
+    op = SupeculatabilityTestOp(regions=[Region(Block(nested_ops))])
+    optrait = op.get_trait(ConditionallySpeculatable)
+
+    if trait:
+        assert optrait is not None
+        assert optrait.is_speculatable(op) is speculatability
+    else:
+        assert optrait is None
+
+    assert is_speculatable(op) is speculatability

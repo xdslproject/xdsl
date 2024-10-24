@@ -11,8 +11,6 @@ from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AttrSizedRegionSegments,
     IRDLOperation,
-    OptRegion,
-    OptSuccessor,
     irdl_op_definition,
     opt_region_def,
     opt_successor_def,
@@ -34,7 +32,7 @@ from xdsl.utils.exceptions import VerifyException
 class ParentOp(IRDLOperation):
     name = "test.parent"
 
-    region: Region = region_def()
+    region = region_def()
 
     traits = frozenset([NoTerminator()])
 
@@ -43,7 +41,7 @@ class ParentOp(IRDLOperation):
 class Parent2Op(IRDLOperation):
     name = "test.parent2"
 
-    region: Region = region_def()
+    region = region_def()
 
     traits = frozenset([NoTerminator()])
 
@@ -72,22 +70,16 @@ class HasMultipleParentOp(IRDLOperation):
 
 def test_has_parent_no_parent():
     """
-    Test that an operation with an HasParentOp trait
-    fails with no parents.
+    A detached op with a HasParent trait should be verifyable when detached
     """
-    has_parent_op = HasParentOp()
-    with pytest.raises(
-        VerifyException, match="'test.has_parent' expects parent op 'test.parent'"
-    ):
-        has_parent_op.verify()
 
-    has_multiple_parent_op = HasMultipleParentOp()
-    message = (
-        "'test.has_multiple_parent' expects parent op to "
-        "be one of 'test.parent', 'test.parent2'"
-    )
-    with pytest.raises(VerifyException, match=message):
-        has_multiple_parent_op.verify()
+    single_parent = HasParentOp()
+
+    single_parent.verify()
+
+    multiple_parent = HasMultipleParentOp()
+
+    multiple_parent.verify()
 
 
 def test_has_parent_wrong_parent():
@@ -134,7 +126,7 @@ class HasNoTerminatorOp(IRDLOperation):
 
     name = "test.has_no_terminator"
 
-    region: Region = region_def()
+    region = region_def()
 
     traits = frozenset([NoTerminator()])
 
@@ -173,7 +165,7 @@ class IsTerminatorOp(IRDLOperation):
 
     name = "test.is_terminator"
 
-    successor: OptSuccessor = opt_successor_def()
+    successor = opt_successor_def()
 
     traits = frozenset([IsTerminator()])
 
@@ -291,8 +283,8 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region = region_def()
-    opt_region: OptRegion = opt_region_def()
+    region = region_def()
+    opt_region = opt_region_def()
 
     traits = frozenset(
         [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
@@ -315,8 +307,8 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region = region_def()
-    opt_region: OptRegion = opt_region_def()
+    region = region_def()
+    opt_region = opt_region_def()
 
     traits = frozenset(
         [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
@@ -338,8 +330,8 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp2(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region = region_def()
-    opt_region: OptRegion = opt_region_def()
+    region = region_def()
+    opt_region = opt_region_def()
 
     traits = frozenset(
         [
@@ -450,7 +442,7 @@ class IsolatedFromAboveOp(IRDLOperation):
 
     name = "test.isolated_from_above"
 
-    region: Region = region_def()
+    region = region_def()
 
     traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 

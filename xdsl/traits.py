@@ -50,6 +50,9 @@ class HasParent(OpTrait):
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
+        # Don't check parent when op is detached
+        if parent is None:
+            return
         if isinstance(parent, self.op_types):
             return
         if len(self.op_types) == 1:
@@ -648,7 +651,33 @@ class RecursiveMemoryEffect(MemoryEffect):
         return effects
 
 
-class Pure(NoMemoryEffect):
+class ConditionallySpeculatable(OpTrait):
+    @classmethod
+    @abc.abstractmethod
+    def is_speculatable(cls, op: Operation) -> bool:
+        raise NotImplementedError()
+
+
+class AlwaysSpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return True
+
+
+class RecursivelySpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        return all(
+            is_speculatable(o) for r in op.regions for b in r.blocks for o in b.ops
+        )
+
+
+def is_speculatable(op: Operation):
+    trait = op.get_trait(ConditionallySpeculatable)
+    return (trait is not None) and trait.is_speculatable(op)
+
+
+class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
     In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
     found here.
