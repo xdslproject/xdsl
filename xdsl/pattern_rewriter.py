@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
@@ -88,6 +89,18 @@ class PatternRewriter(PatternRewriterListener):
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
+
+    @contextmanager
+    def modify_op_in_place(self, op: Operation):
+        """
+        Modify an operation in place.
+        This is useful when the operation is not replaced, but modified.
+        """
+        try:
+            yield
+        finally:
+            self.has_done_action = True
+            self.handle_operation_modification(op)
 
     def insert_op(
         self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
