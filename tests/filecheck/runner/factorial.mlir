@@ -17,7 +17,7 @@ builtin.module {
     "func.return"(%ret) : (i64) -> ()
   }
   func.func @main() -> index {
-    %zero = "arith.constant"() {"value" = 0} : () -> index
+    %zero = "arith.constant"() {"value" = 0 : index} : () -> index
     %i = "arith.constant"() {"value" = 12} : () -> i64
     %fac = "func.call"(%i) {"callee" = @factorial} : (i64) -> i64
     printf.print_format "factorial({})={}", %i : i64, %fac : i64
