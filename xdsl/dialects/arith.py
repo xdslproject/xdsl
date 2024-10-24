@@ -304,9 +304,9 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
 class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
+        from xdsl.transforms.canonicalization_patterns.arith import AddImmediates
 
-        return (AddImmediateZero(),)
+        return (AddImmediates(),)
 
 
 @irdl_op_definition
@@ -380,11 +380,19 @@ class AddUIExtended(IRDLOperation):
         )
 
 
+class MuliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import MultiplyImmediates
+
+        return (MultiplyImmediates(),)
+
+
 @irdl_op_definition
 class Muli(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.muli"
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), MuliOpHasCanonicalizationPatternsTrait()])
 
 
 class MulExtendedBase(IRDLOperation):
