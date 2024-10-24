@@ -469,6 +469,39 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         printer.print(self.lhs.type)
 
 
+class IntegerConversionOp(IRDLOperation, ABC):
+    arg = operand_def(IntegerType)
+
+    res = result_def(IntegerType)
+
+    traits = frozenset([NoMemoryEffect()])
+
+    def __init__(
+        self,
+        arg: SSAValue,
+        res_type: Attribute,
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(operands=[arg], attributes=attributes, result_types=[res_type])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        arg_type = parser.parse_type()
+        parser.parse_characters("to")
+        res_type = parser.parse_type()
+        operands = parser.resolve_operands([arg], [arg_type], parser.pos)
+        return cls(operands[0], res_type, attributes)
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.arg)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.arg.type, " to ", self.res.type)
+
+
 @irdl_op_definition
 class AddOp(ArithmeticBinOpOverflow):
     name = "llvm.add"
@@ -532,6 +565,21 @@ class LShrOp(ArithmeticBinOperation):
 @irdl_op_definition
 class AShrOp(ArithmeticBinOperation):
     name = "llvm.ashr"
+
+
+@irdl_op_definition
+class TruncOp(IntegerConversionOp):
+    name = "llvm.trunc"
+
+
+@irdl_op_definition
+class ZExtOp(IntegerConversionOp):
+    name = "llvm.zext"
+
+
+@irdl_op_definition
+class SExtOp(IntegerConversionOp):
+    name = "llvm.sext"
 
 
 @irdl_op_definition
@@ -1394,6 +1442,9 @@ LLVM = Dialect(
         ShlOp,
         LShrOp,
         AShrOp,
+        TruncOp,
+        ZExtOp,
+        SExtOp,
         ExtractValueOp,
         InsertValueOp,
         InlineAsmOp,

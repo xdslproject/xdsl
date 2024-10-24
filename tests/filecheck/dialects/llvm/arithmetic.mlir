@@ -52,3 +52,12 @@
 
 %ashr = llvm.ashr %arg0, %arg1 : i32
 // CHECK: %ashr = llvm.ashr %arg0, %arg1 : i32
+
+%trunc = llvm.trunc %arg0 : i32 to i16
+// CHECK: %trunc = llvm.trunc %arg0 : i32 to i16
+
+%sext = llvm.sext %arg0 : i32 to i64
+// CHECK: %sext = llvm.sext %arg0 : i32 to i64
+
+%zext = llvm.zext %arg0 : i32 to i64
+// CHECK: %zext = llvm.zext %arg0 : i32 to i64
