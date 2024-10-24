@@ -477,7 +477,10 @@ class IntegerConversionOp(IRDLOperation, ABC):
     traits = frozenset([NoMemoryEffect()])
 
     def __init__(
-        self, arg=SSAValue, attributes: dict[str, Attribute] = {}, res_type=Attribute
+        self,
+        arg: SSAValue,
+        res_type: Attribute,
+        attributes: dict[str, Attribute] = {},
     ):
         super().__init__(operands=[arg], attributes=attributes, result_types=[res_type])
 
@@ -490,7 +493,7 @@ class IntegerConversionOp(IRDLOperation, ABC):
         parser.parse_characters("to")
         res_type = parser.parse_type()
         operands = parser.resolve_operands([arg], [arg_type], parser.pos)
-        return cls(operands[0], attributes, res_type)
+        return cls(operands[0], res_type, attributes)
 
     def print(self, printer: Printer):
         printer.print(" ", self.arg)
