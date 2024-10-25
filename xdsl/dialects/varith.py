@@ -13,10 +13,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AnyOf,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
+    operand_def,
     result_def,
     var_operand_def,
 )
@@ -67,10 +69,38 @@ class VarithMulOp(VarithOp):
     name = "varith.mul"
 
 
+@irdl_op_definition
+class VarithSelectOp(IRDLOperation):
+    """
+    Variadic selection operation
+    """
+
+    name = "varith.select"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    cond = operand_def(IntegerType)
+
+    args = var_operand_def(T)
+
+    result = result_def(T)
+
+    assembly_format = "`(` $cond `:` type($cond) `)` $args attr-dict `:` type($result)"
+
+    traits = frozenset((Pure(),))
+
+    def __init__(self, cond: SSAValue | Operation, *args: SSAValue | Operation):
+        assert len(args) > 0
+        super().__init__(
+            operands=[cond, args], result_types=(SSAValue.get(args[-1]).type,)
+        )
+
+
 Varith = Dialect(
     "varith",
     [
         VarithAddOp,
         VarithMulOp,
+        VarithSelectOp,
     ],
 )
