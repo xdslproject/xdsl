@@ -574,9 +574,9 @@ class TruncOp(IntegerConversionOp):
     def verify(self):
         assert isinstance(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
-        if self.arg.type.bitwidth >= self.res.type.bitwidth:
+        if self.arg.type.bitwidth <= self.res.type.bitwidth:
             raise VerifyException(
-                f"invalid cast opcode for cast from {self.arg.type.name} to {self.res.type.name}"
+                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
             )
 
 
@@ -587,9 +587,9 @@ class ZExtOp(IntegerConversionOp):
     def verify(self):
         assert isinstance(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
-        if self.arg.type.bitwidth <= self.res.type.bitwidth:
+        if self.arg.type.bitwidth >= self.res.type.bitwidth:
             raise VerifyException(
-                f"invalid cast opcode for cast from {self.arg.type.name} to {self.res.type.name}"
+                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
             )
 
 
@@ -600,9 +600,9 @@ class SExtOp(IntegerConversionOp):
     def verify(self):
         assert isinstance(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
-        if self.arg.type.bitwidth <= self.res.type.bitwidth:
+        if self.arg.type.bitwidth >= self.res.type.bitwidth:
             raise VerifyException(
-                f"invalid cast opcode for cast from {self.arg.type.name} to {self.res.type.name}"
+                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
             )
 
 
