@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import ClassVar, Self
+from typing import ClassVar
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     BFloat16Type,
