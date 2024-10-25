@@ -73,6 +73,9 @@ class VarithMulOp(VarithOp):
 class VarithSelectOp(IRDLOperation):
     """
     Variadic selection operation
+
+    Returns the ith element of `args` where i is given by the `cond` argument.
+    Behaviour is undefined if `cond` > len(`args`).
     """
 
     name = "varith.select"
