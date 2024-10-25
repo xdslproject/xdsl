@@ -308,22 +308,15 @@ class LinalgAccumulatorInjection(RewritePattern):
             return
 
         # find parent `csl_stencil.apply` and which of the regions `op` is in
-        p_region = op.parent_region()
-        apply = None
-        while (
-            p_region
-            and (apply := p_region.parent_op())
-            and not isinstance(apply, csl_stencil.ApplyOp)
-        ):
-            p_region = apply.parent_region()
-        if not isinstance(apply, csl_stencil.ApplyOp) or not p_region:
+        apply, region = self.get_apply_and_region(op)
+        if not apply or not region:
             return
 
         # retrieve the correct accumulator block arg
-        if p_region == apply.receive_chunk:
-            acc_block_arg = p_region.block.args[2]
-        elif p_region == apply.done_exchange:
-            acc_block_arg = p_region.block.args[1]
+        if region == apply.receive_chunk:
+            acc_block_arg = region.block.args[2]
+        elif region == apply.done_exchange:
+            acc_block_arg = region.block.args[1]
         else:
             raise ValueError("Invalid region")
 
@@ -338,10 +331,7 @@ class LinalgAccumulatorInjection(RewritePattern):
         acc_bufferization = acc_uses[0]
 
         # in the `chunk_recieved` region, fetch or create a down-sized chunk of the accumulator
-        if (
-            acc_bufferization.tensor.type != target_t
-            and p_region == apply.receive_chunk
-        ):
+        if acc_bufferization.tensor.type != target_t and region == apply.receive_chunk:
             # check if we can find an `extract_slice` to the desired size
             extract_slice = None
             for use in acc_bufferization.tensor.uses:
@@ -355,7 +345,7 @@ class LinalgAccumulatorInjection(RewritePattern):
             # create `extract_slice` op if none exists
             if not extract_slice:
                 extract_slice = tensor.ExtractSliceOp(
-                    operands=[acc_bufferization, [p_region.block.args[1]], [], []],
+                    operands=[acc_bufferization, [region.block.args[1]], [], []],
                     result_types=[target_t],
                     properties={
                         "static_offsets": DenseArrayBase.from_list(
@@ -386,6 +376,22 @@ class LinalgAccumulatorInjection(RewritePattern):
                     regions=[op.detach_region(r) for r in op.regions],
                 ),
             )
+
+    @staticmethod
+    def get_apply_and_region(
+        op: Operation,
+    ) -> tuple[csl_stencil.ApplyOp, Region] | tuple[None, None]:
+        p_region = op.parent_region()
+        apply = None
+        while (
+            p_region
+            and (apply := p_region.parent_op())
+            and not isinstance(apply, csl_stencil.ApplyOp)
+        ):
+            p_region = apply.parent_region()
+        if not isinstance(apply, csl_stencil.ApplyOp) or not p_region:
+            return None, None
+        return apply, p_region
 
 
 @dataclass(frozen=True)
