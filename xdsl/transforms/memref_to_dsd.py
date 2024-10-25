@@ -89,6 +89,24 @@ class FixGetDsdOnGetDsd(RewritePattern):
                 raise ValueError("Failed to resolve GetMemDsdOp called on dsd type")
 
 
+class FixMemrefLoadOnGetDsd(RewritePattern):
+    """
+    Memref load ops should load from the underlying memref, not from the dsd.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter, /):
+        if isinstance(op.memref.type, csl.DsdType):
+            if isinstance(op.memref, OpResult) and isinstance(
+                op.memref.op, csl.GetMemDsdOp
+            ):
+                rewriter.replace_matched_op(
+                    memref.Load.get(op.memref.op.base_addr, op.indices)
+                )
+            else:
+                raise ValueError("Failed to resolve memref.load called on dsd type")
+
+
 class LowerSubviewOpPass(RewritePattern):
     """Lowers memref.subview to dsd ops"""
 
@@ -355,12 +373,10 @@ class MemrefToDsdPass(ModulePass):
                     LowerAllocOpPass(),
                     DsdOpUpdateType(),
                     RetainAddressOfOpPass(),
+                    FixMemrefLoadOnGetDsd(),
+                    FixGetDsdOnGetDsd(),
                 ]
             ),
             apply_recursively=False,
         )
         forward_pass.rewrite_module(op)
-        cleanup_pass = PatternRewriteWalker(
-            FixGetDsdOnGetDsd(),
-        )
-        cleanup_pass.rewrite_module(op)
