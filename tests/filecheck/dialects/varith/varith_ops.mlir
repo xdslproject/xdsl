@@ -31,5 +31,5 @@
 // CHECK-GENERIC: %x6 = "varith.mul"(%ta, %tb, %tc, %td) : (tensor<10xf32>, tensor<10xf32>, tensor<10xf32>, tensor<10xf32>) -> tensor<10xf32>
 
 %x7 = "varith.select"(%ia, %fa, %fb, %fc, %fd) : (i32, f32, f32, f32, f32) -> f32
-// CHECK: %x7 = varith.select(%ia : i32) %fa, %fb, %fc, %fd
+// CHECK: %x7 = varith.select(%ia : i32) %fa, %fb, %fc, %fd : f32
 // CHECK-GENERIC: %x7 = "varith.select"(%ia, %fa, %fb, %fc, %fd) : (i32, f32, f32, f32, f32) -> f32
