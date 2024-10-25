@@ -571,15 +571,39 @@ class AShrOp(ArithmeticBinOperation):
 class TruncOp(IntegerConversionOp):
     name = "llvm.trunc"
 
+    def verify(self):
+        assert isinstance(self.arg.type, IntegerType)
+        assert isinstance(self.res.type, IntegerType)
+        if self.arg.type.bitwidth >= self.res.type.bitwidth:
+            raise VerifyException(
+                f"invalid cast opcode for cast from {self.arg.type.name} to {self.res.type.name}"
+            )
+
 
 @irdl_op_definition
 class ZExtOp(IntegerConversionOp):
     name = "llvm.zext"
 
+    def verify(self):
+        assert isinstance(self.arg.type, IntegerType)
+        assert isinstance(self.res.type, IntegerType)
+        if self.arg.type.bitwidth <= self.res.type.bitwidth:
+            raise VerifyException(
+                f"invalid cast opcode for cast from {self.arg.type.name} to {self.res.type.name}"
+            )
+
 
 @irdl_op_definition
 class SExtOp(IntegerConversionOp):
     name = "llvm.sext"
+
+    def verify(self):
+        assert isinstance(self.arg.type, IntegerType)
+        assert isinstance(self.res.type, IntegerType)
+        if self.arg.type.bitwidth <= self.res.type.bitwidth:
+            raise VerifyException(
+                f"invalid cast opcode for cast from {self.arg.type.name} to {self.res.type.name}"
+            )
 
 
 @irdl_op_definition
