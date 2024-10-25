@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from math import prod
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, stencil, tensor
+from xdsl.dialects import arith, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyMemRefTypeConstr,
@@ -17,7 +17,15 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import Operand, base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -30,6 +38,10 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.experimental.stencil_tensorize_z_dimension import (
     BackpropagateStencilShapes,
+)
+from xdsl.transforms.varith_transformations import (
+    ConvertArithToVarithPass,
+    ConvertVarithToArithPass,
 )
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
@@ -55,69 +67,35 @@ def get_stencil_access_operands(op: Operand) -> set[Operand]:
     return res
 
 
-@dataclass(frozen=True)
-class RestructureSymmetricReductionPattern(RewritePattern):
+def _get_prefetch_buf_idx(op: stencil.ApplyOp) -> int | None:
+    # calculate memory cost of all prefetch operands
+    def get_prefetch_overhead(o: OpResult):
+        assert isa(o.type, TensorType[Attribute])
+        return prod(o.type.get_shape())
+
+    candidate_prefetches = [
+        (get_prefetch_overhead(o), o)
+        for o in op.operands
+        if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
+    ]
+    if len(candidate_prefetches) == 0:
+        return
+
+    # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
+    prefetch = max(candidate_prefetches)[1]
+    return op.operands.index(prefetch)
+
+
+def _get_apply_op(op: Operation) -> stencil.ApplyOp | None:
     """
-    Consume data first where that data comes from stencil accesses to `buf`.
-
-    Identifies a pattern of 2 connected binary ops with 3 args, e.g. of the form `(a+b)+c` with different ops and
-    bracketings supported, and attempts to re-structure the order of computation.
-
-    Being in principle similarly to constant folding, the difference is that args are *not* required to be stencil
-    accesses, but could have further compute applied before being passed to the reduction function.
-    Uses helper function `get_stencil_accessed_symbols` to check which bufs are stencil-accessed in each of these args,
-    and to distinguish the following three cases:
-
-     (1) all accesses in an arg tree are to `buf`  - arg should be moved forward in the computation
-     (2) no accesses are to `buf`                  - arg should be moved backward in the computation
-     (3) there's a mix                             - unknown, take any or no action
-
-    If two args are identified that should be moved forward, or two args are identified that should be moved backwards,
-    the computation is restructured accordingly.
+    Return the enclosing csl_wrapper.module
     """
-
-    buf: BlockArgument
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: arith.Addf | arith.Mulf, rewriter: PatternRewriter, /
-    ):
-        # this rewrite requires exactly 1 use which is the same type of operation
-        if len(op.result.uses) != 1 or not isinstance(
-            use := list(op.result.uses)[0].operation, type(op)
-        ):
-            return
-        c_op = use.operands[0] if use.operands[1] == op.result else use.operands[1]
-
-        def rewrite(one: Operand, two: Operand, three: Operand):
-            """Builds `(one+two)+three` where `'+' == type(op)`"""
-
-            first_compute = type(op)(one, two)
-            second_compute = type(op)(first_compute, three)
-
-            # Both ops are inserted at the later point to ensure all dependencies are present when moving compute around.
-            # Moving the replacement of `op` backwards is safe because we previously asserted at `op` only has one use (ie. in `use`)
-            rewriter.replace_op(op, [], [first_compute.results[0]])
-            rewriter.replace_op(
-                use, [first_compute, second_compute], [second_compute.results[0]]
-            )
-
-        a = get_stencil_access_operands(a_op := op.lhs)
-        b = get_stencil_access_operands(b_op := op.rhs)
-        c = get_stencil_access_operands(c_op)
-
-        if self.move_fwd(a) and self.move_fwd(b):
-            return
-        elif self.move_back(a) and self.move_back(b):
-            return
-        elif self.move_fwd(c) and self.move_back(b):
-            rewrite(a_op, c_op, b_op)
-
-    def move_fwd(self, accs: set[Operand]) -> bool:
-        return self.buf in accs and len(accs) == 1
-
-    def move_back(self, accs: set[Operand]) -> bool:
-        return self.buf not in accs
+    parent_op = op.parent_op()
+    while parent_op:
+        if isinstance(parent_op, stencil.ApplyOp):
+            return parent_op
+        parent_op = parent_op.parent_op()
+    return None
 
 
 @dataclass(frozen=True)
@@ -278,7 +256,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             nested_rewriter.rewrite_op(new_apply_op)
 
 
-def get_op_split(
+def split_ops(
     ops: Sequence[Operation], buf: BlockArgument
 ) -> tuple[Sequence[Operation], Sequence[Operation]]:
     """
@@ -298,6 +276,8 @@ def get_op_split(
     for op in ops:
         if isinstance(op, csl_stencil.AccessOp):
             (b, a)[op.op == buf].append(op)
+        elif isinstance(op, arith.Constant):
+            a.append(op)
         else:
             rem.append(op)
 
@@ -331,12 +311,64 @@ def get_op_split(
                         a.append(use.operation)
                         rem.remove(use.operation)
 
-    if len(a_exports) == 1:
-        return a, b + rem
+    # find constants in `a` needed outside of `a`
+    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.Constant)]
+
+    # `a` exports one value plus any number of constants - duplicate exported constants and return op split
+    if len(a_exports) == 1 + len(cnst_exports):
+        recv_chunk_ops, done_exch_ops = list[Operation](), list[Operation]()
+        for op in ops:
+            if op in a:
+                recv_chunk_ops.append(op)
+                if op in cnst_exports:
+                    # create a copy of the constant in the second region
+                    done_exch_ops.append(cln := op.clone())
+                    # rewire ops of the second region to use the copied constant
+                    op.result.replace_by_if(
+                        cln.result,
+                        lambda use: use.operation in b or use.operation in rem,
+                    )
+            else:
+                done_exch_ops.append(op)
+
+        return recv_chunk_ops, done_exch_ops
 
     # fallback
     # always place `stencil.return` in second block
     return ops[:-1], [ops[-1]]
+
+
+@dataclass(frozen=True)
+class SplitVarithOpPattern(RewritePattern):
+    """
+    Splits a varith op into two, depending on whether the operands holds stencil accesses to `buf` (only)
+    or any other accesses.
+
+    This pass is intended to be run with `buf` set to the block arg indicating data received from neighbours.
+    """
+
+    buf: BlockArgument
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+        if not (apply := _get_apply_op(op)) or not (
+            buf_idx := _get_prefetch_buf_idx(apply)
+        ):
+            return
+        buf = apply.region.block.args[buf_idx]
+        buf_accesses, others = list[SSAValue](), list[SSAValue]()
+
+        for arg in op.args:
+            accs = get_stencil_access_operands(arg)
+            (others, buf_accesses)[buf in accs and len(accs) == 1].append(arg)
+
+        if len(others) > 0 and len(buf_accesses) > 0:
+            rewriter.replace_matched_op(
+                [
+                    n_op := type(op)(*buf_accesses),
+                    type(op)(n_op, *others),
+                ]
+            )
 
 
 @dataclass(frozen=True)
@@ -359,24 +391,12 @@ class ConvertApplyOpPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
-        # calculate memory cost of all prefetch operands
-        def get_prefetch_overhead(o: OpResult):
-            assert isa(o.type, TensorType[Attribute])
-            buf_count = o.type.get_shape()[0]
-            buf_size = prod(o.type.get_shape()[1:])
-            return buf_count * buf_size
-
-        candidate_prefetches = [
-            (get_prefetch_overhead(o), o)
-            for o in op.operands
-            if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
-        ]
-        if len(candidate_prefetches) == 0:
+        if not (prefetch_idx := _get_prefetch_buf_idx(op)):
             return
 
         # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
-        prefetch = max(candidate_prefetches)[1]
-        prefetch_idx = op.operands.index(prefetch)
+        prefetch = op.operands[prefetch_idx]
+        assert isinstance(prefetch, OpResult)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
         field_idx = op.operands.index(prefetch.op.input_stencil)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
@@ -392,14 +412,14 @@ class ConvertApplyOpPattern(RewritePattern):
         rewriter.insert_op(accumulator, InsertPoint.before(op))
 
         # run pass (on this apply's region only) to consume data from `prefetch` accesses first
-        nested_rewriter = PatternRewriteWalker(
-            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx]),
-            walk_reverse=True,
-        )
-        nested_rewriter.rewrite_op(op)
+        # find varith ops and split according to neighbour data
+        PatternRewriteWalker(
+            SplitVarithOpPattern(op.region.block.args[prefetch_idx]),
+            apply_recursively=False,
+        ).rewrite_op(op)
 
         # determine how ops should be split across the two regions
-        chunk_region_ops, done_exchange_ops = get_op_split(
+        chunk_region_ops, done_exchange_ops = split_ops(
             list(op.region.block.ops), op.region.block.args[prefetch_idx]
         )
 
@@ -576,6 +596,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
     num_chunks: int = 1
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        ConvertArithToVarithPass().apply(ctx, op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -585,9 +606,9 @@ class ConvertStencilToCslStencilPass(ModulePass):
                 ]
             ),
             walk_reverse=False,
-            apply_recursively=True,
         )
         module_pass.rewrite_module(op)
+        ConvertVarithToArithPass().apply(ctx, op)
 
         if self.num_chunks > 1:
             BackpropagateStencilShapes().apply(ctx, op)
