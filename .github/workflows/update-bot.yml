@@ -35,3 +35,4 @@ jobs:
           labels: install
           delete-branch: true
           add-paths: uv.lock
+          assignees: math-fehr, georgebisbas
