@@ -87,9 +87,9 @@ class BackwardFuseLinalgGeneric(RewritePattern):
 class DispatchBlocks(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op : func.FuncOp, rewriter : PatternRewriter, /):
-        dispatch_op = dispatch_block(op.body.block)
-        assert isinstance(op.body.block.last_op, Operation)
-        op.body.block.insert_op_before(dispatch_op, op.body.block.last_op)
+        dispatch_block(op.body.block)
+        #assert isinstance(op.body.block.last_op, Operation)
+        #op.body.block.insert_op_before(dispatch_op, op.body.block.last_op)
 
 
 @dataclass(frozen=True)

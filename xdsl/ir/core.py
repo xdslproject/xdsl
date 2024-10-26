@@ -951,6 +951,16 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
+    def get_parent_of_type(self, parent_type: type[Operation]) -> Operation | None:
+        current_op = self
+        
+        while parent := current_op.parent_op():
+            if isinstance(parent, parent_type):
+                return parent
+            current_op = parent
+            
+        return None
+
     def walk(
         self, *, reverse: bool = False, region_first: bool = False
     ) -> Iterator[Operation]:
@@ -1721,6 +1731,12 @@ class Block(IRNode, IRWithUses):
         self.drop_all_references()
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
+
+    def get_terminator(self) -> Operation | None:
+        if self.last_op and self.last_op.has_trait(IsTerminator):
+            return self.last_op
+        else:
+            return None
 
     def is_structurally_equivalent(
         self,

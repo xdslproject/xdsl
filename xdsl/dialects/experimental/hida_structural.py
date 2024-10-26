@@ -4,7 +4,7 @@ from xdsl.traits import IsolatedFromAbove
 from xdsl.dialects import memref
 
 @irdl_op_definition
-class Node(IRDLOperation):
+class NodeOp(IRDLOperation):
     name = "hida_struct.node"
 
     region : Region = region_def()
@@ -45,7 +45,7 @@ class Stream(IRDLOperation):
 HIDA_struct = Dialect(
     "hida_struct",
     [
-        Node,
+        NodeOp,
         Schedule,
         BufferOp,
         Stream
