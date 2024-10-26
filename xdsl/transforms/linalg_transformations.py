@@ -39,7 +39,7 @@ def build_generic_fma(
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class FuseMultiplyAddPass(RewritePattern):
     require_scalar_factor: bool
     require_erasable_mul: bool
@@ -72,13 +72,6 @@ class FuseMultiplyAddPass(RewritePattern):
                 add.inputs[0] if mul.res[0] == add.inputs[1] else add.inputs[1]
             )
 
-            # # prefer dest that is not used as an input
-            # dest = (
-            #     mul.outputs[0]
-            #     if mul.outputs[0] not in [*mul.inputs, *add.inputs]
-            #     else add.outputs[0]
-            # )
-
             # build fma op
             fma = build_generic_fma(
                 mul.inputs[0], mul.inputs[1], add_operand, mul.outputs[0]
@@ -88,7 +81,6 @@ class FuseMultiplyAddPass(RewritePattern):
             rewriter.replace_op(add, fma)
             if len(mul.res[0].uses) == 0:
                 rewriter.erase_matched_op()
-            pass
 
     @staticmethod
     def is_scalar_constant(op: SSAValue) -> bool:
