@@ -97,14 +97,14 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
         # one of the factors must be a scalar const, which the csl function signatures require
         if scalar_const := get_scalar_const(op.inputs[0]):
             rewriter.insert_op(
-                const_op := arith.Constant(scalar_const), InsertPoint.before(op)
+                a := arith.Constant(scalar_const), InsertPoint.before(op)
             )
-            non_scalar = op.inputs[1]
+            x = op.inputs[1]
         elif scalar_const := get_scalar_const(op.inputs[1]):
             rewriter.insert_op(
-                const_op := arith.Constant(scalar_const), InsertPoint.before(op)
+                a := arith.Constant(scalar_const), InsertPoint.before(op)
             )
-            non_scalar = op.inputs[0]
+            x = op.inputs[0]
         else:
             # if neither factor is a scalar, return
             return
@@ -114,9 +114,11 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
             op.outputs.types[0].get_element_type(), f16=csl.FmachOp, f32=csl.FmacsOp
         )
 
-        rewriter.replace_matched_op(
-            csl_op(operands=[[op.outputs[0], non_scalar, op.inputs[2], const_op]])
-        )
+        r = op.outputs[0]
+        y = op.inputs[2]
+
+        # builds `r = a * x + y`
+        rewriter.replace_matched_op(csl_op(operands=[[r, y, x, a]]))
 
     @staticmethod
     def is_fma(op: linalg.Generic) -> bool:
