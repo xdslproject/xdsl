@@ -3,6 +3,7 @@ import re
 from collections.abc import Iterable
 
 from xdsl.dialects import arith, builtin, llvm, printf
+from xdsl.dialects.builtin import IntAttr, IntegerType
 from xdsl.ir import Attribute, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -80,6 +81,8 @@ def _format_str_for_type(t: Attribute):
             return "%li"
         case llvm.LLVMPointerType():
             return "%p"
+        case IntegerType(width=IntAttr(1)):
+            return "%u"
         case _:
             raise ValueError(f"Cannot find printf code for {t}")
 
