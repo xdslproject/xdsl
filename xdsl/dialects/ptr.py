@@ -1,4 +1,4 @@
-from xdsl.dialects.builtin import IndexType, IntegerType
+from xdsl.dialects.builtin import IndexType, IntegerType, UnitAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyOf,
@@ -6,6 +6,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     result_def,
 )
 
@@ -26,4 +27,44 @@ class PtrAddOp(IRDLOperation):
     assembly_format = "$addr `,` $offset attr-dict `:` `(` type($addr) `,` type($offset) `)` `->` type($result)"
 
 
-Ptr = Dialect("ptr", [PtrAddOp], [PtrType])
+# haven't managed to pass a type here yet. so did it with a hack.
+@irdl_op_definition
+class TypeOffsetOp(IRDLOperation):
+    name = "ptr.type_offset"
+
+    input_type = operand_def()
+    offset = result_def(AnyOf([IntegerType, IndexType]))
+
+    assembly_format = "$input_type attr-dict `:` type($input_type) `->` type($offset)"
+
+
+@irdl_op_definition
+class StoreOp(IRDLOperation):
+    name = "ptr.store"
+
+    addr = operand_def(PtrType)
+    value = operand_def()
+
+    volatile = opt_prop_def(UnitAttr)
+    syncscope = opt_prop_def(UnitAttr)
+    ordering = opt_prop_def(UnitAttr)
+
+    assembly_format = "(`volatile` $volatile^)? $value `,` $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? attr-dict `:` type($value) `,` type($addr)"
+
+
+@irdl_op_definition
+class LoadOp(IRDLOperation):
+    name = "ptr.load"
+
+    addr = operand_def(PtrType)
+    res = result_def()
+
+    volatile = opt_prop_def(UnitAttr)
+    syncscope = opt_prop_def(UnitAttr)
+    ordering = opt_prop_def(UnitAttr)
+    invariant = opt_prop_def(UnitAttr)
+
+    assembly_format = "(`volatile` $volatile^)? $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? (`invariant` $invariant^)? attr-dict `:` type($addr) `->` type($res)"
+
+
+Ptr = Dialect("ptr", [PtrAddOp, TypeOffsetOp, StoreOp, LoadOp], [PtrType])
