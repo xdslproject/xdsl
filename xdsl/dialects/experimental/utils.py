@@ -3,7 +3,7 @@ from xdsl.irdl import Operation, Block, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.hints import isa
 from xdsl.rewriter import InsertPoint
-from xdsl.dialects import affine, func
+from xdsl.dialects import affine, linalg, builtin
 from xdsl.builder import Builder
 
 
@@ -34,6 +34,30 @@ def dispatch_block(block : Block):
 
     return dispatch
 
+def is_element_wise_generic_op(op : linalg.Generic):
+    assert isinstance(op, linalg.Generic)
+    if op.get_num_loops() != sum(list(map(lambda x: (1 if x.data == "parallel" else 0), op.iterator_types.data))):
+        return
+    
+    for value_map in zip(op.operands, op.get_indexing_maps()):
+        operand_type = value_map[0].type
+        affine_map : builtin.AffineMap = value_map[1]
+
+        # TODO: check if the type is static
+
+        assert isinstance(operand_type, builtin.TensorType)
+
+        index = affine_map.num_dims - operand_type.get_num_dims()
+        for shape_expr in zip(operand_type.shape, affine_map.results):
+            dim_size = shape_expr[0].data
+            expr = shape_expr[1]
+
+            if expr != builtin.AffineDimExpr(index) and dim_size != 1:
+                return False
+            index += 1
+        
+    return True
+
 def fuse_ops_into_task(ops : list[Operation], rewriter: PatternRewriter, insert_to_last_op : bool = False):
     # The output values of the task are the output values of the member operations that have uses outside the task
     all_nested_ops = set([sub_op for op in ops for sub_op in op.walk()])
@@ -52,8 +76,10 @@ def fuse_ops_into_task(ops : list[Operation], rewriter: PatternRewriter, insert_
     rewriter.insert_op(task, insert_point)
 
     list(map(lambda x: x.detach(), ops))
-    list(map(lambda x: task.region.block.add_op(x), ops))
-    task.region.block.add_op(yield_op)
+    #list(map(lambda x: task.region.block.add_op(x), ops))
+    rewriter.insert_op(ops, InsertPoint.at_end(task.region.block))
+    #task.region.block.add_op(yield_op)
+    rewriter.insert_op(yield_op, InsertPoint.at_end(task.region.block))
 
     # Propagate output values of the task to users of the outputs of the member operations
     for res_idx,res in enumerate(task.results):
@@ -65,9 +91,12 @@ def fuse_ops_into_task(ops : list[Operation], rewriter: PatternRewriter, insert_
 
         yield_operands = list(map(lambda x: x.owner, subtask.region.block.last_op.operands))
         assert isa(yield_operands, list[Operation])
-        list(map(lambda x: x.detach(), yield_operands))
 
-        rewriter.replace_op(subtask, yield_operands, new_results=[res for yield_operand in yield_operands for res in yield_operand.results])
+        subtask_ops : list[Operation] = [sub_op for sub_op in subtask.region.ops]
+        list(map(lambda x: x.detach(), subtask_ops))
+        rewriter.replace_op(subtask, subtask_ops[:-1], new_results=[res for yield_operand in yield_operands for res in yield_operand.results])
+
+
 
 def get_child_loop_num(op : Operation):
     n_children = 0

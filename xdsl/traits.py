@@ -31,6 +31,12 @@ class OpTrait:
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
+class IsContraction(OpTrait):
+    """
+    Temporary patch to qualify operations as contractions. This is done with an interface for the linalg dialect.
+    """
+
+
 class ConstantLike(OpTrait):
     """
     Operation known to be constant-like.

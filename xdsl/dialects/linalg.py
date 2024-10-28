@@ -58,6 +58,7 @@ from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
+from xdsl.traits import IsContraction
 
 
 class IteratorType(StrEnum):
@@ -833,6 +834,8 @@ class MatmulOp(NamedOpBase):
     name = "linalg.matmul"
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
+
+    traits = frozenset([IsContraction()])
 
     def __init__(
         self,
