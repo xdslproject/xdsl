@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
-    AnyTensorType,
     AnyTensorTypeConstr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -140,6 +139,9 @@ class ApplyOpBufferize(RewritePattern):
             else:
                 done_exchange_arg_mapping.append(arg)
 
+        assert isa(typ := op.receive_chunk.block.args[0].type, TensorType[Attribute])
+        chunk_type = TensorType(typ.get_element_type(), typ.get_shape()[1:])
+
         # inline blocks from old into new regions
         rewriter.inline_block(
             op.receive_chunk.block,
@@ -151,6 +153,10 @@ class ApplyOpBufferize(RewritePattern):
             op.done_exchange.block,
             InsertPoint.at_end(buf_apply_op.done_exchange.block),
             done_exchange_arg_mapping,
+        )
+
+        self._inject_iter_arg_into_linalg_outs(
+            buf_apply_op, rewriter, chunk_type, chunk_region_arg_mapping[2]
         )
 
         # insert new op
@@ -170,6 +176,81 @@ class ApplyOpBufferize(RewritePattern):
                     for arg in args
                 ]
             )
+        )
+
+    @staticmethod
+    def _inject_iter_arg_into_linalg_outs(
+        op: csl_stencil.ApplyOp,
+        rewriter: PatternRewriter,
+        chunk_type: TensorType[Attribute],
+        iter_arg: SSAValue,
+    ):
+        """
+        Finds a linalg op with `chunk_type` shape in `outs` and injects
+        an extracted slice of `iter_arg`. This is a work-around for the
+        way bufferization works, causing it to use `iter_arg` as an accumulator
+        and avoiding having an extra alloc + memref.copy.
+        """
+        linalg_op: linalg.NamedOpBase | None = None
+        for curr_op in op.receive_chunk.block.ops:
+            if (
+                isinstance(curr_op, linalg.NamedOpBase)
+                and len(curr_op.outputs) > 0
+                and curr_op.outputs.types[0] == chunk_type
+            ):
+                linalg_op = curr_op
+                break
+
+        if linalg_op is None:
+            return
+
+        rewriter.replace_op(
+            linalg_op,
+            [
+                extract_slice_op := tensor.ExtractSliceOp(
+                    operands=[iter_arg, [op.receive_chunk.block.args[1]], [], []],
+                    result_types=[chunk_type],
+                    properties={
+                        "static_offsets": DenseArrayBase.from_list(
+                            i64, (memref.Subview.DYNAMIC_INDEX,)
+                        ),
+                        "static_sizes": DenseArrayBase.from_list(
+                            i64, chunk_type.get_shape()
+                        ),
+                        "static_strides": DenseArrayBase.from_list(i64, (1,)),
+                    },
+                ),
+                type(linalg_op).build(
+                    operands=[linalg_op.inputs, extract_slice_op.results],
+                    result_types=linalg_op.result_types,
+                    properties=linalg_op.properties,
+                    attributes=linalg_op.attributes,
+                    regions=[linalg_op.detach_region(r) for r in linalg_op.regions],
+                ),
+            ],
+        )
+
+    @staticmethod
+    def _build_extract_slice(
+        op: csl_stencil.ApplyOp, to_tensor: bufferization.ToTensorOp, offset: SSAValue
+    ) -> tensor.ExtractSliceOp:
+        """
+        Helper function to create an early tensor.extract_slice in the apply.recv_chunk_cb region needed for bufferization.
+        """
+
+        # this is the unbufferized `tensor<(neighbours)x(ZDim)x(type)>` value
+        assert isa(typ := op.receive_chunk.block.args[0].type, TensorType[Attribute])
+
+        return tensor.ExtractSliceOp(
+            operands=[to_tensor.tensor, [offset], [], []],
+            result_types=[TensorType(typ.get_element_type(), typ.get_shape()[1:])],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(
+                    i64, (memref.Subview.DYNAMIC_INDEX,)
+                ),
+                "static_sizes": DenseArrayBase.from_list(i64, typ.get_shape()[1:]),
+                "static_strides": DenseArrayBase.from_list(i64, (1,)),
+            },
         )
 
 
@@ -291,110 +372,6 @@ class ArithConstBufferize(RewritePattern):
 
 
 @dataclass(frozen=True)
-class LinalgAccumulatorInjection(RewritePattern):
-    """
-    Injects the `accumulator` block argument for linalg ops within the csl_stencil.apply regions
-    into the `outs` argument. This typically reduces the overhead of bufferization.
-    """
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: linalg.NamedOpBase | linalg.Generic, rewriter: PatternRewriter, /
-    ):
-        # check if there is an output to inject the accumulator into
-        if len(op.outputs) != 1 or not isa(
-            target_t := op.outputs[0].type, AnyTensorType
-        ):
-            return
-
-        # find parent `csl_stencil.apply` and which of the regions `op` is in
-        apply, region = self.get_apply_and_region(op)
-        if not apply or not region:
-            return
-
-        # retrieve the correct accumulator block arg
-        if region == apply.receive_chunk:
-            acc_block_arg = region.block.args[2]
-        elif region == apply.done_exchange:
-            acc_block_arg = region.block.args[1]
-        else:
-            raise ValueError("Invalid region")
-
-        # fetch the bufferization of the accumulator block arg
-        acc_uses = [
-            use.operation
-            for use in acc_block_arg.uses
-            if isinstance(use.operation, bufferization.ToTensorOp)
-        ]
-        if len(acc_uses) < 1:
-            return
-        acc_bufferization = acc_uses[0]
-
-        # in the `chunk_recieved` region, fetch or create a down-sized chunk of the accumulator
-        if acc_bufferization.tensor.type != target_t and region == apply.receive_chunk:
-            # check if we can find an `extract_slice` to the desired size
-            extract_slice = None
-            for use in acc_bufferization.tensor.uses:
-                if (
-                    isinstance(use.operation, tensor.ExtractSliceOp)
-                    and use.operation.result.type == target_t
-                ):
-                    extract_slice = use.operation
-                    break
-
-            # create `extract_slice` op if none exists
-            if not extract_slice:
-                extract_slice = tensor.ExtractSliceOp(
-                    operands=[acc_bufferization, [region.block.args[1]], [], []],
-                    result_types=[target_t],
-                    properties={
-                        "static_offsets": DenseArrayBase.from_list(
-                            i64, (memref.Subview.DYNAMIC_INDEX,)
-                        ),
-                        "static_sizes": DenseArrayBase.from_list(
-                            i64, target_t.get_shape()
-                        ),
-                        "static_strides": DenseArrayBase.from_list(i64, (1,)),
-                    },
-                )
-                rewriter.insert_op(extract_slice, InsertPoint.after(acc_bufferization))
-
-            # use the `extract_slice` op fetched or created when rebuilding `op`
-            acc_bufferization = extract_slice
-
-        # check if `op` can be rebuild and needs to be rebuilt
-        if (
-            acc_bufferization.results[0].type == target_t
-            and acc_bufferization.results[0] != op.outputs[0]
-        ):
-            rewriter.replace_matched_op(
-                type(op).build(
-                    operands=[op.inputs, acc_bufferization],
-                    result_types=op.result_types,
-                    properties=op.properties,
-                    attributes=op.attributes,
-                    regions=[op.detach_region(r) for r in op.regions],
-                ),
-            )
-
-    @staticmethod
-    def get_apply_and_region(
-        op: Operation,
-    ) -> tuple[csl_stencil.ApplyOp, Region] | tuple[None, None]:
-        p_region = op.parent_region()
-        apply = None
-        while (
-            p_region
-            and (apply := p_region.parent_op())
-            and not isinstance(apply, csl_stencil.ApplyOp)
-        ):
-            p_region = apply.parent_region()
-        if not isinstance(apply, csl_stencil.ApplyOp) or not p_region:
-            return None, None
-        return apply, p_region
-
-
-@dataclass(frozen=True)
 class CslStencilBufferize(ModulePass):
     """
     Bufferizes the csl_stencil dialect.
@@ -415,7 +392,6 @@ class CslStencilBufferize(ModulePass):
                     YieldOpBufferize(),
                     FuncOpBufferize(),
                     ArithConstBufferize(),
-                    LinalgAccumulatorInjection(),
                 ]
             )
         )
