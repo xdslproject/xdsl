@@ -105,7 +105,7 @@ def get_strided_pointer(
     ops: list[Operation] = []
 
     head: SSAValue | None = None
-    print("indicies: ", indices, "strides: ", strides)
+
     for index, stride in zip(indices, strides, strict=True):
         # Calculate the offset that needs to be added through the index of the current
         # dimension.
