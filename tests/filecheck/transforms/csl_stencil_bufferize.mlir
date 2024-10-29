@@ -37,18 +37,18 @@ builtin.module {
 // CHECK-NEXT:     csl_stencil.apply(%a : memref<512xf32>, %1 : memref<510xf32>) outs (%b : memref<512xf32>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>}> ({
 // CHECK-NEXT:     ^0(%2 : memref<4x255xf32>, %3 : index, %4 : memref<510xf32>):
 // CHECK-NEXT:       %5 = bufferization.to_tensor %4 restrict writable : memref<510xf32>
-// CHECK-NEXT:       %6 = "tensor.extract_slice"(%5, %3) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>}> : (tensor<510xf32>, index) -> tensor<255xf32>
-// CHECK-NEXT:       %7 = csl_stencil.access %2[1, 0] : memref<4x255xf32>
-// CHECK-NEXT:       %8 = bufferization.to_tensor %7 restrict : memref<255xf32>
-// CHECK-NEXT:       %9 = csl_stencil.access %2[-1, 0] : memref<4x255xf32>
-// CHECK-NEXT:       %10 = bufferization.to_tensor %9 restrict : memref<255xf32>
-// CHECK-NEXT:       %11 = csl_stencil.access %2[0, 1] : memref<4x255xf32>
-// CHECK-NEXT:       %12 = bufferization.to_tensor %11 restrict : memref<255xf32>
-// CHECK-NEXT:       %13 = csl_stencil.access %2[0, -1] : memref<4x255xf32>
-// CHECK-NEXT:       %14 = bufferization.to_tensor %13 restrict : memref<255xf32>
-// CHECK-NEXT:       %15 = linalg.add ins(%14, %12 : tensor<255xf32>, tensor<255xf32>) outs(%6 : tensor<255xf32>) -> tensor<255xf32>
-// CHECK-NEXT:       %16 = linalg.add ins(%15, %10 : tensor<255xf32>, tensor<255xf32>) outs(%6 : tensor<255xf32>) -> tensor<255xf32>
-// CHECK-NEXT:       %17 = linalg.add ins(%16, %8 : tensor<255xf32>, tensor<255xf32>) outs(%6 : tensor<255xf32>) -> tensor<255xf32>
+// CHECK-NEXT:       %6 = csl_stencil.access %2[1, 0] : memref<4x255xf32>
+// CHECK-NEXT:       %7 = bufferization.to_tensor %6 restrict : memref<255xf32>
+// CHECK-NEXT:       %8 = csl_stencil.access %2[-1, 0] : memref<4x255xf32>
+// CHECK-NEXT:       %9 = bufferization.to_tensor %8 restrict : memref<255xf32>
+// CHECK-NEXT:       %10 = csl_stencil.access %2[0, 1] : memref<4x255xf32>
+// CHECK-NEXT:       %11 = bufferization.to_tensor %10 restrict : memref<255xf32>
+// CHECK-NEXT:       %12 = csl_stencil.access %2[0, -1] : memref<4x255xf32>
+// CHECK-NEXT:       %13 = bufferization.to_tensor %12 restrict : memref<255xf32>
+// CHECK-NEXT:       %14 = "tensor.extract_slice"(%5, %3) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>}> : (tensor<510xf32>, index) -> tensor<255xf32>
+// CHECK-NEXT:       %15 = linalg.add ins(%13, %11 : tensor<255xf32>, tensor<255xf32>) outs(%14 : tensor<255xf32>) -> tensor<255xf32>
+// CHECK-NEXT:       %16 = linalg.add ins(%15, %9 : tensor<255xf32>, tensor<255xf32>) outs(%15 : tensor<255xf32>) -> tensor<255xf32>
+// CHECK-NEXT:       %17 = linalg.add ins(%16, %7 : tensor<255xf32>, tensor<255xf32>) outs(%16 : tensor<255xf32>) -> tensor<255xf32>
 // CHECK-NEXT:       %18 = "tensor.insert_slice"(%17, %5, %3) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
 // CHECK-NEXT:       %19 = bufferization.to_memref %18 : memref<510xf32>
 // CHECK-NEXT:       csl_stencil.yield %19 : memref<510xf32>
@@ -61,8 +61,8 @@ builtin.module {
 // CHECK-NEXT:       %26 = "tensor.extract_slice"(%23) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
 // CHECK-NEXT:       %27 = "tensor.extract_slice"(%23) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
 // CHECK-NEXT:       %28 = linalg.add ins(%22, %27 : tensor<510xf32>, tensor<510xf32>) outs(%22 : tensor<510xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %29 = linalg.add ins(%28, %26 : tensor<510xf32>, tensor<510xf32>) outs(%22 : tensor<510xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %30 = linalg.mul ins(%29, %25 : tensor<510xf32>, tensor<510xf32>) outs(%22 : tensor<510xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %29 = linalg.add ins(%28, %26 : tensor<510xf32>, tensor<510xf32>) outs(%28 : tensor<510xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %30 = linalg.mul ins(%29, %25 : tensor<510xf32>, tensor<510xf32>) outs(%29 : tensor<510xf32>) -> tensor<510xf32>
 // CHECK-NEXT:       %31 = bufferization.to_memref %30 : memref<510xf32>
 // CHECK-NEXT:       csl_stencil.yield %31 : memref<510xf32>
 // CHECK-NEXT:     }) to <[0, 0], [1, 1]>
