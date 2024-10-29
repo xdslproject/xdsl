@@ -66,7 +66,7 @@
 // CHECK: %cst1 = llvm.mlir.constant(false) : i1
 
 %cst64 = llvm.mlir.constant(25) : i64
-// CHECK: %cst1 = llvm.mlir.constant(25) : i64
+// CHECK: %cst64 = llvm.mlir.constant(25) : i64
 
 %cst32 = llvm.mlir.constant(25 : i32) : i32
-// CHECK: %cst1 = llvm.mlir.constant(25 : i32) : i32
+// CHECK: %cst32 = llvm.mlir.constant(25 : i32) : i32
