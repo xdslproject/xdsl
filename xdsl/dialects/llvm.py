@@ -1311,6 +1311,9 @@ class ConstantOp(IRDLOperation):
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
 
+    def print(self, printer: Printer) -> None:
+        printer.print("(", self.value, ") : ", self.result.type)
+
 
 class FastMathFlag(StrEnum):
     REASSOC = "reassoc"
