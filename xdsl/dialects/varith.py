@@ -134,13 +134,14 @@ class VarithSwitchOp(IRDLOperation):
         parser.parse_punctuation(",")
         parser.parse_punctuation("[")
         parser.parse_keyword("default")
+        parser.parse_punctuation(":")
         default_arg = parser.resolve_operand(
             parser.parse_unresolved_operand(), return_type
         )
 
         values: list[int] = []
         args: list[SSAValue] = []
-        while parser.parse_punctuation(","):
+        while parser.parse_optional_punctuation(","):
             values.append(parser.parse_integer())
             parser.parse_punctuation(":")
             args.append(
