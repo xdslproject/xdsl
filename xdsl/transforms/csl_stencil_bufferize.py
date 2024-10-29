@@ -13,7 +13,15 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.csl import csl_stencil
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -372,6 +380,62 @@ class ArithConstBufferize(RewritePattern):
 
 
 @dataclass(frozen=True)
+class ReuseDpsOuts(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: linalg.NamedOpBase | linalg.Generic, rewriter: PatternRewriter, /
+    ):
+        for arg in op.inputs:
+            if (
+                isinstance(arg, OpResult)
+                and isinstance(arg.op, linalg.NamedOpBase | linalg.Generic)
+                and len(set(use.operation for use in arg.uses)) == 1
+            ):
+                rewriter.replace_matched_op(
+                    type(op).build(
+                        operands=[op.inputs, [arg.op.outputs[0]]],
+                        result_types=op.result_types,
+                        regions=[op.detach_region(r) for r in op.regions],
+                        properties=op.properties,
+                        attributes=op.attributes,
+                    )
+                )
+                return
+
+
+@dataclass(frozen=True)
+class PreferWritableDPSOuts(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: linalg.NamedOpBase | linalg.Generic, rewriter: PatternRewriter, /
+    ):
+        if op.outputs[0] not in op.inputs:
+            return
+        if self.is_writable(op.outputs[0]):
+            return
+        other = op.inputs[0] if op.outputs[0] == op.inputs[1] else op.inputs[0]
+        if not self.is_writable(other):
+            return
+        rewriter.replace_matched_op(
+            type(op).build(
+                operands=[op.inputs, [other]],
+                result_types=op.result_types,
+                regions=[op.detach_region(r) for r in op.regions],
+                properties=op.properties,
+                attributes=op.attributes,
+            )
+        )
+
+    @staticmethod
+    def is_writable(val: SSAValue) -> bool:
+        return (
+            isinstance(val, OpResult)
+            and isinstance(val.op, bufferization.ToTensorOp)
+            and val.op.writable is not None
+        )
+
+
+@dataclass(frozen=True)
 class CslStencilBufferize(ModulePass):
     """
     Bufferizes the csl_stencil dialect.
@@ -391,8 +455,13 @@ class CslStencilBufferize(ModulePass):
                     AccessOpBufferize(),
                     YieldOpBufferize(),
                     FuncOpBufferize(),
+                    PreferWritableDPSOuts(),
                     ArithConstBufferize(),
                 ]
             )
         )
         module_pass.rewrite_module(op)
+        # PatternRewriteWalker(
+        #     ReuseDpsOuts(),
+        #     apply_recursively=False
+        # ).rewrite_module(op)
