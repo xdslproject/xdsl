@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
     i64,
 )
@@ -1311,8 +1312,30 @@ class ConstantOp(IRDLOperation):
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
 
+    @classmethod
+    def parse_value(cls, parser: Parser) -> Attribute:
+        b = parser.parse_optional_boolean()
+        if b is not None:
+            return IntegerAttr.from_bool(b)
+        attr = parser.parse_optional_attribute()
+        if attr:
+            return attr
+        return IntegerAttr(parser.parse_integer(), 64)
+        
+    @classmethod
+    def parse(cls, parser: Parser):
+        parser.parse_characters("(")
+        value = cls.parse_value(parser)
+        parser.parse_characters(")")
+        parser.parse_characters(":")
+        value_type = parser.parse_type()
+        return cls(value, value_type)
+
     def print(self, printer: Printer) -> None:
-        printer.print("(", self.value, ") : ", self.result.type)
+        type_ind = f" : {self.result.type}"
+        if self.result.type == i1 or self.result.type == i64:
+            type_ind = ""
+        printer.print("(", self.value, type_ind, ") : ", self.result.type)
 
 
 class FastMathFlag(StrEnum):
