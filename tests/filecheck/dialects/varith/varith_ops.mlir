@@ -29,3 +29,13 @@
 %x6 = "varith.mul"(%ta, %tb, %tc, %td) : (tensor<10xf32>, tensor<10xf32>, tensor<10xf32>, tensor<10xf32>) -> tensor<10xf32>
 // CHECK:  %x6 = varith.mul %ta, %tb, %tc, %td : tensor<10xf32>
 // CHECK-GENERIC: %x6 = "varith.mul"(%ta, %tb, %tc, %td) : (tensor<10xf32>, tensor<10xf32>, tensor<10xf32>, tensor<10xf32>) -> tensor<10xf32>
+
+%x7 = "varith.switch"(%ia, %fa, %fb, %fc, %fd) <{"case_values" = dense<[0, 1, 2]> : vector<3xi32>}> : (i32, f32, f32, f32, f32) -> f32
+// CHECK:      %x7 = varith.switch %ia : i32 -> f32, [
+// CHECK-NEXT:   default: %fa,
+// CHECK-NEXT:   0: %fb
+// CHECK-NEXT:   1: %fc
+// CHECK-NEXT:   2: %fd
+// CHECK-NEXT: ]
+
+// CHECK-GENERIC: %x7 = "varith.switch"(%ia, %fa, %fb, %fc, %fd) <{"case_values" = dense<[0, 1, 2]> : vector<3xi32>}> : (i32, f32, f32, f32, f32) -> f32
