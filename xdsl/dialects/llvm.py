@@ -621,7 +621,7 @@ class ICmpPredicateFlag(StrEnum):
     ULE = 7
     UGT = 8
     UGE = 9
-    
+
     @classmethod
     def from_int(cls, i: int) -> ICmpPredicateFlag:
         if i == 0:
@@ -645,6 +645,7 @@ class ICmpPredicateFlag(StrEnum):
         elif i == 9:
             return ICmpPredicateFlag.UGE
         raise VerifyException(f"invalide predicate value {i}")
+
 
 @irdl_op_definition
 class ICmpOp(IRDLOperation, ABC):
@@ -695,9 +696,10 @@ class ICmpOp(IRDLOperation, ABC):
         elif isattr(self.predicate, AnyIntegerAttr):
             i = self.predicate.value.data
         if i is None:
-            raise VerifyException(f"Predicate is a {type(self.predicate)} when it should be an IntAttr or IntegerAttr")
+            raise VerifyException(
+                f"Predicate is a {type(self.predicate)} when it should be an IntAttr or IntegerAttr"
+            )
         printer.print(ICmpPredicateFlag.from_int(i).name.lower())
-        
 
     def print(self, printer: Printer):
         printer.print(' "')
