@@ -16,7 +16,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 # these targets don't produce files:
 .PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests
 .PHONY: rerun-notebooks precommit-install precommit pyright tests-marimo
-.PHONY: tests-marimo-mlir coverage coverage-tests coverage-filecheck-tests
+.PHONY: coverage coverage-tests coverage-filecheck-tests
 .PHONY: coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
@@ -49,6 +49,7 @@ pytest:
 pytest-nb:
 	pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
+		--ignore=docs/Toy \
 		--nbval-current-env
 
 # run tests for Toy tutorial
@@ -58,7 +59,15 @@ filecheck-toy:
 pytest-toy:
 	pytest docs/Toy/toy/tests
 
-tests-toy: filecheck-toy pytest-toy
+.PHONY: pytest-toy-nb
+pytest-toy-nb:
+	@if python -c "import riscemu" > /dev/null 2>&1; then \
+		pytest -W error --nbval -vv docs/Toy --nbval-current-env; \
+	else \
+		echo "riscemu is not installed, skipping tests."; \
+	fi
+
+tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
 tests-marimo:
 	@for file in docs/marimo/*.py; do \
@@ -71,24 +80,29 @@ tests-marimo:
 	done
 	@echo "All marimo tests passed successfully."
 
-tests-marimo-mlir:
-	@if ! command -v mlir-opt > /dev/null 2>&1; then \
-		echo "MLIR is not installed, skipping tests."; \
-		exit 0; \
+.PHONY: tests-marimo-onnx
+tests-marimo-onnx:
+	@if python -c "import onnx" > /dev/null 2>&1; then \
+		echo "onnx is installed, running tests."; \
+		if ! command -v mlir-opt > /dev/null 2>&1; then \
+			echo "MLIR is not installed, skipping tests."; \
+			exit 0; \
+		fi; \
+		for file in docs/marimo/onnx/*.py; do \
+			echo "Running $$file"; \
+			error_message=$$(python3 "$$file" 2>&1) || { \
+				echo "Error running $$file"; \
+				echo "$$error_message"; \
+				exit 1; \
+			}; \
+		done; \
+		echo "All marimo onnx tests passed successfully."; \
+	else \
+		echo "onnx is not installed, skipping tests."; \
 	fi
-	@echo "MLIR is installed, running tests."
-	@for file in docs/marimo/mlir/*.py; do \
-		echo "Running $$file"; \
-		error_message=$$(python3 "$$file" 2>&1) || { \
-			echo "Error running $$file"; \
-			echo "$$error_message"; \
-			exit 1; \
-		}; \
-	done
-	@echo "All marimo mlir tests passed successfully."
 
 # run all tests
-tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-mlir pyright
+tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory

@@ -22,12 +22,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install native dependencies
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: mesa-vulkan-drivers
-        version: 1.0
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -41,15 +35,9 @@ jobs:
       run: |
         pip install --upgrade pip
 
-    - name: Install the package locally
-      run: pip install -r requirements.txt
+    - name: Install the package and dev dependencies locally
+      run: pip install -e ".[dev]"
 
-    - name: Test with pytest
+    - name: Run all tests
       run: |
-        pytest -W error
-
-    - name: Execute lit tests
-      run: |
-        export PYTHONPATH=$(pwd)
-        lit -v tests/filecheck/
-        lit -v docs/Toy/examples/
+        make tests

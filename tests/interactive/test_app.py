@@ -27,6 +27,15 @@ from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
+# Mock pyclip_copy for testing
+_copied_text: str | None = None
+
+
+def pyclip_copy(text: str) -> None:
+    """Mock version of pyclip_copy that stores copied text for inspection during tests"""
+    global _copied_text
+    _copied_text = text
+
 
 @pytest.mark.asyncio
 async def test_inputs():
