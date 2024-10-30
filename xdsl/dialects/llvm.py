@@ -621,12 +621,30 @@ class ICmpPredicateFlag(StrEnum):
     ULE = 7
     UGT = 8
     UGE = 9
-
-
-# @irdl_attr_definition
-# class ICmpPredicateAttr(EnumAttribute[ICmpPredicateFlag]):
-#     name = "llvm.predicate"
-
+    
+    @classmethod
+    def from_int(cls, i: int) -> ICmpPredicateFlag:
+        if i == 0:
+            return ICmpPredicateFlag.EQ
+        elif i == 1:
+            return ICmpPredicateFlag.NE
+        elif i == 2:
+            return ICmpPredicateFlag.SLT
+        elif i == 3:
+            return ICmpPredicateFlag.SLE
+        elif i == 4:
+            return ICmpPredicateFlag.SGT
+        elif i == 5:
+            return ICmpPredicateFlag.SGE
+        elif i == 6:
+            return ICmpPredicateFlag.ULT
+        elif i == 7:
+            return ICmpPredicateFlag.ULE
+        elif i == 8:
+            return ICmpPredicateFlag.UGT
+        elif i == 9:
+            return ICmpPredicateFlag.UGE
+        raise VerifyException(f"invalide predicate value {i}")
 
 @irdl_op_definition
 class ICmpOp(IRDLOperation, ABC):
@@ -670,10 +688,20 @@ class ICmpOp(IRDLOperation, ABC):
         operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
         return cls(operands[0], operands[1], predicate, attributes)
 
+    def print_predicate(self, printer: Printer):
+        i = None
+        if isattr(self.predicate, IntAttr):
+            i = self.predicate.data
+        elif isattr(self.predicate, AnyIntegerAttr):
+            i = self.predicate.value.data
+        if i is None:
+            raise VerifyException(f"Predicate is a {type(self.predicate)} when it should be an IntAttr or IntegerAttr")
+        printer.print(ICmpPredicateFlag.from_int(i).name.lower())
+        
+
     def print(self, printer: Printer):
-        assert isattr(self.predicate, IntAttr)
         printer.print(' "')
-        printer.print(ICmpPredicateFlag(self.predicate.data))
+        self.print_predicate(printer)
         printer.print('" ', self.lhs, ", ", self.rhs)
         printer.print_op_attributes(self.attributes)
         printer.print(" : ")
