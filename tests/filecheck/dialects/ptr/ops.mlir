@@ -6,8 +6,8 @@ builtin.module {
   // CHECK: %r0 = ptr.ptradd %p, %idx : (!ptr.ptr, index) -> !ptr.ptr
   %r0 = ptr.ptradd %p, %idx : (!ptr.ptr, index) -> !ptr.ptr
   
-  // CHECK-NEXT: %r1 = ptr.type_offset %v : i32 -> index
-  %r1 = ptr.type_offset %v : i32 -> index
+  // CHECK-NEXT: %r1 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
+  %r1 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
   
   // CHECK-NEXT: ptr.store %v, %p : i32, !ptr.ptr
   ptr.store %v, %p : i32, !ptr.ptr

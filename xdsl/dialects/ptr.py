@@ -3,10 +3,12 @@ from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyOf,
     IRDLOperation,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
+    prop_def,
     result_def,
 )
 
@@ -32,10 +34,8 @@ class PtrAddOp(IRDLOperation):
 class TypeOffsetOp(IRDLOperation):
     name = "ptr.type_offset"
 
-    input_type = operand_def()
+    elem_type = prop_def(base(IntegerType))
     offset = result_def(AnyOf([IntegerType, IndexType]))
-
-    assembly_format = "$input_type attr-dict `:` type($input_type) `->` type($offset)"
 
 
 @irdl_op_definition

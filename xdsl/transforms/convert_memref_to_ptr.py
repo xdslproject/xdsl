@@ -5,7 +5,6 @@ from typing import cast
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, ptr
 from xdsl.dialects.builtin import i32
-from xdsl.dialects.ptr import TypeOffsetOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
@@ -78,9 +77,10 @@ def offset_calculations(
 
     ops.extend(
         [
-            hack_to_get_type := arith.Constant.from_int_and_width(0, i32),
-            bytes_per_element_op := TypeOffsetOp(
-                operands=[hack_to_get_type], result_types=[builtin.IndexType()]
+            bytes_per_element_op := ptr.TypeOffsetOp(
+                operands=[],
+                result_types=[builtin.IndexType()],
+                properties={"elem_type": i32},
             ),
             final_offset := arith.Muli(head, bytes_per_element_op),
         ]
