@@ -16,6 +16,11 @@ from xdsl.utils.lexer import Span
 def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
 
+    def get_apply_pdl():
+        from xdsl.transforms import apply_pdl
+
+        return apply_pdl.ApplyPDLPass
+
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
 
@@ -441,6 +446,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return stencil_shape_minimize.StencilShapeMinimize
 
     return {
+        "apply-pdl": get_apply_pdl,
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
         "canonicalize-dmp": get_canonicalize_dmp,
