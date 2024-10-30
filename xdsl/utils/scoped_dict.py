@@ -42,7 +42,7 @@ class ScopedDict(Generic[_Key, _Value]):
         if local is not None:
             return local
         if self.parent is None:
-            raise KeyError()
+            raise KeyError(f"No value for key {key}")
         return self.parent[key]
 
     def __setitem__(self, key: _Key, value: _Value):
