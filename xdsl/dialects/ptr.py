@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import AnyAttr, IntegerAttrTypeConstr, MemRefType, Un
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
