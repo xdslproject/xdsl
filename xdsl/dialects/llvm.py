@@ -682,7 +682,8 @@ class ICmpOp(IRDLOperation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser):
-        predicate = ICmpPredicateAttr(ICmpPredicateAttr.parse_parameter(parser))
+        predicate_literal = parser.parse_str_literal()
+        predicate = ICmpPredicateAttr(ICmpPredicateFlag(predicate_literal))
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
