@@ -260,6 +260,16 @@ class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
         return (FoldConstConstOp(),)
 
 
+class FloatingPointLikeBinaryOpHasFastReassocCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import FastConstReassoc
+
+        return (FastConstReassoc(),)
+
+
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on floats."""
 
@@ -913,7 +923,11 @@ class Addf(FloatingPointLikeBinaryOperation):
     name = "arith.addf"
 
     traits = frozenset(
-        [Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()]
+        [
+            Pure(),
+            FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(),
+            FloatingPointLikeBinaryOpHasFastReassocCanonicalizationPatternsTrait(),
+        ]
     )
 
 
@@ -931,7 +945,11 @@ class Mulf(FloatingPointLikeBinaryOperation):
     name = "arith.mulf"
 
     traits = frozenset(
-        [Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()]
+        [
+            Pure(),
+            FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(),
+            FloatingPointLikeBinaryOpHasFastReassocCanonicalizationPatternsTrait(),
+        ]
     )
 
 

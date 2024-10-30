@@ -34,3 +34,31 @@ func.func @test_const_const() {
     // CHECK-NEXT:   %3 = arith.constant 9.542894e-01 : f32
     // CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (f32, f32, f32, f32) -> ()
 }
+
+func.func @test_const_var_const() {
+    %0, %1 = "test.op"() : () -> (f32, f32)
+    %a = arith.constant 2.9979 : f32
+    %b = arith.constant 3.1415 : f32
+    %c = arith.constant 4.1415 : f32
+    %d = arith.constant 5.1415 : f32
+
+    %2 = arith.mulf %0, %a : f32
+    %3 = arith.mulf %2, %b : f32
+
+    %4 = arith.mulf %0, %c fastmath<reassoc> : f32
+    %5 = arith.mulf %4, %d fastmath<fast> : f32
+
+    "test.op"(%3, %5) : (f32, f32) -> ()
+
+    return
+
+    // CHECK-LABEL: @test_const_var_const
+    // CHECK-NEXT:   %0, %1 = "test.op"() : () -> (f32, f32)
+    // CHECK-NEXT:   %a = arith.constant 2.997900e+00 : f32
+    // CHECK-NEXT:   %b = arith.constant 3.141500e+00 : f32
+    // CHECK-NEXT:   %2 = arith.mulf %0, %a : f32
+    // CHECK-NEXT:   %3 = arith.mulf %2, %b : f32
+    // CHECK-NEXT:   %4 = arith.constant 2.129352e+01 : f32
+    // CHECK-NEXT:   %5 = arith.mulf %4, %0 : f32
+    // CHECK-NEXT:   "test.op"(%3, %5) : (f32, f32) -> ()
+}
