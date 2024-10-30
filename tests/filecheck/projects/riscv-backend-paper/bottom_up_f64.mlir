@@ -179,7 +179,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      li t1, 127
 // CHECK-NEXT:      frep.o t1, 1, 0, 0
 // CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
-// CHECK-NEXT:      fsd ft3, 0(t0)                               # store double value to memref of shape ()
+// CHECK-NEXT:      fsd ft3, 0(t0)                               # store double value to pointer
 // CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
 // CHECK-NEXT:      ret
 
