@@ -24,7 +24,7 @@ class ApplyPDLPass(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         payload_module = op
         # Target the file containing the PDL specification
-        if self.pdl_file:
+        if self.pdl_file is not None:
             assert os.path.exists(self.pdl_file)
             with open(self.pdl_file) as f:
                 pdl_module_str = f.read()
