@@ -356,7 +356,6 @@ class Liveness:
         operation_ids: dict[Operation, int] = dict()
         value_ids: dict[SSAValue, int] = dict()
 
-        # FIXME: pre-order?
         for block in self.operation.walk_blocks_preorder():
             assert isinstance(block, Block)
             block_ids[block] = len(block_ids)

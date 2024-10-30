@@ -1436,7 +1436,8 @@ class Block(IRNode, IRWithUses):
         )
 
     def successors(self) -> tuple[Block, ...]:
-        terminator = list(self.ops)[-1]
+        terminator = self.last_op
+        assert isinstance(terminator, Operation)
         return tuple(successor for successor in terminator.successors)
 
     def parent_op(self) -> Operation | None:
