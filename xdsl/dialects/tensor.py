@@ -20,7 +20,7 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     i64,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpTraits, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -56,7 +56,7 @@ class CastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
@@ -92,7 +92,7 @@ class DimOp(IRDLOperation):
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     def __init__(
         self,
@@ -137,7 +137,7 @@ class EmptyOp(IRDLOperation):
 
     tensor = result_def(TensorType[Attribute])
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     def __init__(self, dynamic_sizes: Sequence[SSAValue], tensor_type: Attribute):
         super().__init__(
@@ -196,7 +196,7 @@ class CollapseShapeOp(IRDLOperation):
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
 
 @irdl_op_definition
@@ -207,7 +207,7 @@ class ReshapeOp(IRDLOperation):
     shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
     result = result_def(TensorType[Attribute])
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     def __init__(self, source: SSAValue, shape: SSAValue, result_type: Attribute):
         super().__init__(
@@ -307,7 +307,7 @@ class ExtractSliceOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     @staticmethod
     def from_static_parameters(
@@ -358,7 +358,7 @@ class InsertSliceOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     @staticmethod
     def get(

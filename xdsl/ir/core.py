@@ -708,6 +708,33 @@ class OpOperands(Sequence[SSAValue]):
         return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
+class OpTraits(Iterable[OpTrait]):
+    _traits: set[OpTrait] | Callable[[], set[OpTrait]]
+
+    def __init__(self, traits: set[OpTrait] | Callable[[], set[OpTrait]]) -> None:
+        self._traits = traits
+
+    def get_traits(self) -> set[OpTrait]:
+        """Returns a copy of this instance's traits."""
+        if not isinstance(self._traits, set):
+            self._traits = self._traits()
+        return set(self._traits)
+
+    def add_trait(self, trait: OpTrait):
+        """Adds a trait to the class."""
+        if not isinstance(self._traits, set):
+            self._traits = self._traits()
+        self._traits.add(trait)
+
+    def __iter__(self) -> Iterator[OpTrait]:
+        if not isinstance(self._traits, set):
+            self._traits = self._traits()
+        return iter(self._traits)
+
+    def __eq__(self, value: object, /) -> bool:
+        return isinstance(value, OpTraits) and self._traits == value._traits
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -749,7 +776,7 @@ class Operation(IRNode):
     _prev_op: Operation | None = field(default=None, repr=False)
     """Previous operation in block containing this operation."""
 
-    traits: ClassVar[frozenset[OpTrait]]
+    traits: ClassVar[OpTraits]
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set

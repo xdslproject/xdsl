@@ -15,6 +15,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     Operation,
+    OpTraits,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
@@ -91,7 +92,7 @@ class AcceleratorOp(IRDLOperation):
 
     name = "accfg.accelerator"
 
-    traits = frozenset([AcceleratorSymbolOpTrait()])
+    traits = OpTraits({AcceleratorSymbolOpTrait()})
 
     name_prop = prop_def(SymbolRefAttr, prop_name="name")
 

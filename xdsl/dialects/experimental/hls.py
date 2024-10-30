@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (
     ParametrizedAttribute,
     StringAttr,
 )
-from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
+from xdsl.ir import Dialect, Operation, OpTraits, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     ParameterDef,
@@ -28,7 +28,7 @@ class HLSYield(IRDLOperation):
     name = "hls.yield"
     arguments = var_operand_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = OpTraits({IsTerminator()})
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> HLSYield:

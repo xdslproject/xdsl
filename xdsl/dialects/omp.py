@@ -14,6 +14,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
+    OpTraits,
     SpacedOpaqueSyntaxAttribute,
     StrEnum,
 )
@@ -141,14 +142,14 @@ class ParallelOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = OpTraits({IsTerminator()})
 
 
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     name = "omp.terminator"
 
-    traits = frozenset([IsTerminator()])
+    traits = OpTraits({IsTerminator()})
 
 
 OMP = Dialect(

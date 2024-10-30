@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpTraits, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
@@ -53,7 +53,7 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
 
     result = result_def(i32)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     def __init__(
         self,
@@ -68,7 +68,7 @@ class SnitchRuntimeGetInfoBool(SnitchRuntimeBaseOperation, ABC):
 
     result = result_def(i1)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     def __init__(
         self,
@@ -278,7 +278,7 @@ class GetMemoryInfoBaseOperation(SnitchRuntimeBaseOperation, ABC):
     slice_begin = result_def(slice_t_begin)
     slice_end = result_def(slice_t_end)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = OpTraits({NoMemoryEffect()})
 
     def __init__(
         self,

@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, Operation, OpTraits, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -55,7 +55,7 @@ class Assert(IRDLOperation):
     arg = operand_def(IntegerType(1))
     msg = attr_def(StringAttr)
 
-    traits = frozenset((AssertHasCanonicalizationPatterns(),))
+    traits = OpTraits({AssertHasCanonicalizationPatterns()})
 
     def __init__(self, arg: Operation | SSAValue, msg: str | StringAttr):
         if isinstance(msg, str):
@@ -88,7 +88,7 @@ class Branch(IRDLOperation):
     arguments = var_operand_def()
     successor = successor_def()
 
-    traits = frozenset((IsTerminator(), BranchHasCanonicalizationPatterns()))
+    traits = OpTraits({IsTerminator(), BranchHasCanonicalizationPatterns()})
 
     def __init__(self, dest: Block, *ops: Operation | SSAValue):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
@@ -129,7 +129,7 @@ class ConditionalBranch(IRDLOperation):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset([IsTerminator(), ConditionalBranchHasCanonicalizationPatterns()])
+    traits = OpTraits({IsTerminator(), ConditionalBranchHasCanonicalizationPatterns()})
 
     def __init__(
         self,
@@ -194,7 +194,7 @@ class Switch(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([IsTerminator(), Pure(), SwitchHasCanonicalizationPatterns()])
+    traits = OpTraits({IsTerminator(), Pure(), SwitchHasCanonicalizationPatterns()})
 
     def __init__(
         self,

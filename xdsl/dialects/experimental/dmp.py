@@ -16,7 +16,14 @@ from math import prod
 from typing import Literal, cast
 
 from xdsl.dialects import builtin, stencil
-from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    OpTraits,
+    ParametrizedAttribute,
+    SSAValue,
+)
 from xdsl.irdl import (
     IRDLOperation,
     ParameterDef,
@@ -693,7 +700,7 @@ class SwapOp(IRDLOperation):
 
     strategy = attr_def(DomainDecompositionStrategy)
 
-    traits = frozenset([SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect()])
+    traits = OpTraits({SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect()})
 
     def verify_(self) -> None:
         if self.swapped_values:

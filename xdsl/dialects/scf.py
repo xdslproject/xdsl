@@ -17,7 +17,7 @@ from xdsl.dialects.utils import (
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, Operation, OpTraits, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -27,7 +27,6 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     region_def,
-    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -57,7 +56,7 @@ class While(IRDLOperation):
     before_region = region_def()
     after_region = region_def()
 
-    traits = frozenset([RecursiveMemoryEffect()])
+    traits = OpTraits({RecursiveMemoryEffect()})
 
     def __init__(
         self,
@@ -158,14 +157,12 @@ class While(IRDLOperation):
 class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
-    traits = traits_def(
-        lambda: frozenset(
-            [
-                IsTerminator(),
-                HasParent(For, If, While, IndexSwitchOp),
-                Pure(),
-            ]
-        )
+    traits = OpTraits(
+        lambda: {
+            IsTerminator(),
+            HasParent(For, If, While, IndexSwitchOp),
+            Pure(),
+        }
     )
 
 
@@ -179,12 +176,12 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region = region_def()
 
-    traits = frozenset(
-        [
+    traits = OpTraits(
+        {
             SingleBlockImplicitTerminator(Yield),
             RecursiveMemoryEffect(),
             RecursivelySpeculatable(),
-        ]
+        }
     )
 
     def __init__(
@@ -297,12 +294,12 @@ class For(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset(
-        [
+    traits = OpTraits(
+        {
             SingleBlockImplicitTerminator(Yield),
             ForOpHasCanonicalizationPatternsTrait(),
             RecursiveMemoryEffect(),
-        ]
+        }
     )
 
     def __init__(
@@ -467,10 +464,11 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(
-        lambda: frozenset(
-            [SingleBlockImplicitTerminator(ReduceOp), RecursiveMemoryEffect()]
-        )
+    traits = OpTraits(
+        lambda: {
+            SingleBlockImplicitTerminator(ReduceOp),
+            RecursiveMemoryEffect(),
+        }
     )
 
     def __init__(
@@ -568,15 +566,13 @@ class ReduceOp(IRDLOperation):
 
     reductions = var_region_def("single_block")
 
-    traits = traits_def(
-        lambda: frozenset(
-            [
-                RecursiveMemoryEffect(),
-                HasParent(ParallelOp),
-                IsTerminator(),
-                SingleBlockImplicitTerminator(ReduceReturnOp),
-            ]
-        )
+    traits = OpTraits(
+        lambda: {
+            RecursiveMemoryEffect(),
+            HasParent(ParallelOp),
+            IsTerminator(),
+            SingleBlockImplicitTerminator(ReduceReturnOp),
+        }
     )
 
     assembly_format = "(`(` $args^ `:` type($args) `)`)? $reductions attr-dict"
@@ -631,7 +627,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result = operand_def()
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
+    traits = OpTraits({HasParent(ReduceOp), IsTerminator(), Pure()})
 
     assembly_format = "$result attr-dict `:` type($result)"
 
@@ -645,7 +641,7 @@ class Condition(IRDLOperation):
     cond = operand_def(IntegerType(1))
     arguments = var_operand_def()
 
-    traits = frozenset([HasParent(While), IsTerminator(), Pure()])
+    traits = OpTraits({HasParent(While), IsTerminator(), Pure()})
 
     def __init__(
         self,
@@ -706,7 +702,7 @@ class IndexSwitchOp(IRDLOperation):
     default_region = region_def("single_block")
     case_regions = var_region_def("single_block")
 
-    traits = frozenset([RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield)])
+    traits = OpTraits({RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield)})
 
     def __init__(
         self,

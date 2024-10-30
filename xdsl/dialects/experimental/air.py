@@ -25,6 +25,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     Operation,
+    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -44,7 +45,6 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
-    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -295,9 +295,7 @@ class ExecuteOp(IRDLOperation):
     results_ = var_result_def(Attribute)
     body = region_def()
 
-    traits = traits_def(
-        lambda: frozenset([SingleBlockImplicitTerminator(ExecuteTerminatorOp)])
-    )
+    traits = OpTraits(lambda: {SingleBlockImplicitTerminator(ExecuteTerminatorOp)})
 
     def __init__(
         self,
@@ -335,7 +333,7 @@ class ExecuteTerminatorOp(IRDLOperation):
     # even though this is an operand they decided to name it "result" in the original specification
     results_op = var_operand_def()
 
-    traits = frozenset([HasParent(ExecuteOp), IsTerminator()])
+    traits = OpTraits({HasParent(ExecuteOp), IsTerminator()})
 
     def __init__(self, results_op: list[Operation | SSAValue]):
         super().__init__(operands=[results_op])
@@ -355,7 +353,7 @@ class ExecuteTerminatorOp(IRDLOperation):
 class HerdTerminatorOp(IRDLOperation):
     name = "air.herd_terminator"
 
-    traits = traits_def(lambda: frozenset([HasParent(HerdOp), IsTerminator()]))
+    traits = OpTraits(lambda: {HasParent(HerdOp), IsTerminator()})
 
     assembly_format = "attr-dict"
 
@@ -371,8 +369,8 @@ class HerdOp(IRDLOperation):
     async_token = opt_result_def(AsyncTokenAttr)
     region = opt_region_def()
 
-    traits = frozenset(
-        [IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)]
+    traits = OpTraits(
+        {IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)}
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -505,7 +503,7 @@ class HerdOp(IRDLOperation):
 class LaunchTerminatorOp(IRDLOperation):
     name = "air.launch_terminator"
 
-    traits = traits_def(lambda: frozenset([HasParent(LaunchOp), IsTerminator()]))
+    traits = OpTraits(lambda: {HasParent(LaunchOp), IsTerminator()})
 
 
 @irdl_op_definition
@@ -519,8 +517,8 @@ class LaunchOp(IRDLOperation):
     async_token = result_def(AsyncTokenAttr)
     body = opt_region_def()
 
-    traits = frozenset(
-        [IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)]
+    traits = OpTraits(
+        {IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)}
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -614,7 +612,7 @@ class HerdPipelineOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = frozenset([HasParent(HerdOp)])
+    traits = OpTraits({HasParent(HerdOp)})
 
     def __init__(self, body: None | Region):
         super().__init__(regions=[body])
@@ -676,7 +674,7 @@ class PipelineStageOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = frozenset([HasParent(HerdPipelineOp)])
+    traits = OpTraits({HasParent(HerdPipelineOp)})
 
     def __init__(
         self,
@@ -725,21 +723,21 @@ class PipelineStageOp(IRDLOperation):
 class PipelineTerminatorOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.terminator"
 
-    traits = frozenset([HasParent(HerdPipelineOp), IsTerminator()])
+    traits = OpTraits({HasParent(HerdPipelineOp), IsTerminator()})
 
 
 @irdl_op_definition
 class PipelineYieldOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.yield"
 
-    traits = frozenset([HasParent(PipelineStageOp), IsTerminator()])
+    traits = OpTraits({HasParent(PipelineStageOp), IsTerminator()})
 
 
 @irdl_op_definition
 class SegmentTerminatorOp(IRDLOperation):
     name = "air.segment_terminator"
 
-    traits = traits_def(lambda: frozenset([HasParent(SegmentOp), IsTerminator()]))
+    traits = OpTraits(lambda: {HasParent(SegmentOp), IsTerminator()})
 
 
 @irdl_op_definition
@@ -754,8 +752,8 @@ class SegmentOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = frozenset(
-        [IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)]
+    traits = OpTraits(
+        {IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)}
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]

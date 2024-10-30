@@ -33,6 +33,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -255,7 +256,7 @@ class StreamingRegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((NoTerminator(),))
+    traits = OpTraits({NoTerminator()})
 
     def __init__(
         self,

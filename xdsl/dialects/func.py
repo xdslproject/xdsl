@@ -24,6 +24,7 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     Operation,
+    OpTraits,
     Region,
     SSAValue,
 )
@@ -76,8 +77,8 @@ class FuncOp(IRDLOperation):
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    traits = frozenset(
-        [IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()]
+    traits = OpTraits(
+        {IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()}
     )
 
     def __init__(
@@ -316,7 +317,7 @@ class Return(IRDLOperation):
     name = "func.return"
     arguments = var_operand_def()
 
-    traits = frozenset([HasParent(FuncOp), IsTerminator()])
+    traits = OpTraits({HasParent(FuncOp), IsTerminator()})
 
     def __init__(self, *return_vals: SSAValue | Operation):
         super().__init__(operands=[return_vals])

@@ -30,6 +30,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
+    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -229,7 +230,7 @@ class StreamingRegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((NoTerminator(),))
+    traits = OpTraits({NoTerminator()})
 
     def __init__(
         self,
@@ -403,7 +404,7 @@ class GenericOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
+    traits = OpTraits({GenericOpHasCanonicalizationPatternsTrait()})
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -842,7 +843,7 @@ class GenericOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "memref_stream.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = OpTraits({IsTerminator()})
 
 
 @irdl_op_definition

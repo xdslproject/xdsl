@@ -8,6 +8,7 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
+    OpTraits,
     Region,
     SSAValue,
     TypeAttribute,
@@ -85,7 +86,7 @@ class TestTermOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([IsTerminator()])
+    traits = OpTraits({IsTerminator()})
 
     def __init__(
         self,
@@ -128,7 +129,7 @@ class TestPureOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([Pure()])
+    traits = OpTraits({Pure()})
 
     def __init__(
         self,
@@ -171,7 +172,7 @@ class TestReadOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([MemoryReadEffect()])
+    traits = OpTraits({MemoryReadEffect()})
 
     def __init__(
         self,
@@ -214,7 +215,7 @@ class TestWriteOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([MemoryWriteEffect()])
+    traits = OpTraits({MemoryWriteEffect()})
 
     def __init__(
         self,

@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OpTraits,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -42,7 +43,7 @@ class Global(IRDLOperation):
     value = opt_attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = OpTraits({SymbolOpInterface()})
 
     def __init__(
         self,

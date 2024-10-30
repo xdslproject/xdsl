@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     i1,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpTraits, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -87,7 +87,7 @@ class Broadcast(IRDLOperation):
     name = "vector.broadcast"
     source = operand_def()
     vector = result_def(VectorType)
-    traits = frozenset((Pure(),))
+    traits = OpTraits({Pure()})
 
     def verify_(self):
         assert isa(self.vector.type, VectorType[Attribute])
@@ -112,7 +112,7 @@ class FMA(IRDLOperation):
     rhs = operand_def(VectorType)
     acc = operand_def(VectorType)
     res = result_def(VectorType)
-    traits = frozenset((Pure(),))
+    traits = OpTraits({Pure()})
 
     def verify_(self):
         assert isa(self.lhs.type, VectorType[Attribute])

@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.test import TestType
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Attribute, Block, OpTraits, Region
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -808,7 +808,7 @@ class EntryArgsOp(IRDLOperation):
     name = "test.entry_args"
     body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
 
-    traits = frozenset((NoTerminator(),))
+    traits = OpTraits({NoTerminator()})
 
 
 def test_entry_args_op():
