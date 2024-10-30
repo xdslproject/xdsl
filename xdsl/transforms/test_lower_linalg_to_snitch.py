@@ -17,6 +17,8 @@ from xdsl.transforms import (
     convert_linalg_to_memref_stream,
     convert_memref_stream_to_loops,
     convert_memref_stream_to_snitch_stream,
+    convert_memref_to_ptr,
+    convert_ptr_to_riscv,
     convert_riscv_scf_for_to_frep,
     lower_affine,
     lower_snitch,
