@@ -94,6 +94,7 @@ class FoldConstsByReassociation(RewritePattern):
             return
 
         if cnsts := _fold_const_operation(type(op), c1, c2):
-            rebuild = type(op)(cnsts, val)
+            flags = arith.FastMathFlagsAttr(list(op.fastmath.flags | u.fastmath.flags))
+            rebuild = type(op)(cnsts, val, flags)
             rewriter.replace_matched_op([cnsts, rebuild])
             rewriter.replace_op(u, [], [rebuild.result])

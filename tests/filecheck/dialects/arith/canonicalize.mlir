@@ -58,7 +58,7 @@ func.func @test_const_var_const() {
     // CHECK-NEXT:   %b = arith.constant 3.141500e+00 : f32
     // CHECK-NEXT:   %2 = arith.mulf %0, %a : f32
     // CHECK-NEXT:   %3 = arith.mulf %2, %b : f32
-    // CHECK-NEXT:   %4 = arith.constant 2.129352e+01 : f32
+    // CHECK-NEXT:   %4 = arith.constant 2.129352e+01 fastmath<fast> : f32
     // CHECK-NEXT:   %5 = arith.mulf %4, %0 : f32
     // CHECK-NEXT:   "test.op"(%3, %5) : (f32, f32) -> ()
 }
