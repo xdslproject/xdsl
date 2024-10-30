@@ -89,6 +89,25 @@ def offset_calculations(
     return ops, final_offset.result
 
 
+def get_target_ptr(
+    target_memref: SSAValue,
+    memref_type: memref.MemRefType[Any],
+    indices: Iterable[SSAValue],
+) -> tuple[list[Operation], SSAValue]:
+    ops, offset = offset_calculations(memref_type, indices)
+    ops.extend(
+        [
+            memref_ptr := memref.ToPtrOp(
+                operands=[target_memref], result_types=[ptr.PtrType()]
+            ),
+            target_ptr := ptr.PtrAddOp(
+                operands=[memref_ptr, offset], result_types=[ptr.PtrType()]
+            ),
+        ]
+    )
+    return ops, target_ptr.result
+
+
 @dataclass
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
@@ -96,19 +115,8 @@ class ConvertStoreOp(RewritePattern):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        ops, offset = offset_calculations(memref_type, op.indices)
-
-        ops.extend(
-            [
-                memref_ptr := memref.ToPtrOp(
-                    operands=[op.memref], result_types=[ptr.PtrType()]
-                ),
-                target_ptr := ptr.PtrAddOp(
-                    operands=[memref_ptr, offset], result_types=[ptr.PtrType()]
-                ),
-                ptr.StoreOp(operands=[target_ptr, op.value]),
-            ]
-        )
+        ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
+        ops.append(ptr.StoreOp(operands=[target_ptr, op.value]))
 
         rewriter.replace_matched_op(ops)
 
@@ -120,20 +128,11 @@ class ConvertLoadOp(RewritePattern):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        ops, offset = offset_calculations(memref_type, op.indices)
-
-        ops.extend(
-            [
-                memref_ptr := memref.ToPtrOp(
-                    operands=[op.memref], result_types=[ptr.PtrType()]
-                ),
-                target_ptr := ptr.PtrAddOp(
-                    operands=[memref_ptr, offset], result_types=[ptr.PtrType()]
-                ),
-                load_result := ptr.LoadOp(
-                    operands=[target_ptr], result_types=[memref_type.element_type]
-                ),
-            ]
+        ops, target_ptr = get_target_ptr(op.memref, memref_type, op.indices)
+        ops.append(
+            load_result := ptr.LoadOp(
+                operands=[target_ptr], result_types=[memref_type.element_type]
+            )
         )
 
         rewriter.replace_matched_op(ops, new_results=[load_result.res])
