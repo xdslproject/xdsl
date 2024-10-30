@@ -39,6 +39,10 @@ def _fold_const_operation(
 
 
 class FoldConstConstOp(RewritePattern):
+    """
+    Folds a floating point binary op whose operands are both `arith.constant`s.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: arith.FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
@@ -53,7 +57,16 @@ class FoldConstConstOp(RewritePattern):
             rewriter.replace_matched_op(cnst)
 
 
-class FastConstReassoc(RewritePattern):
+class FoldConstsByReassociation(RewritePattern):
+    """
+    Rewrites a chain of
+        `(const1 <op> var) <op> const2`
+    as
+        `folded_const <op> val`
+
+    The op must be associative and have the `fastmath<reassoc>` flag set.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: arith.Addf | arith.Mulf, rewriter: PatternRewriter, /

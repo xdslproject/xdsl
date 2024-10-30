@@ -266,11 +266,11 @@ class FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
-            FastConstReassoc,
             FoldConstConstOp,
+            FoldConstsByReassociation,
         )
 
-        return FastConstReassoc(), FoldConstConstOp()
+        return FoldConstsByReassociation(), FoldConstConstOp()
 
 
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
