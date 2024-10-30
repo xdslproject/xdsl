@@ -166,6 +166,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return LiftArithToLinalg
 
+    def get_linalg_fuse_multiply_add():
+        from xdsl.transforms.linalg_transformations import LinalgFuseMultiplyAddPass
+
+        return LinalgFuseMultiplyAddPass
+
     def get_linalg_to_csl():
         from xdsl.transforms.linalg_to_csl import LinalgToCsl
 
@@ -290,6 +295,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import varith_transformations
 
         return varith_transformations.ConvertArithToVarithPass
+
+    def get_convert_varith_to_arith():
+        from xdsl.transforms import varith_transformations
+
+        return varith_transformations.ConvertVarithToArithPass
 
     def get_convert_arith_to_riscv_snitch():
         from xdsl.backend.riscv.lowering import convert_arith_to_riscv_snitch
@@ -440,6 +450,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-arith-to-varith": get_convert_arith_to_varith,
+        "convert-varith-to-arith": get_convert_varith_to_arith,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
@@ -476,6 +487,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
+        "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
         "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
         "lower-csl-stencil": get_lower_csl_stencil,

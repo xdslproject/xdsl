@@ -1,6 +1,112 @@
 // RUN: xdsl-opt -p lower-csl-wrapper %s | filecheck --match-full-lines %s
+// RUN: xdsl-opt -p lower-csl-wrapper{params_as_consts=true} %s | filecheck --match-full-lines %s --check-prefix=CONST
 
 builtin.module {
+// CHECK:      builtin.module {
+// CONST:      builtin.module {
+
+  "csl_wrapper.module"() <{
+    "width" = 256 : i16,
+    "height" = 128 : i16,
+    "params" = [
+      #csl_wrapper.param<"param_with_value" default=512 : i16>,
+      #csl_wrapper.param<"param_without_value" : i16>
+    ],
+    "program_name" = "params_as_consts_func"
+  }> ({
+  ^0(%xDim : i16, %yDim : i16, %width : i16, %height : i16, %param_with_value : i16, %param_without_value : i16):
+    %memparams = "test.op"() : () -> !csl.comptime_struct
+    "csl_wrapper.yield"(%memparams) <{"fields" = ["memcpy_params"]}> : (!csl.comptime_struct) -> ()
+  }, {
+  ^1(%width : i16, %height : i16, %param_with_value : i16, %param_without_value : i16, %memcpy_params : !csl.comptime_struct):
+    %memcpyMod = "csl_wrapper.import"(%memcpy_params) <{"module" = "<memcpy/memcpy>", "fields" = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
+    "csl.export"() <{"var_name" = @params_as_consts_func, "type" = () -> ()}> : () -> ()
+    csl.func @params_as_consts_func() {
+      "test.op"() : () -> ()
+      csl.return
+    }
+    "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
+  }) : () -> ()
+
+// CHECK:      "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
+// CHECK-NEXT:   %0 = arith.constant 0 : i16
+// CHECK-NEXT:   %1 = arith.constant 1 : i16
+// CHECK-NEXT:   %2 = arith.constant 256 : i16
+// CHECK-NEXT:   %3 = arith.constant 128 : i16
+// CHECK-NEXT:   %width = "csl.param"(%2) <{"param_name" = "width"}> : (i16) -> i16
+// CHECK-NEXT:   %height = "csl.param"(%3) <{"param_name" = "height"}> : (i16) -> i16
+// CHECK-NEXT:   %4 = arith.constant 512 : i16
+// CHECK-NEXT:   %param_with_value = "csl.param"(%4) <{"param_name" = "param_with_value"}> : (i16) -> i16
+// CHECK-NEXT:   %param_without_value = "csl.param"() <{"param_name" = "param_without_value"}> : () -> i16
+// CHECK-NEXT:   csl.layout {
+// CHECK-NEXT:     "csl.set_rectangle"(%width, %height) : (i16, i16) -> ()
+// CHECK-NEXT:     scf.for %xDim = %0 to %width step %1 : i16 {
+// CHECK-NEXT:       scf.for %yDim = %0 to %height step %1 : i16 {
+// CHECK-NEXT:         %memparams = "test.op"() : () -> !csl.comptime_struct
+// CHECK-NEXT:         %5 = "csl.const_struct"(%width, %height, %memparams) <{"ssa_fields" = ["width", "height", "memcpy_params"]}> : (i16, i16, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:         "csl.set_tile_code"(%xDim, %yDim, %5) <{"file" = "params_as_consts_func.csl"}> : (i16, i16, !csl.comptime_struct) -> ()
+// CHECK-NEXT:       }
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }) {"sym_name" = "params_as_consts_func_layout"} : () -> ()
+// CHECK-NEXT: "csl.module"() <{"kind" = #csl<module_kind program>}> ({
+// CHECK-NEXT:   %memcpy_params = "csl.param"() <{"param_name" = "memcpy_params"}> : () -> !csl.comptime_struct
+// CHECK-NEXT:   %memcpyMod = "csl.const_struct"() <{"ssa_fields" = []}> : () -> !csl.comptime_struct
+// CHECK-NEXT:   %memcpyMod_1 = "csl.concat_structs"(%memcpyMod, %memcpy_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:   %memcpyMod_2 = "csl.import_module"(%memcpyMod_1) <{"module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:   %0 = arith.constant 256 : i16
+// CHECK-NEXT:   %1 = arith.constant 128 : i16
+// CHECK-NEXT:   %width = "csl.param"(%0) <{"param_name" = "width"}> : (i16) -> i16
+// CHECK-NEXT:   %height = "csl.param"(%1) <{"param_name" = "height"}> : (i16) -> i16
+// CHECK-NEXT:   %2 = arith.constant 512 : i16
+// CHECK-NEXT:   %param_with_value = "csl.param"(%2) <{"param_name" = "param_with_value"}> : (i16) -> i16
+// CHECK-NEXT:   %param_without_value = "csl.param"() <{"param_name" = "param_without_value"}> : () -> i16
+// CHECK-NEXT:   "csl.export"() <{"var_name" = @params_as_consts_func, "type" = () -> ()}> : () -> ()
+// CHECK-NEXT:   csl.func @params_as_consts_func() {
+// CHECK-NEXT:     "test.op"() : () -> ()
+// CHECK-NEXT:     csl.return
+// CHECK-NEXT:   }
+// CHECK-NEXT:   %3 = "csl.member_access"(%memcpyMod_2) <{"field" = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
+// CHECK-NEXT:   "csl.rpc"(%3) : (!csl.color) -> ()
+// CHECK-NEXT: }) {"sym_name" = "params_as_consts_func_program"} : () -> ()
+
+// CONST:      "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
+// CONST-NEXT:   %0 = arith.constant 0 : i16
+// CONST-NEXT:   %1 = arith.constant 1 : i16
+// CONST-NEXT:   %width = arith.constant 256 : i16
+// CONST-NEXT:   %height = arith.constant 128 : i16
+// CONST-NEXT:   %param_with_value = arith.constant 512 : i16
+// CONST-NEXT:   %param_without_value = "csl.param"() <{"param_name" = "param_without_value"}> : () -> i16
+// CONST-NEXT:   csl.layout {
+// CONST-NEXT:     "csl.set_rectangle"(%width, %height) : (i16, i16) -> ()
+// CONST-NEXT:     scf.for %xDim = %0 to %width step %1 : i16 {
+// CONST-NEXT:       scf.for %yDim = %0 to %height step %1 : i16 {
+// CONST-NEXT:         %memparams = "test.op"() : () -> !csl.comptime_struct
+// CONST-NEXT:         %2 = "csl.const_struct"(%width, %height, %memparams) <{"ssa_fields" = ["width", "height", "memcpy_params"]}> : (i16, i16, !csl.comptime_struct) -> !csl.comptime_struct
+// CONST-NEXT:         "csl.set_tile_code"(%xDim, %yDim, %2) <{"file" = "params_as_consts_func.csl"}> : (i16, i16, !csl.comptime_struct) -> ()
+// CONST-NEXT:       }
+// CONST-NEXT:     }
+// CONST-NEXT:   }
+// CONST-NEXT: }) {"sym_name" = "params_as_consts_func_layout"} : () -> ()
+// CONST-NEXT: "csl.module"() <{"kind" = #csl<module_kind program>}> ({
+// CONST-NEXT:   %memcpy_params = "csl.param"() <{"param_name" = "memcpy_params"}> : () -> !csl.comptime_struct
+// CONST-NEXT:   %memcpyMod = "csl.const_struct"() <{"ssa_fields" = []}> : () -> !csl.comptime_struct
+// CONST-NEXT:   %memcpyMod_1 = "csl.concat_structs"(%memcpyMod, %memcpy_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CONST-NEXT:   %memcpyMod_2 = "csl.import_module"(%memcpyMod_1) <{"module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
+// CONST-NEXT:   %width = arith.constant 256 : i16
+// CONST-NEXT:   %height = arith.constant 128 : i16
+// CONST-NEXT:   %param_with_value = arith.constant 512 : i16
+// CONST-NEXT:   %param_without_value = "csl.param"() <{"param_name" = "param_without_value"}> : () -> i16
+// CONST-NEXT:   "csl.export"() <{"var_name" = @params_as_consts_func, "type" = () -> ()}> : () -> ()
+// CONST-NEXT:   csl.func @params_as_consts_func() {
+// CONST-NEXT:     "test.op"() : () -> ()
+// CONST-NEXT:     csl.return
+// CONST-NEXT:   }
+// CONST-NEXT:   %0 = "csl.member_access"(%memcpyMod_2) <{"field" = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
+// CONST-NEXT:   "csl.rpc"(%0) : (!csl.color) -> ()
+// CONST-NEXT: }) {"sym_name" = "params_as_consts_func_program"} : () -> ()
+
+
   "csl_wrapper.module"() <{
     "width" = 1022 : i16,
     "height" = 510 : i16,
@@ -70,10 +176,7 @@ builtin.module {
     }
     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
   }) : () -> ()
-}
 
-
-// CHECK:      builtin.module {
 // CHECK-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-NEXT:     %0 = arith.constant 2 : i16
 // CHECK-NEXT:     %pattern = "csl.param"(%0) <{"param_name" = "pattern"}> : (i16) -> i16
@@ -133,14 +236,16 @@ builtin.module {
 // CHECK-NEXT:     %memcpyMod = "csl.const_struct"() <{"ssa_fields" = []}> : () -> !csl.comptime_struct
 // CHECK-NEXT:     %memcpyMod_1 = "csl.concat_structs"(%memcpyMod, %memcpy_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 // CHECK-NEXT:     %memcpyMod_2 = "csl.import_module"(%memcpyMod_1) <{"module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
-// CHECK-NEXT:     %width = "csl.param"() <{"param_name" = "width"}> : () -> i16
-// CHECK-NEXT:     %height = "csl.param"() <{"param_name" = "height"}> : () -> i16
-// CHECK-NEXT:     %2 = arith.constant 512 : i16
-// CHECK-NEXT:     %zDim = "csl.param"(%2) <{"param_name" = "z_dim"}> : (i16) -> i16
-// CHECK-NEXT:     %3 = arith.constant 2 : i16
-// CHECK-NEXT:     %num_chunks = "csl.param"(%3) <{"param_name" = "num_chunks"}> : (i16) -> i16
-// CHECK-NEXT:     %4 = arith.constant 510 : i16
-// CHECK-NEXT:     %padded_z_dim = "csl.param"(%4) <{"param_name" = "padded_z_dim"}> : (i16) -> i16
+// CHECK-NEXT:     %2 = arith.constant 1022 : i16
+// CHECK-NEXT:     %3 = arith.constant 510 : i16
+// CHECK-NEXT:     %width = "csl.param"(%2) <{"param_name" = "width"}> : (i16) -> i16
+// CHECK-NEXT:     %height = "csl.param"(%3) <{"param_name" = "height"}> : (i16) -> i16
+// CHECK-NEXT:     %4 = arith.constant 512 : i16
+// CHECK-NEXT:     %zDim = "csl.param"(%4) <{"param_name" = "z_dim"}> : (i16) -> i16
+// CHECK-NEXT:     %5 = arith.constant 2 : i16
+// CHECK-NEXT:     %num_chunks = "csl.param"(%5) <{"param_name" = "num_chunks"}> : (i16) -> i16
+// CHECK-NEXT:     %6 = arith.constant 510 : i16
+// CHECK-NEXT:     %padded_z_dim = "csl.param"(%6) <{"param_name" = "padded_z_dim"}> : (i16) -> i16
 // CHECK-NEXT:     %isBorderRegionPE = "csl.param"() <{"param_name" = "isBorderRegionPE"}> : () -> i1
 // CHECK-NEXT:     %inputArr = memref.alloc() : memref<512xf32>
 // CHECK-NEXT:     %outputArr = memref.alloc() : memref<512xf32>
@@ -153,29 +258,30 @@ builtin.module {
 // CHECK-NEXT:       %scratchBuffer = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:       csl_stencil.apply(%inputArr : memref<512xf32>, %scratchBuffer : memref<510xf32>) outs (%outputArr : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
 // CHECK-NEXT:       ^0(%arg2 : memref<4x255xf32>, %arg3 : index, %arg4 : memref<510xf32>):
-// CHECK-NEXT:         %5 = csl_stencil.access %arg2[1, 0] : memref<4x255xf32>
-// CHECK-NEXT:         %6 = csl_stencil.access %arg2[-1, 0] : memref<4x255xf32>
-// CHECK-NEXT:         %7 = csl_stencil.access %arg2[0, 1] : memref<4x255xf32>
-// CHECK-NEXT:         %8 = csl_stencil.access %arg2[0, -1] : memref<4x255xf32>
-// CHECK-NEXT:         %9 = memref.subview %arg4[%arg3] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
-// CHECK-NEXT:         "csl.fadds"(%9, %8, %7) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>, memref<255xf32>) -> ()
-// CHECK-NEXT:         "csl.fadds"(%9, %9, %6) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
-// CHECK-NEXT:         "csl.fadds"(%9, %9, %5) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
+// CHECK-NEXT:         %7 = csl_stencil.access %arg2[1, 0] : memref<4x255xf32>
+// CHECK-NEXT:         %8 = csl_stencil.access %arg2[-1, 0] : memref<4x255xf32>
+// CHECK-NEXT:         %9 = csl_stencil.access %arg2[0, 1] : memref<4x255xf32>
+// CHECK-NEXT:         %10 = csl_stencil.access %arg2[0, -1] : memref<4x255xf32>
+// CHECK-NEXT:         %11 = memref.subview %arg4[%arg3] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
+// CHECK-NEXT:         "csl.fadds"(%11, %10, %9) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>, memref<255xf32>) -> ()
+// CHECK-NEXT:         "csl.fadds"(%11, %11, %8) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
+// CHECK-NEXT:         "csl.fadds"(%11, %11, %7) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
 // CHECK-NEXT:         csl_stencil.yield %arg4 : memref<510xf32>
 // CHECK-NEXT:       }, {
 // CHECK-NEXT:       ^1(%arg2_1 : memref<512xf32>, %arg3_1 : memref<510xf32>):
-// CHECK-NEXT:         %10 = memref.subview %arg2_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
-// CHECK-NEXT:         %11 = memref.subview %arg2_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
-// CHECK-NEXT:         "csl.fadds"(%arg3_1, %arg3_1, %11) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
-// CHECK-NEXT:         "csl.fadds"(%arg3_1, %arg3_1, %10) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
-// CHECK-NEXT:         %12 = arith.constant 1.666600e-01 : f32
-// CHECK-NEXT:         "csl.fmuls"(%arg3_1, %arg3_1, %12) : (memref<510xf32>, memref<510xf32>, f32) -> ()
+// CHECK-NEXT:         %12 = memref.subview %arg2_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
+// CHECK-NEXT:         %13 = memref.subview %arg2_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
+// CHECK-NEXT:         "csl.fadds"(%arg3_1, %arg3_1, %13) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
+// CHECK-NEXT:         "csl.fadds"(%arg3_1, %arg3_1, %12) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1], offset: 2>>) -> ()
+// CHECK-NEXT:         %14 = arith.constant 1.666600e-01 : f32
+// CHECK-NEXT:         "csl.fmuls"(%arg3_1, %arg3_1, %14) : (memref<510xf32>, memref<510xf32>, f32) -> ()
 // CHECK-NEXT:         csl_stencil.yield %arg3_1 : memref<510xf32>
 // CHECK-NEXT:       }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:   %5 = "csl.member_access"(%memcpyMod_2) <{"field" = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
-// CHECK-NEXT:   "csl.rpc"(%5) : (!csl.color) -> ()
+// CHECK-NEXT:     %7 = "csl.member_access"(%memcpyMod_2) <{"field" = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
+// CHECK-NEXT:     "csl.rpc"(%7) : (!csl.color) -> ()
 // CHECK-NEXT:   }) {"sym_name" = "gauss_seidel_func_program"} : () -> ()
+
+}
 // CHECK-NEXT: }
-// CHECK-EMPTY:

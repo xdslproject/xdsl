@@ -30,38 +30,65 @@ class ArithToVarithPattern(RewritePattern):
     Merges two arith operations into a varith operation.
     """
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        # check that the op is of a type that we can convert to varith
-        if type(op) not in ARITH_TO_VARITH_TYPE_MAP:
-            return
-
-        # this must be true, as all keys of ARITH_TO_VARITH_TYPE_MAP are binary ops
-        op = cast(
-            arith.SignlessIntegerBinaryOperation
-            | arith.FloatingPointLikeBinaryOperation,
-            op,
-        )
-
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self,
+        op: arith.Addi | arith.Addf | arith.Muli | arith.Mulf,
+        rewriter: PatternRewriter,
+        /,
+    ):
         dest_type = ARITH_TO_VARITH_TYPE_MAP[type(op)]
 
-        # check LHS and the RHS to see if they can be folded
-        # but abort after one is merged
-        for other in (op.rhs.owner, op.lhs.owner):
-            # if me and the other op are the same op
-            # (they must necessarily operate on the same data type)
-            if type(op) is type(other):
-                other_op = cast(
-                    arith.SignlessIntegerBinaryOperation
-                    | arith.FloatingPointLikeBinaryOperation,
-                    other,
-                )
-                # instantiate a varith op with three operands
-                rewriter.replace_matched_op(
-                    dest_type(op.rhs, other_op.lhs, other_op.rhs)
-                )
-                if len(other_op.result.uses) == 0:
-                    rewriter.erase_op(other_op)
-                return
+        if len(op.result.uses) != 1:
+            return
+        if type(use_op := list(op.result.uses)[0].operation) not in (
+            type(op),
+            dest_type,
+        ):
+            return
+
+        other_operands = [o for o in use_op.operands if o != op.result]
+        rewriter.replace_op(
+            use_op,
+            dest_type(op.lhs, op.rhs, *other_operands),
+        )
+        rewriter.erase_matched_op()
+
+
+class VarithToArithPattern(RewritePattern):
+    """
+    Splits a varith operation into a sequence of arith operations.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+        # get the type kind of the target arith ops (float|int)
+        type_name: Literal["float", "int"] = (
+            "int" if is_integer_like_type(op.res.type) else "float"
+        )
+        # get the opeation kind of the target arith ops (add|mul)
+        kind: Literal["add", "mul"] = (
+            "add" if isinstance(op, varith.VarithAddOp) else "mul"
+        )
+
+        # get the corresponding arith type (e.g. addi/mulf)
+        target_arith_type = ARITH_TYPES[(type_name, kind)]
+
+        arith_ops: list[Operation] = []
+
+        # Break the varith op down into a sequence of arith ops
+        first_arg = op.operands[0]
+
+        if len(op.operands) == 1:
+            rewriter.replace_matched_op([], new_results=[first_arg])
+            return
+
+        for i in range(1, len(op.operands)):
+            newop = target_arith_type(first_arg, op.operands[i])
+            arith_ops.append(newop)
+            first_arg = newop.result
+
+        rewriter.replace_matched_op(arith_ops)
 
 
 # map (int|float)(add|mul) to an arith op type
@@ -170,4 +197,21 @@ class ConvertArithToVarithPass(ModulePass):
                     MergeVarithOpsPattern(),
                 ]
             ),
+            walk_reverse=True,
+        ).rewrite_op(op)
+
+
+class ConvertVarithToArithPass(ModulePass):
+    """
+    Convert a single long variadic add or mul operation into a chain of arith.{add|mul}{i,f} operations.
+    Reverses ConvertArithToVarithPass.
+
+    """
+
+    name = "convert-varith-to-arith"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            VarithToArithPattern(),
+            apply_recursively=False,
         ).rewrite_op(op)

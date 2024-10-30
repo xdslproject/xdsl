@@ -23,7 +23,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
     IRDLOperation,
@@ -48,6 +48,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.isattr import isattr
+from xdsl.utils.str_enum import StrEnum
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -97,6 +98,23 @@ class FastMathFlagsAttr(FastMathAttrBase):
     name = "arith.fastmath"
 
     def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        # irdl_attr_definition defines an __init__ if none is defined, so we need to
+        # explicitely define one here.
+        super().__init__(flags)
+
+
+class IntegerOverflowFlag(StrEnum):
+    NSW = "nsw"
+    NUW = "nuw"
+
+
+@irdl_attr_definition
+class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
+    name = "arith.overflow"
+
+    none_value = "none"
+
+    def __init__(self, flags: None | Sequence[IntegerOverflowFlag] | Literal["none"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -175,7 +193,7 @@ _T = TypeVar("_T", bound=Attribute)
 class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -197,10 +215,45 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         return id(self)
 
 
+class SignlessIntegerBinaryOperationWithOverflow(
+    SignlessIntegerBinaryOperation, abc.ABC
+):
+    """
+    A generic base class for arith's binary operations on signless integers which
+    can overflow.
+    """
+
+    overflow_flags = prop_def(
+        IntegerOverflowAttr,
+        default_value=IntegerOverflowAttr("none"),
+        prop_name="overflowFlags",
+    )
+
+    assembly_format = (
+        "$lhs `,` $rhs (`overflow` `` $overflowFlags^)? attr-dict `:` type($result)"
+    )
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+        overflow: IntegerOverflowAttr = IntegerOverflowAttr("none"),
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        IRDLOperation.__init__(
+            self,
+            operands=[operand1, operand2],
+            properties={"overflowFlags": overflow},
+            result_types=[result_type],
+        )
+
+
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on floats."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", floatingPointLike)
+    T: ClassVar = VarConstraint("T", floatingPointLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -257,7 +310,7 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class Addi(SignlessIntegerBinaryOperation):
+class Addi(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.addi"
 
     traits = frozenset([Pure(), AddiOpHasCanonicalizationPatternsTrait()])
@@ -274,7 +327,7 @@ class AddUIExtended(IRDLOperation):
 
     traits = frozenset([Pure()])
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -328,7 +381,7 @@ class AddUIExtended(IRDLOperation):
 
 
 @irdl_op_definition
-class Muli(SignlessIntegerBinaryOperation):
+class Muli(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.muli"
 
     traits = frozenset([Pure()])
@@ -337,7 +390,7 @@ class Muli(SignlessIntegerBinaryOperation):
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -376,7 +429,7 @@ class MulSIExtended(MulExtendedBase):
 
 
 @irdl_op_definition
-class Subi(SignlessIntegerBinaryOperation):
+class Subi(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.subi"
 
     traits = frozenset([Pure()])
@@ -504,7 +557,7 @@ class XOrI(SignlessIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class ShLI(SignlessIntegerBinaryOperation):
+class ShLI(SignlessIntegerBinaryOperationWithOverflow):
     """
     The `shli` operation shifts an integer value to the left by a variable
     amount. The low order bits are filled with zeros.
@@ -704,6 +757,7 @@ class Cmpf(ComparisonOperation):
     predicate = prop_def(AnyIntegerAttr)
     lhs = operand_def(floatingPointLike)
     rhs = operand_def(floatingPointLike)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
     result = result_def(IntegerType(1))
 
     def __init__(
@@ -711,6 +765,7 @@ class Cmpf(ComparisonOperation):
         operand1: SSAValue | Operation,
         operand2: SSAValue | Operation,
         arg: int | str,
+        fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
     ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
@@ -741,7 +796,10 @@ class Cmpf(ComparisonOperation):
         super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            properties={
+                "predicate": IntegerAttr.from_int_and_width(arg, 64),
+                "fastmath": fastmath,
+            },
         )
 
     @classmethod
@@ -751,13 +809,17 @@ class Cmpf(ComparisonOperation):
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         operand2 = parser.parse_unresolved_operand()
+        if parser.parse_optional_keyword("fastmath"):
+            fastmath = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        else:
+            fastmath = FastMathFlagsAttr("none")
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
         (operand1, operand2) = parser.resolve_operands(
             [operand1, operand2], 2 * [input_type], parser.pos
         )
 
-        return cls(operand1, operand2, arg)
+        return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -766,6 +828,9 @@ class Cmpf(ComparisonOperation):
         printer.print_operand(self.lhs)
         printer.print(", ")
         printer.print_operand(self.rhs)
+        if self.fastmath != FastMathFlagsAttr("none"):
+            printer.print_string(" fastmath")
+            self.fastmath.print_parameter(printer)
         printer.print(" : ")
         printer.print_attribute(self.lhs.type)
 
@@ -1152,5 +1217,6 @@ Arith = Dialect(
     ],
     [
         FastMathFlagsAttr,
+        IntegerOverflowAttr,
     ],
 )

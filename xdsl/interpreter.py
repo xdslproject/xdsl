@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 from collections import Counter
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import (
     IO,
@@ -28,6 +28,7 @@ from xdsl.ir import (
 )
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.scoped_dict import ScopedDict
 
 _IMPL_OP_TYPE = "__impl_op_type"
 _CAST_IMPL_TYPES = "__cast_impl_types"
@@ -503,53 +504,6 @@ class _InterpreterFunctionImpls:
         return ext_func(ft, interpreter, op, args)
 
 
-@dataclass
-class InterpreterContext:
-    """
-    Class holding the Python values associated with SSAValues during an
-    interpretation context. An environment is a stack of scopes, values are
-    assigned to the current scope, but can be fetched from a parent scope.
-    """
-
-    name: str = field(default="unknown")
-    parent: InterpreterContext | None = None
-    env: dict[SSAValue, Any] = field(default_factory=dict)
-
-    def __getitem__(self, key: SSAValue) -> Any:
-        """
-        Fetch key from environment. Attempts to first fetch from current scope,
-        then from parent scopes. Raises Interpretation error if not found.
-        """
-        if key in self.env:
-            return self.env[key]
-        if self.parent is not None:
-            return self.parent[key]
-        raise InterpretationError(f"Could not find value for {key} in {self}")
-
-    def __setitem__(self, key: SSAValue, value: Any):
-        """
-        Assign key to current scope. Raises InterpretationError if key already
-        assigned to.
-        """
-        if key in self.env:
-            raise InterpretationError(
-                f"Attempting to register SSAValue {value} for name {key}"
-                f", but value with that name already exists in {self}"
-            )
-        self.env[key] = value
-
-    def stack(self) -> Generator[InterpreterContext, None, None]:
-        """
-        Iterates through scopes starting with the root scope.
-        """
-        if self.parent is not None:
-            yield from self.parent.stack()
-        yield self
-
-    def __format__(self, __format_spec: str) -> str:
-        return "/".join(c.name for c in self.stack())
-
-
 def _get_system_bitwidth() -> Literal[32, 64] | None:
     match platform.architecture()[0]:
         case "64bit":
@@ -590,9 +544,14 @@ class Interpreter:
     Number of bits in the binary representation of the index
     """
     _impls: _InterpreterFunctionImpls = field(default_factory=_InterpreterFunctionImpls)
-    _ctx: InterpreterContext = field(
-        default_factory=lambda: InterpreterContext(name="root")
+    _ctx: ScopedDict[SSAValue, Any] = field(
+        default_factory=lambda: ScopedDict(name="root")
     )
+    """
+    Object holding the Python values associated with SSAValues during an
+    interpretation context. An environment is a stack of scopes, values are
+    assigned to the current scope, but can be fetched from a parent scope.
+    """
     file: IO[str] | None = field(default=None)
     _symbol_table: dict[str, Operation] | None = None
     _impl_data: dict[type[InterpreterFunctions], dict[str, Any]] = field(
@@ -630,11 +589,11 @@ class Interpreter:
         for ssa_value, result_value in pairs:
             self._ctx[ssa_value] = result_value
 
-    def push_scope(self, name: str = "unknown") -> None:
+    def push_scope(self, name: str | None = None) -> None:
         """
         Create new scope in current environment, with optional custom `name`.
         """
-        self._ctx = InterpreterContext(name, self._ctx)
+        self._ctx = ScopedDict(name=name, parent=self._ctx)
 
     def pop_scope(self) -> None:
         """
@@ -814,8 +773,16 @@ class Interpreter:
         if not condition:
             self.raise_error(message)
 
+    def scope_names(self):
+        ctx = self._ctx
+
+        while ctx is not None:
+            yield ctx.name or "unknown"
+            ctx = ctx.parent
+
     def raise_error(self, message: str | None = None):
-        raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
+        scope_description = "/".join(self.scope_names())
+        raise InterpretationError(f"AssertionError: ({scope_description})({message})")
 
 
 @dataclass

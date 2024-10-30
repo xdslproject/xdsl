@@ -83,7 +83,7 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-GENERIC-NEXT:  ^1(%{{.*}} : f32, %{{.*}} : f32):
 // CHECK-GENERIC-NEXT:    "linalg.yield"(%{{.*}} : (f32) -> ()
 // CHECK-GENERIC-NEXT:  }) : (f32, memref<1x256xf32>) -> ()
-  
+
 // CHECK-GENERIC:       "linalg.generic"(%{{.*}} %{{.*}} <{"indexing_maps" = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:  ^{{.*}}(%{{.*}} f32, %{{.*}} f32):
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
@@ -144,10 +144,10 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.quantized_matmul"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 4, 1>}> ({
 // CHECK-GENERIC-NEXT:       ^10(%36 : i8, %37 : i8, %38 : i32, %39 : i32, %40 : i32):
 // CHECK-GENERIC-NEXT:         %41 = "arith.extsi"(%36) : (i8) -> i32
-// CHECK-GENERIC-NEXT:         %42 = "arith.subi"(%41, %38) : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:         %42 = "arith.subi"(%41, %38) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:         %43 = "arith.extsi"(%37) : (i8) -> i32
-// CHECK-GENERIC-NEXT:         %44 = "arith.subi"(%43, %39) : (i32, i32) -> i32
-// CHECK-GENERIC-NEXT:         %45 = "arith.muli"(%42, %44) : (i32, i32) -> i32
-// CHECK-GENERIC-NEXT:         %46 = "arith.addi"(%40, %45) : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:         %44 = "arith.subi"(%43, %39) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:         %45 = "arith.muli"(%42, %44) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:         %46 = "arith.addi"(%40, %45) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 //  CHECK-GENERIC-NEXT:        "linalg.yield"(%46) : (i32) -> ()
 // CHECK-GENERIC-NEXT:       }) {"linalg.memoized_indexing_maps" = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32, tensor<64x4096xi32>) -> tensor<64x4096xi32>

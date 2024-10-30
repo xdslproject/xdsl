@@ -27,6 +27,7 @@ from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
     Dialect,
+    EnumAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -55,6 +56,7 @@ from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoMemoryEffect, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 GEP_USE_SSA_VAL = -2147483648
@@ -356,7 +358,7 @@ class LinkageAttr(ParametrizedAttribute):
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -412,7 +414,7 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -466,6 +468,39 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         printer.print_op_attributes(self.attributes)
         printer.print(" : ")
         printer.print(self.lhs.type)
+
+
+class IntegerConversionOp(IRDLOperation, ABC):
+    arg = operand_def(IntegerType)
+
+    res = result_def(IntegerType)
+
+    traits = frozenset([NoMemoryEffect()])
+
+    def __init__(
+        self,
+        arg: SSAValue,
+        res_type: Attribute,
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(operands=[arg], attributes=attributes, result_types=[res_type])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        arg_type = parser.parse_type()
+        parser.parse_characters("to")
+        res_type = parser.parse_type()
+        operands = parser.resolve_operands([arg], [arg_type], parser.pos)
+        return cls(operands[0], res_type, attributes)
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.arg)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.arg.type, " to ", self.res.type)
 
 
 @irdl_op_definition
@@ -531,6 +566,48 @@ class LShrOp(ArithmeticBinOperation):
 @irdl_op_definition
 class AShrOp(ArithmeticBinOperation):
     name = "llvm.ashr"
+
+
+@irdl_op_definition
+class TruncOp(IntegerConversionOp):
+    name = "llvm.trunc"
+
+    def verify(self, verify_nested_ops: bool = True):
+        assert isinstance(self.arg.type, IntegerType)
+        assert isinstance(self.res.type, IntegerType)
+        if self.arg.type.bitwidth <= self.res.type.bitwidth:
+            raise VerifyException(
+                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
+            )
+        super().verify(verify_nested_ops)
+
+
+@irdl_op_definition
+class ZExtOp(IntegerConversionOp):
+    name = "llvm.zext"
+
+    def verify(self, verify_nested_ops: bool = True):
+        assert isinstance(self.arg.type, IntegerType)
+        assert isinstance(self.res.type, IntegerType)
+        if self.arg.type.bitwidth >= self.res.type.bitwidth:
+            raise VerifyException(
+                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
+            )
+        super().verify(verify_nested_ops)
+
+
+@irdl_op_definition
+class SExtOp(IntegerConversionOp):
+    name = "llvm.sext"
+
+    def verify(self, verify_nested_ops: bool = True):
+        assert isinstance(self.arg.type, IntegerType)
+        assert isinstance(self.res.type, IntegerType)
+        if self.arg.type.bitwidth >= self.res.type.bitwidth:
+            raise VerifyException(
+                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
+            )
+        super().verify(verify_nested_ops)
 
 
 @irdl_op_definition
@@ -1235,6 +1312,33 @@ class ConstantOp(IRDLOperation):
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
 
+    @classmethod
+    def parse_value(cls, parser: Parser) -> Attribute:
+        b = parser.parse_optional_boolean()
+        if b is not None:
+            return IntegerAttr.from_bool(b)
+        attr = parser.parse_optional_attribute()
+        if attr:
+            return attr
+        return IntegerAttr(parser.parse_integer(), 64)
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        parser.parse_characters("(")
+        value = cls.parse_value(parser)
+        parser.parse_characters(")")
+        parser.parse_characters(":")
+        value_type = parser.parse_type()
+        return cls(value, value_type)
+
+    def print(self, printer: Printer) -> None:
+        printer.print("(")
+        if isattr(self.value, AnyIntegerAttr) and self.result.type == IntegerType(64):
+            self.value.print_without_type(printer)
+        else:
+            printer.print(self.value)
+        printer.print(") : ", self.result.type)
+
 
 class FastMathFlag(StrEnum):
     REASSOC = "reassoc"
@@ -1287,16 +1391,41 @@ class CallIntrinsicOp(IRDLOperation):
         )
 
 
+class TailCallKind(StrEnum):
+    NONE = "none"
+    TAIL = "tail"
+    MUST_TAIL = "musttail"
+    NOTAIL = "notail"
+
+
+@irdl_attr_definition
+class TailCallKindAttr(EnumAttribute[TailCallKind]):
+    name = "llvm.tailcallkind"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> TailCallKind:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string("<")
+        super().print_parameter(printer)
+        printer.print_string(">")
+
+
 @irdl_op_definition
 class CallOp(IRDLOperation):
     name = "llvm.call"
 
     args = var_operand_def()
 
-    callee = prop_def(SymbolRefAttr)
-    callee_type = opt_prop_def(LLVMFunctionType)
-    fastmathFlags = prop_def(FastMathAttr)
-    CConv = prop_def(CallingConventionAttr)
+    callee = opt_prop_def(SymbolRefAttr)
+    var_callee_type = opt_prop_def(LLVMFunctionType)
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
+    CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
+    TailCallKind = prop_def(
+        TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
+    )
     returned = opt_result_def()
 
     def __init__(
@@ -1316,12 +1445,12 @@ class CallOp(IRDLOperation):
         input_types = [
             SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
         ]
-        callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
+        var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
             operands=[args],
             properties={
                 "callee": callee,
-                "callee_type": callee_type,
+                "var_callee_type": var_callee_type,
                 "fastmathFlags": fastmath,
                 "CConv": calling_convention,
             },
@@ -1368,6 +1497,9 @@ LLVM = Dialect(
         ShlOp,
         LShrOp,
         AShrOp,
+        TruncOp,
+        ZExtOp,
+        SExtOp,
         ExtractValueOp,
         InsertValueOp,
         InlineAsmOp,
@@ -1395,6 +1527,7 @@ LLVM = Dialect(
         LLVMFunctionType,
         LinkageAttr,
         CallingConventionAttr,
+        TailCallKindAttr,
         FastMathAttr,
         OverflowAttr,
     ],

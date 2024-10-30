@@ -119,10 +119,13 @@ def swap_arguments_pdl():
             ).op
             x_y = pdl.ResultOp(IntegerAttr(0, 32), parent=x_y_op).val
             z = pdl.OperandOp().value
+            overflow = pdl.AttributeOp().output
             x_y_z_op = pdl.OperationOp(
                 op_name=StringAttr("arith.addi"),
                 operand_values=[x_y, z],
                 type_values=[pdl_type],
+                attribute_value_names=(StringAttr("overflowFlags"),),
+                attribute_values=(overflow,),
             ).op
 
             with ImplicitBuilder(pdl.RewriteOp(x_y_z_op).body):
@@ -130,6 +133,8 @@ def swap_arguments_pdl():
                     StringAttr("arith.addi"),
                     operand_values=[z, x_y],
                     type_values=[pdl_type],
+                    attribute_value_names=(StringAttr("overflowFlags"),),
+                    attribute_values=(overflow,),
                 ).op
                 pdl.ReplaceOp(x_y_z_op, z_x_y_op)
 
