@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file -p convert-memref-to-riscv,reconcile-unrealized-casts,canonicalize %s | filecheck %s
+// RUN: xdsl-opt --split-input-file -p convert-memref-to-ptr,convert-ptr-to-riscv,convert-arith-to-riscv,convert-memref-to-riscv,reconcile-unrealized-casts,canonicalize %s | filecheck %s
 
 // Test that a memref float store and load with constant indices optimise to a single operation
 
