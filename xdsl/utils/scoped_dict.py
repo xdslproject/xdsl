@@ -8,9 +8,15 @@ _Value = TypeVar("_Value")
 
 class ScopedDict(Generic[_Key, _Value]):
     """
-    Class holding the Python values associated with SSAValues during an
-    interpretation context. An environment is a stack of scopes, values are
-    assigned to the current scope, but can be fetched from a parent scope.
+    A tiered mapping from keys to values.
+    Once a value is set for a key, it cannot be overwritten.
+    A ScopedDict may have a parent dict, which is used as a fallback when a value for a
+    key is not found.
+    If a ScopedDict and its parent have values for the same key, the child value will be
+    returned.
+    This structure is useful for contexts where keys and values have a known scope, such
+    as during IR construction from an Abstract Syntax Tree.
+    ScopedDict instances may have a `name` property as a hint during debugging.
     """
 
     _local_scope: dict[_Key, _Value]
