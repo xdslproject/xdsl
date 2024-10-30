@@ -102,7 +102,11 @@ tests-marimo-onnx:
 	fi
 
 # run all tests
-tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx pyright
+tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx
+	@echo All functional tests done.
+
+# run all tests
+tests: tests-functional pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory
