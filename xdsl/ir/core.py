@@ -953,12 +953,12 @@ class Operation(IRNode):
 
     def get_parent_of_type(self, parent_type: type[Operation]) -> Operation | None:
         current_op = self
-        
+
         while parent := current_op.parent_op():
             if isinstance(parent, parent_type):
                 return parent
             current_op = parent
-            
+
         return None
 
     def walk(
@@ -984,7 +984,6 @@ class Operation(IRNode):
                 for op in block.ops:
                     yield from op.walk_blocks_preorder()
 
-
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
         Get a named attribute or property.
@@ -995,12 +994,14 @@ class Operation(IRNode):
         if name in self.attributes:
             return self.attributes[name]
         return None
-    
-    def is_before_in_block(self, other_op : Operation) -> bool:
+
+    def is_before_in_block(self, other_op: Operation) -> bool:
         parent_block = self.parent_block()
         assert isinstance(parent_block, Block)
 
-        if parent_block.get_operation_index(self) < parent_block.get_operation_index(other_op):
+        if parent_block.get_operation_index(self) < parent_block.get_operation_index(
+            other_op
+        ):
             return True
         else:
             return False
@@ -1434,12 +1435,10 @@ class Block(IRNode, IRWithUses):
         return tuple(
             p for use in self.uses if (p := use.operation.parent_block()) is not None
         )
-    
+
     def successors(self) -> tuple[Block, ...]:
         terminator = list(self.ops)[-1]
-        return tuple(
-            successor for successor in terminator.successors
-        )
+        return tuple(successor for successor in terminator.successors)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1761,7 +1760,7 @@ class Block(IRNode, IRWithUses):
         else:
             return None
 
-    def find_ancestor_op_in_block(self, other_op : Operation) -> Operation | None:
+    def find_ancestor_op_in_block(self, other_op: Operation) -> Operation | None:
         for op in self.ops:
             if op.is_ancestor(other_op):
                 return op
@@ -1991,8 +1990,8 @@ class Region(IRNode):
             if self.parent is not None and self.parent.parent is not None
             else None
         )
-    
-    def find_ancestor_block_in_region(self, block : Block) -> Block | None:
+
+    def find_ancestor_block_in_region(self, block: Block) -> Block | None:
         curr_block = block
         while curr_block.parent_region() != self:
             parent_op = curr_block.parent_op()

@@ -7,7 +7,6 @@ from typing import Any, cast
 from typing_extensions import Self
 
 from xdsl.dialects import memref
-from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.dialects.builtin import (
     Annotated,
     AnySignlessIntegerOrIndexType,
@@ -22,6 +21,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -434,17 +434,19 @@ class InsertSliceOp(IRDLOperation):
                 "static_strides": DenseArrayBase.from_list(i64, strides),
             },
         )
-    
+
+
 @irdl_op_definition
 class Yield(AbstractYieldOperation[Attribute]):
     name = "tensor.yield"
+
 
 @irdl_op_definition
 class PadOp(IRDLOperation):
     name = "tensor.pad"
     source = operand_def(TensorType)
-    #low = var_operand_def(IndexType)
-    #high = var_operand_def(IndexType)
+    # low = var_operand_def(IndexType)
+    # high = var_operand_def(IndexType)
     static_low = prop_def(DenseArrayBase)
     static_high = prop_def(DenseArrayBase)
 
@@ -452,10 +454,15 @@ class PadOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    def __init__(self, source : SSAValue | Operation, low: Sequence[IndexType], high: Sequence[IndexType]):
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        low: Sequence[IndexType],
+        high: Sequence[IndexType],
+    ):
         source = SSAValue.get(source)
         assert isinstance(source.type, TensorType)
-        
+
         new_shape = []
         for dim_idx, dim in enumerate(source.type.shape.data):
             new_dim = dim.data + low[dim_idx] + high[dim_idx]
@@ -463,15 +470,26 @@ class PadOp(IRDLOperation):
 
         return_type = TensorType(source.type.element_type, new_shape)
 
-        super().__init__(operands=[source], properties={"static_low" : DenseArrayBase.from_list(i32, low), "static_high" : DenseArrayBase.from_list(i32, high)}, result_types=[return_type])
+        super().__init__(
+            operands=[source],
+            properties={
+                "static_low": DenseArrayBase.from_list(i32, low),
+                "static_high": DenseArrayBase.from_list(i32, high),
+            },
+            result_types=[return_type],
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         source = parser.parse_operand()
         parser.parse_keyword("low")
-        low = parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parser.parse_integer)
+        low = parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE, parser.parse_integer
+        )
         parser.parse_keyword("high")
-        high = parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parser.parse_integer)
+        high = parser.parse_comma_separated_list(
+            Parser.Delimiter.SQUARE, parser.parse_integer
+        )
         parser.parse_region()
         attrs = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")

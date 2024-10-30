@@ -102,7 +102,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.gpu import GPU
 
         return GPU
-    
+
     def get_hlfir():
         from xdsl.dialects.experimental.hlfir import HLFIR
 

@@ -1,18 +1,20 @@
 from dataclasses import dataclass, field
-from xdsl.ir import Block, SSAValue, Region, Operation, BlockArgument
-from typing import cast, IO
-from xdsl.dialects import func, builtin
+from typing import IO, cast
+
+from xdsl.dialects import builtin, func
+from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.printer import Printer
 
-class BlockInfoBuilder():
-    def __init__(self, block : Block):
-        self.out_values : set[SSAValue] = set()
-        self.def_values : set[SSAValue] = set()
-        self.use_values : set[SSAValue] = set()
-        self.in_values : set[SSAValue] = set()
+
+class BlockInfoBuilder:
+    def __init__(self, block: Block):
+        self.out_values: set[SSAValue] = set()
+        self.def_values: set[SSAValue] = set()
+        self.use_values: set[SSAValue] = set()
+        self.in_values: set[SSAValue] = set()
         self.block = block
 
-        def gather_out_values(value : SSAValue):
+        def gather_out_values(value: SSAValue):
             # Check whether this value will be in the outValues set (its uses escape
             # this block). Due to the SSA properties of the program, the uses must
             # occur after the definition. Therefore, we do not have to check
@@ -22,9 +24,11 @@ class BlockInfoBuilder():
                 # Find an owner block in the current region. Note that a value does not
                 # escape this block if it is used in a nested region.
                 parent_region = block.parent_region()
-                assert isinstance(parent_region, Region) and isinstance(owner_block, Block)
+                assert isinstance(parent_region, Region)
+                assert isinstance(owner_block, Block)
                 owner_block = parent_region.find_ancestor_block_in_region(owner_block)
-                assert owner_block and "Use leaves the current parent region"
+                assert owner_block
+                assert "Use leaves the current parent region"
                 if owner_block != block:
                     self.out_values.add(value)
                     break
@@ -65,34 +69,39 @@ class BlockInfoBuilder():
         # the live-in set can only grow monotonically during all update operations.
         if len(new_in) == len(self.in_values):
             return False
-        
+
         self.in_values = new_in.copy()
         return True
-    
+
     # Updates live-out information of the current block. It iterates over all
     # successors and unifies their live-in values with the current live-out
     # values.
-    def update_liveout(self, builders : dict[Block, 'BlockInfoBuilder']):
+    def update_liveout(self, builders: dict[Block, "BlockInfoBuilder"]):
         for succ in self.block.successors():
             builder = builders[succ]
             self.out_values = self.out_values.union(builder.in_values)
 
-# Builds the internal liveness block mapping.
-def build_block_mapping(operation : Operation) -> dict[Block, BlockInfoBuilder]:
-    to_process : set[Block] = set()
-    builders : dict[Block, BlockInfoBuilder] = dict()
 
-    #for op in operation.walk():
+# Builds the internal liveness block mapping.
+def build_block_mapping(operation: Operation) -> dict[Block, BlockInfoBuilder]:
+    to_process: set[Block] = set()
+    builders: dict[Block, BlockInfoBuilder] = dict()
+
+    # for op in operation.walk():
     #    for block in [block for region in op.regions for block in region.blocks]:
     for block in operation.walk_blocks_preorder():
-        assert isinstance(block , Block)
+        assert isinstance(block, Block)
         if block not in builders:
             builders[block] = BlockInfoBuilder(block)
 
         builder = builders[block]
 
         if builder.update_livein():
-                list(map(lambda x: to_process.add(x), [pred for pred in block.predecessors()]))
+            list(
+                map(
+                    lambda x: to_process.add(x), [pred for pred in block.predecessors()]
+                )
+            )
 
     # Propagate the in and out-value sets (fixpoint iteration).
     while to_process:
@@ -104,49 +113,54 @@ def build_block_mapping(operation : Operation) -> dict[Block, BlockInfoBuilder]:
 
         # Compute (potentially) updated live in values.
         if builder.update_livein():
-            list(map(lambda x: to_process.add(x), [pred for pred in current.predecessors()]))
+            list(
+                map(
+                    lambda x: to_process.add(x),
+                    [pred for pred in current.predecessors()],
+                )
+            )
 
     return builders
 
 
-
-#===----------------------------------------------------------------------===//
+# ===----------------------------------------------------------------------===//
 # LivenessBlockInfo
-#===----------------------------------------------------------------------===//
+# ===----------------------------------------------------------------------===//
+
 
 # This class represents liveness information on block level.
 @dataclass
 class LivenessBlockInfo:
-    in_values : set[SSAValue] = field(default_factory=set)
-    out_values : set[SSAValue] = field(default_factory=set)
+    in_values: set[SSAValue] = field(default_factory=set)
+    out_values: set[SSAValue] = field(default_factory=set)
 
-    def __init__(self, block : Block):
+    def __init__(self, block: Block):
         self.block = block
 
     # Returns True if the given value is in the live-in set.
-    def is_livein(self, value : SSAValue):
+    def is_livein(self, value: SSAValue):
         return value in self.in_values
 
     # Returns True if the given vlaue is in the live-out set.
-    def is_liveout(self, value : SSAValue):
+    def is_liveout(self, value: SSAValue):
         return value in self.out_values
 
     # Gets the start operation for the given value (must be referenced in this block).
-    def get_start_operation(self, value : SSAValue):
+    def get_start_operation(self, value: SSAValue):
         defining_op = value.owner if isinstance(value.owner, Operation) else None
         # The given value is either live-in or is defined in the scope of this block
         if self.is_livein(value) or not defining_op:
             return self.block.first_op
-        
+
         return defining_op
 
     # Gets the end operation for the given value using the start operation provided (
-    # must be referenced in this block) 
-    def get_end_operation(self, value : SSAValue, start_operation : Operation):
+    # must be referenced in this block)
+    def get_end_operation(self, value: SSAValue, start_operation: Operation):
         # The given value is either dying in this block or live-out.
         if self.is_liveout(value):
             return self.block.last_op
-        
+
         # Resolve the last operation (must exist by definition).
         end_operation = start_operation
         for use_op in [use.operation for use in value.uses]:
@@ -158,22 +172,26 @@ class LivenessBlockInfo:
         return end_operation
 
     # Return the values that are currently live as of the given operation.
-    def currently_live_values(self, op : Operation, output : IO[str]):
-        live_set : set[SSAValue] = set()
+    def currently_live_values(self, op: Operation, output: IO[str]):
+        live_set: set[SSAValue] = set()
 
-        # Given a value, check which ops are within its live range. For each of 
+        # Given a value, check which ops are within its live range. For each of
         # those ops, add the value to the set of live values as-of that op
-        def add_value_to_currently_live_sets(value : SSAValue):
-            start_of_live_range = value.owner if isinstance(value.owner, Operation) else None
+        def add_value_to_currently_live_sets(value: SSAValue):
+            start_of_live_range = (
+                value.owner if isinstance(value.owner, Operation) else None
+            )
             end_of_live_range = None
 
-            # If it's a live in or a block argument, then the start is the beginning of 
+            # If it's a live in or a block argument, then the start is the beginning of
             # the block.
             if self.is_livein(value) or isinstance(value, BlockArgument):
                 start_of_live_range = self.block.first_op
             else:
                 assert isinstance(start_of_live_range, Operation)
-                start_of_live_range = self.block.find_ancestor_op_in_block(start_of_live_range)
+                start_of_live_range = self.block.find_ancestor_op_in_block(
+                    start_of_live_range
+                )
 
             # If it's a live out, then the end is the back of the block.
             if self.is_liveout(value):
@@ -184,10 +202,14 @@ class LivenessBlockInfo:
             if start_of_live_range and not end_of_live_range:
                 end_of_live_range = self.get_end_operation(value, start_of_live_range)
 
-            assert end_of_live_range and "Must have end_of_live_range at this point!"
+            assert end_of_live_range
+            assert "Must have end_of_live_range at this point!"
             # If this op is within the live range, insert the value into the set.
             assert isinstance(start_of_live_range, Operation)
-            if not (op.is_before_in_block(start_of_live_range) or end_of_live_range.is_before_in_block(op)):
+            if not (
+                op.is_before_in_block(start_of_live_range)
+                or end_of_live_range.is_before_in_block(op)
+            ):
                 live_set.add(value)
 
         # Handle block arguments if any.
@@ -195,7 +217,7 @@ class LivenessBlockInfo:
             add_value_to_currently_live_sets(arg)
 
         # Handle live-ins. Between the live ins and all the op results that gives us every value
-        # in the block. 
+        # in the block.
         for in_val in self.in_values:
             add_value_to_currently_live_sets(in_val)
 
@@ -205,27 +227,29 @@ class LivenessBlockInfo:
             for result in _op.results:
                 add_value_to_currently_live_sets(result)
 
-        return live_set     
+        return live_set
 
-#===----------------------------------------------------------------------===//
+
+# ===----------------------------------------------------------------------===//
 # Liveness
-#===----------------------------------------------------------------------===//
-block_mapping : dict[Block, LivenessBlockInfo] = dict()
+# ===----------------------------------------------------------------------===//
+block_mapping: dict[Block, LivenessBlockInfo] = dict()
+
 
 # Creates a new Liveness analysis that computes liveness information for all
 # associated regions.
 @dataclass
-class Liveness():
-    operation : Operation
+class Liveness:
+    operation: Operation
 
-    def __init__(self, op : Operation):
+    def __init__(self, op: Operation):
         self.operation = op
         self.build(op)
 
     # Initializes the internal mappings
-    def build(self, op : Operation):
+    def build(self, op: Operation):
         # Build internal block mapping
-        builders : dict[Block, BlockInfoBuilder] = dict()
+        builders: dict[Block, BlockInfoBuilder] = dict()
         builders = build_block_mapping(op)
 
         # Store internal block data
@@ -238,10 +262,10 @@ class Liveness():
             block_mapping[block].out_values = builder.out_values.copy()
 
     # Gets liveness info (if any) for the given value.
-    def resolve_liveness(self, value : SSAValue, output : IO[str]) -> list[Operation]:
-        to_process : list[Block] = []
-        visited : set[Block] = set()
-        result : list[Operation] = []
+    def resolve_liveness(self, value: SSAValue, output: IO[str]) -> list[Operation]:
+        to_process: list[Block] = []
+        visited: set[Block] = set()
+        result: list[Operation] = []
 
         # Start with the defining block
         if isinstance(def_op := value.owner, Operation):
@@ -258,7 +282,7 @@ class Liveness():
         for use in value.uses:
             use_block = use.operation.parent_block()
             assert isinstance(use_block, Block)
-            if not use_block in visited:
+            if use_block not in visited:
                 to_process.append(use_block)
                 visited.add(use_block)
         while to_process:
@@ -280,28 +304,31 @@ class Liveness():
                 result.append(start)
 
             for successor in block.successors():
-                if self.get_liveness(successor).is_livein(value) and not successor in visited:
+                if (
+                    self.get_liveness(successor).is_livein(value)
+                    and successor not in visited
+                ):
                     to_process.append(successor)
                     visited.add(successor)
         return result
-    
-    # Gets liveness info (if any) for the block. 
-    def get_liveness(self, block : Block):
+
+    # Gets liveness info (if any) for the block.
+    def get_liveness(self, block: Block):
         it = block_mapping[block]
 
         # FIXME: fix for the case when there is not info
         return it
 
     # Returns a reference to a set containing live-in values.
-    def get_livein(self, block : Block):
+    def get_livein(self, block: Block):
         self.get_liveness(block).in_values
 
     # Returns a reference to a set containing live-out values.
-    def get_liveoiut(self, block : Block):
+    def get_liveoiut(self, block: Block):
         self.get_liveness(block).out_values
 
     # Returns true if `value` is not live after `operation`.
-    def is_dead_after(self, value : SSAValue, operation : Operation):
+    def is_dead_after(self, value: SSAValue, operation: Operation):
         block = operation.parent_block()
         assert isinstance(block, Block)
         block_info = self.get_liveness(block)
@@ -309,25 +336,25 @@ class Liveness():
         # The given value escapes the associated block.
         if block_info.is_liveout(value):
             return False
-        
+
         end_operation = block_info.get_end_operation(value, operation)
         assert isinstance(end_operation, Operation)
         # If the operation is a real user of `value` the first check is sufficient.
         # If not, we will have to test whether the end operation is executed before
         # the given operation in the block.
         return end_operation == operation or end_operation.is_before_in_block(operation)
-    
+
     # Dumps the liveness information in a human readable format.
     # TODO: dump()
 
     # Dumps the liveness information to the given stream.
-    def print(self, output : IO[str], printer : Printer):
+    def print(self, output: IO[str], printer: Printer):
         print("// ---- Liveness ----", file=output)
 
         # Builds unique block/value mappings for testing purposes.
-        block_ids : dict[Block, int] = dict()
-        operation_ids : dict[Operation, int] = dict()
-        value_ids : dict[SSAValue, int] = dict()
+        block_ids: dict[Block, int] = dict()
+        operation_ids: dict[Operation, int] = dict()
+        value_ids: dict[SSAValue, int] = dict()
 
         # FIXME: pre-order?
         for block in self.operation.walk_blocks_preorder():
@@ -343,17 +370,21 @@ class Liveness():
                     value_ids[result] = len(value_ids)
 
         # Local printing helpers
-        def print_value_ref(value : SSAValue):
+        def print_value_ref(value: SSAValue):
             if isinstance(value.owner, Operation):
                 print(f"val_{value_ids[value]}", file=output, end="")
             else:
                 block_arg = cast(BlockArgument, value)
-                print(f"arg{block_arg.index}@{block_ids[block_arg.owner]}", file=output, end="")
+                print(
+                    f"arg{block_arg.index}@{block_ids[block_arg.owner]}",
+                    file=output,
+                    end="",
+                )
 
             print(" ", file=output, end="")
 
-        def print_value_refs(values : set[SSAValue]):
-            ordered_values : list[SSAValue] = list(values)
+        def print_value_refs(values: set[SSAValue]):
+            ordered_values: list[SSAValue] = list(values)
 
             ordered_values.sort(key=lambda x: value_ids[x])
             for value in ordered_values:
@@ -405,10 +436,11 @@ class Liveness():
 
         print("// -------------------", file=output)
 
-def print_liveness(program : builtin.ModuleOp, output : IO[str]):
+
+def print_liveness(program: builtin.ModuleOp, output: IO[str]):
     printer = Printer(
-                stream=output,
-            )
+        stream=output,
+    )
 
     for func_op in filter(lambda x: isinstance(x, func.FuncOp), program.walk()):
         liveness = Liveness(func_op)

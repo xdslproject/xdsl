@@ -54,11 +54,10 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsContraction, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
-from xdsl.traits import IsContraction
 
 
 class IteratorType(StrEnum):
@@ -998,6 +997,7 @@ class PoolingNchwMaxOp(PoolingOpsBase):
     """
 
     name = "linalg.pooling_nchw_max"
+
 
 @irdl_op_definition
 class PoolingNchwSumOp(PoolingOpsBase):

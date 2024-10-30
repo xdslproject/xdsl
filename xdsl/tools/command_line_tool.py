@@ -439,7 +439,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import stencil_shape_minimize
 
         return stencil_shape_minimize.StencilShapeMinimize
-    
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
