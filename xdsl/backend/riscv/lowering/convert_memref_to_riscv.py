@@ -438,8 +438,8 @@ class ConvertMemrefToRiscvPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ConvertMemrefDeallocOp(),
-                    ConvertMemrefStoreOp(),
-                    ConvertMemrefLoadOp(),
+                    # ConvertMemrefStoreOp(),
+                    # ConvertMemrefLoadOp(),
                     ConvertMemrefGlobalOp(),
                     ConvertMemrefGetGlobalOp(),
                     ConvertMemrefSubviewOp(),
