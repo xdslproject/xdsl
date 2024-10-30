@@ -73,3 +73,30 @@
 
 %icmp_eq = llvm.icmp "eq" %arg0, %arg1 : i32
 // CHECK: %icmp_eq = llvm.icmp "eq" %arg0, %arg1 : i32
+
+%icmp_ne = llvm.icmp "ne" %arg0, %arg1 : i32
+// CHECK: %icmp_ne = llvm.icmp "ne" %arg0, %arg1 : i32
+
+%icmp_slt = llvm.icmp "slt" %arg0, %arg1 : i32
+// CHECK: %icmp_slt = llvm.icmp "slt" %arg0, %arg1 : i32
+
+%icmp_sle = llvm.icmp "sle" %arg0, %arg1 : i32
+// CHECK: %icmp_sle = llvm.icmp "sle" %arg0, %arg1 : i32
+
+%icmp_sgt = llvm.icmp "sgt" %arg0, %arg1 : i32
+// CHECK: %icmp_sgt = llvm.icmp "sgt" %arg0, %arg1 : i32
+
+%icmp_sge = llvm.icmp "sge" %arg0, %arg1 : i32
+// CHECK: %icmp_sge = llvm.icmp "sge" %arg0, %arg1 : i32
+
+%icmp_ult = llvm.icmp "ult" %arg0, %arg1 : i32
+// CHECK: %icmp_ult = llvm.icmp "ult" %arg0, %arg1 : i32
+
+%icmp_ule = llvm.icmp "ule" %arg0, %arg1 : i32
+// CHECK: %icmp_ule = llvm.icmp "ule" %arg0, %arg1 : i32
+
+%icmp_ugt = llvm.icmp "ugt" %arg0, %arg1 : i32
+// CHECK: %icmp_ugt = llvm.icmp "ugt" %arg0, %arg1 : i32
+
+%icmp_uge = llvm.icmp "uge" %arg0, %arg1 : i32
+// CHECK: %icmp_uge = llvm.icmp "uge" %arg0, %arg1 : i32
