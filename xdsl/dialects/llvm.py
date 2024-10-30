@@ -56,6 +56,7 @@ from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoMemoryEffect, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 GEP_USE_SSA_VAL = -2147483648
@@ -1310,6 +1311,33 @@ class ConstantOp(IRDLOperation):
 
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
+
+    @classmethod
+    def parse_value(cls, parser: Parser) -> Attribute:
+        b = parser.parse_optional_boolean()
+        if b is not None:
+            return IntegerAttr.from_bool(b)
+        attr = parser.parse_optional_attribute()
+        if attr:
+            return attr
+        return IntegerAttr(parser.parse_integer(), 64)
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        parser.parse_characters("(")
+        value = cls.parse_value(parser)
+        parser.parse_characters(")")
+        parser.parse_characters(":")
+        value_type = parser.parse_type()
+        return cls(value, value_type)
+
+    def print(self, printer: Printer) -> None:
+        printer.print("(")
+        if isattr(self.value, AnyIntegerAttr) and self.result.type == IntegerType(64):
+            self.value.print_without_type(printer)
+        else:
+            printer.print(self.value)
+        printer.print(") : ", self.result.type)
 
 
 class FastMathFlag(StrEnum):
