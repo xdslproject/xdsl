@@ -80,7 +80,7 @@ def offset_calculations(
             bytes_per_element_op := ptr.TypeOffsetOp(
                 operands=[],
                 result_types=[builtin.IndexType()],
-                properties={"elem_type": i32},
+                properties={"elem_type": memref_type.element_type},
             ),
             final_offset := arith.Muli(head, bytes_per_element_op),
         ]

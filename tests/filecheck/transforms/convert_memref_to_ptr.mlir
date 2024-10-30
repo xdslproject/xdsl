@@ -45,4 +45,22 @@ memref.store %v, %arr2[%idx1, %idx2] {"nontemporal" = false} : memref<10x10xi32>
 // CHECK-NEXT:  %lv2_6 = ptr.ptradd %lv2_5, %lv2_4 : (!ptr.ptr, index) -> !ptr.ptr
 // CHECK-NEXT:  %lv2_7 = ptr.load %lv2_6 : !ptr.ptr -> i32
 
+%fv, %farr = "test.op"() : () -> (f64, memref<10xf64>)
+memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
+
+// CHECK-NEXT:  %fv, %farr = "test.op"() : () -> (f64, memref<10xf64>)
+// CHECK-NEXT:  %11 = "ptr.type_offset"() <{"elem_type" = f64}> : () -> index
+// CHECK-NEXT:  %12 = arith.muli %idx, %11 : index
+// CHECK-NEXT:  %13 = memref.to_ptr %farr : memref<10xf64> -> !ptr.ptr
+// CHECK-NEXT:  %14 = ptr.ptradd %13, %12 : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  ptr.store %fv, %14 : f64, !ptr.ptr
+
+%flv = memref.load %farr[%idx] {"nontemporal" = false} : memref<10xf64>
+
+// CHECK-NEXT:  %flv = "ptr.type_offset"() <{"elem_type" = f64}> : () -> index
+// CHECK-NEXT:  %flv_1 = arith.muli %idx, %flv : index
+// CHECK-NEXT:  %flv_2 = memref.to_ptr %farr : memref<10xf64> -> !ptr.ptr
+// CHECK-NEXT:  %flv_3 = ptr.ptradd %flv_2, %flv_1 : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  %flv_4 = ptr.load %flv_3 : !ptr.ptr -> f64
+
 // CHECK-NEXT: }

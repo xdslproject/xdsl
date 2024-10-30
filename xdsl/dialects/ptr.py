@@ -2,6 +2,7 @@ from xdsl.dialects.builtin import IndexType, IntegerType, UnitAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyOf,
+    Attribute,
     IRDLOperation,
     base,
     irdl_attr_definition,
@@ -34,7 +35,7 @@ class PtrAddOp(IRDLOperation):
 class TypeOffsetOp(IRDLOperation):
     name = "ptr.type_offset"
 
-    elem_type = prop_def(base(IntegerType))
+    elem_type = prop_def(base(Attribute))
     offset = result_def(AnyOf([IntegerType, IndexType]))
 
 
