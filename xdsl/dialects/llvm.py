@@ -610,6 +610,105 @@ class SExtOp(IntegerConversionOp):
         super().verify(verify_nested_ops)
 
 
+class ICmpPredicateFlag(StrEnum):
+    EQ = "eq"
+    NE = "ne"
+    SLT = "slt"
+    SLE = "sle"
+    SGT = "sgt"
+    SGE = "sge"
+    ULT = "ult"
+    ULE = "ule"
+    UGT = "ugt"
+    UGE = "uge"
+
+    @classmethod
+    def from_int(cls, i: int) -> ICmpPredicateFlag:
+        if i == 0:
+            return ICmpPredicateFlag.EQ
+        elif i == 1:
+            return ICmpPredicateFlag.NE
+        elif i == 2:
+            return ICmpPredicateFlag.SLT
+        elif i == 3:
+            return ICmpPredicateFlag.SLE
+        elif i == 4:
+            return ICmpPredicateFlag.SGE
+        elif i == 5:
+            return ICmpPredicateFlag.SGT
+        elif i == 6:
+            return ICmpPredicateFlag.ULT
+        elif i == 7:
+            return ICmpPredicateFlag.ULE
+        elif i == 8:
+            return ICmpPredicateFlag.UGE
+        elif i == 9:
+            return ICmpPredicateFlag.UGT
+        raise VerifyException(f"invalide predicate value {i}")
+
+
+@irdl_attr_definition
+class ICmpPredicateAttr(EnumAttribute[ICmpPredicateFlag]):
+    name = "llvm.predicate"
+
+
+@irdl_op_definition
+class ICmpOp(IRDLOperation, ABC):
+    name = "llvm.icmp"
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+    predicate = prop_def(ICmpPredicateAttr)
+
+    traits = frozenset([NoMemoryEffect()])
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        predicate: ICmpPredicateAttr,
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+            properties={
+                "predicate": predicate,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        predicate = ICmpPredicateAttr(ICmpPredicateAttr.parse_parameter(parser))
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], predicate, attributes)
+
+    def print_predicate(self, printer: Printer):
+        if isattr(self.predicate, AnyIntegerAttr):
+            ICmpPredicateAttr(
+                ICmpPredicateFlag.from_int(self.predicate.value.data)
+            ).print_parameter(printer)
+        else:
+            self.predicate.print_parameter(printer)
+
+    def print(self, printer: Printer):
+        printer.print(' "')
+        self.print_predicate(printer)
+        printer.print('" ', self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.lhs.type)
+
+
 @irdl_op_definition
 class GEPOp(IRDLOperation):
     """
@@ -1500,6 +1599,7 @@ LLVM = Dialect(
         TruncOp,
         ZExtOp,
         SExtOp,
+        ICmpOp,
         ExtractValueOp,
         InsertValueOp,
         InlineAsmOp,
