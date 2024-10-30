@@ -250,6 +250,16 @@ class SignlessIntegerBinaryOperationWithOverflow(
         )
 
 
+class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import FoldConstConstOp
+
+        return (FoldConstConstOp(),)
+
+
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on floats."""
 
@@ -902,28 +912,36 @@ class Select(IRDLOperation):
 class Addf(FloatingPointLikeBinaryOperation):
     name = "arith.addf"
 
-    traits = frozenset([Pure()])
+    traits = frozenset(
+        [Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()]
+    )
 
 
 @irdl_op_definition
 class Subf(FloatingPointLikeBinaryOperation):
     name = "arith.subf"
 
-    traits = frozenset([Pure()])
+    traits = frozenset(
+        [Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()]
+    )
 
 
 @irdl_op_definition
 class Mulf(FloatingPointLikeBinaryOperation):
     name = "arith.mulf"
 
-    traits = frozenset([Pure()])
+    traits = frozenset(
+        [Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()]
+    )
 
 
 @irdl_op_definition
 class Divf(FloatingPointLikeBinaryOperation):
     name = "arith.divf"
 
-    traits = frozenset([Pure()])
+    traits = frozenset(
+        [Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()]
+    )
 
 
 @irdl_op_definition
