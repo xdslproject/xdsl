@@ -21,7 +21,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 # I think we also need to pass the adress width.
 def offset_calculations(
-    memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue], val: SSAValue
+    memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
 ) -> tuple[list[Operation], SSAValue]:
     assert isinstance(memref_type.element_type, builtin.FixedBitwidthType)
 
@@ -44,7 +44,7 @@ def offset_calculations(
         match stride:
             case None:
                 raise DiagnosticException(
-                    f"MemRef {memref} with dynamic stride is not yet implemented"
+                    f"MemRef {memref_type} with dynamic stride is not yet implemented"
                 )
             case 1:
                 # Stride 1 is a noop making the index equal to the offset.
@@ -78,8 +78,9 @@ def offset_calculations(
 
     ops.extend(
         [
+            hack_to_get_type := arith.Constant.from_int_and_width(0, i32),
             bytes_per_element_op := TypeOffsetOp(
-                operands=[val], result_types=[builtin.IndexType()]
+                operands=[hack_to_get_type], result_types=[builtin.IndexType()]
             ),
             final_offset := arith.Muli(head, bytes_per_element_op),
         ]
@@ -95,7 +96,7 @@ class ConvertStoreOp(RewritePattern):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        ops, offset = offset_calculations(memref_type, op.indices, op.value)
+        ops, offset = offset_calculations(memref_type, op.indices)
 
         ops.extend(
             [
@@ -112,15 +113,39 @@ class ConvertStoreOp(RewritePattern):
         rewriter.replace_matched_op(ops)
 
 
-dataclass(frozen=True)
+@dataclass
+class ConvertLoadOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter, /):
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        memref_type = cast(memref.MemRefType[Any], op_memref_type)
+
+        ops, offset = offset_calculations(memref_type, op.indices)
+
+        ops.extend(
+            [
+                memref_ptr := memref.ToPtrOp(
+                    operands=[op.memref], result_types=[ptr.PtrType()]
+                ),
+                target_ptr := ptr.PtrAddOp(
+                    operands=[memref_ptr, offset], result_types=[ptr.PtrType()]
+                ),
+                load_result := ptr.LoadOp(
+                    operands=[target_ptr], result_types=[memref_type.element_type]
+                ),
+            ]
+        )
+
+        rewriter.replace_matched_op(ops, new_results=[load_result.res])
 
 
+@dataclass(frozen=True)
 class ConvertMemrefToPtr(ModulePass):
     name = "convert-memref-to-ptr"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         the_one_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertStoreOp()]),
+            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()]),
             apply_recursively=False,
             walk_reverse=True,
             walk_regions_first=True,
