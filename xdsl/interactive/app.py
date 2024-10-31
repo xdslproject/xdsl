@@ -9,7 +9,7 @@ be sure to install `textual-dev` to run this command.
 
 import argparse
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import fields
 from io import StringIO
 from typing import Any, ClassVar
@@ -31,6 +31,7 @@ from textual.widgets import (
 )
 from textual.widgets.tree import TreeNode
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
@@ -41,15 +42,14 @@ from xdsl.interactive.pass_metrics import (
     get_diff_operation_count,
 )
 from xdsl.interactive.passes import (
-    ALL_PASSES,
     AvailablePass,
     apply_passes_to_module,
-    get_new_registered_context,
 )
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
-from xdsl.transforms import get_all_passes, individual_rewrite
+from xdsl.tools.command_line_tool import CommandLineToolWithPasses
+from xdsl.transforms import individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -63,7 +63,7 @@ class OutputTextArea(TextArea):
         event.prevent_default()
 
 
-class InputApp(App[None]):
+class InputApp(App[None], CommandLineToolWithPasses):
     """
     Interactive application for constructing compiler pipelines.
     """
@@ -90,6 +90,9 @@ class InputApp(App[None]):
           func.return %res : i32
         }
         """
+
+    all_passes: tuple[tuple[str, type[ModulePass]], ...]
+    """Contains the list of xDSL passes."""
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -139,12 +142,40 @@ class InputApp(App[None]):
     current_file_path: str
     pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
 
-    def __init__(
-        self,
-        file_path: str | None = None,
-        input_text: str | None = None,
-        pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
-    ):
+    def __init__(self, args: Sequence[str] | None = None):
+        self.available_frontends = {}
+        self.available_passes = {}
+
+        self.ctx = MLContext()
+        self.register_all_dialects()
+        self.register_all_frontends()
+        self.register_all_passes()
+
+        self.all_passes = tuple(
+            sorted((p_name, p()) for (p_name, p) in self.available_passes.items())
+        )
+
+        arg_parser = argparse.ArgumentParser()
+        self.register_all_arguments(arg_parser)
+        self.args = arg_parser.parse_args(args=args)
+
+        self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
+
+        file_path = self.args.input_file
+        if file_path is not None:
+            # Open the file and read its contents
+            with open(file_path) as file:
+                input_text = file.read()
+        else:
+            input_text = None
+
+        pass_spec_pipeline = list(parse_pipeline(self.args.passes))
+        pass_pipeline = tuple(
+            PipelinePass.build_pipeline_tuples(
+                self.available_passes, pass_spec_pipeline
+            )
+        )
+
         if file_path is None:
             self.current_file_path = ""
         else:
@@ -158,6 +189,18 @@ class InputApp(App[None]):
         self.pre_loaded_pass_pipeline = pass_pipeline
 
         super().__init__()
+
+    def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
+        """
+        Registers all the command line arguments that are used by this tool.
+
+        Add other/additional arguments by overloading this function.
+        """
+        super().register_all_arguments(arg_parser)
+
+        arg_parser.add_argument(
+            "input_file", type=str, nargs="?", help="path to input file"
+        )
 
     def compose(self) -> ComposeResult:
         """
@@ -217,7 +260,7 @@ class InputApp(App[None]):
         self.query_one("#output_container").border_title = "Output xDSL IR"
 
         # initialize Tree to contain the pass options
-        for n, module_pass in ALL_PASSES:
+        for n, module_pass in self.all_passes:
             self.passes_tree.root.add(
                 label=n,
                 data=(module_pass, None),
@@ -243,11 +286,13 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
+                return tuple(AvailablePass(p.name, p, None) for _, p in self.all_passes)
             case Exception():
                 return ()
             case ModuleOp():
                 return get_available_pass_list(
+                    self.ctx,
+                    self.all_passes,
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
@@ -489,6 +534,8 @@ class InputApp(App[None]):
         )
 
         child_pass_list = get_available_pass_list(
+            self.ctx,
+            self.all_passes,
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
@@ -518,12 +565,11 @@ class InputApp(App[None]):
             self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
-            ctx = get_new_registered_context()
-            parser = Parser(ctx, input_text)
+            parser = Parser(self.ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
             self.current_module = apply_passes_to_module(
-                module, ctx, self.pass_pipeline
+                module, self.ctx, self.pass_pipeline
             )
         except Exception as e:
             self.current_module = e
@@ -714,35 +760,7 @@ class InputApp(App[None]):
 
 
 def main():
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument(
-        "input_file", type=str, nargs="?", help="path to input file"
-    )
-
-    available_passes = ",".join([name for name in get_all_passes()])
-    arg_parser.add_argument(
-        "-p",
-        "--passes",
-        required=False,
-        help="Delimited list of passes." f" Available passes are: {available_passes}",
-        type=str,
-        default="",
-    )
-    args = arg_parser.parse_args()
-
-    file_path = args.input_file
-    if file_path is not None:
-        # Open the file and read its contents
-        with open(file_path) as file:
-            file_contents = file.read()
-    else:
-        file_contents = None
-
-    pass_spec_pipeline = list(parse_pipeline(args.passes))
-    pass_list = get_all_passes()
-    pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
-
-    return InputApp(file_path, file_contents, pipeline).run()
+    InputApp().run()
 
 
 if __name__ == "__main__":
