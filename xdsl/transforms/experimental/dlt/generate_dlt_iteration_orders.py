@@ -194,4 +194,4 @@ class IterationGenerator:
                 reified_orders.append(dlt.NonZeroIterationOrderAttr(tensor_extents, tensor_idx, abstract_child))
             else:
                 reified_orders.append(dlt.NonZeroIterationOrderAttr(tensor_extents, tensor_idx, order.child))
-        return reified_orders
+        return [r for o in reified_orders for r in self.reify(o)]

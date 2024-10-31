@@ -1431,11 +1431,11 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
             )
 
 
-class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
+class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr]):
 
     def minimal_reduction(
         self,
-        layout: dlt.UnpackedCOOLayoutAttr,
+        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
@@ -1446,7 +1446,7 @@ class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
     ) -> tuple[dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr]]:
         if not through_index_reducible:
             raise InConsistentLayoutException(
-                "Cannot reduce through Unpacked COO node as it is unsafe to hold pointers to values contained inside"
+                "Cannot reduce through COO node as it is unsafe to hold pointers to values contained inside"
             )
         else:
             if not all(d in dimensions for d in layout.dimensions):
@@ -1464,7 +1464,7 @@ class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
 
     def try_reduction(
         self,
-        layout: dlt.UnpackedCOOLayoutAttr,
+        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         through_index_reducible: bool,
@@ -1483,7 +1483,7 @@ class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
 
     def reduce_to_terminal(
         self,
-        layout: dlt.UnpackedCOOLayoutAttr,
+        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
         members_to_select: set[dlt.MemberAttr],
         dimensions_to_select: set[dlt.DimensionAttr],
         base_type: dlt.AcceptedTypes,
@@ -1499,7 +1499,7 @@ class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
 
     def can_layout_derive_to(
         self,
-        layout: T,
+        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
         starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
         end_point: dlt.PtrType,
@@ -1527,7 +1527,7 @@ class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
     def embed_layout_in(
         self,
         child_layout: dlt.Layout,
-        parent_layout: dlt.UnpackedCOOLayoutAttr,
+        parent_layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
@@ -1557,4 +1557,5 @@ Manipulator.add(dlt.StructLayoutAttr, StructManipulator(Manipulator))
 Manipulator.add(dlt.ArithDropLayoutAttr, ArithDropManipulator(Manipulator))
 Manipulator.add(dlt.ArithReplaceLayoutAttr, ArithReplaceManipulator(Manipulator))
 Manipulator.add(dlt.IndexingLayoutAttr, IndexingManipulator(Manipulator))
-Manipulator.add(dlt.UnpackedCOOLayoutAttr, UnpackedCOOManipulator(Manipulator))
+Manipulator.add(dlt.UnpackedCOOLayoutAttr, COOManipulator(Manipulator))
+Manipulator.add(dlt.SeparatedCOOLayoutAttr, COOManipulator(Manipulator))

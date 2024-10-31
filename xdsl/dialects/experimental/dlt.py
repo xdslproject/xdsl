@@ -1620,7 +1620,7 @@ class StructLayoutAttr(Layout):
 
 @irdl_attr_definition
 class UnpackedCOOLayoutAttr(Layout):
-    name = "dlt.layout.indexed.unpackedCOO"
+    name = "dlt.layout.indexed.coo.unpacked"
     child: ParameterDef[DirectLayout]
     dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
     buffer_scaler: ParameterDef[IntAttr]
@@ -1657,6 +1657,59 @@ class UnpackedCOOLayoutAttr(Layout):
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == 1
         return UnpackedCOOLayoutAttr(children[0], self.dimensions, self.buffer_scaler)
+
+    def get_stage(self) -> Stage:
+        child_stage = self.child.get_stage()
+        dimension_stages = [d.extent.get_stage() for d in self.dimensions]
+        return max(*dimension_stages, child_stage)
+
+    def get_all_extents(self) -> set[Extent]:
+        extents = {d.extent for d in self.dimensions}
+        return self.child.get_all_extents() | extents
+
+    def is_buffered(self) -> bool:
+        return self.buffer_scaler.data != 0
+
+
+@irdl_attr_definition
+class SeparatedCOOLayoutAttr(Layout):
+    name = "dlt.layout.indexed.coo.separated"
+    child: ParameterDef[DirectLayout]
+    dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
+    buffer_scaler: ParameterDef[IntAttr]
+
+    def __init__(
+        self,
+        child: Layout,
+        dimensions: Iterable[DimensionAttr],
+        buffer_scaler: int | IntAttr = 0,
+    ):
+        if not isinstance(dimensions, ArrayAttr):
+            dimensions = ArrayAttr(dimensions)
+        if not isinstance(buffer_scaler, IntAttr):
+            buffer_scaler = IntAttr(buffer_scaler)
+
+        super().__init__((child, dimensions, buffer_scaler))
+
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return IndexRangeType()
+
+    @property
+    def contents_type(self) -> TypeType:
+        return self.child.contents_type.add_dimensions(self.dimensions)
+
+    def node_matches(self, other: Layout) -> bool:
+        return (
+            isinstance(other, SeparatedCOOLayoutAttr)
+            and self.dimensions == other.dimensions
+        )
+
+    def get_children(self) -> list[Layout]:
+        return [self.child]
+
+    def from_new_children(self, children: list[Layout]) -> Self:
+        assert len(children) == 1
+        return SeparatedCOOLayoutAttr(children[0], self.dimensions, self.buffer_scaler)
 
     def get_stage(self) -> Stage:
         child_stage = self.child.get_stage()

@@ -90,6 +90,7 @@ def _make_sparse_layout(
     sparse_dims: list[dlt.DimensionAttr],
     child_dims: list[dlt.DimensionAttr],
     buffer_scalar: int = 0,
+    separated: bool = False,
 ) -> dlt.AbstractLayoutAttr:
     common_dims = layout.common_abstract_dimensions()
     assert common_dims.issuperset(direct_dims + sparse_dims + child_dims)
@@ -108,9 +109,14 @@ def _make_sparse_layout(
         )
         for a_child in layout.children
     ]
-    coo_node = dlt.UnpackedCOOLayoutAttr(
-        dlt.AbstractLayoutAttr(abstract_children), sparse_dims, buffer_scaler=buffer_scalar
-    )
+    if separated:
+        coo_node = dlt.SeparatedCOOLayoutAttr(
+            dlt.AbstractLayoutAttr(abstract_children), sparse_dims, buffer_scaler=buffer_scalar
+        )
+    else:
+        coo_node = dlt.UnpackedCOOLayoutAttr(
+            dlt.AbstractLayoutAttr(abstract_children), sparse_dims, buffer_scaler=buffer_scalar
+        )
 
     indexing_node = dlt.IndexingLayoutAttr(direct_node, coo_node)
     abstract_node= dlt.AbstractLayoutAttr([dlt.AbstractChildAttr([], common_dims.difference(sparse_dims+direct_dims+child_dims), indexing_node)])
@@ -257,7 +263,8 @@ def _make_index_replacement(
 @dataclass(frozen=True, eq=True)
 class ReifyConfig():
     dense: bool = True # do we try dense layouts
-    coo_buffer_options: frozenset[int] = frozenset([0, 2, 8, -8]) # do we try coo layouts and if so, what buffer options
+    unpacked_coo_buffer_options: frozenset[int] = frozenset([0, 2, 8, -8]) # do we try coo layouts and if so, what buffer options
+    separated_coo_buffer_options: frozenset[int] = frozenset([0, 2, 8, -8])  # do we try coo layouts and if so, what buffer options
     coo_minimum_dims: int = 2
     arith_replace: bool = True # do we try index replacement layouts
     force_arith_replace_immediate_use: bool = True
@@ -266,7 +273,7 @@ class ReifyConfig():
 
     @property
     def coo(self) -> bool:
-        return len(self.coo_buffer_options) > 0
+        return len(self.unpacked_coo_buffer_options) > 0 or len(self.separated_coo_buffer_options) > 0
 
 
 class PtrMapping():
@@ -344,7 +351,7 @@ class LayoutGenerator:
             f"Layout Store: {len(self._generated_layouts)}, "
             f"Abstract: {len(self.abstract_maps)} ({self._max_size}), "
             f"Final: {len(self.final_maps)}, "
-            f"Current Abstract Mappings: {["N" if l is None else len(l) for _, l in self.abstract_maps]}")
+            f"Current Abstract Mappings: {['N' if l is None else len(l) for _, l in self.abstract_maps]}")
 
     def plot_mapping(self, mapping: PtrMapping):
         if self.plot_dir is None:
@@ -612,7 +619,7 @@ class LayoutGenerator:
         return new_layout
 
     def _try_sparse(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: set[dlt.DimensionAttr] = None, config: ReifyConfig = None) -> list[dlt.Layout]:
-        buffer_options = config.coo_buffer_options if config is not None else [0,2,8,-8]
+
         layouts = []
         dims = sorted(list(abstract_layout.common_abstract_dimensions()), key = lambda d: d.dimensionName.data)
         if len(dims) >= config.coo_minimum_dims:
@@ -629,8 +636,23 @@ class LayoutGenerator:
                                 # print(f"abstract_dims: {[d.dimensionName for d in abstract_dims]}")
                                 for abstract_child_dims in self._subsets(abstract_dims):
                                     # print(f"abstract_child_dims: {[d.dimensionName for d in abstract_child_dims]}")
-                                    for buffer_scaler in buffer_options:
-                                        layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
+                                    if len(sparse_perm) > 1:
+                                        unpacked_buffer_options = config.unpacked_coo_buffer_options if config is not None else [0,
+                                                                                                                        2,
+                                                                                                                        8,
+                                                                                                                        -8]
+                                        for buffer_scaler in unpacked_buffer_options:
+                                            layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
+
+                                    separated_buffer_options = config.separated_coo_buffer_options if config is not None else [
+                                        0,
+                                        2,
+                                        8,
+                                        -8]
+                                    for buffer_scaler in separated_buffer_options:
+                                        layouts.append(
+                                            _make_sparse_layout(abstract_layout, list(direct), list(sparse_perm),
+                                                                list(abstract_child_dims), buffer_scalar=buffer_scaler, separated=True))
         return layouts
 
     def _try_dense(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: dlt.DimensionAttr = None) -> list[dlt.Layout]:
