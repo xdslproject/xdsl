@@ -1,5 +1,5 @@
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -102,3 +102,59 @@ class FoldConstsByReassociation(RewritePattern):
             rebuild = type(op)(cnsts, val, flags)
             rewriter.replace_matched_op([cnsts, rebuild])
             rewriter.replace_op(u, [], [rebuild.result])
+
+
+class SelectConstPattern(RewritePattern):
+    """
+    arith.select %true %x %y = %x
+    arith.select %false %x %y = %y
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Select, rewriter: PatternRewriter):
+        if not isinstance(condition := op.cond.owner, arith.Constant):
+            return
+
+        assert isinstance(const_cond := condition.value, IntegerAttr)
+
+        if const_cond.value.data == 1:
+            rewriter.replace_matched_op((), (op.lhs,))
+        if const_cond.value.data == 0:
+            rewriter.replace_matched_op((), (op.rhs,))
+
+
+class SelectTrueFalsePattern(RewritePattern):
+    """
+    arith.select %x %true %false = %x
+    arith.select %x %false %true = %x xor 1
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Select, rewriter: PatternRewriter):
+        if op.result.type != IntegerType(1):
+            return
+
+        if not isinstance(lhs := op.lhs.owner, arith.Constant) or not isinstance(
+            rhs := op.rhs.owner, arith.Constant
+        ):
+            return
+
+        assert isinstance(lhs_value := lhs.value, IntegerAttr)
+        assert isinstance(rhs_value := rhs.value, IntegerAttr)
+
+        if lhs_value.value.data == 1 and rhs_value.value.data == 0:
+            rewriter.replace_matched_op((), (op.cond,))
+
+        if lhs_value.value.data == 0 and rhs_value.value.data == 1:
+            rewriter.replace_matched_op(arith.XOrI(op.cond, rhs))
+
+
+class SelectSamePattern(RewritePattern):
+    """
+    arith.select %x %y %y = %y
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Select, rewriter: PatternRewriter):
+        if op.lhs == op.rhs:
+            rewriter.replace_matched_op((), (op.lhs,))

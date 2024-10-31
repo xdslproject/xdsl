@@ -3,18 +3,17 @@
 %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
 %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
 
+// CHECK:        %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
+// CHECK-NEXT:   %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
+// CHECK-NEXT:   %addf = arith.addf %lhsf32, %rhsf32 : f32
+// CHECK-NEXT:   %addf_vector = arith.addf %lhsvec, %rhsvec : vector<4xf32>
+// CHECK-NEXT:   "test.op"(%addf, %addf_vector) : (f32, vector<4xf32>) -> ()
 %addf = arith.addf %lhsf32, %rhsf32 : f32
 %addf_1 = arith.addf %lhsf32, %rhsf32 : f32
 %addf_vector = arith.addf %lhsvec, %rhsvec : vector<4xf32>
 %addf_vector_1 = arith.addf %lhsvec, %rhsvec : vector<4xf32>
 
 "test.op"(%addf, %addf_vector) : (f32, vector<4xf32>) -> ()
-
-// CHECK:        %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
-// CHECK-NEXT:   %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
-// CHECK-NEXT:   %addf = arith.addf %lhsf32, %rhsf32 : f32
-// CHECK-NEXT:   %addf_vector = arith.addf %lhsvec, %rhsvec : vector<4xf32>
-// CHECK-NEXT:   "test.op"(%addf, %addf_vector) : (f32, vector<4xf32>) -> ()
 
 func.func @test_const_const() {
     %a = arith.constant 2.9979 : f32
@@ -62,3 +61,32 @@ func.func @test_const_var_const() {
     // CHECK-NEXT:   %5 = arith.mulf %4, %0 fastmath<fast> : f32
     // CHECK-NEXT:   "test.op"(%3, %5) : (f32, f32) -> ()
 }
+
+// CHECK:      %lhs, %rhs = "test.op"() : () -> (f32, f32)
+// CHECK-NEXT: %ctrue = arith.constant true
+// CHECK-NEXT: "test.op"(%lhs, %lhs) : (f32, f32) -> ()
+
+%lhs, %rhs = "test.op"() : () -> (f32, f32)
+%ctrue = arith.constant true
+%cfalse = arith.constant false
+%select_true = arith.select %ctrue, %lhs, %rhs : f32
+%select_false = arith.select %ctrue, %lhs, %rhs : f32
+"test.op"(%select_true, %select_false) : (f32, f32) -> ()
+
+// CHECK:      %cond = "test.op"() : () -> i1
+// CHECK-NEXT: %select_false_true = arith.xori %cond, %ctrue : i1
+// CHECK-NEXT: "test.op"(%cond, %select_false_true) : (i1, i1) -> ()
+
+%cond = "test.op"() : () -> (i1)
+%select_true_false = arith.select %cond, %ctrue, %cfalse : i1
+%select_false_true = arith.select %cond, %cfalse, %ctrue : i1
+"test.op"(%select_true_false, %select_false_true) : (i1, i1) -> ()
+
+%x, %y = "test.op"() : () -> (i1, i64)
+
+// CHECK:      %x, %y = "test.op"() : () -> (i1, i64)
+// CHECK-NEXT: "test.op"(%y) : (i64) -> ()
+
+%z = arith.select %x, %y, %y : i64
+
+"test.op"(%z) : (i64) -> ()
