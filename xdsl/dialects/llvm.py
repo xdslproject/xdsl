@@ -626,11 +626,11 @@ class ICmpPredicateFlag(StrEnum):
 @irdl_attr_definition
 class ICmpPredicateAttr(EnumAttribute[ICmpPredicateFlag]):
     name = "llvm.predicate"
-    TUPLE = tuple(ICmpPredicateFlag)
+    ALL_PREDICATES = tuple(ICmpPredicateFlag)
 
     @classmethod
     def from_int(cls, i: int):
-        return ICmpPredicateAttr(cls.TUPLE[i])
+        return ICmpPredicateAttr(cls.ALL_PREDICATES[i])
 
 
 @irdl_op_definition
