@@ -11,18 +11,12 @@ from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import CommandLineTool
-from xdsl.transforms import get_all_passes
+from xdsl.tools.command_line_tool import CommandLineToolWithPasses
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
-class xDSLOptMain(CommandLineTool):
-    available_passes: dict[str, Callable[[], type[ModulePass]]]
-    """
-    A mapping from pass names to functions that apply the pass to a ModuleOp.
-    """
-
+class xDSLOptMain(CommandLineToolWithPasses):
     available_targets: dict[str, Callable[[ModuleOp, IO[str]], None]]
     """
     A mapping from target names to functions that serialize a ModuleOp into a
@@ -102,16 +96,6 @@ class xDSLOptMain(CommandLineTool):
             "-o", "--output-file", type=str, required=False, help="path to output file"
         )
 
-        pass_names = ",".join([name for name in self.available_passes])
-        arg_parser.add_argument(
-            "-p",
-            "--passes",
-            required=False,
-            help="Delimited list of passes." f" Available passes are: {pass_names}",
-            type=str,
-            default="",
-        )
-
         arg_parser.add_argument(
             "--print-between-passes",
             default=False,
@@ -170,20 +154,6 @@ class xDSLOptMain(CommandLineTool):
             action="version",
             version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
         )
-
-    def register_pass(
-        self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
-    ):
-        self.available_passes[pass_name] = pass_factory
-
-    def register_all_passes(self):
-        """
-        Register all passes that can be used.
-
-        Add other/additional passes by overloading this function.
-        """
-        for pass_name, pass_factory in get_all_passes().items():
-            self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):
         """

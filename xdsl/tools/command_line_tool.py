@@ -8,6 +8,8 @@ from xdsl.context import MLContext
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
+from xdsl.passes import ModulePass
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Span
 
@@ -119,3 +121,37 @@ class CommandLineTool:
                 raise Exception("Failed to parse:\n" + e.with_context()) from e
         finally:
             chunk.close()
+
+
+class CommandLineToolWithPasses(CommandLineTool):
+    available_passes: dict[str, Callable[[], type[ModulePass]]]
+    """
+    A mapping from pass names to functions that apply the pass to a ModuleOp.
+    """
+
+    def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
+        super().register_all_arguments(arg_parser)
+
+        pass_names = ",".join([name for name in self.available_passes])
+        arg_parser.add_argument(
+            "-p",
+            "--passes",
+            required=False,
+            help="Delimited list of passes." f" Available passes are: {pass_names}",
+            type=str,
+            default="",
+        )
+
+    def register_pass(
+        self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
+    ):
+        self.available_passes[pass_name] = pass_factory
+
+    def register_all_passes(self):
+        """
+        Register all passes that can be used.
+
+        Add other/additional passes by overloading this function.
+        """
+        for pass_name, pass_factory in get_all_passes().items():
+            self.register_pass(pass_name, pass_factory)
