@@ -28,6 +28,7 @@ from xdsl.ir import (
     BitEnumAttribute,
     Dialect,
     EnumAttribute,
+    OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -624,7 +625,7 @@ class ICmpPredicateFlag(StrEnum):
 
 
 @irdl_attr_definition
-class ICmpPredicateAttr(EnumAttribute[ICmpPredicateFlag]):
+class ICmpPredicateAttr(OpaqueSyntaxAttribute, EnumAttribute[ICmpPredicateFlag]):
     name = "llvm.predicate"
     ALL_PREDICATES = tuple(ICmpPredicateFlag)
 
@@ -634,7 +635,7 @@ class ICmpPredicateAttr(EnumAttribute[ICmpPredicateFlag]):
 
 
 @irdl_op_definition
-class ICmpOp(IRDLOperation, ABC):
+class ICmpOp(IRDLOperation):
     name = "llvm.icmp"
     T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
 
@@ -679,11 +680,11 @@ class ICmpOp(IRDLOperation, ABC):
         self.predicate.print_parameter(printer)
 
     def print(self, printer: Printer):
-        printer.print(' "')
+        printer.print_string(' "')
         self.print_predicate(printer)
         printer.print('" ', self.lhs, ", ", self.rhs)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print(self.lhs.type)
 
 
