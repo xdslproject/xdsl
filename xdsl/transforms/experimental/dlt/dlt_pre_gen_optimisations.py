@@ -144,12 +144,17 @@ class DLTSetIterationOpNonZeroLoopsRewriter(RewritePattern):
                 select_groups = typing.cast(ArrayAttr[NoneAttr | StringAttr], iter_op.attributes["tensor_select_index_groups"])
                 assert isinstance(select_groups, ArrayAttr)
                 tensor_indices = []
+                tensor_zeroable_extents = []
                 for i, select_group in enumerate(select_groups):
                     if select_group in zeroable:
-                        tensor_indices.append(i)
-                tensor_zeroable_extents = []
-                for t in tensor_indices:
-                    tensor_zeroable_extents.append(all_extents)
+                        extents = []
+                        for e, ds in enumerate(iter_op.dimensions.data[i]):
+                            if len(ds) > 0:
+                                extents.append(IntAttr(e))
+                        if len(extents) > 0:
+                            tensor_indices.append(i)
+                            tensor_zeroable_extents.append(dlt.SetAttr(extents))
+
                 tensor_indices = ArrayAttr([IntAttr(i) for i in tensor_indices])
                 tensor_zeroable_extents = ArrayAttr(tensor_zeroable_extents)
                 new_order = dlt.AbstractIterationOrderAttr(all_extents, tensor_indices, tensor_zeroable_extents, iter_op.order.child)

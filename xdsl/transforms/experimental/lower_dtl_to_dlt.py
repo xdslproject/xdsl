@@ -280,7 +280,7 @@ class DTLRewriter(RewritePattern):
         # print(f"Lowering  {exe_op.name} down to dlt:")
 
         # ssa_out: OpsAndResult = self._get_expression(exit_point, {})
-        expression_ops = self._do_expression(exit_point, destination, {})
+        expression_ops, zeroable = self._do_expression(exit_point, destination, {})
         ops = []
         ops.extend(self.const_ops)
         # self.block.add_ops(self.const_ops)
@@ -313,7 +313,7 @@ class DTLRewriter(RewritePattern):
     @functools.singledispatchmethod
     def _do_expression(
         self, expr: Operation, destination: TupleStruct[Destination | None], index_map: typing.Dict[dtl.Index, SSAValue]
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         # for child in expr.operands:
@@ -349,14 +349,14 @@ class DTLRewriter(RewritePattern):
         expr: dtl.TensorVariableOp,
         destination: TupleStruct[Destination],
         index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         assert len(index_map) == 0
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
         assert isinstance(expr.result.type, dtl.TensorExprType)
         expr_type = typing.cast(dtl.TensorExprType, expr.result.type)
         assert isinstance(expr_type.result, dtl.IndexShapeStruct)
@@ -376,7 +376,7 @@ class DTLRewriter(RewritePattern):
 
         assert all(s.extent == d.extent for s, d in zip(dlt_dims, destination_dlt_dims))
 
-        return [dlt.CopyOp(selected_tensor, dlt_dims, destination.ptr, destination_dlt_dims, destination.base_type)]
+        return [dlt.CopyOp(selected_tensor, dlt_dims, destination.ptr, destination_dlt_dims, destination.base_type)], []
 
     @_get_expression.register
     def _(
@@ -395,13 +395,13 @@ class DTLRewriter(RewritePattern):
         expr: dtl.IndexBindingOp,
         destination: TupleStruct[Destination | None],
         index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
         new_map = {
             i: v for i, v in index_map.items() if i not in expr.indices_map.indices()
         }
@@ -536,19 +536,19 @@ class DTLRewriter(RewritePattern):
         expr: dtl.IndexOp,
         destination: TupleStruct[Destination | None],
         index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
         ops_res: OpsAndResult = self._get_expression(expr, index_map)
         copy_ops = self._copy_get_expr_index_to_do_index(ops_res.result, destination)
         # ops, new_destination = self._match_indices_and_subDestinations(expr.indices, destination, index_map)
         # child_ops = self._do_expression(_op_for(expr.expr), new_destination, index_map)
         dealloc_ops = [dlt.DeallocOp(alloc.res) for alloc in ops_res.allocated]
-        return ops_res.ops + copy_ops + dealloc_ops
+        return ops_res.ops + copy_ops + dealloc_ops, ops_res.zeroable
 
     def _deindexing_struct_to_list(self, struct: dtl.DeIndexingStruct) -> list[dtl.IndexShapeStruct[dtl.Index | dtl.VectorSpace]]:
         if isinstance(struct, dtl.IndexTupleStruct):
@@ -939,7 +939,7 @@ class DTLRewriter(RewritePattern):
 
         destination = _delinear(l_destinations, ptr_elements, SSAValue)
 
-        child_ops = self._do_expression(_op_for(expr.expr), destination, new_map)
+        child_ops, child_zeroable = self._do_expression(_op_for(expr.expr), destination, new_map)
         block.add_ops(child_ops)
 
         # copy_ops = self._copy_subexpr_into_deindex_elements(
@@ -953,11 +953,12 @@ class DTLRewriter(RewritePattern):
         iterateOp = dlt.IterateOp(
             extents, extent_args, dimension_specifiers, ptr_elements, [], None, None, block
         )
+        iterateOp.attributes["zeroable"] = SetAttr(child_zeroable)
 
         ops.append(iterateOp)
         deindex_result = self._get_deindex_ExprResult(ptr_elements, elements)
 
-        return OpsAndResult(ops, deindex_result, [alloc], [])
+        return OpsAndResult(ops, deindex_result, [alloc], child_zeroable)
 
     @_do_expression.register
     def _(
@@ -965,13 +966,13 @@ class DTLRewriter(RewritePattern):
             expr: dtl.DeIndexOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
         new_map = dict(index_map)
         block = Block()
 
@@ -1029,15 +1030,16 @@ class DTLRewriter(RewritePattern):
 
         new_destination = _delinear(new_destinations, destination, Destination)
 
-        child_ops = self._do_expression(_op_for(expr.expr), new_destination, new_map)
+        child_ops, child_zeroable = self._do_expression(_op_for(expr.expr), new_destination, new_map)
         block.add_ops(child_ops)
         block.add_op(dlt.IterateYieldOp())
 
         iterateOp = dlt.IterateOp(
             extents, extent_args, dimension_specifiers, tensor_inputs, [], None, None, block
         )
+        iterateOp.attributes["zeroable"] = SetAttr(child_zeroable)
 
-        return [iterateOp]
+        return [iterateOp], child_zeroable
 
     def _get_extent(self, vs: dtl.VectorSpace) -> tuple[dlt.Extent, None | SSAValue]:
         if isinstance(vs, dtl.KnownVectorSpace):
@@ -1148,7 +1150,7 @@ class DTLRewriter(RewritePattern):
         accumulator_result_ssa = SSAValue.get(accumulator_result)
 
         return OpsAndResult(
-            ops, ExprResult(accumulator_result, [], accumulator_result_ssa.type), [], []
+            ops, ExprResult(accumulator_result, [], accumulator_result_ssa.type), [], subexpr.zeroable
         )
 
     @_do_expression.register
@@ -1157,13 +1159,13 @@ class DTLRewriter(RewritePattern):
             expr: dtl.SumOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
         opresults: OpsAndResult = self._get_expression(expr, index_map)
 
         ops = opresults.ops
@@ -1174,7 +1176,7 @@ class DTLRewriter(RewritePattern):
         assert len(opresults.allocated) == 0
 
         set_op = dlt.SetOp(destination.ptr, destination.base_type, expr_result.ssa)
-        return ops + [set_op]
+        return ops + [set_op], opresults.zeroable
 
     @_get_expression.register
     def _(
@@ -1194,20 +1196,20 @@ class DTLRewriter(RewritePattern):
             expr: dtl.ScalarConstOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         assert len(index_map) == 0
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
         assert isinstance(destination, Destination)
         assert len(destination.spaces) == 0
         assert destination.base_type == expr.val.type
         const_op = arith.Constant(expr.val)
         set_op = dlt.SetOp(destination.ptr, destination.base_type, const_op.result)
-        return [const_op, set_op]
+        return [const_op, set_op], []
 
     @_get_expression.register
     def _(
@@ -1245,13 +1247,13 @@ class DTLRewriter(RewritePattern):
             expr: dtl.ScalarAddOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
 
         opresults: OpsAndResult = self._get_expression(expr, index_map)
 
@@ -1263,7 +1265,7 @@ class DTLRewriter(RewritePattern):
         assert len(opresults.allocated) == 0
 
         set_op = dlt.SetOp(destination.ptr, destination.base_type, expr_result.ssa)
-        return ops + [set_op]
+        return ops + [set_op], []
 
     @_get_expression.register
     def _(
@@ -1300,13 +1302,13 @@ class DTLRewriter(RewritePattern):
             expr: dtl.ScalarSubOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
 
         opresults: OpsAndResult = self._get_expression(expr, index_map)
 
@@ -1318,7 +1320,7 @@ class DTLRewriter(RewritePattern):
         assert len(opresults.allocated) == 0
 
         set_op = dlt.SetOp(destination.ptr, destination.base_type, expr_result.ssa)
-        return ops + [set_op]
+        return ops + [set_op], []
 
     @_get_expression.register
     def _(
@@ -1355,13 +1357,13 @@ class DTLRewriter(RewritePattern):
             expr: dtl.ScalarMulOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
 
         opresults: OpsAndResult = self._get_expression(expr, index_map)
 
@@ -1373,7 +1375,7 @@ class DTLRewriter(RewritePattern):
         assert len(opresults.allocated) == 0
 
         set_op = dlt.SetOp(destination.ptr, destination.base_type, expr_result.ssa)
-        return ops + [set_op]
+        return ops + [set_op], opresults.zeroable
 
     def get_scalar(self, expr: ExprResult) -> tuple[list[Operation], SSAValue]:
         ssa = expr.ssa
@@ -1413,12 +1415,17 @@ class DTLRewriter(RewritePattern):
         ops = []
         results = []
         allocs = []
+        zeroable = None
         for sub in subs:
             ops.extend(sub.ops)
             results.append(sub.result)
             allocs.extend(sub.allocated)
+            if zeroable is None:
+                zeroable = set(sub.zeroable)
+            else:
+                zeroable = zeroable.intersection(sub.zeroable)
         result = tuple(results)
-        return OpsAndResult(ops, result, allocs, [])
+        return OpsAndResult(ops, result, allocs, list(zeroable))
 
     @_do_expression.register
     def _(
@@ -1426,21 +1433,22 @@ class DTLRewriter(RewritePattern):
             expr: dtl.TupleOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
         assert isinstance(destination, tuple)
         assert len(destination) == len(expr.arguments)
 
-        subs: list[list[Operation]] = [
+        subs: list[tuple[list[Operation], list[StringAttr]]] = [
             self._do_expression(e.op, d, index_map) for e, d in zip(expr.arguments, destination)
         ]
-        ops = [op for sub in subs for op in sub]
-        return ops
+        ops = [op for sub,z in subs for op in sub]
+        zeroable = list(set.intersection(*[set(z) for op, z in subs]))
+        return ops, zeroable
 
     @_get_expression.register
     def _(
@@ -1449,7 +1457,7 @@ class DTLRewriter(RewritePattern):
         if self.verbose > 0:
             print(f"_get_expression: {expr.name} :===: {expr}")
         res: OpsAndResult = self._get_expression(_op_for(expr.tuple), indexMap)
-        return OpsAndResult(res.ops, res.result[expr.index.data], res.allocated, [])
+        return OpsAndResult(res.ops, res.result[expr.index.data], res.allocated, res.zeroable)
 
     @_do_expression.register
     def _(
@@ -1457,13 +1465,13 @@ class DTLRewriter(RewritePattern):
             expr: dtl.IndexedTupleOp,
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
-    ) -> list[Operation]:
+    ) -> tuple[list[Operation], list[StringAttr]]:
         if self.verbose > 0:
             print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
             if self.verbose > 1:
                 print(f"\t\t\t\t\t Skipped since destination is None")
-            return []
+            return [], []
 
         child_type = expr.tuple.type
         assert isinstance(child_type, dtl.TensorExprType)
