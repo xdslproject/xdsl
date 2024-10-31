@@ -967,6 +967,13 @@ class Operation(IRNode):
         if region_first:
             yield self
 
+    def walk_blocks_preorder(self) -> Iterator[Block]:
+        for region in self.regions:
+            for block in region.blocks:
+                yield block
+                for op in block.ops:
+                    yield from op.walk_blocks_preorder()
+
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
         Get a named attribute or property.
