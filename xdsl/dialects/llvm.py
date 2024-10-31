@@ -75,6 +75,8 @@ def _parse_llvm_type(parser: AttrParser):
         return LLVMPointerType(LLVMPointerType.parse_parameters(parser))
     if parser.parse_optional_characters("array"):
         return LLVMArrayType(LLVMArrayType.parse_parameters(parser))
+    if parser.parse_optional_characters("struct"):
+        return LLVMStructType(LLVMStructType.parse_parameters(parser))
 
 
 def parse_llvm_type(parser: AttrParser):
