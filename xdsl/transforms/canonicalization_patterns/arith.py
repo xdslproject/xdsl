@@ -38,11 +38,11 @@ class FoldConstConstOp(RewritePattern):
                 case arith.Mulf:
                     val = l.value.data * r.value.data
                 case arith.Divf:
-                    if rhs.value.data == 0.0:
+                    if r.value.data == 0.0:
                         # this mirrors what mlir does
                         val = float("inf")
                     else:
-                        val = lhs.value.data / rhs.value.data
+                        val = l.value.data / r.value.data
                 case _:
                     return
             rewriter.replace_matched_op(arith.Constant(builtin.FloatAttr(val, l.type)))
