@@ -440,6 +440,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_shape_minimize.StencilShapeMinimize
 
+    def get_varith_fuse_repeated_operands():
+        from xdsl.transforms import varith_transformations
+
+        return varith_transformations.VarithFuseRepeatedOperandsPass
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -525,6 +530,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-shape-minimize": get_stencil_shape_minimize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
     }
 
 
