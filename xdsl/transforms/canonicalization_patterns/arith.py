@@ -147,3 +147,14 @@ class SelectTrueFalsePattern(RewritePattern):
 
         if lhs_value.value.data == 0 and rhs_value.value.data == 1:
             rewriter.replace_matched_op(arith.XOrI(op.cond, rhs))
+
+
+class SelectSamePattern(RewritePattern):
+    """
+    arith.select %x %y %y = %y
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Select, rewriter: PatternRewriter):
+        if op.lhs == op.rhs:
+            rewriter.replace_matched_op((), (op.lhs,))

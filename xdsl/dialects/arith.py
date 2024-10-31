@@ -863,10 +863,11 @@ class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import (
             SelectConstPattern,
+            SelectSamePattern,
             SelectTrueFalsePattern,
         )
 
-        return (SelectConstPattern(), SelectTrueFalsePattern())
+        return (SelectConstPattern(), SelectTrueFalsePattern(), SelectSamePattern())
 
 
 @irdl_op_definition

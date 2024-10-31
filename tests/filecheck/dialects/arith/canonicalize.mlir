@@ -81,3 +81,12 @@ func.func @test_const_var_const() {
 %select_true_false = arith.select %cond, %ctrue, %cfalse : i1
 %select_false_true = arith.select %cond, %cfalse, %ctrue : i1
 "test.op"(%select_true_false, %select_false_true) : (i1, i1) -> ()
+
+%x, %y = "test.op"() : () -> (i1, i64)
+
+// CHECK:      %x, %y = "test.op"() : () -> (i1, i64)
+// CHECK-NEXT: "test.op"(%y) : (i64) -> ()
+
+%z = arith.select %x, %y, %y : i64
+
+"test.op"(%z) : (i64) -> ()
