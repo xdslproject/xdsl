@@ -858,6 +858,17 @@ class Cmpf(ComparisonOperation):
         printer.print_attribute(self.lhs.type)
 
 
+class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            SelectConstPattern,
+            SelectTrueFalsePattern,
+        )
+
+        return (SelectConstPattern(), SelectTrueFalsePattern())
+
+
 @irdl_op_definition
 class Select(IRDLOperation):
     """
@@ -873,7 +884,7 @@ class Select(IRDLOperation):
     rhs = operand_def(Attribute)
     result = result_def(Attribute)
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), SelectHasCanonicalizationPatterns()])
 
     # TODO replace with trait
     def verify_(self) -> None:
