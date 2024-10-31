@@ -4,7 +4,6 @@ from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, ptr
-from xdsl.dialects.builtin import i32
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
@@ -59,6 +58,9 @@ def offset_calculations(
                         offset_op := arith.Muli(increment, stride_op),
                     )
                 )
+                stride_op.result.name_hint = "pointer_dim_stride"
+                offset_op.result.name_hint = "pointer_dim_offset"
+
                 increment = offset_op.result
 
         if head is None:
@@ -68,12 +70,12 @@ def offset_calculations(
 
         # Otherwise sum up the products.
         add_op = arith.Addi(head, increment)
+        add_op.result.name_hint = "pointer_dim_stride"
         ops.append(add_op)
         head = add_op.result
 
     if head is None:
-        ops.append(const_op := arith.Constant.from_int_and_width(0, i32))
-        return ops, const_op.result
+        raise DiagnosticException("Got empty indices for offset calculations.")
 
     ops.extend(
         [
@@ -86,6 +88,9 @@ def offset_calculations(
         ]
     )
 
+    bytes_per_element_op.offset.name_hint = "bytes_per_element"
+    final_offset.result.name_hint = "scaled_pointer_offset"
+
     return ops, final_offset.result
 
 
@@ -94,17 +99,24 @@ def get_target_ptr(
     memref_type: memref.MemRefType[Any],
     indices: Iterable[SSAValue],
 ) -> tuple[list[Operation], SSAValue]:
-    ops, offset = offset_calculations(memref_type, indices)
-    ops.extend(
-        [
-            memref_ptr := memref.ToPtrOp(
-                operands=[target_memref], result_types=[ptr.PtrType()]
-            ),
-            target_ptr := ptr.PtrAddOp(
-                operands=[memref_ptr, offset], result_types=[ptr.PtrType()]
-            ),
-        ]
+    ops: list[Operation] = [
+        memref_ptr := memref.ToPtrOp(
+            operands=[target_memref], result_types=[ptr.PtrType()]
+        )
+    ]
+
+    if len(list(indices)) == 0:
+        return ops, memref_ptr.res
+
+    offset_ops, offset = offset_calculations(memref_type, indices)
+    ops = offset_ops + ops
+    ops.append(
+        target_ptr := ptr.PtrAddOp(
+            operands=[memref_ptr, offset], result_types=[ptr.PtrType()]
+        )
     )
+
+    target_ptr.result.name_hint = "offset_pointer"
     return ops, target_ptr.result
 
 

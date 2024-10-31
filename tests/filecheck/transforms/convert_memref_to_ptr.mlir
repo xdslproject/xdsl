@@ -7,60 +7,60 @@
 memref.store %v, %arr[%idx] {"nontemporal" = false} : memref<10xi32>
 
 // CHECK-NEXT:  %v, %idx, %arr = "test.op"() : () -> (i32, index, memref<10xi32>)
-// CHECK-NEXT:  %0 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
-// CHECK-NEXT:  %1 = arith.muli %idx, %0 : index
-// CHECK-NEXT:  %2 = memref.to_ptr %arr : memref<10xi32> -> !ptr.ptr
-// CHECK-NEXT:  %3 = ptr.ptradd %2, %1 : (!ptr.ptr, index) -> !ptr.ptr
-// CHECK-NEXT:  ptr.store %v, %3 : i32, !ptr.ptr
+// CHECK-NEXT:  %bytes_per_element = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
+// CHECK-NEXT:  %scaled_pointer_offset = arith.muli %idx, %bytes_per_element : index
+// CHECK-NEXT:  %0 = memref.to_ptr %arr : memref<10xi32> -> !ptr.ptr
+// CHECK-NEXT:  %offset_pointer = ptr.ptradd %0, %scaled_pointer_offset : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  ptr.store %v, %offset_pointer : i32, !ptr.ptr
 
 %idx1, %idx2, %arr2 = "test.op"() : () -> (index, index, memref<10x10xi32>)
 memref.store %v, %arr2[%idx1, %idx2] {"nontemporal" = false} : memref<10x10xi32>
 
 // CHECK-NEXT:  %idx1, %idx2, %arr2 = "test.op"() : () -> (index, index, memref<10x10xi32>)
-// CHECK-NEXT:  %4 = arith.constant 10 : index
-// CHECK-NEXT:  %5 = arith.muli %idx1, %4 : index
-// CHECK-NEXT:  %6 = arith.addi %5, %idx2 : index
-// CHECK-NEXT:  %7 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
-// CHECK-NEXT:  %8 = arith.muli %6, %7 : index
-// CHECK-NEXT:  %9 = memref.to_ptr %arr2 : memref<10x10xi32> -> !ptr.ptr
-// CHECK-NEXT:  %10 = ptr.ptradd %9, %8 : (!ptr.ptr, index) -> !ptr.ptr
-// CHECK-NEXT:  ptr.store %v, %10 : i32, !ptr.ptr
+// CHECK-NEXT:  %pointer_dim_stride = arith.constant 10 : index
+// CHECK-NEXT:  %pointer_dim_offset = arith.muli %idx1, %pointer_dim_stride : index
+// CHECK-NEXT:  %pointer_dim_stride_1 = arith.addi %pointer_dim_offset, %idx2 : index
+// CHECK-NEXT:  %bytes_per_element_1 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
+// CHECK-NEXT:  %scaled_pointer_offset_1 = arith.muli %pointer_dim_stride_1, %bytes_per_element_1 : index
+// CHECK-NEXT:  %1 = memref.to_ptr %arr2 : memref<10x10xi32> -> !ptr.ptr
+// CHECK-NEXT:  %offset_pointer_1 = ptr.ptradd %1, %scaled_pointer_offset_1 : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  ptr.store %v, %offset_pointer_1 : i32, !ptr.ptr
 
 %lv = memref.load %arr[%idx] {"nontemporal" = false} : memref<10xi32>
 
-// CHECK-NEXT:  %lv = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
-// CHECK-NEXT:  %lv_1 = arith.muli %idx, %lv : index
-// CHECK-NEXT:  %lv_2 = memref.to_ptr %arr : memref<10xi32> -> !ptr.ptr
-// CHECK-NEXT:  %lv_3 = ptr.ptradd %lv_2, %lv_1 : (!ptr.ptr, index) -> !ptr.ptr
-// CHECK-NEXT:  %lv_4 = ptr.load %lv_3 : !ptr.ptr -> i32
+// CHECK-NEXT:  %bytes_per_element_2 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
+// CHECK-NEXT:  %scaled_pointer_offset_2 = arith.muli %idx, %bytes_per_element_2 : index
+// CHECK-NEXT:  %lv = memref.to_ptr %arr : memref<10xi32> -> !ptr.ptr
+// CHECK-NEXT:  %offset_pointer_2 = ptr.ptradd %lv, %scaled_pointer_offset_2 : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  %lv_1 = ptr.load %offset_pointer_2 : !ptr.ptr -> i32
 
 %lv2 = memref.load %arr2[%idx1, %idx2] {"nontemporal" = false} : memref<10x10xi32>
 
-// CHECK-NEXT:  %lv2 = arith.constant 10 : index
-// CHECK-NEXT:  %lv2_1 = arith.muli %idx1, %lv2 : index
-// CHECK-NEXT:  %lv2_2 = arith.addi %lv2_1, %idx2 : index
-// CHECK-NEXT:  %lv2_3 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
-// CHECK-NEXT:  %lv2_4 = arith.muli %lv2_2, %lv2_3 : index
-// CHECK-NEXT:  %lv2_5 = memref.to_ptr %arr2 : memref<10x10xi32> -> !ptr.ptr
-// CHECK-NEXT:  %lv2_6 = ptr.ptradd %lv2_5, %lv2_4 : (!ptr.ptr, index) -> !ptr.ptr
-// CHECK-NEXT:  %lv2_7 = ptr.load %lv2_6 : !ptr.ptr -> i32
+// CHECK-NEXT:  %pointer_dim_stride_2 = arith.constant 10 : index
+// CHECK-NEXT:  %pointer_dim_offset_1 = arith.muli %idx1, %pointer_dim_stride_2 : index
+// CHECK-NEXT:  %pointer_dim_stride_3 = arith.addi %pointer_dim_offset_1, %idx2 : index
+// CHECK-NEXT:  %bytes_per_element_3 = "ptr.type_offset"() <{"elem_type" = i32}> : () -> index
+// CHECK-NEXT:  %scaled_pointer_offset_3 = arith.muli %pointer_dim_stride_3, %bytes_per_element_3 : index
+// CHECK-NEXT:  %lv2 = memref.to_ptr %arr2 : memref<10x10xi32> -> !ptr.ptr
+// CHECK-NEXT:  %offset_pointer_3 = ptr.ptradd %lv2, %scaled_pointer_offset_3 : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  %lv2_1 = ptr.load %offset_pointer_3 : !ptr.ptr -> i32
 
 %fv, %farr = "test.op"() : () -> (f64, memref<10xf64>)
 memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 
 // CHECK-NEXT:  %fv, %farr = "test.op"() : () -> (f64, memref<10xf64>)
-// CHECK-NEXT:  %11 = "ptr.type_offset"() <{"elem_type" = f64}> : () -> index
-// CHECK-NEXT:  %12 = arith.muli %idx, %11 : index
-// CHECK-NEXT:  %13 = memref.to_ptr %farr : memref<10xf64> -> !ptr.ptr
-// CHECK-NEXT:  %14 = ptr.ptradd %13, %12 : (!ptr.ptr, index) -> !ptr.ptr
-// CHECK-NEXT:  ptr.store %fv, %14 : f64, !ptr.ptr
+// CHECK-NEXT:  %bytes_per_element_4 = "ptr.type_offset"() <{"elem_type" = f64}> : () -> index
+// CHECK-NEXT:  %scaled_pointer_offset_4 = arith.muli %idx, %bytes_per_element_4 : index
+// CHECK-NEXT:  %2 = memref.to_ptr %farr : memref<10xf64> -> !ptr.ptr
+// CHECK-NEXT:  %offset_pointer_4 = ptr.ptradd %2, %scaled_pointer_offset_4 : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  ptr.store %fv, %offset_pointer_4 : f64, !ptr.ptr
 
 %flv = memref.load %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 
-// CHECK-NEXT:  %flv = "ptr.type_offset"() <{"elem_type" = f64}> : () -> index
-// CHECK-NEXT:  %flv_1 = arith.muli %idx, %flv : index
-// CHECK-NEXT:  %flv_2 = memref.to_ptr %farr : memref<10xf64> -> !ptr.ptr
-// CHECK-NEXT:  %flv_3 = ptr.ptradd %flv_2, %flv_1 : (!ptr.ptr, index) -> !ptr.ptr
-// CHECK-NEXT:  %flv_4 = ptr.load %flv_3 : !ptr.ptr -> f64
+// CHECK-NEXT:  %bytes_per_element_5 = "ptr.type_offset"() <{"elem_type" = f64}> : () -> index
+// CHECK-NEXT:  %scaled_pointer_offset_5 = arith.muli %idx, %bytes_per_element_5 : index
+// CHECK-NEXT:  %flv = memref.to_ptr %farr : memref<10xf64> -> !ptr.ptr
+// CHECK-NEXT:  %offset_pointer_5 = ptr.ptradd %flv, %scaled_pointer_offset_5 : (!ptr.ptr, index) -> !ptr.ptr
+// CHECK-NEXT:  %flv_1 = ptr.load %offset_pointer_5 : !ptr.ptr -> f64
 
 // CHECK-NEXT: }
