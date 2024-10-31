@@ -395,7 +395,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
         if (
             op.outputs[0] not in op.inputs
             or self.is_writable(op.outputs[0])
-            and len(op.outputs) == 1
+            or len(op.outputs) != 1
         ):
             return
 
