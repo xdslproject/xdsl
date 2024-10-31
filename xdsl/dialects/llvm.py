@@ -28,10 +28,10 @@ from xdsl.ir import (
     BitEnumAttribute,
     Dialect,
     EnumAttribute,
-    OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -625,7 +625,7 @@ class ICmpPredicateFlag(StrEnum):
 
 
 @irdl_attr_definition
-class ICmpPredicateAttr(OpaqueSyntaxAttribute, EnumAttribute[ICmpPredicateFlag]):
+class ICmpPredicateAttr(SpacedOpaqueSyntaxAttribute, EnumAttribute[ICmpPredicateFlag]):
     name = "llvm.predicate"
     ALL_PREDICATES = tuple(ICmpPredicateFlag)
 
