@@ -32,7 +32,11 @@ def _fold_const_operation(
         case arith.Mulf:
             val = lhs.value.data * rhs.value.data
         case arith.Divf:
-            val = lhs.value.data / rhs.value.data
+            if rhs.value.data == 0.0:
+                # this mirrors what mlir does
+                val = float("inf")
+            else:
+                val = lhs.value.data / rhs.value.data
         case _:
             return
     return arith.Constant(builtin.FloatAttr(val, lhs.type))
