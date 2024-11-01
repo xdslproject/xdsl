@@ -16,12 +16,12 @@ from xdsl.irdl import (
 
 @irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute):
-    name = "ptr.ptr"
+    name = "opaque_ptr.ptr"
 
 
 @irdl_op_definition
 class PtrAddOp(IRDLOperation):
-    name = "ptr.ptradd"
+    name = "opaque_ptr.ptradd"
 
     addr = operand_def(PtrType)
     offset = operand_def(AnyOf([IntegerType, IndexType]))
@@ -33,7 +33,7 @@ class PtrAddOp(IRDLOperation):
 # haven't managed to pass a type here yet. so did it with a hack.
 @irdl_op_definition
 class TypeOffsetOp(IRDLOperation):
-    name = "ptr.type_offset"
+    name = "opaque_ptr.type_offset"
 
     elem_type = prop_def(base(Attribute))
     offset = result_def(AnyOf([IntegerType, IndexType]))
@@ -41,7 +41,7 @@ class TypeOffsetOp(IRDLOperation):
 
 @irdl_op_definition
 class StoreOp(IRDLOperation):
-    name = "ptr.store"
+    name = "opaque_ptr.store"
 
     addr = operand_def(PtrType)
     value = operand_def()
@@ -55,7 +55,7 @@ class StoreOp(IRDLOperation):
 
 @irdl_op_definition
 class LoadOp(IRDLOperation):
-    name = "ptr.load"
+    name = "opaque_ptr.load"
 
     addr = operand_def(PtrType)
     res = result_def()
@@ -68,4 +68,4 @@ class LoadOp(IRDLOperation):
     assembly_format = "(`volatile` $volatile^)? $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? (`invariant` $invariant^)? attr-dict `:` type($addr) `->` type($res)"
 
 
-Ptr = Dialect("ptr", [PtrAddOp, TypeOffsetOp, StoreOp, LoadOp], [PtrType])
+Ptr = Dialect("opaque_ptr", [PtrAddOp, TypeOffsetOp, StoreOp, LoadOp], [PtrType])
