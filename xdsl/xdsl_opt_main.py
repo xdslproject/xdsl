@@ -166,7 +166,7 @@ class xDSLOptMain(CommandLineTool):
 
         arg_parser.add_argument(
             "--print-reduced-precision-fp",
-            default=True,
+            default=False,
             action="store_true",
             help="Prints floating point literals with reduced precision.",
         )
