@@ -538,7 +538,10 @@ class Printer:
             attr_type = cast(
                 FloatAttr[Float16Type | Float32Type | Float64Type], attribute
             ).type
-            self.print_string(f"{value.data:.6e} : ")
+            if self.print_full_precision_fp:
+                self.print_string(f"{repr(value.data)} : ")
+            else:
+                self.print_string(f"{value.data:.6e} : ")
             self.print_attribute(attr_type)
             return
 
