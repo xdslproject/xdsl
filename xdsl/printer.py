@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 import math
+import struct
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, TypeVar, cast
 
-import numpy as np
 from typing_extensions import deprecated
 
 from xdsl.dialects.builtin import (
@@ -540,15 +540,15 @@ class Printer:
             if math.isnan(value.data) or math.isinf(value.data):
                 if isinstance(attr_type, Float16Type):
                     self.print_string(
-                        f"{hex(np.float16(value.data).view('uint16'))} : "
+                        f"{hex(struct.unpack('<H', struct.pack('<e', value.data))[0])} : "
                     )
                 elif isinstance(attr_type, Float32Type):
                     self.print_string(
-                        f"{hex(np.float32(value.data).view('uint32'))} : "
+                        f"{hex(struct.unpack('<I', struct.pack('<f', value.data))[0])} : "
                     )
                 elif isinstance(attr_type, Float64Type):
                     self.print_string(
-                        f"{hex(np.float64(value.data).view('uint64'))} : "
+                        f"{hex(struct.unpack('<Q', struct.pack('<d', value.data))[0])} : "
                     )
                 else:
                     # todo add support for further bitwidths
