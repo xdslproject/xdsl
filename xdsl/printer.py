@@ -550,7 +550,7 @@ class Printer:
                         f"{hex(np.float64(value.data).view('uint64'))} : "
                     )
                 else:
-                    # todo
+                    # todo add support for further bitwidths
                     self.print_string(f"{value.data:.6e} : ")
             else:
                 self.print_string(f"{value.data:.6e} : ")
