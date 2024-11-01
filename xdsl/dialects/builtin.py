@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -627,6 +628,12 @@ class FloatData(Data[float]):
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
+
+    def __eq__(self, other: Any):
+        # avoid triggering `float('nan') != float('nan')` inequality
+        return isinstance(other, FloatData) and (
+            math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
+        )
 
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)

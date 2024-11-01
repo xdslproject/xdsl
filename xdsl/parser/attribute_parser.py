@@ -1144,6 +1144,10 @@ class AttrParser(BaseParser):
         if bool is not None:
             return bool
 
+        hexadecimal_token: Token | None = None
+        if self._current_token.text[:2] in ["0x", "0X"]:
+            hexadecimal_token = self._current_token
+
         # Parse the value
         if (value := self.parse_optional_number()) is None:
             return None
@@ -1158,6 +1162,8 @@ class AttrParser(BaseParser):
         type = self._parse_attribute_type()
 
         if isinstance(type, AnyFloat):
+            if hexadecimal_token:
+                return FloatAttr(hexadecimal_token.get_float_value(), type)
             return FloatAttr(float(value), type)
 
         if isinstance(type, IntegerType | IndexType):

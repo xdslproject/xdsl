@@ -7,6 +7,8 @@ from io import StringIO
 from string import hexdigits
 from typing import Literal, TypeAlias, TypeGuard, cast, overload
 
+import numpy as np
+
 from xdsl.utils.exceptions import ParseError
 
 Position = int
@@ -347,6 +349,18 @@ class Token:
         This function will raise an exception if the token is not a float
         literal.
         """
+        if self.kind == Token.Kind.INTEGER_LIT and self.text[:2] in ["0x", "0X"]:
+            match len(self.text):
+                # the number corresponds to `len('0x') + (float_bitwidth / 4)`
+                case 6:
+                    return np.uint16(int(self.text, 16)).view("float16").item()
+                case 10:
+                    return np.uint32(int(self.text, 16)).view("float32").item()
+                case 18:
+                    return np.uint64(int(self.text, 16)).view("float64").item()
+                case _:
+                    # todo support further bitwidths
+                    pass
         if self.kind != Token.Kind.FLOAT_LIT:
             raise ValueError("Token is not a float literal!")
         return float(self.text)
