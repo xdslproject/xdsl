@@ -165,6 +165,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--print-full-precision-fp",
+            default=False,
+            action="store_true",
+            help="Prints floating point literals with full available precision.",
+        )
+
+        arg_parser.add_argument(
             "-v",
             "--version",
             action="version",
@@ -198,6 +205,7 @@ class xDSLOptMain(CommandLineTool):
                 print_generic_format=self.args.print_op_generic,
                 print_properties_as_attributes=self.args.print_no_properties,
                 print_debuginfo=self.args.print_debuginfo,
+                print_full_precision_fp=self.args.print_full_precision_fp,
             )
             printer.print_op(prog)
             print("\n", file=output)
