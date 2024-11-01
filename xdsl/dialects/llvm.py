@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
     i64,
 )
@@ -633,6 +634,13 @@ class ICmpPredicateAttr(SpacedOpaqueSyntaxAttribute, EnumAttribute[ICmpPredicate
     def from_int(cls, i: int):
         return ICmpPredicateAttr(cls.ALL_PREDICATES[i])
 
+    @classmethod
+    def int_from(cls, flag: ICmpPredicateFlag) -> int:
+        return cls.ALL_PREDICATES.index(flag)
+
+    def to_int(self) -> int:
+        return self.ALL_PREDICATES.index(self.data)
+
 
 @irdl_op_definition
 class ICmpOp(IRDLOperation):
@@ -641,8 +649,8 @@ class ICmpOp(IRDLOperation):
 
     lhs = operand_def(T)
     rhs = operand_def(T)
-    res = result_def(T)
-    predicate = prop_def(ICmpPredicateAttr)
+    res = result_def(i1)
+    predicate = prop_def(IntegerAttr[i64])
 
     traits = frozenset([NoMemoryEffect()])
 
@@ -650,13 +658,13 @@ class ICmpOp(IRDLOperation):
         self,
         lhs: SSAValue,
         rhs: SSAValue,
-        predicate: ICmpPredicateAttr,
+        predicate: IntegerAttr[IntegerType],
         attributes: dict[str, Attribute] = {},
     ):
         super().__init__(
             operands=[lhs, rhs],
             attributes=attributes,
-            result_types=[lhs.type],
+            result_types=[i1],
             properties={
                 "predicate": predicate,
             },
@@ -666,7 +674,8 @@ class ICmpOp(IRDLOperation):
     def parse(cls, parser: Parser):
         predicate_literal = parser.parse_str_literal()
         predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
-        predicate = ICmpPredicateAttr(predicate_value)
+        predicate_int = ICmpPredicateAttr.int_from(predicate_value)
+        predicate = IntegerAttr(predicate_int, i64)
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
@@ -677,7 +686,7 @@ class ICmpOp(IRDLOperation):
         return cls(operands[0], operands[1], predicate, attributes)
 
     def print_predicate(self, printer: Printer):
-        self.predicate.print_parameter(printer)
+        ICmpPredicateAttr.from_int(self.predicate.value.data).print_parameter(printer)
 
     def print(self, printer: Printer):
         printer.print_string(' "')
