@@ -27,7 +27,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 @irdl_op_definition
 class EClassOp(IRDLOperation):
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.eclass"
     arguments = var_operand_def(T)

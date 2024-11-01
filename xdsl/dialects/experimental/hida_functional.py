@@ -1,16 +1,28 @@
-from xdsl.irdl import irdl_op_definition, IRDLOperation, region_def, var_result_def, VarOpResult, Attribute, Operation, Block, traits_def, opt_result_def
-from xdsl.ir import Region, Dialect
 from collections.abc import Sequence
-from xdsl.traits import SingleBlockImplicitTerminator, HasParent, IsTerminator
+
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Operation, SSAValue
-from xdsl.utils.hints import isa
+from xdsl.ir import Dialect, Operation, Region, SSAValue
+from xdsl.irdl import (
+    Attribute,
+    Block,
+    IRDLOperation,
+    VarOpResult,
+    irdl_op_definition,
+    region_def,
+    traits_def,
+    var_result_def,
+)
+from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+
 
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "hida_func.yield"
 
-    traits = traits_def(lambda: frozenset([HasParent(TaskOp, DispatchOp), IsTerminator()]))
+    traits = traits_def(
+        lambda: frozenset([HasParent(TaskOp, DispatchOp), IsTerminator()])
+    )
+
 
 @irdl_op_definition
 class DispatchOp(IRDLOperation):
@@ -19,18 +31,18 @@ class DispatchOp(IRDLOperation):
     name = "hida_func.dispatch"
 
     region = region_def()
-    #_results = var_result_def()
+    # _results = var_result_def()
     # _results = opt_result_def()
 
     traits = frozenset([SingleBlockImplicitTerminator(YieldOp)])
 
-    def __init__(self, return_values : Sequence[Operation | SSAValue] | list[Attribute]):
-        #if isa(return_values, Sequence[Operation | SSAValue]):
+    def __init__(self, return_values: Sequence[Operation | SSAValue] | list[Attribute]):
+        # if isa(return_values, Sequence[Operation | SSAValue]):
         #    return_values = list(map(lambda x: SSAValue(x).type, return_values))
 
         super().__init__(regions=[Region(Block())])
 
-    #assembly_format = "attr-dict-with-keyword ( `:` type($_results)^ )? $region"
+    # assembly_format = "attr-dict-with-keyword ( `:` type($_results)^ )? $region"
 
 
 @irdl_op_definition
@@ -48,12 +60,9 @@ class TaskOp(IRDLOperation):
 
     assembly_format = "attr-dict-with-keyword ( `:` type($_results)^ )? $region"
 
+
 HIDA_func = Dialect(
     "hida_func",
-    [
-        TaskOp,
-        DispatchOp,
-        YieldOp
-    ],
+    [TaskOp, DispatchOp, YieldOp],
     [],
 )

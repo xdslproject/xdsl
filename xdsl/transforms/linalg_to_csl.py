@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
 )
 from xdsl.dialects.csl import csl
-from xdsl.ir import OpResult, SSAValue
+from xdsl.ir import Attribute, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -23,6 +23,31 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
+
+
+def match_op_for_precision(
+    prec: Attribute, f16: type[csl.BuiltinDsdOp], f32: type[csl.BuiltinDsdOp]
+) -> type[csl.BuiltinDsdOp]:
+    """Returns the op type matching a given precision."""
+    # todo support mixed-precision
+    match prec:
+        case Float16Type():
+            return f16
+        case Float32Type():
+            return f32
+        case _:
+            raise ValueError(f"Unsupported element type {prec}")
+
+
+def get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
+    """Returns the value of a scalar arith.constant, or None if not a constant or not scalar)."""
+    if (
+        isinstance(op, OpResult)
+        and isinstance(op.op, arith.Constant)
+        and isa(val := op.op.value, DenseIntOrFPElementsAttr)
+        and val.data.data.count(val.data.data[0]) == len(val.data.data)
+    ):
+        return val.data.data[0]
 
 
 class ConvertBinaryLinalgOp(RewritePattern):
@@ -37,30 +62,22 @@ class ConvertBinaryLinalgOp(RewritePattern):
         f16: type[csl.BuiltinDsdOp],
         f32: type[csl.BuiltinDsdOp],
     ):
-        if not isa(op.outputs.types[0], AnyMemRefType):
+        if not isa(target_t := op.outputs.types[0], AnyMemRefType):
             return
 
-        match op.outputs.types[0].get_element_type():
-            case Float16Type():
-                builtin = f16
-            case Float32Type():
-                builtin = f32
-            case _:
-                raise ValueError(
-                    f"Unsupported element type {op.outputs.types[0].get_element_type()}"
-                )
+        builtin = match_op_for_precision(target_t.get_element_type(), f16, f32)
 
         lhs = op.inputs[0]
         rhs = op.inputs[1]
 
         # binary functions translated here support mixing scalar and collection operands
         # may need revisiting if more functions are translated
-        if scalar_const := self._get_scalar_const(lhs):
+        if scalar_const := get_scalar_const(lhs):
             rewriter.insert_op(
                 const_op := arith.Constant(scalar_const), InsertPoint.before(op)
             )
             lhs = const_op.result
-        elif scalar_const := self._get_scalar_const(rhs):
+        elif scalar_const := get_scalar_const(rhs):
             rewriter.insert_op(
                 const_op := arith.Constant(scalar_const), InsertPoint.before(op)
             )
@@ -68,16 +85,58 @@ class ConvertBinaryLinalgOp(RewritePattern):
 
         rewriter.replace_matched_op(builtin(operands=[[op.outputs[0], lhs, rhs]]))
 
+
+class ConvertLinalgGenericFMAPass(RewritePattern):
+    """Lowers `linalg.generic` fused multiply-adds to csl builtin ops."""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: linalg.Generic, rewriter: PatternRewriter, /):
+        if not self.is_fma(op) or not isa(op.outputs.types[0], AnyMemRefType):
+            return
+
+        # one of the factors must be a scalar const, which the csl function signatures require
+        if scalar_const := get_scalar_const(op.inputs[0]):
+            rewriter.insert_op(
+                a := arith.Constant(scalar_const), InsertPoint.before(op)
+            )
+            x = op.inputs[1]
+        elif scalar_const := get_scalar_const(op.inputs[1]):
+            rewriter.insert_op(
+                a := arith.Constant(scalar_const), InsertPoint.before(op)
+            )
+            x = op.inputs[0]
+        else:
+            # if neither factor is a scalar, return
+            return
+
+        # fetch the csl op to build depending on the precision
+        csl_op = match_op_for_precision(
+            op.outputs.types[0].get_element_type(), f16=csl.FmachOp, f32=csl.FmacsOp
+        )
+
+        r = op.outputs[0]
+        y = op.inputs[2]
+
+        # builds `r = a * x + y`
+        rewriter.replace_matched_op(csl_op(operands=[[r, y, x, a]]))
+
     @staticmethod
-    def _get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
-        """Returns the value of a scalar arith.constant, or None if not a constant or not scalar)."""
-        if (
-            isinstance(op, OpResult)
-            and isinstance(op.op, arith.Constant)
-            and isa(val := op.op.value, DenseIntOrFPElementsAttr)
-            and val.data.data.count(val.data.data[0]) == len(val.data.data)
-        ):
-            return val.data.data[0]
+    def is_fma(op: linalg.Generic) -> bool:
+        """Returns if a given `generic` op is a fused multiply-add"""
+        return (
+            len(op.inputs) == 3
+            and len(op.outputs) == 1
+            and len((block := op.body.block).args) == 4
+            and len(block.ops) == 3
+            and isinstance(mul := block.first_op, arith.Mulf)
+            and mul.lhs == block.args[0]
+            and mul.rhs == block.args[1]
+            and isinstance(add := mul.next_op, arith.Addf)
+            and add.lhs == mul.result
+            and add.rhs == block.args[2]
+            and isinstance(yld := add.next_op, linalg.YieldOp)
+            and yld.operands[0] == add.result
+        )
 
 
 class ConvertLinalgAddPass(ConvertBinaryLinalgOp):
@@ -112,6 +171,7 @@ class LinalgToCsl(ModulePass):
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    ConvertLinalgGenericFMAPass(),
                     ConvertLinalgAddPass(),
                     ConvertLinalgSubPass(),
                     ConvertLinalgMulPass(),

@@ -20,7 +20,7 @@ func.func @test_addi() {
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (i32, i32, i32)
     // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (i32, i32, i32)
     // CHECK-NEXT:   %x2 = arith.addi %0, %1 : i32
-    // CHECK-NEXT:   %r = varith.add %c, %a, %b, %2, %0, %1 : i32
+    // CHECK-NEXT:   %r = varith.add %a, %b, %c, %0, %1, %2 : i32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (i32, i32) -> ()
 }
 
@@ -45,7 +45,7 @@ func.func @test_addf() {
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %x2 = arith.addf %0, %1 : f32
-    // CHECK-NEXT:   %r = varith.add %c, %a, %b, %2, %0, %1 : f32
+    // CHECK-NEXT:   %r = varith.add %a, %b, %c, %0, %1, %2 : f32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (f32, f32) -> ()
 }
 
@@ -69,6 +69,46 @@ func.func @test_mulf() {
     // CHECK-NEXT:   %a, %b, %c = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %0, %1, %2 = "test.op"() : () -> (f32, f32, f32)
     // CHECK-NEXT:   %x2 = arith.mulf %0, %1 : f32
-    // CHECK-NEXT:   %r = varith.mul %c, %a, %b, %2, %0, %1 : f32
+    // CHECK-NEXT:   %r = varith.mul %a, %b, %c, %0, %1, %2 : f32
     // CHECK-NEXT:   "test.op"(%r, %x2) : (f32, f32) -> ()
+}
+
+func.func @test() {
+    %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (f32, f32, f32, f32, f32, f32)
+    %6 = arith.constant 1.234500e-01 : f32
+    %a = arith.addf %5, %4 : f32
+    %b = arith.addf %a, %3 : f32
+    %c = arith.addf %b, %2 : f32
+    %d = arith.addf %c, %1 : f32
+    %e = arith.addf %d, %0 : f32
+    %12 = arith.mulf %e, %6 : f32
+    "test.op"(%12) : (f32) -> ()
+    func.return
+
+    // CHECK-LABEL: @test
+    // CHECK-NEXT:   %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (f32, f32, f32, f32, f32, f32)
+    // CHECK-NEXT:   %6 = arith.constant 1.234500e-01 : f32
+    // CHECK-NEXT:   %e = varith.add %5, %4, %3, %2, %1, %0 : f32
+    // CHECK-NEXT:   %7 = arith.mulf %e, %6 : f32
+    // CHECK-NEXT:   "test.op"(%7) : (f32) -> ()
+}
+
+func.func @test2() {
+    %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (f32, f32, f32, f32, f32, f32)
+    %6 = arith.constant 1.234500e-01 : f32
+    %a = arith.addf %5, %4 : f32
+    %b = arith.addf %3, %a : f32
+    %c = arith.addf %2, %b : f32
+    %d = arith.addf %1, %c : f32
+    %e = arith.addf %0, %d : f32
+    %12 = arith.mulf %e, %6 : f32
+    "test.op"(%12) : (f32) -> ()
+    func.return
+
+    // CHECK-LABEL: @test
+    // CHECK-NEXT:   %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (f32, f32, f32, f32, f32, f32)
+    // CHECK-NEXT:   %6 = arith.constant 1.234500e-01 : f32
+    // CHECK-NEXT:   %e = varith.add %1, %2, %3, %5, %4, %0 : f32
+    // CHECK-NEXT:   %7 = arith.mulf %e, %6 : f32
+    // CHECK-NEXT:   "test.op"(%7) : (f32) -> ()
 }

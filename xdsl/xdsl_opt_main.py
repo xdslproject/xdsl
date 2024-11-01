@@ -240,12 +240,19 @@ class xDSLOptMain(CommandLineTool):
 
             print_to_csl(prog, output)
 
+        def _print_liveness(prog: ModuleOp, output: IO[str]):
+            from xdsl.transforms.experimental.liveness import print_liveness
+
+            print_liveness(prog, output)
+            _output_mlir(prog, output)
+
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
         self.available_targets["wat"] = _output_wat
         self.available_targets["csl"] = _print_to_csl
+        self.available_targets["liveness"] = _print_liveness
 
     def setup_pipeline(self):
         """

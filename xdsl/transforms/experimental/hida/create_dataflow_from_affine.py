@@ -1,28 +1,49 @@
 from dataclasses import dataclass
-from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriter, GreedyRewritePatternApplier, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
-from xdsl.dialects import builtin
+
+from xdsl.builder import InsertPoint
 from xdsl.context import MLContext
+from xdsl.dialects import affine, builtin, func, memref, scf
 from xdsl.dialects.experimental.hida_functional import DispatchOp, TaskOp
 from xdsl.dialects.experimental.hida_structural import NodeOp
-from xdsl.utils.hints import isa
-from xdsl.dialects import func, memref, affine, scf
-from xdsl.ir import Operation, Block
-from xdsl.builder import InsertPoint
-from xdsl.dialects.experimental.utils import fuse_ops_into_task, dispatch_block, get_loop_bands
+from xdsl.dialects.experimental.utils import (
+    dispatch_block,
+    fuse_ops_into_task,
+    get_loop_bands,
+)
+from xdsl.ir import Block, Operation
+from xdsl.passes import ModulePass
+from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
+)
 from xdsl.traits import IsTerminator
+from xdsl.utils.hints import isa
+
 
 @dataclass
 class TaskPartition(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, dispatch : DispatchOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, dispatch: DispatchOp, rewriter: PatternRewriter):
         for op in dispatch.region.block.ops:
-            if any(map(lambda x: x == op.dialect_name(), ["bufferization", "tosa", "tensor", "linalg"])) or any(map(lambda x: isa(op, x), [func.Call, DispatchOp, TaskOp, DispatchOp, NodeOp])):
+            if any(
+                map(
+                    lambda x: x == op.dialect_name(),
+                    ["bufferization", "tosa", "tensor", "linalg"],
+                )
+            ) or any(
+                map(
+                    lambda x: isa(op, x),
+                    [func.Call, DispatchOp, TaskOp, DispatchOp, NodeOp],
+                )
+            ):
                 return
 
-        block : Block = dispatch.region.block 
+        block: Block = dispatch.region.block
 
-        ops_to_fuse : list[Operation] = []
+        ops_to_fuse: list[Operation] = []
 
         task_idx = 0
 
@@ -48,23 +69,22 @@ class TaskPartition(RewritePattern):
             else:
                 ops_to_fuse.append(op)
 
+
 @dataclass
 class DispatchBlocks(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: func.FuncOp, rewriter : PatternRewriter):
+    def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
         dispatch_block(op.body.block)
-        #assert isinstance(op.body.block.last_op, Operation)
-        #op.body.block.insert_op_before(dispatch_op, op.body.block.last_op)
+        # assert isinstance(op.body.block.last_op, Operation)
+        # op.body.block.insert_op_before(dispatch_op, op.body.block.last_op)
 
-        target_bands : list[list[affine.For]] = []
+        target_bands: list[list[affine.For]] = []
         get_loop_bands(op.body.block, target_bands, True)
         for band in reversed(target_bands):
             dispatch_block(band[-1].body.block)
 
-            #assert isinstance(band[-1].body.block.last_op, Operation)
-            #rewriter.insert_op(dispatch_op, InsertPoint.before(band[-1].body.block.last_op))
-
-        
+            # assert isinstance(band[-1].body.block.last_op, Operation)
+            # rewriter.insert_op(dispatch_op, InsertPoint.before(band[-1].body.block.last_op))
 
 
 @dataclass(frozen=True)
@@ -72,7 +92,6 @@ class CreateDataflowFromAffine(ModulePass):
     name = "hida-create-dataflow-from-affine"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-
         dispatch_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

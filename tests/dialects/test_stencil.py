@@ -235,22 +235,6 @@ def test_create_index_attr_from_list_edge_case2():
 
 
 @pytest.mark.parametrize(
-    "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
-)
-def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr.get(*indices1)
-    stencil_index_attr2 = IndexAttr.get(*indices2)
-
-    size_from_bounds = IndexAttr.size_from_bounds(
-        stencil_index_attr1, stencil_index_attr2
-    )
-    expected_list = [abs(idx1 - idx2) for idx1, idx2 in zip(indices1, indices2)]
-
-    assert size_from_bounds == expected_list
-
-
-@pytest.mark.parametrize(
     "indices",
     (([1]), ([1, 2]), ([1, 2, 3])),
 )

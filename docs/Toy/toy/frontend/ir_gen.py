@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import NoReturn
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import ModuleOp, TensorType, UnrankedTensorType, f64
 from xdsl.ir import Block, Region, SSAValue
+from xdsl.utils.scoped_dict import ScopedDict
 
 from ..dialects.toy import (
     AddOp,
@@ -43,24 +44,6 @@ class IRGenError(Exception):
     pass
 
 
-@dataclass
-class ScopedSymbolTable:
-    "A mapping from variable names to SSAValues, append-only"
-
-    table: dict[str, SSAValue] = field(default_factory=dict)
-
-    def __contains__(self, __o: object) -> bool:
-        return __o in self.table
-
-    def __getitem__(self, __key: str) -> SSAValue:
-        return self.table[__key]
-
-    def __setitem__(self, __key: str, __value: SSAValue) -> None:
-        if __key in self:
-            raise AssertionError(f"Cannot add value for key {__key} in scope {self}")
-        self.table[__key] = __value
-
-
 @dataclass(init=False)
 class IRGen:
     """
@@ -80,7 +63,7 @@ class IRGen:
     is stateful, in particular it keeps an "insertion point": this is where
     the next operations will be introduced."""
 
-    symbol_table: ScopedSymbolTable | None = None
+    symbol_table: ScopedDict[str, SSAValue] | None = None
     """
     The symbol table maps a variable name to a value in the current scope.
     Entering a function creates a new scope, and the function arguments are
@@ -156,7 +139,7 @@ class IRGen:
         parent_builder = self.builder
 
         # Create a scope in the symbol table to hold variable declarations.
-        self.symbol_table = ScopedSymbolTable()
+        self.symbol_table = ScopedDict[str, SSAValue]()
 
         proto_args = function_ast.proto.args
 

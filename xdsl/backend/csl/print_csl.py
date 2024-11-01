@@ -443,6 +443,8 @@ class CslPrintContext:
                 return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)
+            case FloatAttr(value=val) if val.data == 0:
+                return "0.0"
             case FloatAttr(value=val):
                 return str(val.data)
             case StringAttr() as s:

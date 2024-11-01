@@ -313,6 +313,16 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     kind: ParameterDef[PtrKindAttr]
     constness: ParameterDef[PtrConstAttr]
 
+    @staticmethod
+    def get(typ: Attribute, is_single: bool, is_const: bool):
+        return PtrType(
+            [
+                typ,
+                PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),
+                PtrConstAttr(PtrConst.CONST if is_const else PtrConst.VAR),
+            ]
+        )
+
     def get_element_type(self) -> Attribute:
         return self.type
 
@@ -614,13 +624,11 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T: ClassVar[VarConstraint[ZerosOpAttr]] = VarConstraint("T", ZerosOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
 
     size = opt_operand_def(T)
 
-    result = result_def(
-        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
-    )
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -649,7 +657,7 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T: ClassVar[VarConstraint[IntegerType | Float32Type | Float16Type]] = VarConstraint(
+    T: ClassVar = VarConstraint(
         "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
     )
 
@@ -657,9 +665,7 @@ class ConstantsOp(IRDLOperation):
 
     value = operand_def(T)
 
-    result = result_def(
-        MemRefType[IntegerType | Float32Type | Float16Type].constr(element_type=T)
-    )
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -1869,6 +1875,9 @@ class AddressOfOp(IRDLOperation):
 
     traits = frozenset([NoMemoryEffect()])
 
+    def __init__(self, value: SSAValue | Operation, result_type: PtrType):
+        super().__init__(operands=[value], result_types=[result_type])
+
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
         """
         Verify that if the address of a memref is taken, the resulting pointer is either:
@@ -1965,7 +1974,7 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T: ClassVar[VarConstraint[ParamOpAttr]] = VarConstraint("T", ParamOpAttrConstr)
+    T: ClassVar = VarConstraint("T", ParamOpAttrConstr)
 
     name = "csl.param"
 

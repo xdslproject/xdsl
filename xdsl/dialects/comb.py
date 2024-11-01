@@ -56,7 +56,7 @@ class BinCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -103,7 +103,7 @@ class VariadicCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
     inputs = var_operand_def(T)
     result = result_def(T)
@@ -260,7 +260,7 @@ class ICmpOp(IRDLOperation, ABC):
 
     name = "comb.icmp"
 
-    T: ClassVar[VarConstraint[IntegerType]] = VarConstraint("T", base(IntegerType))
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
     predicate = attr_def(IntegerAttr[I64])
     lhs = operand_def(T)
@@ -562,7 +562,7 @@ class MuxOp(IRDLOperation):
 
     name = "comb.mux"
 
-    T: ClassVar[VarConstraint[TypeAttribute]] = VarConstraint("T", base(TypeAttribute))
+    T: ClassVar = VarConstraint("T", base(TypeAttribute))
 
     cond = operand_def(IntegerType(1))
     true_value = operand_def(T)

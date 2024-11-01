@@ -2,9 +2,13 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func, memref
+from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
     ArrayAttr,
+    DenseIntOrFPElementsAttr,
+    Float32Type,
+    FloatAttr,
     FunctionType,
     IndexType,
     IntegerAttr,
@@ -36,15 +40,16 @@ from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 
-def get_dir_and_distance_ops(
-    op: csl_stencil.AccessOp,
-) -> tuple[csl.DirectionOp, arith.Constant]:
+def get_dir_and_distance(
+    offset: stencil.IndexAttr | tuple[int, ...],
+) -> tuple[csl.Direction, int]:
     """
     Given an access op, return the distance and direction, assuming as access
     to a neighbour (not self) in a star-shape pattern
     """
 
-    offset = tuple(op.offset)
+    if isinstance(offset, stencil.IndexAttr):
+        offset = tuple(offset)
     assert len(offset) == 2, "Expecting 2-dimensional access"
     assert (offset[0] == 0) != (
         offset[1] == 0
@@ -62,6 +67,17 @@ def get_dir_and_distance_ops(
             "Invalid offset, expecting 2-dimensional star-shape neighbor access"
         )
     max_distance = abs(max(offset, key=abs))
+    return d, max_distance
+
+
+def get_dir_and_distance_ops(
+    op: csl_stencil.AccessOp,
+) -> tuple[csl.DirectionOp, arith.Constant]:
+    """
+    Given an access op, return the distance and direction ops, assuming as access
+    to a neighbour (not self) in a star-shape pattern
+    """
+    d, max_distance = get_dir_and_distance(op.offset)
     return csl.DirectionOp(d), arith.Constant(IntegerAttr(max_distance, 16))
 
 
@@ -217,6 +233,82 @@ class LowerApplyOp(RewritePattern):
         rewriter.replace_matched_op(
             [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
         )
+
+
+@dataclass(frozen=True)
+class GenerateCoeffAPICalls(RewritePattern):
+    """
+    Generates calls to the stencil_comms API to set coefficients.
+
+    The API currently supports only f32 coeffs.
+
+    Todo:
+      * reset coeffs for any subsequent apply op that does not generate a `setCoeffs` API call
+      * check if coeffs need to be set repeatedly (in loops or for multiple applies)
+      * hoist API call for loops with exactly one apply op
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        if (
+            not (wrapper := _get_module_wrapper(op))
+            or op.coeffs is None
+            or len(op.coeffs) == 0
+        ):
+            return
+        coeffs = list(op.coeffs)
+        elem_t = coeffs[0].coeff.type
+        pattern = wrapper.get_param_value("pattern").value.data
+        neighbours = pattern - 1
+        empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
+        cmap: dict[csl.Direction, list[AnyFloatAttr]] = {
+            csl.Direction.NORTH: empty,
+            csl.Direction.SOUTH: empty.copy(),
+            csl.Direction.EAST: empty.copy(),
+            csl.Direction.WEST: empty.copy(),
+        }
+
+        for c in coeffs:
+            direction, distance = get_dir_and_distance(c.offset)
+            cmap[direction][distance] = c.coeff
+
+        memref_t = memref.MemRefType(Float32Type(), (pattern,))
+        ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
+
+        cnsts = {
+            d: arith.Constant(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
+            for d, v in cmap.items()
+        }
+        addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
+
+        # pretty-printing
+        for d, c in cnsts.items():
+            c.result.name_hint = str(d)
+
+        rewriter.insert_op(
+            [
+                *cnsts.values(),
+                east := addrs[csl.Direction.EAST],
+                west := addrs[csl.Direction.WEST],
+                south := addrs[csl.Direction.SOUTH],
+                north := addrs[csl.Direction.NORTH],
+                flse := arith.Constant(IntegerAttr.from_bool(False)),
+                csl.MemberCallOp(
+                    "setCoeffs",
+                    None,
+                    wrapper.get_program_import("stencil_comms.csl"),
+                    [
+                        east,
+                        west,
+                        south,
+                        north,
+                        flse,
+                    ],
+                ),
+            ],
+            InsertPoint.before(op),
+        )
+        op.coeffs = None
 
 
 @dataclass(frozen=True)
@@ -436,6 +528,10 @@ class LowerCslStencil(ModulePass):
                     InlineApplyOpArgs(),
                 ]
             ),
+            apply_recursively=False,
+        ).rewrite_module(op)
+        PatternRewriteWalker(
+            GenerateCoeffAPICalls(),
             apply_recursively=False,
         ).rewrite_module(op)
         module_pass = PatternRewriteWalker(
