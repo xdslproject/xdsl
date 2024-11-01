@@ -78,7 +78,7 @@
 
   // CHECK: 306 : i32
 
-  "func.func"() ({}) {function_type = () -> (), value = 0x132 : f32, sym_name = "hex_f32_attr"} : () -> ()
+  "func.func"() ({}) {function_type = () -> (), value = 0x43990000 : f32, sym_name = "hex_f32_attr"} : () -> ()
 
   // CHECK: 3.060000e+02 : f32
 
