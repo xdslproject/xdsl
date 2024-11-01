@@ -97,7 +97,6 @@ def test_preorder_walk():
     assert isinstance(op, TestOp)
 
     first_if = op.regions[0].blocks[0].ops.first
-    print(first_if)
     assert isinstance(first_if, TestOp)
     second_if = list(first_if.regions[0].blocks[0].ops)[1]
     assert isinstance(second_if, TestOp)
@@ -106,7 +105,7 @@ def test_preorder_walk():
     third_if = list(for_loop.regions[0].blocks[0].ops)[1]
     assert isinstance(third_if, TestOp)
 
-    it = op.walk_blocks_preorder()
+    it = op.walk_blocks()
     assert next(it) == op.regions[0].blocks[0]
     assert next(it) == first_if.regions[0].blocks[0]
     assert next(it) == second_if.regions[0].blocks[0]
