@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, TypeVar, cast
 
+import numpy as np
 from typing_extensions import deprecated
 
 from xdsl.dialects.builtin import (
@@ -534,10 +535,25 @@ class Printer:
 
         if isinstance(attribute, FloatAttr):
             value = attribute.value
-            attr_type = cast(
-                FloatAttr[Float16Type | Float32Type | Float64Type], attribute
-            ).type
-            self.print_string(f"{value.data:.6e} : ")
+            attr_type = cast(AnyFloatAttr, attribute).type
+            if np.isnan(value.data) or np.isinf(value.data):
+                if isinstance(attr_type, Float16Type):
+                    self.print_string(
+                        f"{hex(np.float16(value.data).view('uint16'))} : "
+                    )
+                elif isinstance(attr_type, Float32Type):
+                    self.print_string(
+                        f"{hex(np.float32(value.data).view('uint32'))} : "
+                    )
+                elif isinstance(attr_type, Float64Type):
+                    self.print_string(
+                        f"{hex(np.float64(value.data).view('uint64'))} : "
+                    )
+                else:
+                    # todo
+                    self.print_string(f"{value.data:.6e} : ")
+            else:
+                self.print_string(f"{value.data:.6e} : ")
             self.print_attribute(attr_type)
             return
 
