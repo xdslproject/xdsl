@@ -101,6 +101,31 @@ cd xdsl
 make venv
 ```
 
+#### If you can't use `uv`
+
+For some systems and workflows, changing to a new dependency management system
+may be inconvenient, impractical, or impossible. If this is the case for you,
+xDSL can still be installed using `pip`.
+
+To create the required virtual environment (the equivalent of `make venv`):
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -e .
+```
+
+The following commands can then be run using this virtual environment rather
+than `uv` by running `source venv/bin/activate` when starting a new shell, then
+eliding the `uv run` prefix from the commands. For example, to run the commands
+in the following testing section:
+
+```bash
+source venv/bin/activate
+pytest
+lit tests/filecheck
+```
+
 ### Testing
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
