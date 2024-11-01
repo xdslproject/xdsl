@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
     i64,
 )
@@ -31,7 +32,6 @@ from xdsl.ir import (
     Operation,
     ParametrizedAttribute,
     Region,
-    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -623,15 +623,16 @@ class ICmpPredicateFlag(StrEnum):
     UGT = "ugt"
     UGE = "uge"
 
+    @staticmethod
+    def from_int(index: int) -> ICmpPredicateFlag:
+        return ALL_ICMP_FLAGS[index]
 
-@irdl_attr_definition
-class ICmpPredicateAttr(SpacedOpaqueSyntaxAttribute, EnumAttribute[ICmpPredicateFlag]):
-    name = "llvm.predicate"
-    ALL_PREDICATES = tuple(ICmpPredicateFlag)
+    def to_int(self) -> int:
+        return ICMP_INDEX_BY_FLAG[self]
 
-    @classmethod
-    def from_int(cls, i: int):
-        return ICmpPredicateAttr(cls.ALL_PREDICATES[i])
+
+ALL_ICMP_FLAGS = tuple(ICmpPredicateFlag)
+ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
 
 
 @irdl_op_definition
@@ -641,8 +642,8 @@ class ICmpOp(IRDLOperation):
 
     lhs = operand_def(T)
     rhs = operand_def(T)
-    res = result_def(T)
-    predicate = prop_def(ICmpPredicateAttr)
+    res = result_def(i1)
+    predicate = prop_def(IntegerAttr[i64])
 
     traits = frozenset([NoMemoryEffect()])
 
@@ -650,13 +651,13 @@ class ICmpOp(IRDLOperation):
         self,
         lhs: SSAValue,
         rhs: SSAValue,
-        predicate: ICmpPredicateAttr,
+        predicate: IntegerAttr[IntegerType],
         attributes: dict[str, Attribute] = {},
     ):
         super().__init__(
             operands=[lhs, rhs],
             attributes=attributes,
-            result_types=[lhs.type],
+            result_types=[i1],
             properties={
                 "predicate": predicate,
             },
@@ -666,7 +667,8 @@ class ICmpOp(IRDLOperation):
     def parse(cls, parser: Parser):
         predicate_literal = parser.parse_str_literal()
         predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
-        predicate = ICmpPredicateAttr(predicate_value)
+        predicate_int = predicate_value.to_int()
+        predicate = IntegerAttr(predicate_int, i64)
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
@@ -677,7 +679,8 @@ class ICmpOp(IRDLOperation):
         return cls(operands[0], operands[1], predicate, attributes)
 
     def print_predicate(self, printer: Printer):
-        self.predicate.print_parameter(printer)
+        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f"{flag}")
 
     def print(self, printer: Printer):
         printer.print_string(' "')
@@ -1609,6 +1612,5 @@ LLVM = Dialect(
         TailCallKindAttr,
         FastMathAttr,
         OverflowAttr,
-        ICmpPredicateAttr,
     ],
 )
