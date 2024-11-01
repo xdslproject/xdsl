@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import re
+import struct
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
 from string import hexdigits
 from typing import Literal, TypeAlias, TypeGuard, cast, overload
-
-import numpy as np
 
 from xdsl.utils.exceptions import ParseError
 
@@ -353,11 +352,11 @@ class Token:
             match len(self.text):
                 # the number corresponds to `len('0x') + (float_bitwidth / 4)`
                 case 6:
-                    return np.uint16(int(self.text, 16)).view("float16").item()
+                    return struct.unpack("<e", struct.pack("<H", int(self.text, 16)))[0]
                 case 10:
-                    return np.uint32(int(self.text, 16)).view("float32").item()
+                    return struct.unpack("<f", struct.pack("<I", int(self.text, 16)))[0]
                 case 18:
-                    return np.uint64(int(self.text, 16)).view("float64").item()
+                    return struct.unpack("<d", struct.pack("<Q", int(self.text, 16)))[0]
                 case _:
                     # todo support further bitwidths
                     pass
