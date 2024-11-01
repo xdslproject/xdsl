@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -536,7 +537,7 @@ class Printer:
         if isinstance(attribute, FloatAttr):
             value = attribute.value
             attr_type = cast(AnyFloatAttr, attribute).type
-            if np.isnan(value.data) or np.isinf(value.data):
+            if math.isnan(value.data) or math.isinf(value.data):
                 if isinstance(attr_type, Float16Type):
                     self.print_string(
                         f"{hex(np.float16(value.data).view('uint16'))} : "
