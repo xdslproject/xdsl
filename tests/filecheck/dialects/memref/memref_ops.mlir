@@ -44,7 +44,7 @@ builtin.module {
     %fmemref = "test.op"() : () -> memref<32x32xf32>
     %e = "test.op"() : () -> f32
     %207 = "memref.atomic_rmw"(%e, %fmemref, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
-    %p = "memref.to_ptr"(%0) : (memref<1xindex>) -> !ptr.ptr
+    %p = "memref.to_ptr"(%0) : (memref<1xindex>) -> !opaque_ptr.ptr
     func.return
   }
 }
