@@ -112,7 +112,7 @@ To create the required virtual environment (the equivalent of `make venv`):
 ```bash
 python -m venv venv
 source venv/bin/activate
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 The following commands can then be run using this virtual environment rather
