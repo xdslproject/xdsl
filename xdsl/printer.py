@@ -82,7 +82,7 @@ class Printer:
     print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
-    print_full_precision_fp: bool = field(default=True)
+    print_reduced_precision_fp: bool = field(default=False)
 
     _indent: int = field(default=0, init=False)
     _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
@@ -538,10 +538,10 @@ class Printer:
             attr_type = cast(
                 FloatAttr[Float16Type | Float32Type | Float64Type], attribute
             ).type
-            if self.print_full_precision_fp:
-                self.print_string(f"{repr(value.data)} : ")
-            else:
+            if self.print_reduced_precision_fp:
                 self.print_string(f"{value.data:.6e} : ")
+            else:
+                self.print_string(f"{repr(value.data)} : ")
             self.print_attribute(attr_type)
             return
 
