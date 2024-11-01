@@ -11,7 +11,8 @@ from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
+from xdsl.tools.command_line_tool import CommandLineTool
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
