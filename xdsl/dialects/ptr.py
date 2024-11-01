@@ -1,3 +1,13 @@
+########
+#  This is a port of the 'ptr' dialect proposed in this thread https://discourse.llvm.org/t/rfc-ptr-dialect-modularizing-ptr-ops-in-the-llvm-dialect/75142/21
+#  Main parts of the dialect has already been agreed upon but only the basic datatype is implemented upstream.
+#  When the upstream implementation is merged we should fix our implementation to be consistent with the mlir version.
+#  Current diviations:
+#  (1) Name of the dialect should be changed: opaque_ptr -> ptr. We currently chose another name to avoid conflicts when loading our dialect to mlir-opt.
+#  (2) There is no ptr.to_ptr operation currently proposed, but there is a memref.to_ptr. We do this so that we can feed the results of convert-memref-to-ptr pass without any conflict.
+########
+
+
 from xdsl.dialects.builtin import IndexType, IntegerType, MemRefType, UnitAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
