@@ -188,6 +188,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Printf
 
+    def get_opaque_ptr():
+        from xdsl.dialects.ptr import Ptr
+
+        return Ptr
+
     def get_quantum():
         from xdsl.dialects.quantum import QUANTUM
 
@@ -360,6 +365,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
+        "opaque_ptr": get_opaque_ptr,
         "quantum": get_quantum,
         "qref": get_qref,
         "qssa": get_qssa,
