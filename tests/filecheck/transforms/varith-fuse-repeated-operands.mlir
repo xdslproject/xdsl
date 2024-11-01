@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file -p varith-fuse-repeated-operands %s | filecheck %s
+// RUN: xdsl-opt --split-input-file --print-reduced-precision-fp -p varith-fuse-repeated-operands %s | filecheck %s
 
 func.func @test_addi() {
     %a, %b, %c = "test.op"() : () -> (i32, i32, i32)

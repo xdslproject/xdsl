@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "stencil-tensorize-z-dimension" | filecheck %s
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p "stencil-tensorize-z-dimension" | filecheck %s
 
 builtin.module {
 // CHECK:    builtin.module {

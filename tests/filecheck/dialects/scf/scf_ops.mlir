@@ -85,7 +85,7 @@ builtin.module {
   }
 
   // CHECK-NEXT:  func.func @while2() {
-  // CHECK-NEXT:    %{{.*}} = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:    %{{.*}} = arith.constant 1.0 : f32
   // CHECK-NEXT:    %{{.*}} = arith.constant 32 : i32
   // CHECK-NEXT:    %6, %7 = scf.while (%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) : (i32, f32) -> (i32, f32) {
   // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
@@ -93,7 +93,7 @@ builtin.module {
   // CHECK-NEXT:      scf.condition(%{{.*}}) %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    } do {
   // CHECK-NEXT:    ^{{\d+}}(%{{.*}} : i32, %{{.*}} : f32):
-  // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:      %{{.*}} = arith.constant 1.0 : f32
   // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
   // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    }
@@ -118,7 +118,7 @@ builtin.module {
   }
 
   // CHECK-NEXT:  func.func @while3() {
-  // CHECK-NEXT:    %{{.*}} = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:    %{{.*}} = arith.constant 1.0 : f32
   // CHECK-NEXT:    %{{.*}} = arith.constant 32 : i32
   // CHECK-NEXT:    %{{.*}}, %{{.*}} = scf.while (%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) : (i32, f32) -> (i32, f32) {
   // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
@@ -126,7 +126,7 @@ builtin.module {
   // CHECK-NEXT:      scf.condition(%{{.*}}) {"hello" = "world"} %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    } do {
   // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
-  // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:      %{{.*}} = arith.constant 1.0 : f32
   // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
   // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    }

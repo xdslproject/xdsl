@@ -109,7 +109,7 @@ builtin.module {
 // CHECK-NEXT:        %12 = arith.addf %7, %8 : f64
 // CHECK-NEXT:        %13 = arith.addf %9, %10 : f64
 // CHECK-NEXT:        %14 = arith.addf %12, %13 : f64
-// CHECK-NEXT:        %15 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %15 = arith.constant -4.0 : f64
 // CHECK-NEXT:        %16 = arith.mulf %11, %15 : f64
 // CHECK-NEXT:        %17 = arith.mulf %16, %13 : f64
 // CHECK-NEXT:        stencil.return %17 : f64

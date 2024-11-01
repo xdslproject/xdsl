@@ -1,7 +1,7 @@
-// RUN: xdsl-opt %s -p memref-stream-interleave | filecheck %s
-// RUN: xdsl-opt %s -p memref-stream-interleave{pipeline-depth=2} | filecheck %s --check-prefix=DEPTH-2
-// RUN: xdsl-opt %s -p memref-stream-interleave{pipeline-depth=3} | filecheck %s --check-prefix=DEPTH-3
-// RUN: xdsl-opt %s -p memref-stream-interleave{pipeline-depth=5} | filecheck %s --check-prefix=DEPTH-5
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p memref-stream-interleave | filecheck %s
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p memref-stream-interleave{pipeline-depth=2} | filecheck %s --check-prefix=DEPTH-2
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p memref-stream-interleave{pipeline-depth=3} | filecheck %s --check-prefix=DEPTH-3
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p memref-stream-interleave{pipeline-depth=5} | filecheck %s --check-prefix=DEPTH-5
 
 // CHECK:  builtin.module {
 

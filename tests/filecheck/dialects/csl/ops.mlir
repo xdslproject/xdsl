@@ -375,9 +375,9 @@ csl.func @builtins() {
 // CHECK-NEXT:       %col = "test.op"() : () -> !csl.color
 // CHECK-NEXT:       %arg1_1, %arg2_1 = "test.op"() : () -> (i32, i16)
 // CHECK-NEXT:       %call_res = "csl.call"(%arg1_1, %arg2_1) <{"callee" = @func_with_args}> : (i32, i16) -> i32
-// CHECK-NEXT:       %attr_struct = "csl.const_struct"() <{"items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : () -> !csl.comptime_struct
+// CHECK-NEXT:       %attr_struct = "csl.const_struct"() <{"items" = {"i" = 42 : i32, "f" = 3.7 : f32}}> : () -> !csl.comptime_struct
 // CHECK-NEXT:       %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
-// CHECK-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"], "items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
+// CHECK-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"], "items" = {"i" = 42 : i32, "f" = 3.7 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:       %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 // CHECK-NEXT:       %three = arith.constant 3 : i16
 // CHECK-NEXT:       %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
@@ -571,7 +571,7 @@ csl.func @builtins() {
 // CHECK-NEXT:   }) {"sym_name" = "program"} : () -> ()
 // CHECK-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-NEXT:     %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
-// CHECK-NEXT:     %init = arith.constant 3.140000e+00 : f16
+// CHECK-NEXT:     %init = arith.constant 3.14 : f16
 // CHECK-NEXT:     %p2 = "csl.param"(%init) <{"param_name" = "param_2"}> : (f16) -> f16
 // CHECK-NEXT:     csl.layout {
 // CHECK-NEXT:       %x_dim, %y_dim = "test.op"() : () -> (i32, i32)
@@ -622,9 +622,9 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %col = "test.op"() : () -> !csl.color
 // CHECK-GENERIC-NEXT:       %arg1_1, %arg2_1 = "test.op"() : () -> (i32, i16)
 // CHECK-GENERIC-NEXT:       %call_res = "csl.call"(%arg1_1, %arg2_1) <{"callee" = @func_with_args}> : (i32, i16) -> i32
-// CHECK-GENERIC-NEXT:       %attr_struct = "csl.const_struct"() <{"items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : () -> !csl.comptime_struct
+// CHECK-GENERIC-NEXT:       %attr_struct = "csl.const_struct"() <{"items" = {"i" = 42 : i32, "f" = 3.7 : f32}}> : () -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:       %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
-// CHECK-GENERIC-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"], "items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
+// CHECK-GENERIC-NEXT:       %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"], "items" = {"i" = 42 : i32, "f" = 3.7 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:       %concat = "csl.concat_structs"(%attr_struct, %ssa_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:       %three = "arith.constant"() <{"value" = 3 : i16}> : () -> i16
 // CHECK-GENERIC-NEXT:       %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
@@ -818,7 +818,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "program"} : () -> ()
 // CHECK-GENERIC-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-GENERIC-NEXT:     %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
-// CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{"value" = 3.140000e+00 : f16}> : () -> f16
+// CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{"value" = 3.14 : f16}> : () -> f16
 // CHECK-GENERIC-NEXT:     %p2 = "csl.param"(%init) <{"param_name" = "param_2"}> : (f16) -> f16
 // CHECK-GENERIC-NEXT:     "csl.layout"() ({
 // CHECK-GENERIC-NEXT:       %x_dim, %y_dim = "test.op"() : () -> (i32, i32)

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-onnx-to-linalg %s | filecheck %s
+// RUN: xdsl-opt --print-reduced-precision-fp -p convert-onnx-to-linalg %s | filecheck %s
 
 // CHECK:       builtin.module {
 

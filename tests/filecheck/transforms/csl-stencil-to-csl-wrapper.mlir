@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "csl-stencil-to-csl-wrapper" | filecheck %s
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p "csl-stencil-to-csl-wrapper" | filecheck %s
 
 func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %c : memref<255xf32>) {
   %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>

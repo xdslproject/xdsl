@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-reduced-precision --split-input-file | filecheck %s --check-prefix REDUCED-PRECISION
+// RUN: xdsl-opt %s --print-reduced-precision-fp --split-input-file | filecheck %s --check-prefix REDUCED-PRECISION
 // RUN: xdsl-opt %s --split-input-file | filecheck %s --check-prefix FULL-PRECISION
 // RUN: xdsl-opt %s --split-input-file | xdsl-opt %s | filecheck %s --check-prefix ROUNDTRIP
 

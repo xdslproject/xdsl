@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-reduced-precision --split-input-file | filecheck %s
+// RUN: xdsl-opt %s --print-reduced-precision-fp --split-input-file | filecheck %s
 // RUN: xdsl-opt %s --split-input-file | filecheck %s --check-prefix FULL-PRECISION
 // RUN: xdsl-opt %s --split-input-file -p "canonicalize,mlir-opt[canonicalize],canonicalize" | filecheck %s --check-prefix MLIR-AND-BACK
 

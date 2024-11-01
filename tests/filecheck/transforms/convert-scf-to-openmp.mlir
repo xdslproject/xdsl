@@ -1,10 +1,10 @@
-// RUN: xdsl-opt -p convert-scf-to-openmp %s | filecheck %s
-// RUN: xdsl-opt -p "convert-scf-to-openmp{nested=true}" %s | filecheck %s --check-prefix NESTED
-// RUN: xdsl-opt -p "convert-scf-to-openmp{collapse=1}" %s | filecheck %s --check-prefix COLLAPSE
-// RUN: xdsl-opt -p "convert-scf-to-openmp{schedule=dynamic}" %s | filecheck %s --check-prefix DYNAMIC
-// RUN: xdsl-opt -p "convert-scf-to-openmp{chunk=4}" %s | filecheck %s --check-prefix CHUNK
+// RUN: xdsl-opt --print-reduced-precision-fp -p convert-scf-to-openmp %s | filecheck %s
+// RUN: xdsl-opt --print-reduced-precision-fp -p "convert-scf-to-openmp{nested=true}" %s | filecheck %s --check-prefix NESTED
+// RUN: xdsl-opt --print-reduced-precision-fp -p "convert-scf-to-openmp{collapse=1}" %s | filecheck %s --check-prefix COLLAPSE
+// RUN: xdsl-opt --print-reduced-precision-fp -p "convert-scf-to-openmp{schedule=dynamic}" %s | filecheck %s --check-prefix DYNAMIC
+// RUN: xdsl-opt --print-reduced-precision-fp -p "convert-scf-to-openmp{chunk=4}" %s | filecheck %s --check-prefix CHUNK
 // Check that a `collapse` greater than the loop depth doesn't crash
-// RUN: xdsl-opt -p "convert-scf-to-openmp{collapse=3}" %s
+// RUN: xdsl-opt --print-reduced-precision-fp -p "convert-scf-to-openmp{collapse=3}" %s
 
 builtin.module {
   func.func @parallel(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : index, %arg4 : index, %arg5 : index) {

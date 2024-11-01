@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir --split-input-file --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p convert-stencil-to-ll-mlir --split-input-file --verify-diagnostics | filecheck %s
 
 builtin.module {
 // CHECK: builtin.module {

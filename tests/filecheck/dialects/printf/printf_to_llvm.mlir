@@ -32,7 +32,7 @@ builtin.module {
 }
 // CHECK:       builtin.module {
 // CHECK-NEXT:    func.func @main() {
-// CHECK-NEXT:      %pi = arith.constant 3.141590e+00 : f32
+// CHECK-NEXT:      %pi = arith.constant 3.14159 : f32
 // CHECK-NEXT:      %0 = arith.constant 12 : i32
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p linalg-to-csl | filecheck %s
+// RUN: xdsl-opt %s --print-reduced-precision-fp -p linalg-to-csl | filecheck %s
 
 #map = affine_map<(d0) -> (d0)>
 

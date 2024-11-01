@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-linalg-to-loops %s | filecheck %s
+// RUN: xdsl-opt --print-reduced-precision-fp -p convert-linalg-to-loops %s | filecheck %s
 
 %A, %B, %C = "test.op"() : () -> (memref<f64>, memref<f64>, memref<f64>)
 %D, %E, %F = "test.op"() : () -> (memref<2x3xf64>, memref<3x4xf64>, memref<2x4xf64>)

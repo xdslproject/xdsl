@@ -1,7 +1,7 @@
-// RUN: xdsl-opt -p memref-streamify %s | filecheck %s
+// RUN: xdsl-opt --print-reduced-precision-fp -p memref-streamify %s | filecheck %s
 
 // Check that streamfying twice does not make further changes
-// RUN: xdsl-opt -p memref-streamify,memref-streamify %s | filecheck %s
+// RUN: xdsl-opt --print-reduced-precision-fp -p memref-streamify,memref-streamify %s | filecheck %s
 
 
 // CHECK:       builtin.module {
