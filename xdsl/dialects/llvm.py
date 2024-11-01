@@ -32,7 +32,6 @@ from xdsl.ir import (
     Operation,
     ParametrizedAttribute,
     Region,
-    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -624,22 +623,16 @@ class ICmpPredicateFlag(StrEnum):
     UGT = "ugt"
     UGE = "uge"
 
-
-@irdl_attr_definition
-class ICmpPredicateAttr(SpacedOpaqueSyntaxAttribute, EnumAttribute[ICmpPredicateFlag]):
-    name = "llvm.predicate"
-    ALL_PREDICATES = tuple(ICmpPredicateFlag)
-
-    @classmethod
-    def from_int(cls, i: int):
-        return ICmpPredicateAttr(cls.ALL_PREDICATES[i])
-
-    @classmethod
-    def int_from(cls, flag: ICmpPredicateFlag) -> int:
-        return cls.ALL_PREDICATES.index(flag)
+    @staticmethod
+    def from_int(index: int) -> ICmpPredicateFlag:
+        return ALL_ICMP_FLAGS[index]
 
     def to_int(self) -> int:
-        return self.ALL_PREDICATES.index(self.data)
+        return ICMP_INDEX_BY_FLAG[self]
+
+
+ALL_ICMP_FLAGS = tuple(ICmpPredicateFlag)
+ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
 
 
 @irdl_op_definition
@@ -674,7 +667,7 @@ class ICmpOp(IRDLOperation):
     def parse(cls, parser: Parser):
         predicate_literal = parser.parse_str_literal()
         predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
-        predicate_int = ICmpPredicateAttr.int_from(predicate_value)
+        predicate_int = predicate_value.to_int()
         predicate = IntegerAttr(predicate_int, i64)
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
@@ -686,7 +679,8 @@ class ICmpOp(IRDLOperation):
         return cls(operands[0], operands[1], predicate, attributes)
 
     def print_predicate(self, printer: Printer):
-        ICmpPredicateAttr.from_int(self.predicate.value.data).print_parameter(printer)
+        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f"{flag}")
 
     def print(self, printer: Printer):
         printer.print_string(' "')
@@ -1618,6 +1612,5 @@ LLVM = Dialect(
         TailCallKindAttr,
         FastMathAttr,
         OverflowAttr,
-        ICmpPredicateAttr,
     ],
 )
