@@ -67,7 +67,7 @@
 // CHECK:      "memref.dma_start"(%9, %1, %10, %1, %3, %11, %1) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1, 1, 1, 1>} : (memref<100xi32, 10 : i64>, index, memref<100xi32, 9 : i64>, index, index, memref<100xi32>, index) -> ()
 // CHECK-NEXT: "memref.dma_wait"(%11, %1, %3) {"operandSegmentSizes" = array<i32: 1, 1, 1>} : (memref<100xi32>, index, index) -> ()
 // CHECK-NEXT: %12 = "memref.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<32x32xf32>
-// CHECK-NEXT: %13 = "arith.constant"() <{"value" = 1.000000e+00 : f32}> : () -> f32
+// CHECK-NEXT: %13 = "arith.constant"() <{"value" = 1.0 : f32}> : () -> f32
 // CHECK-NEXT: %14 = "memref.atomic_rmw"(%13, %12, %1, %1) <{"kind" = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 // CHECK-NEXT: %15 = "arith.constant"() <{"value" = 2 : index}> : () -> index
 // CHECK-NEXT: %16 = "memref.subview"(%5, %15) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: -9223372036854775808, 0>, "static_sizes" = array<i64: 1, 2>, "static_strides" = array<i64: 1, 1>}> : (memref<10x2xindex>, index) -> memref<2xindex, strided<[1], offset: ?>>
