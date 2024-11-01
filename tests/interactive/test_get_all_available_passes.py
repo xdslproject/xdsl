@@ -2,10 +2,13 @@ from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
 )
+from xdsl.context import MLContext
+from xdsl.dialects import get_all_dialects
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import individual_rewrite
 from xdsl.transforms import (
+    get_all_passes,
     reconcile_unrealized_casts,
     test_lower_linalg_to_snitch,
 )
@@ -48,7 +51,17 @@ def test_get_all_available_passes():
         )
     )
 
+    ctx = MLContext()
+    for dialect_name, dialect_factory in get_all_dialects().items():
+        ctx.register_dialect(dialect_name, dialect_factory)
+
+    all_passes = tuple(
+        sorted((p_name, p()) for (p_name, p) in get_all_passes().items())
+    )
+
     res = get_available_pass_list(
+        ctx,
+        all_passes,
         input_text,
         pass_pipeline,
         condense_mode=True,

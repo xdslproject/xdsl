@@ -31,6 +31,8 @@ from textual.widgets import (
 )
 from textual.widgets.tree import TreeNode
 
+from xdsl.context import MLContext
+from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
@@ -41,10 +43,8 @@ from xdsl.interactive.pass_metrics import (
     get_diff_operation_count,
 )
 from xdsl.interactive.passes import (
-    ALL_PASSES,
     AvailablePass,
     apply_passes_to_module,
-    get_new_registered_context,
 )
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
@@ -90,6 +90,11 @@ class InputApp(App[None]):
           func.return %res : i32
         }
         """
+
+    ctx: MLContext
+
+    all_passes: tuple[tuple[str, type[ModulePass]], ...]
+    """Contains the list of xDSL passes."""
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -145,6 +150,15 @@ class InputApp(App[None]):
         input_text: str | None = None,
         pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
     ):
+        self.ctx = MLContext()
+
+        for dialect_name, dialect_factory in get_all_dialects().items():
+            self.ctx.register_dialect(dialect_name, dialect_factory)
+
+        self.all_passes = tuple(
+            sorted((p_name, p()) for (p_name, p) in get_all_passes().items())
+        )
+
         if file_path is None:
             self.current_file_path = ""
         else:
@@ -217,7 +231,7 @@ class InputApp(App[None]):
         self.query_one("#output_container").border_title = "Output xDSL IR"
 
         # initialize Tree to contain the pass options
-        for n, module_pass in ALL_PASSES:
+        for n, module_pass in self.all_passes:
             self.passes_tree.root.add(
                 label=n,
                 data=(module_pass, None),
@@ -243,11 +257,13 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
+                return tuple(AvailablePass(p.name, p, None) for _, p in self.all_passes)
             case Exception():
                 return ()
             case ModuleOp():
                 return get_available_pass_list(
+                    self.ctx,
+                    self.all_passes,
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
@@ -489,6 +505,8 @@ class InputApp(App[None]):
         )
 
         child_pass_list = get_available_pass_list(
+            self.ctx,
+            self.all_passes,
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
@@ -518,12 +536,11 @@ class InputApp(App[None]):
             self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
-            ctx = get_new_registered_context()
-            parser = Parser(ctx, input_text)
+            parser = Parser(self.ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
             self.current_module = apply_passes_to_module(
-                module, ctx, self.pass_pipeline
+                module, self.ctx, self.pass_pipeline
             )
         except Exception as e:
             self.current_module = e

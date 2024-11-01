@@ -46,13 +46,13 @@ async def test_inputs():
         await pilot.pause()
         assert (
             app.output_text_area.text
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     unregistered operation dkjfd!\n"
         )
 
         assert isinstance(app.current_module, ParseError)
         assert (
             str(app.current_module)
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     unregistered operation dkjfd!\n"
         )
 
         # Test corect input
@@ -274,7 +274,9 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.available_pass_list == get_condensed_pass_list(expected_module)
+        assert app.available_pass_list == get_condensed_pass_list(
+            expected_module, app.all_passes
+        )
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
@@ -321,7 +323,9 @@ async def test_rewrites():
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
         assert isinstance(app.current_module, ModuleOp)
-        condensed_list = get_condensed_pass_list(app.current_module) + (addi_pass,)
+        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
+            addi_pass,
+        )
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite
