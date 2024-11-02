@@ -1,6 +1,5 @@
 import re
 
-import jax
 import pytest
 
 from xdsl.builder import ImplicitBuilder
@@ -11,6 +10,8 @@ from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition
 from xdsl.traits import SymbolOpInterface
 
 pytest.importorskip("jax")
+
+import jax  # noqa: E402
 
 from xdsl.backend.jax_executable import JaxExecutable, array  # noqa: E402
 
