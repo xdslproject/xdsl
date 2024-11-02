@@ -108,7 +108,7 @@
     func.return %1 : f32
   }
 // CHECK:    func.func @affine_if() -> f32 {
-// CHECK-NEXT:      %{{.*}} = arith.constant 0.0 : f32
+// CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:      %{{.*}} = "affine.if"() ({
 // CHECK-NEXT:        "affine.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-NEXT:      }, {

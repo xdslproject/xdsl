@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-reduced-precision-fp -p convert-memref-stream-to-loops %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-stream-to-loops %s | filecheck %s
 
 // CHECK:       builtin.module {
 

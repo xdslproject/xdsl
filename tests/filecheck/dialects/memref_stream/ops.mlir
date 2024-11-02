@@ -306,7 +306,7 @@ func.func @interleaved_init(%A1 : memref<3x5xf64>, %B1 : memref<5x8xf64>, %C1 : 
 }
 
 // CHECK-NEXT:  func.func @interleaved_init(%{{.*}} : memref<3x5xf64>, %{{.*}} : memref<5x8xf64>, %{{.*}} : memref<3x8xf64>) -> memref<3x8xf64> {
-// CHECK-NEXT:    %{{.*}} = arith.constant 0.0 : f64
+// CHECK-NEXT:    %{{.*}} = arith.constant 0.000000e+00 : f64
 // CHECK-NEXT:    memref_stream.generic {
 // CHECK-NEXT:      bounds = [3, 2, 5, 4],
 // CHECK-NEXT:      indexing_maps = [
@@ -332,7 +332,7 @@ func.func @interleaved_init(%A1 : memref<3x5xf64>, %B1 : memref<5x8xf64>, %C1 : 
 
 // CHECK-GENERIC-NEXT:    "func.func"() <{"sym_name" = "interleaved_init", "function_type" = (memref<3x5xf64>, memref<5x8xf64>, memref<3x8xf64>) -> memref<3x8xf64>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : memref<3x5xf64>, %{{.*}} : memref<5x8xf64>, %{{.*}} : memref<3x8xf64>):
-// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.constant"() <{"value" = 0.0 : f64}> : () -> f64
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.constant"() <{"value" = 0.000000e+00 : f64}> : () -> f64
 // CHECK-GENERIC-NEXT:      "memref_stream.generic"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"bounds" = [3 : index, 2 : index, 5 : index, 4 : index], "init_indices" = [#builtin.int<0>], "indexing_maps" = [affine_map<(d0, d1, d2, d3) -> (d0, d2)>, affine_map<(d0, d1, d2, d3) -> (d2, ((d1 * 4) + d3))>, affine_map<(d0, d1, d2) -> (d0, ((d1 * 4) + d2))>], "iterator_types" = [#memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<reduction>, #memref_stream.iterator_type<interleaved>], "operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
 // CHECK-GENERIC-NEXT:      ^{{.*}}(%{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64):
 // CHECK-GENERIC-NEXT:        %{{.*}} = "arith.mulf"(%{{.*}}, %{{.*}}) <{"fastmath" = #arith.fastmath<fast>}> : (f64, f64) -> f64

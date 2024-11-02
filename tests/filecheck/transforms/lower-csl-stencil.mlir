@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-reduced-precision-fp -p "lower-csl-stencil" | filecheck %s
+// RUN: xdsl-opt %s -p "lower-csl-stencil" | filecheck %s
 
 builtin.module {
 // CHECK-NEXT: builtin.module {

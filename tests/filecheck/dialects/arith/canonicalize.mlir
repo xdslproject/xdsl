@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-reduced-precision-fp -p canonicalize %s | filecheck %s
+// RUN: xdsl-opt -p canonicalize %s | filecheck %s
 
 %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
 %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-reduced-precision-fp -p stencil-bufferize | filecheck %s
+// RUN: xdsl-opt %s -p stencil-bufferize | filecheck %s
 
 func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
   %2 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>

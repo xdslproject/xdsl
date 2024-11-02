@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-reduced-precision-fp --split-input-file --verify-diagnostics -p memref-stream-tile-outer-loops{target-rank=4} %s | filecheck %s
+// RUN: xdsl-opt --split-input-file --verify-diagnostics -p memref-stream-tile-outer-loops{target-rank=4} %s | filecheck %s
 
 func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {"llvm.noalias"}, %Y : memref<1x1x8x8xf64> {"llvm.noalias"}) -> memref<1x1x8x8xf64> {
     %cst = arith.constant -1.000000e+04 : f64

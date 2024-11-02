@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-reduced-precision-fp -p "convert-stencil-to-csl-stencil{num_chunks=2}" | filecheck %s
+// RUN: xdsl-opt %s -p "convert-stencil-to-csl-stencil{num_chunks=2}" | filecheck %s
 
 builtin.module {
 // CHECK-NEXT: builtin.module {

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-reduced-precision-fp -p convert-scf-to-riscv-scf %s | filecheck %s
+// RUN: xdsl-opt -p convert-scf-to-riscv-scf %s | filecheck %s
 
 builtin.module {
   %c0 = arith.constant 0 : index

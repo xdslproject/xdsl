@@ -132,9 +132,9 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // CHECK-NEXT:      %10 = stencil.load %3 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:      %11 = stencil.load %4 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:      %12 = stencil.apply(%arg7 = %7 : !stencil.temp<?x?x?xf64>) -> (!stencil.temp<?x?x?xf64>) {
-// CHECK-NEXT:        %cst = arith.constant 1.0 : f64
-// CHECK-NEXT:        %cst_1 = arith.constant 7.0 : f64
-// CHECK-NEXT:        %cst_2 = arith.constant 12.0 : f64
+// CHECK-NEXT:        %cst = arith.constant 1.000000e+00 : f64
+// CHECK-NEXT:        %cst_1 = arith.constant 7.000000e+00 : f64
+// CHECK-NEXT:        %cst_2 = arith.constant 1.200000e+01 : f64
 // CHECK-NEXT:        %13 = arith.divf %cst_1, %cst_2 : f64
 // CHECK-NEXT:        %14 = arith.divf %cst, %cst_2 : f64
 // CHECK-NEXT:        %15 = stencil.access %arg7[0, -1, 0] : !stencil.temp<?x?x?xf64>
@@ -150,8 +150,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // CHECK-NEXT:        stencil.return %24 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %13, %14, %15, %16 = stencil.apply(%arg7 = %7 : !stencil.temp<?x?x?xf64>, %arg8 = %12 : !stencil.temp<?x?x?xf64>) -> (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) {
-// CHECK-NEXT:        %cst = arith.constant 0.0 : f64
-// CHECK-NEXT:        %cst_1 = arith.constant 1.0 : f64
+// CHECK-NEXT:        %cst = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:        %17 = stencil.access %arg8[0, 0, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:        %18 = stencil.access %arg7[0, 0, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:        %19 = arith.subf %17, %18 : f64
@@ -168,8 +168,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // CHECK-NEXT:        stencil.return %26, %27, %28, %29 : !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %17 = stencil.apply(%arg7 = %7 : !stencil.temp<?x?x?xf64>, %arg8 = %8 : !stencil.temp<?x?x?xf64>, %arg9 = %13 : !stencil.temp<?x?x?xf64>, %arg10 = %14 : !stencil.temp<?x?x?xf64>, %arg11 = %15 : !stencil.temp<?x?x?xf64>, %arg12 = %16 : !stencil.temp<?x?x?xf64>) -> (!stencil.temp<?x?x?xf64>) {
-// CHECK-NEXT:        %cst = arith.constant 0.0 : f64
-// CHECK-NEXT:        %cst_1 = arith.constant 1.0 : f64
+// CHECK-NEXT:        %cst = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:        %18 = stencil.access %arg12[0, -1, 0] : !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:        %19 = arith.cmpf oeq, %18, %cst : f64
 // CHECK-NEXT:        %20 = arith.select %19, %cst_1, %cst : f64
@@ -247,9 +247,9 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // SHAPE-NEXT:      %10 = stencil.load %3 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,64]x[0,65]x[0,64]xf64>
 // SHAPE-NEXT:      %11 = stencil.load %4 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
 // SHAPE-NEXT:      %12 = stencil.apply(%arg7 = %7 : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[-1,66]x[0,64]xf64>) {
-// SHAPE-NEXT:        %cst = arith.constant 1.0 : f64
-// SHAPE-NEXT:        %cst_1 = arith.constant 7.0 : f64
-// SHAPE-NEXT:        %cst_2 = arith.constant 12.0 : f64
+// SHAPE-NEXT:        %cst = arith.constant 1.000000e+00 : f64
+// SHAPE-NEXT:        %cst_1 = arith.constant 7.000000e+00 : f64
+// SHAPE-NEXT:        %cst_2 = arith.constant 1.200000e+01 : f64
 // SHAPE-NEXT:        %13 = arith.divf %cst_1, %cst_2 : f64
 // SHAPE-NEXT:        %14 = arith.divf %cst, %cst_2 : f64
 // SHAPE-NEXT:        %15 = stencil.access %arg7[0, -1, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
@@ -266,8 +266,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // SHAPE-NEXT:      }
 // SHAPE-NEXT:      %13 = stencil.buffer %12 : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>
 // SHAPE-NEXT:      %14, %15, %16, %17 = stencil.apply(%arg7 = %7 : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>, %arg8 = %13 : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>) {
-// SHAPE-NEXT:        %cst = arith.constant 0.0 : f64
-// SHAPE-NEXT:        %cst_1 = arith.constant 1.0 : f64
+// SHAPE-NEXT:        %cst = arith.constant 0.000000e+00 : f64
+// SHAPE-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
 // SHAPE-NEXT:        %18 = stencil.access %arg8[0, 0, 0] : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>
 // SHAPE-NEXT:        %19 = stencil.access %arg7[0, 0, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
 // SHAPE-NEXT:        %20 = arith.subf %18, %19 : f64
@@ -288,8 +288,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // SHAPE-NEXT:      %20 = stencil.buffer %16 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:      %21 = stencil.buffer %17 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:      %22 = stencil.apply(%arg7 = %7 : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>, %arg8 = %8 : !stencil.temp<[0,64]x[0,65]x[0,64]xf64>, %arg9 = %18 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, %arg10 = %19 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, %arg11 = %20 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, %arg12 = %21 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[0,65]x[0,64]xf64>) {
-// SHAPE-NEXT:        %cst = arith.constant 0.0 : f64
-// SHAPE-NEXT:        %cst_1 = arith.constant 1.0 : f64
+// SHAPE-NEXT:        %cst = arith.constant 0.000000e+00 : f64
+// SHAPE-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
 // SHAPE-NEXT:        %23 = stencil.access %arg12[0, -1, 0] : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:        %24 = arith.cmpf oeq, %23, %cst : f64
 // SHAPE-NEXT:        %25 = arith.select %24, %cst_1, %cst : f64
@@ -386,9 +386,9 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %21 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%13, %14, %15, %19, %20, %21, %16, %17, %18) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // MLIR-NEXT:      ^0(%22 : index, %23 : index, %24 : index):
-// MLIR-NEXT:        %cst = arith.constant 1.0 : f64
-// MLIR-NEXT:        %cst_1 = arith.constant 7.0 : f64
-// MLIR-NEXT:        %cst_2 = arith.constant 12.0 : f64
+// MLIR-NEXT:        %cst = arith.constant 1.000000e+00 : f64
+// MLIR-NEXT:        %cst_1 = arith.constant 7.000000e+00 : f64
+// MLIR-NEXT:        %cst_2 = arith.constant 1.200000e+01 : f64
 // MLIR-NEXT:        %25 = arith.divf %cst_1, %cst_2 : f64
 // MLIR-NEXT:        %26 = arith.divf %cst, %cst_2 : f64
 // MLIR-NEXT:        %27 = arith.constant -1 : index
@@ -420,8 +420,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %50 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%42, %43, %44, %48, %49, %50, %45, %46, %47) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // MLIR-NEXT:      ^1(%51 : index, %52 : index, %53 : index):
-// MLIR-NEXT:        %cst_3 = arith.constant 0.0 : f64
-// MLIR-NEXT:        %cst_4 = arith.constant 1.0 : f64
+// MLIR-NEXT:        %cst_3 = arith.constant 0.000000e+00 : f64
+// MLIR-NEXT:        %cst_4 = arith.constant 1.000000e+00 : f64
 // MLIR-NEXT:        %54 = memref.load %arg8[%51, %52, %53] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
 // MLIR-NEXT:        %55 = memref.load %8[%51, %52, %53] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        %56 = arith.subf %54, %55 : f64
@@ -450,8 +450,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %73 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%65, %66, %67, %71, %72, %73, %68, %69, %70) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // MLIR-NEXT:      ^2(%74 : index, %75 : index, %76 : index):
-// MLIR-NEXT:        %cst_5 = arith.constant 0.0 : f64
-// MLIR-NEXT:        %cst_6 = arith.constant 1.0 : f64
+// MLIR-NEXT:        %cst_5 = arith.constant 0.000000e+00 : f64
+// MLIR-NEXT:        %cst_6 = arith.constant 1.000000e+00 : f64
 // MLIR-NEXT:        %77 = arith.constant -1 : index
 // MLIR-NEXT:        %78 = arith.addi %75, %77 : index
 // MLIR-NEXT:        %79 = memref.load %arg12[%74, %78, %76] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
@@ -564,9 +564,9 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // BUFF-NEXT:      %11 = stencil.cast %arg5 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // BUFF-NEXT:      %12 = stencil.cast %arg6 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // BUFF-NEXT:      stencil.apply(%arg7 = %6 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) outs (%5 : !stencil.field<[0,64]x[-1,66]x[0,64]xf64>) {
-// BUFF-NEXT:        %cst = arith.constant 1.0 : f64
-// BUFF-NEXT:        %cst_1 = arith.constant 7.0 : f64
-// BUFF-NEXT:        %cst_2 = arith.constant 12.0 : f64
+// BUFF-NEXT:        %cst = arith.constant 1.000000e+00 : f64
+// BUFF-NEXT:        %cst_1 = arith.constant 7.000000e+00 : f64
+// BUFF-NEXT:        %cst_2 = arith.constant 1.200000e+01 : f64
 // BUFF-NEXT:        %13 = arith.divf %cst_1, %cst_2 : f64
 // BUFF-NEXT:        %14 = arith.divf %cst, %cst_2 : f64
 // BUFF-NEXT:        %15 = stencil.access %arg7[0, -1, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
@@ -582,8 +582,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // BUFF-NEXT:        stencil.return %24 : !stencil.result<f64>
 // BUFF-NEXT:      } to <[0, -1, 0], [64, 66, 64]>
 // BUFF-NEXT:      stencil.apply(%arg7 = %6 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %arg8 = %5 : !stencil.field<[0,64]x[-1,66]x[0,64]xf64>) outs (%4 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>, %3 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>, %2 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>, %1 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>) {
-// BUFF-NEXT:        %cst = arith.constant 0.0 : f64
-// BUFF-NEXT:        %cst_1 = arith.constant 1.0 : f64
+// BUFF-NEXT:        %cst = arith.constant 0.000000e+00 : f64
+// BUFF-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
 // BUFF-NEXT:        %13 = stencil.access %arg8[0, 0, 0] : !stencil.field<[0,64]x[-1,66]x[0,64]xf64>
 // BUFF-NEXT:        %14 = stencil.access %arg7[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // BUFF-NEXT:        %15 = arith.subf %13, %14 : f64
@@ -600,8 +600,8 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // BUFF-NEXT:        stencil.return %22, %23, %24, %25 : !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>
 // BUFF-NEXT:      } to <[0, -1, 0], [64, 65, 64]>
 // BUFF-NEXT:      stencil.apply(%arg7 = %6 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %arg8 = %7 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %arg9 = %4 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>, %arg10 = %3 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>, %arg11 = %2 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>, %arg12 = %1 : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>) outs (%12 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
-// BUFF-NEXT:        %cst = arith.constant 0.0 : f64
-// BUFF-NEXT:        %cst_1 = arith.constant 1.0 : f64
+// BUFF-NEXT:        %cst = arith.constant 0.000000e+00 : f64
+// BUFF-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
 // BUFF-NEXT:        %13 = stencil.access %arg12[0, -1, 0] : !stencil.field<[0,64]x[-1,65]x[0,64]xf64>
 // BUFF-NEXT:        %14 = arith.cmpf oeq, %13, %cst : f64
 // BUFF-NEXT:        %15 = arith.select %14, %cst_1, %cst : f64

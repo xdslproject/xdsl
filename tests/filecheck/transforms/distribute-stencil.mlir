@@ -1,6 +1,6 @@
-// RUN: xdsl-opt %s --print-reduced-precision-fp -p "distribute-stencil{strategy=3d-grid slices=2,2,2}" | filecheck %s
-// RUN: xdsl-opt %s --print-reduced-precision-fp -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference" | filecheck %s --check-prefix SHAPE
-// RUN: xdsl-opt %s --print-reduced-precision-fp -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference,stencil-bufferize" | filecheck %s --check-prefix BUFF
+// RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2}" | filecheck %s
+// RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference" | filecheck %s --check-prefix SHAPE
+// RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference,stencil-bufferize" | filecheck %s --check-prefix BUFF
 
   func.func @offsets(%27 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %28 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %29 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
     %33 = stencil.load %27 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<?x?x?xf64>

@@ -82,7 +82,6 @@ class Printer:
     print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
-    print_reduced_precision_fp: bool = field(default=False)
 
     _indent: int = field(default=0, init=False)
     _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
@@ -538,8 +537,10 @@ class Printer:
             attr_type = cast(
                 FloatAttr[Float16Type | Float32Type | Float64Type], attribute
             ).type
-            if self.print_reduced_precision_fp:
-                self.print_string(f"{value.data:.6e} : ")
+            # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
+            float_str = f"{value.data:.6e}"
+            if float(float_str) == value.data:
+                self.print_string(f"{float_str} : ")
             else:
                 self.print_string(f"{repr(value.data)} : ")
             self.print_attribute(attr_type)

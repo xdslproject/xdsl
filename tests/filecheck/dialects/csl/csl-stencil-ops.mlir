@@ -35,7 +35,7 @@ builtin.module {
 // CHECK-NEXT:     %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:     %pref = "csl_stencil.prefetch"(%0) <{"topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<4x510xf32>
 // CHECK-NEXT:     %1 = stencil.apply(%2 = %0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %3 = %pref : tensor<4x510xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) {
-// CHECK-NEXT:       %4 = arith.constant 0.16666 : f32
+// CHECK-NEXT:       %4 = arith.constant 1.666600e-01 : f32
 // CHECK-NEXT:       %5 = csl_stencil.access %3[1, 0] : tensor<4x510xf32>
 // CHECK-NEXT:       %6 = csl_stencil.access %3[-1, 0] : tensor<4x510xf32>
 // CHECK-NEXT:       %7 = csl_stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
@@ -66,7 +66,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:     %pref = "csl_stencil.prefetch"(%0) <{"topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<4x510xf32>
 // CHECK-GENERIC-NEXT:     %1 = "stencil.apply"(%0, %pref) <{"operandSegmentSizes" = array<i32: 2, 0>}> ({
 // CHECK-GENERIC-NEXT:     ^1(%2 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %3 : tensor<4x510xf32>):
-// CHECK-GENERIC-NEXT:       %4 = "arith.constant"() <{"value" = 0.16666 : f32}> : () -> f32
+// CHECK-GENERIC-NEXT:       %4 = "arith.constant"() <{"value" = 1.666600e-01 : f32}> : () -> f32
 // CHECK-GENERIC-NEXT:       %5 = "csl_stencil.access"(%3) <{"offset" = #stencil.index<[1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %6 = "csl_stencil.access"(%3) <{"offset" = #stencil.index<[-1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %7 = "csl_stencil.access"(%2) <{"offset" = #stencil.index<[0, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<512xf32>
@@ -161,7 +161,7 @@ builtin.module {
 // CHECK-NEXT:       %15 = "tensor.extract_slice"(%13) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
 // CHECK-NEXT:       %16 = arith.addf %rcv, %14 : tensor<510xf32>
 // CHECK-NEXT:       %17 = arith.addf %16, %15 : tensor<510xf32>
-// CHECK-NEXT:       %18 = arith.constant 0.16666 : f32
+// CHECK-NEXT:       %18 = arith.constant 1.666600e-01 : f32
 // CHECK-NEXT:       %19 = tensor.empty() : tensor<510xf32>
 // CHECK-NEXT:       %20 = linalg.fill ins(%18 : f32) outs(%19 : tensor<510xf32>) -> tensor<510xf32>
 // CHECK-NEXT:       %21 = arith.mulf %17, %20 : tensor<510xf32>
@@ -196,7 +196,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:       %15 = "tensor.extract_slice"(%13) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %16 = "arith.addf"(%rcv, %14) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %17 = "arith.addf"(%16, %15) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       %18 = "arith.constant"() <{"value" = 0.16666 : f32}> : () -> f32
+// CHECK-GENERIC-NEXT:       %18 = "arith.constant"() <{"value" = 1.666600e-01 : f32}> : () -> f32
 // CHECK-GENERIC-NEXT:       %19 = "tensor.empty"() : () -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %20 = "linalg.fill"(%18, %19) <{"operandSegmentSizes" = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:       ^3(%21 : f32, %22 : f32):

@@ -1,5 +1,5 @@
-// RUN: xdsl-opt --print-reduced-precision-fp -p lower-csl-wrapper %s | filecheck --match-full-lines %s
-// RUN: xdsl-opt --print-reduced-precision-fp -p lower-csl-wrapper{params_as_consts=true} %s | filecheck --match-full-lines %s --check-prefix=CONST
+// RUN: xdsl-opt -p lower-csl-wrapper %s | filecheck --match-full-lines %s
+// RUN: xdsl-opt -p lower-csl-wrapper{params_as_consts=true} %s | filecheck --match-full-lines %s --check-prefix=CONST
 
 builtin.module {
 // CHECK:      builtin.module {
