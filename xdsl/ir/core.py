@@ -708,6 +708,44 @@ class OpOperands(Sequence[SSAValue]):
         return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
+class OpTraits(Iterable[OpTrait]):
+    """
+    An operation's traits.
+    Some operations have mutually recursive traits, such as one is always the parent
+    operation of the other.
+    For this case, the operation's traits can be declared lazily, and resolved only
+    at the first use.
+    """
+
+    _traits: frozenset[OpTrait] | Callable[[], Iterable[OpTrait]]
+
+    def __init__(
+        self, traits: frozenset[OpTrait] | Callable[[], Iterable[OpTrait]]
+    ) -> None:
+        self._traits = traits
+
+    @staticmethod
+    def get(*traits: OpTrait):
+        return OpTraits(frozenset(traits))
+
+    @property
+    def traits(self) -> frozenset[OpTrait]:
+        """Returns a copy of this instance's traits."""
+        if not isinstance(self._traits, frozenset):
+            self._traits = frozenset(self._traits())
+        return self._traits
+
+    def add_trait(self, trait: OpTrait):
+        """Adds a trait to the class."""
+        self._traits = self.traits.union((trait,))
+
+    def __iter__(self) -> Iterator[OpTrait]:
+        return iter(self.traits)
+
+    def __eq__(self, value: object, /) -> bool:
+        return isinstance(value, OpTraits) and self._traits == value._traits
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -749,7 +787,7 @@ class Operation(IRNode):
     _prev_op: Operation | None = field(default=None, repr=False)
     """Previous operation in block containing this operation."""
 
-    traits: ClassVar[frozenset[OpTrait]]
+    traits: ClassVar[OpTraits]
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set

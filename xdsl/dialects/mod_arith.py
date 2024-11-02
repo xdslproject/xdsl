@@ -8,7 +8,7 @@ from typing import ClassVar
 
 from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import AnyIntegerAttr
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpTraits, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
@@ -36,7 +36,7 @@ class BinaryOp(IRDLOperation, ABC):
     irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($output)"
-    traits = frozenset((Pure(),))
+    traits = OpTraits.get(Pure())
 
     def __init__(
         self,

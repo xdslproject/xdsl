@@ -33,6 +33,7 @@ from xdsl.ir import (
     Attribute,
     Data,
     Dialect,
+    OpTraits,
     ParametrizedAttribute,
     TypeAttribute,
 )
@@ -1284,7 +1285,7 @@ class DispatchTable(IRDLOperation):
     sym_name = prop_def(StringAttr)
     regs = var_region_def()
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = OpTraits.get(SymbolOpInterface())
 
 
 @irdl_op_definition
@@ -1553,7 +1554,7 @@ class Global(IRDLOperation):
     linkName = opt_prop_def(StringAttr)
     constant = opt_prop_def(UnitAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = OpTraits.get(SymbolOpInterface())
 
 
 @irdl_op_definition
@@ -1577,7 +1578,7 @@ class HasValue(IRDLOperation):
     resval = operand_def()
     regs = var_region_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = OpTraits.get(IsTerminator())
 
 
 @irdl_op_definition
@@ -1837,7 +1838,7 @@ class Result(IRDLOperation):
     regs = var_region_def()
     _results = opt_operand_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = OpTraits.get(IsTerminator())
 
 
 @irdl_op_definition
