@@ -33,7 +33,6 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     EnumAttribute,
-    OpTraits,
     Region,
     SSAValue,
 )
@@ -50,6 +49,7 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -387,7 +387,7 @@ class Generic(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
 
 class NamedOpBase(IRDLOperation, ABC):

@@ -11,7 +11,7 @@ from xdsl.dialects.riscv import (
     RISCVInstruction,
     RISCVRegisterType,
 )
-from xdsl.ir import Dialect, Operation, OpTraits, SSAValue
+from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Successor,
@@ -19,6 +19,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
@@ -68,7 +69,7 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = OpTraits.get(
+    traits = traits_def(
         IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()
     )
 
@@ -313,7 +314,7 @@ class BranchOp(riscv.RISCVAsmOperation):
     An optional comment that will be printed along with the instruction.
     """
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -400,7 +401,7 @@ class JOp(RISCVInstruction):
 
     successor = successor_def()
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,

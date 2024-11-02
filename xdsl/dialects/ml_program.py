@@ -11,7 +11,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
-    OpTraits,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -20,6 +19,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_attr_def,
     result_def,
+    traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -43,7 +43,7 @@ class Global(IRDLOperation):
     value = opt_attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
 
-    traits = OpTraits.get(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(
         self,

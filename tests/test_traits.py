@@ -28,12 +28,14 @@ from xdsl.irdl import (
     Region,
     attr_def,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_attr_def,
     opt_region_def,
     prop_def,
     region_def,
     result_def,
+    traits_def,
 )
 from xdsl.traits import (
     AlwaysSpeculatable,
@@ -109,7 +111,7 @@ class BitwidthSumLessThanTrait(OpTrait):
 @irdl_op_definition
 class TestOp(IRDLOperation):
     name = "test.test"
-    traits = OpTraits.get(LargerOperandTrait(), BitwidthSumLessThanTrait(64))
+    traits = traits_def(LargerOperandTrait(), BitwidthSumLessThanTrait(64))
 
     ops = operand_def(IntegerType)
     res = result_def(IntegerType)
@@ -172,7 +174,7 @@ def test_verifier_order():
 
 
 class LargerOperandOp(IRDLOperation, ABC):
-    traits = OpTraits.get(LargerOperandTrait())
+    traits = traits_def(LargerOperandTrait())
 
 
 @irdl_op_definition
@@ -186,7 +188,7 @@ def test_trait_inheritance():
     """
     Check that traits are correctly inherited from parent classes.
     """
-    assert TestCopyOp.traits == OpTraits.get(
+    assert TestCopyOp.traits == traits_def(
         LargerOperandTrait(), BitwidthSumLessThanTrait(64)
     )
 
@@ -198,7 +200,7 @@ class NoTraitsOp(IRDLOperation):
 
 def test_traits_undefined():
     """Check that traits are defaulted to the empty set."""
-    assert NoTraitsOp.traits == OpTraits.get()
+    assert NoTraitsOp.traits == traits_def()
 
 
 class WrongTraitsType(IRDLOperation):
@@ -240,7 +242,7 @@ class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
 @irdl_op_definition
 class OpWithInterface(IRDLOperation):
     name = "test.op_with_interface"
-    traits = OpTraits.get(GetNumResultsTraitForOpWithOneResult())
+    traits = traits_def(GetNumResultsTraitForOpWithOneResult())
 
     res = result_def(IntegerType)
 
@@ -279,7 +281,7 @@ def test_symbol_op_interface():
     @irdl_op_definition
     class NoSymNameOp(IRDLOperation):
         name = "no_sym_name"
-        traits = OpTraits.get(SymbolOpInterface())
+        traits = traits_def(SymbolOpInterface())
 
     op0 = NoSymNameOp()
 
@@ -293,7 +295,7 @@ def test_symbol_op_interface():
         name = "wrong_sym_name_type"
 
         sym_name = attr_def(AnyIntegerAttr)
-        traits = OpTraits.get(SymbolOpInterface())
+        traits = traits_def(SymbolOpInterface())
 
     op1 = SymNameWrongTypeOp(
         attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
@@ -310,7 +312,7 @@ def test_symbol_op_interface():
         name = "sym_name"
 
         sym_name = attr_def(StringAttr)
-        traits = OpTraits.get(SymbolOpInterface())
+        traits = traits_def(SymbolOpInterface())
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
     op2.verify()
@@ -327,7 +329,7 @@ def test_optional_symbol_op_interface():
 
         sym_name = opt_attr_def(StringAttr)
 
-        traits = OpTraits.get(OptionalSymbolOpInterface())
+        traits = traits_def(OptionalSymbolOpInterface())
 
     no_symbol = OptionalSymNameOp()
     interface = no_symbol.get_trait(SymbolOpInterface)
@@ -350,7 +352,7 @@ class SymbolOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    traits = OpTraits.get(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(self, name: str):
         return super().__init__(attributes={"sym_name": StringAttr(name)})
@@ -362,7 +364,7 @@ class PropSymbolOp(IRDLOperation):
 
     sym_name = prop_def(StringAttr)
 
-    traits = OpTraits.get(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(self, name: str):
         return super().__init__(properties={"sym_name": StringAttr(name)})
@@ -380,7 +382,7 @@ def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
         one = region_def()
         two = opt_region_def()
 
-        traits = OpTraits.get(SymbolTable(), OptionalSymbolOpInterface())
+        traits = traits_def(SymbolTable(), OptionalSymbolOpInterface())
 
     # Check that having a single region is verified
     op = SymbolTableOp(regions=[Region(), Region()])
@@ -442,7 +444,7 @@ class HasLazyParentOp(IRDLOperation):
 
     name = "test.has_lazy_parent"
 
-    traits = OpTraits(lambda: {HasParent(TestOp)})
+    traits = lazy_traits_def(lambda: (HasParent(TestOp),))
 
 
 def test_lazy_parent():
@@ -451,14 +453,14 @@ def test_lazy_parent():
     assert len(op.get_traits_of_type(HasParent)) != 0
     assert op.get_traits_of_type(HasParent)[0].op_types == (TestOp,)
     assert op.has_trait(HasParent(TestOp))
-    assert op.traits == OpTraits.get(HasParent(TestOp))
+    assert op.traits == traits_def(HasParent(TestOp))
 
 
 @irdl_op_definition
 class AncestorOp(IRDLOperation):
     name = "test.ancestor"
 
-    traits = OpTraits.get(HasAncestor(TestOp))
+    traits = traits_def(HasAncestor(TestOp))
 
 
 def test_has_ancestor():
@@ -480,7 +482,7 @@ def test_insert_or_update():
 
         reg = region_def()
 
-        traits = OpTraits.get(SymbolTable())
+        traits = traits_def(SymbolTable())
 
     # Check a flat happy case, with symbol lookup
     symbol = SymbolOp("name")
@@ -533,7 +535,7 @@ def test_speculability(
         name = "test.speculatability"
         region = region_def()
 
-        traits = OpTraits.get(*trait)
+        traits = traits_def(*trait)
 
     op = SupeculatabilityTestOp(regions=[Region(Block(nested_ops))])
     optrait = op.get_trait(ConditionallySpeculatable)

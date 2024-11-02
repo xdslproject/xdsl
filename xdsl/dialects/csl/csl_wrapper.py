@@ -20,7 +20,6 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     Operation,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -29,6 +28,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -372,12 +372,12 @@ class YieldOp(IRDLOperation):
     values = var_operand_def(Attribute)
     fields = prop_def(ArrayAttr[StringAttr])
 
-    traits = OpTraits(
-        lambda: {
+    traits = lazy_traits_def(
+        lambda: (
             IsTerminator(),
             HasParent(ModuleOp),
             Pure(),
-        }
+        )
     )
 
     def __init__(

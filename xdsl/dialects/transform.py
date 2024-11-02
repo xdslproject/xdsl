@@ -20,7 +20,6 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -507,7 +507,7 @@ class YieldOp(IRDLOperation):
 
     name = "transform.yield"
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -524,7 +524,7 @@ class SequenceOp(IRDLOperation):
     extra_bindings = var_operand_def(TransformHandleType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = OpTraits.get(IsolatedFromAbove())
+    traits = traits_def(IsolatedFromAbove())
 
     def __init__(
         self,

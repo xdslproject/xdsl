@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Block, Dialect, Operation, OpTraits, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
@@ -31,6 +31,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -53,7 +54,7 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
-    traits = OpTraits.get(Pure())
+    traits = traits_def(Pure())
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(
@@ -208,7 +209,7 @@ class If(IRDLOperation):
     then_region = region_def("single_block")
     else_region = region_def()
 
-    traits = OpTraits.get(RecursiveMemoryEffect(), RecursivelySpeculatable())
+    traits = traits_def(RecursiveMemoryEffect(), RecursivelySpeculatable())
 
 
 @irdl_op_definition
@@ -355,7 +356,7 @@ class Yield(IRDLOperation):
     name = "affine.yield"
     arguments = var_operand_def()
 
-    traits = OpTraits.get(IsTerminator(), Pure())
+    traits = traits_def(IsTerminator(), Pure())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

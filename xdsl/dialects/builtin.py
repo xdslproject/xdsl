@@ -26,7 +26,6 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -60,6 +59,7 @@ from xdsl.irdl import (
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -1227,7 +1227,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
     inputs = var_operand_def()
     outputs = var_result_def()
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1284,7 +1284,7 @@ class UnregisteredOp(Operation, ABC):
     """
 
     name = "builtin.unregistered"
-    traits = OpTraits.get()
+    traits = traits_def()
 
     @property
     def op_name(self) -> StringAttr:
@@ -1411,7 +1411,7 @@ class ModuleOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = OpTraits.get(
+    traits = traits_def(
         IsolatedFromAbove(),
         NoTerminator(),
         OptionalSymbolOpInterface(),
