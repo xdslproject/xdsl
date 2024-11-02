@@ -240,7 +240,9 @@ class PDLRewritePattern(RewritePattern):
 
         assert isinstance(pdl_op, pdl.OperationOp)
         matcher = PDLMatcher()
-        if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
+        for inner_op in xdsl_op.walk():
+            matcher.match_operation(pdl_op_val, pdl_op, inner_op)
+        if self.pdl_rewrite_op.root not in matcher.matching_context:
             return
 
         parent = self.pdl_rewrite_op.parent_op()
