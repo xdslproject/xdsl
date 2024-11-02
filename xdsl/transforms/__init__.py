@@ -10,7 +10,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import apply_pdl
 
         return apply_pdl.ApplyPDLPass
-    
+
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
 
