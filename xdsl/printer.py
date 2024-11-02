@@ -553,7 +553,7 @@ class Printer:
                 else:
                     # todo add support for further bitwidths
                     raise ValueError(
-                        f"Cannot print '{str(value.data)}' value for float type {str(attr_type)}"
+                        f"Cannot print '{value.data}' value for float type {str(attr_type)}"
                     )
             else:
                 self.print_string(f"{value.data:.6e} : ")
