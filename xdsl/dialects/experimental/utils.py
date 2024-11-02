@@ -1,5 +1,4 @@
-from xdsl.builder import Builder
-from xdsl.dialects import affine, builtin, linalg
+from xdsl.dialects import affine, builtin, func, linalg
 from xdsl.dialects.experimental.hida_functional import DispatchOp, TaskOp, YieldOp
 from xdsl.irdl import Block, Operation
 from xdsl.pattern_rewriter import PatternRewriter
@@ -8,30 +7,25 @@ from xdsl.utils.hints import isa
 
 
 def dispatch_block(block: Block):
-    # TODO: support for return values
-    # if list(filter(lambda x: isinstance(x, DispatchOp), block.ops)) or not any(map(lambda x: isinstance(x, func.FuncOp) or isinstance(x, affine.For), block.ops)):
-    #    return DispatchOp([])
+    if list(filter(lambda x: isinstance(x, DispatchOp), block.ops)) or not isinstance(
+        block.parent_op(), func.FuncOp | affine.For
+    ):
+        return DispatchOp([], [])
 
-    # return_values = list(map(lambda x: x.owner, [block.get_terminator().operands]))
+    assert block.last_op
+    return_values = list(block.last_op.operands)
 
-    # assert isinstance(block.get_terminator(), Operation)
-    block_terminator = block.get_terminator()
-    assert isinstance(block_terminator, Operation)
-    return_values: list[Operation] = [
-        res.op for operand in block_terminator.operands for res in operand.owner.results
-    ]
-    dispatch = DispatchOp(return_values)
+    yield_op = YieldOp(*return_values)
+    dispatch_ops: list[Operation] = []
+    for op in block.ops:
+        if op != block.last_op:
+            op.detach()
+            dispatch_ops.append(op)
 
-    dispatch_block = dispatch.region.block
-    builder = Builder.at_end(dispatch_block)
-    builder.insert(YieldOp(*return_values))
+    dispatch_ops.append(yield_op)
+    return_types = [rval.type for rval in return_values]
 
-    for op in list(block.ops)[:-1]:
-        op.detach()
-        assert isinstance(dispatch_block.last_op, Operation)
-        dispatch_block.insert_op_before(op, dispatch_block.last_op)
-
-    assert isinstance(block.last_op, Operation)
+    dispatch = DispatchOp(dispatch_ops, return_types)
     block.insert_op_before(dispatch, block.last_op)
 
     return dispatch

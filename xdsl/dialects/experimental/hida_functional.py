@@ -1,16 +1,15 @@
 from collections.abc import Sequence
 
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Dialect, Operation, Region, SSAValue
+from xdsl.ir import Dialect, Operation, Region
 from xdsl.irdl import (
     Attribute,
     Block,
     IRDLOperation,
-    VarOpResult,
     irdl_op_definition,
+    opt_result_def,
     region_def,
     traits_def,
-    var_result_def,
 )
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 
@@ -31,16 +30,17 @@ class DispatchOp(IRDLOperation):
     name = "hida_func.dispatch"
 
     region = region_def()
-    # _results = var_result_def()
+    _results = opt_result_def()
     # _results = opt_result_def()
 
     traits = frozenset([SingleBlockImplicitTerminator(YieldOp)])
 
-    def __init__(self, return_values: Sequence[Operation | SSAValue] | list[Attribute]):
-        # if isa(return_values, Sequence[Operation | SSAValue]):
-        #    return_values = list(map(lambda x: SSAValue(x).type, return_values))
-
-        super().__init__(regions=[Region(Block())])
+    def __init__(
+        self, operations: list[Operation], result_types: list[Attribute | None]
+    ):
+        if not result_types:
+            result_types = [None]
+        super().__init__(regions=[Region(Block(operations))], result_types=result_types)
 
     # assembly_format = "attr-dict-with-keyword ( `:` type($_results)^ )? $region"
 
@@ -49,8 +49,8 @@ class DispatchOp(IRDLOperation):
 class TaskOp(IRDLOperation):
     name = "hida_func.task"
 
-    region: Region = region_def()
-    _results: VarOpResult = var_result_def()
+    region = region_def()
+    _results = opt_result_def()
 
     traits = frozenset([SingleBlockImplicitTerminator(YieldOp), HasParent(DispatchOp)])
 
