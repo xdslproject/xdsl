@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from types import FunctionType
@@ -27,7 +27,7 @@ from xdsl.ir import (
     Block,
     Operation,
     OpResult,
-    OpTrait,
+    OpTraits,
     Region,
     SSAValue,
 )
@@ -633,11 +633,6 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
     pass
 
 
-@dataclass
-class _TraitsFieldDef:
-    value: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]]
-
-
 def result_def(
     constraint: (
         AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
@@ -948,20 +943,6 @@ def opt_successor_def(
     return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
-def traits_def(
-    traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]],
-    *,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> frozenset[OpTrait]:
-    """
-    Defines the traits of an operation.
-    This should only be assigned on the `traits` field of an operation definition.
-    """
-    return cast(frozenset[OpTrait], _TraitsFieldDef(traits))
-
-
 # Exclude `object`
 _OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
@@ -995,9 +976,7 @@ class OpDef:
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    _traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]] = field(
-        default_factory=frozenset
-    )
+    traits: OpTraits = field(default_factory=lambda: OpTraits.get())
 
     accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
         default_factory=dict
@@ -1008,18 +987,6 @@ class OpDef:
     or is already used by the operation, so we need to use a different name.
     """
     assembly_format: str | None = field(default=None)
-
-    @property
-    def traits(self) -> frozenset[OpTrait]:
-        if callable(self._traits):
-            self._traits = self._traits()
-        return self._traits
-
-    @traits.setter
-    def traits(
-        self, traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]]
-    ) -> None:
-        self._traits = traits
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -1127,16 +1094,13 @@ class OpDef:
                 if field_name == "traits":
                     traits = value
                     field_names.add("traits")
-                    if isinstance(traits, frozenset):
-                        op_def.traits = traits
-                        continue
-                    if not isinstance(traits, _TraitsFieldDef):
+                    if not isinstance(traits, OpTraits):
                         raise PyRDLOpDefinitionError(
                             f"pyrdl operation definition '{pyrdl_def.__name__}' "
-                            "traits field should either be a frozenset of "
-                            f"'{OpTrait.__name__}', or a 'traits_def' definition."
+                            "traits field should be an instance of"
+                            f"'{OpTraits.__name__}'."
                         )
-                    op_def.traits = traits.value
+                    op_def.traits = traits
                     continue
 
                 # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
@@ -2090,12 +2054,9 @@ def get_accessors_from_op_def(
             else:
                 new_attrs[accessor_name] = property_field(attribute_name)
 
-    @classmethod
-    @property
-    def get_traits(cls: type[IRDLOperationInvT]):
-        return op_def.traits
-
-    new_attrs["traits"] = get_traits
+    # If the traits are already defined then this is a no-op, as the new attrs are
+    # passed after the existing attrs, otherwise this sets an empty OpTraits.
+    new_attrs["traits"] = op_def.traits
 
     @classmethod
     def get_irdl_definition(cls: type[IRDLOperationInvT]):

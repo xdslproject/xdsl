@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
 )
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpTraits, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -59,7 +59,7 @@ class VarithOp(IRDLOperation):
     args = var_operand_def(T)
     res = result_def(T)
 
-    traits = frozenset((Pure(),))
+    traits = OpTraits.get(Pure())
 
     assembly_format = "$args attr-dict `:` type($res)"
 
@@ -99,7 +99,7 @@ class VarithSwitchOp(IRDLOperation):
 
     result = result_def(T)
 
-    traits = frozenset((Pure(),))
+    traits = OpTraits.get(Pure())
 
     def __init__(
         self,

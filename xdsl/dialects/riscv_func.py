@@ -20,7 +20,7 @@ from xdsl.dialects.utils import (
     print_func_op_like,
     print_return_op_like,
 )
-from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpTraits, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     attr_def,
@@ -166,12 +166,10 @@ class FuncOp(riscv.RISCVAsmOperation):
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
 
-    traits = frozenset(
-        [
-            SymbolOpInterface(),
-            FuncOpCallableInterface(),
-            IsolatedFromAbove(),
-        ]
+    traits = OpTraits.get(
+        SymbolOpInterface(),
+        FuncOpCallableInterface(),
+        IsolatedFromAbove(),
     )
 
     def __init__(
@@ -243,7 +241,7 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = OpTraits.get(IsTerminator(), HasParent(FuncOp))
 
     def __init__(
         self,
