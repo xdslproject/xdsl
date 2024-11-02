@@ -8,12 +8,10 @@
 ########
 
 
-from xdsl.dialects.builtin import IntegerAttrTypeConstr, MemRefType, UnitAttr
+from xdsl.dialects.builtin import AnyAttr, IntegerAttrTypeConstr, MemRefType, UnitAttr
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
-    Attribute,
     IRDLOperation,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -44,7 +42,7 @@ class PtrAddOp(IRDLOperation):
 class TypeOffsetOp(IRDLOperation):
     name = "ptr_xdsl.type_offset"
 
-    elem_type = prop_def(base(Attribute))
+    elem_type = prop_def(AnyAttr())
     offset = result_def(IntegerAttrTypeConstr)
 
     assembly_format = "$elem_type attr-dict `:` type($offset)"
