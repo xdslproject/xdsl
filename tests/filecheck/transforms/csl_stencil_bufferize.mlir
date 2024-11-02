@@ -20,9 +20,9 @@ builtin.module {
       %15 = arith.constant dense<1.666600e-01> : tensor<510xf32>
       %16 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
       %17 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %18 = linalg.add ins(%13, %17 : tensor<510xf32>, tensor<510xf32>) outs(%13 : tensor<510xf32>) -> tensor<510xf32>
-      %19 = linalg.add ins(%18, %16 : tensor<510xf32>, tensor<510xf32>) outs(%18 : tensor<510xf32>) -> tensor<510xf32>
-      %20 = linalg.mul ins(%19, %15 : tensor<510xf32>, tensor<510xf32>) outs(%19 : tensor<510xf32>) -> tensor<510xf32>
+      %18 = linalg.add ins(%13, %17 : tensor<510xf32>, tensor<510xf32>) outs(%17 : tensor<510xf32>) -> tensor<510xf32>
+      %19 = linalg.add ins(%18, %16 : tensor<510xf32>, tensor<510xf32>) outs(%16 : tensor<510xf32>) -> tensor<510xf32>
+      %20 = linalg.mul ins(%19, %15 : tensor<510xf32>, tensor<510xf32>) outs(%15 : tensor<510xf32>) -> tensor<510xf32>
       csl_stencil.yield %20 : tensor<510xf32>
     }) to <[0, 0], [1, 1]>
     func.return

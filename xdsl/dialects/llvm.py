@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
     i64,
 )
@@ -609,6 +610,86 @@ class SExtOp(IntegerConversionOp):
                 f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
             )
         super().verify(verify_nested_ops)
+
+
+class ICmpPredicateFlag(StrEnum):
+    EQ = "eq"
+    NE = "ne"
+    SLT = "slt"
+    SLE = "sle"
+    SGT = "sgt"
+    SGE = "sge"
+    ULT = "ult"
+    ULE = "ule"
+    UGT = "ugt"
+    UGE = "uge"
+
+    @staticmethod
+    def from_int(index: int) -> ICmpPredicateFlag:
+        return ALL_ICMP_FLAGS[index]
+
+    def to_int(self) -> int:
+        return ICMP_INDEX_BY_FLAG[self]
+
+
+ALL_ICMP_FLAGS = tuple(ICmpPredicateFlag)
+ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
+
+
+@irdl_op_definition
+class ICmpOp(IRDLOperation):
+    name = "llvm.icmp"
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(i1)
+    predicate = prop_def(IntegerAttr[i64])
+
+    traits = OpTraits({NoMemoryEffect()})
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        predicate: IntegerAttr[IntegerType],
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[i1],
+            properties={
+                "predicate": predicate,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        predicate_literal = parser.parse_str_literal()
+        predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
+        predicate_int = predicate_value.to_int()
+        predicate = IntegerAttr(predicate_int, i64)
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], predicate, attributes)
+
+    def print_predicate(self, printer: Printer):
+        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f"{flag}")
+
+    def print(self, printer: Printer):
+        printer.print_string(' "')
+        self.print_predicate(printer)
+        printer.print('" ', self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print(self.lhs.type)
 
 
 @irdl_op_definition
@@ -1501,6 +1582,7 @@ LLVM = Dialect(
         TruncOp,
         ZExtOp,
         SExtOp,
+        ICmpOp,
         ExtractValueOp,
         InsertValueOp,
         InlineAsmOp,

@@ -250,6 +250,29 @@ class SignlessIntegerBinaryOperationWithOverflow(
         )
 
 
+class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import FoldConstConstOp
+
+        return (FoldConstConstOp(),)
+
+
+class FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            FoldConstConstOp,
+            FoldConstsByReassociation,
+        )
+
+        return FoldConstsByReassociation(), FoldConstConstOp()
+
+
 class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
     """A generic base class for arith's binary operations on floats."""
 
@@ -835,6 +858,18 @@ class Cmpf(ComparisonOperation):
         printer.print_attribute(self.lhs.type)
 
 
+class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            SelectConstPattern,
+            SelectSamePattern,
+            SelectTrueFalsePattern,
+        )
+
+        return (SelectConstPattern(), SelectTrueFalsePattern(), SelectSamePattern())
+
+
 @irdl_op_definition
 class Select(IRDLOperation):
     """
@@ -850,7 +885,7 @@ class Select(IRDLOperation):
     rhs = operand_def(Attribute)
     result = result_def(Attribute)
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits({Pure(), SelectHasCanonicalizationPatterns()})
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -902,28 +937,42 @@ class Select(IRDLOperation):
 class Addf(FloatingPointLikeBinaryOperation):
     name = "arith.addf"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits(
+        {
+            Pure(),
+            FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(),
+        }
+    )
 
 
 @irdl_op_definition
 class Subf(FloatingPointLikeBinaryOperation):
     name = "arith.subf"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits(
+        {Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()}
+    )
 
 
 @irdl_op_definition
 class Mulf(FloatingPointLikeBinaryOperation):
     name = "arith.mulf"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits(
+        {
+            Pure(),
+            FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(),
+        }
+    )
 
 
 @irdl_op_definition
 class Divf(FloatingPointLikeBinaryOperation):
     name = "arith.divf"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits(
+        {Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()}
+    )
 
 
 @irdl_op_definition
