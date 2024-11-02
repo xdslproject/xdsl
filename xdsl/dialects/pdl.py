@@ -17,6 +17,7 @@ from xdsl.ir import (
     Block,
     Dialect,
     Operation,
+    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -37,7 +38,6 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
-    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -560,7 +560,7 @@ class PatternOp(IRDLOperation):
     sym_name = opt_prop_def(StringAttr)
     body = region_def("single_block")
 
-    traits = frozenset([OptionalSymbolOpInterface()])
+    traits = OpTraits.get(OptionalSymbolOpInterface())
 
     def __init__(
         self,
@@ -643,7 +643,7 @@ class RangeOp(IRDLOperation):
     arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     result = result_def(RangeType[AnyPDLType])
 
-    traits = traits_def(lambda: frozenset([HasParent(RewriteOp)]))
+    traits = OpTraits(lambda: {HasParent(RewriteOp)})
 
     def verify_(self) -> None:
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
@@ -863,7 +863,7 @@ class RewriteOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    traits = frozenset([HasParent(PatternOp), NoTerminator(), IsTerminator()])
+    traits = OpTraits.get(HasParent(PatternOp), NoTerminator(), IsTerminator())
 
     def __init__(
         self,

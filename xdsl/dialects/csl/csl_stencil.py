@@ -22,6 +22,7 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     Operation,
+    OpTraits,
     ParametrizedAttribute,
     SSAValue,
 )
@@ -38,7 +39,6 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
-    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -246,14 +246,12 @@ class ApplyOp(IRDLOperation):
 
     res = var_result_def(stencil.StencilTypeConstr)
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            ApplyOpHasCanonicalizationPatternsTrait(),
-            MemoryReadEffect(),
-            MemoryWriteEffect(),
-            RecursiveMemoryEffect(),
-        ]
+    traits = OpTraits.get(
+        IsolatedFromAbove(),
+        ApplyOpHasCanonicalizationPatternsTrait(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+        RecursiveMemoryEffect(),
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -462,7 +460,7 @@ class AccessOp(IRDLOperation):
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
-    traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
+    traits = OpTraits.get(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
     def __init__(
         self,
@@ -641,7 +639,7 @@ class AccessOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "csl_stencil.yield"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ApplyOp), Pure()]))
+    traits = OpTraits(lambda: {IsTerminator(), HasParent(ApplyOp), Pure()})
 
 
 CSL_STENCIL = Dialect(
