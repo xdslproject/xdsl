@@ -560,7 +560,7 @@ class PatternOp(IRDLOperation):
     sym_name = opt_prop_def(StringAttr)
     body = region_def("single_block")
 
-    traits = OpTraits({OptionalSymbolOpInterface()})
+    traits = OpTraits.get(OptionalSymbolOpInterface())
 
     def __init__(
         self,
@@ -863,7 +863,7 @@ class RewriteOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    traits = OpTraits({HasParent(PatternOp), NoTerminator(), IsTerminator()})
+    traits = OpTraits.get(HasParent(PatternOp), NoTerminator(), IsTerminator())
 
     def __init__(
         self,

@@ -230,7 +230,7 @@ class StreamingRegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = OpTraits({NoTerminator()})
+    traits = OpTraits.get(NoTerminator())
 
     def __init__(
         self,
@@ -404,7 +404,7 @@ class GenericOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = OpTraits({GenericOpHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(GenericOpHasCanonicalizationPatternsTrait())
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -843,7 +843,7 @@ class GenericOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "memref_stream.yield"
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 @irdl_op_definition

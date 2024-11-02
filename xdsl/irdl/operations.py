@@ -976,7 +976,7 @@ class OpDef:
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    traits: OpTraits = field(default_factory=lambda: OpTraits(set()))
+    traits: OpTraits = field(default_factory=lambda: OpTraits.get())
 
     accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
         default_factory=dict

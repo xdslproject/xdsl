@@ -89,7 +89,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
     name = "riscv_snitch.scfgw"
 
-    traits = OpTraits({ScfgwOpHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(ScfgwOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -487,8 +487,8 @@ class DMSourceOp(RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -505,8 +505,8 @@ class DMDestinationOp(RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -523,8 +523,8 @@ class DMStrideOp(RISCVInstruction):
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")
     )
 
     def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
@@ -540,8 +540,8 @@ class DMRepOp(RISCVInstruction):
 
     reps = operand_def(riscv.IntRegisterType)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")
     )
 
     def __init__(self, reps: SSAValue | Operation):
@@ -559,8 +559,8 @@ class DMCopyOp(RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -582,8 +582,8 @@ class DMStatOp(RISCVInstruction):
     dest = result_def(riscv.IntRegisterType)
     status = operand_def(riscv.IntRegisterType)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -605,8 +605,8 @@ class DMCopyImmOp(RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -659,8 +659,8 @@ class DMStatImmOp(RISCVInstruction):
     dest = result_def(riscv.IntRegisterType)
     status = prop_def(UImm5Attr)
 
-    traits = OpTraits(
-        {StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")}
+    traits = OpTraits.get(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -728,7 +728,7 @@ class VFCpkASSOp(
 
     name = "riscv_snitch.vfcpka.s.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -744,7 +744,7 @@ class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmul.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -760,7 +760,7 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfadd.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -778,7 +778,7 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfadd.h"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -794,7 +794,7 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmax.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
@@ -916,7 +916,7 @@ class VFMacSOp(RdRsRsAccumulatingFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmac.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -930,7 +930,7 @@ class VFSumSOp(RdRsAccumulatingFloatOperation):
 
     name = "riscv_snitch.vfsum.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 # endregion

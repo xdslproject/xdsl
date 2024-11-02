@@ -36,7 +36,7 @@ class BinaryOp(IRDLOperation, ABC):
     irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($output)"
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
     def __init__(
         self,

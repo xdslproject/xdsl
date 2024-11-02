@@ -246,14 +246,12 @@ class ApplyOp(IRDLOperation):
 
     res = var_result_def(stencil.StencilTypeConstr)
 
-    traits = OpTraits(
-        {
-            IsolatedFromAbove(),
-            ApplyOpHasCanonicalizationPatternsTrait(),
-            MemoryReadEffect(),
-            MemoryWriteEffect(),
-            RecursiveMemoryEffect(),
-        }
+    traits = OpTraits.get(
+        IsolatedFromAbove(),
+        ApplyOpHasCanonicalizationPatternsTrait(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+        RecursiveMemoryEffect(),
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -462,7 +460,7 @@ class AccessOp(IRDLOperation):
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
-    traits = OpTraits({HasAncestor(stencil.ApplyOp, ApplyOp), Pure()})
+    traits = OpTraits.get(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
     def __init__(
         self,

@@ -77,8 +77,8 @@ class FuncOp(IRDLOperation):
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    traits = OpTraits(
-        {IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()}
+    traits = OpTraits.get(
+        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
     )
 
     def __init__(
@@ -317,7 +317,7 @@ class Return(IRDLOperation):
     name = "func.return"
     arguments = var_operand_def()
 
-    traits = OpTraits({HasParent(FuncOp), IsTerminator()})
+    traits = OpTraits.get(HasParent(FuncOp), IsTerminator())
 
     def __init__(self, *return_vals: SSAValue | Operation):
         super().__init__(operands=[return_vals])

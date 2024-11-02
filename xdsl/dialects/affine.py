@@ -53,7 +53,7 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(
@@ -208,7 +208,7 @@ class If(IRDLOperation):
     then_region = region_def("single_block")
     else_region = region_def()
 
-    traits = OpTraits({RecursiveMemoryEffect(), RecursivelySpeculatable()})
+    traits = OpTraits.get(RecursiveMemoryEffect(), RecursivelySpeculatable())
 
 
 @irdl_op_definition
@@ -355,7 +355,7 @@ class Yield(IRDLOperation):
     name = "affine.yield"
     arguments = var_operand_def()
 
-    traits = OpTraits({IsTerminator(), Pure()})
+    traits = OpTraits.get(IsTerminator(), Pure())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

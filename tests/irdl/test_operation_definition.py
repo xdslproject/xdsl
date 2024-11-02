@@ -808,7 +808,7 @@ class EntryArgsOp(IRDLOperation):
     name = "test.entry_args"
     body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
 
-    traits = OpTraits({NoTerminator()})
+    traits = OpTraits.get(NoTerminator())
 
 
 def test_entry_args_op():

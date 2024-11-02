@@ -221,7 +221,7 @@ class AMSelOp(IRDLOperation):
     msel = attr_def(AnyIntegerAttr)
     result = result_def(IndexType())
 
-    traits = OpTraits({HasParent(SwitchboxOp)})
+    traits = OpTraits.get(HasParent(SwitchboxOp))
 
     def __init__(
         self, arbiterID: IntegerAttr[IntegerType], msel: IntegerAttr[IntegerType]
@@ -314,7 +314,7 @@ class ConnectOp(IRDLOperation):
     destBundle = attr_def(WireBundleAttr)
     destChannel = attr_def(AnyIntegerAttr)
 
-    traits = OpTraits({HasParent(SwitchboxOp, ShimMuxOp)})
+    traits = OpTraits.get(HasParent(SwitchboxOp, ShimMuxOp))
 
     def __init__(
         self,
@@ -568,8 +568,8 @@ class DMAStartOp(IRDLOperation):
     dest = successor_def()
     chain = successor_def()
 
-    traits = OpTraits(
-        {IsTerminator(), HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp)}
+    traits = OpTraits.get(
+        IsTerminator(), HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp)
     )
 
     def __init__(
@@ -624,7 +624,7 @@ class DeviceOp(IRDLOperation):
     region = opt_region_def()
 
     device = attr_def(AIEDeviceAttr)
-    traits = OpTraits({SymbolTable(), NoTerminator(), HasParent(ModuleOp)})
+    traits = OpTraits.get(SymbolTable(), NoTerminator(), HasParent(ModuleOp))
 
     def __init__(self, device: AIEDeviceAttr, region: Region):
         super().__init__(attributes={"device": device}, regions=[region])
@@ -740,7 +740,7 @@ class FlowOp(IRDLOperation):
 class GetCascadeOp(IRDLOperation):
     name = "getCascade"
 
-    traits = OpTraits({HasParent(CoreOp)})
+    traits = OpTraits.get(HasParent(CoreOp))
 
     def __init__(self):
         super().__init__(result_types=[IntegerType(CASCADE_SIZE)])
@@ -753,7 +753,7 @@ class GetStreamOp(IRDLOperation):
     channel = operand_def(i32)
     result = result_def(IntegerType)
 
-    traits = OpTraits({HasParent(CoreOp)})
+    traits = OpTraits.get(HasParent(CoreOp))
 
     def __init__(self, channel: Operation | SSAValue):
         super().__init__(
@@ -828,7 +828,7 @@ class MasterSetOp(IRDLOperation):
     destChannel = attr_def(IntegerAttr[IntegerType])
     amsels = operand_def(IndexType())
 
-    traits = OpTraits({HasParent(SwitchboxOp)})
+    traits = OpTraits.get(HasParent(SwitchboxOp))
 
     def __init__(
         self,
@@ -849,8 +849,8 @@ class NextBDOp(IRDLOperation):
 
     dest = successor_def()
 
-    traits = OpTraits(
-        {HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp), IsTerminator()}
+    traits = OpTraits.get(
+        HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp), IsTerminator()
     )
 
     def __init__(self, dest: Block):
@@ -933,7 +933,7 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
     externalBuffers = operand_def(memref.MemRefType)
     object_fifo = attr_def(SymbolRefAttr)
 
-    traits = OpTraits({HasParent(DeviceOp)})
+    traits = OpTraits.get(HasParent(DeviceOp))
 
     def __init__(
         self,
@@ -1038,7 +1038,7 @@ class createObjectFifo(IRDLOperation):
     sym_name = attr_def(StringAttr)
     object_fifo = attr_def(ObjectFIFO[Attribute])
 
-    traits = OpTraits({SymbolOpInterface(), HasParent(DeviceOp)})
+    traits = OpTraits.get(SymbolOpInterface(), HasParent(DeviceOp))
 
     def __init__(
         self,
@@ -1173,7 +1173,7 @@ class EndOp(IRDLOperation):
     def __init__(self):
         super().__init__()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     assembly_format = "attr-dict"
 
@@ -1185,7 +1185,7 @@ class PacketFlowOp(IRDLOperation):
     ID = attr_def(IntegerAttr[IntegerType])
     region = region_def()
 
-    traits = OpTraits({SingleBlockImplicitTerminator(EndOp)})
+    traits = OpTraits.get(SingleBlockImplicitTerminator(EndOp))
 
     def __init__(self, ID: IntegerAttr[IntegerType], region: Region):
         super().__init__(attributes={"ID": ID}, regions=[region])
@@ -1213,7 +1213,7 @@ class PacketDestOp(IRDLOperation):
 
     tile = operand_def(IndexType())
 
-    traits = OpTraits({HasParent(PacketFlowOp)})
+    traits = OpTraits.get(HasParent(PacketFlowOp))
 
     def __init__(
         self,
@@ -1272,7 +1272,7 @@ class PacketRuleOp(IRDLOperation):
 
     amsel = operand_def(IndexType())
 
-    traits = OpTraits({HasParent(PacketRulesOp)})
+    traits = OpTraits.get(HasParent(PacketRulesOp))
 
     def __init__(
         self,
@@ -1291,7 +1291,7 @@ class PacketSourceOp(IRDLOperation):
     channel = attr_def(IntegerAttr[IntegerType])
     tile = operand_def(IndexType())
 
-    traits = OpTraits({HasParent(PacketFlowOp)})
+    traits = OpTraits.get(HasParent(PacketFlowOp))
 
     def __init__(
         self,
@@ -1332,7 +1332,7 @@ class PutCascade(IRDLOperation):
 
     cascadeValue = operand_def(IntegerType(CASCADE_SIZE))
 
-    traits = OpTraits({HasParent(CoreOp)})
+    traits = OpTraits.get(HasParent(CoreOp))
 
     def __init__(self, cascadeValue: Operation | SSAValue):
         super().__init__(operands=[cascadeValue])
@@ -1349,7 +1349,7 @@ class PutStream(IRDLOperation):
         or IntegerType(128, Signedness.SIGNLESS)
     )
 
-    traits = OpTraits({HasParent(CoreOp)})
+    traits = OpTraits.get(HasParent(CoreOp))
 
     def __init__(
         self, channel: Operation | SSAValue, streamValue: Operation | SSAValue
@@ -1366,7 +1366,7 @@ class ShimDMAAllocationOp(IRDLOperation):
     channelIndex = attr_def(IntegerAttr[IntegerType])
     col = attr_def(IntegerAttr[IntegerType])
 
-    traits = OpTraits({HasParent(DeviceOp)})
+    traits = OpTraits.get(HasParent(DeviceOp))
 
     def __init__(
         self,

@@ -414,7 +414,7 @@ class ReturnOp(IRDLOperation):
     name = "stablehlo.return"
 
     input = var_operand_def(AnyTensorType)
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     def __init__(self, input: list[SSAValue]):
         super().__init__(operands=(input,))

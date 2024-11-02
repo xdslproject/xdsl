@@ -106,7 +106,7 @@ def test_main_not_func():
         name = "sym_name"
 
         sym_name = attr_def(StringAttr)
-        traits = OpTraits({SymbolOpInterface()})
+        traits = OpTraits.get(SymbolOpInterface())
 
     module = ModuleOp([SymNameOp(attributes={"sym_name": StringAttr("main")})])
 

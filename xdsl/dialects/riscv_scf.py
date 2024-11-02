@@ -57,7 +57,7 @@ class ForRofOperation(IRDLOperation, ABC):
 
     body = region_def("single_block")
 
-    traits = OpTraits({SingleBlockImplicitTerminator(YieldOp)})
+    traits = OpTraits.get(SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self,
@@ -380,7 +380,7 @@ class ConditionOp(IRDLOperation):
     cond = operand_def(IntRegisterType)
     arguments = var_operand_def(RISCVRegisterType)
 
-    traits = OpTraits({HasParent(WhileOp), IsTerminator()})
+    traits = OpTraits.get(HasParent(WhileOp), IsTerminator())
 
     def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
         super().__init__(operands=[cond, output_ops])

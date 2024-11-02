@@ -256,7 +256,7 @@ class StreamingRegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = OpTraits({NoTerminator()})
+    traits = OpTraits.get(NoTerminator())
 
     def __init__(
         self,

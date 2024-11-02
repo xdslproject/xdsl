@@ -92,7 +92,7 @@ class AcceleratorOp(IRDLOperation):
 
     name = "accfg.accelerator"
 
-    traits = OpTraits({AcceleratorSymbolOpTrait()})
+    traits = OpTraits.get(AcceleratorSymbolOpTrait())
 
     name_prop = prop_def(SymbolRefAttr, prop_name="name")
 

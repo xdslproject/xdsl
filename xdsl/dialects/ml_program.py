@@ -43,7 +43,7 @@ class Global(IRDLOperation):
     value = opt_attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
 
-    traits = OpTraits({SymbolOpInterface()})
+    traits = OpTraits.get(SymbolOpInterface())
 
     def __init__(
         self,

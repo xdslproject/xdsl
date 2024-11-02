@@ -142,14 +142,14 @@ class ParallelOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     name = "omp.terminator"
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 OMP = Dialect(

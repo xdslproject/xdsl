@@ -56,7 +56,7 @@ class While(IRDLOperation):
     before_region = region_def()
     after_region = region_def()
 
-    traits = OpTraits({RecursiveMemoryEffect()})
+    traits = OpTraits.get(RecursiveMemoryEffect())
 
     def __init__(
         self,
@@ -176,12 +176,10 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region = region_def()
 
-    traits = OpTraits(
-        {
-            SingleBlockImplicitTerminator(Yield),
-            RecursiveMemoryEffect(),
-            RecursivelySpeculatable(),
-        }
+    traits = OpTraits.get(
+        SingleBlockImplicitTerminator(Yield),
+        RecursiveMemoryEffect(),
+        RecursivelySpeculatable(),
     )
 
     def __init__(
@@ -294,12 +292,10 @@ class For(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = OpTraits(
-        {
-            SingleBlockImplicitTerminator(Yield),
-            ForOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
-        }
+    traits = OpTraits.get(
+        SingleBlockImplicitTerminator(Yield),
+        ForOpHasCanonicalizationPatternsTrait(),
+        RecursiveMemoryEffect(),
     )
 
     def __init__(
@@ -627,7 +623,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result = operand_def()
 
-    traits = OpTraits({HasParent(ReduceOp), IsTerminator(), Pure()})
+    traits = OpTraits.get(HasParent(ReduceOp), IsTerminator(), Pure())
 
     assembly_format = "$result attr-dict `:` type($result)"
 
@@ -641,7 +637,7 @@ class Condition(IRDLOperation):
     cond = operand_def(IntegerType(1))
     arguments = var_operand_def()
 
-    traits = OpTraits({HasParent(While), IsTerminator(), Pure()})
+    traits = OpTraits.get(HasParent(While), IsTerminator(), Pure())
 
     def __init__(
         self,
@@ -702,7 +698,7 @@ class IndexSwitchOp(IRDLOperation):
     default_region = region_def("single_block")
     case_regions = var_region_def("single_block")
 
-    traits = OpTraits({RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield)})
+    traits = OpTraits.get(RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield))
 
     def __init__(
         self,

@@ -68,8 +68,8 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = OpTraits(
-        {IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()}
+    traits = OpTraits.get(
+        IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()
     )
 
     def __init__(
@@ -313,7 +313,7 @@ class BranchOp(riscv.RISCVAsmOperation):
     An optional comment that will be printed along with the instruction.
     """
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     def __init__(
         self,
@@ -400,7 +400,7 @@ class JOp(RISCVInstruction):
 
     successor = successor_def()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     def __init__(
         self,

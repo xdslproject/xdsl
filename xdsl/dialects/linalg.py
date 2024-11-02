@@ -387,7 +387,7 @@ class Generic(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 class NamedOpBase(IRDLOperation, ABC):

@@ -86,7 +86,7 @@ class TestTermOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     def __init__(
         self,
@@ -129,7 +129,7 @@ class TestPureOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
     def __init__(
         self,
@@ -172,7 +172,7 @@ class TestReadOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = OpTraits({MemoryReadEffect()})
+    traits = OpTraits.get(MemoryReadEffect())
 
     def __init__(
         self,
@@ -215,7 +215,7 @@ class TestWriteOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = OpTraits({MemoryWriteEffect()})
+    traits = OpTraits.get(MemoryWriteEffect())
 
     def __init__(
         self,

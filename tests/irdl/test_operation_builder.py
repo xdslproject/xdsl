@@ -583,7 +583,7 @@ class SuccessorOp(IRDLOperation):
 
     successor = successor_def()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 def test_successor_op_successor():
@@ -605,7 +605,7 @@ class OptSuccessorOp(IRDLOperation):
 
     successor = opt_successor_def()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 def test_opt_successor_builder():
@@ -633,7 +633,7 @@ class VarSuccessorOp(IRDLOperation):
 
     successor = var_successor_def()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 def test_var_successor_builder():
@@ -658,7 +658,7 @@ class TwoVarSuccessorOp(IRDLOperation):
     res2 = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 def test_two_var_successor_builder():

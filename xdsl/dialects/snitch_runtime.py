@@ -53,7 +53,7 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
 
     result = result_def(i32)
 
-    traits = OpTraits({NoMemoryEffect()})
+    traits = OpTraits.get(NoMemoryEffect())
 
     def __init__(
         self,
@@ -68,7 +68,7 @@ class SnitchRuntimeGetInfoBool(SnitchRuntimeBaseOperation, ABC):
 
     result = result_def(i1)
 
-    traits = OpTraits({NoMemoryEffect()})
+    traits = OpTraits.get(NoMemoryEffect())
 
     def __init__(
         self,
@@ -278,7 +278,7 @@ class GetMemoryInfoBaseOperation(SnitchRuntimeBaseOperation, ABC):
     slice_begin = result_def(slice_t_begin)
     slice_end = result_def(slice_t_end)
 
-    traits = OpTraits({NoMemoryEffect()})
+    traits = OpTraits.get(NoMemoryEffect())
 
     def __init__(
         self,

@@ -1240,7 +1240,7 @@ class OutputOp(IRDLOperation):
 
     inputs = var_operand_def()
 
-    traits = OpTraits({IsTerminator(), HasParent(HWModuleOp)})
+    traits = OpTraits.get(IsTerminator(), HasParent(HWModuleOp))
 
     def __init__(self, ops: Sequence[SSAValue | Operation]):
         super().__init__(operands=[ops])

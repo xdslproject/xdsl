@@ -1464,7 +1464,7 @@ class AddiOp(RdRsImmIntegerOperation):
 
     name = "riscv.addi"
 
-    traits = OpTraits({Pure(), AddiOpHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(Pure(), AddiOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1558,7 +1558,7 @@ class SlliOp(RdRsImmShiftOperation):
 
     name = "riscv.slli"
 
-    traits = OpTraits({SlliOpHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(SlliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1638,11 +1638,9 @@ class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.mv"
 
-    traits = OpTraits(
-        {
-            Pure(),
-            MVHasCanonicalizationPatternsTrait(),
-        }
+    traits = OpTraits.get(
+        Pure(),
+        MVHasCanonicalizationPatternsTrait(),
     )
 
 
@@ -1668,11 +1666,9 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.fmv.s"
 
-    traits = OpTraits(
-        {
-            Pure(),
-            FMVHasCanonicalizationPatternsTrait(),
-        }
+    traits = OpTraits.get(
+        Pure(),
+        FMVHasCanonicalizationPatternsTrait(),
     )
 
 
@@ -1703,11 +1699,9 @@ class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.add"
 
-    traits = OpTraits(
-        {
-            Pure(),
-            AddOpHasCanonicalizationPatternsTrait(),
-        }
+    traits = OpTraits.get(
+        Pure(),
+        AddOpHasCanonicalizationPatternsTrait(),
     )
 
 
@@ -1759,7 +1753,7 @@ class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.and"
 
-    traits = OpTraits({BitwiseAndHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(BitwiseAndHasCanonicalizationPatternsTrait())
 
 
 class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1782,7 +1776,7 @@ class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.or"
 
-    traits = OpTraits({BitwiseOrHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(BitwiseOrHasCanonicalizationPatternsTrait())
 
 
 class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1808,7 +1802,7 @@ class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.xor"
 
-    traits = OpTraits({BitwiseXorHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(BitwiseXorHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1863,7 +1857,7 @@ class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.sub"
 
-    traits = OpTraits({SubOpHasCanonicalizationPatternsTrait()})
+    traits = OpTraits.get(SubOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1962,7 +1956,7 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
 
 # Conditional Branches
@@ -2130,7 +2124,7 @@ class LwOp(RdRsImmIntegerOperation):
 
     name = "riscv.lw"
 
-    traits = OpTraits({LwOpHasCanonicalizationPatternTrait()})
+    traits = OpTraits.get(LwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2191,7 +2185,7 @@ class SwOp(RsRsImmIntegerOperation):
 
     name = "riscv.sw"
 
-    traits = OpTraits({SwOpHasCanonicalizationPatternTrait()})
+    traits = OpTraits.get(SwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2369,7 +2363,7 @@ class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.mul"
 
-    traits = OpTraits({MulOpHasCanonicalizationPatternsTrait(), Pure()})
+    traits = OpTraits.get(MulOpHasCanonicalizationPatternsTrait(), Pure())
 
 
 @irdl_op_definition
@@ -2493,7 +2487,7 @@ class LiOp(RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     immediate = attr_def(base(Imm32Attr) | base(LabelAttr))
 
-    traits = OpTraits({Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()})
+    traits = OpTraits.get(Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait())
 
     def __init__(
         self,
@@ -2702,7 +2696,7 @@ class AssemblySectionOp(RISCVAsmOperation):
     directive = attr_def(StringAttr)
     data = region_def("single_block")
 
-    traits = OpTraits({NoTerminator(), IsolatedFromAbove()})
+    traits = OpTraits.get(NoTerminator(), IsolatedFromAbove())
 
     def __init__(
         self,
@@ -2898,7 +2892,7 @@ class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
 
     res = result_def(RDInvT)
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
     def __init__(
         self,
@@ -2950,7 +2944,7 @@ class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
     rs2 = operand_def(FloatRegisterType)
     rs3 = operand_def(FloatRegisterType)
 
-    traits = OpTraits({RegisterAllocatedMemoryEffect()})
+    traits = OpTraits.get(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,
@@ -3240,7 +3234,7 @@ class FAddSOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fadd.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3532,7 +3526,7 @@ class FLwOp(RdRsImmFloatOperation):
 
     name = "riscv.flw"
 
-    traits = OpTraits({FLwOpHasCanonicalizationPatternTrait()})
+    traits = OpTraits.get(FLwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3566,7 +3560,7 @@ class FSwOp(RsRsImmFloatOperation):
 
     name = "riscv.fsw"
 
-    traits = OpTraits({FSwOpHasCanonicalizationPatternTrait()})
+    traits = OpTraits.get(FSwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3595,7 +3589,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmadd.d"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3610,7 +3604,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmsub.d"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -3635,11 +3629,9 @@ class FAddDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fadd.d"
 
-    traits = OpTraits(
-        {
-            Pure(),
-            FuseMultiplyAddDCanonicalizationPatternTrait(),
-        }
+    traits = OpTraits.get(
+        Pure(),
+        FuseMultiplyAddDCanonicalizationPatternTrait(),
     )
 
 
@@ -3655,7 +3647,7 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fsub.d"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3670,7 +3662,7 @@ class FMulDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmul.d"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3708,7 +3700,7 @@ class FMinDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmin.d"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3723,7 +3715,7 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmax.d"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3738,7 +3730,7 @@ class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
     name = "riscv.fcvt.d.w"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3753,7 +3745,7 @@ class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
     name = "riscv.fcvt.d.wu"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3768,7 +3760,7 @@ class FLdOp(RdRsImmFloatOperation):
 
     name = "riscv.fld"
 
-    traits = OpTraits({FLdOpHasCanonicalizationPatternTrait()})
+    traits = OpTraits.get(FLdOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3807,7 +3799,7 @@ class FSdOp(RsRsImmFloatOperation):
 
     name = "riscv.fsd"
 
-    traits = OpTraits({FSdOpHasCanonicalizationPatternTrait()})
+    traits = OpTraits.get(FSdOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3837,11 +3829,9 @@ class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.fmv.d"
 
-    traits = OpTraits(
-        {
-            Pure(),
-            FMvDHasCanonicalizationPatternsTrait(),
-        }
+    traits = OpTraits.get(
+        Pure(),
+        FMvDHasCanonicalizationPatternsTrait(),
     )
 
 
@@ -3871,7 +3861,7 @@ class VFAddSOp(
 
     name = "riscv.vfadd.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 @irdl_op_definition
@@ -3887,7 +3877,7 @@ class VFMulSOp(
 
     name = "riscv.vfmul.s"
 
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
 
 # endregion

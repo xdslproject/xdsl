@@ -87,7 +87,7 @@ class Broadcast(IRDLOperation):
     name = "vector.broadcast"
     source = operand_def()
     vector = result_def(VectorType)
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
     def verify_(self):
         assert isa(self.vector.type, VectorType[Attribute])
@@ -112,7 +112,7 @@ class FMA(IRDLOperation):
     rhs = operand_def(VectorType)
     acc = operand_def(VectorType)
     res = result_def(VectorType)
-    traits = OpTraits({Pure()})
+    traits = OpTraits.get(Pure())
 
     def verify_(self):
         assert isa(self.lhs.type, VectorType[Attribute])

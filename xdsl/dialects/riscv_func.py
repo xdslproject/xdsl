@@ -166,12 +166,10 @@ class FuncOp(riscv.RISCVAsmOperation):
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
 
-    traits = OpTraits(
-        {
-            SymbolOpInterface(),
-            FuncOpCallableInterface(),
-            IsolatedFromAbove(),
-        }
+    traits = OpTraits.get(
+        SymbolOpInterface(),
+        FuncOpCallableInterface(),
+        IsolatedFromAbove(),
     )
 
     def __init__(
@@ -243,7 +241,7 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = OpTraits({IsTerminator(), HasParent(FuncOp)})
+    traits = OpTraits.get(IsTerminator(), HasParent(FuncOp))
 
     def __init__(
         self,

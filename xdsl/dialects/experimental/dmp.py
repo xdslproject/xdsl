@@ -700,7 +700,7 @@ class SwapOp(IRDLOperation):
 
     strategy = attr_def(DomainDecompositionStrategy)
 
-    traits = OpTraits({SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect()})
+    traits = OpTraits.get(SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect())
 
     def verify_(self) -> None:
         if self.swapped_values:

@@ -709,27 +709,38 @@ class OpOperands(Sequence[SSAValue]):
 
 
 class OpTraits(Iterable[OpTrait]):
-    _traits: set[OpTrait] | Callable[[], set[OpTrait]]
+    """
+    An operation's traits.
+    Some operations have mutually recursive traits, such as one is always the parent
+    operation of the other.
+    For this case, the operation's traits can be declared lazily, and resolved only
+    at the first use.
+    """
 
-    def __init__(self, traits: set[OpTrait] | Callable[[], set[OpTrait]]) -> None:
+    _traits: frozenset[OpTrait] | Callable[[], Iterable[OpTrait]]
+
+    def __init__(
+        self, traits: frozenset[OpTrait] | Callable[[], Iterable[OpTrait]]
+    ) -> None:
         self._traits = traits
 
-    def get_traits(self) -> set[OpTrait]:
+    @staticmethod
+    def get(*traits: OpTrait):
+        return OpTraits(frozenset(traits))
+
+    @property
+    def traits(self) -> frozenset[OpTrait]:
         """Returns a copy of this instance's traits."""
-        if not isinstance(self._traits, set):
-            self._traits = self._traits()
-        return set(self._traits)
+        if not isinstance(self._traits, frozenset):
+            self._traits = frozenset(self._traits())
+        return self._traits
 
     def add_trait(self, trait: OpTrait):
         """Adds a trait to the class."""
-        if not isinstance(self._traits, set):
-            self._traits = self._traits()
-        self._traits.add(trait)
+        self._traits = self.traits.union((trait,))
 
     def __iter__(self) -> Iterator[OpTrait]:
-        if not isinstance(self._traits, set):
-            self._traits = self._traits()
-        return iter(self._traits)
+        return iter(self.traits)
 
     def __eq__(self, value: object, /) -> bool:
         return isinstance(value, OpTraits) and self._traits == value._traits

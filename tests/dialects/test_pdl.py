@@ -112,7 +112,7 @@ def test_build_pattern():
     @irdl_op_definition
     class DummyTerminator(IRDLOperation):
         name = "dummy.terminator"
-        traits = OpTraits({HasParent(pdl.PatternOp), IsTerminator()})
+        traits = OpTraits.get(HasParent(pdl.PatternOp), IsTerminator())
 
     with pytest.raises(
         VerifyException, match="expected body to terminate with a `pdl.rewrite`"

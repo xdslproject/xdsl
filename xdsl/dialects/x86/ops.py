@@ -1642,7 +1642,7 @@ class S_JmpOp(IRDLOperation, X86Instruction):
 
     successor = successor_def()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     def __init__(
         self,
@@ -1997,7 +1997,7 @@ class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     def __init__(
         self,

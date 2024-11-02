@@ -333,7 +333,7 @@ class ExecuteTerminatorOp(IRDLOperation):
     # even though this is an operand they decided to name it "result" in the original specification
     results_op = var_operand_def()
 
-    traits = OpTraits({HasParent(ExecuteOp), IsTerminator()})
+    traits = OpTraits.get(HasParent(ExecuteOp), IsTerminator())
 
     def __init__(self, results_op: list[Operation | SSAValue]):
         super().__init__(operands=[results_op])
@@ -369,8 +369,8 @@ class HerdOp(IRDLOperation):
     async_token = opt_result_def(AsyncTokenAttr)
     region = opt_region_def()
 
-    traits = OpTraits(
-        {IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)}
+    traits = OpTraits.get(
+        IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -517,8 +517,8 @@ class LaunchOp(IRDLOperation):
     async_token = result_def(AsyncTokenAttr)
     body = opt_region_def()
 
-    traits = OpTraits(
-        {IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)}
+    traits = OpTraits.get(
+        IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -612,7 +612,7 @@ class HerdPipelineOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = OpTraits({HasParent(HerdOp)})
+    traits = OpTraits.get(HasParent(HerdOp))
 
     def __init__(self, body: None | Region):
         super().__init__(regions=[body])
@@ -674,7 +674,7 @@ class PipelineStageOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = OpTraits({HasParent(HerdPipelineOp)})
+    traits = OpTraits.get(HasParent(HerdPipelineOp))
 
     def __init__(
         self,
@@ -723,14 +723,14 @@ class PipelineStageOp(IRDLOperation):
 class PipelineTerminatorOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.terminator"
 
-    traits = OpTraits({HasParent(HerdPipelineOp), IsTerminator()})
+    traits = OpTraits.get(HasParent(HerdPipelineOp), IsTerminator())
 
 
 @irdl_op_definition
 class PipelineYieldOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.yield"
 
-    traits = OpTraits({HasParent(PipelineStageOp), IsTerminator()})
+    traits = OpTraits.get(HasParent(PipelineStageOp), IsTerminator())
 
 
 @irdl_op_definition
@@ -752,8 +752,8 @@ class SegmentOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = OpTraits(
-        {IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)}
+    traits = OpTraits.get(
+        IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]

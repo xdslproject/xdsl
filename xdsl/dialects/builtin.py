@@ -1227,7 +1227,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
     inputs = var_operand_def()
     outputs = var_result_def()
 
-    traits = OpTraits({NoMemoryEffect()})
+    traits = OpTraits.get(NoMemoryEffect())
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1284,7 +1284,7 @@ class UnregisteredOp(Operation, ABC):
     """
 
     name = "builtin.unregistered"
-    traits = OpTraits(set())
+    traits = OpTraits.get()
 
     @property
     def op_name(self) -> StringAttr:
@@ -1411,13 +1411,11 @@ class ModuleOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = OpTraits(
-        {
-            IsolatedFromAbove(),
-            NoTerminator(),
-            OptionalSymbolOpInterface(),
-            SymbolTable(),
-        }
+    traits = OpTraits.get(
+        IsolatedFromAbove(),
+        NoTerminator(),
+        OptionalSymbolOpInterface(),
+        SymbolTable(),
     )
 
     def __init__(

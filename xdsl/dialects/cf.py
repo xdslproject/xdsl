@@ -55,7 +55,7 @@ class Assert(IRDLOperation):
     arg = operand_def(IntegerType(1))
     msg = attr_def(StringAttr)
 
-    traits = OpTraits({AssertHasCanonicalizationPatterns()})
+    traits = OpTraits.get(AssertHasCanonicalizationPatterns())
 
     def __init__(self, arg: Operation | SSAValue, msg: str | StringAttr):
         if isinstance(msg, str):
@@ -88,7 +88,7 @@ class Branch(IRDLOperation):
     arguments = var_operand_def()
     successor = successor_def()
 
-    traits = OpTraits({IsTerminator(), BranchHasCanonicalizationPatterns()})
+    traits = OpTraits.get(IsTerminator(), BranchHasCanonicalizationPatterns())
 
     def __init__(self, dest: Block, *ops: Operation | SSAValue):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
@@ -129,7 +129,9 @@ class ConditionalBranch(IRDLOperation):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = OpTraits({IsTerminator(), ConditionalBranchHasCanonicalizationPatterns()})
+    traits = OpTraits.get(
+        IsTerminator(), ConditionalBranchHasCanonicalizationPatterns()
+    )
 
     def __init__(
         self,
@@ -194,7 +196,7 @@ class Switch(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = OpTraits({IsTerminator(), Pure(), SwitchHasCanonicalizationPatterns()})
+    traits = OpTraits.get(IsTerminator(), Pure(), SwitchHasCanonicalizationPatterns())
 
     def __init__(
         self,

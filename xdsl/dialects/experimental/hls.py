@@ -28,7 +28,7 @@ class HLSYield(IRDLOperation):
     name = "hls.yield"
     arguments = var_operand_def()
 
-    traits = OpTraits({IsTerminator()})
+    traits = OpTraits.get(IsTerminator())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> HLSYield:
