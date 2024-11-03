@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyTensorTypeConstr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FunctionType,
@@ -12,7 +13,15 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.csl import csl_stencil
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -83,7 +92,7 @@ class ApplyOpBufferize(RewritePattern):
         # convert args
         buf_args: list[SSAValue] = []
         to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
-        for arg in op.args:
+        for arg in [*op.args_rchunk, *op.args_dexchng]:
             if isa(arg.type, TensorType[Attribute]):
                 to_memrefs.append(new_arg := to_memref_op(arg))
                 buf_args.append(new_arg.memref)
@@ -92,7 +101,13 @@ class ApplyOpBufferize(RewritePattern):
 
         # create new op
         buf_apply_op = csl_stencil.ApplyOp(
-            operands=[op.field, buf_iter_arg.memref, op.args, op.dest],
+            operands=[
+                op.field,
+                buf_iter_arg.memref,
+                op.args_rchunk,
+                op.args_dexchng,
+                op.dest,
+            ],
             result_types=op.res.types or [[]],
             regions=[
                 self._get_empty_bufferized_region(op.receive_chunk.block.args),
@@ -163,7 +178,7 @@ class ApplyOpBufferize(RewritePattern):
                 arg_types=[
                     (
                         tensor_to_memref_type(arg.type)
-                        if isattr(arg.type, TensorType)
+                        if isattr(arg.type, AnyTensorTypeConstr)
                         else arg.type
                     )
                     for arg in args
@@ -365,12 +380,76 @@ class ArithConstBufferize(RewritePattern):
 
 
 @dataclass(frozen=True)
+class ReselectLinalgOutsFromInputs(RewritePattern):
+    """
+    Reselects the DPS `outs` of a linalg op if it is one of its inputs.
+      * select `writable` tensor input with no later use, or else
+      * select linalg op input with no later use
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: linalg.NamedOpBase | linalg.Generic, rewriter: PatternRewriter, /
+    ):
+        # only apply rewrite when re-selecting `outs` from `ins`
+        if (
+            op.outputs[0] not in op.inputs
+            or self.is_writable(op.outputs[0])
+            or len(op.outputs) != 1
+        ):
+            return
+
+        # the new `outs` to re-select
+        out: SSAValue | None = None
+
+        for arg in op.inputs:
+            # reselect outs that has no later use to avoid read-after-write conflicts
+            if len(arg.uses) == 1:
+                # check for a `writable` input with no later uses and break immediately
+                if self.is_writable(arg):
+                    out = arg
+                    break
+
+                # check for a linalg op input with no later uses and keep looking
+                if isinstance(arg, OpResult) and isinstance(
+                    arg.op, linalg.NamedOpBase | linalg.Generic
+                ):
+                    out = arg
+
+        # replace the op with `out` as `output[0]`
+        if out:
+            rewriter.replace_matched_op(
+                type(op).build(
+                    operands=[op.inputs, [out]],
+                    result_types=op.result_types,
+                    regions=[op.detach_region(r) for r in op.regions],
+                    properties=op.properties,
+                    attributes=op.attributes,
+                )
+            )
+
+    @staticmethod
+    def is_writable(val: SSAValue) -> bool:
+        """Returns if `val` is a `writable` tensor."""
+        return (
+            isinstance(val, OpResult)
+            and isinstance(val.op, bufferization.ToTensorOp)
+            and val.op.writable is not None
+        )
+
+
+@dataclass(frozen=True)
 class CslStencilBufferize(ModulePass):
     """
     Bufferizes the csl_stencil dialect.
 
     Attempts to inject `csl_stencil.apply.recv_chunk_cb.accumulator` into linalg compute ops `outs` within that region
     for improved bufferization. Ideally be run after `--lift-arith-to-linalg`.
+
+    In preparation for bufferization with minimal overhead, linalg ops `outs` are set as follows:
+      if a linalg op's destination is one of its inputs
+      1. prefer a `writable` input with no other uses
+      2. prefer a linalg op input with no other uses
     """
 
     name = "csl-stencil-bufferize"
@@ -389,3 +468,6 @@ class CslStencilBufferize(ModulePass):
             )
         )
         module_pass.rewrite_module(op)
+        PatternRewriteWalker(
+            ReselectLinalgOutsFromInputs(), apply_recursively=False
+        ).rewrite_module(op)

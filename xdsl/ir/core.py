@@ -91,7 +91,24 @@ class Use:
 
 
 @dataclass(eq=False)
-class SSAValue(ABC):
+class IRWithUses(ABC):
+    """IRNode which stores a list of its uses."""
+
+    uses: set[Use] = field(init=False, default_factory=set, repr=False)
+    """All uses of the value."""
+
+    def add_use(self, use: Use):
+        """Add a new use of the value."""
+        self.uses.add(use)
+
+    def remove_use(self, use: Use):
+        """Remove a use of the value."""
+        assert use in self.uses, "use to be removed was not in use list"
+        self.uses.remove(use)
+
+
+@dataclass(eq=False)
+class SSAValue(IRWithUses, ABC):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -99,9 +116,6 @@ class SSAValue(ABC):
 
     type: Attribute
     """Each SSA variable is associated to a type."""
-
-    uses: set[Use] = field(init=False, default_factory=set, repr=False)
-    """All uses of the value."""
 
     _name: str | None = field(init=False, default=None)
 
@@ -152,15 +166,6 @@ class SSAValue(ABC):
                 raise ValueError(
                     "SSAValue.build: expected operation with a single result."
                 )
-
-    def add_use(self, use: Use):
-        """Add a new use of the value."""
-        self.uses.add(use)
-
-    def remove_use(self, use: Use):
-        """Remove a use of the value."""
-        assert use in self.uses, "use to be removed was not in use list"
-        self.uses.remove(use)
 
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
@@ -703,6 +708,40 @@ class OpOperands(Sequence[SSAValue]):
         return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
+class OpTraits(Iterable[OpTrait]):
+    """
+    An operation's traits.
+    Some operations have mutually recursive traits, such as one is always the parent
+    operation of the other.
+    For this case, the operation's traits can be declared lazily, and resolved only
+    at the first use.
+    """
+
+    _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+
+    def __init__(
+        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+    ) -> None:
+        self._traits = traits
+
+    @property
+    def traits(self) -> frozenset[OpTrait]:
+        """Returns a copy of this instance's traits."""
+        if not isinstance(self._traits, frozenset):
+            self._traits = frozenset(self._traits())
+        return self._traits
+
+    def add_trait(self, trait: OpTrait):
+        """Adds a trait to the class."""
+        self._traits = self.traits.union((trait,))
+
+    def __iter__(self) -> Iterator[OpTrait]:
+        return iter(self.traits)
+
+    def __eq__(self, value: object, /) -> bool:
+        return isinstance(value, OpTraits) and self._traits == value._traits
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -716,7 +755,7 @@ class Operation(IRNode):
     results: tuple[OpResult, ...] = field(default=())
     """The results created by the operation."""
 
-    successors: list[Block] = field(default_factory=list)
+    _successors: tuple[Block, ...] = field(default=())
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
@@ -744,7 +783,7 @@ class Operation(IRNode):
     _prev_op: Operation | None = field(default=None, repr=False)
     """Previous operation in block containing this operation."""
 
-    traits: ClassVar[frozenset[OpTrait]]
+    traits: ClassVar[OpTraits]
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set
@@ -834,6 +873,19 @@ class Operation(IRNode):
         for idx, operand in enumerate(new):
             operand.add_use(Use(self, idx))
         self._operands = new
+
+    @property
+    def successors(self) -> OpSuccessors:
+        return OpSuccessors(self)
+
+    @successors.setter
+    def successors(self, new: Sequence[Block]):
+        new = tuple(new)
+        for idx, successor in enumerate(self._successors):
+            successor.remove_use(Use(self, idx))
+        for idx, successor in enumerate(new):
+            successor.add_use(Use(self, idx))
+        self._successors = new
 
     def __post_init__(self):
         assert self.name != ""
@@ -1118,7 +1170,7 @@ class Operation(IRNode):
         """
         if isinstance(trait, type):
             for t in cls.traits:
-                if isinstance(t, trait):
+                if isinstance(t, cast(type[OpTraitInvT], trait)):
                     return t
         else:
             for t in cls.traits:
@@ -1330,7 +1382,7 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
 
 
 @dataclass(init=False)
-class Block(IRNode):
+class Block(IRNode, IRWithUses):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
@@ -1383,6 +1435,11 @@ class Block(IRNode):
     def prev_block(self) -> Block | None:
         """The previous block in the parent region"""
         return self._prev_block
+
+    def predecessors(self) -> tuple[Block, ...]:
+        return tuple(
+            p for use in self.uses if (p := use.operation.parent_block()) is not None
+        )
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1754,6 +1811,50 @@ class _RegionBlocksIterator(Iterator[Block]):
             raise StopIteration
         self.next_block = next_block.next_block
         return next_block
+
+
+@dataclass
+class OpSuccessors(Sequence[Block]):
+    """
+    A view of the successor list of an operation.
+    Any modification to the view is reflected on the operation.
+    """
+
+    _op: Operation
+    """The operation owning the successors."""
+
+    @overload
+    def __getitem__(self, idx: int) -> Block: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
+
+    def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
+        return self._op._successors[idx]  # pyright: ignore[reportPrivateUsage]
+
+    def __setitem__(self, idx: int, successor: Block) -> None:
+        successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
+        successors[idx].remove_use(Use(self._op, idx))
+        successor.add_use(Use(self._op, idx))
+        new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
+        self._op._successors = new_successors  # pyright: ignore[reportPrivateUsage]
+
+    def __iter__(self) -> Iterator[Block]:
+        return iter(self._op._successors)  # pyright: ignore[reportPrivateUsage]
+
+    def __len__(self) -> int:
+        return len(self._op._successors)  # pyright: ignore[reportPrivateUsage]
+
+    def __eq__(self, other: object):
+        if not isinstance(other, OpSuccessors):
+            return False
+        return (
+            self._op._successors  # pyright: ignore[reportPrivateUsage]
+            == other._op._successors  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def __hash__(self):
+        return hash(self._op._successors)  # pyright: ignore[reportPrivateUsage]
 
 
 @dataclass

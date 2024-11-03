@@ -152,7 +152,7 @@ RdRsRsFloatOperation = riscv.RdRsRsOperation[
 
 @dataclass
 class LowerBinaryIntegerOp(RewritePattern):
-    arith_op_cls: type[arith.SignlessIntegerBinaryOp]
+    arith_op_cls: type[arith.SignlessIntegerBinaryOperation]
     riscv_op_cls: type[RdRsRsIntegerOperation]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
@@ -169,7 +169,7 @@ class LowerBinaryIntegerOp(RewritePattern):
 
 @dataclass
 class LowerBinaryFloatOp(RewritePattern):
-    arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
+    arith_op_cls: type[arith.FloatingPointLikeBinaryOperation]
     riscv_f_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
     riscv_d_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
 
@@ -352,29 +352,31 @@ class LowerArithCmpf(RewritePattern):
         lhs, rhs = cast_operands_to_regs(rewriter)
         cast_matched_op_results(rewriter)
 
+        fastmath = riscv.FastMathFlagsAttr(op.fastmath.data)
+
         match op.predicate.value.data:
             # false
             case 0:
                 rewriter.replace_matched_op([riscv.LiOp(0)])
             # oeq
             case 1:
-                rewriter.replace_matched_op([riscv.FeqSOP(lhs, rhs)])
+                rewriter.replace_matched_op([riscv.FeqSOP(lhs, rhs, fastmath=fastmath)])
             # ogt
             case 2:
-                rewriter.replace_matched_op([riscv.FltSOP(rhs, lhs)])
+                rewriter.replace_matched_op([riscv.FltSOP(rhs, lhs, fastmath=fastmath)])
             # oge
             case 3:
-                rewriter.replace_matched_op([riscv.FleSOP(rhs, lhs)])
+                rewriter.replace_matched_op([riscv.FleSOP(rhs, lhs, fastmath=fastmath)])
             # olt
             case 4:
-                rewriter.replace_matched_op([riscv.FltSOP(lhs, rhs)])
+                rewriter.replace_matched_op([riscv.FltSOP(lhs, rhs, fastmath=fastmath)])
             # ole
             case 5:
-                rewriter.replace_matched_op([riscv.FleSOP(lhs, rhs)])
+                rewriter.replace_matched_op([riscv.FleSOP(lhs, rhs, fastmath=fastmath)])
             # one
             case 6:
-                flt1 = riscv.FltSOP(lhs, rhs)
-                flt2 = riscv.FltSOP(rhs, lhs)
+                flt1 = riscv.FltSOP(lhs, rhs, fastmath=fastmath)
+                flt2 = riscv.FltSOP(rhs, lhs, fastmath=fastmath)
                 rewriter.replace_matched_op(
                     [
                         flt1,
@@ -384,8 +386,8 @@ class LowerArithCmpf(RewritePattern):
                 )
             # ord
             case 7:
-                feq1 = riscv.FeqSOP(lhs, lhs)
-                feq2 = riscv.FeqSOP(rhs, rhs)
+                feq1 = riscv.FeqSOP(lhs, lhs, fastmath=fastmath)
+                feq2 = riscv.FeqSOP(rhs, rhs, fastmath=fastmath)
                 rewriter.replace_matched_op(
                     [
                         feq1,
@@ -395,34 +397,34 @@ class LowerArithCmpf(RewritePattern):
                 )
             # ueq
             case 8:
-                flt1 = riscv.FltSOP(lhs, rhs)
-                flt2 = riscv.FltSOP(rhs, lhs)
+                flt1 = riscv.FltSOP(lhs, rhs, fastmath=fastmath)
+                flt2 = riscv.FltSOP(rhs, lhs, fastmath=fastmath)
                 or_ = riscv.OrOp(flt2, flt1, rd=riscv.IntRegisterType.unallocated())
                 rewriter.replace_matched_op([flt1, flt2, or_, riscv.XoriOp(or_, 1)])
             # ugt
             case 9:
-                fle = riscv.FleSOP(lhs, rhs)
+                fle = riscv.FleSOP(lhs, rhs, fastmath=fastmath)
                 rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
             # uge
             case 10:
-                fle = riscv.FltSOP(lhs, rhs)
+                fle = riscv.FltSOP(lhs, rhs, fastmath=fastmath)
                 rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
             # ult
             case 11:
-                fle = riscv.FleSOP(rhs, lhs)
+                fle = riscv.FleSOP(rhs, lhs, fastmath=fastmath)
                 rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
             # ule
             case 12:
-                flt = riscv.FltSOP(rhs, lhs)
+                flt = riscv.FltSOP(rhs, lhs, fastmath=fastmath)
                 rewriter.replace_matched_op([flt, riscv.XoriOp(flt, 1)])
             # une
             case 13:
-                feq = riscv.FeqSOP(lhs, rhs)
+                feq = riscv.FeqSOP(lhs, rhs, fastmath=fastmath)
                 rewriter.replace_matched_op([feq, riscv.XoriOp(feq, 1)])
             # uno
             case 14:
-                feq1 = riscv.FeqSOP(lhs, lhs)
-                feq2 = riscv.FeqSOP(rhs, rhs)
+                feq1 = riscv.FeqSOP(lhs, lhs, fastmath=fastmath)
+                feq2 = riscv.FeqSOP(rhs, rhs, fastmath=fastmath)
                 and_ = riscv.AndOp(feq2, feq1, rd=riscv.IntRegisterType.unallocated())
                 rewriter.replace_matched_op([feq1, feq2, and_, riscv.XoriOp(and_, 1)])
             # true

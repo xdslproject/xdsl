@@ -126,23 +126,24 @@ class FormatProgram:
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
         assert isa(
-            unresolved_operands, list[UnresolvedOperand | list[UnresolvedOperand]]
+            unresolved_operands,
+            Sequence[UnresolvedOperand | Sequence[UnresolvedOperand]],
         ), unresolved_operands
         self.resolve_operand_types(state, op_def)
         operand_types = state.operand_types
-        assert isa(operand_types, list[Attribute | list[Attribute]])
+        assert isa(operand_types, Sequence[Attribute | Sequence[Attribute]])
 
         # Infer result types that should be inferred
         self.resolve_result_types(state, op_def)
         result_types = state.result_types
-        assert isa(result_types, list[Attribute | list[Attribute]])
+        assert isa(result_types, Sequence[Attribute | Sequence[Attribute]])
 
         # Resolve all operands
         operands: Sequence[SSAValue | Sequence[SSAValue]] = []
         for uo, ot in zip(unresolved_operands, operand_types, strict=True):
-            if isinstance(uo, list):
+            if isinstance(uo, Sequence):
                 assert isinstance(
-                    ot, list
+                    ot, Sequence
                 ), "Something went wrong with the declarative assembly format parser."
                 "Variadic or optional operand has no type or a single type "
                 operands.append(parser.resolve_operands(uo, ot, parser.pos))
@@ -951,12 +952,37 @@ class AttributeVariable(FormatDirective):
         raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
 
-class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
+@dataclass(frozen=True)
+class DefaultValuedAttributeVariable(AttributeVariable, AnchorableDirective):
+    """
+    An attribute variable with default value, with the following format:
+      result-directive ::= dollar-ident
+    The directive will request a space to be printed right after.
+    """
+
+    default_value: Attribute
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        if self.is_property:
+            attr = op.properties.get(self.name)
+        else:
+            attr = op.attributes.get(self.name)
+        return attr is not None and attr != self.default_value
+
+
+class OptionalAttributeVariable(AttributeVariable, AnchorableDirective):
     """
     An optional attribute variable, with the following format:
       operand-directive ::= ( percent-ident )?
     The directive will request a space to be printed after.
     """
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        if self.is_property:
+            attr = op.properties.get(self.name)
+        else:
+            attr = op.attributes.get(self.name)
+        return attr is not None
 
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):

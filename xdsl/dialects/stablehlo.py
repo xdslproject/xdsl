@@ -8,12 +8,13 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 
 import abc
 from collections.abc import Sequence
-from typing import Annotated, TypeAlias, cast
+from typing import Annotated, ClassVar, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     I32,
     I64,
     AnyTensorType,
+    AnyTensorTypeConstr,
     ArrayAttr,
     DenseArrayBase,
     IntegerAttr,
@@ -33,14 +34,18 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    BaseAttr,
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
+    VarConstraint,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -55,7 +60,7 @@ from xdsl.utils.exceptions import VerifyException
 
 class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
     # TODO: Remove this constraint for complex types.
-    T = Annotated[AnyTensorType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(AnyTensorType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -219,7 +224,7 @@ class AbsOp(IRDLOperation):
     name = "stablehlo.abs"
 
     # TODO: Remove this constraint for complex types.
-    T = Annotated[AnyTensorType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(AnyTensorType))
 
     operand = operand_def(T)
     result = result_def(T)
@@ -282,7 +287,7 @@ class AndOp(IRDLOperation):
 
     name = "stablehlo.and"
 
-    T = Annotated[IntegerTensorType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -320,7 +325,7 @@ class CaseOp(IRDLOperation):
     name = "stablehlo.case"
     index = operand_def(SI32TensorType)
     branches = var_region_def("single_block")
-    _results = var_result_def(AnyTensorType | TokenType)
+    _results = var_result_def(AnyTensorTypeConstr | BaseAttr(TokenType))
 
     def __init__(
         self,
@@ -409,7 +414,7 @@ class ReturnOp(IRDLOperation):
     name = "stablehlo.return"
 
     input = var_operand_def(AnyTensorType)
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(self, input: list[SSAValue]):
         super().__init__(operands=(input,))

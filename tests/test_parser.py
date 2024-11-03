@@ -426,7 +426,7 @@ def test_parse_block_name():
 
     ctx = MLContext()
     parser = Parser(ctx, block_str)
-    block = parser._parse_block()  # pyright: ignore[reportPrivateUsage]
+    block = parser._parse_block()
 
     assert block.args[0].name_hint == "name"
     assert block.args[1].name_hint is None

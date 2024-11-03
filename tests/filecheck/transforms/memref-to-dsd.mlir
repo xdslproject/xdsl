@@ -106,6 +106,20 @@ builtin.module {
 // CHECK-NEXT: %28 = "csl.load_var"(%27) : (!csl.var<!csl<dsd mem1d_dsd>>) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.store_var"(%27, %28) : (!csl.var<!csl<dsd mem1d_dsd>>, !csl<dsd mem1d_dsd>) -> ()
 
+// ensure that pre-existing get_mem_dsd ops access the underlying buffer, not the get_mem_dsd created on top of it
+
+%36 = arith.constant 510 : i16
+%37 = "csl.get_mem_dsd"(%b, %36) : (memref<510xf32>, i16) -> !csl<dsd mem1d_dsd>
+
+// CHECK-NEXT: %29 = arith.constant 510 : i16
+// CHECK-NEXT: %30 = "csl.get_mem_dsd"(%b, %29) : (memref<510xf32>, i16) -> !csl<dsd mem1d_dsd>
+
+%38 = memref.load %b[%28] : memref<510xf32>
+"test.op"(%38) : (f32) -> ()
+
+// CHECK-NEXT: %31 = memref.load %b[%13] : memref<510xf32>
+// CHECK-NEXT: "test.op"(%31) : (f32) -> ()
+
 }) {sym_name = "program"} :  () -> ()
 }
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()

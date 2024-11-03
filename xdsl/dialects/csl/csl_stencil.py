@@ -1,11 +1,17 @@
 from collections.abc import Iterable, Sequence
 from itertools import pairwise
-from typing import cast
+from typing import TypeAlias, cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyIntegerAttr,
     AnyMemRefType,
+    AnyMemRefTypeConstr,
+    AnyTensorTypeConstr,
+    Float16Type,
+    Float32Type,
+    FloatAttr,
     IndexType,
     MemRefType,
     TensorType,
@@ -27,6 +33,7 @@ from xdsl.irdl import (
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
@@ -45,6 +52,8 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
     RecursiveMemoryEffect,
 )
@@ -124,16 +133,14 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.StencilType[Attribute])
-        | base(memref.MemRefType[Attribute])
-        | base(TensorType[Attribute])
+        stencil.StencilTypeConstr | AnyMemRefTypeConstr | AnyTensorTypeConstr
     )
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    result = result_def(memref.MemRefType | TensorType)
+    result = result_def(AnyMemRefTypeConstr | AnyTensorTypeConstr)
 
     def __init__(
         self,
@@ -150,6 +157,19 @@ class PrefetchOp(IRDLOperation):
             },
             result_types=[result_type],
         )
+
+
+CslFloat: TypeAlias = Float16Type | Float32Type
+
+
+@irdl_attr_definition
+class CoeffAttr(ParametrizedAttribute):
+    name = "csl_stencil.coeff"
+    offset: ParameterDef[stencil.IndexAttr]
+    coeff: ParameterDef[FloatAttr[AnyFloat]]
+
+    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        super().__init__([offset, coeff])
 
 
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -178,6 +198,8 @@ class ApplyOp(IRDLOperation):
 
     Further fields:
       - `field`      - the stencil field to communicate (send and receive)
+      - `args_rchunk`  - arguments passed to the `receive_chunk` region, may include other prefetched buffers
+      - `args_dexchng` - arguments passed to the `done_exchange` region, may include other prefetched buffers
       - `args`       - arguments to the stencil computation, may include other prefetched buffers
       - `topo`       - as received from `csl_stencil.prefetch`/`dmp.swap`
       - `num_chunks` - number of chunks into which to slice the communication
@@ -202,14 +224,13 @@ class ApplyOp(IRDLOperation):
 
     name = "csl_stencil.apply"
 
-    field = operand_def(
-        base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
-    )
+    field = operand_def(stencil.StencilTypeConstr | AnyMemRefTypeConstr)
 
-    accumulator = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
+    accumulator = operand_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
-    args = var_operand_def(Attribute)
-    dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
+    args_rchunk = var_operand_def(Attribute)
+    args_dexchng = var_operand_def(Attribute)
+    dest = var_operand_def(stencil.FieldTypeConstr | AnyMemRefTypeConstr)
 
     receive_chunk = region_def()
     done_exchange = region_def()
@@ -222,14 +243,16 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
-    res = var_result_def(stencil.StencilType)
+    coeffs = opt_prop_def(builtin.ArrayAttr[CoeffAttr])
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            ApplyOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
-        ]
+    res = var_result_def(stencil.StencilTypeConstr)
+
+    traits = traits_def(
+        IsolatedFromAbove(),
+        ApplyOpHasCanonicalizationPatternsTrait(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+        RecursiveMemoryEffect(),
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -243,7 +266,7 @@ class ApplyOp(IRDLOperation):
         printer.print("(")
 
         # args required by function signature, plus optional args for regions
-        args = [self.field, self.accumulator, *self.args]
+        args = [self.field, self.accumulator, *self.args_rchunk, *self.args_dexchng]
 
         printer.print_list(args, print_arg)
         if self.dest:
@@ -276,7 +299,7 @@ class ApplyOp(IRDLOperation):
             value = parser.resolve_operand(value, type)
             return value
 
-        operands = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
+        ops = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
@@ -306,8 +329,10 @@ class ApplyOp(IRDLOperation):
             props["bounds"] = stencil.StencilBoundsAttr.new(
                 stencil.StencilBoundsAttr.parse_parameters(parser)
             )
+        # `-3` fixed block args, `+2` offset for operands with fixed use
+        split = len(receive_chunk.block.args) - 3 + 2
         return cls(
-            operands=[operands[0], operands[1], operands[2:], destinations],
+            operands=[ops[0], ops[1], ops[2:split], ops[split:], destinations],
             result_types=[result_types],
             regions=[receive_chunk, done_exchange],
             properties=props,
@@ -334,8 +359,9 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert isa(
-            self.accumulator.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+        assert isattr(
+            self.accumulator.type,
+            AnyTensorTypeConstr | AnyMemRefTypeConstr,
         )
         chunk_region_req_types = [
             type(self.accumulator.type)(
@@ -377,7 +403,7 @@ class ApplyOp(IRDLOperation):
             res_type = self.dest[0].type
         else:
             res_type = self.res[0].type
-        if isa(res_type, stencil.StencilType[Attribute]):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return res_type.get_num_dims()
         elif self.bounds:
             return len(self.bounds.ub)
@@ -409,6 +435,11 @@ class ApplyOp(IRDLOperation):
                 accesses.append(offsets)
             yield stencil.AccessPattern(tuple(accesses))
 
+    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        self.coeffs = builtin.ArrayAttr(
+            list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
+        )
+
 
 @irdl_op_definition
 class AccessOp(IRDLOperation):
@@ -424,13 +455,13 @@ class AccessOp(IRDLOperation):
 
     name = "csl_stencil.access"
     op = operand_def(
-        base(AnyMemRefType) | base(stencil.StencilType) | base(TensorType[Attribute])
+        AnyMemRefTypeConstr | stencil.StencilTypeConstr | AnyTensorTypeConstr
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType | AnyMemRefType)
+    result = result_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
-    traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
+    traits = traits_def(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
     def __init__(
         self,
@@ -503,7 +534,7 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if isa(res_type, stencil.StencilType[Attribute]):
+        if isattr(res_type, stencil.StencilTypeConstr):
             return cls.build(
                 operands=[temp],
                 result_types=[res_type.get_element_type()],
@@ -536,7 +567,7 @@ class AccessOp(IRDLOperation):
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
                     )
-            elif isa(self.op.type, stencil.StencilType[Attribute]):
+            elif isattr(self.op.type, stencil.StencilTypeConstr):
                 if not self.result.type == self.op.type.get_element_type():
                     raise VerifyException(
                         f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
@@ -546,9 +577,7 @@ class AccessOp(IRDLOperation):
                     f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
         else:
-            if not isa(
-                self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]
-            ):
+            if not isattr(self.op.type, AnyTensorTypeConstr | AnyMemRefTypeConstr):
                 raise VerifyException(
                     f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
                 )
@@ -611,7 +640,7 @@ class AccessOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "csl_stencil.yield"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ApplyOp), Pure()]))
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ApplyOp), Pure()))
 
 
 CSL_STENCIL = Dialect(
@@ -624,5 +653,6 @@ CSL_STENCIL = Dialect(
     ],
     [
         ExchangeDeclarationAttr,
+        CoeffAttr,
     ],
 )

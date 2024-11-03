@@ -1,15 +1,16 @@
 import re
 
-import jax
 import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, stablehlo
 from xdsl.dialects.builtin import ModuleOp, StringAttr, TensorType, i32
-from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, traits_def
 from xdsl.traits import SymbolOpInterface
 
 pytest.importorskip("jax")
+
+import jax  # noqa: E402
 
 from xdsl.backend.jax_executable import JaxExecutable, array  # noqa: E402
 
@@ -105,7 +106,7 @@ def test_main_not_func():
         name = "sym_name"
 
         sym_name = attr_def(StringAttr)
-        traits = frozenset((SymbolOpInterface(),))
+        traits = traits_def(SymbolOpInterface())
 
     module = ModuleOp([SymNameOp(attributes={"sym_name": StringAttr("main")})])
 
@@ -170,7 +171,7 @@ def test_return_annotation_tuple_type():
         ),
     ):
 
-        @executable  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
+        @executable  # pyright: ignore[reportArgumentType]
         def abs_wrong_tuple_type(a: jax.Array) -> tuple[int]: ...  # pyright: ignore[reportUnusedFunction]
 
 
@@ -190,7 +191,7 @@ def test_return_annotation_single():
         match="Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray",
     ):
 
-        @executable  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
+        @executable  # pyright: ignore[reportArgumentType]
         def abs_wrong_single_type(a: jax.Array) -> int: ...  # pyright: ignore[reportUnusedFunction]
 
 

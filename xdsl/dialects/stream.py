@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Annotated, Generic, TypeAlias, TypeVar, cast
+from typing import ClassVar, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -16,9 +16,13 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    ConstraintVar,
+    AnyAttr,
+    BaseAttr,
+    GenericAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
+    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -28,6 +32,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 _StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute)
+_StreamTypeElementConstrT = TypeVar("_StreamTypeElementConstrT", bound=Attribute)
 
 
 class StreamType(
@@ -49,10 +54,32 @@ class StreamType(
 class ReadableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.readable"
 
+    @staticmethod
+    def constr(
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT] = AnyAttr(),
+    ) -> GenericAttrConstraint[StreamType[_StreamTypeElementConstrT]]:
+        if element_type == AnyAttr():
+            return BaseAttr[StreamType[_StreamTypeElementConstrT]](StreamType)
+        return ParamAttrConstraint[StreamType[_StreamTypeElementConstrT]](
+            StreamType, (element_type,)
+        )
+
 
 @irdl_attr_definition
 class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.writable"
+
+    @staticmethod
+    def constr(
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT] = AnyAttr(),
+    ) -> GenericAttrConstraint[StreamType[_StreamTypeElementConstrT]]:
+        if element_type == AnyAttr():
+            return BaseAttr[StreamType[_StreamTypeElementConstrT]](StreamType)
+        return ParamAttrConstraint[StreamType[_StreamTypeElementConstrT]](
+            StreamType, (element_type,)
+        )
 
 
 AnyWritableStreamType: TypeAlias = WritableStreamType[Attribute]
@@ -63,9 +90,9 @@ class ReadOperation(IRDLOperation, abc.ABC):
     Abstract base class for operations that read from a stream.
     """
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(ReadableStreamType[T])
+    stream = operand_def(ReadableStreamType.constr(element_type=T))
     res = result_def(T)
 
     def __init__(self, stream: SSAValue, result_type: Attribute | None = None):
@@ -96,10 +123,10 @@ class WriteOperation(IRDLOperation, abc.ABC):
     Abstract base class for operations that write to a stream.
     """
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    stream = operand_def(WritableStreamType[T])
+    stream = operand_def(WritableStreamType.constr(element_type=T))
 
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])

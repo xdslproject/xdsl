@@ -443,10 +443,14 @@ class CslPrintContext:
                 return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)
+            case FloatAttr(value=val) if val.data == 0:
+                return "0.0"
             case FloatAttr(value=val):
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
+            case DenseIntOrFPElementsAttr(data=ArrayAttr(data=data), type=typ):
+                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(d) for d in data)} }}"
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -760,11 +764,24 @@ class CslPrintContext:
                     ind_vars = ["d" + str(i) for i in range(len(sizes))]
                     ind_vars_str = ", ".join(ind_vars)
                     accesses = [
-                        (f"{str(strides.data[i].value.data)} * " if strides else "")
+                        (
+                            f"{str(s)} * "
+                            if strides and (s := strides.data[i].value.data) != 1
+                            else ""
+                        )
                         + ind_vars[i]
                         + (f" + {str(offsets.data[i].value.data)}" if offsets else "")
                         for i in range(len(ind_vars))
                     ]
+                    if strides and 0 in (
+                        strides_data := [s.value.data for s in strides.data]
+                    ):
+                        non_zero_stride_idx = [
+                            idx for idx, sd in enumerate(strides_data) if sd != 0
+                        ]
+                        # if all except one strides are 0, print only the non-0 part (default to printing all dims)
+                        if len(non_zero_stride_idx) == 1:
+                            accesses = [accesses[non_zero_stride_idx[0]]]
                     accesses_str = ", ".join(accesses)
                     self.print(
                         f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
@@ -839,6 +856,12 @@ class CslPrintContext:
                     var = self._var_use(var)
                     other = self._var_use(new_value)
                     self.print(f"{var} = {other};")
+                case csl.PtrCastOp(ptr=ptr, result=result):
+                    typ = self.mlir_type_to_csl_type(result.type)
+                    var = self._get_variable_name_for(ptr)
+                    self._print_or_promote_to_inline_expr(
+                        result, f"@ptrcast({typ}, {var})"
+                    )
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 

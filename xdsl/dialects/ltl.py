@@ -6,14 +6,14 @@ https://circt.llvm.org/docs/Dialects/LTL/
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import ClassVar
 
-from xdsl.dialects.builtin import IntegerType, Signedness
-from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.dialects.builtin import IntegerType
+from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AnyOf,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     result_def,
@@ -51,11 +51,7 @@ class AndOp(IRDLOperation):
 
     name = "ltl.and"
 
-    T = Annotated[
-        Attribute,
-        AnyOf([Sequence, Property, IntegerType(1, signedness=Signedness.SIGNLESS)]),
-        ConstraintVar("T"),
-    ]
+    T: ClassVar = VarConstraint("T", AnyOf([Sequence, Property, IntegerType(1)]))
 
     input = var_operand_def(T)
 

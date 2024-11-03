@@ -3,7 +3,7 @@ from typing import NamedTuple
 from xdsl.context import MLContext
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.passes import ModulePass, PipelinePass
-from xdsl.tools.command_line_tool import get_all_passes
+from xdsl.transforms import get_all_passes
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 

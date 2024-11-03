@@ -28,6 +28,7 @@ from xdsl.irdl import (
     region_def,
     result_def,
     successor_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -583,7 +584,7 @@ class SuccessorOp(IRDLOperation):
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_successor_op_successor():
@@ -605,7 +606,7 @@ class OptSuccessorOp(IRDLOperation):
 
     successor = opt_successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_opt_successor_builder():
@@ -633,7 +634,7 @@ class VarSuccessorOp(IRDLOperation):
 
     successor = var_successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_var_successor_builder():
@@ -658,7 +659,7 @@ class TwoVarSuccessorOp(IRDLOperation):
     res2 = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_two_var_successor_builder():
@@ -677,7 +678,7 @@ def test_two_var_successor_builder():
     _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
-    assert op2.successors == [block1, block2, block3, block4]
+    assert tuple(op2.successors) == (block1, block2, block3, block4)
     assert op2.attributes[
         AttrSizedSuccessorSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
@@ -699,7 +700,7 @@ def test_two_var_successor_builder2():
     _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
-    assert op2.successors == [block1, block2, block3, block4]
+    assert tuple(op2.successors) == (block1, block2, block3, block4)
     assert op2.attributes[
         AttrSizedSuccessorSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
