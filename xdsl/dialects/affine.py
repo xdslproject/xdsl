@@ -31,6 +31,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -53,7 +54,7 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(
@@ -208,7 +209,7 @@ class If(IRDLOperation):
     then_region = region_def("single_block")
     else_region = region_def()
 
-    traits = frozenset([RecursiveMemoryEffect(), RecursivelySpeculatable()])
+    traits = traits_def(RecursiveMemoryEffect(), RecursivelySpeculatable())
 
 
 @irdl_op_definition
@@ -262,7 +263,7 @@ class Store(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
     map = opt_prop_def(AffineMapAttr)
 
@@ -294,7 +295,7 @@ class Load(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     result = result_def(T)
@@ -355,7 +356,7 @@ class Yield(IRDLOperation):
     name = "affine.yield"
     arguments = var_operand_def()
 
-    traits = frozenset([IsTerminator(), Pure()])
+    traits = traits_def(IsTerminator(), Pure())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

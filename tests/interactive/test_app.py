@@ -16,13 +16,12 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
+from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
-from xdsl.transforms import (
-    individual_rewrite,
-)
+from xdsl.transforms import individual_rewrite
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
@@ -197,6 +196,15 @@ async def test_buttons():
 }
 """
         )
+
+        # Test that the current pipeline command is correctly copied
+        def callback(x: str):
+            assert (
+                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
+            )
+
+        _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
+        await pilot.click("#copy_query_button")
 
         current_pipeline = app.pass_pipeline
         # press "Remove Last Pass" button

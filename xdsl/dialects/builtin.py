@@ -59,6 +59,7 @@ from xdsl.irdl import (
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -440,6 +441,9 @@ IndexTypeConstr = BaseAttr(IndexType)
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+_IntegerAttrTypeConstrT = TypeVar(
+    "_IntegerAttrTypeConstrT", bound=IntegerType | IndexType, covariant=True
+)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
@@ -517,16 +521,15 @@ class IntegerAttr(
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         *,
         value: AttrConstraint | None = None,
-        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
-    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
+        type: GenericAttrConstraint[_IntegerAttrTypeConstrT] = IntegerAttrTypeConstr,
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrTypeConstrT]]:
         if value is None and type == AnyAttr():
-            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
-        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
+            return BaseAttr[IntegerAttr[_IntegerAttrTypeConstrT]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrTypeConstrT]](
             IntegerAttr,
             (
                 value,
@@ -1224,7 +1227,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
     inputs = var_operand_def()
     outputs = var_result_def()
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1281,7 +1284,7 @@ class UnregisteredOp(Operation, ABC):
     """
 
     name = "builtin.unregistered"
-    traits = frozenset()
+    traits = traits_def()
 
     @property
     def op_name(self) -> StringAttr:
@@ -1408,13 +1411,11 @@ class ModuleOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            NoTerminator(),
-            OptionalSymbolOpInterface(),
-            SymbolTable(),
-        ]
+    traits = traits_def(
+        IsolatedFromAbove(),
+        NoTerminator(),
+        OptionalSymbolOpInterface(),
+        SymbolTable(),
     )
 
     def __init__(
@@ -1470,6 +1471,9 @@ f128 = Float128Type()
 
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute, covariant=True)
+_MemRefTypeElementConstrT = TypeVar(
+    "_MemRefTypeElementConstrT", bound=Attribute, covariant=True
+)
 _UnrankedMemrefTypeElems = TypeVar(
     "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
 )
@@ -1603,23 +1607,22 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         *,
         shape: GenericAttrConstraint[Attribute] | None = None,
-        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        element_type: GenericAttrConstraint[_MemRefTypeElementConstrT] = AnyAttr(),
         layout: GenericAttrConstraint[Attribute] | None = None,
         memory_space: GenericAttrConstraint[Attribute] | None = None,
-    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElementConstrT]]:
         if (
             shape is None
             and element_type == AnyAttr()
             and layout is None
             and memory_space is None
         ):
-            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
-        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
+            return BaseAttr[MemRefType[_MemRefTypeElementConstrT]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElementConstrT]](
             MemRefType, (shape, element_type, layout, memory_space)
         )
 

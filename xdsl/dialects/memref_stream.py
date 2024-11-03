@@ -47,6 +47,7 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -229,7 +230,7 @@ class StreamingRegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((NoTerminator(),))
+    traits = traits_def(NoTerminator())
 
     def __init__(
         self,
@@ -403,7 +404,7 @@ class GenericOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
+    traits = traits_def(GenericOpHasCanonicalizationPatternsTrait())
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -842,7 +843,7 @@ class GenericOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "memref_stream.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -851,7 +852,7 @@ class FillOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(memref.MemRefType.constr(element_type=T))
     value = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"

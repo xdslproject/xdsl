@@ -55,8 +55,8 @@
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
-// CHECK-NEXT:           %{{.+}} = "arith.muli"(%{{.+}}, %{{.+}}) : (i64, i64) -> i64
-// CHECK-NEXT:           %{{.+}} = "arith.addi"(%{{.+}}, %{{.+}}) : (i64, i64) -> i64
+// CHECK-NEXT:           %{{.+}} = "arith.muli"(%{{.+}}, %{{.+}}) <{"overflowFlags" = #arith.overflow<none>}> : (i64, i64) -> i64
+// CHECK-NEXT:           %{{.+}} = "arith.addi"(%{{.+}}, %{{.+}}) <{"overflowFlags" = #arith.overflow<none>}> : (i64, i64) -> i64
 // CHECK-NEXT:           "memref.store"(%{{.+}}, %{{.+}}, %{{.+}}, %{{.+}}) : (i64, memref<?x?xi64>, index, index) -> ()
 // CHECK-NEXT:           "scf.yield"() : () -> ()
 // CHECK-NEXT:         }) : (index, index, index) -> ()
