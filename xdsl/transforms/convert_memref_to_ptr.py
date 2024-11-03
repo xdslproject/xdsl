@@ -105,7 +105,7 @@ def get_target_ptr(
         )
     ]
 
-    if len(list(indices)) == 0:
+    if not indices:
         return ops, memref_ptr.res
 
     offset_ops, offset = offset_calculations(memref_type, indices)
@@ -156,9 +156,6 @@ class ConvertMemrefToPtr(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         the_one_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()]),
-            apply_recursively=False,
-            walk_reverse=True,
-            walk_regions_first=True,
+            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
         )
         the_one_pass.rewrite_module(op)
