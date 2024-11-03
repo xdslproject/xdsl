@@ -17,10 +17,11 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.exceptions import DiagnosticException
 
 
-# I think we also need to pass the adress width.
 def offset_calculations(
     memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
 ) -> tuple[list[Operation], SSAValue]:
+    """Get operations calculating an offset which needs to be added to memref's base pointer to access an element referenced by indices."""
+
     assert isinstance(memref_type.element_type, builtin.FixedBitwidthType)
 
     match memref_type.layout:
@@ -99,6 +100,8 @@ def get_target_ptr(
     memref_type: memref.MemRefType[Any],
     indices: Iterable[SSAValue],
 ) -> tuple[list[Operation], SSAValue]:
+    """Get operations returning a pointer to an element of a memref referenced by indices."""
+
     ops: list[Operation] = [
         memref_ptr := ptr.ToPtrOp(
             operands=[target_memref], result_types=[ptr.PtrType()]
