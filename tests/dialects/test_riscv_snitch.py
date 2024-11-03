@@ -35,7 +35,4 @@ def test_insn_repr(op: RISCVInstruction):
     # Limitation of Pyright, see https://github.com/microsoft/pyright/issues/7105
     # We are currently stuck on an older version of Pyright, the update is
     # tracked in https://github.com/xdslproject/xdsl/issues/2791
-    assert (
-        trait.get_insn(op)  # pyright: ignore[reportGeneralTypeIssues]
-        == ground_truth[op.name[13:]]
-    )
+    assert trait.get_insn(op) == ground_truth[op.name[13:]]

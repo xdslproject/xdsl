@@ -9,7 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
 )
 from xdsl.traits import HasCanonicalizationPatternsTrait
-from xdsl.transforms.dead_code_elimination import dce
+from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations, op_dce
 
 
 class CanonicalizationRewritePattern(RewritePattern):
@@ -34,5 +34,7 @@ class CanonicalizePass(ModulePass):
     name = "canonicalize"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(CanonicalizationRewritePattern()).rewrite_module(op)
-        dce(op)
+        pattern = GreedyRewritePatternApplier(
+            [RemoveUnusedOperations(), CanonicalizationRewritePattern()]
+        )
+        PatternRewriteWalker(pattern, post_walk_func=op_dce).rewrite_module(op)

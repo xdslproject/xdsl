@@ -372,18 +372,18 @@ def test_parametrized_attribute():
 
 
 def test_literal():
-    assert isa("string", Literal["string"])
-    assert isa("string", Literal["string", "another string"])
-    assert isa("another string", Literal["string", "another string"])
-    assert not isa("not this string", Literal["string", "another string"])
+    assert isa("string", Literal["string"])  # pyright: ignore[reportArgumentType]
+    assert isa("string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
+    assert isa("another string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
+    assert not isa("not this string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
 
-    assert isa(1, Literal[1])
-    assert isa(1, Literal[1, 2])
-    assert isa(2, Literal[1, 2])
-    assert not isa(3, Literal[1, 2])
+    assert isa(1, Literal[1])  # pyright: ignore[reportArgumentType]
+    assert isa(1, Literal[1, 2])  # pyright: ignore[reportArgumentType]
+    assert isa(2, Literal[1, 2])  # pyright: ignore[reportArgumentType]
+    assert not isa(3, Literal[1, 2])  # pyright: ignore[reportArgumentType]
 
-    assert not isa(1, Literal["1"])
-    assert not isa("1", Literal[1])
+    assert not isa(1, Literal["1"])  # pyright: ignore[reportArgumentType]
+    assert not isa("1", Literal[1])  # pyright: ignore[reportArgumentType]
 
 
 ################################################################################

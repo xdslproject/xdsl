@@ -2,7 +2,7 @@ from typing import TypeVar
 
 import pytest
 
-from xdsl.dialects.arith import BinaryOperation, Constant
+from xdsl.dialects.arith import Constant, FloatingPointLikeBinaryOperation
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -84,7 +84,7 @@ class Test_float_math_binary_construction:
     @pytest.mark.parametrize("return_type", [None, operand_type])
     def test_float_binary_ops_constant_math_init(
         self,
-        OpClass: type[BinaryOperation[_BinOpArgT]],
+        OpClass: type[FloatingPointLikeBinaryOperation],
         return_type: Attribute,
     ):
         op = OpClass(self.a, self.b)
@@ -104,7 +104,7 @@ class Test_float_math_binary_construction:
     )
     @pytest.mark.parametrize("return_type", [None, f32_vector_type])
     def test_flaot_binary_vector_ops_init(
-        self, OpClass: type[BinaryOperation[_BinOpArgT]], return_type: Attribute
+        self, OpClass: type[FloatingPointLikeBinaryOperation], return_type: Attribute
     ):
         op = OpClass(self.lhs_vector, self.rhs_vector)
         assert isinstance(op, OpClass)
@@ -123,7 +123,7 @@ class Test_float_math_binary_construction:
     )
     @pytest.mark.parametrize("return_type", [None, f32_tensor_type])
     def test_float_binary_ops_tensor_math_init(
-        self, OpClass: type[BinaryOperation[_BinOpArgT]], return_type: Attribute
+        self, OpClass: type[FloatingPointLikeBinaryOperation], return_type: Attribute
     ):
         op = OpClass(self.lhs_tensor, self.rhs_tensor)
         assert isinstance(op, OpClass)

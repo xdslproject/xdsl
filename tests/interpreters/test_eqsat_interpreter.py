@@ -2,11 +2,12 @@ from io import StringIO
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func, pdl
+from xdsl.dialects import arith, eqsat, func, pdl
 from xdsl.dialects.builtin import (
     ModuleOp,
     StringAttr,
 )
+from xdsl.interpreters.experimental.eqsat_pdl import EqsatPDLRewritePattern
 from xdsl.interpreters.experimental.pdl import (
     PDLRewritePattern,
 )
@@ -16,6 +17,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.eqsat_create_eclasses import insert_eclass_ops
 
 """
     ======================================================
@@ -136,3 +138,42 @@ def swap_arguments_pdl():
                 pdl.ReplaceOp(x_y_op, y_x_op)
 
     return pdl_module
+
+
+def swap_arguments_eqsat_output():
+    @ModuleOp
+    @Builder.implicit_region
+    def ir_module():
+        with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
+            x = arith.Constant.from_int_and_width(4, 32).result
+            x_ec = eqsat.EClassOp(x)
+            y = arith.Constant.from_int_and_width(2, 32).result
+            y_ec = eqsat.EClassOp(y)
+            x_y = arith.Addi(y_ec, x_ec).result
+            y_x = arith.Addi(x_ec, y_ec).result
+            r_ec = eqsat.EClassOp(y_x, x_y)
+            func.Return(r_ec)
+
+    return ir_module
+
+
+def test_hello():
+    input_module = swap_arguments_input()
+    output_module = swap_arguments_eqsat_output()
+    rewrite_module = swap_arguments_pdl()
+
+    insert_eclass_ops(next(iter(input_module.body.block.ops)).regions[0].block)
+
+    pdl_rewrite_op = next(
+        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    ctx = MLContext()
+    ctx.load_dialect(arith.Arith)
+
+    PatternRewriteWalker(
+        EqsatPDLRewritePattern(pdl_rewrite_op, ctx),
+        apply_recursively=False,
+    ).rewrite_module(input_module)
+
+    assert input_module.is_structurally_equivalent(output_module)

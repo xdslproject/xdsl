@@ -356,7 +356,9 @@ class Printer:
 
         with self.indented():
             for op in block.ops:
-                if not print_block_terminator and op.has_trait(IsTerminator):
+                if not print_block_terminator and op.has_trait(
+                    IsTerminator, value_if_unregistered=False
+                ):
                     continue
                 self._print_new_line()
                 self.print_op(op)
@@ -814,7 +816,7 @@ class Printer:
 
         return
 
-    def print_successors(self, successors: list[Block]):
+    def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:
             return
         self.print_string(" [")
