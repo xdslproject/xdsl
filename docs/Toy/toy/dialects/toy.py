@@ -37,6 +37,7 @@ from xdsl.irdl import (
     opt_operand_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -86,7 +87,7 @@ class ConstantOp(IRDLOperation):
     value = attr_def(DenseIntOrFPElementsAttr)
     res = result_def(TensorTypeF64)
 
-    traits = OpTraits.get(Pure())
+    traits = traits_def(Pure())
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
         super().__init__(result_types=[value.type], attributes={"value": value})
@@ -147,7 +148,7 @@ class AddOp(IRDLOperation):
     rhs = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = OpTraits.get(Pure(), InferAddOpShapeTrait())
+    traits = traits_def(Pure(), InferAddOpShapeTrait())
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
@@ -213,7 +214,7 @@ class FuncOp(IRDLOperation):
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
 
-    traits = OpTraits.get(SymbolOpInterface(), FuncOpCallableInterface())
+    traits = traits_def(SymbolOpInterface(), FuncOpCallableInterface())
 
     def __init__(
         self,
@@ -326,7 +327,7 @@ class MulOp(IRDLOperation):
     rhs = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = OpTraits.get(Pure(), InferMulOpShapeTrait())
+    traits = traits_def(Pure(), InferMulOpShapeTrait())
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
@@ -384,7 +385,7 @@ class ReturnOp(IRDLOperation):
     name = "toy.return"
     input = opt_operand_def(AnyTensorTypeF64Constr)
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])
@@ -417,7 +418,7 @@ class ReshapeOp(IRDLOperation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res = result_def(TensorTypeF64)
 
-    traits = OpTraits.get(Pure(), ReshapeOpHasCanonicalizationPatternsTrait())
+    traits = traits_def(Pure(), ReshapeOpHasCanonicalizationPatternsTrait())
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isattr(arg.type, AnyTensorTypeF64Constr):
@@ -524,7 +525,7 @@ class CastOp(IRDLOperation):
     arg = operand_def(AnyTensorTypeF64Constr)
     res = result_def(AnyTensorTypeF64Constr)
 
-    traits = OpTraits.get(Pure(), InferCastOpShapeTrait())
+    traits = traits_def(Pure(), InferCastOpShapeTrait())
 
     def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
         if res is None:

@@ -26,7 +26,6 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
@@ -46,6 +45,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -414,7 +414,7 @@ class ReturnOp(IRDLOperation):
     name = "stablehlo.return"
 
     input = var_operand_def(AnyTensorType)
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
     def __init__(self, input: list[SSAValue]):
         super().__init__(operands=(input,))

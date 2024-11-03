@@ -15,7 +15,7 @@ from xdsl.dialects.utils import (
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import Attribute, Dialect, OpTraits
+from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -23,8 +23,10 @@ from xdsl.irdl import (
     Region,
     SSAValue,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -43,7 +45,9 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    traits = OpTraits(lambda: {IsTerminator(), HasParent(WhileOp, ForRofOperation)})
+    traits = lazy_traits_def(
+        lambda: (IsTerminator(), HasParent(WhileOp, ForRofOperation))
+    )
 
 
 class ForRofOperation(IRDLOperation, ABC):
@@ -57,7 +61,7 @@ class ForRofOperation(IRDLOperation, ABC):
 
     body = region_def("single_block")
 
-    traits = OpTraits.get(SingleBlockImplicitTerminator(YieldOp))
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self,
@@ -380,7 +384,7 @@ class ConditionOp(IRDLOperation):
     cond = operand_def(IntRegisterType)
     arguments = var_operand_def(RISCVRegisterType)
 
-    traits = OpTraits.get(HasParent(WhileOp), IsTerminator())
+    traits = traits_def(HasParent(WhileOp), IsTerminator())
 
     def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
         super().__init__(operands=[cond, output_ops])

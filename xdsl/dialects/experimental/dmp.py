@@ -20,7 +20,6 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     Operation,
-    OpTraits,
     ParametrizedAttribute,
     SSAValue,
 )
@@ -32,6 +31,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_result_def,
+    traits_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -700,7 +700,7 @@ class SwapOp(IRDLOperation):
 
     strategy = attr_def(DomainDecompositionStrategy)
 
-    traits = OpTraits.get(SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect())
+    traits = traits_def(SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect())
 
     def verify_(self) -> None:
         if self.swapped_values:

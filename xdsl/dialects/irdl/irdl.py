@@ -19,7 +19,6 @@ from xdsl.ir import (
     Block,
     Dialect,
     EnumAttribute,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
@@ -35,6 +34,7 @@ from xdsl.irdl import (
     opt_attr_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -118,7 +118,7 @@ class DialectOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = OpTraits.get(NoTerminator(), SymbolOpInterface(), SymbolTable())
+    traits = traits_def(NoTerminator(), SymbolOpInterface(), SymbolTable())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -148,7 +148,7 @@ class TypeOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = OpTraits.get(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
+    traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -203,7 +203,7 @@ class AttributeOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = OpTraits.get(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
+    traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -239,7 +239,7 @@ class ParametersOp(IRDLOperation):
 
     args = var_operand_def(AttributeType)
 
-    traits = OpTraits.get(HasParent(TypeOp, AttributeOp))
+    traits = traits_def(HasParent(TypeOp, AttributeOp))
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
@@ -266,7 +266,7 @@ class OperationOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = OpTraits.get(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
+    traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -321,7 +321,7 @@ class OperandsOp(IRDLOperation):
 
     variadicity = attr_def(VariadicityArrayAttr)
 
-    traits = OpTraits.get(HasParent(OperationOp))
+    traits = traits_def(HasParent(OperationOp))
 
     def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
         args_list = [
@@ -362,7 +362,7 @@ class ResultsOp(IRDLOperation):
 
     variadicity = attr_def(VariadicityArrayAttr)
 
-    traits = OpTraits.get(HasParent(OperationOp))
+    traits = traits_def(HasParent(OperationOp))
 
     def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
         args_list = [

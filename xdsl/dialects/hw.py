@@ -28,7 +28,6 @@ from xdsl.ir import (
     Dialect,
     OpaqueSyntaxAttribute,
     Operation,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -40,8 +39,10 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     opt_attr_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -822,13 +823,13 @@ class HWModuleOp(IRDLOperation):
 
     body: SingleBlockRegion = region_def("single_block")
 
-    traits = OpTraits(
-        lambda: {
+    traits = lazy_traits_def(
+        lambda: (
             SymbolOpInterface(),
             IsolatedFromAbove(),
             SingleBlockImplicitTerminator(OutputOp),
             HWModulesHWModuleLike(),
-        }
+        )
     )
 
     def __init__(
@@ -938,11 +939,11 @@ class HWModuleExternOp(IRDLOperation):
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
     verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
 
-    traits = OpTraits(
-        lambda: {
+    traits = lazy_traits_def(
+        lambda: (
             SymbolOpInterface(),
             HWModulesHWModuleLike(),
-        }
+        )
     )
 
     def __init__(
@@ -1240,7 +1241,7 @@ class OutputOp(IRDLOperation):
 
     inputs = var_operand_def()
 
-    traits = OpTraits.get(IsTerminator(), HasParent(HWModuleOp))
+    traits = traits_def(IsTerminator(), HasParent(HWModuleOp))
 
     def __init__(self, ops: Sequence[SSAValue | Operation]):
         super().__init__(operands=[ops])

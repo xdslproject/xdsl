@@ -22,7 +22,6 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     Operation,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -50,6 +49,7 @@ from xdsl.irdl import (
     opt_prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -483,7 +483,7 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(StencilBoundsAttr)
 
-    traits = OpTraits.get(
+    traits = traits_def(
         IsolatedFromAbove(),
         ApplyOpHasCanonicalizationPatternsTrait(),
         ApplyOpHasShapeInferencePatternsTrait(),
@@ -687,7 +687,7 @@ class AllocOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($field)"
 
-    traits = OpTraits.get(AllocOpEffect())
+    traits = traits_def(AllocOpEffect())
 
 
 @irdl_op_definition
@@ -722,7 +722,7 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
@@ -807,7 +807,7 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
-    traits = OpTraits.get(
+    traits = traits_def(
         Pure(),
         CombineOpHasShapeInferencePatternsTrait(),
     )
@@ -870,7 +870,7 @@ class DynAccessOp(IRDLOperation):
         "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
     )
 
-    traits = OpTraits.get(
+    traits = traits_def(
         HasAncestor(ApplyOp),
         NoMemoryEffect(),
         DynAccessOpHasShapeInferencePatternsTrait(),
@@ -953,7 +953,7 @@ class IndexOp(IRDLOperation):
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
 
-    traits = OpTraits.get(HasAncestor(ApplyOp), Pure())
+    traits = traits_def(HasAncestor(ApplyOp), Pure())
 
     def get_apply(self):
         """
@@ -1014,7 +1014,7 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = OpTraits.get(
+    traits = traits_def(
         HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()
     )
 
@@ -1230,7 +1230,7 @@ class LoadOp(IRDLOperation):
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
-    traits = OpTraits.get(LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect())
+    traits = traits_def(LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect())
 
     @staticmethod
     def get(
@@ -1315,7 +1315,7 @@ class BufferOp(IRDLOperation):
 
     assembly_format = "$temp attr-dict-with-keyword `:` type($temp) `->` type($res)"
 
-    traits = OpTraits.get(Pure(), BufferOpHasShapeInferencePatternsTrait())
+    traits = traits_def(Pure(), BufferOpHasShapeInferencePatternsTrait())
 
     def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
@@ -1412,9 +1412,7 @@ class StoreOp(IRDLOperation):
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
-    traits = OpTraits.get(
-        StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect()
-    )
+    traits = traits_def(StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect())
 
     @staticmethod
     def get(
@@ -1457,7 +1455,7 @@ class StoreResultOp(IRDLOperation):
 
     assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
 
-    traits = OpTraits.get(HasAncestor(ApplyOp), Pure())
+    traits = traits_def(HasAncestor(ApplyOp), Pure())
 
 
 @irdl_op_definition
@@ -1488,7 +1486,7 @@ class ReturnOp(IRDLOperation):
             return 1
         return prod(self.unroll)
 
-    traits = OpTraits.get(HasParent(ApplyOp), IsTerminator(), Pure())
+    traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

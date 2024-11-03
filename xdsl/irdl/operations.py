@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from types import FunctionType
@@ -31,6 +31,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.traits import OpTrait
 from xdsl.utils.exceptions import (
     ParseError,
     PyRDLOpDefinitionError,
@@ -943,6 +944,24 @@ def opt_successor_def(
     return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
+# traits
+
+
+def traits_def(*traits: OpTrait):
+    """
+    Defines the traits of an operation.
+    """
+    return OpTraits(frozenset(traits))
+
+
+def lazy_traits_def(future_traits: Callable[[], tuple[OpTrait, ...]]):
+    """
+    Defines the traits of an operation, in the case where any trait uses an operation
+    that is not yet declared.
+    """
+    return OpTraits(future_traits)
+
+
 # Exclude `object`
 _OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
@@ -976,7 +995,7 @@ class OpDef:
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    traits: OpTraits = field(default_factory=lambda: OpTraits.get())
+    traits: OpTraits = field(default_factory=lambda: traits_def())
 
     accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
         default_factory=dict

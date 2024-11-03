@@ -34,7 +34,7 @@ from xdsl.dialects.utils import (
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
 )
-from xdsl.ir import Attribute, Dialect, Operation, OpTraits, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -44,11 +44,13 @@ from xdsl.irdl import (
     VarConstraint,
     base,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -162,7 +164,7 @@ class Alloc(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = OpTraits.get(AllocOpHasCanonicalizationPatterns())
+    traits = traits_def(AllocOpHasCanonicalizationPatterns())
 
     def __init__(
         self,
@@ -292,7 +294,7 @@ class AllocaScopeReturnOp(IRDLOperation):
 
     ops = var_operand_def()
 
-    traits = OpTraits.get(IsTerminator(), HasParent(AllocaScopeOp))
+    traits = traits_def(IsTerminator(), HasParent(AllocaScopeOp))
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
@@ -390,7 +392,7 @@ class GetGlobal(IRDLOperation):
     memref = result_def(MemRefType[Attribute])
     name_ = prop_def(SymbolRefAttr, prop_name="name")
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     assembly_format = "$name `:` type($memref) attr-dict"
 
@@ -414,7 +416,7 @@ class Global(IRDLOperation):
     constant = opt_prop_def(UnitAttr)
     alignment = opt_prop_def(IntegerAttr[I64])
 
-    traits = OpTraits.get(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface())
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
@@ -469,7 +471,7 @@ class Dim(IRDLOperation):
 
     result = result_def(IndexType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def from_source_and_index(
@@ -486,7 +488,7 @@ class Rank(IRDLOperation):
 
     rank = result_def(IndexType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
@@ -502,7 +504,7 @@ class AlterShapeOperation(IRDLOperation, abc.ABC):
     result = result_def(MemRefType)
     reassociation = prop_def(ReassociationAttr)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
 
 @irdl_op_definition
@@ -604,7 +606,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
     sizes = var_result_def(IndexType)
     strides = var_result_def(IndexType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     irdl_options = [SameVariadicResultSize()]
 
@@ -639,7 +641,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
 
     aligned_pointer = result_def(IndexType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(source: SSAValue | Operation):
@@ -679,8 +681,8 @@ class Subview(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = OpTraits(
-        lambda: {MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect()}
+    traits = lazy_traits_def(
+        lambda: (MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
     )
 
     def __init__(
@@ -903,7 +905,7 @@ class Cast(IRDLOperation):
     )
     dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
@@ -922,7 +924,7 @@ class MemorySpaceCast(IRDLOperation):
     )
     dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,

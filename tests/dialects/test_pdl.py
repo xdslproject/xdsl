@@ -3,8 +3,8 @@ import pytest
 import xdsl.dialects.pdl as pdl
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
-from xdsl.ir import Block, OpTraits
-from xdsl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.ir import Block
+from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
@@ -112,7 +112,7 @@ def test_build_pattern():
     @irdl_op_definition
     class DummyTerminator(IRDLOperation):
         name = "dummy.terminator"
-        traits = OpTraits.get(HasParent(pdl.PatternOp), IsTerminator())
+        traits = traits_def(HasParent(pdl.PatternOp), IsTerminator())
 
     with pytest.raises(
         VerifyException, match="expected body to terminate with a `pdl.rewrite`"

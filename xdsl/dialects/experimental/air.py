@@ -25,7 +25,6 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     Operation,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -38,6 +37,7 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     opt_region_def,
@@ -45,6 +45,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -295,7 +296,9 @@ class ExecuteOp(IRDLOperation):
     results_ = var_result_def(Attribute)
     body = region_def()
 
-    traits = OpTraits(lambda: {SingleBlockImplicitTerminator(ExecuteTerminatorOp)})
+    traits = lazy_traits_def(
+        lambda: (SingleBlockImplicitTerminator(ExecuteTerminatorOp),)
+    )
 
     def __init__(
         self,
@@ -333,7 +336,7 @@ class ExecuteTerminatorOp(IRDLOperation):
     # even though this is an operand they decided to name it "result" in the original specification
     results_op = var_operand_def()
 
-    traits = OpTraits.get(HasParent(ExecuteOp), IsTerminator())
+    traits = traits_def(HasParent(ExecuteOp), IsTerminator())
 
     def __init__(self, results_op: list[Operation | SSAValue]):
         super().__init__(operands=[results_op])
@@ -353,7 +356,7 @@ class ExecuteTerminatorOp(IRDLOperation):
 class HerdTerminatorOp(IRDLOperation):
     name = "air.herd_terminator"
 
-    traits = OpTraits(lambda: {HasParent(HerdOp), IsTerminator()})
+    traits = lazy_traits_def(lambda: (HasParent(HerdOp), IsTerminator()))
 
     assembly_format = "attr-dict"
 
@@ -369,7 +372,7 @@ class HerdOp(IRDLOperation):
     async_token = opt_result_def(AsyncTokenAttr)
     region = opt_region_def()
 
-    traits = OpTraits.get(
+    traits = traits_def(
         IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)
     )
 
@@ -503,7 +506,12 @@ class HerdOp(IRDLOperation):
 class LaunchTerminatorOp(IRDLOperation):
     name = "air.launch_terminator"
 
-    traits = OpTraits(lambda: {HasParent(LaunchOp), IsTerminator()})
+    traits = lazy_traits_def(
+        lambda: (
+            HasParent(LaunchOp),
+            IsTerminator(),
+        )
+    )
 
 
 @irdl_op_definition
@@ -517,7 +525,7 @@ class LaunchOp(IRDLOperation):
     async_token = result_def(AsyncTokenAttr)
     body = opt_region_def()
 
-    traits = OpTraits.get(
+    traits = traits_def(
         IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)
     )
 
@@ -612,7 +620,7 @@ class HerdPipelineOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = OpTraits.get(HasParent(HerdOp))
+    traits = traits_def(HasParent(HerdOp))
 
     def __init__(self, body: None | Region):
         super().__init__(regions=[body])
@@ -674,7 +682,7 @@ class PipelineStageOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = OpTraits.get(HasParent(HerdPipelineOp))
+    traits = traits_def(HasParent(HerdPipelineOp))
 
     def __init__(
         self,
@@ -723,21 +731,21 @@ class PipelineStageOp(IRDLOperation):
 class PipelineTerminatorOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.terminator"
 
-    traits = OpTraits.get(HasParent(HerdPipelineOp), IsTerminator())
+    traits = traits_def(HasParent(HerdPipelineOp), IsTerminator())
 
 
 @irdl_op_definition
 class PipelineYieldOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.yield"
 
-    traits = OpTraits.get(HasParent(PipelineStageOp), IsTerminator())
+    traits = traits_def(HasParent(PipelineStageOp), IsTerminator())
 
 
 @irdl_op_definition
 class SegmentTerminatorOp(IRDLOperation):
     name = "air.segment_terminator"
 
-    traits = OpTraits(lambda: {HasParent(SegmentOp), IsTerminator()})
+    traits = lazy_traits_def(lambda: (HasParent(SegmentOp), IsTerminator()))
 
 
 @irdl_op_definition
@@ -752,7 +760,7 @@ class SegmentOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = OpTraits.get(
+    traits = traits_def(
         IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)
     )
 

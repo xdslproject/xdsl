@@ -7,7 +7,7 @@ import pytest
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.test import TestTermOp
-from xdsl.ir import Block, OpTraits, Region
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
@@ -28,6 +28,7 @@ from xdsl.irdl import (
     region_def,
     result_def,
     successor_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -583,7 +584,7 @@ class SuccessorOp(IRDLOperation):
 
     successor = successor_def()
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
 
 def test_successor_op_successor():
@@ -605,7 +606,7 @@ class OptSuccessorOp(IRDLOperation):
 
     successor = opt_successor_def()
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
 
 def test_opt_successor_builder():
@@ -633,7 +634,7 @@ class VarSuccessorOp(IRDLOperation):
 
     successor = var_successor_def()
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
 
 def test_var_successor_builder():
@@ -658,7 +659,7 @@ class TwoVarSuccessorOp(IRDLOperation):
     res2 = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
-    traits = OpTraits.get(IsTerminator())
+    traits = traits_def(IsTerminator())
 
 
 def test_two_var_successor_builder():

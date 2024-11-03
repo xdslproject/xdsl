@@ -717,16 +717,12 @@ class OpTraits(Iterable[OpTrait]):
     at the first use.
     """
 
-    _traits: frozenset[OpTrait] | Callable[[], Iterable[OpTrait]]
+    _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
 
     def __init__(
-        self, traits: frozenset[OpTrait] | Callable[[], Iterable[OpTrait]]
+        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
     ) -> None:
         self._traits = traits
-
-    @staticmethod
-    def get(*traits: OpTrait):
-        return OpTraits(frozenset(traits))
 
     @property
     def traits(self) -> frozenset[OpTrait]:

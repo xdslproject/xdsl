@@ -30,7 +30,6 @@ from xdsl.ir import (
     Dialect,
     EnumAttribute,
     Operation,
-    OpTraits,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -51,6 +50,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -366,7 +366,7 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
     rhs = operand_def(T)
     res = result_def(T)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -423,7 +423,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     res = result_def(T)
     overflowFlags = opt_prop_def(OverflowAttr)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -477,7 +477,7 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
     res = result_def(IntegerType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -646,7 +646,7 @@ class ICmpOp(IRDLOperation):
     res = result_def(i1)
     predicate = prop_def(IntegerAttr[i64])
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -814,7 +814,7 @@ class GEPOp(IRDLOperation):
     rawConstantIndices = prop_def(DenseArrayBase)
     inbounds = opt_prop_def(UnitAttr)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -933,7 +933,7 @@ class IntToPtrOp(IRDLOperation):
 
     output = result_def(LLVMPointerType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
@@ -1007,7 +1007,7 @@ class PtrToIntOp(IRDLOperation):
 
     output = result_def(IntegerType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
@@ -1082,7 +1082,7 @@ class NullOp(IRDLOperation):
 
     nullptr = result_def(LLVMPointerType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
@@ -1105,7 +1105,7 @@ class ExtractValueOp(IRDLOperation):
 
     res = result_def(Attribute)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1136,7 +1136,7 @@ class InsertValueOp(IRDLOperation):
 
     res = result_def(Attribute)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1163,7 +1163,7 @@ class UndefOp(IRDLOperation):
 
     res = result_def(Attribute)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
@@ -1189,7 +1189,7 @@ class GlobalOp(IRDLOperation):
     # This always needs an empty region as it is in the top level module definition
     body = region_def()
 
-    traits = OpTraits.get(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(
         self,
@@ -1251,7 +1251,7 @@ class AddressOfOp(IRDLOperation):
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1377,7 +1377,7 @@ class ReturnOp(IRDLOperation):
 
     arg = opt_operand_def(Attribute)
 
-    traits = OpTraits.get(IsTerminator(), NoMemoryEffect())
+    traits = traits_def(IsTerminator(), NoMemoryEffect())
 
     def __init__(self, value: Attribute | None = None):
         super().__init__(attributes={"value": value})
@@ -1389,7 +1389,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(Attribute)
     value = prop_def(Attribute)
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
@@ -1558,7 +1558,7 @@ class ZeroOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($res)"
 
-    traits = OpTraits.get(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect())
 
     res = result_def(LLVMTypeConstr)
 
