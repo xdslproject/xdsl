@@ -48,6 +48,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -808,7 +809,7 @@ class EntryArgsOp(IRDLOperation):
     name = "test.entry_args"
     body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
 
-    traits = frozenset((NoTerminator(),))
+    traits = traits_def(NoTerminator())
 
 
 def test_entry_args_op():

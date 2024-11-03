@@ -1,3 +1,5 @@
+import collections
+from dataclasses import dataclass
 from typing import Literal, cast
 
 from xdsl.context import MLContext
@@ -11,6 +13,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 # map the arith operation to the right varith op:
@@ -30,38 +33,65 @@ class ArithToVarithPattern(RewritePattern):
     Merges two arith operations into a varith operation.
     """
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        # check that the op is of a type that we can convert to varith
-        if type(op) not in ARITH_TO_VARITH_TYPE_MAP:
-            return
-
-        # this must be true, as all keys of ARITH_TO_VARITH_TYPE_MAP are binary ops
-        op = cast(
-            arith.SignlessIntegerBinaryOperation
-            | arith.FloatingPointLikeBinaryOperation,
-            op,
-        )
-
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self,
+        op: arith.Addi | arith.Addf | arith.Muli | arith.Mulf,
+        rewriter: PatternRewriter,
+        /,
+    ):
         dest_type = ARITH_TO_VARITH_TYPE_MAP[type(op)]
 
-        # check LHS and the RHS to see if they can be folded
-        # but abort after one is merged
-        for other in (op.rhs.owner, op.lhs.owner):
-            # if me and the other op are the same op
-            # (they must necessarily operate on the same data type)
-            if type(op) is type(other):
-                other_op = cast(
-                    arith.SignlessIntegerBinaryOperation
-                    | arith.FloatingPointLikeBinaryOperation,
-                    other,
-                )
-                # instantiate a varith op with three operands
-                rewriter.replace_matched_op(
-                    dest_type(op.rhs, other_op.lhs, other_op.rhs)
-                )
-                if len(other_op.result.uses) == 0:
-                    rewriter.erase_op(other_op)
-                return
+        if len(op.result.uses) != 1:
+            return
+        if type(use_op := list(op.result.uses)[0].operation) not in (
+            type(op),
+            dest_type,
+        ):
+            return
+
+        other_operands = [o for o in use_op.operands if o != op.result]
+        rewriter.replace_op(
+            use_op,
+            dest_type(op.lhs, op.rhs, *other_operands),
+        )
+        rewriter.erase_matched_op()
+
+
+class VarithToArithPattern(RewritePattern):
+    """
+    Splits a varith operation into a sequence of arith operations.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+        # get the type kind of the target arith ops (float|int)
+        type_name: Literal["float", "int"] = (
+            "int" if is_integer_like_type(op.res.type) else "float"
+        )
+        # get the opeation kind of the target arith ops (add|mul)
+        kind: Literal["add", "mul"] = (
+            "add" if isinstance(op, varith.VarithAddOp) else "mul"
+        )
+
+        # get the corresponding arith type (e.g. addi/mulf)
+        target_arith_type = ARITH_TYPES[(type_name, kind)]
+
+        arith_ops: list[Operation] = []
+
+        # Break the varith op down into a sequence of arith ops
+        first_arg = op.operands[0]
+
+        if len(op.operands) == 1:
+            rewriter.replace_matched_op([], new_results=[first_arg])
+            return
+
+        for i in range(1, len(op.operands)):
+            newop = target_arith_type(first_arg, op.operands[i])
+            arith_ops.append(newop)
+            first_arg = newop.result
+
+        rewriter.replace_matched_op(arith_ops)
 
 
 # map (int|float)(add|mul) to an arith op type
@@ -152,6 +182,57 @@ def is_integer_like_type(t: Attribute) -> bool:
     return False
 
 
+@dataclass
+class FuseRepeatedAddArgsPattern(RewritePattern):
+    """
+    Prefer `operand * count(operand)` over repeated addition of `operand`.
+
+    The minimum count to trigger this rewrite can be specified in `min_reps`.
+    """
+
+    min_reps: int
+    """Minimum repetitions of operand to trigger fusion."""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithAddOp, rewriter: PatternRewriter, /):
+        elem_t = op.res.type
+        if isinstance(elem_t, builtin.ContainerType):
+            elem_t = cast(builtin.ContainerType[Attribute], elem_t).get_element_type()
+
+        assert isinstance(
+            elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
+        )
+
+        consts: list[arith.Constant] = []
+        fusions: list[Operation] = []
+        new_args: list[Operation | SSAValue] = []
+        for arg, count in collections.Counter(op.args).items():
+            if count >= self.min_reps:
+                c, f = self.fuse(arg, count, elem_t)
+                consts.append(c)
+                fusions.append(f)
+                new_args.append(f)
+            else:
+                new_args.append(arg)
+        if fusions:
+            rewriter.insert_op([*consts, *fusions], InsertPoint.before(op))
+            rewriter.replace_matched_op(varith.VarithAddOp(*new_args))
+
+    @staticmethod
+    def fuse(
+        arg: SSAValue,
+        count: int,
+        t: builtin.IntegerType | builtin.IndexType | builtin.AnyFloat,
+    ):
+        if isinstance(t, builtin.IntegerType | builtin.IndexType):
+            c = arith.Constant(builtin.IntegerAttr(count, t))
+            f = arith.Muli
+        else:
+            c = arith.Constant(builtin.FloatAttr(count, t))
+            f = arith.Mulf
+        return c, f(c, arg)
+
+
 class ConvertArithToVarithPass(ModulePass):
     """
     Convert chains of arith.{add|mul}{i,f} operations into a single long variadic add or mul operation.
@@ -170,4 +251,38 @@ class ConvertArithToVarithPass(ModulePass):
                     MergeVarithOpsPattern(),
                 ]
             ),
+            walk_reverse=True,
+        ).rewrite_op(op)
+
+
+class ConvertVarithToArithPass(ModulePass):
+    """
+    Convert a single long variadic add or mul operation into a chain of arith.{add|mul}{i,f} operations.
+    Reverses ConvertArithToVarithPass.
+
+    """
+
+    name = "convert-varith-to-arith"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            VarithToArithPattern(),
+            apply_recursively=False,
+        ).rewrite_op(op)
+
+
+class VarithFuseRepeatedOperandsPass(ModulePass):
+    """
+    Fuses several occurrences of the same operand into one.
+    """
+
+    name = "varith-fuse-repeated-operands"
+
+    min_reps: int = 2
+    """The minimum number of times an operand needs to be repeated before being fused."""
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            FuseRepeatedAddArgsPattern(self.min_reps),
+            apply_recursively=False,
         ).rewrite_op(op)

@@ -39,6 +39,7 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -204,7 +205,7 @@ class AllReduceOp(IRDLOperation):
     result = result_def(Attribute)
     body = region_def()
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = traits_def(IsolatedFromAbove())
 
     @staticmethod
     def from_op(
@@ -349,7 +350,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ModuleOp)]))
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ModuleOp)))
 
     def __init__(self):
         super().__init__()
@@ -360,19 +361,17 @@ class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body = region_def("single_block")
-    sym_name = attr_def(StringAttr)
+    sym_name = prop_def(StringAttr)
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            SingleBlockImplicitTerminator(ModuleEndOp),
-            SymbolOpInterface(),
-            SymbolTable(),
-        ]
+    traits = traits_def(
+        IsolatedFromAbove(),
+        SingleBlockImplicitTerminator(ModuleEndOp),
+        SymbolOpInterface(),
+        SymbolTable(),
     )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
-        super().__init__(attributes={"sym_name": name}, regions=[ops])
+        super().__init__(properties={"sym_name": name}, regions=[ops])
 
 
 @irdl_op_definition
@@ -386,7 +385,7 @@ class FuncOp(IRDLOperation):
     known_block_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_block_size")
     known_grid_size = opt_attr_def(DenseArrayBase, attr_name="gpu.known_grid_size")
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
+    traits = traits_def(IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface())
 
     def __init__(
         self,
@@ -504,6 +503,9 @@ class LaunchOp(IRDLOperation):
     blockSizeX = operand_def(IndexType)
     blockSizeY = operand_def(IndexType)
     blockSizeZ = operand_def(IndexType)
+    clusterSizeX = opt_operand_def(IndexType)
+    clusterSizeY = opt_operand_def(IndexType)
+    clusterSizeZ = opt_operand_def(IndexType)
     dynamicSharedMemorySize = opt_operand_def(i32)
     asyncToken = opt_result_def(AsyncTokenType)
     body = region_def()
@@ -514,6 +516,7 @@ class LaunchOp(IRDLOperation):
         body: Region,
         gridSize: Sequence[SSAValue | Operation],
         blockSize: Sequence[SSAValue | Operation],
+        clusterSize: Sequence[SSAValue | Operation] = [],
         async_launch: bool = False,
         asyncDependencies: Sequence[SSAValue | Operation] | None = None,
         dynamicSharedMemorySize: SSAValue | Operation | None = None,
@@ -522,6 +525,10 @@ class LaunchOp(IRDLOperation):
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+        if len(clusterSize) != 3 and len(clusterSize) != 0:
+            raise ValueError(
+                f"LaunchOp must have 0 or 3 clusterSizes, got {len(clusterSize)}"
+            )
         operands = [
             (
                 []
@@ -532,6 +539,10 @@ class LaunchOp(IRDLOperation):
 
         operands += [SSAValue.get(gs) for gs in gridSize]
         operands += [SSAValue.get(bs) for bs in blockSize]
+        if clusterSize:
+            operands += [(SSAValue.get(cs),) for cs in clusterSize]
+        else:
+            operands += [(), (), ()]
         operands += [
             (
                 []
@@ -666,7 +677,7 @@ class ReturnOp(IRDLOperation):
 
     args = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = traits_def(IsTerminator(), HasParent(FuncOp))
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
         super().__init__(operands=[operands])
@@ -703,7 +714,7 @@ class SubgroupSizeOp(IRDLOperation):
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
-    traits = frozenset([HasParent(LaunchOp), IsTerminator()])
+    traits = traits_def(HasParent(LaunchOp), IsTerminator())
 
     def __init__(self):
         super().__init__()
@@ -743,7 +754,7 @@ class YieldOp(IRDLOperation):
     def __init__(self, operands: Sequence[SSAValue | Operation]):
         super().__init__(operands=[operands])
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def verify_(self) -> None:
         op = self.parent_op()

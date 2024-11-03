@@ -1,13 +1,17 @@
 from collections.abc import Iterable, Sequence
 from itertools import pairwise
-from typing import cast
+from typing import TypeAlias, cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyIntegerAttr,
     AnyMemRefType,
     AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
+    Float16Type,
+    Float32Type,
+    FloatAttr,
     IndexType,
     MemRefType,
     TensorType,
@@ -29,6 +33,7 @@ from xdsl.irdl import (
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
@@ -47,6 +52,8 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     Pure,
     RecursiveMemoryEffect,
 )
@@ -152,6 +159,19 @@ class PrefetchOp(IRDLOperation):
         )
 
 
+CslFloat: TypeAlias = Float16Type | Float32Type
+
+
+@irdl_attr_definition
+class CoeffAttr(ParametrizedAttribute):
+    name = "csl_stencil.coeff"
+    offset: ParameterDef[stencil.IndexAttr]
+    coeff: ParameterDef[FloatAttr[AnyFloat]]
+
+    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        super().__init__([offset, coeff])
+
+
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -223,14 +243,16 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 
+    coeffs = opt_prop_def(builtin.ArrayAttr[CoeffAttr])
+
     res = var_result_def(stencil.StencilTypeConstr)
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            ApplyOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
-        ]
+    traits = traits_def(
+        IsolatedFromAbove(),
+        ApplyOpHasCanonicalizationPatternsTrait(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+        RecursiveMemoryEffect(),
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -413,6 +435,11 @@ class ApplyOp(IRDLOperation):
                 accesses.append(offsets)
             yield stencil.AccessPattern(tuple(accesses))
 
+    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        self.coeffs = builtin.ArrayAttr(
+            list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
+        )
+
 
 @irdl_op_definition
 class AccessOp(IRDLOperation):
@@ -434,7 +461,7 @@ class AccessOp(IRDLOperation):
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
-    traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
+    traits = traits_def(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
     def __init__(
         self,
@@ -613,7 +640,7 @@ class AccessOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "csl_stencil.yield"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ApplyOp), Pure()]))
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ApplyOp), Pure()))
 
 
 CSL_STENCIL = Dialect(
@@ -626,5 +653,6 @@ CSL_STENCIL = Dialect(
     ],
     [
         ExchangeDeclarationAttr,
+        CoeffAttr,
     ],
 )

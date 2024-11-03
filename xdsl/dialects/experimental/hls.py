@@ -18,6 +18,7 @@ from xdsl.irdl import (
     opt_attr_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import IsTerminator
@@ -28,7 +29,7 @@ class HLSYield(IRDLOperation):
     name = "hls.yield"
     arguments = var_operand_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> HLSYield:
