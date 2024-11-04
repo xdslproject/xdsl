@@ -14,21 +14,31 @@ class ArgNamesToArgAttrsPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         arg_attrs = list(op.arg_attrs or (len(op.args) * [DictionaryAttr({})]))
-        new_arg_attrs: list[DictionaryAttr] = []
-        for arg, arg_attr in zip(op.args, arg_attrs):
-            if arg.name_hint:
-                d_attr = DictionaryAttr(
-                    {"llvm.name": StringAttr(arg.name_hint), **arg_attr.data}
-                )
-            else:
-                d_attr = arg_attr
-            new_arg_attrs.append(d_attr)
 
-        op.arg_attrs = ArrayAttr(new_arg_attrs)
-        rewriter.has_done_action = True
+        new_arg_attrs = ArrayAttr(
+            DictionaryAttr(
+                {"llvm.name": StringAttr(arg.name_hint), **arg_attr.data}
+                if arg.name_hint
+                else arg_attr.data
+            )
+            for arg, arg_attr in zip(op.args, arg_attrs)
+        )
+
+        if new_arg_attrs != op.arg_attrs:
+            op.arg_attrs = new_arg_attrs
+            rewriter.has_done_action = True
 
 
 class FunctionPersistArgNames(ModulePass):
+    """
+    Persists func.func arg name hints to arg_attrs.
+
+    Such that, for instance
+        `func.func @my_func(%arg_name : i32) -> ...`
+    becomes
+        `func.func @my_func(%arg_name : i32 {"llvm.name" = "arg_name"}) -> ...
+    """
+
     name = "function-persist-arg-names"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
