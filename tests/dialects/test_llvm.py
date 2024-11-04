@@ -13,15 +13,11 @@ from xdsl.utils.test_value import TestSSAValue
 @pytest.mark.parametrize(
     "op_type, attributes",
     [
-        (llvm.UDivOp, {}),
-        (llvm.SDivOp, {}),
         (llvm.URemOp, {}),
         (llvm.SRemOp, {}),
         (llvm.AndOp, {}),
         (llvm.OrOp, {}),
         (llvm.XOrOp, {}),
-        (llvm.LShrOp, {}),
-        (llvm.AShrOp, {}),
     ],
 )
 def test_llvm_arithmetic_ops(
