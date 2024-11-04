@@ -138,7 +138,8 @@ class InputApp(App[None]):
     """DataTable displaying the operation names and counts of the input text area."""
     diff_operation_count_datatable: DataTable[str | int]
     """
-    DataTable displaying the diff of operation names and counts of the input and     text areas.
+    DataTable displaying the diff of operation names and counts of the input and output
+    text areas.
     """
 
     pre_loaded_input_text: str
