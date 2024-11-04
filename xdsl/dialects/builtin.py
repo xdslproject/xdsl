@@ -637,7 +637,7 @@ class FloatData(Data[float]):
         )
 
     def __hash__(self):
-        return super().__hash__()
+        return hash(self.data)
 
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
