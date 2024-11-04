@@ -22,8 +22,8 @@ from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
-    individual_rewrite,
     get_all_passes,
+    individual_rewrite,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
