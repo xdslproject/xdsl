@@ -154,7 +154,7 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass(frozen=True)
-class ConvertMemrefToPtr(ModulePass):
+class ConvertMemrefToPtrPass(ModulePass):
     name = "convert-memref-to-ptr"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:

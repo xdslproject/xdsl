@@ -239,7 +239,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_memref_to_ptr():
         from xdsl.transforms import convert_memref_to_ptr
 
-        return convert_memref_to_ptr.ConvertMemrefToPtr
+        return convert_memref_to_ptr.ConvertMemrefToPtrPass
 
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
