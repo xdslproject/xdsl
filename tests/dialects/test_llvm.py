@@ -69,7 +69,7 @@ def test_llvm_exact_arithmetic_ops(
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
     assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(
-        op_type(lhs=op1, rhs=op2, attributes=attributes, exact=exact)
+        op_type(lhs=op1, rhs=op2, attributes=attributes, isExact=exact)
     )
 
 

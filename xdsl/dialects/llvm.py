@@ -483,7 +483,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     res = result_def(T)
-    exact = opt_prop_def(BoolAttr)
+    isExact = opt_prop_def(BoolAttr)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -492,14 +492,14 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         lhs: SSAValue,
         rhs: SSAValue,
         attributes: dict[str, Attribute] = {},
-        exact: BoolAttr = IntegerAttr(0, i1),
+        isExact: BoolAttr = IntegerAttr(0, i1),
     ):
         super().__init__(
             operands=[lhs, rhs],
             attributes=attributes,
             result_types=[lhs.type],
             properties={
-                "isExact": exact,
+                "isExact": isExact,
             },
         )
 
@@ -510,7 +510,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         return IntegerAttr(0, i1)
 
     def print_exact(self, printer: Printer) -> None:
-        if self.exact and self.exact.value.data:
+        if self.isExact and self.isExact.value.data:
             printer.print(" exact ")
 
     @classmethod
