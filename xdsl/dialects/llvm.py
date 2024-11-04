@@ -483,7 +483,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     res = result_def(T)
-    isExact = opt_prop_def(BoolAttr)
+    is_exact = opt_prop_def(BoolAttr, prop_name="isExact")
 
     traits = traits_def(NoMemoryEffect())
 
