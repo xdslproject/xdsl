@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
@@ -102,73 +102,16 @@ LINALG_SNITCH_OPTIMIZATION_PASSES: tuple[ModulePass, ...] = (
     memref_streamify.MemrefStreamifyPass(),
 )
 
-MAX_OPT_LEVEL = len(LINALG_SNITCH_OPTIMIZATION_PASSES)
-
-
-def get_excluded_passes(
-    optimization_level: int = MAX_OPT_LEVEL,
-) -> tuple[ModulePass, ...]:
-    """
-    This function determines which optimization passes should be excluded from the
-    lowering pipeline based on the specified optimization level. A higher optimization
-    level includes more passes.
-
-    Args:
-        optimization_level (int): The desired optimization level, ranging from 0 to
-            4 (inclusive). Defaults to 4.
-
-    Returns:
-        tuple[ModulePass, ...]: A tuple containing the ModulePass objects to be excluded
-        from the lowering pipeline.
-    """
-
-    if optimization_level == MAX_OPT_LEVEL:
-        return ()
-
-    return (
-        LINALG_SNITCH_OPTIMIZATION_PASSES[:-optimization_level]
-        if optimization_level
-        else LINALG_SNITCH_OPTIMIZATION_PASSES
-    )
-
-
-def get_passes(optimization_level: int = MAX_OPT_LEVEL) -> tuple[ModulePass, ...]:
-    """
-    This function returns a tuple of ModulePass objects to be applied in the lowering
-    pipeline, based on the specified optimization level.
-
-    Args:
-        optimization_level (int): The desired optimization level, ranging from 0 to
-            4 (inclusive). Defaults to 4.
-
-    Returns:
-        tuple[ModulePass, ...]: A tuple containing the ModulePass objects to be applied
-        in the lowering pipeline.
-    """
-
-    excluded_passes = get_excluded_passes(optimization_level)
-    return tuple(
-        p for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES if p not in excluded_passes
-    )
-
 
 @dataclass(frozen=True)
 class TestLowerLinalgToSnitchPass(ModulePass):
     """
     A compiler pass used for testing lowering microkernels from linalg generic to snitch
     assembly.
-
-    Args:
-        optimization_level (int): The desired optimization level, ranging from 0 to
-            4 (inclusive). Defaults to 4.
     """
 
     name = "test-lower-linalg-to-snitch"
 
-    optimization_level: int = field(default=MAX_OPT_LEVEL)
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        passes = get_passes(self.optimization_level)
-
-        for p in passes:
+        for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES:
             p.apply(ctx, op)

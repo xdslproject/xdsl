@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
 
-from xdsl.dialects.builtin import ArrayAttr, IntAttr
+from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.ir import ParametrizedAttribute, Region, TypeAttribute
 from xdsl.irdl import (
@@ -63,26 +63,33 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
 
     name = "stim.qubit_coord"
 
-    coords: ParameterDef[ArrayAttr[IntAttr]]
+    coords: ParameterDef[ArrayAttr[FloatData | IntAttr]]
     qubit_name: ParameterDef[QubitAttr]
 
     def __init__(
-        self, coords: list[int] | ArrayAttr[IntAttr], qubit_name: int | QubitAttr
+        self,
+        coords: list[float] | ArrayAttr[FloatData | IntAttr],
+        qubit_name: int | QubitAttr,
     ) -> None:
         if not isinstance(qubit_name, QubitAttr):
             qubit_name = QubitAttr(qubit_name)
         if not isinstance(coords, ArrayAttr):
-            coords = ArrayAttr(IntAttr(c) for c in coords)
+            coords = ArrayAttr(
+                (IntAttr(int(arg))) if (type(arg) is int) else (FloatData(arg))
+                for arg in coords
+            )
         super().__init__(parameters=[coords, qubit_name])
 
     @classmethod
     def parse_parameters(
         cls, parser: AttrParser
-    ) -> tuple[ArrayAttr[IntAttr], QubitAttr]:
+    ) -> tuple[ArrayAttr[FloatData | IntAttr], QubitAttr]:
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
             delimiter=parser.Delimiter.PAREN,
-            parse=lambda: IntAttr(parser.parse_integer(allow_boolean=False)),
+            parse=lambda: IntAttr(x)
+            if type(x := parser.parse_number(allow_boolean=False)) is int
+            else FloatData(x),
         )
         parser.parse_punctuation(",")
         qubit = parser.parse_attribute()
@@ -128,9 +135,8 @@ class StimCircuitOp(StimPrintable, IRDLOperation):
 
     def print_stim(self, printer: StimPrinter):
         for op in self.body.block.ops:
-            if not isinstance(op, StimPrintable):
-                raise ValueError(f"Cannot print in stim format: {op}")
-            op.print_stim(printer)
+            printer.print_op(op)
+            printer.print_string("\n")
         printer.print_string("")
 
     def stim(self) -> str:
