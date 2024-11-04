@@ -7,7 +7,6 @@ from xdsl.dialects.arith import (
     Addi,
     AddUIExtended,
     AndI,
-    BinaryOperation,
     CeilDivSI,
     CeilDivUI,
     Cmpf,
@@ -20,7 +19,7 @@ from xdsl.dialects.arith import (
     ExtSIOp,
     ExtUIOp,
     FastMathFlagsAttr,
-    FloatingPointLikeBinaryOp,
+    FloatingPointLikeBinaryOperation,
     FloorDivSI,
     FPToSIOp,
     IndexCastOp,
@@ -41,6 +40,7 @@ from xdsl.dialects.arith import (
     ShLI,
     ShRSI,
     ShRUI,
+    SignlessIntegerBinaryOperation,
     SIToFPOp,
     Subf,
     Subi,
@@ -63,8 +63,9 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
+from xdsl.irdl import base
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 from xdsl.utils.test_value import TestSSAValue
 
 _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
@@ -102,7 +103,7 @@ class Test_integer_arith_construction:
     @pytest.mark.parametrize("return_type", [None, operand_type])
     def test_arith_ops_init(
         self,
-        OpClass: type[BinaryOperation[_BinOpArgT]],
+        OpClass: type[SignlessIntegerBinaryOperation],
         return_type: Attribute,
     ):
         op = OpClass(self.a, self.b)
@@ -164,7 +165,10 @@ def test_addui_extend(
         if sum_type:
             assert op.sum.type == sum_type
         assert op.overflow.type == AddUIExtended.infer_overflow_type(lhs_type)
-        if isa(container_type := op.overflow.type, AnyVectorType | AnyTensorType):
+        if isattr(
+            container_type := op.overflow.type,
+            base(AnyVectorType) | base(AnyTensorType),
+        ):
             assert container_type.element_type == i1
         else:
             assert op.overflow.type == i1
@@ -206,7 +210,9 @@ class Test_float_arith_construction:
         "flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None]
     )
     def test_arith_ops(
-        self, func: type[FloatingPointLikeBinaryOp], flags: FastMathFlagsAttr | None
+        self,
+        func: type[FloatingPointLikeBinaryOperation],
+        flags: FastMathFlagsAttr | None,
     ):
         op = func(self.a, self.b, flags)
         assert op.operands[0].owner is self.a

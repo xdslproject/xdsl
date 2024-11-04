@@ -3,8 +3,8 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.get_register : () -> !riscv.reg
-    %1 = riscv.get_register : () -> !riscv.reg
+    %0 = riscv.get_register : !riscv.reg
+    %1 = riscv.get_register : !riscv.reg
     // RV32I/RV64I: 2.4 Integer Computational Instructions
 
     // Integer Register-Immediate Instructions
@@ -173,8 +173,8 @@
 
     // Assembler pseudo-instructions
 
-    %li = riscv.li 1 : () -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.li 1 : () -> !riscv.reg
+    %li = riscv.li 1 : !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: riscv.ecall
@@ -185,17 +185,17 @@
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
     riscv.assembly_section ".text" attributes {"foo" = i32} {
-      %nested_li = riscv.li 1 : () -> !riscv.reg
+      %nested_li = riscv.li 1 : !riscv.reg
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" attributes {"foo" = i32} {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg
+    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
     // CHECK-NEXT:  }
 
     riscv.assembly_section ".text" {
-      %nested_li = riscv.li 1 : () -> !riscv.reg
+      %nested_li = riscv.li 1 : !riscv.reg
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg
+    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
     // CHECK-NEXT:  }
 
     // Custom instruction
@@ -203,12 +203,12 @@
     // CHECK-NEXT:   %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
-    %f0 = riscv.get_float_register : () -> !riscv.freg
-    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg
-    %f1 = riscv.get_float_register : () -> !riscv.freg
-    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg
-    %f2 = riscv.get_float_register : () -> !riscv.freg
-    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg
+    %f0 = riscv.get_float_register : !riscv.freg
+    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : !riscv.freg
+    %f1 = riscv.get_float_register : !riscv.freg
+    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : !riscv.freg
+    %f2 = riscv.get_float_register : !riscv.freg
+    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : !riscv.freg
 
     %fmv = riscv.fmv.s %f0 : (!riscv.freg) -> !riscv.freg
     // CHECK-NEXT: %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg
@@ -273,6 +273,12 @@
     // CHECK-NEXT: %{{.*}} = riscv.flt.s %{{.*}}, %{{.*}} : (!riscv.freg, !riscv.freg) -> !riscv.reg
     %fle_s = riscv.fle.s %f0, %f1 : (!riscv.freg, !riscv.freg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.fle.s %{{.*}}, %{{.*}} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    %feq_s_fm = riscv.feq.s %f0, %f1 fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.feq.s %{{.*}}, %{{.*}} fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    %flt_s_fm = riscv.flt.s %f0, %f1 fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.flt.s %{{.*}}, %{{.*}} fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    %fle_s_fm = riscv.fle.s %f0, %f1 fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.fle.s %{{.*}}, %{{.*}} fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.reg
     %fclass_s = riscv.fclass.s %f0 : (!riscv.freg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.fclass.s %{{.*}} : (!riscv.freg) -> !riscv.reg
     %fcvt_s_w = riscv.fcvt.s.w %0 : (!riscv.reg) -> !riscv.freg
@@ -457,9 +463,12 @@
 // CHECK-GENERIC-NEXT:     %fcvt_w_s = "riscv.fcvt.w.s"(%f0) : (!riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %fcvt_wu_s = "riscv.fcvt.wu.s"(%f0) : (!riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %fmv_x_w = "riscv.fmv.x.w"(%f0) : (!riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:     %feq_s = "riscv.feq.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:     %flt_s = "riscv.flt.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:     %fle_s = "riscv.fle.s"(%f0, %f1) : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %feq_s = "riscv.feq.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %flt_s = "riscv.flt.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %fle_s = "riscv.fle.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %feq_s_fm = "riscv.feq.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %flt_s_fm = "riscv.flt.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %fle_s_fm = "riscv.fle.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %fclass_s = "riscv.fclass.s"(%f0) : (!riscv.freg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:     %fcvt_s_w = "riscv.fcvt.s.w"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:     %fcvt_s_wu = "riscv.fcvt.s.wu"(%0) : (!riscv.reg) -> !riscv.freg

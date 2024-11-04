@@ -13,20 +13,20 @@ func.func @basic() -> i32 {
                    // compare the value to the constant we want to specialize for
 // CHECK-NEXT:     %0 = arith.constant 0 : i64
 // CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
-// CHECK-NEXT:     %2 = "scf.if"(%1) ({
+// CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
                      // if they are equal, branch to specialized function
 // CHECK-NEXT:       %3 = func.call @basic_pinned() : () -> i32
 // CHECK-NEXT:       scf.yield %3 : i32
-// CHECK-NEXT:     }, {
+// CHECK-NEXT:     } else {
 // CHECK-NEXT:       scf.yield %v : i32
-// CHECK-NEXT:     }) : (i1) -> i32
+// CHECK-NEXT:     }
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
                  // specialized function here
 // CHECK-NEXT:   func.func @basic_pinned() -> i32 {
                    // original op is replaced by constant instantiation
-// CHECK-NEXT:     %0 = arith.constant 0 : i64
-// CHECK-NEXT:     func.return %0 : i32
+// CHECK-NEXT:     %v = arith.constant 0 : i64
+// CHECK-NEXT:     func.return %v : i32
 // CHECK-NEXT:   }
 
 
@@ -35,12 +35,11 @@ func.func @control_flow() {
 
     %cond = "test.op"() {"pin_to_constants"= [true]} : () -> i1
 
-    "scf.if"(%cond) ({
+    scf.if %cond {
         "test.op"() {"inside_if"} : () -> ()
-        scf.yield
-    }, {
-        scf.yield
-    }) : (i1) -> ()
+    } else {
+      scf.yield
+    }
 
     "test.op"() {"after_op"} : () -> ()
 
@@ -52,34 +51,28 @@ func.func @control_flow() {
 // CHECK-NEXT:      %cond = "test.op"() : () -> i1
 // CHECK-NEXT:      %0 = arith.constant true
 // CHECK-NEXT:      %1 = arith.cmpi eq, %cond, %0 : i1
-// CHECK-NEXT:      "scf.if"(%1) ({
+// CHECK-NEXT:      scf.if %1 {
 // CHECK-NEXT:        func.call @control_flow_pinned() : () -> ()
-// CHECK-NEXT:        scf.yield
-// CHECK-NEXT:      }, {
+// CHECK-NEXT:      } else {
                       // inline the rest of the function inside the else statement of the specialization block
                       // (there is no early return in MLIR)
-// CHECK-NEXT:        "scf.if"(%cond) ({
+// CHECK-NEXT:        scf.if %cond {
 // CHECK-NEXT:          "test.op"() {"inside_if"} : () -> ()
-// CHECK-NEXT:          scf.yield
-// CHECK-NEXT:        }, {
-// CHECK-NEXT:          scf.yield
-// CHECK-NEXT:        }) : (i1) -> ()
+// CHECK-NEXT:        } else {
+// CHECK-NEXT:        }
 // CHECK-NEXT:        "test.op"() {"after_op"} : () -> ()
-// CHECK-NEXT:        scf.yield
-// CHECK-NEXT:      }) : (i1) -> ()
+// CHECK-NEXT:      }
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
                   // specialized function does not contain operations that happen before the specialized function
                   // is called ("test.op"() {"before_op"})
 // CHECK-NEXT:    func.func @control_flow_pinned() {
-// CHECK-NEXT:      %0 = arith.constant true
+// CHECK-NEXT:      %cond = arith.constant true
                     // this scf.if can be constant folded by MLIR later on (not done as part of this pass)
-// CHECK-NEXT:      "scf.if"(%0) ({
+// CHECK-NEXT:      scf.if %cond {
 // CHECK-NEXT:        "test.op"() {"inside_if"} : () -> ()
-// CHECK-NEXT:        scf.yield
-// CHECK-NEXT:      }, {
-// CHECK-NEXT:        scf.yield
-// CHECK-NEXT:      }) : (i1) -> ()
+// CHECK-NEXT:      } else {
+// CHECK-NEXT:      }
 // CHECK-NEXT:      "test.op"() {"after_op"} : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
@@ -98,22 +91,22 @@ func.func @function_args(%arg0: memref<100xf32>) -> i32 {
 // CHECK-NEXT:     %v = "test.op"() : () -> i32
 // CHECK-NEXT:     %0 = arith.constant 0 : i64
 // CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
-// CHECK-NEXT:     %2 = "scf.if"(%1) ({
+// CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
                      // make sure that we forward function args to the specialized function
                      // and weave return values through the generated if/else
 // CHECK-NEXT:       %3 = func.call @function_args_pinned(%arg0) : (memref<100xf32>) -> i32
 // CHECK-NEXT:       scf.yield %3 : i32
-// CHECK-NEXT:     }, {
+// CHECK-NEXT:     } else {
 // CHECK-NEXT:       "test.op"(%v, %arg0) : (i32, memref<100xf32>) -> ()
 // CHECK-NEXT:       scf.yield %v : i32
-// CHECK-NEXT:     }) : (i1) -> i32
+// CHECK-NEXT:     }
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
-// CHECK-NEXT:   func.func @function_args_pinned(%0 : memref<100xf32>) -> i32 {
-// CHECK-NEXT:     %1 = arith.constant 0 : i64
+// CHECK-NEXT:   func.func @function_args_pinned(%arg0 : memref<100xf32>) -> i32 {
+// CHECK-NEXT:     %v = arith.constant 0 : i64
                    // here the function arg is used
-// CHECK-NEXT:     "test.op"(%1, %0) : (i32, memref<100xf32>) -> ()
-// CHECK-NEXT:     func.return %1 : i32
+// CHECK-NEXT:     "test.op"(%v, %arg0) : (i32, memref<100xf32>) -> ()
+// CHECK-NEXT:     func.return %v : i32
 // CHECK-NEXT:   }
 
 
@@ -122,12 +115,11 @@ func.func @function_args(%arg0: memref<100xf32>) -> i32 {
 func.func @control_flow_and_function_args(%arg: i32) -> i32 {
     %cond = "test.op"() {"pin_to_constants"= [true]} : () -> i1
 
-    "scf.if"(%cond) ({
+    scf.if %cond {
         "test.op"() {"inside_if"} : () -> ()
+    } else {
         scf.yield
-    }, {
-        scf.yield
-    }) : (i1) -> ()
+    }
 
     %rval = "test.op"(%arg) {"after_op"} : (i32) -> i32
 
@@ -138,31 +130,27 @@ func.func @control_flow_and_function_args(%arg: i32) -> i32 {
 // CHECK-NEXT:     %cond = "test.op"() : () -> i1
 // CHECK-NEXT:     %0 = arith.constant true
 // CHECK-NEXT:     %1 = arith.cmpi eq, %cond, %0 : i1
-// CHECK-NEXT:     %2 = "scf.if"(%1) ({
+// CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
 // CHECK-NEXT:       %3 = func.call @control_flow_and_function_args_pinned(%arg) : (i32) -> i32
 // CHECK-NEXT:       scf.yield %3 : i32
-// CHECK-NEXT:     }, {
-// CHECK-NEXT:       "scf.if"(%cond) ({
+// CHECK-NEXT:     } else {
+// CHECK-NEXT:       scf.if %cond {
 // CHECK-NEXT:         "test.op"() {"inside_if"} : () -> ()
-// CHECK-NEXT:         scf.yield
-// CHECK-NEXT:       }, {
-// CHECK-NEXT:         scf.yield
-// CHECK-NEXT:       }) : (i1) -> ()
+// CHECK-NEXT:       } else {
+// CHECK-NEXT:       }
 // CHECK-NEXT:       %rval = "test.op"(%arg) {"after_op"} : (i32) -> i32
 // CHECK-NEXT:       scf.yield %rval : i32
-// CHECK-NEXT:     }) : (i1) -> i32
+// CHECK-NEXT:     }
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
-// CHECK-NEXT:   func.func @control_flow_and_function_args_pinned(%0 : i32) -> i32 {
-// CHECK-NEXT:     %1 = arith.constant true
-// CHECK-NEXT:     "scf.if"(%1) ({
+// CHECK-NEXT:   func.func @control_flow_and_function_args_pinned(%arg : i32) -> i32 {
+// CHECK-NEXT:     %cond = arith.constant true
+// CHECK-NEXT:     scf.if %cond {
 // CHECK-NEXT:       "test.op"() {"inside_if"} : () -> ()
-// CHECK-NEXT:       scf.yield
-// CHECK-NEXT:     }, {
-// CHECK-NEXT:       scf.yield
-// CHECK-NEXT:     }) : (i1) -> ()
-// CHECK-NEXT:     %2 = "test.op"(%0) {"after_op"} : (i32) -> i32
-// CHECK-NEXT:     func.return %2 : i32
+// CHECK-NEXT:     } else {
+// CHECK-NEXT:     }
+// CHECK-NEXT:     %rval = "test.op"(%arg) {"after_op"} : (i32) -> i32
+// CHECK-NEXT:     func.return %rval : i32
 // CHECK-NEXT:   }
 
 
@@ -178,37 +166,40 @@ func.func @specialize_multi_case() -> i32 {
 // CHECK-NEXT:     %v = "test.op"() : () -> i32
 // CHECK-NEXT:     %0 = arith.constant 0 : i64
 // CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
-// CHECK-NEXT:     %2 = "scf.if"(%1) ({
+// CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
 // CHECK-NEXT:       %3 = func.call @specialize_multi_case_pinned_1() : () -> i32
 // CHECK-NEXT:       scf.yield %3 : i32
-// CHECK-NEXT:     }, {
+// CHECK-NEXT:     } else {
 // CHECK-NEXT:       %4 = arith.constant 1 : i64
 // CHECK-NEXT:       %5 = arith.cmpi eq, %v, %4 : i32
-// CHECK-NEXT:       %6 = "scf.if"(%5) ({
+// CHECK-NEXT:       %6 = scf.if %5 -> (i32) {
 // CHECK-NEXT:         %7 = func.call @specialize_multi_case_pinned() : () -> i32
 // CHECK-NEXT:         scf.yield %7 : i32
-// CHECK-NEXT:       }, {
+// CHECK-NEXT:       } else {
 // CHECK-NEXT:         scf.yield %v : i32
-// CHECK-NEXT:       }) : (i1) -> i32
+// CHECK-NEXT:       }
 // CHECK-NEXT:       scf.yield %6 : i32
-// CHECK-NEXT:     }) : (i1) -> i32
+// CHECK-NEXT:     }
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   func.func @specialize_multi_case_pinned_1() -> i32 {
                    // this function still carries the old specialization check within it, but MLIR can see that
                    // the branch is never taken, so it's completely removed.
-// CHECK-NEXT:     %0 = arith.constant 0 : i64
-// CHECK-NEXT:     %1 = arith.constant 1 : i64
-// CHECK-NEXT:     %2 = arith.cmpi eq, %0, %1 : i32
-// CHECK-NEXT:     %3 = "scf.if"(%2) ({
-// CHECK-NEXT:       %4 = func.call @specialize_multi_case_pinned() : () -> i32
-// CHECK-NEXT:       scf.yield %4 : i32
-// CHECK-NEXT:     }, {
-// CHECK-NEXT:       scf.yield %0 : i32
-// CHECK-NEXT:     }) : (i1) -> i32
-// CHECK-NEXT:     func.return %3 : i32
+// CHECK-NEXT:     %v = arith.constant 0 : i64
+// CHECK-NEXT:     %0 = arith.constant 1 : i64
+// CHECK-NEXT:     %1 = arith.cmpi eq, %v, %0 : i32
+// CHECK-NEXT:     %2 = scf.if %1 -> (i32) {
+// CHECK-NEXT:       %3 = func.call @specialize_multi_case_pinned() : () -> i32
+// CHECK-NEXT:       scf.yield %3 : i32
+// CHECK-NEXT:     } else {
+// CHECK-NEXT:       scf.yield %v : i32
+// CHECK-NEXT:     }
+// CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   func.func @specialize_multi_case_pinned() -> i32 {
-// CHECK-NEXT:     %0 = arith.constant 1 : i64
-// CHECK-NEXT:     func.return %0 : i32
+// CHECK-NEXT:     %v = arith.constant 1 : i64
+// CHECK-NEXT:     func.return %v : i32
 // CHECK-NEXT:   }
+
+func.func private @external_test(i32, i64, memref<?xf64>) -> f64
+// CHECK-NEXT: func.func private @external_test(i32, i64, memref<?xf64>) -> f64

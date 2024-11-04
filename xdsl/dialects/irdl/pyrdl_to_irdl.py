@@ -8,8 +8,8 @@ from xdsl.dialects.irdl.irdl import (
     ParametersOp,
     ResultsOp,
 )
-from xdsl.ir import Block, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import AttrConstraint, IRDLOperation, RangeConstraint
+from xdsl.ir import Attribute, Block, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.irdl import AttrConstraint, GenericRangeConstraint, IRDLOperation
 
 
 def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue:
@@ -21,7 +21,9 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     return any_op.output
 
 
-def range_to_irdl(builder: Builder, constraint: RangeConstraint) -> SSAValue:
+def range_to_irdl(
+    builder: Builder, constraint: GenericRangeConstraint[Attribute]
+) -> SSAValue:
     """
     Convert a range constraint to IRDL.
     This will create new operations at the provided builder location.
@@ -51,7 +53,7 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     if result_values:
         builder.insert(ResultsOp(result_values))
 
-    return OperationOp(op_def.name, Region([block]))
+    return OperationOp(Dialect.split_name(op_def.name)[1], Region([block]))
 
 
 def attr_def_to_irdl(
@@ -69,7 +71,7 @@ def attr_def_to_irdl(
         param_values.append(constraint_to_irdl(builder, param[1]))
     builder.insert(ParametersOp(param_values))
 
-    return AttributeOp(attr_def.name, Region([block]))
+    return AttributeOp(Dialect.split_name(attr_def.name)[1], Region([block]))
 
 
 def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:

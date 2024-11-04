@@ -1,7 +1,7 @@
 // RUN: XDSL_ROUNDTRIP
 
 builtin.module attributes {"gpu.container_module"} {
-    "gpu.module"() ({
+    "gpu.module"() <{"sym_name" = "gpu"}> ({
         func.func @kernel() {
             %n = arith.constant {"proc" = #gpu<processor thread_x>} 13 : index
             %one = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
@@ -67,7 +67,7 @@ builtin.module attributes {"gpu.container_module"} {
                 }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
                 %final = arith.muli %sum, %one : index
                 "gpu.terminator"() : () -> ()
-            }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+            }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
             "gpu.launch_func"(%n, %n, %n, %n, %n, %n, %dev, %n) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0>, "kernel" = @gpu::@foo} : (index, index, index, index, index, index, i32, index) -> ()
 
             func.return
@@ -77,11 +77,11 @@ builtin.module attributes {"gpu.container_module"} {
             "gpu.return"() : () -> ()
         }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> (), "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>} : () -> ()
         "gpu.module_end"() : () -> ()
-    }) {"sym_name" = "gpu"} : () -> ()
+    }) : () -> ()
 }
 
 // CHECK:      builtin.module attributes {"gpu.container_module"} {
-// CHECK-NEXT:     "gpu.module"() ({
+// CHECK-NEXT:     "gpu.module"() <{"sym_name" = "gpu"}> ({
 // CHECK-NEXT:         func.func @kernel() {
 // CHECK-NEXT:             %{{.*}} = arith.constant {"proc" = #gpu<processor thread_x>} 13 : index
 // CHECK-NEXT:             %{{.*}} = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
@@ -138,11 +138,11 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:             }) : (index) -> index
 
-// CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>}> ({
-// CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+// CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:             ^{{\S+}}(%{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:                 }) : (index) -> index
 // CHECK-NEXT:                 %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
@@ -157,6 +157,6 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:             "gpu.return"() : () -> ()
 // CHECK-NEXT:         }) {"sym_name" = "foo", "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>} : () -> ()
 // CHECK-NEXT:          "gpu.module_end"() : () -> ()
-// CHECK-NEXT:     }) {"sym_name" = "gpu"} : () -> ()
+// CHECK-NEXT:     }) : () -> ()
 
 // CHECK-NEXT: }

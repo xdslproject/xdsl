@@ -16,8 +16,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
-    VarRegion,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -183,31 +181,74 @@ def test_op_operands_comparison():
 
 
 def test_op_clone():
-    a = TestWithPropOp.create(properties={"prop": i32}, attributes={"attr": i64})
+    a = TestWithPropOp.create(
+        properties={"prop": i32}, attributes={"attr": i64}, result_types=(i32,)
+    )
+    a.results[0].name_hint = "name_hint"
     b = a.clone()
 
     assert a is not b
-
     assert a.is_structurally_equivalent(b)
+
+    # Name hints
+
+    c = a.clone(clone_name_hints=True)
+    d = a.clone(clone_name_hints=False)
+    assert a is not c
+    assert a is not d
+
+    assert a.is_structurally_equivalent(c)
+    assert a.is_structurally_equivalent(d)
+
+    assert b.results[0].name_hint == "name_hint"
+    assert c.results[0].name_hint == "name_hint"
+    assert d.results[0].name_hint is None
 
 
 def test_op_clone_with_regions():
-    a = test.TestOp.create()
-    op0 = test.TestOp.create(
-        regions=[Region([Block([a])]), Region([Block([a.clone()])])]
+    # Children
+    ca0 = test.TestOp.create(result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    # Parent
+    pa = test.TestOp.create(
+        regions=[
+            Region([Block([ca0], arg_types=(i32,))]),
+            Region([Block([ca1], arg_types=(i32,))]),
+        ]
     )
+    pa.regions[0].block.args[0].name_hint = "ca0"
+    pa.regions[1].block.args[0].name_hint = "ca1"
 
-    cloned_op = op0.clone()
+    pb = pa.clone()
+    assert pa is not pb
 
-    assert cloned_op is not op0
-    assert len(cloned_op.regions[0].ops) == 1
-    assert len(cloned_op.regions[1].ops) == 1
+    assert len(pb.regions[0].ops) == 1
+    assert len(pb.regions[1].ops) == 1
 
-    for op0_region, cloned_op_region in zip(op0.regions, cloned_op.regions):
+    for op0_region, cloned_op_region in zip(pa.regions, pb.regions):
         for op0_region_op, cloned_region_op in zip(
             op0_region.ops, cloned_op_region.ops
         ):
             assert op0_region_op is not cloned_region_op
+
+    pc = pa.clone(clone_name_hints=True)
+    pd = pa.clone(clone_name_hints=False)
+
+    def name_hints(op: Operation):
+        for o in op.walk():
+            for res in o.results:
+                yield res.name_hint
+            for r in o.regions:
+                for b in r.blocks:
+                    for arg in b.args:
+                        yield arg.name_hint
+
+    assert tuple(name_hints(pa)) == ("ca0", "ca1", "a", "b")
+    assert tuple(name_hints(pb)) == ("ca0", "ca1", "a", "b")
+    assert tuple(name_hints(pc)) == ("ca0", "ca1", "a", "b")
+    assert tuple(name_hints(pd)) == (None, None, None, None)
 
 
 def test_block_branching_to_another_region_wrong():
@@ -445,8 +486,8 @@ def test_split_block_args():
 
     new_block = old_block.split_before(op, arg_types=(i32, i64))
 
-    arg_types = [a.type for a in new_block.args]
-    assert arg_types == [i32, i64]
+    arg_types = new_block.arg_types
+    assert arg_types == (i32, i64)
 
 
 def test_region_clone_into_circular_blocks():
@@ -787,7 +828,7 @@ ModuleOp(
 @irdl_op_definition
 class CustomOpWithMultipleRegions(IRDLOperation):
     name = "test.custom_op_with_multiple_regions"
-    region: VarRegion = var_region_def()
+    region = var_region_def()
 
 
 def test_region_index_fetch():
@@ -846,7 +887,7 @@ def test_detach_region():
 @irdl_op_definition
 class CustomVerify(IRDLOperation):
     name = "test.custom_verify_op"
-    val: Operand = operand_def(i64)
+    val = operand_def(i64)
 
     @staticmethod
     def get(val: SSAValue):
@@ -944,3 +985,17 @@ def test_dialect_name():
         name = "dialect.op"
 
     assert MyOperation.dialect_name() == "dialect"
+
+
+def test_replace_by_if():
+    a = TestSSAValue(i32)
+    b = test.TestOp((a,))
+    c = test.TestOp((a,))
+
+    assert set(u.operation for u in a.uses) == {b, c}
+
+    d = TestSSAValue(i32)
+    a.replace_by_if(d, lambda u: u.operation is not c)
+
+    assert set(u.operation for u in a.uses) == {c}
+    assert set(u.operation for u in d.uses) == {b}

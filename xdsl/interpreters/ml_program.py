@@ -16,7 +16,6 @@ from xdsl.traits import SymbolTable
 
 @register_impls
 class MLProgramFunctions(InterpreterFunctions):
-
     @impl(ml_program.GlobalLoadConstant)
     def run_global_load_constant(
         self,
@@ -34,6 +33,8 @@ class MLProgramFunctions(InterpreterFunctions):
         xtype = xtype_for_el_type(
             global_value.get_element_type(), interpreter.index_bitwidth
         )
-        data = TypedPtr.new([el.value.data for el in global_value.data], xtype=xtype)
+        data = TypedPtr[Any].new(
+            [el.value.data for el in global_value.data], xtype=xtype
+        )
         shaped_array = ShapedArray(data, list(shape))
         return (shaped_array,)

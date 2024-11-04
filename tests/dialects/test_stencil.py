@@ -235,22 +235,6 @@ def test_create_index_attr_from_list_edge_case2():
 
 
 @pytest.mark.parametrize(
-    "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
-)
-def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr.get(*indices1)
-    stencil_index_attr2 = IndexAttr.get(*indices2)
-
-    size_from_bounds = IndexAttr.size_from_bounds(
-        stencil_index_attr1, stencil_index_attr2
-    )
-    expected_list = [abs(idx1 - idx2) for idx1, idx2 in zip(indices1, indices2)]
-
-    assert size_from_bounds == expected_list
-
-
-@pytest.mark.parametrize(
     "indices",
     (([1]), ([1, 2]), ([1, 2, 3])),
 )
@@ -529,27 +513,6 @@ def test_stencil_store():
     assert store.bounds is bounds
 
 
-def test_stencil_store_load_overlap():
-    temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
-
-    field_type = FieldType([(0, 2), (0, 2)], f32)
-    field_type_ssa_val = TestSSAValue(field_type)
-
-    lb = IndexAttr.get(1, 1)
-    ub = IndexAttr.get(64, 64)
-    bounds = StencilBoundsAttr.new((lb, ub))
-
-    load = LoadOp.get(field_type_ssa_val, lb, ub)
-    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, bounds)
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        load.verify()
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        store.verify()
-
-
 def test_stencil_index():
     dim = IntAttr(10)
     offset = IndexAttr.get(1)
@@ -689,6 +652,8 @@ def test_access_patterns():
     assert t1_acc.is_diagonal
 
     assert len(tuple(t1_acc.get_diagonals())) == 2
+    assert t0_acc.max_distance() == 1
+    assert t1_acc.max_distance() == 1
 
 
 # TODO: Move to a notebook at some point with proper documentation
@@ -754,7 +719,7 @@ builtin.module {
       %9 = arith.addf %8, %7 : f32
       stencil.return %9 : f32
     }
-    stencil.store %3 to %1 ([0] : [6]) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
+    stencil.store %3 to %1(<[0], [6]>) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
     func.return
   }
 }

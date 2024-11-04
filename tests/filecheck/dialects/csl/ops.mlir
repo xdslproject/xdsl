@@ -82,6 +82,12 @@ csl.func @initialize() {
     %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
     %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 
+    %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+    %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+
+    %function_ptr = "csl.addressof_fn"() <{fn_name = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+    %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
+
     %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
     %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
     %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
@@ -103,6 +109,15 @@ csl.func @initialize() {
     "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
     // this will fail as expected:
     // "csl.faddh"(%f32_ptr, %f16_val, %dsd_1d3)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+
+
+    %one = "test.op"() : () -> i32
+    %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
+    %variable = "csl.variable"() : () -> !csl.var<i32>
+    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %new_value = arith.addi %value, %one : i32
+    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
 
   csl.return
 }
@@ -290,6 +305,8 @@ csl.func @builtins() {
     "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
     "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
 
+    csl.activate local, 0 : i32
+
     csl.return
 }
 
@@ -370,6 +387,10 @@ csl.func @builtins() {
 // CHECK-NEXT:       %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
 // CHECK-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %function_ptr = "csl.addressof_fn"() <{"fn_name" = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:       %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
@@ -386,6 +407,13 @@ csl.func @builtins() {
 // CHECK-NEXT:       %f16_ptr, %f16_val, %f32_ptr = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-NEXT:       "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-NEXT:       %one = "test.op"() : () -> i32
+// CHECK-NEXT:       %variable_with_default = "csl.variable"() <{"default" = 42 : i32}> : () -> !csl.var<i32>
+// CHECK-NEXT:       %variable = "csl.variable"() : () -> !csl.var<i32>
+// CHECK-NEXT:       %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %new_value = arith.addi %value, %one : i32
+// CHECK-NEXT:       "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+// CHECK-NEXT:       "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @builtins() {
@@ -532,6 +560,7 @@ csl.func @builtins() {
 // CHECK-NEXT:       "csl.xp162fs"(%dest_dsd, %src_dsd1) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
 // CHECK-NEXT:       "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+// CHECK-NEXT:       csl.activate local, 0 : i32
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
@@ -605,6 +634,10 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-GENERIC-NEXT:       %ptrcast = "csl.ptrcast"(%scalar_ptr) : (!csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>) -> !csl.ptr<memref<3xi32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-GENERIC-NEXT:       %ptrcast_many = "csl.ptrcast"(%many_arr_ptr) : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl.ptr<memref<5xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-GENERIC-NEXT:       %function_ptr = "csl.addressof_fn"() <{"fn_name" = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-GENERIC-NEXT:       %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-GENERIC-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
@@ -621,6 +654,13 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %f16_ptr, %f16_val, %f32_ptr = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-GENERIC-NEXT:       "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-GENERIC-NEXT:       "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-GENERIC-NEXT:       %one = "test.op"() : () -> i32
+// CHECK-GENERIC-NEXT:       %variable_with_default = "csl.variable"() <{"default" = 42 : i32}> : () -> !csl.var<i32>
+// CHECK-GENERIC-NEXT:       %variable = "csl.variable"() : () -> !csl.var<i32>
+// CHECK-GENERIC-NEXT:       %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+// CHECK-GENERIC-NEXT:       %new_value = "arith.addi"(%value, %one) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:       "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
+// CHECK-GENERIC-NEXT:       "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.func"() <{"sym_name" = "builtins", "function_type" = () -> ()}> ({
@@ -767,6 +807,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       "csl.xp162fs"(%dest_dsd, %src_dsd1) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-GENERIC-NEXT:       "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
 // CHECK-GENERIC-NEXT:       "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+// CHECK-GENERIC-NEXT:       "csl.activate"() <{"kind" = #csl<task_kind local>, "id" = 0 : i32}> : () -> ()
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>

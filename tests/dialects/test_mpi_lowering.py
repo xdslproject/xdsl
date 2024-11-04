@@ -4,7 +4,6 @@ from xdsl.ir import Attribute, Operation, OpResult
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    VarOpResult,
     irdl_op_definition,
     var_result_def,
 )
@@ -39,7 +38,7 @@ def check_emitted_function_signature(
 @irdl_op_definition
 class CreateTestValsOp(IRDLOperation):
     name = "testing.test"
-    result: VarOpResult = var_result_def()
+    result = var_result_def()
 
     @staticmethod
     def get(*types: Attribute):
@@ -101,7 +100,7 @@ def test_lower_mpi_wait_with_status():
     assert call.callee.string_value() == "MPI_Wait"
     assert len(call.arguments) == 2
     assert isinstance(call.arguments[1], OpResult)
-    assert isinstance(call.arguments[1].op, llvm.AllocaOp)
+    assert isinstance(call.arguments[1].owner, llvm.AllocaOp)
 
 
 def test_lower_mpi_comm_rank():

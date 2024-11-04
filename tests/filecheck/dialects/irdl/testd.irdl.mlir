@@ -133,5 +133,60 @@ builtin.module {
       %2 = irdl.any_of(%0, %1)
       irdl.results(%2, %2)
     }
+
+    // CHECK:      irdl.operation @variadicity {
+    // CHECK-NEXT:   %{{.*}} = irdl.any
+    // CHECK-NEXT:   irdl.operands(%{{.*}}, %{{.*}}, optional %{{.*}}, variadic %{{.*}})
+    // CHECK-NEXT:   irdl.results(%{{.*}}, %{{.*}}, optional %{{.*}}, variadic %{{.*}})
+    // CHECK-NEXT: }
+    irdl.operation @variadicity {
+      %0 = irdl.any
+      irdl.operands(%0, single %0, optional %0, variadic %0)
+      irdl.results(%0, single %0, optional %0, variadic %0)
+    }
+
+    // CHECK:      irdl.operation @op_with_regions {
+    // CHECK-NEXT:    %r0 = irdl.region
+    // CHECK-NEXT:    %r1 = irdl.region()
+    // CHECK-NEXT:    %v0 = irdl.is i32
+    // CHECK-NEXT:    %v1 = irdl.is i64
+    // CHECK-NEXT:    %r2 = irdl.region(%v0, %v1)
+    // CHECK-NEXT:    %r3 = irdl.region with size 3
+    // CHECK-NEXT:    irdl.regions(%r0, %r1, %r2, %r3)
+    // CHECK-NEXT:  }
+    irdl.operation @op_with_regions {
+      %r0 = irdl.region
+      %r1 = irdl.region()
+      %v0 = irdl.is i32
+      %v1 = irdl.is i64
+      %r2 = irdl.region(%v0, %v1)
+      %r3 = irdl.region with size 3
+
+      irdl.regions(%r0, %r1, %r2, %r3)
+    }
+
+    // CHECK:      irdl.operation @attr_op {
+    // CHECK-NEXT:   %[[#first:]] = irdl.any
+    // CHECK-NEXT:   %[[#second:]] = irdl.is i64
+    // CHECK-NEXT:   irdl.attributes {
+    // CHECK-NEXT:     "attr1" = %[[#first]],
+    // CHECK-NEXT:     "attr2" = %[[#second]]
+    // CHECK-NEXT:   }
+    // CHECK-NEXT: }
+    irdl.operation @attr_op {
+      %0 = irdl.any
+      %1 = irdl.is i64
+      irdl.attributes {
+        "attr1" = %0,
+        "attr2" = %1
+      }
+    }
+
+    // CHECK:      irdl.operation @no_attrs {
+    // CHECK-NEXT:   irdl.attributes
+    // CHECK-NEXT: }
+    irdl.operation @no_attrs {
+      irdl.attributes
+    }
   }
 }

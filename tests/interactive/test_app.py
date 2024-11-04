@@ -16,19 +16,18 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
+from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
-from xdsl.transforms import (
-    individual_rewrite,
-)
+from xdsl.transforms import individual_rewrite
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_inputs():
     """Test different inputs produce desired result."""
     async with InputApp().run_test() as pilot:
@@ -94,7 +93,7 @@ async def test_inputs():
         assert app.current_module.is_structurally_equivalent(expected_module)
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_buttons():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
@@ -183,7 +182,7 @@ async def test_buttons():
     riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
       %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
       %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
-      %two = riscv.li 2 : () -> !riscv.reg
+      %two = riscv.li 2 : !riscv.reg
       %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
       %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg
       %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
@@ -197,6 +196,15 @@ async def test_buttons():
 }
 """
         )
+
+        # Test that the current pipeline command is correctly copied
+        def callback(x: str):
+            assert (
+                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
+            )
+
+        _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
+        await pilot.click("#copy_query_button")
 
         current_pipeline = app.pass_pipeline
         # press "Remove Last Pass" button
@@ -275,7 +283,7 @@ async def test_buttons():
         assert app.condense_mode is False
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_rewrites():
     """Test rewrite application has the desired result."""
     async with InputApp().run_test() as pilot:
@@ -342,7 +350,7 @@ async def test_rewrites():
         )
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_passes():
     """Test pass application has the desired result."""
     async with InputApp().run_test() as pilot:
@@ -434,7 +442,7 @@ async def test_passes():
         assert app.current_module.is_structurally_equivalent(expected_module)
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_argument_pass_screen():
     """Test that clicking on a pass that requires passes opens a screen to specify them."""
     async with InputApp().run_test() as pilot:

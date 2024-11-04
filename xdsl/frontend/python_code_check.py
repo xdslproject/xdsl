@@ -177,9 +177,9 @@ class CheckStructure:
                                 f"Block '{inner_stmt.name}' is already defined at line "
                                 f"{line} column {col}.",
                             )
-                        self.functions_and_blocks[stmt.name][1][
-                            inner_stmt.name
-                        ] = inner_stmt
+                        self.functions_and_blocks[stmt.name][1][inner_stmt.name] = (
+                            inner_stmt
+                        )
                 continue
 
             # Otherwise, not a function, pass nor constant expression. Abort.

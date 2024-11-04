@@ -2,18 +2,26 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Annotated, Generic, TypeVar
 
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i1, i32, i64
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    i1,
+    i32,
+    i64,
+)
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
-    Operand,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import NoMemoryEffect
@@ -44,9 +52,9 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
     A base class for snitch runtime functions that get a certain value at runtime
     """
 
-    result: OpResult = result_def(i32)
+    result = result_def(i32)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -59,9 +67,9 @@ class SnitchRuntimeGetInfoBool(SnitchRuntimeBaseOperation, ABC):
     A base class for snitch runtime functions that get a certain value at runtime
     """
 
-    result: OpResult = result_def(i1)
+    result = result_def(i1)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -268,10 +276,10 @@ class GetMemoryInfoBaseOperation(SnitchRuntimeBaseOperation, ABC):
     Generic base class for operations returning memory slices
     """
 
-    slice_begin: OpResult = result_def(slice_t_begin)
-    slice_end: OpResult = result_def(slice_t_end)
+    slice_begin = result_def(slice_t_begin)
+    slice_end = result_def(slice_t_end)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -312,12 +320,12 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     """
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Operand = operand_def(_T)
-    src: Operand = operand_def(_T)
+    dst = operand_def(_T)
+    src = operand_def(_T)
     # Pylance was complaining about the below.
-    # size: Operand = operand_def(Annotated[Attribute, i32])
-    size: Operand = operand_def(i32)
-    transfer_id: OpResult = result_def(tx_id)
+    # size = operand_def(Annotated[Attribute, i32])
+    size = operand_def(i32)
+    transfer_id = result_def(tx_id)
 
     def __init__(
         self,
@@ -334,13 +342,13 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     """
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Operand = operand_def(_T)
-    src: Operand = operand_def(_T)
-    dst_stride: Operand = operand_def(i32)
-    src_stride: Operand = operand_def(i32)
-    size: Operand = operand_def(i32)
-    repeat: Operand = operand_def(i32)
-    transfer_id: OpResult = result_def(tx_id)
+    dst = operand_def(_T)
+    src = operand_def(_T)
+    dst_stride = operand_def(i32)
+    src_stride = operand_def(i32)
+    size = operand_def(i32)
+    repeat = operand_def(i32)
+    transfer_id = result_def(tx_id)
 
     def __init__(
         self,
@@ -358,7 +366,7 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
 
 
 @irdl_op_definition
-class DmaStart1DOp(DmaStart1DBaseOperation[Annotated[Attribute, i32]]):
+class DmaStart1DOp(DmaStart1DBaseOperation[I32]):
     """
     Initiate an asynchronous 1D DMA transfer with 32-bits pointers
     """
@@ -367,7 +375,7 @@ class DmaStart1DOp(DmaStart1DBaseOperation[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart1DWideptrOp(DmaStart1DBaseOperation[Annotated[Attribute, i64]]):
+class DmaStart1DWideptrOp(DmaStart1DBaseOperation[I64]):
     """
     Initiate an asynchronous 1D DMA transfer with 64-bits wide pointers
     """
@@ -376,7 +384,7 @@ class DmaStart1DWideptrOp(DmaStart1DBaseOperation[Annotated[Attribute, i64]]):
 
 
 @irdl_op_definition
-class DmaStart2DOp(DmaStart2DBaseOperation[Annotated[Attribute, i32]]):
+class DmaStart2DOp(DmaStart2DBaseOperation[I32]):
     """
     Initiate an asynchronous 2D DMA transfer with 32-bits pointers
     """
@@ -385,7 +393,7 @@ class DmaStart2DOp(DmaStart2DBaseOperation[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart2DWideptrOp(DmaStart2DBaseOperation[Annotated[Attribute, i64]]):
+class DmaStart2DWideptrOp(DmaStart2DBaseOperation[I64]):
     """
     Initiate an asynchronous 2D DMA transfer with 64-bits wide pointers
     """
@@ -400,7 +408,7 @@ class DmaWaitOp(SnitchRuntimeBaseOperation):
     """
 
     name = "snrt.dma_wait"
-    transfer_id: Operand = operand_def(tx_id)
+    transfer_id = operand_def(tx_id)
 
     def __init__(self, transfer_id: Operation | SSAValue):
         super().__init__(operands=[transfer_id])
@@ -428,9 +436,9 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     }
     """
 
-    data_mover: Operand = operand_def(i32)
-    bounds: VarOperand = var_operand_def(IndexType)
-    strides: VarOperand = var_operand_def(IndexType)
+    data_mover = operand_def(i32)
+    bounds = var_operand_def(IndexType)
+    strides = var_operand_def(IndexType)
     irdl_options = [AttrSizedOperandSegments()]
 
     def verify_(self) -> None:
@@ -516,8 +524,8 @@ class SsrRepeatOp(SnitchRuntimeBaseOperation, ABC):
     """
 
     name = "snrt.ssr_repeat"
-    dm: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
-    count: Operand = operand_def(i32)
+    dm = prop_def(IntegerAttr[IntegerType])
+    count = operand_def(i32)
 
     def __init__(
         self,
@@ -549,9 +557,9 @@ class SsrDisableOp(NoOperandNoResultBaseOperation):
 
 
 class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
-    dm: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
-    dim: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
-    ptr: Operand = operand_def(i32)
+    dm = prop_def(IntegerAttr[IntegerType])
+    dim = prop_def(IntegerAttr[IntegerType])
+    ptr = operand_def(i32)
 
     def __init__(
         self,

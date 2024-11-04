@@ -28,6 +28,14 @@ builtin.module {
 // CHECK-NEXT:    func.return %0 : !llvm.struct<(!llvm.struct<(i32)>)>
 // CHECK-NEXT:  }
 
+  func.func private @nested_struct_to_struct2(%0 : !llvm.struct<(struct<(i32)>)>) -> !llvm.struct<(struct<(i32)>)> {
+    func.return %0 : !llvm.struct<(!llvm.struct<(i32)>)>
+  }
+
+// CHECK:       func.func private @nested_struct_to_struct2(%0 : !llvm.struct<(!llvm.struct<(i32)>)>) -> !llvm.struct<(!llvm.struct<(i32)>)> {
+// CHECK-NEXT:    func.return %0 : !llvm.struct<(!llvm.struct<(i32)>)>
+// CHECK-NEXT:  }
+
   func.func private @array(%0 : !llvm.array<2 x i64>) -> !llvm.array<1 x i32> {
     %1 = "llvm.mlir.undef"() : () -> !llvm.array<1 x i32>
     func.return %1 : !llvm.array<1 x i32>

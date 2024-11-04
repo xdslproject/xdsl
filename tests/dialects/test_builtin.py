@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     MemRefType,
     NoneAttr,
+    ShapedType,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -38,12 +39,12 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_FloatType_bitwidths():
-    assert BFloat16Type().get_bitwidth == 16
-    assert Float16Type().get_bitwidth == 16
-    assert Float32Type().get_bitwidth == 32
-    assert Float64Type().get_bitwidth == 64
-    assert Float80Type().get_bitwidth == 80
-    assert Float128Type().get_bitwidth == 128
+    assert BFloat16Type().bitwidth == 16
+    assert Float16Type().bitwidth == 16
+    assert Float32Type().bitwidth == 32
+    assert Float64Type().bitwidth == 64
+    assert Float80Type().bitwidth == 80
+    assert Float128Type().bitwidth == 128
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
@@ -292,5 +293,11 @@ def test_dense_as_tuple():
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
 
-    indices = DenseArrayBase.from_list(IndexType(), [1, 1, 2, 3, 5, 8])
-    assert indices.as_tuple() == (1, 1, 2, 3, 5, 8)
+
+def test_strides():
+    assert ShapedType.strides_for_shape(()) == ()
+    assert ShapedType.strides_for_shape((), factor=2) == ()
+    assert ShapedType.strides_for_shape((1,)) == (1,)
+    assert ShapedType.strides_for_shape((1,), factor=2) == (2,)
+    assert ShapedType.strides_for_shape((2, 3)) == (3, 1)
+    assert ShapedType.strides_for_shape((4, 5, 6), factor=2) == (60, 12, 2)

@@ -49,8 +49,7 @@ from xdsl.interactive.passes import (
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_passes
-from xdsl.transforms import individual_rewrite
+from xdsl.transforms import get_all_passes, individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -685,11 +684,14 @@ class InputApp(App[None]):
         Pushes screen displaying DirectoryTree widget when "Load File" button is pressed.
         """
 
-        def check_load_file(file_path: str) -> None:
+        def check_load_file(file_path: str | None) -> None:
             """
             Called when LoadFile is dismissed. Loads selected file into
             input_text_area.
             """
+            if file_path is None:
+                return
+
             # Clear Input TextArea and Pass Pipeline
             self.pass_pipeline = ()
             self.input_text_area.clear()

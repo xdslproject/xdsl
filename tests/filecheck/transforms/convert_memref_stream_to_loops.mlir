@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-stream-to-loops --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-stream-to-loops %s | filecheck %s
 
 // CHECK:       builtin.module {
 
@@ -20,7 +20,13 @@
     func.return %arg2 : memref<8x16xf64>
   }
 // CHECK-NEXT:    func.func public @dsum(%{{.*}} : memref<8x16xf64>, %{{.*}} : memref<8x16xf64>, %{{.*}} : memref<8x16xf64>) -> memref<8x16xf64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>]} ins(%{{.*}}, %{{.*}} : memref<8x16xf64>, memref<8x16xf64>) outs(%{{.*}} : memref<8x16xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}}, %{{.*}} : memref<8x16xf64>, memref<8x16xf64>) outs(%{{.*}} : memref<8x16xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.writable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 8 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
@@ -58,7 +64,13 @@
   }
 // CHECK-NEXT:    func.func public @relu(%{{.*}} : memref<16x16xf64>, %{{.*}} : memref<16x16xf64>) -> memref<16x16xf64> {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f64
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>]} ins(%{{.*}} : memref<16x16xf64>) outs(%{{.*}} : memref<16x16xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}} : memref<16x16xf64>) outs(%{{.*}} : memref<16x16xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.writable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
@@ -101,7 +113,11 @@ func.func public @fill(%arg0 : memref<16x16xf64>) -> memref<16x16xf64> {
 
 // CHECK-NEXT:    func.func public @fill(%{{.*}} : memref<16x16xf64>) -> memref<16x16xf64> {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f64
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>]} outs(%{{.*}} : memref<16x16xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } outs(%{{.*}} : memref<16x16xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.writable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
@@ -142,7 +158,12 @@ func.func @main(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x3xf64>
     func.return %C : memref<4x3xf64>
 }
 // CHECK-NEXT:    func.func @main(%{{.*}} : memref<4x2xf64>, %{{.*}} : memref<2x3xf64>, %{{.*}} : memref<4x3xf64>) -> memref<4x3xf64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>, #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>]} ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 4 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
@@ -189,7 +210,11 @@ func.func @elide_affine(%A : memref<6xf64>, %B : memref<f64>) -> memref<f64> {
     func.return %B : memref<f64>
 }
 // CHECK-NEXT:    func.func @elide_affine(%{{.*}} : memref<6xf64>, %{{.*}} : memref<f64>) -> memref<f64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [2, 3], index_map = (d0, d1) -> (((d0 * 3) + d1))>]} ins(%{{.*}} : memref<6xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [2, 3], index_map = (d0, d1) -> (((d0 * 3) + d1))>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}} : memref<6xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 2 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
@@ -231,7 +256,11 @@ func.func @nested_imperfect(%A : memref<2x3x4xf64>, %B : memref<f64>) -> memref<
 }
 
 // CHECK-NEXT:    func.func @nested_imperfect(%{{.*}} : memref<2x3x4xf64>, %{{.*}} : memref<f64>) -> memref<f64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [2, 3, 4], index_map = (d0, d1, d2) -> (d0, d1, d2)>]} ins(%{{.*}} : memref<2x3x4xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [2, 3, 4], index_map = (d0, d1, d2) -> (d0, d1, d2)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}} : memref<2x3x4xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 2 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
@@ -283,7 +312,12 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
 }
 // CHECK-NEXT:    func.func @main_inits(%{{.*}} : memref<4x2xf64>, %{{.*}} : memref<2x3xf64>, %{{.*}} : memref<4x3xf64>) -> memref<4x3xf64> {
 // CHECK-NEXT:      %zero_float = arith.constant 0.000000e+00 : f64
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>, #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>]} ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 4 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
@@ -305,10 +339,6 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
 // CHECK-NEXT:      }
 // CHECK-NEXT:      func.return %{{.*}} : memref<4x3xf64>
 // CHECK-NEXT:    }
-
-// CHECK-NEXT:  }
-
-// -----
 
 func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
     memref_stream.generic {
@@ -340,9 +370,61 @@ func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : 
     func.return %C : memref<3x8xf64>
 }
 
-// CHECK: Error while applying pattern: Cannot yet lower interleaved iterators
-
-// -----
+// CHECK-NEXT:    func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
+// CHECK-NEXT:      %0 = arith.constant 0 : index
+// CHECK-NEXT:      %1 = arith.constant 1 : index
+// CHECK-NEXT:      %2 = arith.constant 2 : index
+// CHECK-NEXT:      %3 = arith.constant 3 : index
+// CHECK-NEXT:      %4 = arith.constant 3 : index
+// CHECK-NEXT:      %5 = arith.constant 2 : index
+// CHECK-NEXT:      %6 = arith.constant 5 : index
+// CHECK-NEXT:      %7 = arith.constant 0 : index
+// CHECK-NEXT:      %8 = arith.constant 1 : index
+// CHECK-NEXT:      scf.for %9 = %7 to %4 step %8 {
+// CHECK-NEXT:        scf.for %10 = %7 to %5 step %8 {
+// CHECK-NEXT:          %11 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %0)
+// CHECK-NEXT:          %12 = memref.load %C[%9, %11] : memref<3x8xf64>
+// CHECK-NEXT:          %13 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %1)
+// CHECK-NEXT:          %14 = memref.load %C[%9, %13] : memref<3x8xf64>
+// CHECK-NEXT:          %15 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %2)
+// CHECK-NEXT:          %16 = memref.load %C[%9, %15] : memref<3x8xf64>
+// CHECK-NEXT:          %17 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %3)
+// CHECK-NEXT:          %18 = memref.load %C[%9, %17] : memref<3x8xf64>
+// CHECK-NEXT:          %19, %20, %21, %22 = scf.for %23 = %7 to %6 step %8 iter_args(%c0 = %12, %c1 = %14, %c2 = %16, %c3 = %18) -> (f64, f64, f64, f64) {
+// CHECK-NEXT:            %a0 = memref.load %A[%9, %23] : memref<3x5xf64>
+// CHECK-NEXT:            %a1 = memref.load %A[%9, %23] : memref<3x5xf64>
+// CHECK-NEXT:            %a2 = memref.load %A[%9, %23] : memref<3x5xf64>
+// CHECK-NEXT:            %a3 = memref.load %A[%9, %23] : memref<3x5xf64>
+// CHECK-NEXT:            %24 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %0)
+// CHECK-NEXT:            %b0 = memref.load %B[%23, %24] : memref<5x8xf64>
+// CHECK-NEXT:            %25 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %1)
+// CHECK-NEXT:            %b1 = memref.load %B[%23, %25] : memref<5x8xf64>
+// CHECK-NEXT:            %26 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %2)
+// CHECK-NEXT:            %b2 = memref.load %B[%23, %26] : memref<5x8xf64>
+// CHECK-NEXT:            %27 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %3)
+// CHECK-NEXT:            %b3 = memref.load %B[%23, %27] : memref<5x8xf64>
+// CHECK-NEXT:            %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
+// CHECK-NEXT:            %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
+// CHECK-NEXT:            %prod2 = arith.mulf %a2, %b2 fastmath<fast> : f64
+// CHECK-NEXT:            %prod3 = arith.mulf %a3, %b3 fastmath<fast> : f64
+// CHECK-NEXT:            %res0 = arith.addf %prod0, %c0 fastmath<fast> : f64
+// CHECK-NEXT:            %res1 = arith.addf %prod1, %c1 fastmath<fast> : f64
+// CHECK-NEXT:            %res2 = arith.addf %prod2, %c2 fastmath<fast> : f64
+// CHECK-NEXT:            %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
+// CHECK-NEXT:            scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
+// CHECK-NEXT:          }
+// CHECK-NEXT:          %28 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %0)
+// CHECK-NEXT:          memref.store %19, %C[%9, %28] : memref<3x8xf64>
+// CHECK-NEXT:          %29 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %1)
+// CHECK-NEXT:          memref.store %20, %C[%9, %29] : memref<3x8xf64>
+// CHECK-NEXT:          %30 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %2)
+// CHECK-NEXT:          memref.store %21, %C[%9, %30] : memref<3x8xf64>
+// CHECK-NEXT:          %31 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %3)
+// CHECK-NEXT:          memref.store %22, %C[%9, %31] : memref<3x8xf64>
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return %C : memref<3x8xf64>
+// CHECK-NEXT:    }
 
 func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
     %zero_float = arith.constant 0.000000e+00 : f64
@@ -375,4 +457,53 @@ func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : mem
     func.return %C : memref<3x8xf64>
 }
 
-// CHECK: Error while applying pattern: Cannot yet lower interleaved iterators
+// CHECK-NEXT:    func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
+// CHECK-NEXT:      %zero_float = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:      %0 = arith.constant 0 : index
+// CHECK-NEXT:      %1 = arith.constant 1 : index
+// CHECK-NEXT:      %2 = arith.constant 2 : index
+// CHECK-NEXT:      %3 = arith.constant 3 : index
+// CHECK-NEXT:      %4 = arith.constant 3 : index
+// CHECK-NEXT:      %5 = arith.constant 2 : index
+// CHECK-NEXT:      %6 = arith.constant 5 : index
+// CHECK-NEXT:      %7 = arith.constant 0 : index
+// CHECK-NEXT:      %8 = arith.constant 1 : index
+// CHECK-NEXT:      scf.for %9 = %7 to %4 step %8 {
+// CHECK-NEXT:        scf.for %10 = %7 to %5 step %8 {
+// CHECK-NEXT:          %11, %12, %13, %14 = scf.for %15 = %7 to %6 step %8 iter_args(%c0 = %zero_float, %c1 = %zero_float, %c2 = %zero_float, %c3 = %zero_float) -> (f64, f64, f64, f64) {
+// CHECK-NEXT:            %a0 = memref.load %A[%9, %15] : memref<3x5xf64>
+// CHECK-NEXT:            %a1 = memref.load %A[%9, %15] : memref<3x5xf64>
+// CHECK-NEXT:            %a2 = memref.load %A[%9, %15] : memref<3x5xf64>
+// CHECK-NEXT:            %a3 = memref.load %A[%9, %15] : memref<3x5xf64>
+// CHECK-NEXT:            %16 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %0)
+// CHECK-NEXT:            %b0 = memref.load %B[%15, %16] : memref<5x8xf64>
+// CHECK-NEXT:            %17 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %1)
+// CHECK-NEXT:            %b1 = memref.load %B[%15, %17] : memref<5x8xf64>
+// CHECK-NEXT:            %18 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %2)
+// CHECK-NEXT:            %b2 = memref.load %B[%15, %18] : memref<5x8xf64>
+// CHECK-NEXT:            %19 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %3)
+// CHECK-NEXT:            %b3 = memref.load %B[%15, %19] : memref<5x8xf64>
+// CHECK-NEXT:            %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
+// CHECK-NEXT:            %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
+// CHECK-NEXT:            %prod2 = arith.mulf %a2, %b2 fastmath<fast> : f64
+// CHECK-NEXT:            %prod3 = arith.mulf %a3, %b3 fastmath<fast> : f64
+// CHECK-NEXT:            %res0 = arith.addf %prod0, %c0 fastmath<fast> : f64
+// CHECK-NEXT:            %res1 = arith.addf %prod1, %c1 fastmath<fast> : f64
+// CHECK-NEXT:            %res2 = arith.addf %prod2, %c2 fastmath<fast> : f64
+// CHECK-NEXT:            %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
+// CHECK-NEXT:            scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
+// CHECK-NEXT:          }
+// CHECK-NEXT:          %20 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %0)
+// CHECK-NEXT:          memref.store %11, %C[%9, %20] : memref<3x8xf64>
+// CHECK-NEXT:          %21 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %1)
+// CHECK-NEXT:          memref.store %12, %C[%9, %21] : memref<3x8xf64>
+// CHECK-NEXT:          %22 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %2)
+// CHECK-NEXT:          memref.store %13, %C[%9, %22] : memref<3x8xf64>
+// CHECK-NEXT:          %23 = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%10, %3)
+// CHECK-NEXT:          memref.store %14, %C[%9, %23] : memref<3x8xf64>
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return %C : memref<3x8xf64>
+// CHECK-NEXT:    }
+
+// CHECK-NEXT:  }

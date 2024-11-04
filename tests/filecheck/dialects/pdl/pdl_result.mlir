@@ -9,7 +9,7 @@ pdl.pattern @extractResult : benefit(1) {
 }
 
 // CHECK: @extractResult
-// CHECK: %{{.*}} = pdl.result 1 of %{{.*}}
+// CHECK: %{{.*}} = pdl.result 1 of %{{\S+}}
 
 pdl.pattern @extractAllResults : benefit(1) {
   %types = pdl.types
@@ -20,7 +20,7 @@ pdl.pattern @extractAllResults : benefit(1) {
 }
 
 // CHECK: @extractAllResults
-// CHECK: %{{.*}} = pdl.results of %{{.*}}
+// CHECK: %{{.*}} = pdl.results of %{{\S+}}
 
 pdl.pattern @extractOneResultRange : benefit(1) {
   %types = pdl.types
@@ -31,4 +31,4 @@ pdl.pattern @extractOneResultRange : benefit(1) {
 }
 
 // CHECK: @extractOneResultRange
-// CHECK: %{{.*}} = pdl.results 1 of %{{.*}}
+// CHECK: %{{.*}} = pdl.results 1 of %{{\S+}}

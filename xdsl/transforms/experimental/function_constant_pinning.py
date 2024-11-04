@@ -83,17 +83,19 @@ class FunctionConstantPinning(RewritePattern):
         # grab a reference to the next operation in the remainder.
         # this is because we will modify the op and therefore loose the "old" next op.
         next_op = function_remainder.next_op
+
         # unless we already hit the block terminator
-        if next_op is not None:
-            # while we haven't reached the return statement:
-            while function_remainder is not func_op.body.block.last_op:
-                # detatch the function
-                function_remainder.detach()
-                # re-insert it inside the else block of the if statement
-                rewriter.insert_op(function_remainder, InsertPoint.at_end(dest_block))
-                # go to next op
-                function_remainder = next_op
-                next_op = function_remainder.next_op
+        # while we haven't reached the return statement:
+        while (
+            next_op is not None and function_remainder is not func_op.body.block.last_op
+        ):
+            # detatch the function
+            function_remainder.detach()
+            # re-insert it inside the else block of the if statement
+            rewriter.insert_op(function_remainder, InsertPoint.at_end(dest_block))
+            # go to next op
+            function_remainder = next_op
+            next_op = function_remainder.next_op
 
         # insert a yield that yields the return values
         rewriter.insert_op(
@@ -162,6 +164,8 @@ def func_contains_pinning_annotation(funcop: func.FuncOp) -> Operation | None:
 
     Only works on top-level operations, we can't handle nested things right now.
     """
+    if not funcop.body.blocks:
+        return None
     for op in funcop.body.block.ops:
         if PIN_CONSTANT_VALS in op.attributes:
             return op

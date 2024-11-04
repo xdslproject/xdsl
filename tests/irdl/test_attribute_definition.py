@@ -4,6 +4,7 @@ Test the definition of attributes and their constraints.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
@@ -22,6 +23,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    BitEnumAttribute,
     Data,
     EnumAttribute,
     ParametrizedAttribute,
@@ -156,6 +158,7 @@ def test_non_class_data():
 class TestEnum(StrEnum):
     Yes = auto()
     No = auto()
+    Maybe = auto()
 
 
 class TestNonIdentifierEnum(StrEnum):
@@ -176,10 +179,7 @@ class EnumData(EnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
 def test_enum_attribute():
     """Test the definition of an EnumAttribute."""
     attr = EnumData(TestEnum.No)
-    stream = StringIO()
-    p = Printer(stream=stream)
-    p.print_attribute(attr)
-    assert stream.getvalue() == "#test<enum no>"
+    assert str(attr) == "#test<enum no>"
 
 
 def test_indirect_enum_guard():
@@ -204,6 +204,39 @@ def test_identifier_enum_guard():
             EnumAttribute[TestNonIdentifierEnum]
         ):
             name = "test.non_identifier_enum"
+
+
+@irdl_attr_definition
+class BitEnumData(BitEnumAttribute[TestEnum]):
+    name = "test.bitenum"
+    all_value = "all"
+    none_value = "none"
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (None, "#test.bitenum<none>"),
+        ([], "#test.bitenum<none>"),
+        ([TestEnum.No], "#test.bitenum<no>"),
+        ([TestEnum.Yes], "#test.bitenum<yes>"),
+        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], "#test.bitenum<all>"),
+        ("all", "#test.bitenum<all>"),
+        ("none", "#test.bitenum<none>"),
+    ],
+)
+def test_bit_enum_attribute(input: Sequence[TestEnum] | str, output: str):
+    attr = BitEnumData(input)
+    assert str(attr) == output
+
+
+def test_bit_enum_invalid_str():
+    with pytest.raises(
+        TypeError,
+        match="expected string parameter to be one of none or all, got helloworld",
+    ):
+        BitEnumData("helloworld")
 
 
 ################################################################################
@@ -659,14 +692,6 @@ class ListData(GenericData[list[A]]):
     @staticmethod
     def from_list(data: list[A]) -> ListData[A]:
         return ListData(data)
-
-    def verify(self) -> None:
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but element "
-                    f"{idx} is of type {type(val)}."
-                )
 
 
 AnyListData: TypeAlias = ListData[Attribute]

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Generic, Literal, TypeVar, cast, overload
+from typing import ClassVar, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
+    AnyFloatConstr,
     AnyIntegerAttr,
     ContainerOf,
+    DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -20,30 +23,33 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
-    ConstraintVar,
     IRDLOperation,
-    Operand,
+    VarConstraint,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
     prop_def,
     result_def,
+    traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConditionallySpeculatable,
     ConstantLike,
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
+from xdsl.utils.str_enum import StrEnum
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -98,17 +104,36 @@ class FastMathFlagsAttr(FastMathAttrBase):
         super().__init__(flags)
 
 
+class IntegerOverflowFlag(StrEnum):
+    NSW = "nsw"
+    NUW = "nuw"
+
+
+@irdl_attr_definition
+class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
+    name = "arith.overflow"
+
+    none_value = "none"
+
+    def __init__(self, flags: None | Sequence[IntegerOverflowFlag] | Literal["none"]):
+        # irdl_attr_definition defines an __init__ if none is defined, so we need to
+        # explicitely define one here.
+        super().__init__(flags)
+
+
 @irdl_op_definition
 class Constant(IRDLOperation):
     name = "arith.constant"
-    result: OpResult = result_def(Attribute)
-    value: Attribute = prop_def(Attribute)
+    result = result_def(Attribute)
+    value = prop_def(Attribute)
 
-    traits = frozenset((ConstantLike(), Pure()))
+    traits = traits_def(ConstantLike(), Pure())
 
     @overload
     def __init__(
-        self, value: AnyIntegerAttr | FloatAttr[AnyFloat], value_type: None = None
+        self,
+        value: AnyIntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value_type: None = None,
     ) -> None: ...
 
     @overload
@@ -150,7 +175,12 @@ class Constant(IRDLOperation):
         p0 = parser.pos
         value = parser.parse_attribute()
 
-        if not isa(value, AnyIntegerAttr | FloatAttr[AnyFloat]):
+        if not isattr(
+            value,
+            base(AnyIntegerAttr)
+            | base(FloatAttr[AnyFloat])
+            | base(DenseIntOrFPElementsAttr),
+        ):
             parser.raise_error("Invalid constant value", p0, parser.pos)
 
         c = Constant(value)
@@ -161,16 +191,16 @@ class Constant(IRDLOperation):
 _T = TypeVar("_T", bound=Attribute)
 
 
-class BinaryOperation(IRDLOperation, Generic[_T]):
-    """A generic base class for arith's binary operation.
+class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
+    """A generic base class for arith's binary operations on signless integers."""
 
-    They all have two operands and one result of a same type."""
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
 
-    lhs: Operand = operand_def(T)
-    rhs: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -182,32 +212,77 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
             result_type = SSAValue.get(operand1).type
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        rhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
-        return cls(lhs, rhs, result_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_ssa_value(self.lhs)
-        printer.print(", ")
-        printer.print_ssa_value(self.rhs)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
-
     def __hash__(self) -> int:
         return id(self)
 
 
-SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLike]]
+class SignlessIntegerBinaryOperationWithOverflow(
+    SignlessIntegerBinaryOperation, abc.ABC
+):
+    """
+    A generic base class for arith's binary operations on signless integers which
+    can overflow.
+    """
+
+    overflow_flags = prop_def(
+        IntegerOverflowAttr,
+        default_value=IntegerOverflowAttr("none"),
+        prop_name="overflowFlags",
+    )
+
+    assembly_format = (
+        "$lhs `,` $rhs (`overflow` `` $overflowFlags^)? attr-dict `:` type($result)"
+    )
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+        overflow: IntegerOverflowAttr = IntegerOverflowAttr("none"),
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        IRDLOperation.__init__(
+            self,
+            operands=[operand1, operand2],
+            properties={"overflowFlags": overflow},
+            result_types=[result_type],
+        )
 
 
-class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
+class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import FoldConstConstOp
+
+        return (FoldConstConstOp(),)
+
+
+class FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            FoldConstConstOp,
+            FoldConstsByReassociation,
+        )
+
+        return FoldConstsByReassociation(), FoldConstConstOp()
+
+
+class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
+    """A generic base class for arith's binary operations on floats."""
+
+    T: ClassVar = VarConstraint("T", floatingPointLike)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
     def __init__(
@@ -217,8 +292,13 @@ class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
         flags: FastMathFlagsAttr | None = None,
         result_type: Attribute | None = None,
     ):
-        super().__init__(operand1, operand2, result_type)
-        self.fastmath = flags
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(
+            operands=[operand1, operand2],
+            result_types=[result_type],
+            properties={"fastmath": flags},
+        )
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -245,14 +325,7 @@ class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
         printer.print_attribute(self.result.type)
 
 
-FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
-    Annotated[Attribute, floatingPointLike]
-]
-
-IntegerBinaryOp = BinaryOperation[IntegerType]
-
-
-class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
@@ -261,10 +334,10 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class Addi(SignlessIntegerBinaryOp):
+class Addi(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.addi"
 
-    traits = frozenset([Pure(), AddiOpHasCanonicalizationPatternsTrait()])
+    traits = traits_def(Pure(), AddiOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -276,19 +349,19 @@ class AddUIExtended(IRDLOperation):
 
     name = "arith.addui_extended"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
-    T = Annotated[Attribute, signlessIntegerLike, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs: Operand = operand_def(T)
-    rhs: Operand = operand_def(T)
+    lhs = operand_def(T)
+    rhs = operand_def(T)
 
-    sum: OpResult = result_def(T)
-    overflow: OpResult = result_def(Annotated[Attribute, boolLike])
+    sum = result_def(T)
+    overflow = result_def(boolLike)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($sum) `,` type($overflow)"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -332,23 +405,23 @@ class AddUIExtended(IRDLOperation):
 
 
 @irdl_op_definition
-class Muli(SignlessIntegerBinaryOp):
+class Muli(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.muli"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
 
-    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
-    lhs: Operand = operand_def(T)
-    rhs: Operand = operand_def(T)
-    low: OpResult = result_def(T)
-    high: OpResult = result_def(T)
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    low = result_def(T)
+    high = result_def(T)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -379,7 +452,7 @@ class MulSIExtended(MulExtendedBase):
     name = "arith.mulsi_extended"
 
 
-class SubiHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class SubiHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import SubSquaresPattern
@@ -388,19 +461,27 @@ class SubiHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class Subi(SignlessIntegerBinaryOp):
+class Subi(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.subi"
 
-    traits = frozenset(
-        (
-            Pure(),
-            SubiHasCanonicalizationPatternsTrait(),
-        )
+    traits = traits_def(
+        Pure(),
+        SubiHasCanonicalizationPatternsTrait(),
     )
 
 
+class DivUISpeculatable(ConditionallySpeculatable):
+    @classmethod
+    def is_speculatable(cls, op: Operation):
+        op = cast(DivUI, op)
+        if not isinstance(cst := op.rhs.owner, Constant):
+            return False
+        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
+        return value.value.data != 0
+
+
 @irdl_op_definition
-class DivUI(SignlessIntegerBinaryOp):
+class DivUI(SignlessIntegerBinaryOperation):
     """
     Unsigned integer division. Rounds towards zero. Treats the leading bit as
     the most significant, i.e. for `i16` given two's complement representation,
@@ -409,11 +490,11 @@ class DivUI(SignlessIntegerBinaryOp):
 
     name = "arith.divui"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect(), DivUISpeculatable())
 
 
 @irdl_op_definition
-class DivSI(SignlessIntegerBinaryOp):
+class DivSI(SignlessIntegerBinaryOperation):
     """
     Signed integer division. Rounds towards zero. Treats the leading bit as
     sign, i.e. `6 / -2 = -3`.
@@ -421,97 +502,97 @@ class DivSI(SignlessIntegerBinaryOp):
 
     name = "arith.divsi"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
 
 @irdl_op_definition
-class FloorDivSI(SignlessIntegerBinaryOp):
+class FloorDivSI(SignlessIntegerBinaryOperation):
     """
     Signed floor integer division. Rounds towards negative infinity i.e. `5 / -2 = -3`.
     """
 
     name = "arith.floordivsi"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class CeilDivSI(SignlessIntegerBinaryOp):
+class CeilDivSI(SignlessIntegerBinaryOperation):
     name = "arith.ceildivsi"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class CeilDivUI(SignlessIntegerBinaryOp):
+class CeilDivUI(SignlessIntegerBinaryOperation):
     name = "arith.ceildivui"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
 
 @irdl_op_definition
-class RemUI(SignlessIntegerBinaryOp):
+class RemUI(SignlessIntegerBinaryOperation):
     name = "arith.remui"
 
 
 @irdl_op_definition
-class RemSI(SignlessIntegerBinaryOp):
+class RemSI(SignlessIntegerBinaryOperation):
     name = "arith.remsi"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class MinUI(SignlessIntegerBinaryOp):
+class MinUI(SignlessIntegerBinaryOperation):
     name = "arith.minui"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class MaxUI(SignlessIntegerBinaryOp):
+class MaxUI(SignlessIntegerBinaryOperation):
     name = "arith.maxui"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class MinSI(SignlessIntegerBinaryOp):
+class MinSI(SignlessIntegerBinaryOperation):
     name = "arith.minsi"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class MaxSI(SignlessIntegerBinaryOp):
+class MaxSI(SignlessIntegerBinaryOperation):
     name = "arith.maxsi"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class AndI(SignlessIntegerBinaryOp):
+class AndI(SignlessIntegerBinaryOperation):
     name = "arith.andi"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class OrI(SignlessIntegerBinaryOp):
+class OrI(SignlessIntegerBinaryOperation):
     name = "arith.ori"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class XOrI(SignlessIntegerBinaryOp):
+class XOrI(SignlessIntegerBinaryOperation):
     name = "arith.xori"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class ShLI(SignlessIntegerBinaryOp):
+class ShLI(SignlessIntegerBinaryOperationWithOverflow):
     """
     The `shli` operation shifts an integer value to the left by a variable
     amount. The low order bits are filled with zeros.
@@ -519,11 +600,11 @@ class ShLI(SignlessIntegerBinaryOp):
 
     name = "arith.shli"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class ShRUI(SignlessIntegerBinaryOp):
+class ShRUI(SignlessIntegerBinaryOperation):
     """
     The `shrui` operation shifts an integer value to the right by a variable
     amount. The integer is interpreted as unsigned. The high order bits are
@@ -532,11 +613,11 @@ class ShRUI(SignlessIntegerBinaryOp):
 
     name = "arith.shrui"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class ShRSI(SignlessIntegerBinaryOp):
+class ShRSI(SignlessIntegerBinaryOperation):
     """
     The `shrsi` operation shifts an integer value to the right by a variable
     amount. The integer is interpreted as signed. The high order bits in the
@@ -546,7 +627,7 @@ class ShRSI(SignlessIntegerBinaryOp):
 
     name = "arith.shrsi"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 class ComparisonOperation(IRDLOperation):
@@ -585,7 +666,7 @@ class ComparisonOperation(IRDLOperation):
                 f"provided {operand1.type} and {operand2.type}"
             )
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -618,10 +699,10 @@ class Cmpi(ComparisonOperation):
     """
 
     name = "arith.cmpi"
-    predicate: AnyIntegerAttr = prop_def(AnyIntegerAttr)
-    lhs: Operand = operand_def(signlessIntegerLike)
-    rhs: Operand = operand_def(signlessIntegerLike)
-    result: OpResult = result_def(IntegerType(1))
+    predicate = prop_def(AnyIntegerAttr)
+    lhs = operand_def(signlessIntegerLike)
+    rhs = operand_def(signlessIntegerLike)
+    result = result_def(IntegerType(1))
 
     def __init__(
         self,
@@ -708,16 +789,18 @@ class Cmpf(ComparisonOperation):
     """
 
     name = "arith.cmpf"
-    predicate: AnyIntegerAttr = prop_def(AnyIntegerAttr)
-    lhs: Operand = operand_def(floatingPointLike)
-    rhs: Operand = operand_def(floatingPointLike)
-    result: OpResult = result_def(IntegerType(1))
+    predicate = prop_def(AnyIntegerAttr)
+    lhs = operand_def(floatingPointLike)
+    rhs = operand_def(floatingPointLike)
+    fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
+    result = result_def(IntegerType(1))
 
     def __init__(
         self,
         operand1: SSAValue | Operation,
         operand2: SSAValue | Operation,
         arg: int | str,
+        fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
     ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
@@ -748,7 +831,10 @@ class Cmpf(ComparisonOperation):
         super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            properties={
+                "predicate": IntegerAttr.from_int_and_width(arg, 64),
+                "fastmath": fastmath,
+            },
         )
 
     @classmethod
@@ -758,13 +844,17 @@ class Cmpf(ComparisonOperation):
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         operand2 = parser.parse_unresolved_operand()
+        if parser.parse_optional_keyword("fastmath"):
+            fastmath = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        else:
+            fastmath = FastMathFlagsAttr("none")
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
         (operand1, operand2) = parser.resolve_operands(
             [operand1, operand2], 2 * [input_type], parser.pos
         )
 
-        return cls(operand1, operand2, arg)
+        return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -773,8 +863,23 @@ class Cmpf(ComparisonOperation):
         printer.print_operand(self.lhs)
         printer.print(", ")
         printer.print_operand(self.rhs)
+        if self.fastmath != FastMathFlagsAttr("none"):
+            printer.print_string(" fastmath")
+            self.fastmath.print_parameter(printer)
         printer.print(" : ")
         printer.print_attribute(self.lhs.type)
+
+
+class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            SelectConstPattern,
+            SelectSamePattern,
+            SelectTrueFalsePattern,
+        )
+
+        return (SelectConstPattern(), SelectTrueFalsePattern(), SelectSamePattern())
 
 
 @irdl_op_definition
@@ -787,12 +892,12 @@ class Select(IRDLOperation):
     """
 
     name = "arith.select"
-    cond: Operand = operand_def(IntegerType(1))  # should be unsigned
-    lhs: Operand = operand_def(Attribute)
-    rhs: Operand = operand_def(Attribute)
-    result: OpResult = result_def(Attribute)
+    cond = operand_def(IntegerType(1))  # should be unsigned
+    lhs = operand_def(Attribute)
+    rhs = operand_def(Attribute)
+    result = result_def(Attribute)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure(), SelectHasCanonicalizationPatterns())
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -841,41 +946,51 @@ class Select(IRDLOperation):
 
 
 @irdl_op_definition
-class Addf(FloatingPointLikeBinaryOp):
+class Addf(FloatingPointLikeBinaryOperation):
     name = "arith.addf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(
+        Pure(),
+        FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
-class Subf(FloatingPointLikeBinaryOp):
+class Subf(FloatingPointLikeBinaryOperation):
     name = "arith.subf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(
+        Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()
+    )
 
 
 @irdl_op_definition
-class Mulf(FloatingPointLikeBinaryOp):
+class Mulf(FloatingPointLikeBinaryOperation):
     name = "arith.mulf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(
+        Pure(),
+        FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
-class Divf(FloatingPointLikeBinaryOp):
+class Divf(FloatingPointLikeBinaryOperation):
     name = "arith.divf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(
+        Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()
+    )
 
 
 @irdl_op_definition
 class Negf(IRDLOperation):
     name = "arith.negf"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(floatingPointLike)
-    result: OpResult = result_def(floatingPointLike)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(floatingPointLike)
+    result = result_def(floatingPointLike)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -903,7 +1018,7 @@ class Negf(IRDLOperation):
 
 
 @irdl_op_definition
-class Maximumf(FloatingPointLikeBinaryOp):
+class Maximumf(FloatingPointLikeBinaryOperation):
     """
     Returns the maximum of the two arguments, treating -0.0 as less than +0.0.
     If one of the arguments is NaN, then the result is also NaN.
@@ -911,11 +1026,11 @@ class Maximumf(FloatingPointLikeBinaryOp):
 
     name = "arith.maximumf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class Maxnumf(FloatingPointLikeBinaryOp):
+class Maxnumf(FloatingPointLikeBinaryOperation):
     """
     Returns the maximum of the two arguments.
     If the arguments are -0.0 and +0.0, then the result is either of them.
@@ -924,11 +1039,11 @@ class Maxnumf(FloatingPointLikeBinaryOp):
 
     name = "arith.maxnumf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class Minimumf(FloatingPointLikeBinaryOp):
+class Minimumf(FloatingPointLikeBinaryOperation):
     """
     Returns the minimum of the two arguments, treating -0.0 as less than +0.0.
     If one of the arguments is NaN, then the result is also NaN.
@@ -936,11 +1051,11 @@ class Minimumf(FloatingPointLikeBinaryOp):
 
     name = "arith.minimumf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class Minnumf(FloatingPointLikeBinaryOp):
+class Minnumf(FloatingPointLikeBinaryOperation):
     """
     Returns the minimum of the two arguments. If the arguments are -0.0 and +0.0, then the result is either of them.
     If one of the arguments is NaN, then the result is the other argument.
@@ -948,18 +1063,18 @@ class Minnumf(FloatingPointLikeBinaryOp):
 
     name = "arith.minnumf"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input: Operand = operand_def(IntegerType | IndexType)
+    input = operand_def(base(IntegerType) | base(IndexType))
 
-    result: OpResult = result_def(IntegerType | IndexType)
+    result = result_def(base(IntegerType) | base(IndexType))
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -979,12 +1094,12 @@ class IndexCastOp(IRDLOperation):
 class FPToSIOp(IRDLOperation):
     name = "arith.fptosi"
 
-    input: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(AnyFloatConstr)
+    result = result_def(IntegerType)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
@@ -994,12 +1109,12 @@ class FPToSIOp(IRDLOperation):
 class SIToFPOp(IRDLOperation):
     name = "arith.sitofp"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(AnyFloat)
+    input = operand_def(IntegerType)
+    result = result_def(AnyFloatConstr)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
@@ -1009,38 +1124,38 @@ class SIToFPOp(IRDLOperation):
 class ExtFOp(IRDLOperation):
     name = "arith.extf"
 
-    input: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    input = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
-    input: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    input = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class TruncIOp(IRDLOperation):
     name = "arith.trunci"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(IntegerType)
+    result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
@@ -1055,15 +1170,15 @@ class TruncIOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class ExtSIOp(IRDLOperation):
     name = "arith.extsi"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(IntegerType)
+    result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
@@ -1083,8 +1198,8 @@ class ExtSIOp(IRDLOperation):
 class ExtUIOp(IRDLOperation):
     name = "arith.extui"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(IntegerType)
+    result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         super().__init__(operands=[op], result_types=[target_type])
@@ -1099,7 +1214,7 @@ class ExtUIOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
 
 Arith = Dialect(
@@ -1159,5 +1274,6 @@ Arith = Dialect(
     ],
     [
         FastMathFlagsAttr,
+        IntegerOverflowAttr,
     ],
 )

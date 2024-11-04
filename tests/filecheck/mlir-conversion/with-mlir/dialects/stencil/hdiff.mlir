@@ -19,7 +19,7 @@ builtin.module {
       %16 = arith.addf %15, %14 : f64
       stencil.return %16 : f64
     }
-    stencil.store %5 to %3 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    stencil.store %5 to %3 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     func.return
   }
 }
@@ -60,7 +60,7 @@ builtin.module {
 // CHECK-NEXT:        %12 = arith.mulf %8, %cst : f64
 // CHECK-NEXT:        %13 = arith.addf %12, %11 : f64
 // CHECK-NEXT:        memref.store %13, %subview[%arg2, %arg3, %arg4] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:        scf.yield
+// CHECK-NEXT:        scf.reduce
 // CHECK-NEXT:      }
 // CHECK-NEXT:      return
 // CHECK-NEXT:    }

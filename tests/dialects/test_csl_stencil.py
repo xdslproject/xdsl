@@ -29,7 +29,7 @@ def test_access_patterns():
         AccessOp(t1, IndexAttr.get(0, 0), tens_t)
 
     apply = ApplyOp(
-        operands=[temp, mref, []],
+        operands=[temp, mref, [], [], []],
         properties={
             "swaps": None,
             "topo": None,

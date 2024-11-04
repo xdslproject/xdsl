@@ -8,15 +8,15 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
 )
-from xdsl.traits import HasCanonicalisationPatternsTrait
-from xdsl.transforms.dead_code_elimination import dce
+from xdsl.traits import HasCanonicalizationPatternsTrait
+from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations, op_dce
 
 
 class CanonicalizationRewritePattern(RewritePattern):
     """Rewrite pattern that applies a canonicalization pattern."""
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        trait = op.get_trait(HasCanonicalisationPatternsTrait)
+        trait = op.get_trait(HasCanonicalizationPatternsTrait)
         if trait is None:
             return
         patterns = trait.get_canonicalization_patterns()
@@ -34,5 +34,7 @@ class CanonicalizePass(ModulePass):
     name = "canonicalize"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(CanonicalizationRewritePattern()).rewrite_module(op)
-        dce(op)
+        pattern = GreedyRewritePatternApplier(
+            [RemoveUnusedOperations(), CanonicalizationRewritePattern()]
+        )
+        PatternRewriteWalker(pattern, post_walk_func=op_dce).rewrite_module(op)

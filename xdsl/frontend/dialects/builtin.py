@@ -39,8 +39,8 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
         from xdsl.frontend.dialects.arith import addi
 
         return addi(
-            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
-            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            self,  # pyright: ignore[reportUnknownVariableType, reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
         )
 
     def __and__(
@@ -49,8 +49,8 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
         from xdsl.frontend.dialects.arith import andi
 
         return andi(
-            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
-            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            self,  # pyright: ignore[reportUnknownVariableType, reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
         )
 
     def __lshift__(
@@ -59,8 +59,8 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
         from xdsl.frontend.dialects.arith import shli
 
         return shli(
-            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
-            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            self,  # pyright: ignore[reportUnknownVariableType, reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
         )
 
     def __mul__(
@@ -69,8 +69,8 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
         from xdsl.frontend.dialects.arith import muli
 
         return muli(
-            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
-            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            self,  # pyright: ignore[reportUnknownVariableType, reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
         )
 
     def __rshift__(
@@ -79,8 +79,8 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
         from xdsl.frontend.dialects.arith import shrsi
 
         return shrsi(
-            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
-            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            self,  # pyright: ignore[reportUnknownVariableType, reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
         )
 
     def __sub__(
@@ -89,8 +89,8 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
         from xdsl.frontend.dialects.arith import subi
 
         return subi(
-            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
-            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            self,  # pyright: ignore[reportUnknownVariableType, reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
         )
 
     def __eq__(  # pyright: ignore[reportIncompatibleMethodOverride]
@@ -98,34 +98,58 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
     ) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
 
-        return cmpi(self, other, "eq")  # pyright: ignore[reportGeneralTypeIssues]
+        return cmpi(
+            self,  # pyright: ignore[reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
+            "eq",
+        )
 
     def __ge__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
 
-        return cmpi(self, other, "sge")  # pyright: ignore[reportGeneralTypeIssues]
+        return cmpi(
+            self,  # pyright: ignore[reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
+            "sge",
+        )
 
     def __gt__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
 
-        return cmpi(self, other, "sgt")  # pyright: ignore[reportGeneralTypeIssues]
+        return cmpi(
+            self,  # pyright: ignore[reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
+            "sgt",
+        )
 
     def __le__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
 
-        return cmpi(self, other, "sle")  # pyright: ignore[reportGeneralTypeIssues]
+        return cmpi(
+            self,  # pyright: ignore[reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
+            "sle",
+        )
 
     def __lt__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
 
-        return cmpi(self, other, "slt")  # pyright: ignore[reportGeneralTypeIssues]
+        return cmpi(
+            self,  # pyright: ignore[reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
+            "slt",
+        )
 
     def __ne__(  # pyright: ignore[reportIncompatibleMethodOverride]
         self, other: _Integer[_Width, _Signedness]
     ) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
 
-        return cmpi(self, other, "ne")  # pyright: ignore[reportGeneralTypeIssues]
+        return cmpi(
+            self,  # pyright: ignore[reportArgumentType]
+            other,  # pyright: ignore[reportArgumentType]
+            "ne",
+        )
 
 
 # Type aliases for signless integers.

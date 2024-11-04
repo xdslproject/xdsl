@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.ir import (
     Attribute,
@@ -32,40 +33,55 @@ from xdsl.ir import (
     TypeAttribute,
     TypedAttribute,
 )
-from xdsl.ir.affine import AffineMap, AffineSet
+from xdsl.ir.affine import (
+    AffineConstantExpr,
+    AffineDimExpr,
+    AffineMap,
+    AffineSet,
+    AffineSymExpr,
+)
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AnyOf,
     AttrConstraint,
+    BaseAttr,
     ConstraintContext,
+    GenericAttrConstraint,
     GenericData,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
-    VarOperand,
-    VarOpResult,
     attr_constr_coercion,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.traits import (
     IsolatedFromAbove,
+    NoMemoryEffect,
     NoTerminator,
     OptionalSymbolOpInterface,
     SymbolTable,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
+
+DYNAMIC_INDEX = -1
+"""
+A constant value denoting a dynamic index in a shape.
+"""
 
 
 class ShapedType(ABC):
@@ -77,6 +93,13 @@ class ShapedType(ABC):
 
     def element_count(self) -> int:
         return prod(self.get_shape())
+
+    @staticmethod
+    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
+        import operator
+        from itertools import accumulate
+
+        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
 
 
 class AnyShapedType(AttrConstraint):
@@ -148,22 +171,8 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        if len(args) == 1:
-            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
-        if len(args) == 0:
-            return ArrayOfConstraint(AnyAttr())
-        raise TypeError(
-            f"Attribute ArrayAttr expects at most 1 type"
-            f" parameter, but {len(args)} were given"
-        )
-
-    def verify(self) -> None:
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but {idx} "
-                    f"element is of type {type(val)}"
-                )
+        assert len(args) == 1
+        return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
 
     def __len__(self):
         return len(self.data)
@@ -262,6 +271,8 @@ FlatSymbolRefAttrConstraint = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
+FlatSymbolRefAttrConstr = AllOf((base(SymbolRefAttr), FlatSymbolRefAttrConstraint))
+
 
 @irdl_attr_definition
 class IntAttr(Data[int]):
@@ -337,8 +348,31 @@ class SignednessAttr(Data[Signedness]):
                 raise ValueError(f"Invalid signedness {data}")
 
 
+class FixedBitwidthType(TypeAttribute, ABC):
+    """
+    A type attribute with a defined bitwidth
+    """
+
+    name = "abstract.bitwidth_type"
+
+    @property
+    @abstractmethod
+    def bitwidth(self) -> int:
+        """
+        Contiguous memory footprint in bits
+        """
+        raise NotImplementedError()
+
+    @property
+    def size(self) -> int:
+        """
+        Contiguous memory footprint in bytes, defaults to `ceil(bitwidth / 8)`
+        """
+        return self.bitwidth >> 3 + bool(self.bitwidth % 8)
+
+
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, TypeAttribute):
+class IntegerType(ParametrizedAttribute, FixedBitwidthType):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -357,12 +391,20 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
 
+    @property
+    def bitwidth(self) -> int:
+        return self.width.data
+
 
 i64 = IntegerType(64)
 i32 = IntegerType(32)
+i16 = IntegerType(16)
+i8 = IntegerType(8)
 i1 = IntegerType(1)
 I64 = Annotated[IntegerType, i64]
 I32 = Annotated[IntegerType, i32]
+I16 = Annotated[IntegerType, i16]
+I8 = Annotated[IntegerType, i8]
 I1 = Annotated[IntegerType, i1]
 
 
@@ -395,9 +437,15 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
+IndexTypeConstr = BaseAttr(IndexType)
+
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+_IntegerAttrTypeConstrT = TypeVar(
+    "_IntegerAttrTypeConstrT", bound=IntegerType | IndexType, covariant=True
+)
+IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -442,6 +490,10 @@ class IntegerAttr(
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
 
+    @staticmethod
+    def from_bool(value: bool) -> BoolAttr:
+        return IntegerAttr(value, 1)
+
     def verify(self) -> None:
         if isinstance(int_type := self.type, IndexType):
             return
@@ -470,74 +522,99 @@ class IntegerAttr(
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
 
+    @staticmethod
+    def constr(
+        *,
+        value: AttrConstraint | None = None,
+        type: GenericAttrConstraint[_IntegerAttrTypeConstrT] = IntegerAttrTypeConstr,
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrTypeConstrT]]:
+        if value is None and type == AnyAttr():
+            return BaseAttr[IntegerAttr[_IntegerAttrTypeConstrT]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrTypeConstrT]](
+            IntegerAttr,
+            (
+                value,
+                type,
+            ),
+        )
+
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
 class _FloatType(ABC):
     @property
     @abstractmethod
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         raise NotImplementedError()
 
 
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class BFloat16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "bf16"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 16
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f16"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 16
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f32"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 32
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f64"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 64
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f80"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 80
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f128"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 128
 
 
 AnyFloat: TypeAlias = (
     BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
+)
+AnyFloatConstr = (
+    BaseAttr(BFloat16Type)
+    | BaseAttr(Float16Type)
+    | BaseAttr(Float32Type)
+    | BaseAttr(Float64Type)
+    | BaseAttr(Float80Type)
+    | BaseAttr(Float128Type)
 )
 
 
@@ -552,6 +629,15 @@ class FloatData(Data[float]):
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
+
+    def __eq__(self, other: Any):
+        # avoid triggering `float('nan') != float('nan')` inequality
+        return isinstance(other, FloatData) and (
+            math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
+        )
+
+    def __hash__(self):
+        return hash(self.data)
 
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
@@ -594,6 +680,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+AnyFloatAttrConstr: BaseAttr[AnyFloatAttr] = BaseAttr(FloatAttr)
 
 
 @irdl_attr_definition
@@ -728,10 +815,16 @@ class TensorType(
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
+AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
 
 
 @irdl_attr_definition
-class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
+class UnrankedTensorType(
+    Generic[AttributeCovT],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[AttributeCovT],
+):
     name = "unranked_tensor"
 
     element_type: ParameterDef[AttributeCovT]
@@ -739,8 +832,12 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
     def __init__(self, element_type: AttributeCovT) -> None:
         super().__init__([element_type])
 
+    def get_element_type(self) -> AttributeCovT:
+        return self.element_type
+
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
+AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType)
 
 
 @dataclass(frozen=True, init=False)
@@ -766,10 +863,6 @@ VectorOrTensorOf: TypeAlias = (
     VectorType[AttributeCovT]
     | TensorType[AttributeCovT]
     | UnrankedTensorType[AttributeCovT]
-)
-
-RankedVectorOrTensorOf: TypeAlias = (
-    VectorType[AttributeCovT] | TensorType[AttributeCovT]
 )
 
 
@@ -837,151 +930,6 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class DenseIntOrFPElementsAttr(
-    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat]
-):
-    name = "dense"
-    type: ParameterDef[
-        RankedVectorOrTensorOf[IntegerType]
-        | RankedVectorOrTensorOf[IndexType]
-        | RankedVectorOrTensorOf[AnyFloat]
-    ]
-    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
-
-    # The type stores the shape data
-    def get_shape(self) -> tuple[int, ...] | None:
-        if isinstance(self.type, UnrankedTensorType):
-            return None
-        return self.type.get_shape()
-
-    def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
-        return self.type.get_element_type()
-
-    @property
-    def shape_is_complete(self) -> bool:
-        shape = self.get_shape()
-        if shape is None or not len(shape):
-            return False
-
-        n = 1
-        for dim in shape:
-            if dim < 1:
-                # Dimensions need to be greater or equal to one
-                return False
-            n *= dim
-
-        # Product of dimensions needs to equal length
-        return n == len(self.data.data)
-
-    @staticmethod
-    def create_dense_index(
-        type: RankedVectorOrTensorOf[IndexType],
-        data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
-    ) -> DenseIntOrFPElementsAttr:
-        if len(data) and isinstance(data[0], int):
-            attr_list = [
-                IntegerAttr.from_index_int_value(d) for d in cast(Sequence[int], data)
-            ]
-        else:
-            attr_list = cast(Sequence[IntegerAttr[IndexType]], data)
-
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
-
-    @staticmethod
-    def create_dense_int(
-        type: RankedVectorOrTensorOf[IntegerType],
-        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-    ) -> DenseIntOrFPElementsAttr:
-        if len(data) and isinstance(data[0], int):
-            attr_list = [
-                IntegerAttr[IntegerType](d, type.element_type)
-                for d in cast(Sequence[int], data)
-            ]
-        else:
-            attr_list = cast(Sequence[IntegerAttr[IntegerType]], data)
-
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
-
-    @staticmethod
-    def create_dense_float(
-        type: RankedVectorOrTensorOf[AnyFloat],
-        data: Sequence[int | float] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
-        if len(data) and isinstance(data[0], int | float):
-            attr_list = [
-                FloatAttr(float(d), type.element_type)
-                for d in cast(Sequence[int | float], data)
-            ]
-        else:
-            attr_list = cast(Sequence[AnyFloatAttr], data)
-
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
-
-    @overload
-    @staticmethod
-    def from_list(
-        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
-        data: (
-            Sequence[int]
-            | Sequence[IntegerAttr[IndexType]]
-            | Sequence[IntegerAttr[IntegerType]]
-        ),
-    ) -> DenseIntOrFPElementsAttr: ...
-
-    @overload
-    @staticmethod
-    def from_list(
-        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
-        data: Sequence[int | float] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr: ...
-
-    @staticmethod
-    def from_list(
-        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
-        data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
-        if isinstance(type.element_type, AnyFloat):
-            new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
-            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
-            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-
-        match type.element_type:
-            case IntegerType():
-                new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
-                new_data = cast(
-                    Sequence[int] | Sequence[IntegerAttr[IntegerType]], data
-                )
-                return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
-            case IndexType():
-                new_type = cast(RankedVectorOrTensorOf[IndexType], type)
-                new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
-                return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
-
-    @staticmethod
-    def vector_from_list(
-        data: Sequence[int] | Sequence[float],
-        data_type: IntegerType | IndexType | AnyFloat,
-    ) -> DenseIntOrFPElementsAttr:
-        t = VectorType(data_type, [len(data)])
-        return DenseIntOrFPElementsAttr.from_list(t, data)
-
-    @staticmethod
-    def tensor_from_list(
-        data: (
-            Sequence[int]
-            | Sequence[float]
-            | Sequence[IntegerAttr[IndexType]]
-            | Sequence[IntegerAttr[IntegerType]]
-            | Sequence[AnyFloatAttr]
-        ),
-        data_type: IntegerType | IndexType | AnyFloat,
-        shape: Sequence[int],
-    ) -> DenseIntOrFPElementsAttr:
-        t = TensorType(data_type, shape)
-        return DenseIntOrFPElementsAttr.from_list(t, data)
-
-
-@irdl_attr_definition
 class DenseResourceAttr(ParametrizedAttribute):
     name = "dense_resource"
 
@@ -1020,9 +968,17 @@ class DenseArrayBase(ParametrizedAttribute):
                         "should only contain floats"
                     )
 
+    @deprecated("Please use `create_dense_int` instead.")
     @staticmethod
     def create_dense_int_or_index(
         data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase:
+        assert not isinstance(data_type, IndexType), "Index type is not supported"
+        return DenseArrayBase.create_dense_int(data_type, data)
+
+    @staticmethod
+    def create_dense_int(
+        data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
             attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
@@ -1064,10 +1020,10 @@ class DenseArrayBase(ParametrizedAttribute):
             | Sequence[FloatData]
         ),
     ) -> DenseArrayBase:
-        if isinstance(data_type, IndexType | IntegerType):
+        if isinstance(data_type, IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
-            return DenseArrayBase.create_dense_int_or_index(data_type, _data)
-        elif isinstance(data_type, AnyFloat):
+            return DenseArrayBase.create_dense_int(data_type, _data)
+        elif isattr(data_type, AnyFloatConstr):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
         else:
@@ -1125,7 +1081,28 @@ class MemrefLayoutAttr(Attribute, ABC):
 
     name = "abstract.memref_layout_att"
 
-    pass
+    @abstractmethod
+    def get_affine_map(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        layout to the element offset in linear memory. The resulting
+        affine map thus has only one result.
+        """
+        raise NotImplementedError()
+
+    def get_strides(self) -> Sequence[int | None] | None:
+        """
+        (optional) Return the list of strides, representing the element offset
+        in linear memory for every dimension in the iteration space of
+        this memref layout attribute.
+
+        Note: The dimension of the iteration space may differ from the dimension
+        of the data it represents. For instance, this can occur in a tiled layout.
+
+        This is only applicable to hyper-rectangular layouts.
+        If this is not applicable for a given layout, returns None
+        """
+        return None
 
 
 @irdl_attr_definition
@@ -1169,6 +1146,52 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
 
         super().__init__([strides, offset])
 
+    def get_strides(self) -> Sequence[int | None]:
+        return tuple(
+            None if isinstance(stride, NoneAttr) else stride.data
+            for stride in self.strides
+        )
+
+    def get_offset(self) -> int | None:
+        if isinstance(self.offset, NoneAttr):
+            return None
+        else:
+            return self.offset.data
+
+    def get_affine_map(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        layout to the element offset in linear memory. The resulting
+        affine map thus has only one result.
+
+        For dynamic strides, this results in an affinemap with a number
+        of symbols, ordered in the following manner:
+            (1) Symbol for the dynamic offset of the layout
+            (2) Symbols for every dynamic stride of the layout
+        """
+
+        # keep track of number of symbols
+        nb_symbols = 0
+
+        result = AffineConstantExpr(0)
+
+        # add offset
+        if isinstance(self.offset, IntAttr):
+            result += AffineConstantExpr(self.offset.data)
+        else:  # NoneAttr
+            result += AffineSymExpr(nb_symbols)
+            nb_symbols += 1
+
+        for dim, stride in enumerate(self.strides.data):
+            if isinstance(stride, IntAttr):
+                stride_expr = AffineConstantExpr(stride.data)
+            else:  # NoneAttr
+                stride_expr = AffineSymExpr(nb_symbols)
+                nb_symbols += 1
+            result += AffineDimExpr(dim) * stride_expr
+
+        return AffineMap(len(self.strides), nb_symbols, (result,))
+
 
 @irdl_attr_definition
 class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
@@ -1189,6 +1212,9 @@ class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
     def constant_map(value: int) -> AffineMapAttr:
         return AffineMapAttr(AffineMap.constant_map(value))
 
+    def get_affine_map(self) -> AffineMap:
+        return self.data
+
 
 @irdl_attr_definition
 class AffineSetAttr(Data[AffineSet]):
@@ -1208,8 +1234,10 @@ class AffineSetAttr(Data[AffineSet]):
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
 
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOpResult = var_result_def()
+    inputs = var_operand_def()
+    outputs = var_result_def()
+
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1266,7 +1294,7 @@ class UnregisteredOp(Operation, ABC):
     """
 
     name = "builtin.unregistered"
-    traits = frozenset()
+    traits = traits_def()
 
     @property
     def op_name(self) -> StringAttr:
@@ -1391,15 +1419,13 @@ class ModuleOp(IRDLOperation):
 
     sym_name = opt_attr_def(StringAttr)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            NoTerminator(),
-            OptionalSymbolOpInterface(),
-            SymbolTable(),
-        ]
+    traits = traits_def(
+        IsolatedFromAbove(),
+        NoTerminator(),
+        OptionalSymbolOpInterface(),
+        SymbolTable(),
     )
 
     def __init__(
@@ -1450,11 +1476,14 @@ bf16 = BFloat16Type()
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()
-f80 = Float64Type()
-f128 = Float64Type()
+f80 = Float80Type()
+f128 = Float128Type()
 
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute, covariant=True)
+_MemRefTypeElementConstrT = TypeVar(
+    "_MemRefTypeElementConstrT", bound=Attribute, covariant=True
+)
 _UnrankedMemrefTypeElems = TypeVar(
     "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
 )
@@ -1488,17 +1517,22 @@ class MemRefType(
         layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        if not isinstance(shape, ArrayAttr):
-            shape = ArrayAttr(
+        s: ArrayAttr[IntAttr]
+        if isinstance(shape, ArrayAttr):
+            # Temporary cast until Pyright is fixed to not infer ArrayAttr[int] as a
+            # possible value for shape
+            s = cast(ArrayAttr[IntAttr], shape)
+        else:
+            s = ArrayAttr(
                 [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
             )
         super().__init__(
-            [
-                shape,
+            (
+                s,
                 element_type,
                 layout,
                 memory_space,
-            ]
+            )
         )
 
     def get_num_dims(self) -> int:
@@ -1533,10 +1567,86 @@ class MemRefType(
             printer.print(", ", self.layout, ", ", self.memory_space)
         printer.print(">")
 
+    def get_affine_map(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        memref's layout to the element offset in linear memory.
+        """
+        if isinstance(self.layout, NoneAttr):
+            # empty shape not supported
+            if self.get_shape() == ():
+                raise DiagnosticException(
+                    f"Unsupported empty shape in memref of type {self}"
+                )
+
+            strides = self.strides_for_shape(self.get_shape())
+            map = StridedLayoutAttr(strides).get_affine_map()
+        else:
+            map = self.layout.get_affine_map()
+
+        return map
+
+    def get_affine_map_in_bytes(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        memref's layout to the byte offset in linear memory.
+
+        Unlike the get_affine_map, this function accounts for element width.
+        """
+
+        map = self.get_affine_map()
+
+        # account for element width
+        assert isinstance(self.element_type, FixedBitwidthType)
+
+        return AffineMap(
+            map.num_dims,
+            map.num_symbols,
+            tuple(result * self.element_type.size for result in map.results),
+        )
+
+    def get_strides(self) -> Sequence[int | None] | None:
+        """
+        Yields the strides of the memref for each dimension.
+        The stride of a dimension is the number of elements that are skipped when
+        incrementing the corresponding index by one.
+        """
+        match self.layout:
+            case NoneAttr():
+                return ShapedType.strides_for_shape(self.get_shape())
+            case _:
+                return self.layout.get_strides()
+
+    @staticmethod
+    def constr(
+        *,
+        shape: GenericAttrConstraint[Attribute] | None = None,
+        element_type: GenericAttrConstraint[_MemRefTypeElementConstrT] = AnyAttr(),
+        layout: GenericAttrConstraint[Attribute] | None = None,
+        memory_space: GenericAttrConstraint[Attribute] | None = None,
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElementConstrT]]:
+        if (
+            shape is None
+            and element_type == AnyAttr()
+            and layout is None
+            and memory_space is None
+        ):
+            return BaseAttr[MemRefType[_MemRefTypeElementConstrT]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElementConstrT]](
+            MemRefType, (shape, element_type, layout, memory_space)
+        )
+
+
+AnyMemRefType: TypeAlias = MemRefType[Attribute]
+AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
+
 
 @irdl_attr_definition
 class UnrankedMemrefType(
-    Generic[_UnrankedMemrefTypeElems], ParametrizedAttribute, TypeAttribute
+    Generic[_UnrankedMemrefTypeElems],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[_UnrankedMemrefTypeElems],
 ):
     name = "unranked_memref"
 
@@ -1550,8 +1660,173 @@ class UnrankedMemrefType(
     ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
         return UnrankedMemrefType([referenced_type, memory_space])
 
+    def get_element_type(self) -> _UnrankedMemrefTypeElems:
+        return self.element_type
+
 
 AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
+AnyUnrankedMemrefTypeConstr = BaseAttr[AnyUnrankedMemrefType](UnrankedMemrefType)
+
+RankedStructure: TypeAlias = (
+    VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
+)
+
+
+@irdl_attr_definition
+class DenseIntOrFPElementsAttr(
+    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat]
+):
+    name = "dense"
+    type: ParameterDef[
+        RankedStructure[IntegerType]
+        | RankedStructure[IndexType]
+        | RankedStructure[AnyFloat]
+    ]
+    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+
+    # The type stores the shape data
+    def get_shape(self) -> tuple[int, ...] | None:
+        if isinstance(self.type, UnrankedTensorType):
+            return None
+        return self.type.get_shape()
+
+    def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
+        return self.type.get_element_type()
+
+    @property
+    def shape_is_complete(self) -> bool:
+        shape = self.get_shape()
+        if shape is None or not len(shape):
+            return False
+
+        n = 1
+        for dim in shape:
+            if dim < 1:
+                # Dimensions need to be greater or equal to one
+                return False
+            n *= dim
+
+        # Product of dimensions needs to equal length
+        return n == len(self.data.data)
+
+    @staticmethod
+    def create_dense_index(
+        type: RankedStructure[IndexType],
+        data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
+    ) -> DenseIntOrFPElementsAttr:
+        if len(data) and isinstance(data[0], int):
+            attr_list = [
+                IntegerAttr.from_index_int_value(d) for d in cast(Sequence[int], data)
+            ]
+        else:
+            attr_list = cast(Sequence[IntegerAttr[IndexType]], data)
+
+        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+
+    @staticmethod
+    def create_dense_int(
+        type: RankedStructure[IntegerType],
+        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
+    ) -> DenseIntOrFPElementsAttr:
+        if len(data) and isinstance(data[0], int):
+            attr_list = [
+                IntegerAttr[IntegerType](d, type.element_type)
+                for d in cast(Sequence[int], data)
+            ]
+        else:
+            attr_list = cast(Sequence[IntegerAttr[IntegerType]], data)
+
+        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+
+    @staticmethod
+    def create_dense_float(
+        type: RankedStructure[AnyFloat],
+        data: Sequence[int | float] | Sequence[AnyFloatAttr],
+    ) -> DenseIntOrFPElementsAttr:
+        if len(data) and isinstance(data[0], int | float):
+            attr_list = [
+                FloatAttr(float(d), type.element_type)
+                for d in cast(Sequence[int | float], data)
+            ]
+        else:
+            attr_list = cast(Sequence[AnyFloatAttr], data)
+
+        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+
+    @overload
+    @staticmethod
+    def from_list(
+        type: (
+            RankedStructure[AnyFloat | IntegerType | IndexType]
+            | RankedStructure[AnyFloat]
+            | RankedStructure[IntegerType]
+            | RankedStructure[IndexType]
+        ),
+        data: (
+            Sequence[int]
+            | Sequence[IntegerAttr[IndexType]]
+            | Sequence[IntegerAttr[IntegerType]]
+        ),
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @overload
+    @staticmethod
+    def from_list(
+        type: (
+            RankedStructure[AnyFloat | IntegerType | IndexType]
+            | RankedStructure[AnyFloat]
+            | RankedStructure[IntegerType]
+            | RankedStructure[IndexType]
+        ),
+        data: Sequence[int | float] | Sequence[AnyFloatAttr],
+    ) -> DenseIntOrFPElementsAttr: ...
+
+    @staticmethod
+    def from_list(
+        type: (
+            RankedStructure[AnyFloat | IntegerType | IndexType]
+            | RankedStructure[AnyFloat]
+            | RankedStructure[IntegerType]
+            | RankedStructure[IndexType]
+        ),
+        data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
+    ) -> DenseIntOrFPElementsAttr:
+        if isinstance(type.element_type, AnyFloat):
+            new_type = cast(RankedStructure[AnyFloat], type)
+            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
+        elif isinstance(type.element_type, IntegerType):
+            new_type = cast(RankedStructure[IntegerType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
+            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+        else:
+            new_type = cast(RankedStructure[IndexType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+
+    @staticmethod
+    def vector_from_list(
+        data: Sequence[int] | Sequence[float],
+        data_type: IntegerType | IndexType | AnyFloat,
+    ) -> DenseIntOrFPElementsAttr:
+        t = VectorType(data_type, [len(data)])
+        return DenseIntOrFPElementsAttr.from_list(t, data)
+
+    @staticmethod
+    def tensor_from_list(
+        data: (
+            Sequence[int]
+            | Sequence[float]
+            | Sequence[IntegerAttr[IndexType]]
+            | Sequence[IntegerAttr[IntegerType]]
+            | Sequence[AnyFloatAttr]
+        ),
+        data_type: IntegerType | IndexType | AnyFloat,
+        shape: Sequence[int],
+    ) -> DenseIntOrFPElementsAttr:
+        t = TensorType(data_type, shape)
+        return DenseIntOrFPElementsAttr.from_list(t, data)
+
 
 Builtin = Dialect(
     "builtin",

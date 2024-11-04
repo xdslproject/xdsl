@@ -38,13 +38,13 @@ builtin.module {
 // CHECK-NEXT:     param0: ParameterDef[Attribute]
 
 
-    irdl.operation @eq {
+    irdl.operation @my_eq {
       %0 = irdl.is i32
       irdl.results(%0)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class eq(IRDLOperation):
-// CHECK-NEXT:     name = "testd.eq"
+// CHECK-NEXT: class my_eq(IRDLOperation):
+// CHECK-NEXT:     name = "testd.my_eq"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     regs = var_region_def()
 // CHECK-NEXT:     succs = var_successor_def()
@@ -133,4 +133,4 @@ builtin.module {
   }
 }
 
-// CHECK: testd = Dialect("testd", [eq, anyof, all_of, any, dynbase, dynparams, constraint_vars], [parametric, parametric_attr, attr_in_type_out])
+// CHECK: testd = Dialect("testd", [my_eq, anyof, all_of, any, dynbase, dynparams, constraint_vars], [parametric, parametric_attr, attr_in_type_out])

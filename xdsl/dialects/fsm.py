@@ -7,8 +7,10 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
+    SymbolRefAttr,
 )
 from xdsl.ir import (
     Attribute,
@@ -21,7 +23,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     attr_def,
     irdl_attr_definition,
@@ -31,6 +32,7 @@ from xdsl.irdl import (
     opt_operand_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -63,7 +65,7 @@ class MachineOp(IRDLOperation):
 
     name = "fsm.machine"
 
-    body: Region = region_def()
+    body = region_def()
 
     sym_name = attr_def(StringAttr)
     initialState = attr_def(StringAttr)
@@ -73,7 +75,7 @@ class MachineOp(IRDLOperation):
     arg_names = opt_attr_def(ArrayAttr[StringAttr])
     res_names = opt_attr_def(ArrayAttr[StringAttr])
 
-    traits = frozenset([NoTerminator(), SymbolTable(), SymbolOpInterface()])
+    traits = traits_def(NoTerminator(), SymbolTable(), SymbolOpInterface())
 
     def __init__(
         self,
@@ -140,7 +142,7 @@ class StateOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    traits = frozenset([NoTerminator(), SymbolOpInterface(), HasParent(MachineOp)])
+    traits = traits_def(NoTerminator(), SymbolOpInterface(), HasParent(MachineOp))
 
     def __init__(
         self,
@@ -184,9 +186,9 @@ class OutputOp(IRDLOperation):
 
     name = "fsm.output"
 
-    operand = var_operand_def(AnyAttr())
+    operand = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(StateOp)])
+    traits = traits_def(IsTerminator(), HasParent(StateOp))
 
     def __init__(
         self,
@@ -203,11 +205,7 @@ class OutputOp(IRDLOperation):
             raise VerifyException("Transition regions should not output any value")
         while (parent := parent.parent_op()) is not None:
             if isinstance(parent, MachineOp):
-                if not (
-                    [operand.type for operand in self.operands]
-                    == [result for result in parent.function_type.outputs]
-                    and len(self.operands) == len(parent.function_type.outputs)
-                ):
+                if self.operand_types != parent.function_type.outputs.data:
                     raise VerifyException(
                         "OutputOp output type must be consistent with the machine "
                         + str(parent.sym_name)
@@ -230,9 +228,9 @@ class TransitionOp(IRDLOperation):
 
     action = region_def()
 
-    nextState = attr_def(FlatSymbolRefAttr)
+    nextState = attr_def(FlatSymbolRefAttrConstr)
 
-    traits = frozenset([NoTerminator(), HasParent(StateOp)])
+    traits = traits_def(NoTerminator(), HasParent(StateOp))
 
     def __init__(
         self,
@@ -241,7 +239,7 @@ class TransitionOp(IRDLOperation):
         action: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
         if isinstance(nextState, str):
-            nextState = FlatSymbolRefAttr(nextState)
+            nextState = SymbolRefAttr(nextState)
         attributes: dict[str, Attribute] = {
             "nextState": nextState,
         }
@@ -281,7 +279,7 @@ class UpdateOp(IRDLOperation):
 
     value = operand_def(Attribute)
 
-    traits = frozenset([HasParent(TransitionOp)])
+    traits = traits_def(HasParent(TransitionOp))
 
     def __init__(
         self,
@@ -355,7 +353,7 @@ class ReturnOp(IRDLOperation):
 
     operand = opt_operand_def(signlessIntegerLike)
 
-    traits = frozenset([IsTerminator(), HasParent(TransitionOp)])
+    traits = traits_def(IsTerminator(), HasParent(TransitionOp))
 
     def __init__(
         self,
@@ -377,7 +375,7 @@ class InstanceOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    machine = attr_def(FlatSymbolRefAttr)
+    machine = attr_def(FlatSymbolRefAttrConstr)
 
     res = result_def(InstanceType)
 
@@ -385,7 +383,7 @@ class InstanceOp(IRDLOperation):
         self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
     ):
         if isinstance(machine, str):
-            machine = FlatSymbolRefAttr(machine)
+            machine = SymbolRefAttr(machine)
         attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(sym_name),
             "machine": machine,
@@ -414,11 +412,11 @@ class TriggerOp(IRDLOperation):
 
     name = "fsm.trigger"
 
-    inputs = var_operand_def(AnyAttr())
+    inputs = var_operand_def()
 
     instance = operand_def(InstanceType)
 
-    outputs = var_result_def(AnyAttr())
+    outputs = var_result_def()
 
     def __init__(
         self,
@@ -440,21 +438,13 @@ class TriggerOp(IRDLOperation):
         if m is None:
             raise VerifyException("Machine definition does not exist.")
 
-        if not (
-            [operand.type for operand in self.inputs]
-            == [result for result in m.function_type.inputs]
-            and len(self.inputs) == len(m.function_type.inputs)
-        ):
+        if self.inputs.types != tuple(result for result in m.function_type.inputs):
             raise VerifyException(
                 "TriggerOp input types must be consistent with the machine "
                 + str(m.sym_name)
             )
 
-        if not (
-            [operand.type for operand in self.outputs]
-            == [result for result in m.function_type.outputs]
-            and len(self.outputs) == len(m.function_type.outputs)
-        ):
+        if self.outputs.types != tuple(result for result in m.function_type.outputs):
             raise VerifyException(
                 "TriggerOp output types must be consistent with the machine "
                 + str(m.sym_name)
@@ -473,12 +463,12 @@ class HWInstanceOp(IRDLOperation):
     name = "fsm.hw_instance"
 
     sym_name = attr_def(StringAttr)
-    machine = attr_def(FlatSymbolRefAttr)
-    inputs = var_operand_def(AnyAttr())
+    machine = attr_def(FlatSymbolRefAttrConstr)
+    inputs = var_operand_def()
     clock = operand_def(signlessIntegerLike)
     reset = operand_def(signlessIntegerLike)
 
-    outputs = var_result_def(AnyAttr())
+    outputs = var_result_def()
 
     def __init__(
         self,
@@ -490,7 +480,7 @@ class HWInstanceOp(IRDLOperation):
         outputs: Sequence[Attribute],
     ):
         if isinstance(machine, str):
-            machine = FlatSymbolRefAttr(machine)
+            machine = SymbolRefAttr(machine)
         clock = SSAValue.get(clock)
         reset = SSAValue.get(reset)
         if isinstance(sym_name, str):
@@ -508,21 +498,15 @@ class HWInstanceOp(IRDLOperation):
     def verify_(self):
         m = SymbolTable.lookup_symbol(self, self.machine)
         if isinstance(m, MachineOp):
-            if not (
-                [operand.type for operand in self.inputs]
-                == [result for result in m.function_type.inputs]
-                and len(self.inputs) == len(m.function_type.inputs)
-            ):
+            if self.inputs.types != tuple(result for result in m.function_type.inputs):
                 raise VerifyException(
                     "HWInstanceOp "
                     + str(self.sym_name)
                     + " input type must be consistent with the machine "
                     + str(m.sym_name)
                 )
-            if not (
-                [operand.type for operand in self.outputs]
-                == [result for result in m.function_type.outputs]
-                and len(self.outputs) == len(m.function_type.outputs)
+            if self.outputs.types != tuple(
+                result for result in m.function_type.outputs
             ):
                 raise VerifyException(
                     "HWInstanceOp "
