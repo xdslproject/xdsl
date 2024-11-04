@@ -41,18 +41,18 @@ async def test_inputs():
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
 
-        # Test inccorect input
+        # Test incorrect input
         app.input_text_area.insert("dkjfd")
         await pilot.pause()
         assert (
             app.output_text_area.text
-            == "<unknown>:1:5\ndkjfd\n     ^\n     unregistered operation dkjfd!\n"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
         )
 
         assert isinstance(app.current_module, ParseError)
         assert (
             str(app.current_module)
-            == "<unknown>:1:5\ndkjfd\n     ^\n     unregistered operation dkjfd!\n"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
         )
 
         # Test corect input

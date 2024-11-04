@@ -1,7 +1,9 @@
+from collections.abc import Callable
 from typing import NamedTuple
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin, get_all_dialects
+from xdsl.ir import Dialect
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
@@ -16,6 +18,18 @@ class AvailablePass(NamedTuple):
     display_name: str
     module_pass: type[ModulePass]
     pass_spec: PipelinePassSpec | None
+
+
+def get_new_registered_context(
+    all_dialects: dict[str, Callable[[], Dialect]],
+) -> MLContext:
+    """
+    Generates a new MLContext, registers it and returns it.
+    """
+    ctx = MLContext(True)
+    for dialect_name, dialect_factory in all_dialects.items():
+        ctx.register_dialect(dialect_name, dialect_factory)
+    return ctx
 
 
 def apply_passes_to_module(
@@ -37,7 +51,8 @@ def apply_passes_to_module(
 
 
 def iter_condensed_passes(
-    input: builtin.ModuleOp, all_passes: tuple[tuple[str, type[ModulePass]], ...]
+    input: builtin.ModuleOp,
+    all_passes: dict[str, type[ModulePass]],
 ):
     ctx = MLContext(True)
 
@@ -45,7 +60,7 @@ def iter_condensed_passes(
         ctx.register_dialect(dialect_name, dialect_factory)
 
     selections: list[AvailablePass] = []
-    for _, value in all_passes:
+    for _, value in all_passes.items():
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
             selections.append(AvailablePass(value.name, value, None))
@@ -62,7 +77,8 @@ def iter_condensed_passes(
 
 
 def get_condensed_pass_list(
-    input: builtin.ModuleOp, all_passes: tuple[tuple[str, type[ModulePass]], ...]
+    input: builtin.ModuleOp,
+    all_passes: dict[str, type[ModulePass]],
 ) -> tuple[AvailablePass, ...]:
     """
     Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
