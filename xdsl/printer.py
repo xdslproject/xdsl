@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import struct
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -71,6 +70,11 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.utils.bitwise_casts import (
+    convert_f16_to_u16,
+    convert_f32_to_u32,
+    convert_f64_to_u64,
+)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.lexer import Lexer
 
@@ -466,17 +470,11 @@ class Printer:
         value = attribute.value
         if math.isnan(value.data) or math.isinf(value.data):
             if isinstance(attribute.type, Float16Type):
-                self.print_string(
-                    f"{hex(struct.unpack('<H', struct.pack('<e', value.data))[0])}"
-                )
+                self.print_string(f"{hex(convert_f16_to_u16(value.data))}")
             elif isinstance(attribute.type, Float32Type):
-                self.print_string(
-                    f"{hex(struct.unpack('<I', struct.pack('<f', value.data))[0])}"
-                )
+                self.print_string(f"{hex(convert_f32_to_u32(value.data))}")
             elif isinstance(attribute.type, Float64Type):
-                self.print_string(
-                    f"{hex(struct.unpack('<Q', struct.pack('<d', value.data))[0])}"
-                )
+                self.print_string(f"{hex(convert_f64_to_u64(value.data))}")
             else:
                 raise NotImplementedError(
                     f"Cannot print '{value.data}' value for float type {str(attribute.type)}"
