@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from io import StringIO
 from typing import cast
 
 from xdsl.context import MLContext
@@ -33,7 +32,6 @@ class ApplyPDLPass(ModulePass):
                 pdl_module = parser.parse_module()
         else:
             pdl_module = payload_module
-        stream = StringIO()
         rewrite_patterns = [
             cast(RewritePattern, PDLRewritePattern(op, ctx, None))
             for op in pdl_module.walk()
