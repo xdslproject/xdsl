@@ -13,7 +13,11 @@ from xdsl.pattern_rewriter import (
 class ArgNamesToArgAttrsPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
-        arg_attrs = list(op.arg_attrs or (len(op.args) * [DictionaryAttr({})]))
+        arg_attrs = (
+            op.arg_attrs.data
+            if op.arg_attrs is not None
+            else ((DictionaryAttr({}),) * len(op.args))
+        )
 
         new_arg_attrs = ArrayAttr(
             DictionaryAttr(
