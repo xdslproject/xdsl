@@ -80,6 +80,8 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     NoMemoryEffect,
     NoTerminator,
     OpTrait,
@@ -468,6 +470,8 @@ class LoadVarOp(IRDLOperation):
     var = operand_def(VarType)
     res = result_def()
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(self, var: VariableOp | SSAValue):
         if isinstance(var, SSAValue):
             assert isinstance(var.type, VarType)
@@ -497,6 +501,8 @@ class StoreVarOp(IRDLOperation):
     name = "csl.store_var"
     var = operand_def(VarType)
     new_value = operand_def()
+
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
         super().__init__(operands=[var, new_value])
