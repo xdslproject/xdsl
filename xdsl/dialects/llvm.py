@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
     i64,
 )
@@ -31,7 +32,6 @@ from xdsl.ir import (
     Operation,
     ParametrizedAttribute,
     Region,
-    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -50,6 +50,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -76,6 +77,8 @@ def _parse_llvm_type(parser: AttrParser):
         return LLVMPointerType(LLVMPointerType.parse_parameters(parser))
     if parser.parse_optional_characters("array"):
         return LLVMArrayType(LLVMArrayType.parse_parameters(parser))
+    if parser.parse_optional_characters("struct"):
+        return LLVMStructType(LLVMStructType.parse_parameters(parser))
 
 
 def parse_llvm_type(parser: AttrParser):
@@ -365,7 +368,7 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
     rhs = operand_def(T)
     res = result_def(T)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -422,7 +425,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     res = result_def(T)
     overflowFlags = opt_prop_def(OverflowAttr)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -476,7 +479,7 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
     res = result_def(IntegerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -623,15 +626,16 @@ class ICmpPredicateFlag(StrEnum):
     UGT = "ugt"
     UGE = "uge"
 
+    @staticmethod
+    def from_int(index: int) -> ICmpPredicateFlag:
+        return ALL_ICMP_FLAGS[index]
 
-@irdl_attr_definition
-class ICmpPredicateAttr(SpacedOpaqueSyntaxAttribute, EnumAttribute[ICmpPredicateFlag]):
-    name = "llvm.predicate"
-    ALL_PREDICATES = tuple(ICmpPredicateFlag)
+    def to_int(self) -> int:
+        return ICMP_INDEX_BY_FLAG[self]
 
-    @classmethod
-    def from_int(cls, i: int):
-        return ICmpPredicateAttr(cls.ALL_PREDICATES[i])
+
+ALL_ICMP_FLAGS = tuple(ICmpPredicateFlag)
+ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
 
 
 @irdl_op_definition
@@ -641,22 +645,22 @@ class ICmpOp(IRDLOperation):
 
     lhs = operand_def(T)
     rhs = operand_def(T)
-    res = result_def(T)
-    predicate = prop_def(ICmpPredicateAttr)
+    res = result_def(i1)
+    predicate = prop_def(IntegerAttr[i64])
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
         lhs: SSAValue,
         rhs: SSAValue,
-        predicate: ICmpPredicateAttr,
+        predicate: IntegerAttr[IntegerType],
         attributes: dict[str, Attribute] = {},
     ):
         super().__init__(
             operands=[lhs, rhs],
             attributes=attributes,
-            result_types=[lhs.type],
+            result_types=[i1],
             properties={
                 "predicate": predicate,
             },
@@ -666,7 +670,8 @@ class ICmpOp(IRDLOperation):
     def parse(cls, parser: Parser):
         predicate_literal = parser.parse_str_literal()
         predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
-        predicate = ICmpPredicateAttr(predicate_value)
+        predicate_int = predicate_value.to_int()
+        predicate = IntegerAttr(predicate_int, i64)
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
@@ -677,7 +682,8 @@ class ICmpOp(IRDLOperation):
         return cls(operands[0], operands[1], predicate, attributes)
 
     def print_predicate(self, printer: Printer):
-        self.predicate.print_parameter(printer)
+        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f"{flag}")
 
     def print(self, printer: Printer):
         printer.print_string(' "')
@@ -810,7 +816,7 @@ class GEPOp(IRDLOperation):
     rawConstantIndices = prop_def(DenseArrayBase)
     inbounds = opt_prop_def(UnitAttr)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -929,7 +935,7 @@ class IntToPtrOp(IRDLOperation):
 
     output = result_def(LLVMPointerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
@@ -1003,7 +1009,7 @@ class PtrToIntOp(IRDLOperation):
 
     output = result_def(IntegerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
@@ -1078,7 +1084,7 @@ class NullOp(IRDLOperation):
 
     nullptr = result_def(LLVMPointerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
@@ -1101,7 +1107,7 @@ class ExtractValueOp(IRDLOperation):
 
     res = result_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1132,7 +1138,7 @@ class InsertValueOp(IRDLOperation):
 
     res = result_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1159,7 +1165,7 @@ class UndefOp(IRDLOperation):
 
     res = result_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
@@ -1185,7 +1191,7 @@ class GlobalOp(IRDLOperation):
     # This always needs an empty region as it is in the top level module definition
     body = region_def()
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(
         self,
@@ -1247,7 +1253,7 @@ class AddressOfOp(IRDLOperation):
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1373,7 +1379,7 @@ class ReturnOp(IRDLOperation):
 
     arg = opt_operand_def(Attribute)
 
-    traits = frozenset((IsTerminator(), NoMemoryEffect()))
+    traits = traits_def(IsTerminator(), NoMemoryEffect())
 
     def __init__(self, value: Attribute | None = None):
         super().__init__(attributes={"value": value})
@@ -1385,7 +1391,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(Attribute)
     value = prop_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
@@ -1554,7 +1560,7 @@ class ZeroOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($res)"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     res = result_def(LLVMTypeConstr)
 
@@ -1609,6 +1615,5 @@ LLVM = Dialect(
         TailCallKindAttr,
         FastMathAttr,
         OverflowAttr,
-        ICmpPredicateAttr,
     ],
 )

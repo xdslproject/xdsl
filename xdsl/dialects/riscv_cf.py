@@ -19,6 +19,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
@@ -68,8 +69,8 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset(
-        [IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()]
+    traits = traits_def(
+        IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()
     )
 
     def __init__(
@@ -313,7 +314,7 @@ class BranchOp(riscv.RISCVAsmOperation):
     An optional comment that will be printed along with the instruction.
     """
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -400,7 +401,7 @@ class JOp(RISCVInstruction):
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,

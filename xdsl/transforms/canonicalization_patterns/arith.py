@@ -34,7 +34,12 @@ def _fold_const_operation(
         case arith.Divf:
             if rhs.value.data == 0.0:
                 # this mirrors what mlir does
-                val = float("inf")
+                if lhs.value.data == 0.0:
+                    val = float("nan")
+                elif lhs.value.data < 0:
+                    val = float("-inf")
+                else:
+                    val = float("inf")
             else:
                 val = lhs.value.data / rhs.value.data
         case _:

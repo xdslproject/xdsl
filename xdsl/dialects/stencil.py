@@ -49,6 +49,7 @@ from xdsl.irdl import (
     opt_prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -482,13 +483,11 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(StencilBoundsAttr)
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            ApplyOpHasCanonicalizationPatternsTrait(),
-            ApplyOpHasShapeInferencePatternsTrait(),
-            ApplyMemoryEffect(),
-        ]
+    traits = traits_def(
+        IsolatedFromAbove(),
+        ApplyOpHasCanonicalizationPatternsTrait(),
+        ApplyOpHasShapeInferencePatternsTrait(),
+        ApplyMemoryEffect(),
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -688,7 +687,7 @@ class AllocOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($field)"
 
-    traits = frozenset([AllocOpEffect()])
+    traits = traits_def(AllocOpEffect())
 
 
 @irdl_op_definition
@@ -723,7 +722,7 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
@@ -808,11 +807,9 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
-    traits = frozenset(
-        [
-            Pure(),
-            CombineOpHasShapeInferencePatternsTrait(),
-        ]
+    traits = traits_def(
+        Pure(),
+        CombineOpHasShapeInferencePatternsTrait(),
     )
 
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
@@ -873,12 +870,10 @@ class DynAccessOp(IRDLOperation):
         "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
     )
 
-    traits = frozenset(
-        [
-            HasAncestor(ApplyOp),
-            NoMemoryEffect(),
-            DynAccessOpHasShapeInferencePatternsTrait(),
-        ]
+    traits = traits_def(
+        HasAncestor(ApplyOp),
+        NoMemoryEffect(),
+        DynAccessOpHasShapeInferencePatternsTrait(),
     )
 
     def __init__(
@@ -958,7 +953,7 @@ class IndexOp(IRDLOperation):
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
 
-    traits = frozenset([HasAncestor(ApplyOp), Pure()])
+    traits = traits_def(HasAncestor(ApplyOp), Pure())
 
     def get_apply(self):
         """
@@ -1019,8 +1014,8 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = frozenset(
-        [HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()]
+    traits = traits_def(
+        HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()
     )
 
     def print(self, printer: Printer):
@@ -1235,7 +1230,7 @@ class LoadOp(IRDLOperation):
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
-    traits = frozenset([LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect()])
+    traits = traits_def(LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect())
 
     @staticmethod
     def get(
@@ -1320,7 +1315,7 @@ class BufferOp(IRDLOperation):
 
     assembly_format = "$temp attr-dict-with-keyword `:` type($temp) `->` type($res)"
 
-    traits = frozenset([Pure(), BufferOpHasShapeInferencePatternsTrait()])
+    traits = traits_def(Pure(), BufferOpHasShapeInferencePatternsTrait())
 
     def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
@@ -1417,7 +1412,7 @@ class StoreOp(IRDLOperation):
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
-    traits = frozenset([StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect()])
+    traits = traits_def(StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect())
 
     @staticmethod
     def get(
@@ -1460,7 +1455,7 @@ class StoreResultOp(IRDLOperation):
 
     assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
 
-    traits = frozenset([HasAncestor(ApplyOp), Pure()])
+    traits = traits_def(HasAncestor(ApplyOp), Pure())
 
 
 @irdl_op_definition
@@ -1491,7 +1486,7 @@ class ReturnOp(IRDLOperation):
             return 1
         return prod(self.unroll)
 
-    traits = frozenset([HasParent(ApplyOp), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):
