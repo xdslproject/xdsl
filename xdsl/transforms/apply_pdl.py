@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin, pdl
@@ -32,8 +31,8 @@ class ApplyPDLPass(ModulePass):
                 pdl_module = parser.parse_module()
         else:
             pdl_module = payload_module
-        rewrite_patterns = [
-            cast(RewritePattern, PDLRewritePattern(op, ctx, None))
+        rewrite_patterns: list[RewritePattern] = [
+            PDLRewritePattern(op, ctx, None)
             for op in pdl_module.walk()
             if isinstance(op, pdl.RewriteOp)
         ]
