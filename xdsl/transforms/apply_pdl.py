@@ -35,7 +35,7 @@ class ApplyPDLPass(ModulePass):
             pdl_module = payload_module
         stream = StringIO()
         rewrite_patterns = [
-            cast(RewritePattern, PDLRewritePattern(op, ctx, stream))
+            cast(RewritePattern, PDLRewritePattern(op, ctx, None))
             for op in pdl_module.walk()
             if isinstance(op, pdl.RewriteOp)
         ]
