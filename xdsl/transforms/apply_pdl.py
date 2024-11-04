@@ -12,7 +12,7 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
 )
 
@@ -39,6 +39,7 @@ class ApplyPDLPass(ModulePass):
             for op in pdl_module.walk()
             if isinstance(op, pdl.RewriteOp)
         ]
-        pattern_rewriter = PatternRewriter(payload_module)
         pattern_applier = GreedyRewritePatternApplier(rewrite_patterns)
-        pattern_applier.match_and_rewrite(payload_module, pattern_rewriter)
+        PatternRewriteWalker(pattern_applier).rewrite_op(payload_module)
+        # pattern_rewriter = PatternRewriter(payload_module)
+        # pattern_applier.match_and_rewrite(payload_module, pattern_rewriter)
