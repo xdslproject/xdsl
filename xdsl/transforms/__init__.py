@@ -6,6 +6,11 @@ from xdsl.passes import ModulePass
 def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
 
+    def get_apply_pdl():
+        from xdsl.transforms import apply_pdl
+
+        return apply_pdl.ApplyPDLPass
+
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
 
@@ -236,11 +241,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return memref_to_dsd.MemrefToDsdPass
 
-    def get_memref_to_ptr():
-        from xdsl.transforms import convert_memref_to_ptr
-
-        return convert_memref_to_ptr.ConvertMemrefToPtr
-
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -441,6 +441,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
     return {
+        "apply-pdl": get_apply_pdl,
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
         "canonicalize-dmp": get_canonicalize_dmp,
@@ -506,7 +507,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "memref-stream-tile-outer-loops": get_memref_stream_tile_outer_loops,
         "memref-stream-legalize": get_memref_stream_legalize,
         "memref-to-dsd": get_memref_to_dsd,
-        "convert-memref-to-ptr": get_memref_to_ptr,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,
