@@ -92,10 +92,10 @@ class InputApp(App[None]):
         }
         """
 
-    all_dialects: dict[str, Callable[[], Dialect]]
+    all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...]
     """A dictionary of (uninstantiated) dialects."""
 
-    all_passes: dict[str, type[ModulePass]]
+    all_passes: tuple[tuple[str, type[ModulePass]], ...]
     """A dictionary of xDSL passes."""
 
     current_module = reactive[ModuleOp | Exception | None](None)
@@ -138,8 +138,7 @@ class InputApp(App[None]):
     """DataTable displaying the operation names and counts of the input text area."""
     diff_operation_count_datatable: DataTable[str | int]
     """
-    DataTable displaying the diff of operation names and counts of the input and output
-    text areas.
+    DataTable displaying the diff of operation names and counts of the input and     text areas.
     """
 
     pre_loaded_input_text: str
@@ -154,8 +153,10 @@ class InputApp(App[None]):
         all_dialects: dict[str, Callable[[], Dialect]] = get_all_dialects(),
         all_passes: dict[str, Callable[[], type[ModulePass]]] = get_all_passes(),
     ):
-        self.all_dialects = all_dialects
-        self.all_passes = {p_name: p() for (p_name, p) in sorted(all_passes.items())}
+        self.all_dialects = tuple((d_name, d) for d_name, d in all_dialects.items())
+        self.all_passes = tuple(
+            (p_name, p()) for (p_name, p) in sorted(all_passes.items())
+        )
 
         if file_path is None:
             self.current_file_path = ""
@@ -229,7 +230,7 @@ class InputApp(App[None]):
         self.query_one("#output_container").border_title = "Output xDSL IR"
 
         # initialize Tree to contain the pass options
-        for n, module_pass in self.all_passes.items():
+        for n, module_pass in self.all_passes:
             self.passes_tree.root.add(
                 label=n,
                 data=(module_pass, None),
@@ -255,9 +256,7 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                return tuple(
-                    AvailablePass(p.name, p, None) for _, p in self.all_passes.items()
-                )
+                return tuple(AvailablePass(p.name, p, None) for _, p in self.all_passes)
             case Exception():
                 return ()
             case ModuleOp():

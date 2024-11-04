@@ -21,13 +21,13 @@ class AvailablePass(NamedTuple):
 
 
 def get_new_registered_context(
-    all_dialects: dict[str, Callable[[], Dialect]],
+    all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
 ) -> MLContext:
     """
     Generates a new MLContext, registers it and returns it.
     """
     ctx = MLContext(True)
-    for dialect_name, dialect_factory in all_dialects.items():
+    for dialect_name, dialect_factory in all_dialects:
         ctx.register_dialect(dialect_name, dialect_factory)
     return ctx
 
@@ -52,7 +52,7 @@ def apply_passes_to_module(
 
 def iter_condensed_passes(
     input: builtin.ModuleOp,
-    all_passes: dict[str, type[ModulePass]],
+    all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ):
     ctx = MLContext(True)
 
@@ -60,7 +60,7 @@ def iter_condensed_passes(
         ctx.register_dialect(dialect_name, dialect_factory)
 
     selections: list[AvailablePass] = []
-    for _, value in all_passes.items():
+    for _, value in all_passes:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
             selections.append(AvailablePass(value.name, value, None))
@@ -78,7 +78,7 @@ def iter_condensed_passes(
 
 def get_condensed_pass_list(
     input: builtin.ModuleOp,
-    all_passes: dict[str, type[ModulePass]],
+    all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ) -> tuple[AvailablePass, ...]:
     """
     Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that

@@ -18,8 +18,8 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 def get_available_pass_list(
-    all_dialects: dict[str, Callable[[], Dialect]],
-    all_passes: dict[str, type[ModulePass]],
+    all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
+    all_passes: tuple[tuple[str, type[ModulePass]], ...],
     input_text: str,
     pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
     condense_mode: bool,
@@ -48,5 +48,5 @@ def get_available_pass_list(
         pass_list = get_condensed_pass_list(current_module, all_passes)
         return pass_list + rewrites_as_pass_list
     else:
-        pass_list = tuple(AvailablePass(p.name, p, None) for _, p in all_passes.items())
+        pass_list = tuple(AvailablePass(p.name, p, None) for _, p in all_passes)
         return pass_list + rewrites_as_pass_list

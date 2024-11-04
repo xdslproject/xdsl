@@ -50,10 +50,11 @@ def test_get_all_available_passes():
         )
     )
 
-    all_passes = {p_name: p() for (p_name, p) in sorted(get_all_passes().items())}
+    all_dialects = tuple((d_name, d) for d_name, d in get_all_dialects().items())
+    all_passes = tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items()))
 
     res = get_available_pass_list(
-        get_all_dialects(),
+        all_dialects,
         all_passes,
         input_text,
         pass_pipeline,
