@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.experimental.pdl import (
+from xdsl.interpreters.pdl import (
     PDLMatcher,
     PDLRewriteFunctions,
     PDLRewritePattern,
