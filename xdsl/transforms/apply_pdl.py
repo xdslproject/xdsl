@@ -41,5 +41,3 @@ class ApplyPDLPass(ModulePass):
         ]
         pattern_applier = GreedyRewritePatternApplier(rewrite_patterns)
         PatternRewriteWalker(pattern_applier).rewrite_op(payload_module)
-        # pattern_rewriter = PatternRewriter(payload_module)
-        # pattern_applier.match_and_rewrite(payload_module, pattern_rewriter)
