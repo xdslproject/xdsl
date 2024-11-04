@@ -17,6 +17,9 @@ from xdsl.transforms import (
     convert_linalg_to_memref_stream,
     convert_memref_stream_to_loops,
     convert_memref_stream_to_snitch_stream,
+    convert_memref_to_ptr,
+    convert_ptr_to_riscv,
+    convert_ptr_type_offsets,
     convert_riscv_scf_for_to_frep,
     lower_affine,
     lower_snitch,
@@ -51,6 +54,9 @@ OPTIMISE_MEMREF_STREAM_PASSES: tuple[ModulePass, ...] = (
 
 LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
+    convert_memref_to_ptr.ConvertMemrefToPtrPass(),
+    convert_ptr_type_offsets.ConvertPtrTypeOffsetsPass(),
+    convert_ptr_to_riscv.ConvertPtrToRiscvPass(),
     convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
     lower_affine.LowerAffinePass(),
     convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),

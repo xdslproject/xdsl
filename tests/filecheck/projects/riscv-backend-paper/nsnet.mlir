@@ -39,11 +39,11 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-NEXT:      scfgwi t1, 801
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      mv t1, t0
-// CHECK-NEXT:      fld ft7, 0(t1)                               # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft6, 8(t0)                               # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft5, 16(t0)                              # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft4, 24(t0)                              # load double from memref of shape (1, 5)
-// CHECK-NEXT:      fld ft3, 32(t0)                              # load double from memref of shape (1, 5)
+// CHECK-NEXT:      fld ft7, 0(t1)                               # load double from pointer
+// CHECK-NEXT:      fld ft6, 8(t0)                               # load double from pointer
+// CHECK-NEXT:      fld ft5, 16(t0)                              # load double from pointer
+// CHECK-NEXT:      fld ft4, 24(t0)                              # load double from pointer
+// CHECK-NEXT:      fld ft3, 32(t0)                              # load double from pointer
 // CHECK-NEXT:      li t1, 160
 // CHECK-NEXT:      frep.o t1, 5, 0, 0
 // CHECK-NEXT:      fmadd.d ft7, ft0, ft1, ft7
@@ -52,11 +52,11 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-NEXT:      fmadd.d ft4, ft0, ft1, ft4
 // CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
 // CHECK-NEXT:      mv t1, t0
-// CHECK-NEXT:      fsd ft7, 0(t1)                               # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft6, 8(t0)                               # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft5, 16(t0)                              # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft4, 24(t0)                              # store double value to memref of shape (1, 5)
-// CHECK-NEXT:      fsd ft3, 32(t0)                              # store double value to memref of shape (1, 5)
+// CHECK-NEXT:      fsd ft7, 0(t1)                               # store double value to pointer
+// CHECK-NEXT:      fsd ft6, 8(t0)                               # store double value to pointer
+// CHECK-NEXT:      fsd ft5, 16(t0)                              # store double value to pointer
+// CHECK-NEXT:      fsd ft4, 24(t0)                              # store double value to pointer
+// CHECK-NEXT:      fsd ft3, 32(t0)                              # store double value to pointer
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
 
@@ -78,27 +78,27 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-OPT-NEXT:  scf_body_0_for:
 // CHECK-OPT-NEXT:      mv a4, a3
 // CHECK-OPT-NEXT:      li a5, 8
-// CHECK-OPT-NEXT:      mul a4, a4, a5                               # multiply by element size
+// CHECK-OPT-NEXT:      mul a4, a4, a5                              
 // CHECK-OPT-NEXT:      add a4, t4, a4
-// CHECK-OPT-NEXT:      fld ft0, 0(a4)                               # load double from memref of shape (1, 161)
+// CHECK-OPT-NEXT:      fld ft0, 0(a4)                               # load double from pointer
 // CHECK-OPT-NEXT:      li a4, 161
 // CHECK-OPT-NEXT:      mul a4, t5, a4
 // CHECK-OPT-NEXT:      add a4, a4, a3
 // CHECK-OPT-NEXT:      li a5, 8
-// CHECK-OPT-NEXT:      mul a4, a4, a5                               # multiply by element size
+// CHECK-OPT-NEXT:      mul a4, a4, a5                              
 // CHECK-OPT-NEXT:      add a4, t3, a4
-// CHECK-OPT-NEXT:      fld ft1, 0(a4)                               # load double from memref of shape (5, 161)
+// CHECK-OPT-NEXT:      fld ft1, 0(a4)                               # load double from pointer
 // CHECK-OPT-NEXT:      mv a4, t5
 // CHECK-OPT-NEXT:      li a5, 8
-// CHECK-OPT-NEXT:      mul a4, a4, a5                               # multiply by element size
+// CHECK-OPT-NEXT:      mul a4, a4, a5                              
 // CHECK-OPT-NEXT:      add a4, t2, a4
-// CHECK-OPT-NEXT:      fld ft2, 0(a4)                               # load double from memref of shape (1, 5)
+// CHECK-OPT-NEXT:      fld ft2, 0(a4)                               # load double from pointer
 // CHECK-OPT-NEXT:      fmadd.d ft0, ft0, ft1, ft2
 // CHECK-OPT-NEXT:      mv a4, t5
 // CHECK-OPT-NEXT:      li a5, 8
-// CHECK-OPT-NEXT:      mul a4, a4, a5                               # multiply by element size
+// CHECK-OPT-NEXT:      mul a4, a4, a5                              
 // CHECK-OPT-NEXT:      add a4, t2, a4
-// CHECK-OPT-NEXT:      fsd ft0, 0(a4)                               # store double value to memref of shape (1, 5)
+// CHECK-OPT-NEXT:      fsd ft0, 0(a4)                               # store double value to pointer
 // CHECK-OPT-NEXT:      addi a3, a3, 1
 // CHECK-OPT-NEXT:      blt a3, t0, scf_body_0_for
 // CHECK-OPT-NEXT:  scf_body_end_0_for:
