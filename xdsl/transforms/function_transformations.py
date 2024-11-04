@@ -21,7 +21,7 @@ class ArgNamesToArgAttrsPass(RewritePattern):
                 if arg.name_hint
                 else arg_attr.data
             )
-            for arg, arg_attr in zip(op.args, arg_attrs)
+            for arg, arg_attr in zip(op.args, arg_attrs, strict=True)
         )
 
         if new_arg_attrs != op.arg_attrs:
