@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
 class ArgNamesToArgAttrsPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
-        if not any(arg.name_hint for arg in op.args):
+        if op.is_declaration or not any(arg.name_hint for arg in op.args):
             return
 
         arg_attrs = (

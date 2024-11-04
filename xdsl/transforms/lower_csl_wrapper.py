@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
@@ -303,6 +304,12 @@ class LowerImport(RewritePattern):
             out_structs.append(csl.ConcatStructOp(out_structs[-1], s))
         return out_structs
 
+    def _get_name_hint(self, import_op: csl_wrapper.ImportOp) -> str | None:
+        if m := re.match(r"<(.*\W)?(\w+)>", import_op.module.data):
+            return m.group(2)
+        elif m := re.match(r"(.*\W)?(\w+)\.csl", import_op.module.data):
+            return m.group(2)
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ImportOp, rewriter: PatternRewriter, /):
         csl_mod = self._get_csl_mod(op)
@@ -311,9 +318,11 @@ class LowerImport(RewritePattern):
         import_ = csl.ImportModuleConstOp(
             op.module, structs[-1] if len(structs) > 0 else None
         )
+        import_.result.name_hint = self._get_name_hint(op)
 
         rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
-        rewriter.replace_matched_op([*structs, import_])
+        rewriter.insert_op(structs, InsertPoint.before(op))
+        rewriter.replace_matched_op(import_)
 
 
 @dataclass(frozen=True)
