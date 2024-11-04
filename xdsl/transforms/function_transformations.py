@@ -18,7 +18,7 @@ class ArgNamesToArgAttrsPass(RewritePattern):
         for arg, arg_attr in zip(op.args, arg_attrs):
             if arg.name_hint:
                 d_attr = DictionaryAttr(
-                    {"name": StringAttr(arg.name_hint), **arg_attr.data}
+                    {"llvm.name": StringAttr(arg.name_hint), **arg_attr.data}
                 )
             else:
                 d_attr = arg_attr
