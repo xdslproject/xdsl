@@ -1,5 +1,5 @@
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerAttr, IntegerType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -191,3 +191,15 @@ class MuliConstantProp(RewritePattern):
         rewriter.replace_matched_op(
             arith.ConstantOp.from_int_and_width(lhs * rhs, op.result.type)
         )
+
+
+class ApplyCmpiPredicateToEqualOperands(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.CmpiOp, rewriter: PatternRewriter):
+        if op.lhs != op.rhs:
+            return
+        if op.predicate.value.data in (0, 3, 5, 7, 9):
+            rewriter.replace_matched_op(arith.ConstantOp(BoolAttr.from_bool(True)))
+
+        else:
+            rewriter.replace_matched_op(arith.ConstantOp(BoolAttr.from_bool(False)))

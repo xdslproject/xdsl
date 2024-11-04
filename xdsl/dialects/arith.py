@@ -654,6 +654,14 @@ class ComparisonOperation(IRDLOperation):
     traits = traits_def(Pure())
 
 
+class CmpiHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns import arith
+
+        return (arith.ApplyCmpiPredicateToEqualOperands(),)
+
+
 @irdl_op_definition
 class CmpiOp(ComparisonOperation):
     """
@@ -688,6 +696,8 @@ class CmpiOp(ComparisonOperation):
     lhs = operand_def(signlessIntegerLike)
     rhs = operand_def(signlessIntegerLike)
     result = result_def(IntegerType(1))
+
+    traits = traits_def(CmpiHasCanonicalizationPatterns(), Pure())
 
     def __init__(
         self,
