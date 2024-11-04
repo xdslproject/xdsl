@@ -257,6 +257,7 @@ async def test_buttons():
         with ImplicitBuilder(expected_module.body):
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
+                n.name_hint = "n"
                 two = arith.Constant(IntegerAttr(2, index)).result
                 res = arith.Muli(n, two)
                 func.Return(res)
