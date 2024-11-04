@@ -636,6 +636,9 @@ class FloatData(Data[float]):
             math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
         )
 
+    def __hash__(self):
+        return super().__hash__()
+
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
