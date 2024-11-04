@@ -1,8 +1,11 @@
 from xdsl.dialects import affine, builtin, func, linalg
 from xdsl.dialects.experimental.hida_functional import DispatchOp, TaskOp, YieldOp
+from xdsl.dialects.experimental.hida_structural import NodeOp, ScheduleOp
+from xdsl.ir import Use
 from xdsl.irdl import Block, Operation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import MemoryEffect, MemoryEffectKind, get_effects
 from xdsl.utils.hints import isa
 
 
@@ -160,3 +163,28 @@ def get_loop_bands(
 
         if n_children == 0 or (n_children > 1 and allow_having_children):
             bands.append(get_loop_band_from_innermost(loop))
+
+
+def is_written(use: Use):
+    # For ScheduleOp, we don't rely on memory effect interface. Instead, we delve
+    # into its region to figure out the effect. However, for NodeOp, we don't
+    # need this recursive approach any more.
+    if isinstance(use.operation, NodeOp):
+        # TODO
+        #    return node.get_operand_kind(use) == OperandKind.OUTPUT
+        return
+    elif isinstance(schedule := use.operation, ScheduleOp):
+        return any(
+            map(lambda x: is_written(x), schedule.region.block.args[use.index].uses)
+        )
+    # TODO: elif viewlikeopinterface
+
+    # mem_effects = list(filter(lambda x: isinstance(x, MemoryEffect), get_effects(use.operation)))
+    effects = get_effects(use.operation)
+
+    if effects:  # TODO: check for streams too
+        mem_effects = list(filter(lambda x: isinstance(x, MemoryEffect), effects))
+        for mem_effect in mem_effects:
+            if mem_effect.kind == MemoryEffectKind.WRITE:
+                return True
+    return False

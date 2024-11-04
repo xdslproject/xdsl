@@ -450,6 +450,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return create_dataflow_from_affine.CreateDataflowFromAffine
 
+    def get_hida_lower_dataflow():
+        from xdsl.transforms.experimental.hida import lower_dataflow
+
+        return lower_dataflow.LowerDataflow
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -537,6 +542,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
         "hida-create-dataflow-from-linalg": get_hida_create_dataflow_from_linalg,
         "hida-create-dataflow-from-affine": get_hida_create_dataflow_from_affine,
+        "hida-lower-dataflow": get_hida_lower_dataflow,
     }
 
 

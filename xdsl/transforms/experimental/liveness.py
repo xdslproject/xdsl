@@ -20,12 +20,23 @@ class BlockInfoBuilder:
             # occur after the definition. Therefore, we do not have to check
             # additional conditions to detect an escaping value.
             for use_op in [use.operation for use in value.uses]:
+                # print("USE OP: ", use_op)
                 owner_block = use_op.parent_block()
                 # Find an owner block in the current region. Note that a value does not
                 # escape this block if it is used in a nested region.
                 parent_region = block.parent_region()
                 assert isinstance(parent_region, Region)
                 assert isinstance(owner_block, Block)
+                # print("OWNER BLOCK: ", owner_block)
+                # print("VALUE: ")
+                # Printer().print_ssa_value(value)
+                # print()
+                # print("OWNER BLOCK: ")
+                # Printer().print_block(owner_block)
+                # print()
+                # print("PARENT REGION: ")
+                # Printer().print_region(parent_region)
+                # print()
                 owner_block = parent_region.find_ancestor_block_in_region(owner_block)
                 assert owner_block
                 assert "Use leaves the current parent region"
@@ -89,7 +100,7 @@ def build_block_mapping(operation: Operation) -> dict[Block, BlockInfoBuilder]:
 
     # for op in operation.walk():
     #    for block in [block for region in op.regions for block in region.blocks]:
-    for block in operation.walk_blocks_preorder():
+    for block in operation.walk_blocks():
         assert isinstance(block, Block)
         if block not in builders:
             builders[block] = BlockInfoBuilder(block)
@@ -321,11 +332,11 @@ class Liveness:
 
     # Returns a reference to a set containing live-in values.
     def get_livein(self, block: Block):
-        self.get_liveness(block).in_values
+        return self.get_liveness(block).in_values
 
     # Returns a reference to a set containing live-out values.
     def get_liveoiut(self, block: Block):
-        self.get_liveness(block).out_values
+        return self.get_liveness(block).out_values
 
     # Returns true if `value` is not live after `operation`.
     def is_dead_after(self, value: SSAValue, operation: Operation):
@@ -356,7 +367,7 @@ class Liveness:
         operation_ids: dict[Operation, int] = dict()
         value_ids: dict[SSAValue, int] = dict()
 
-        for block in self.operation.walk_blocks_preorder():
+        for block in self.operation.walk_blocks():
             assert isinstance(block, Block)
             block_ids[block] = len(block_ids)
 
@@ -390,7 +401,7 @@ class Liveness:
                 print_value_ref(value)
 
         # Dump information about in and out values.
-        for block in self.operation.walk_blocks_preorder():
+        for block in self.operation.walk_blocks():
             assert isinstance(block, Block)
             print(f"// - Block: {block_ids[block]}", file=output)
             liveness = self.get_liveness(block)

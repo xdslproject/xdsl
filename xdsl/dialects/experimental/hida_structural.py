@@ -1,31 +1,41 @@
+from collections.abc import Sequence
+
 from xdsl.dialects import memref
-from xdsl.ir import Attribute, Dialect, Region
-from xdsl.irdl import IRDLOperation, irdl_op_definition, region_def, result_def
-from xdsl.traits import IsolatedFromAbove
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.irdl import (
+    IRDLOperation,
+    irdl_op_definition,
+    region_def,
+    result_def,
+    var_operand_def,
+)
+from xdsl.traits import IsolatedFromAbove, NoTerminator
 
 
 @irdl_op_definition
 class NodeOp(IRDLOperation):
     name = "hida_struct.node"
 
+    args = var_operand_def()
     region: Region = region_def()
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 
-    def __init__(self, region: Region):
-        super().__init__(regions=[region])
+    def __init__(self, block: Block, args: Sequence[Operation | SSAValue]):
+        super().__init__(regions=[Region(block)], operands=[args])
 
 
 @irdl_op_definition
-class Schedule(IRDLOperation):
+class ScheduleOp(IRDLOperation):
     name = "hida_struct.schedule"
 
-    region: Region = region_def()
+    args = var_operand_def()
+    region = region_def()
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 
-    def __init__(self, region: Region):
-        super().__init__(regions=[region])
+    def __init__(self, block: Block, args: Sequence[Operation | SSAValue]):
+        super().__init__(regions=[Region(block)], operands=[args])
 
 
 @irdl_op_definition
@@ -48,6 +58,6 @@ class Stream(IRDLOperation):
 
 HIDA_struct = Dialect(
     "hida_struct",
-    [NodeOp, Schedule, BufferOp, Stream],
+    [NodeOp, ScheduleOp, BufferOp, Stream],
     [],
 )
