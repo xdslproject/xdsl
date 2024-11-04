@@ -3,7 +3,7 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
-from xdsl.dialects.builtin import UnitAttr, i32
+from xdsl.dialects.builtin import UnitAttr, i1, i32
 from xdsl.ir import Attribute
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -54,6 +54,26 @@ def test_llvm_overflow_arithmetic_ops(
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
     assert op_type(op1, op2, attributes).is_structurally_equivalent(
         op_type(lhs=op1, rhs=op2, attributes=attributes, overflow=overflow)
+    )
+
+
+@pytest.mark.parametrize(
+    "op_type, attributes, exact",
+    [
+        (llvm.UDivOp, {}, llvm.IntegerAttr(0, i1)),
+        (llvm.SDivOp, {}, llvm.IntegerAttr(0, i1)),
+        (llvm.LShrOp, {}, llvm.IntegerAttr(0, i1)),
+        (llvm.AShrOp, {}, llvm.IntegerAttr(0, i1)),
+    ],
+)
+def test_llvm_exact_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOpExact],
+    attributes: dict[str, Attribute],
+    exact: llvm.IntegerAttr[llvm.IntegerType],
+):
+    op1, op2 = test.TestOp(result_types=[i32, i32]).results
+    assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(
+        op_type(lhs=op1, rhs=op2, attributes=attributes, exact=exact)
     )
 
 
