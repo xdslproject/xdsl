@@ -1,7 +1,5 @@
 import pytest
 
-from xdsl.frontend.jaxpr import IRGen
-
 try:
     from jax import make_jaxpr  # pyright: ignore[reportUnknownVariableType]
     from jax import numpy as jnp
@@ -9,6 +7,7 @@ except ImportError as exc:
     print(exc)
     pytest.skip("jax is an optional dependency", allow_module_level=True)
 
+from xdsl.frontend.jaxpr import IRGen
 
 five_ones = jnp.ones(5, dtype=jnp.float32)  # pyright: ignore[reportUnknownMemberType]
 

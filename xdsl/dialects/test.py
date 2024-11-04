@@ -17,6 +17,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -85,7 +86,7 @@ class TestTermOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -128,7 +129,7 @@ class TestPureOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -171,7 +172,7 @@ class TestReadOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([MemoryReadEffect()])
+    traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
@@ -214,7 +215,7 @@ class TestWriteOp(IRDLOperation):
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([MemoryWriteEffect()])
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
