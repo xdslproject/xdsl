@@ -462,6 +462,33 @@ class Printer:
                     self.print_string(chr(byte))
         self.print_string('"')
 
+    def print_float(self, attribute: AnyFloatAttr):
+        value = attribute.value
+        if math.isnan(value.data) or math.isinf(value.data):
+            if isinstance(attribute.type, Float16Type):
+                self.print_string(
+                    f"{hex(struct.unpack('<H', struct.pack('<e', value.data))[0])} : "
+                )
+            elif isinstance(attribute.type, Float32Type):
+                self.print_string(
+                    f"{hex(struct.unpack('<I', struct.pack('<f', value.data))[0])} : "
+                )
+            elif isinstance(attribute.type, Float64Type):
+                self.print_string(
+                    f"{hex(struct.unpack('<Q', struct.pack('<d', value.data))[0])} : "
+                )
+            else:
+                raise NotImplementedError(
+                    f"Cannot print '{value.data}' value for float type {str(attribute.type)}"
+                )
+        else:
+            # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
+            float_str = f"{value.data:.6e}"
+            if float(float_str) == value.data:
+                self.print_string(f"{float_str} : ")
+            else:
+                self.print_string(f"{repr(value.data)} : ")
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             self.print_string("unit")
@@ -535,34 +562,10 @@ class Printer:
             return
 
         if isinstance(attribute, FloatAttr):
-            value = attribute.value
-            attr_type = cast(AnyFloatAttr, attribute).type
-            if math.isnan(value.data) or math.isinf(value.data):
-                if isinstance(attr_type, Float16Type):
-                    self.print_string(
-                        f"{hex(struct.unpack('<H', struct.pack('<e', value.data))[0])} : "
-                    )
-                elif isinstance(attr_type, Float32Type):
-                    self.print_string(
-                        f"{hex(struct.unpack('<I', struct.pack('<f', value.data))[0])} : "
-                    )
-                elif isinstance(attr_type, Float64Type):
-                    self.print_string(
-                        f"{hex(struct.unpack('<Q', struct.pack('<d', value.data))[0])} : "
-                    )
-                else:
-                    # todo add support for further bitwidths
-                    raise ValueError(
-                        f"Cannot print '{value.data}' value for float type {str(attr_type)}"
-                    )
-            else:
-                # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
-                float_str = f"{value.data:.6e}"
-                if float(float_str) == value.data:
-                    self.print_string(f"{float_str} : ")
-                else:
-                    self.print_string(f"{repr(value.data)} : ")
-            self.print_attribute(attr_type)
+            attr = cast(AnyFloatAttr, attribute)
+            self.print_float(attr)
+            self.print_string(" : ")
+            self.print_attribute(attr.type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
@@ -622,11 +625,7 @@ class Printer:
                 if isinstance(val, IntegerAttr):
                     self.print_string(f"{val.value.data}")
                 elif isinstance(val, FloatAttr):
-                    float_str = f"{val.value.data:.6e}"
-                    if float(float_str) == val.value.data:
-                        self.print_string(float_str)
-                    else:
-                        self.print_string(f"{repr(val.value.data)}")
+                    self.print_float(cast(AnyFloatAttr, val))
                 else:
                     raise Exception(
                         "unexpected attribute type "
