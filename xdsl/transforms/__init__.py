@@ -333,6 +333,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
 
+    def get_convert_ptr_to_riscv():
+        from xdsl.transforms import convert_ptr_to_riscv
+
+        return convert_ptr_to_riscv.ConvertPtrToRiscvPass
+
     def get_convert_qref_to_qssa():
         from xdsl.transforms import convert_qref_to_qssa
 
@@ -469,6 +474,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
+        "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
