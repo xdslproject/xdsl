@@ -467,15 +467,15 @@ class Printer:
         if math.isnan(value.data) or math.isinf(value.data):
             if isinstance(attribute.type, Float16Type):
                 self.print_string(
-                    f"{hex(struct.unpack('<H', struct.pack('<e', value.data))[0])} : "
+                    f"{hex(struct.unpack('<H', struct.pack('<e', value.data))[0])}"
                 )
             elif isinstance(attribute.type, Float32Type):
                 self.print_string(
-                    f"{hex(struct.unpack('<I', struct.pack('<f', value.data))[0])} : "
+                    f"{hex(struct.unpack('<I', struct.pack('<f', value.data))[0])}"
                 )
             elif isinstance(attribute.type, Float64Type):
                 self.print_string(
-                    f"{hex(struct.unpack('<Q', struct.pack('<d', value.data))[0])} : "
+                    f"{hex(struct.unpack('<Q', struct.pack('<d', value.data))[0])}"
                 )
             else:
                 raise NotImplementedError(
@@ -485,9 +485,9 @@ class Printer:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
             float_str = f"{value.data:.6e}"
             if float(float_str) == value.data:
-                self.print_string(f"{float_str} : ")
+                self.print_string(float_str)
             else:
-                self.print_string(f"{repr(value.data)} : ")
+                self.print_string(f"{repr(value.data)}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
