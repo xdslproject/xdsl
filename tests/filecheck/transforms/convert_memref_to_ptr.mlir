@@ -65,3 +65,17 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 // CHECK-NEXT:  %fmem = "test.op"() : () -> memref<f64>
 // CHECK-NEXT:  %flv2 = ptr_xdsl.to_ptr %fmem : memref<f64> -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %flv2_1 = ptr_xdsl.load %flv2 : !ptr_xdsl.ptr -> f64
+
+// -----
+
+%fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
+memref.store %fv, %mstr[%idx] {"nontemporal" = false} : memref<2xf64, strided<[?]>>
+
+// CHECK: MemRef memref<2xf64, strided<[?]>> with dynamic stride is not yet implemented
+
+// -----
+
+%fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, affine_map<(d0) -> (d0 * 10)>>)
+memref.store %fv, %mstr[%idx] {"nontemporal" = false} : memref<2xf64, affine_map<(d0) -> (d0 * 10)>>
+
+// CHECK: Unsupported layout type affine_map<(d0) -> ((d0 * 10))>
