@@ -1,11 +1,12 @@
-from xdsl.dialects import affine, builtin, func, linalg
+from xdsl.dialects import affine, builtin, func, linalg, memref
 from xdsl.dialects.experimental.hida_functional import DispatchOp, TaskOp, YieldOp
 from xdsl.dialects.experimental.hida_structural import NodeOp, ScheduleOp
 from xdsl.ir import Use
 from xdsl.irdl import Block, Operation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
-from xdsl.traits import MemoryEffect, MemoryEffectKind, get_effects
+
+# from xdsl.traits import MemoryEffect, MemoryEffectKind, get_effects
 from xdsl.utils.hints import isa
 
 
@@ -180,11 +181,15 @@ def is_written(use: Use):
     # TODO: elif viewlikeopinterface
 
     # mem_effects = list(filter(lambda x: isinstance(x, MemoryEffect), get_effects(use.operation)))
-    effects = get_effects(use.operation)
+    # effects = get_effects(use.operation)
 
-    if effects:  # TODO: check for streams too
-        mem_effects = list(filter(lambda x: isinstance(x, MemoryEffect), effects))
-        for mem_effect in mem_effects:
-            if mem_effect.kind == MemoryEffectKind.WRITE:
-                return True
+    # if effects:  # TODO: check for streams too
+    #    mem_effects = list(filter(lambda x: isinstance(x, MemoryEffect), effects))
+    #    print("MEM EFFECTS: ", mem_effects)
+    #    for mem_effect in mem_effects:
+    #        if mem_effect.kind == MemoryEffectKind.WRITE:
+    #            return True
+    # FIXME: for now we will look at the operation type instead of the side effects, since these are not implemented in xDSL yet
+    if isinstance(use.operation, affine.Store | memref.Store):
+        return True
     return False

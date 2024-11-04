@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.builder import InsertPoint
 from xdsl.context import MLContext
-from xdsl.dialects import builtin
+from xdsl.dialects import arith, builtin, func
 from xdsl.dialects.experimental.hida_functional import DispatchOp, TaskOp
 from xdsl.dialects.experimental.hida_structural import NodeOp, ScheduleOp
 from xdsl.dialects.experimental.utils import is_written
@@ -17,6 +17,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.experimental.liveness import Liveness
+from xdsl.transforms.lower_affine import LowerAffineLoad, LowerAffineStore
 from xdsl.utils.hints import isa
 
 
@@ -101,9 +102,9 @@ class LowerTaskToNode(RewritePattern):
         node_block = Block()
 
         input_args: list[BlockArgument] = []
-        for input in reversed(inputs):
-            rewriter.insert_block_argument(node_block, 0, input.type)
-            input_args.append(node_block.args[0])
+        for input in inputs:
+            rewriter.insert_block_argument(node_block, len(node_block.args), input.type)
+            input_args.append(node_block.args[-1])
 
         for t in zip(inputs, input_args):
             t[0].replace_by_if(t[1], is_in_task)
@@ -137,14 +138,41 @@ class LowerTaskToNode(RewritePattern):
         rewriter.erase_op(task)
 
 
+@dataclass
+class LocalizeConstants(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, func_op: func.FuncOp, rewriter: PatternRewriter):
+        constants: list[arith.Constant] = []
+        for op in filter(lambda x: isinstance(x, arith.Constant), func_op.walk()):
+            assert isinstance(op, arith.Constant)
+            constants.append(op)
+
+        for constant in constants:
+            for use in constant.result.uses.copy():
+                clone_constant = constant.clone()
+                rewriter.insert_op(clone_constant, InsertPoint.before(use.operation))
+                use.operation.operands[use.index] = clone_constant.result
+
+            constant.detach()
+            constant.erase()
+
+
 @dataclass(frozen=True)
 class LowerDataflow(ModulePass):
     name = "hida-lower-dataflow"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        localize_constants = PatternRewriteWalker(
+            GreedyRewritePatternApplier([LocalizeConstants()]), apply_recursively=False
+        )
+        localize_constants.rewrite_module(op)
+
         lower_dispatch = PatternRewriteWalker(
             GreedyRewritePatternApplier([LowerDispatchToSchedule(), LowerTaskToNode()]),
-            # apply_recursively=False,
-            # walk_reverse=False,
         )
         lower_dispatch.rewrite_module(op)
+
+        lower_affine_mem = PatternRewriteWalker(
+            GreedyRewritePatternApplier([LowerAffineLoad(), LowerAffineStore()])
+        )
+        lower_affine_mem.rewrite_module(op)
