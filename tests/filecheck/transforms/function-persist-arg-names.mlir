@@ -21,3 +21,6 @@ func.func @no_arg_names(%0 : i32, %1 : f32 {"llvm.some_other_arg_attr" = "some_o
 func.func @no_arg_attrs_or_names(%0 : i32, %1 : f32, %2 : f64) {
   func.return
 }
+
+// CHECK: func.func private @decl_func() -> f64
+func.func private @decl_func() -> f64
