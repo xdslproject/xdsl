@@ -1,29 +1,29 @@
 import marimo
 
-__generated_with = "0.6.25"
+__generated_with = "0.9.14"
 app = marimo.App()
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
     input = mo.ui.code_editor(value="""\
-    func.func @hello() -> i32 {
-        %c0 = arith.constant 0 : i32
-        %c1 = arith.constant 1 : i32
-        %c8 = arith.constant 8 : i32
-        %c64 = arith.constant 64 : i32
+    func.func @hello() -> index {
+        %c0 = arith.constant 0 : index
+        %c1 = arith.constant 1 : index
+        %c8 = arith.constant 8 : index
+        %c64 = arith.constant 64 : index
 
         scf.for %16 = %c0 to %c64 step %c8 {
             scf.for %17 = %c0 to %c8 step %c1 {
-            %18 = arith.constant 8 : i32
-            %19 = arith.addi %16, %17 : i32
-            %20 = builtin.unrealized_conversion_cast %19 : i32 to !riscv.reg
+            %18 = arith.constant 8 : index
+            %19 = arith.addi %16, %17 : index
+            %20 = builtin.unrealized_conversion_cast %19 : index to !riscv.reg
             "test.op"(%20) : (!riscv.reg) -> ()
             }
         }
@@ -42,7 +42,7 @@ def __(mo):
     #     func.return %res : i32
     # }
     input
-    return input,
+    return (input,)
 
 
 @app.cell
@@ -343,7 +343,7 @@ def __(G, mo, nx, root):
 @app.cell
 def __(G):
     node_index_by_module = {n: i for i, n in enumerate(G.nodes())}
-    return node_index_by_module,
+    return (node_index_by_module,)
 
 
 @app.cell(disabled=True)
@@ -383,7 +383,7 @@ def __(G, HashableModule, nx):
         return sum(count_by_node.values())
 
     equivalent_tree_node_count(G)
-    return equivalent_tree_node_count,
+    return (equivalent_tree_node_count,)
 
 
 if __name__ == "__main__":
