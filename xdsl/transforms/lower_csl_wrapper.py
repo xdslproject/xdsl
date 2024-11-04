@@ -119,10 +119,12 @@ class ExtractCslModules(RewritePattern):
         outer_loop_block = Block()
         outer_loop_block.insert_arg(builtin.IntegerType(16), 0)
         x = outer_loop_block.args[0]
+        x.name_hint = "x"
 
         inner_loop_block = Block()
         inner_loop_block.insert_arg(builtin.IntegerType(16), 0)
         y = inner_loop_block.args[0]
+        y.name_hint = "y"
 
         assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
         rewriter.erase_op(yield_op)
