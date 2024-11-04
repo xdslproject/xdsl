@@ -15,6 +15,14 @@ def convert_f16_to_u16(value: float) -> int:
     return struct.unpack("<H", struct.pack("<e", value))[0]
 
 
+def convert_u16_to_f16(value: int) -> int:
+    """
+    Convert an IEEE 754 float to a raw unsigned integer representation.
+    """
+    # using struct library as ctypes does not support half-precision floats
+    return struct.unpack("<e", struct.pack("<H", value))[0]
+
+
 def convert_f32_to_u32(value: float) -> int:
     """
     Convert an IEEE 754 float to a raw unsigned integer representation.

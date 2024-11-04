@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import struct
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
@@ -348,18 +347,6 @@ class Token:
         This function will raise an exception if the token is not a float
         literal.
         """
-        if self.kind == Token.Kind.INTEGER_LIT and self.text[:2] in ["0x", "0X"]:
-            match len(self.text):
-                # the number corresponds to `len('0x') + (float_bitwidth / 4)`
-                case 6:
-                    return struct.unpack("<e", struct.pack("<H", int(self.text, 16)))[0]
-                case 10:
-                    return struct.unpack("<f", struct.pack("<I", int(self.text, 16)))[0]
-                case 18:
-                    return struct.unpack("<d", struct.pack("<Q", int(self.text, 16)))[0]
-                case _:
-                    # todo support further bitwidths
-                    pass
         if self.kind != Token.Kind.FLOAT_LIT:
             raise ValueError("Token is not a float literal!")
         return float(self.text)

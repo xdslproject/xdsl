@@ -62,6 +62,11 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import BaseAttr, base
 from xdsl.parser.base_parser import BaseParser
+from xdsl.utils.bitwise_casts import (
+    convert_u16_to_f16,
+    convert_u32_to_f32,
+    convert_u64_to_f64,
+)
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span, StringLiteral, Token
@@ -1144,9 +1149,7 @@ class AttrParser(BaseParser):
         if bool is not None:
             return bool
 
-        hexadecimal_token: Token | None = None
-        if self._current_token.text[:2] in ["0x", "0X"]:
-            hexadecimal_token = self._current_token
+        is_hexadecimal_token: bool = self._current_token.text[:2] in ["0x", "0X"]
 
         # Parse the value
         if (value := self.parse_optional_number()) is None:
@@ -1162,8 +1165,19 @@ class AttrParser(BaseParser):
         type = self._parse_attribute_type()
 
         if isinstance(type, AnyFloat):
-            if hexadecimal_token:
-                return FloatAttr(hexadecimal_token.get_float_value(), type)
+            if is_hexadecimal_token:
+                assert isinstance(value, int)
+                match type:
+                    case Float16Type():
+                        return FloatAttr(convert_u16_to_f16(value), type)
+                    case Float32Type():
+                        return FloatAttr(convert_u32_to_f32(value), type)
+                    case Float64Type():
+                        return FloatAttr(convert_u64_to_f64(value), type)
+                    case _:
+                        raise NotImplementedError(
+                            f"Cannot parse hexadecimal literal for float type of bit width {type}"
+                        )
             return FloatAttr(float(value), type)
 
         if isinstance(type, IntegerType | IndexType):
