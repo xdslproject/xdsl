@@ -560,10 +560,17 @@ class Printer:
             return
 
         if isinstance(attribute, FloatAttr):
-            attr = cast(AnyFloatAttr, attribute)
-            self.print_float(attr)
-            self.print_string(" : ")
-            self.print_attribute(attr.type)
+            value = attribute.value
+            attr_type = cast(
+                FloatAttr[Float16Type | Float32Type | Float64Type], attribute
+            ).type
+            # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
+            float_str = f"{value.data:.6e}"
+            if float(float_str) == value.data:
+                self.print_string(f"{float_str} : ")
+            else:
+                self.print_string(f"{repr(value.data)} : ")
+            self.print_attribute(attr_type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
@@ -623,7 +630,11 @@ class Printer:
                 if isinstance(val, IntegerAttr):
                     self.print_string(f"{val.value.data}")
                 elif isinstance(val, FloatAttr):
-                    self.print_float(cast(AnyFloatAttr, val))
+                    float_str = f"{val.value.data:.6e}"
+                    if float(float_str) == val.value.data:
+                        self.print_string(float_str)
+                    else:
+                        self.print_string(f"{repr(val.value.data)}")
                 else:
                     raise Exception(
                         "unexpected attribute type "
