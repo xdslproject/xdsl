@@ -26,6 +26,12 @@
 %sdiv = llvm.sdiv %arg0, %arg1 : i32
 // CHECK: %sdiv = llvm.sdiv %arg0, %arg1 : i32
 
+%udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+// CHECK: %udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+
+%sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+// CHECK: %sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+
 %urem = llvm.urem %arg0, %arg1 : i32
 // CHECK: %urem = llvm.urem %arg0, %arg1 : i32
 
@@ -52,6 +58,12 @@
 
 %ashr = llvm.ashr %arg0, %arg1 : i32
 // CHECK: %ashr = llvm.ashr %arg0, %arg1 : i32
+
+%lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+// CHECK: %lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+
+%ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
+// CHECK: %ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
 
 %trunc = llvm.trunc %arg0 : i32 to i16
 // CHECK: %trunc = llvm.trunc %arg0 : i32 to i16

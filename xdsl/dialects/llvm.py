@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     I64,
     AnyIntegerAttr,
     ArrayAttr,
+    BoolAttr,
     ContainerType,
     DenseArrayBase,
     IndexType,
@@ -474,6 +475,64 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         printer.print(self.lhs.type)
 
 
+class ArithmeticBinOpExact(IRDLOperation, ABC):
+    """Class for arithmetic binary operations that use an exact flag."""
+
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+    is_exact = prop_def(BoolAttr, prop_name="isExact", default_value=IntegerAttr(0, i1))
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+        is_exact: BoolAttr = IntegerAttr(0, i1),
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+            properties={
+                "isExact": is_exact,
+            },
+        )
+
+    @classmethod
+    def parse_exact(cls, parser: Parser):
+        if parser.parse_optional_keyword("exact") is not None:
+            return IntegerAttr(1, i1)
+        return IntegerAttr(0, i1)
+
+    def print_exact(self, printer: Printer) -> None:
+        if self.is_exact and self.is_exact.value.data:
+            printer.print(" exact ")
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        exact = cls.parse_exact(parser)
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], attributes, exact)
+
+    def print(self, printer: Printer) -> None:
+        self.print_exact(printer)
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.lhs.type)
+
+
 class IntegerConversionOp(IRDLOperation, ABC):
     arg = operand_def(IntegerType)
 
@@ -523,12 +582,12 @@ class MulOp(ArithmeticBinOpOverflow):
 
 
 @irdl_op_definition
-class UDivOp(ArithmeticBinOperation):
+class UDivOp(ArithmeticBinOpExact):
     name = "llvm.udiv"
 
 
 @irdl_op_definition
-class SDivOp(ArithmeticBinOperation):
+class SDivOp(ArithmeticBinOpExact):
     name = "llvm.sdiv"
 
 
@@ -563,12 +622,12 @@ class ShlOp(ArithmeticBinOpOverflow):
 
 
 @irdl_op_definition
-class LShrOp(ArithmeticBinOperation):
+class LShrOp(ArithmeticBinOpExact):
     name = "llvm.lshr"
 
 
 @irdl_op_definition
-class AShrOp(ArithmeticBinOperation):
+class AShrOp(ArithmeticBinOpExact):
     name = "llvm.ashr"
 
 
