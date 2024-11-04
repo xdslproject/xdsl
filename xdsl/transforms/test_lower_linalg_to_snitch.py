@@ -70,7 +70,7 @@ LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
     riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass(),
     canonicalize.CanonicalizePass(),
-    riscv_register_allocation.RISCVRegisterAllocation(add_regalloc_stats=True),
+    riscv_register_allocation.RISCVRegisterAllocation(add_regalloc_stats=False),
     canonicalize.CanonicalizePass(),
     convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass(),
     canonicalize.CanonicalizePass(),
