@@ -19,7 +19,7 @@ func.func @simple_float_constant() -> (f32, f32) {
     func.return %0, %1 : f32, f32
 }
 
-// CHECK:         func.func @simple__float_constant() -> (f32, f32) {
+// CHECK:         func.func @simple_float_constant() -> (f32, f32) {
 // CHECK-NEXT:      %0 = arith.constant 1.000000e+00 : f32
 // CHECK-NEXT:      func.return %0, %0 : f32, f32
 // CHECK-NEXT:    }
