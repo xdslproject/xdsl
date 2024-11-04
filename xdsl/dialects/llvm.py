@@ -492,14 +492,14 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         lhs: SSAValue,
         rhs: SSAValue,
         attributes: dict[str, Attribute] = {},
-        isExact: BoolAttr = IntegerAttr(0, i1),
+        is_exact: BoolAttr = IntegerAttr(0, i1),
     ):
         super().__init__(
             operands=[lhs, rhs],
             attributes=attributes,
             result_types=[lhs.type],
             properties={
-                "isExact": isExact,
+                "isExact": is_exact,
             },
         )
 
@@ -510,7 +510,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         return IntegerAttr(0, i1)
 
     def print_exact(self, printer: Printer) -> None:
-        if self.isExact and self.isExact.value.data:
+        if self.is_exact and self.is_exact.value.data:
             printer.print(" exact ")
 
     @classmethod
