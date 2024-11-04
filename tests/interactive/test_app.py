@@ -9,7 +9,7 @@ from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith, func, riscv, riscv_func
+from xdsl.dialects import arith, func, get_all_dialects, riscv, riscv_func
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
@@ -21,7 +21,10 @@ from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
-from xdsl.transforms import individual_rewrite
+from xdsl.transforms import (
+    individual_rewrite,
+    get_all_passes,
+)
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
@@ -30,7 +33,10 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 @pytest.mark.asyncio
 async def test_inputs():
     """Test different inputs produce desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -96,7 +102,10 @@ async def test_inputs():
 @pytest.mark.asyncio
 async def test_buttons():
     """Test pressing keys has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -289,7 +298,10 @@ async def test_buttons():
 @pytest.mark.asyncio
 async def test_rewrites():
     """Test rewrite application has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -358,7 +370,10 @@ async def test_rewrites():
 @pytest.mark.asyncio
 async def test_passes():
     """Test pass application has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -450,7 +465,10 @@ async def test_passes():
 @pytest.mark.asyncio
 async def test_argument_pass_screen():
     """Test that clicking on a pass that requires passes opens a screen to specify them."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()

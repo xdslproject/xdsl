@@ -148,16 +148,14 @@ class InputApp(App[None]):
 
     def __init__(
         self,
+        all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
+        all_passes: tuple[tuple[str, type[ModulePass]], ...],
         file_path: str | None = None,
         input_text: str | None = None,
         pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
-        all_dialects: dict[str, Callable[[], Dialect]] = get_all_dialects(),
-        all_passes: dict[str, Callable[[], type[ModulePass]]] = get_all_passes(),
     ):
-        self.all_dialects = tuple((d_name, d) for d_name, d in all_dialects.items())
-        self.all_passes = tuple(
-            (p_name, p()) for (p_name, p) in sorted(all_passes.items())
-        )
+        self.all_dialects = all_dialects
+        self.all_passes = all_passes
 
         if file_path is None:
             self.current_file_path = ""
@@ -760,7 +758,13 @@ def main():
     pass_list = get_all_passes()
     pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
 
-    return InputApp(file_path, file_contents, pipeline).run()
+    return InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+        file_path,
+        file_contents,
+        pipeline,
+    ).run()
 
 
 if __name__ == "__main__":
