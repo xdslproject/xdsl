@@ -365,6 +365,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return FunctionConstantPinningPass
 
+    def get_function_persist_arg_names():
+        from xdsl.transforms.function_transformations import FunctionPersistArgNames
+
+        return FunctionPersistArgNames
+
     def get_lower_scf_for_to_labels():
         from xdsl.backend.riscv import riscv_scf_to_asm
 
@@ -482,6 +487,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
+        "function-persist-arg-names": get_function_persist_arg_names,
         "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
