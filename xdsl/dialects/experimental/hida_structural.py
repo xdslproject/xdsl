@@ -4,7 +4,10 @@ from xdsl.dialects import memref
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    attr_def,
     irdl_op_definition,
+    operand_def,
+    opt_result_def,
     region_def,
     result_def,
     traits_def,
@@ -50,15 +53,31 @@ class BufferOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Stream(IRDLOperation):
+class StreamOp(IRDLOperation):
     name = "hida_struct.stream"
 
-    def _init_(self):
-        super().__init__()
+    depth = attr_def(Attribute)
+    channel = result_def(Attribute)
+
+
+@irdl_op_definition
+class StreamReadOp(IRDLOperation):
+    name = "hida_struct.stream_read"
+
+    channel = operand_def(Attribute)
+    res = opt_result_def(Attribute)
+
+
+@irdl_op_definition
+class StreamWriteOp(IRDLOperation):
+    name = "hida_struct.stream_write"
+
+    channel = operand_def(Attribute)
+    value = operand_def(Attribute)
 
 
 HIDA_struct = Dialect(
     "hida_struct",
-    [NodeOp, ScheduleOp, BufferOp, Stream],
+    [NodeOp, ScheduleOp, BufferOp, StreamOp, StreamReadOp, StreamWriteOp],
     [],
 )
