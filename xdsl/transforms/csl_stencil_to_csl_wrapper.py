@@ -8,11 +8,14 @@ from xdsl.dialects.builtin import (
     AnyMemRefType,
     AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
+    ArrayAttr,
+    DictionaryAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
     ShapedType,
     Signedness,
+    StringAttr,
     TensorType,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
@@ -153,7 +156,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # set up main function and move func.func ops into this csl.func
         main_func = csl.FuncOp(op.sym_name.data, ((), None))
         func_export = csl.SymbolExportOp(main_func.sym_name, main_func.function_type)
-        args_to_ops, arg_mappings = self._translate_function_args(op.args)
+        args_to_ops, arg_mappings = self._translate_function_args(op.args, op.arg_attrs)
         rewriter.inline_block(
             op.body.block,
             InsertPoint.at_start(main_func.body.block),
@@ -190,7 +193,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         return result
 
     def _translate_function_args(
-        self, args: Sequence[BlockArgument]
+        self, args: Sequence[BlockArgument], attrs: ArrayAttr[DictionaryAttr] | None
     ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
         """
         Args of the top-level function act as the interface to the program and need to be translated to writable buffers.
@@ -201,6 +204,14 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         export_ops: list[Operation] = []
         cast_ops: list[Operation] = []
         import_ops: list[Operation] = []
+
+        if attrs is not None:
+            for arg, attr in zip(args, attrs, strict=True):
+                assert isinstance(attr, DictionaryAttr)
+                if "llvm.name" in attr.data:
+                    nh = attr.data["llvm.name"]
+                    assert isinstance(nh, StringAttr)
+                    arg.name_hint = nh.data
 
         for arg in args:
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
