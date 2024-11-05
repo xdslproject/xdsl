@@ -390,7 +390,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
         else:
             assert False, "Unexpected ReplaceOp"
-        return new_vals
+        return ()
 
     @impl(pdl.EraseOp)
     def run_erase(
