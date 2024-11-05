@@ -384,14 +384,13 @@ class PDLRewriteFunctions(InterpreterFunctions):
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
             rewriter.replace_op(old, new_op)
-            self.new_vals = new_op.results
+            new_vals = new_op.results
         elif len(op.repl_values):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
-            self.new_vals = new_vals
         else:
             assert False, "Unexpected ReplaceOp"
-        return ()
+        return new_vals
 
     @impl(pdl.EraseOp)
     def run_erase(
