@@ -61,6 +61,12 @@ class LowerAllocOpPass(RewritePattern):
             },
         )
 
+        if op.memref.name_hint:
+            zeros_op.result.name_hint = op.memref.name_hint
+            dsd_op.result.name_hint = f"{op.memref.name_hint}_dsd"
+            for s in shape:
+                s.result.name_hint = f"{op.memref.name_hint}_size"
+
         rewriter.replace_matched_op([zeros_op, *shape, dsd_op])
 
 

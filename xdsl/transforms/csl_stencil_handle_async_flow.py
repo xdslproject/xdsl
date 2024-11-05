@@ -172,6 +172,10 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         iter_vars = [csl.VariableOp.from_type(arg_t) for arg_t in op.iter_args.types]
         rewriter.insert_op(iter_vars, InsertPoint.before(parent_func))
 
+        iv.res.name_hint = "iteration"
+        for i, v in enumerate(iter_vars):
+            v.res.name_hint = f"var{i}"
+
         # parent func (pre loop): setup iter vars and activate cond_func
         with ImplicitBuilder(pre_block):
             for dst, src in zip(iter_vars, op.iter_args):
@@ -183,6 +187,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         with ImplicitBuilder(cond_func.body.block):
             ub = arith.Constant.from_int_and_width(op.ub.op.value.value, u32)
             iv_load = csl.LoadVarOp(iv)
+            iv_load.res.name_hint = f"{iv.res.name_hint}_cond"
             cond = arith.Cmpi(iv_load, ub, "slt")
             branch = scf.If(cond, [], Region(Block()), Region(Block()))
             with ImplicitBuilder(branch.true_region):
@@ -197,11 +202,14 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         with ImplicitBuilder(inc_func.body.block):
             step = arith.Constant.from_int_and_width(op.step.op.value.value, u32)
             iv_load = csl.LoadVarOp(iv)
+            iv_load.res.name_hint = f"{iv.res.name_hint}_inc"
             stepped = arith.Addi(iv_load, step)
             csl.StoreVarOp(iv, stepped)
 
             # pre-load iter_vars and store them in the order specified in scf.yield
             load_vars = [csl.LoadVarOp(v) for v in iter_vars]
+            for v in load_vars:
+                v.res.name_hint = f"{v.var.name_hint}_inc"
 
             # for out-of-order yields, store yielded var to iter_var
             for iter_var, yielded_var in zip(iter_vars, terminator.arguments):
@@ -214,6 +222,8 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         # for-loop body func
         with ImplicitBuilder(body_func.body.block):
             body_vars = [csl.LoadVarOp(var) for var in [iv, *iter_vars]]
+            for v in body_vars:
+                v.res.name_hint = f"{v.var.name_hint}_bdy"
         rewriter.inline_block(
             op.body.block,
             InsertPoint.at_end(body_func.body.block),
