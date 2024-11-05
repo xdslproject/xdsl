@@ -457,7 +457,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                         op.accumulator,
                         [*op.args_rchunk],
                         [*op.args_dexchng, *additional_args],
-                        [*new_dest],
+                        [*op.dest],
                     ],
                     result_types=op.res.types or [[]],
                     regions=[op.detach_region(r) for r in op.regions],
