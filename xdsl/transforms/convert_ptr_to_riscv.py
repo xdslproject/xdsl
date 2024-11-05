@@ -6,12 +6,11 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.context import MLContext
-from xdsl.dialects import arith, ptr, riscv
+from xdsl.dialects import ptr, riscv
 from xdsl.dialects.builtin import (
     AnyFloat,
     Float32Type,
     Float64Type,
-    IndexType,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
@@ -25,19 +24,23 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.exceptions import DiagnosticException
 
 
 class PtrTypeConversion(TypeConversionPattern):
     @attr_type_rewrite_pattern
-    def convert_type(self, typ: ptr.PtrType) -> IndexType:
-        return IndexType()
+    def convert_type(self, typ: ptr.PtrType) -> riscv.IntRegisterType:
+        return riscv.IntRegisterType.unallocated()
 
 
 @dataclass
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(arith.Addi(op.operands[0], op.operands[1]))
+        oper1, oper2 = cast_operands_to_regs(rewriter)
+        rewriter.replace_matched_op(
+            riscv.AddOp(oper1, oper2, rd=riscv.IntRegisterType.unallocated())
+        )
 
 
 @dataclass
@@ -69,7 +72,9 @@ class ConvertStoreOp(RewritePattern):
                             comment="store double value to pointer",
                         )
                     case _:
-                        assert False, f"Unexpected floating point type {float_type}"
+                        raise DiagnosticException(
+                            f"Unexpected floating point type {float_type}"
+                        )
 
             case _:
                 assert False, f"Unexpected register type {op.value.type}"
@@ -97,7 +102,9 @@ class ConvertLoadOp(RewritePattern):
                     case Float64Type():
                         lw_op = riscv.FLdOp(addr, 0, comment="load double from pointer")
                     case _:
-                        assert False, f"Unexpected floating point type {float_type}"
+                        raise DiagnosticException(
+                            f"Unexpected floating point type {float_type}"
+                        )
 
             case _:
                 assert False, f"Unexpected register type {result_register_type}"
@@ -112,7 +119,9 @@ class ConvertMemrefToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
-            UnrealizedConversionCastOp.get([op.source], [IndexType()])
+            UnrealizedConversionCastOp.get(
+                [op.source], [riscv.IntRegisterType.unallocated()]
+            )
         )
 
 
