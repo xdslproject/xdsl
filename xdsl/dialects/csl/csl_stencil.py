@@ -393,9 +393,9 @@ class ApplyOp(IRDLOperation):
                     f"Unexpected block argument type of done_exchange, got {arg.type} != {expected_type} at index {arg.index}"
                 )
 
-        if (len(self.res) == 0) == (len(self.dest) == 0):
+        if (len(self.res) != 0) and (len(self.dest) != 0):
             raise VerifyException(
-                "Expected stencil.apply to have either results or dest specified"
+                "Expected stencil.apply to have results or dest specified, but not both"
             )
 
     def get_rank(self) -> int:

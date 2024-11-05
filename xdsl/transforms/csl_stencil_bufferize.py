@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyMemRefType,
+    AnyTensorType,
     AnyTensorTypeConstr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -44,7 +46,7 @@ def tensor_to_memref_type(t: TensorType[Attribute]) -> memref.MemRefType[Attribu
 
 def to_memref_op(op: SSAValue) -> bufferization.ToMemrefOp:
     """Creates a `bufferization.to_memref` operation."""
-    assert isa(op.type, TensorType[Attribute])
+    assert isa(op.type, AnyTensorType)
     r_type = memref.MemRefType(
         op.type.get_element_type(), op.type.get_shape()
     )  # todo set strided+offset here?
@@ -55,7 +57,7 @@ def to_tensor_op(
     op: SSAValue, writable: bool = False, restrict: bool = True
 ) -> bufferization.ToTensorOp:
     """Creates a `bufferization.to_tensor` operation."""
-    assert isa(op.type, memref.MemRefType[Attribute])
+    assert isa(op.type, AnyMemRefType)
     return bufferization.ToTensorOp(op, restrict, writable)
 
 
@@ -380,6 +382,95 @@ class ArithConstBufferize(RewritePattern):
 
 
 @dataclass(frozen=True)
+class InjectApplyOutsIntoLinalgOuts(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        yld = op.done_exchange.block.last_op
+        assert isinstance(yld, csl_stencil.YieldOp)
+        new_dest: list[SSAValue] = []
+        new_yield_args: list[SSAValue] = []
+        additional_args: list[SSAValue] = []
+        to_remove: list[Operation] = []
+
+        for arg, yld_arg in zip(op.dest, yld.arguments, strict=True):
+            if (
+                not isinstance(yld_arg, OpResult)
+                or not isinstance(yld_arg.op, bufferization.ToMemrefOp)
+                or not isinstance(yld_arg.op.tensor, OpResult)
+                or not isinstance(
+                    linalg_op := yld_arg.op.tensor.op,
+                    linalg.NamedOpBase | linalg.Generic,
+                )
+                or not isa(arg_t := arg.type, AnyMemRefType)
+                or not isa(yld_arg.type, AnyMemRefType)
+            ):
+                new_dest.append(arg)
+                new_yield_args.append(yld_arg)
+                continue
+            additional_args.append(arg)
+            if len(yld_arg.uses) == 1:
+                to_remove.append(yld_arg.op)
+
+            arg = op.done_exchange.block.insert_arg(
+                arg.type, len(op.done_exchange.block.args)
+            )
+            arg_to_tensor = to_tensor_op(arg, writable=True)
+            symmetric_offsets = tuple(
+                (s - d) // 2
+                for s, d in zip(
+                    arg_t.get_shape(), yld_arg.type.get_shape(), strict=True
+                )
+            )
+
+            extract_slice_op = tensor.ExtractSliceOp(
+                operands=[arg_to_tensor, [], [], []],
+                result_types=[yld_arg.op.tensor.type],
+                properties={
+                    "static_offsets": DenseArrayBase.from_list(i64, symmetric_offsets),
+                    "static_sizes": DenseArrayBase.from_list(
+                        i64, yld_arg.type.get_shape()
+                    ),
+                    "static_strides": DenseArrayBase.from_list(i64, (1,)),
+                },
+            )
+            rewriter.insert_op(
+                [arg_to_tensor, extract_slice_op], InsertPoint.before(linalg_op)
+            )
+            # yld_arg.op.outputs[0] = extract_slice_op.result
+            # op.operands = [op.field, op.accumulator, op.args_rchunk, VarOperand([*op.args_dexchng, arg]), op.dest]
+            # op.args_dexchng = VarOperand([*op.args_dexchng, arg])
+            rewriter.replace_op(
+                linalg_op,
+                type(linalg_op).build(
+                    operands=[linalg_op.inputs, [extract_slice_op.result]],
+                    result_types=linalg_op.result_types,
+                    regions=[linalg_op.detach_region(r) for r in linalg_op.regions],
+                    properties=linalg_op.properties,
+                    attributes=linalg_op.attributes,
+                ),
+            )
+        if len(additional_args) > 0:
+            rewriter.replace_op(yld, csl_stencil.YieldOp(*new_yield_args))
+            for r in to_remove:
+                rewriter.erase_op(r)
+            rewriter.replace_matched_op(
+                csl_stencil.ApplyOp(
+                    operands=[
+                        op.field,
+                        op.accumulator,
+                        [*op.args_rchunk],
+                        [*op.args_dexchng, *additional_args],
+                        [*op.dest],
+                    ],
+                    result_types=op.res.types or [[]],
+                    regions=[op.detach_region(r) for r in op.regions],
+                    properties=op.properties,
+                    attributes=op.attributes,
+                )
+            )
+
+
+@dataclass(frozen=True)
 class ReselectLinalgOutsFromInputs(RewritePattern):
     """
     Reselects the DPS `outs` of a linalg op if it is one of its inputs.
@@ -469,5 +560,11 @@ class CslStencilBufferize(ModulePass):
         )
         module_pass.rewrite_module(op)
         PatternRewriteWalker(
-            ReselectLinalgOutsFromInputs(), apply_recursively=False
+            GreedyRewritePatternApplier(
+                [
+                    InjectApplyOutsIntoLinalgOuts(),
+                    ReselectLinalgOutsFromInputs(),
+                ]
+            ),
+            apply_recursively=False,
         ).rewrite_module(op)
