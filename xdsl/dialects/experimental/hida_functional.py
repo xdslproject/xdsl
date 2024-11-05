@@ -7,6 +7,7 @@ from xdsl.irdl import (
     Block,
     IRDLOperation,
     irdl_op_definition,
+    lazy_traits_def,
     opt_result_def,
     region_def,
     traits_def,
@@ -18,9 +19,7 @@ from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "hida_func.yield"
 
-    traits = traits_def(
-        lambda: frozenset([HasParent(TaskOp, DispatchOp), IsTerminator()])
-    )
+    traits = lazy_traits_def(lambda: (HasParent(TaskOp, DispatchOp), IsTerminator()))
 
 
 @irdl_op_definition
@@ -31,9 +30,8 @@ class DispatchOp(IRDLOperation):
 
     region = region_def()
     _results = opt_result_def()
-    # _results = opt_result_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(YieldOp)])
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self, operations: list[Operation], result_types: list[Attribute | None]
@@ -52,7 +50,7 @@ class TaskOp(IRDLOperation):
     region = region_def()
     _results = opt_result_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(YieldOp), HasParent(DispatchOp)])
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp), HasParent(DispatchOp))
 
     def __init__(self, ops: Sequence[Operation], res_types: Sequence[Attribute]):
         region = Region(Block(ops))

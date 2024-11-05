@@ -835,7 +835,7 @@ class MatmulOp(NamedOpBase):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    traits = frozenset([IsContraction()])
+    traits = traits_def(IsContraction())
 
     def __init__(
         self,

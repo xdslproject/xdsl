@@ -450,6 +450,21 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
+    def get_hida_create_dataflow_from_linalg():
+        from xdsl.transforms.experimental.hida import create_dataflow_from_linalg
+
+        return create_dataflow_from_linalg.CreateDataflowFromLinalg
+
+    def get_hida_create_dataflow_from_affine():
+        from xdsl.transforms.experimental.hida import create_dataflow_from_affine
+
+        return create_dataflow_from_affine.CreateDataflowFromAffine
+
+    def get_hida_lower_dataflow():
+        from xdsl.transforms.experimental.hida import lower_dataflow
+
+        return lower_dataflow.LowerDataflow
+
     return {
         "apply-pdl": get_apply_pdl,
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -539,4 +554,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
+        "hida-create-dataflow-from-linalg": get_hida_create_dataflow_from_linalg,
+        "hida-create-dataflow-from-affine": get_hida_create_dataflow_from_affine,
+        "hida-lower-dataflow": get_hida_lower_dataflow,
     }

@@ -7,6 +7,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import IsolatedFromAbove, NoTerminator
@@ -19,7 +20,7 @@ class NodeOp(IRDLOperation):
     args = var_operand_def()
     region: Region = region_def()
 
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = traits_def(IsolatedFromAbove(), NoTerminator())
 
     def __init__(self, block: Block, args: Sequence[Operation | SSAValue]):
         super().__init__(regions=[Region(block)], operands=[args])
@@ -32,7 +33,7 @@ class ScheduleOp(IRDLOperation):
     args = var_operand_def()
     region = region_def()
 
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = traits_def(IsolatedFromAbove(), NoTerminator())
 
     def __init__(self, block: Block, args: Sequence[Operation | SSAValue]):
         super().__init__(regions=[Region(block)], operands=[args])

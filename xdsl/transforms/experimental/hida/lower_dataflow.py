@@ -17,7 +17,11 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.experimental.liveness import Liveness
-from xdsl.transforms.lower_affine import LowerAffineLoad, LowerAffineStore
+from xdsl.transforms.lower_affine import (
+    LowerAffineIf,
+    LowerAffineLoad,
+    LowerAffineStore,
+)
 from xdsl.utils.hints import isa
 
 
@@ -173,6 +177,8 @@ class LowerDataflow(ModulePass):
         lower_dispatch.rewrite_module(op)
 
         lower_affine_mem = PatternRewriteWalker(
-            GreedyRewritePatternApplier([LowerAffineLoad(), LowerAffineStore()])
+            GreedyRewritePatternApplier(
+                [LowerAffineLoad(), LowerAffineStore(), LowerAffineIf()]
+            )
         )
         lower_affine_mem.rewrite_module(op)
