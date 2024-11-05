@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
@@ -320,7 +321,7 @@ class LowerImport(RewritePattern):
         import_ = csl.ImportModuleConstOp(
             op.module, structs[-1] if len(structs) > 0 else None
         )
-        import_.result.name_hint = self._get_name_hint(op)
+        import_.result.name_hint = Path(op.module.data.strip("<>")).stem
 
         rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
         rewriter.insert_op(structs, InsertPoint.before(op))
