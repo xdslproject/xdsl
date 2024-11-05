@@ -1,4 +1,3 @@
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -306,12 +305,6 @@ class LowerImport(RewritePattern):
         for s in structs_to_concat:
             out_structs.append(csl.ConcatStructOp(out_structs[-1], s))
         return out_structs
-
-    def _get_name_hint(self, import_op: csl_wrapper.ImportOp) -> str | None:
-        if m := re.match(r"<(.*\W)?(\w+)>", import_op.module.data):
-            return m.group(2)
-        elif m := re.match(r"(.*\W)?(\w+)\.csl", import_op.module.data):
-            return m.group(2)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_wrapper.ImportOp, rewriter: PatternRewriter, /):
