@@ -22,5 +22,4 @@ ptr_xdsl.store %v, %p : i32, !ptr_xdsl.ptr
 %m2 = "test.op"() : () -> (memref<3x2xf128>)
 %p2 = ptr_xdsl.to_ptr %m2 : memref<3x2xf128> -> !ptr_xdsl.ptr
 %v1 = ptr_xdsl.load %p2 : !ptr_xdsl.ptr -> f128
-
 // CHECK: Unexpected floating point type f128

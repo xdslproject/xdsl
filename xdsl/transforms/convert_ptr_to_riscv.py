@@ -110,7 +110,7 @@ class ConvertLoadOp(RewritePattern):
                 assert False, f"Unexpected register type {result_register_type}"
 
         rewriter.replace_matched_op(
-            [lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,))]
+            (lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,)))
         )
 
 
