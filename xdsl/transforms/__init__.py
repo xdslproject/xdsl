@@ -465,6 +465,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return lower_dataflow.LowerDataflow
 
+    def get_hida_convert_dataflow_to_func():
+        from xdsl.transforms.experimental.hida import convert_dataflow_to_func
+
+        return convert_dataflow_to_func.ConvertDataflowToFunc
+
     return {
         "apply-pdl": get_apply_pdl,
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -557,4 +562,5 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "hida-create-dataflow-from-linalg": get_hida_create_dataflow_from_linalg,
         "hida-create-dataflow-from-affine": get_hida_create_dataflow_from_affine,
         "hida-lower-dataflow": get_hida_lower_dataflow,
+        "hida-convert-dataflow-to-func": get_hida_convert_dataflow_to_func,
     }

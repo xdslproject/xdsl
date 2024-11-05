@@ -21,7 +21,7 @@ class NodeOp(IRDLOperation):
     name = "hida_struct.node"
 
     args = var_operand_def()
-    region: Region = region_def()
+    region: Region = region_def("single_block")
 
     traits = traits_def(IsolatedFromAbove(), NoTerminator())
 
@@ -34,7 +34,7 @@ class ScheduleOp(IRDLOperation):
     name = "hida_struct.schedule"
 
     args = var_operand_def()
-    region = region_def()
+    region = region_def("single_block")
 
     traits = traits_def(IsolatedFromAbove(), NoTerminator())
 
