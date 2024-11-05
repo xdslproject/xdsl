@@ -436,9 +436,6 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
             rewriter.insert_op(
                 [arg_to_tensor, extract_slice_op], InsertPoint.before(linalg_op)
             )
-            # yld_arg.op.outputs[0] = extract_slice_op.result
-            # op.operands = [op.field, op.accumulator, op.args_rchunk, VarOperand([*op.args_dexchng, arg]), op.dest]
-            # op.args_dexchng = VarOperand([*op.args_dexchng, arg])
             rewriter.replace_op(
                 linalg_op,
                 type(linalg_op).build(
@@ -460,7 +457,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                         op.accumulator,
                         [*op.args_rchunk],
                         [*op.args_dexchng, *additional_args],
-                        [*op.dest],
+                        [*new_dest],
                     ],
                     result_types=op.res.types or [[]],
                     regions=[op.detach_region(r) for r in op.regions],
