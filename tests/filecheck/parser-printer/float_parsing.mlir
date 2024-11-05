@@ -19,4 +19,8 @@
 
   "test.op"() {"value" = -34.e-12 : f32} : () -> ()
   // CHECK-NEXT: "test.op"() {"value" = -3.400000e-11 : f32} : () -> ()
+
+  // this should print in full precision
+  "test.op"() {"value" = 3.141592653589793 : f64} : () -> ()
+  // CHECK-NEXT: "test.op"() {"value" = 3.141592653589793 : f64} : () -> ()
 }) : () -> ()

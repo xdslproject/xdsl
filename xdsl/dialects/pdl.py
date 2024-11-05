@@ -30,6 +30,7 @@ from xdsl.irdl import (
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_operand_def,
     opt_prop_def,
@@ -560,7 +561,7 @@ class PatternOp(IRDLOperation):
     sym_name = opt_prop_def(StringAttr)
     body = region_def("single_block")
 
-    traits = frozenset([OptionalSymbolOpInterface()])
+    traits = traits_def(OptionalSymbolOpInterface())
 
     def __init__(
         self,
@@ -643,7 +644,7 @@ class RangeOp(IRDLOperation):
     arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     result = result_def(RangeType[AnyPDLType])
 
-    traits = traits_def(lambda: frozenset([HasParent(RewriteOp)]))
+    traits = lazy_traits_def(lambda: (HasParent(RewriteOp),))
 
     def verify_(self) -> None:
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
@@ -863,7 +864,7 @@ class RewriteOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    traits = frozenset([HasParent(PatternOp), NoTerminator(), IsTerminator()])
+    traits = traits_def(HasParent(PatternOp), NoTerminator(), IsTerminator())
 
     def __init__(
         self,

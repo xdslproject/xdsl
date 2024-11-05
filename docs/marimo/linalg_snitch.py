@@ -554,7 +554,7 @@ def __(
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-    register_implementations(snitch_interpreter, ctx, include_wgpu=False)
+    register_implementations(snitch_interpreter, ctx, include_wgpu=False, include_onnx=False)
 
     snitch_interpreter.call_op(
         "matmul",

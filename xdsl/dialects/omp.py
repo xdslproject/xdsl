@@ -27,6 +27,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     region_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import IsTerminator
@@ -141,14 +142,14 @@ class ParallelOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     name = "omp.terminator"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 OMP = Dialect(

@@ -26,6 +26,12 @@
 %sdiv = llvm.sdiv %arg0, %arg1 : i32
 // CHECK: %sdiv = llvm.sdiv %arg0, %arg1 : i32
 
+%udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+// CHECK: %udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+
+%sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+// CHECK: %sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+
 %urem = llvm.urem %arg0, %arg1 : i32
 // CHECK: %urem = llvm.urem %arg0, %arg1 : i32
 
@@ -53,6 +59,12 @@
 %ashr = llvm.ashr %arg0, %arg1 : i32
 // CHECK: %ashr = llvm.ashr %arg0, %arg1 : i32
 
+%lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+// CHECK: %lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+
+%ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
+// CHECK: %ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
+
 %trunc = llvm.trunc %arg0 : i32 to i16
 // CHECK: %trunc = llvm.trunc %arg0 : i32 to i16
 
@@ -70,3 +82,33 @@
 
 %cst32 = llvm.mlir.constant(25 : i32) : i32
 // CHECK: %cst32 = llvm.mlir.constant(25 : i32) : i32
+
+%icmp_eq = llvm.icmp "eq" %arg0, %arg1 : i32
+// CHECK: %icmp_eq = llvm.icmp "eq" %arg0, %arg1 : i32
+
+%icmp_ne = llvm.icmp "ne" %arg0, %arg1 : i32
+// CHECK: %icmp_ne = llvm.icmp "ne" %arg0, %arg1 : i32
+
+%icmp_slt = llvm.icmp "slt" %arg0, %arg1 : i32
+// CHECK: %icmp_slt = llvm.icmp "slt" %arg0, %arg1 : i32
+
+%icmp_sle = llvm.icmp "sle" %arg0, %arg1 : i32
+// CHECK: %icmp_sle = llvm.icmp "sle" %arg0, %arg1 : i32
+
+%icmp_sgt = llvm.icmp "sgt" %arg0, %arg1 : i32
+// CHECK: %icmp_sgt = llvm.icmp "sgt" %arg0, %arg1 : i32
+
+%icmp_sge = llvm.icmp "sge" %arg0, %arg1 : i32
+// CHECK: %icmp_sge = llvm.icmp "sge" %arg0, %arg1 : i32
+
+%icmp_ult = llvm.icmp "ult" %arg0, %arg1 : i32
+// CHECK: %icmp_ult = llvm.icmp "ult" %arg0, %arg1 : i32
+
+%icmp_ule = llvm.icmp "ule" %arg0, %arg1 : i32
+// CHECK: %icmp_ule = llvm.icmp "ule" %arg0, %arg1 : i32
+
+%icmp_ugt = llvm.icmp "ugt" %arg0, %arg1 : i32
+// CHECK: %icmp_ugt = llvm.icmp "ugt" %arg0, %arg1 : i32
+
+%icmp_uge = llvm.icmp "uge" %arg0, %arg1 : i32
+// CHECK: %icmp_uge = llvm.icmp "uge" %arg0, %arg1 : i32

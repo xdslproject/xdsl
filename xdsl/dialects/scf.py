@@ -24,6 +24,7 @@ from xdsl.irdl import (
     VarConstraint,
     base,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     prop_def,
     region_def,
@@ -57,7 +58,7 @@ class While(IRDLOperation):
     before_region = region_def()
     after_region = region_def()
 
-    traits = frozenset([RecursiveMemoryEffect()])
+    traits = traits_def(RecursiveMemoryEffect())
 
     def __init__(
         self,
@@ -158,13 +159,11 @@ class While(IRDLOperation):
 class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
-    traits = traits_def(
-        lambda: frozenset(
-            [
-                IsTerminator(),
-                HasParent(For, If, While, IndexSwitchOp),
-                Pure(),
-            ]
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(For, If, While, IndexSwitchOp),
+            Pure(),
         )
     )
 
@@ -179,12 +178,10 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region = region_def()
 
-    traits = frozenset(
-        [
-            SingleBlockImplicitTerminator(Yield),
-            RecursiveMemoryEffect(),
-            RecursivelySpeculatable(),
-        ]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(Yield),
+        RecursiveMemoryEffect(),
+        RecursivelySpeculatable(),
     )
 
     def __init__(
@@ -297,12 +294,10 @@ class For(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset(
-        [
-            SingleBlockImplicitTerminator(Yield),
-            ForOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
-        ]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(Yield),
+        ForOpHasCanonicalizationPatternsTrait(),
+        RecursiveMemoryEffect(),
     )
 
     def __init__(
@@ -467,9 +462,10 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(
-        lambda: frozenset(
-            [SingleBlockImplicitTerminator(ReduceOp), RecursiveMemoryEffect()]
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(ReduceOp),
+            RecursiveMemoryEffect(),
         )
     )
 
@@ -568,14 +564,12 @@ class ReduceOp(IRDLOperation):
 
     reductions = var_region_def("single_block")
 
-    traits = traits_def(
-        lambda: frozenset(
-            [
-                RecursiveMemoryEffect(),
-                HasParent(ParallelOp),
-                IsTerminator(),
-                SingleBlockImplicitTerminator(ReduceReturnOp),
-            ]
+    traits = lazy_traits_def(
+        lambda: (
+            RecursiveMemoryEffect(),
+            HasParent(ParallelOp),
+            IsTerminator(),
+            SingleBlockImplicitTerminator(ReduceReturnOp),
         )
     )
 
@@ -631,7 +625,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result = operand_def()
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(ReduceOp), IsTerminator(), Pure())
 
     assembly_format = "$result attr-dict `:` type($result)"
 
@@ -645,7 +639,7 @@ class Condition(IRDLOperation):
     cond = operand_def(IntegerType(1))
     arguments = var_operand_def()
 
-    traits = frozenset([HasParent(While), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(While), IsTerminator(), Pure())
 
     def __init__(
         self,
@@ -706,7 +700,7 @@ class IndexSwitchOp(IRDLOperation):
     default_region = region_def("single_block")
     case_regions = var_region_def("single_block")
 
-    traits = frozenset([RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield)])
+    traits = traits_def(RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield))
 
     def __init__(
         self,

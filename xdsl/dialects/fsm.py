@@ -32,6 +32,7 @@ from xdsl.irdl import (
     opt_operand_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -74,7 +75,7 @@ class MachineOp(IRDLOperation):
     arg_names = opt_attr_def(ArrayAttr[StringAttr])
     res_names = opt_attr_def(ArrayAttr[StringAttr])
 
-    traits = frozenset([NoTerminator(), SymbolTable(), SymbolOpInterface()])
+    traits = traits_def(NoTerminator(), SymbolTable(), SymbolOpInterface())
 
     def __init__(
         self,
@@ -141,7 +142,7 @@ class StateOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    traits = frozenset([NoTerminator(), SymbolOpInterface(), HasParent(MachineOp)])
+    traits = traits_def(NoTerminator(), SymbolOpInterface(), HasParent(MachineOp))
 
     def __init__(
         self,
@@ -187,7 +188,7 @@ class OutputOp(IRDLOperation):
 
     operand = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(StateOp)])
+    traits = traits_def(IsTerminator(), HasParent(StateOp))
 
     def __init__(
         self,
@@ -229,7 +230,7 @@ class TransitionOp(IRDLOperation):
 
     nextState = attr_def(FlatSymbolRefAttrConstr)
 
-    traits = frozenset([NoTerminator(), HasParent(StateOp)])
+    traits = traits_def(NoTerminator(), HasParent(StateOp))
 
     def __init__(
         self,
@@ -278,7 +279,7 @@ class UpdateOp(IRDLOperation):
 
     value = operand_def(Attribute)
 
-    traits = frozenset([HasParent(TransitionOp)])
+    traits = traits_def(HasParent(TransitionOp))
 
     def __init__(
         self,
@@ -352,7 +353,7 @@ class ReturnOp(IRDLOperation):
 
     operand = opt_operand_def(signlessIntegerLike)
 
-    traits = frozenset([IsTerminator(), HasParent(TransitionOp)])
+    traits = traits_def(IsTerminator(), HasParent(TransitionOp))
 
     def __init__(
         self,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -59,6 +60,7 @@ from xdsl.irdl import (
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -627,6 +629,15 @@ class FloatData(Data[float]):
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
+
+    def __eq__(self, other: Any):
+        # avoid triggering `float('nan') != float('nan')` inequality
+        return isinstance(other, FloatData) and (
+            math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
+        )
+
+    def __hash__(self):
+        return hash(self.data)
 
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
@@ -1226,7 +1237,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
     inputs = var_operand_def()
     outputs = var_result_def()
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1283,7 +1294,7 @@ class UnregisteredOp(Operation, ABC):
     """
 
     name = "builtin.unregistered"
-    traits = frozenset()
+    traits = traits_def()
 
     @property
     def op_name(self) -> StringAttr:
@@ -1410,13 +1421,11 @@ class ModuleOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            NoTerminator(),
-            OptionalSymbolOpInterface(),
-            SymbolTable(),
-        ]
+    traits = traits_def(
+        IsolatedFromAbove(),
+        NoTerminator(),
+        OptionalSymbolOpInterface(),
+        SymbolTable(),
     )
 
     def __init__(

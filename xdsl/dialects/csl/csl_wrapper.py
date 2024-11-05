@@ -28,11 +28,11 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     opt_prop_def,
     prop_def,
     region_def,
     result_def,
-    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser
@@ -372,8 +372,12 @@ class YieldOp(IRDLOperation):
     values = var_operand_def(Attribute)
     fields = prop_def(ArrayAttr[StringAttr])
 
-    traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(ModuleOp), Pure()])
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(ModuleOp),
+            Pure(),
+        )
     )
 
     def __init__(

@@ -1,3 +1,5 @@
+import collections
+from dataclasses import dataclass
 from typing import Literal, cast
 
 from xdsl.context import MLContext
@@ -11,6 +13,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 # map the arith operation to the right varith op:
@@ -179,6 +182,57 @@ def is_integer_like_type(t: Attribute) -> bool:
     return False
 
 
+@dataclass
+class FuseRepeatedAddArgsPattern(RewritePattern):
+    """
+    Prefer `operand * count(operand)` over repeated addition of `operand`.
+
+    The minimum count to trigger this rewrite can be specified in `min_reps`.
+    """
+
+    min_reps: int
+    """Minimum repetitions of operand to trigger fusion."""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithAddOp, rewriter: PatternRewriter, /):
+        elem_t = op.res.type
+        if isinstance(elem_t, builtin.ContainerType):
+            elem_t = cast(builtin.ContainerType[Attribute], elem_t).get_element_type()
+
+        assert isinstance(
+            elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
+        )
+
+        consts: list[arith.Constant] = []
+        fusions: list[Operation] = []
+        new_args: list[Operation | SSAValue] = []
+        for arg, count in collections.Counter(op.args).items():
+            if count >= self.min_reps:
+                c, f = self.fuse(arg, count, elem_t)
+                consts.append(c)
+                fusions.append(f)
+                new_args.append(f)
+            else:
+                new_args.append(arg)
+        if fusions:
+            rewriter.insert_op([*consts, *fusions], InsertPoint.before(op))
+            rewriter.replace_matched_op(varith.VarithAddOp(*new_args))
+
+    @staticmethod
+    def fuse(
+        arg: SSAValue,
+        count: int,
+        t: builtin.IntegerType | builtin.IndexType | builtin.AnyFloat,
+    ):
+        if isinstance(t, builtin.IntegerType | builtin.IndexType):
+            c = arith.Constant(builtin.IntegerAttr(count, t))
+            f = arith.Muli
+        else:
+            c = arith.Constant(builtin.FloatAttr(count, t))
+            f = arith.Mulf
+        return c, f(c, arg)
+
+
 class ConvertArithToVarithPass(ModulePass):
     """
     Convert chains of arith.{add|mul}{i,f} operations into a single long variadic add or mul operation.
@@ -213,5 +267,22 @@ class ConvertVarithToArithPass(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             VarithToArithPattern(),
+            apply_recursively=False,
+        ).rewrite_op(op)
+
+
+class VarithFuseRepeatedOperandsPass(ModulePass):
+    """
+    Fuses several occurrences of the same operand into one.
+    """
+
+    name = "varith-fuse-repeated-operands"
+
+    min_reps: int = 2
+    """The minimum number of times an operand needs to be repeated before being fused."""
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            FuseRepeatedAddArgsPattern(self.min_reps),
             apply_recursively=False,
         ).rewrite_op(op)

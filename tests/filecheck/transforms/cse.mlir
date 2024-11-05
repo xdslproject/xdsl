@@ -13,6 +13,17 @@ func.func @simple_constant() -> (i32, i32) {
 // CHECK-NEXT:      func.return %0, %0 : i32, i32
 // CHECK-NEXT:    }
 
+func.func @simple_float_constant() -> (f32, f32) {
+    %0 = arith.constant 1.0 : f32
+    %1 = arith.constant 1.0 : f32
+    func.return %0, %1 : f32, f32
+}
+
+// CHECK:         func.func @simple_float_constant() -> (f32, f32) {
+// CHECK-NEXT:      %0 = arith.constant 1.000000e+00 : f32
+// CHECK-NEXT:      func.return %0, %0 : f32, f32
+// CHECK-NEXT:    }
+
 // CHECK-LABEL: @basic
   func.func @basic() -> (index, index) {
     %2 = arith.constant 0 : index

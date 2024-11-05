@@ -49,6 +49,7 @@ from xdsl.irdl import (
     opt_result_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -1284,7 +1285,7 @@ class DispatchTable(IRDLOperation):
     sym_name = prop_def(StringAttr)
     regs = var_region_def()
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
 
 @irdl_op_definition
@@ -1553,7 +1554,7 @@ class Global(IRDLOperation):
     linkName = opt_prop_def(StringAttr)
     constant = opt_prop_def(UnitAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
 
 @irdl_op_definition
@@ -1577,7 +1578,7 @@ class HasValue(IRDLOperation):
     resval = operand_def()
     regs = var_region_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -1837,7 +1838,7 @@ class Result(IRDLOperation):
     regs = var_region_def()
     _results = opt_operand_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition

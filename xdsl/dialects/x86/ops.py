@@ -33,6 +33,7 @@ from xdsl.irdl import (
     opt_attr_def,
     result_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -1641,7 +1642,7 @@ class S_JmpOp(IRDLOperation, X86Instruction):
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -1996,7 +1997,7 @@ class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,

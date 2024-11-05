@@ -21,6 +21,7 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import NoMemoryEffect
@@ -53,7 +54,7 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
 
     result = result_def(i32)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -68,7 +69,7 @@ class SnitchRuntimeGetInfoBool(SnitchRuntimeBaseOperation, ABC):
 
     result = result_def(i1)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -278,7 +279,7 @@ class GetMemoryInfoBaseOperation(SnitchRuntimeBaseOperation, ABC):
     slice_begin = result_def(slice_t_begin)
     slice_end = result_def(slice_t_end)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,

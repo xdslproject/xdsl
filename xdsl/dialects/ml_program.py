@@ -19,6 +19,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_attr_def,
     result_def,
+    traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -42,7 +43,7 @@ class Global(IRDLOperation):
     value = opt_attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(
         self,

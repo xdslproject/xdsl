@@ -23,6 +23,7 @@ from xdsl.irdl import (
     Region,
     SSAValue,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     region_def,
     traits_def,
@@ -44,8 +45,8 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofOperation)])
+    traits = lazy_traits_def(
+        lambda: (IsTerminator(), HasParent(WhileOp, ForRofOperation))
     )
 
 
@@ -60,7 +61,7 @@ class ForRofOperation(IRDLOperation, ABC):
 
     body = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(YieldOp)])
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self,
@@ -383,7 +384,7 @@ class ConditionOp(IRDLOperation):
     cond = operand_def(IntRegisterType)
     arguments = var_operand_def(RISCVRegisterType)
 
-    traits = frozenset([HasParent(WhileOp), IsTerminator()])
+    traits = traits_def(HasParent(WhileOp), IsTerminator())
 
     def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
         super().__init__(operands=[cond, output_ops])

@@ -45,6 +45,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     prop_def,
     region_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -255,7 +256,7 @@ class StreamingRegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((NoTerminator(),))
+    traits = traits_def(NoTerminator())
 
     def __init__(
         self,

@@ -1,12 +1,14 @@
 from collections.abc import Sequence
 
+from xdsl.builder import InsertPoint
 from xdsl.context import MLContext
 from xdsl.dialects import affine, arith, builtin, memref, scf
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
     AffineBinaryOpKind,
     AffineConstantExpr,
+    AffineConstraintKind,
     AffineDimExpr,
     AffineSymExpr,
 )
@@ -154,6 +156,78 @@ class LowerAffineApply(RewritePattern):
         rewriter.replace_matched_op(new_ops, new_results)
 
 
+class LowerAffineIf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: affine.If, rewriter: PatternRewriter):
+        # Now we just have to handle the condition logic.
+
+        # Calculate cond as conjunction without short-circuiting.
+        cond = None
+
+        zero_constant = arith.Constant(arith.IntegerAttr.from_index_int_value(0))
+        rewriter.insert_op(zero_constant, InsertPoint.before(op))
+
+        for constraint in op.condition.data.constraints:
+            is_equality = constraint.kind == AffineConstraintKind.eq
+
+            # Build and apply an affine expression
+            expr = constraint.lhs
+            ops, val = affine_expr_ops(expr, list(op.operands), [])
+
+            if not val:
+                return
+            rewriter.insert_op(ops, InsertPoint.before(op))
+
+            if is_equality:
+                cmp_val = arith.Cmpi(val, zero_constant, "eq")
+            else:
+                cmp_val = arith.Cmpi(val, zero_constant, "sge")
+
+            if cond:
+                and_cond = arith.AndI(cond, cmp_val)
+                rewriter.insert_op(and_cond, InsertPoint.before(op))
+                cond = and_cond.result
+            else:
+                cond = cmp_val
+                rewriter.insert_op(cond, InsertPoint.before(op))
+
+        if not cond:
+            one_constant = arith.Constant(arith.IntegerAttr.from_int_and_width(1, 1))
+            rewriter.insert_op(one_constant, InsertPoint.before(op))
+
+        has_else_region = len(op.else_region.blocks) > 0
+        result_types = [r.type for r in op.res]
+
+        assert isinstance(cond, arith.Cmpi | arith.AndI)
+        if_op = scf.If(cond.result, result_types, Region(Block()), Region(Block()))
+
+        rewriter.inline_region_before(op.then_region, if_op.true_region.blocks[-1])
+        empty_block = if_op.true_region.detach_block(if_op.true_region.blocks[-1])
+        empty_block.erase()
+
+        true_terminator = list(
+            filter(
+                lambda x: isinstance(x, affine.Yield), list(if_op.true_region.walk())
+            )
+        )[0]
+        rewriter.replace_op(true_terminator, scf.Yield())
+
+        if has_else_region:
+            rewriter.inline_region_before(op.else_region, if_op.false_region.blocks[-1])
+            false_terminator = list(
+                filter(
+                    lambda x: isinstance(x, affine.Yield),
+                    list(if_op.false_region.walk()),
+                )
+            )[0]
+            rewriter.replace_op(false_terminator, scf.Yield())
+
+        empty_block = if_op.false_region.detach_block(if_op.false_region.blocks[-1])
+        empty_block.erase()
+
+        rewriter.replace_matched_op(if_op)
+
+
 class LowerAffinePass(ModulePass):
     name = "lower-affine"
 
@@ -166,6 +240,7 @@ class LowerAffinePass(ModulePass):
                     LowerAffineFor(),
                     LowerAffineYield(),
                     LowerAffineApply(),
+                    LowerAffineIf(),
                 ]
             )
         ).rewrite_module(op)

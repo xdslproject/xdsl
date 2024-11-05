@@ -28,6 +28,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_result_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -166,12 +167,10 @@ class FuncOp(riscv.RISCVAsmOperation):
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
 
-    traits = frozenset(
-        [
-            SymbolOpInterface(),
-            FuncOpCallableInterface(),
-            IsolatedFromAbove(),
-        ]
+    traits = traits_def(
+        SymbolOpInterface(),
+        FuncOpCallableInterface(),
+        IsolatedFromAbove(),
     )
 
     def __init__(
@@ -243,7 +242,7 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = traits_def(IsTerminator(), HasParent(FuncOp))
 
     def __init__(
         self,
