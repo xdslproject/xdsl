@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import IRDLOperation
-from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
+from xdsl.pattern_rewriter import InsertPoint, PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -356,23 +356,39 @@ class PDLRewriteFunctions(InterpreterFunctions):
         assert isinstance(op.value, Attribute)
         return (op.value,)
 
+    @impl(pdl.TypeOp)
+    def run_type(
+        self, interpreter: Interpreter, op: pdl.TypeOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert isinstance(op.constantType, Attribute)
+        return (op.constantType,)
+
     @impl(pdl.ReplaceOp)
     def run_replace(
         self, interpreter: Interpreter, op: pdl.ReplaceOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         rewriter = self.rewriter
-
         (old,) = interpreter.get_values((op.op_value,))
 
+        # Insert dependencies if needed
+        pdl_ops = self.pdl_use_chain(op)
+        for pdl_op in pdl_ops:
+            if pdl_op.op == op.repl_operation:
+                continue
+            (new_op,) = interpreter.get_values((pdl_op.op,))
+            rewriter.insert_op(new_op, InsertPoint.before(old))
+
+        # Do the replacement itself (and store the new values)
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
             rewriter.replace_op(old, new_op)
+            self.new_vals = new_op.results
         elif len(op.repl_values):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
+            self.new_vals = new_vals
         else:
             assert False, "Unexpected ReplaceOp"
-
         return ()
 
     @impl(pdl.EraseOp)
@@ -382,3 +398,17 @@ class PDLRewriteFunctions(InterpreterFunctions):
         (old,) = interpreter.get_values((op.op_value,))
         self.rewriter.erase_op(old)
         return ()
+
+    def pdl_use_chain(self, op: Operation) -> list[pdl.OperationOp]:
+        use_chain: list[pdl.OperationOp] = []
+        for operand in op.operands:
+            if isinstance(operand.owner, pdl.OperationOp) or isinstance(
+                operand.owner, pdl.ResultOp
+            ):
+                use_chain += self.pdl_use_chain(operand.owner)
+        if isinstance(op, pdl.OperationOp) and isinstance(
+            op.parent_op(), pdl.RewriteOp
+        ):
+            use_chain.append(op)
+
+        return use_chain
