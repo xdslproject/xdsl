@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import IO, Any, ClassVar
+from typing import IO, Any, ClassVar, cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import pdl
@@ -109,10 +109,8 @@ class PDLMatcher:
         if ssa_val in self.matching_context:
             return self.matching_context[ssa_val] == xdsl_attr
 
-        if (
-            ssa_val.owner.constantType is None
-            or ssa_val.owner.constantType == xdsl_attr
-        ):
+        type_op = cast(pdl.TypeOp, ssa_val.owner)
+        if type_op.constantType is None or type_op.constantType == xdsl_attr:
             self.matching_context[ssa_val] = xdsl_attr
             return True
         else:
