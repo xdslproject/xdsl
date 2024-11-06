@@ -109,9 +109,11 @@ class PDLMatcher:
         if ssa_val in self.matching_context:
             return self.matching_context[ssa_val] == xdsl_attr
 
-        self.matching_context[ssa_val] = xdsl_attr
-
-        return True
+        if pdl_op.constantType is None or pdl_op.constantType == xdsl_attr:
+            self.matching_context[ssa_val] = xdsl_attr
+            return True
+        else:
+            return False
 
     def match_attribute(
         self,
