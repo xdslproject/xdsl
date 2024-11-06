@@ -482,6 +482,65 @@ def test_native_constraint():
     assert new_input_module_true.is_structurally_equivalent(input_module_true)
 
 
+def test_distinct_types_polymorph_matching():
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module():
+        test.TestOp.create(result_types=[IntegerType(32)])
+        test.TestOp.create(result_types=[IntegerType(64)])
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(2, None).body):
+            pdl_type = pdl.TypeOp().result
+            pdl_op = pdl.OperationOp(StringAttr("test.op"), type_values=[pdl_type]).op
+            with ImplicitBuilder(pdl.RewriteOp(pdl_op).body):
+                pdl.EraseOp(pdl_op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    ctx = MLContext()
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    pattern_walker.rewrite_module(input_module)
+    assert input_module.is_structurally_equivalent(ModuleOp([]))
+
+
+def test_distinct_types_matching():
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module():
+        test.TestOp.create(result_types=[IntegerType(32)])
+        test.TestOp.create(result_types=[IntegerType(64)])
+
+    @ModuleOp
+    @Builder.implicit_region
+    def output_module():
+        test.TestOp.create(result_types=[IntegerType(64)])
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(2, None).body):
+            pdl_type = pdl.TypeOp(IntegerType(32)).result
+            pdl_op = pdl.OperationOp(StringAttr("test.op"), type_values=[pdl_type]).op
+            with ImplicitBuilder(pdl.RewriteOp(pdl_op).body):
+                pdl.EraseOp(pdl_op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    ctx = MLContext()
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    pattern_walker.rewrite_module(input_module)
+    assert input_module.is_structurally_equivalent(output_module)
+
+
 def test_native_constraint_constant_parameter():
     """
     Check that `pdl.apply_native_constraint` can take constant attribute parameters
