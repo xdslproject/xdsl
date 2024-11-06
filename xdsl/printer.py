@@ -88,6 +88,7 @@ class Printer:
     print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
+    legacy: bool = field(default=False)  # prints IR in v16 version
 
     _indent: int = field(default=0, init=False)
     _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
@@ -860,13 +861,19 @@ class Printer:
         self.print_list(attr_dict.items(), self._print_attr_string)
         self.print_string("}")
 
-    def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
+    def _print_op_properties(
+        self, properties: dict[str, Attribute], legacy=False
+    ) -> None:
         if not properties:
             return
 
         self.print_string(" ")
-        with self.in_angle_brackets():
+
+        if legacy:
             self.print_attr_dict(properties)
+        else:
+            with self.in_angle_brackets():
+                self.print_attr_dict(properties)
 
     def print_op_attributes(
         self,
@@ -911,6 +918,17 @@ class Printer:
         else:
             self.print_op_attributes(op.attributes)
         self.print_string(" : ")
+        self.print_operation_type(op)
+
+    def print_op_with_default_format_legacy(self, op: Operation) -> None:
+        self.print_operands(op.operands)
+        self.print_successors(op.successors)
+
+        self.print_regions(op.regions)
+        self.print_op_attributes(op.attributes)
+        if not self.print_properties_as_attributes:
+            self._print_op_properties(op.properties, legacy=True)
+        self.print(" : ")
         self.print_operation_type(op)
 
     def print_function_type(
@@ -1009,6 +1027,9 @@ class Printer:
         elif use_custom_format:
             op.print(self)
         else:
-            self.print_op_with_default_format(op)
+            if self.legacy:
+                self.print_op_with_default_format_legacy(op)
+            else:
+                self.print_op_with_default_format(op)
         if scope:
             self.exit_scope()
