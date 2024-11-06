@@ -446,7 +446,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                     attributes=linalg_op.attributes,
                 ),
             )
-        if len(additional_args) > 0:
+        if additional_args:
             rewriter.replace_op(yld, csl_stencil.YieldOp(*new_yield_args))
             for r in to_remove:
                 rewriter.erase_op(r)
