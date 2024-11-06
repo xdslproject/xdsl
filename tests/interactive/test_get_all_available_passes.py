@@ -13,7 +13,10 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms import convert_riscv_to_llvm, reconcile_unrealized_casts
+from xdsl.transforms import (
+    convert_riscv_to_llvm,
+    reconcile_unrealized_casts,
+)
 from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
