@@ -45,6 +45,9 @@ class ConvertNodeToFunc(RewritePattern):
         rewriter.inline_region_before(node.region, sub_func.body.block)
         rewriter.insert_op(func.Return(), InsertPoint.at_end(sub_func.body.blocks[0]))
 
+        assert sub_func.body.last_block
+        sub_func.body.detach_block(sub_func.body.last_block)
+
         # Replace original with a function call.
         rewriter.replace_matched_op(
             func.Call(f"node_{self.__class__.node_idx}", node.operands, [])
