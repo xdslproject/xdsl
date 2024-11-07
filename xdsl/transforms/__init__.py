@@ -430,6 +430,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_unroll.StencilUnrollPass
 
+    def get_test_add_timers_to_top_level_funcs():
+        from xdsl.transforms.function_transformations import (
+            TestAddBenchTimersToTopLevelFunctions,
+        )
+
+        return TestAddBenchTimersToTopLevelFunctions
+
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
@@ -542,6 +549,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "stencil-bufferize": get_stencil_bufferize,
         "stencil-shape-minimize": get_stencil_shape_minimize,
+        "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
