@@ -415,9 +415,11 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 arg.type, len(op.done_exchange.block.args)
             )
             arg_to_tensor = to_tensor_op(arg, writable=True)
+
+            # set offset going from a buf with ghost cells to one without, assuming symmetric ghost cells on all sides
             symmetric_offsets = tuple(
-                (s - d) // 2
-                for s, d in zip(
+                (src - dst) // 2  # symmetric offset
+                for src, dst in zip(
                     arg_t.get_shape(), yld_arg.type.get_shape(), strict=True
                 )
             )
