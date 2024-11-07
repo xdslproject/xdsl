@@ -151,6 +151,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--print-op-legacy",
+            default=False,
+            action="store_true",
+            help="Print operations in the MLIR v16 generic format (experimental).",
+        )
+
+        arg_parser.add_argument(
             "--print-no-properties",
             default=False,
             action="store_true",
@@ -198,6 +205,7 @@ class xDSLOptMain(CommandLineTool):
                 print_generic_format=self.args.print_op_generic,
                 print_properties_as_attributes=self.args.print_no_properties,
                 print_debuginfo=self.args.print_debuginfo,
+                legacy=self.args.print_op_legacy,
             )
             printer.print_op(prog)
             print("\n", file=output)
