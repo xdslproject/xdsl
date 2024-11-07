@@ -42,7 +42,6 @@ class ArgNamesToArgAttrsPass(RewritePattern):
 
 TIMER_START = "timer_start"
 TIMER_END = "timer_end"
-TIMER_FUNC_NAMES = [TIMER_START, TIMER_END]
 
 
 @dataclass

@@ -32,7 +32,6 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms import csl_stencil_bufferize
 from xdsl.transforms.function_transformations import (
     TIMER_END,
-    TIMER_FUNC_NAMES,
     TIMER_START,
 )
 from xdsl.utils.hints import isa
@@ -65,7 +64,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         # erase timer stubs
-        if op.is_declaration and op.sym_name.data in TIMER_FUNC_NAMES:
+        if op.is_declaration and op.sym_name.data in [TIMER_START, TIMER_END]:
             rewriter.erase_matched_op()
             return
         # find csl_stencil.apply ops, abort if there are none
