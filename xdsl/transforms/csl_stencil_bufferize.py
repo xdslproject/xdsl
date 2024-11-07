@@ -416,8 +416,8 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
             )
             arg_to_tensor = to_tensor_op(arg, writable=True)
 
-            # set offset going from a buf with ghost cells to one without, assuming symmetric ghost cells on all sides
-            symmetric_offsets = tuple(
+            # offset of core data, assuming symmetric ghost cells in each direction
+            offsets = tuple(
                 (src - dst) // 2  # symmetric offset
                 for src, dst in zip(
                     arg_t.get_shape(), yld_arg.type.get_shape(), strict=True
@@ -428,7 +428,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 operands=[arg_to_tensor, [], [], []],
                 result_types=[yld_arg.op.tensor.type],
                 properties={
-                    "static_offsets": DenseArrayBase.from_list(i64, symmetric_offsets),
+                    "static_offsets": DenseArrayBase.from_list(i64, offsets),
                     "static_sizes": DenseArrayBase.from_list(
                         i64, yld_arg.type.get_shape()
                     ),
