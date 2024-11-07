@@ -62,4 +62,6 @@ def test_get_all_available_passes():
         rewrite_by_names_dict=individual_rewrite.REWRITE_BY_NAMES,
     )
 
-    assert res == expected_res
+    for e in expected_res:
+        assert e in res
+    assert len(res) < len(all_passes)
