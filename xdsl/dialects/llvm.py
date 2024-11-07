@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     I64,
     AnyIntegerAttr,
     ArrayAttr,
-    BoolAttr,
     ContainerType,
     DenseArrayBase,
     IndexType,
@@ -483,7 +482,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     res = result_def(T)
-    is_exact = prop_def(BoolAttr, prop_name="isExact", default_value=IntegerAttr(0, i1))
+    is_exact = opt_prop_def(UnitAttr, prop_name="isExact")
 
     traits = traits_def(NoMemoryEffect())
 
@@ -492,7 +491,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         lhs: SSAValue,
         rhs: SSAValue,
         attributes: dict[str, Attribute] = {},
-        is_exact: BoolAttr = IntegerAttr(0, i1),
+        is_exact: UnitAttr | None = None,
     ):
         super().__init__(
             operands=[lhs, rhs],
@@ -506,11 +505,10 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
     @classmethod
     def parse_exact(cls, parser: Parser):
         if parser.parse_optional_keyword("exact") is not None:
-            return IntegerAttr(1, i1)
-        return IntegerAttr(0, i1)
+            return UnitAttr()
 
     def print_exact(self, printer: Printer) -> None:
-        if self.is_exact and self.is_exact.value.data:
+        if self.is_exact:
             printer.print(" exact ")
 
     @classmethod
