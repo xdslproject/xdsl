@@ -79,11 +79,14 @@ class StencilShapeMinimize(ModulePass):
     restrict: tuple[int, ...] | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(InvalidateTemps(), apply_recursively=False).rewrite_module(
-            op
-        )
-        restrict_store_op = RestrictStoreOp(restrict=self.restrict)
-        PatternRewriteWalker(restrict_store_op).rewrite_module(op)
+        if restrict:
+            PatternRewriteWalker(
+                [
+                    InvalidateTemps(),
+                    RestrictStoreOp(restrict=self.restrict),
+                ],
+                apply_recursively=False,
+            ).rewrite_module(op)
         analysis = ShapeAnalysis(seen=set())
         PatternRewriteWalker(analysis).rewrite_module(op)
         bounds = set(
