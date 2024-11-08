@@ -56,14 +56,19 @@ class RestrictStoreOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
-            new_bounds = [
-                (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
-                for lower_bound, upper_bound, bound_lim in zip(
-                    op.bounds.lb, op.bounds.ub, self.restrict
+        new_bounds = [
+            (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
+            for lower_bound, upper_bound, bound_lim in zip(
+                op.bounds.lb, op.bounds.ub, self.restrict
+            )
+        ]
+        new_bounds_attr = stencil.StencilBoundsAttr(new_bounds)
+        if new_bounds_attr != op.bounds:
+            rewriter.replace_matched_op(
+                stencil.StoreOp.get(
+                    temp=op.temp, field=op.field, bounds=new_bounds_attr
                 )
-            ]
-            new_bounds_attr = stencil.StencilBoundsAttr(new_bounds)
-            self.bounds = new_bounds_attr
+            )
 
 
 @dataclass(frozen=True)
