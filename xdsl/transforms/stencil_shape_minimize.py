@@ -34,12 +34,38 @@ class ShapeMinimisation(TypeConversionPattern):
             return stencil.FieldType(self.shape, typ.element_type)
 
 
+@dataclass
+class InvalidateTemps(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: stencil.TempType[Attribute], /) -> Attribute | None:
+        if isinstance(typ.bounds, stencil.StencilBoundsAttr):
+            return stencil.TempType(len(typ.bounds.lb), typ.element_type)
+
+
 @dataclass(frozen=True)
 class FuncOpShapeUpdate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         if not op.is_declaration:
             op.update_function_type()
+
+
+@dataclass
+class RestrictStoreOp(RewritePattern):
+    restrict: tuple[int, ...] | None = None
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
+        if self.restrict:
+            new_bounds: list[tuple[int, int]] = []
+            for lower_bound, upper_bound, bound_lim in zip(
+                op.bounds.lb, op.bounds.ub, self.restrict
+            ):
+                new_bounds.append(
+                    (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
+                )
+            new_bounds_attr = stencil.StencilBoundsAttr(new_bounds)
+            self.bounds = new_bounds_attr
 
 
 @dataclass(frozen=True)
@@ -50,7 +76,14 @@ class StencilShapeMinimize(ModulePass):
 
     name = "stencil-shape-minimize"
 
+    restrict: tuple[int, ...] | None
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(InvalidateTemps(), apply_recursively=False).rewrite_module(
+            op
+        )
+        restrict_store_op = RestrictStoreOp(restrict=self.restrict)
+        PatternRewriteWalker(restrict_store_op).rewrite_module(op)
         analysis = ShapeAnalysis(seen=set())
         PatternRewriteWalker(analysis).rewrite_module(op)
         bounds = set(
