@@ -56,7 +56,6 @@ class RestrictStoreOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
-        if self.restrict:
             new_bounds = [
                 (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
                 for lower_bound, upper_bound, bound_lim in zip(
