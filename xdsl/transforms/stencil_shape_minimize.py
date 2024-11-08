@@ -52,18 +52,17 @@ class FuncOpShapeUpdate(RewritePattern):
 
 @dataclass
 class RestrictStoreOp(RewritePattern):
-    restrict: tuple[int, ...] | None = None
+    restrict: tuple[int, ...]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
         if self.restrict:
-            new_bounds: list[tuple[int, int]] = []
-            for lower_bound, upper_bound, bound_lim in zip(
-                op.bounds.lb, op.bounds.ub, self.restrict
-            ):
-                new_bounds.append(
-                    (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
+            new_bounds = [
+                (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
+                for lower_bound, upper_bound, bound_lim in zip(
+                    op.bounds.lb, op.bounds.ub, self.restrict
                 )
+            ]
             new_bounds_attr = stencil.StencilBoundsAttr(new_bounds)
             self.bounds = new_bounds_attr
 
@@ -79,13 +78,14 @@ class StencilShapeMinimize(ModulePass):
     restrict: tuple[int, ...] | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        if restrict:
+        if self.restrict:
             PatternRewriteWalker(
-                [
-                    InvalidateTemps(),
-                    RestrictStoreOp(restrict=self.restrict),
-                ],
-                apply_recursively=False,
+                GreedyRewritePatternApplier(
+                    [
+                        InvalidateTemps(),
+                        RestrictStoreOp(restrict=self.restrict),
+                    ]
+                )
             ).rewrite_module(op)
         analysis = ShapeAnalysis(seen=set())
         PatternRewriteWalker(analysis).rewrite_module(op)
