@@ -76,7 +76,7 @@ class StencilShapeMinimize(ModulePass):
 
     name = "stencil-shape-minimize"
 
-    restrict: tuple[int, ...] | None
+    restrict: tuple[int, ...] | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(InvalidateTemps(), apply_recursively=False).rewrite_module(
