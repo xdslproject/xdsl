@@ -482,39 +482,53 @@ def test_native_constraint():
     assert new_input_module_true.is_structurally_equivalent(input_module_true)
 
 
-def test_distinct_types_polymorph_matching():
+def test_match_type():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.TypeOp()
+    ssa_value = pdl_op.result
+    xdsl_value = StringAttr("a")
+
+    # New value
+    assert matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Same value
+    assert matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Other value
+    assert not matcher.match_type(ssa_value, pdl_op, StringAttr("b"))
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+
+def test_match_fixed_type():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.TypeOp(IntegerType(32))
+    xdsl_value = IntegerType(32)
+    ssa_value = pdl_op.result
+
+    assert matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+
+def test_not_match_fixed_type():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.TypeOp(IntegerType(64))
+    xdsl_value = IntegerType(32)
+    ssa_value = pdl_op.result
+
+    assert not matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {}
+
+
+def test_build_type():
     @ModuleOp
     @Builder.implicit_region
     def input_module():
         test.TestOp.create(result_types=[IntegerType(32)])
-        test.TestOp.create(result_types=[IntegerType(64)])
-
-    @ModuleOp
-    @Builder.implicit_region
-    def pdl_module():
-        with ImplicitBuilder(pdl.PatternOp(2, None).body):
-            pdl_type = pdl.TypeOp().result
-            pdl_op = pdl.OperationOp(StringAttr("test.op"), type_values=[pdl_type]).op
-            with ImplicitBuilder(pdl.RewriteOp(pdl_op).body):
-                pdl.EraseOp(pdl_op)
-
-    pdl_rewrite_op = next(
-        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
-
-    ctx = MLContext()
-    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
-
-    pattern_walker.rewrite_module(input_module)
-    assert input_module.is_structurally_equivalent(ModuleOp([]))
-
-
-def test_distinct_types_matching():
-    @ModuleOp
-    @Builder.implicit_region
-    def input_module():
-        test.TestOp.create(result_types=[IntegerType(32)])
-        test.TestOp.create(result_types=[IntegerType(64)])
 
     @ModuleOp
     @Builder.implicit_region
@@ -528,7 +542,11 @@ def test_distinct_types_matching():
             pdl_type = pdl.TypeOp(IntegerType(32)).result
             pdl_op = pdl.OperationOp(StringAttr("test.op"), type_values=[pdl_type]).op
             with ImplicitBuilder(pdl.RewriteOp(pdl_op).body):
-                pdl.EraseOp(pdl_op)
+                pdl_type2 = pdl.TypeOp(IntegerType(64)).result
+                pdl_op2 = pdl.OperationOp(
+                    StringAttr("test.op"), type_values=[pdl_type2]
+                ).op
+                pdl.ReplaceOp(pdl_op, pdl_op2)
 
     pdl_rewrite_op = next(
         op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
