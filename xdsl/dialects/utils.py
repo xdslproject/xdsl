@@ -1,4 +1,6 @@
+from abc import ABC
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from typing import Generic
 
 from typing_extensions import Self
@@ -14,6 +16,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
+    BitEnumAttribute,
     BlockArgument,
     Operation,
     Region,
@@ -22,6 +25,7 @@ from xdsl.ir import (
 from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.str_enum import StrEnum
 
 
 def print_call_op_like(
@@ -388,3 +392,30 @@ def parse_dynamic_index_list_without_types(
             values.append(value_or_index)
 
     return values, indices
+
+
+# Fast Math Flags
+
+
+class FastMathFlag(StrEnum):
+    """
+    Values specifying fast math behaviour of an arithmetic operation.
+    """
+
+    REASSOC = "reassoc"
+    NO_NANS = "nnan"
+    NO_INFS = "ninf"
+    NO_SIGNED_ZEROS = "nsz"
+    ALLOW_RECIP = "arcp"
+    ALLOW_CONTRACT = "contract"
+    APPROX_FUNC = "afn"
+
+
+@dataclass(frozen=True, init=False)
+class FastMathAttrBase(BitEnumAttribute[FastMathFlag], ABC):
+    """
+    Base class for attributes defining fast math behavior of arithmetic operations.
+    """
+
+    none_value = "none"
+    all_value = "fast"
