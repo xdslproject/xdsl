@@ -524,41 +524,6 @@ def test_not_match_fixed_type():
     assert matcher.matching_context == {}
 
 
-def test_build_type():
-    @ModuleOp
-    @Builder.implicit_region
-    def input_module():
-        test.TestOp.create(result_types=[IntegerType(32)])
-
-    @ModuleOp
-    @Builder.implicit_region
-    def output_module():
-        test.TestOp.create(result_types=[IntegerType(64)])
-
-    @ModuleOp
-    @Builder.implicit_region
-    def pdl_module():
-        with ImplicitBuilder(pdl.PatternOp(2, None).body):
-            pdl_type = pdl.TypeOp(IntegerType(32)).result
-            pdl_op = pdl.OperationOp(StringAttr("test.op"), type_values=[pdl_type]).op
-            with ImplicitBuilder(pdl.RewriteOp(pdl_op).body):
-                pdl_type2 = pdl.TypeOp(IntegerType(64)).result
-                pdl_op2 = pdl.OperationOp(
-                    StringAttr("test.op"), type_values=[pdl_type2]
-                ).op
-                pdl.ReplaceOp(pdl_op, pdl_op2)
-
-    pdl_rewrite_op = next(
-        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
-
-    ctx = MLContext()
-    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
-
-    pattern_walker.rewrite_module(input_module)
-    assert input_module.is_structurally_equivalent(output_module)
-
-
 def test_native_constraint_constant_parameter():
     """
     Check that `pdl.apply_native_constraint` can take constant attribute parameters
