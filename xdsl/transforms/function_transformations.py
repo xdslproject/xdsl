@@ -12,6 +12,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import SymbolTable
 
 
 class ArgNamesToArgAttrsPass(RewritePattern):
@@ -85,9 +86,9 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
     name = "test-add-timers-to-top-level-funcs"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        all_funcs = [f for f in op.body.block.ops if isinstance(f, func.FuncOp)]
-        func_names = [f.sym_name.data for f in all_funcs]
-        if TIMER_START in func_names or TIMER_END in func_names:
+        if SymbolTable.lookup_symbol(op, TIMER_START) or SymbolTable.lookup_symbol(
+            op, TIMER_END
+        ):
             return
 
         start_func_t = func.FunctionType.from_lists([], [builtin.Float64Type()])
@@ -101,7 +102,8 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
             AddBenchTimersPattern(start_func_t, end_func_t), apply_recursively=False
         ).rewrite_module(op)
 
-        op.body.block.add_ops((start_func, end_func))
+        SymbolTable.insert_or_update(op, start_func)
+        SymbolTable.insert_or_update(op, end_func)
 
 
 class FunctionPersistArgNames(ModulePass):
