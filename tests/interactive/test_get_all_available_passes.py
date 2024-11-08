@@ -56,19 +56,34 @@ class BCPass(ReplacePass):
     after = "c"
 
 
-def test_get_all_available_passes():
-    input_text = """
-    "test.op"() {key="a"} : () -> ()
-    """
+class BDPass(ReplacePass):
+    name = "bd"
+    before = "b"
+    after = "d"
 
-    pass_pipeline = (
+
+def test_get_all_available_passes():
+    res = get_available_pass_list(
+        ((Test.name, lambda: Test),),
+        tuple((p.name, p) for p in (ABPass, ACPass, BCPass, BDPass)),
+        '"test.op"() {key="a"} : () -> ()',
+        # Transforms the above op from "a" to "b" before testing passes
         (
-            ABPass,
-            PipelinePassSpec(name="ab", args={}),
+            (
+                ABPass,
+                PipelinePassSpec(name="ab", args={}),
+            ),
         ),
+        condense_mode=True,
+        rewrite_by_names_dict={
+            "test.op": {
+                "ae": ReplacePattern("a", "e"),
+                "be": ReplacePattern("b", "e"),
+            }
+        },
     )
 
-    expected_res = tuple(
+    assert res == tuple(
         (
             AvailablePass(
                 display_name="bc",
@@ -76,36 +91,21 @@ def test_get_all_available_passes():
                 pass_spec=None,
             ),
             AvailablePass(
-                display_name='TestOp("test.op"() {"key" = "b"} : () -> ()):test.op:bd',
+                display_name="bd",
+                module_pass=BDPass,
+                pass_spec=None,
+            ),
+            AvailablePass(
+                display_name='TestOp("test.op"() {"key" = "b"} : () -> ()):test.op:be',
                 module_pass=IndividualRewrite,
                 pass_spec=PipelinePassSpec(
                     "apply-individual-rewrite",
                     {
                         "matched_operation_index": (1,),
                         "operation_name": ("test.op",),
-                        "pattern_name": ("bd",),
+                        "pattern_name": ("be",),
                     },
                 ),
             ),
         )
     )
-
-    all_dialects = ((Test.name, lambda: Test),)
-    all_passes = tuple((p.name, p) for p in (ABPass, ACPass, BCPass))
-
-    rewrite_by_names_dict: dict[str, dict[str, RewritePattern]] = {
-        "test.op": {
-            "bd": ReplacePattern("b", "d"),
-        }
-    }
-
-    res = get_available_pass_list(
-        all_dialects,
-        all_passes,
-        input_text,
-        pass_pipeline,
-        condense_mode=True,
-        rewrite_by_names_dict=rewrite_by_names_dict,
-    )
-
-    assert res == expected_res
