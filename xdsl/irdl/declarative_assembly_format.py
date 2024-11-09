@@ -92,8 +92,8 @@ class FormatProgram:
     It is used to parse and print an operation.
     """
 
-    stmts: list[FormatDirective]
-    """The list of statements composing the program. They are executed in order."""
+    stmts: tuple[FormatDirective, ...]
+    """The statements composing the program. They are executed in order."""
 
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
