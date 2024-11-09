@@ -154,7 +154,7 @@ class ChannelPutOp(IRDLOperation):
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
 
-    async_token = opt_result_def(AsyncTokenAttr())
+    async_token = result_def(AsyncTokenAttr())
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -242,7 +242,7 @@ class DmaMemcpyNdOp(IRDLOperation):
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
 
-    async_token = opt_result_def(AsyncTokenAttr())
+    async_token = result_def(AsyncTokenAttr())
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 

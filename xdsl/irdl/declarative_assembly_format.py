@@ -238,22 +238,19 @@ class FormatProgram:
             zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
-                result_type = state.result_types[i]
-                range_length = len(result_type) if isinstance(result_type, list) else 1
-                result_type = result_def.constr.infer(
+                # The number of results is not passed in when parsing operations.
+                # In the generic format, the type of the operation always specifies the
+                # types of the results, and `resultSegmentSizes` specifies the ranges of
+                # of the results if multiple are variadic.
+                # In order to support variadic results, the types an length of all
+                # variadic results must be present in the custom syntax.
+                assert not isinstance(result_def, OptionalDef | VariadicDef)
+                range_length = 1
+                inferred_result_types = result_def.constr.infer(
                     range_length, state.constraint_context
                 )
-                if isinstance(result_def, OptionalDef):
-                    result_type = (
-                        list[Attribute | None]()
-                        if len(result_type) == 0
-                        else result_type[0]
-                    )
-                elif isinstance(result_def, VariadicDef):
-                    result_type = cast(list[Attribute | None], result_type)
-                else:
-                    result_type = result_type[0]
-                state.result_types[i] = result_type
+                resolved_result_type = inferred_result_types[0]
+                state.result_types[i] = resolved_result_type
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """

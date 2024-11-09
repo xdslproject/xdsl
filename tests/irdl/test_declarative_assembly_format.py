@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import textwrap
 from collections.abc import Callable
 from io import StringIO
@@ -8,7 +9,14 @@ from typing import ClassVar, Generic, TypeVar
 import pytest
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import I32, BoolAttr, IntegerAttr, ModuleOp, UnitAttr
+from xdsl.dialects.builtin import (
+    I32,
+    BoolAttr,
+    IndexTypeConstr,
+    IntegerAttr,
+    ModuleOp,
+    UnitAttr,
+)
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -2175,3 +2183,19 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     printer.print_op(parsed)
 
     assert generic == stream.getvalue()
+
+
+def test_variadic_result_is_referenced():
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=re.escape(
+            "type and length of result 'variadic' cannot be inferred, consider adding a 'type($variadic)' directive to the custom assembly format"
+        ),
+    ):
+
+        @irdl_op_definition
+        class VariadicResult(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.comma_safeguard"
+
+            variadic = var_result_def(IndexTypeConstr)
+            assembly_format = "attr-dict"
