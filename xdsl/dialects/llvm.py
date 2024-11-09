@@ -509,7 +509,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 
     def print_exact(self, printer: Printer) -> None:
         if self.is_exact:
-            printer.print(" exact ")
+            printer.print(" exact")
 
     @classmethod
     def parse(cls, parser: Parser):
