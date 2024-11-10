@@ -1,95 +1,56 @@
 // RUN: xdsl-opt -p scf-for-loop-range-folding --split-input-file %s | filecheck %s
 
-func.func @fold_one_loop(%arg0: memref<?xi32>, %arg1: index, %arg2: index) {
-  %c0 = arith.constant 0 : index
-  %c1 = arith.constant 1 : index
-  %c4 = arith.constant 4 : index
-  scf.for %i = %c0 to %arg1 step %c1 {
-    %0 = arith.addi %arg2, %i : index
-    %1 = arith.muli %0, %c4 : index
-    %2 = memref.load %arg0[%1] : memref<?xi32>
-    %3 = arith.muli %2, %2 : i32
-    memref.store %3, %arg0[%1] : memref<?xi32>
-  }
-  return
-}
-
-// CHECK:       %c0 = arith.constant 0 : index
-// CHECK-NEXT:  %c1 = arith.constant 1 : index
-// CHECK-NEXT:  %c4 = arith.constant 4 : index
-// CHECK-NEXT:  %0 = arith.addi %c0, %arg2 : index
-// CHECK-NEXT:  %1 = arith.addi %arg1, %arg2 : index
-// CHECK-NEXT:  %2 = arith.muli %0, %c4 : index
-// CHECK-NEXT:  %3 = arith.muli %1, %c4 : index
-// CHECK-NEXT:  %4 = arith.muli %c1, %c4 : index
-// CHECK-NEXT:  scf.for %i = %2 to %3 step %4 {
-// CHECK-NEXT:      %5 = memref.load %arg0[%i] : memref<?xi32>
-// CHECK-NEXT:      %6 = arith.muli %5, %5 : i32
-// CHECK-NEXT:      memref.store %6, %arg0[%i] : memref<?xi32>
+// CHECK:       %new_lb = arith.addi %lb, %shift : index
+// CHECK-NEXT:  %new_ub = arith.addi %ub, %shift : index
+// CHECK-NEXT:  %new_lb_1 = arith.muli %new_lb, %mul_shift : index
+// CHECK-NEXT:  %new_ub_1 = arith.muli %new_ub, %mul_shift : index
+// CHECK-NEXT:  %new_step = arith.muli %step, %mul_shift : index
+// CHECK-NEXT:  scf.for %i = %new_lb_1 to %new_ub_1 step %new_step {
+// CHECK-NEXT:    "test.op"(%i) : (index) -> ()
 // CHECK-NEXT:  }
 
-// In this example muli can't be taken out of the loop
-func.func @fold_only_first_add(%arg0: memref<?xi32>, %arg1: index, %arg2: index) {
-  %c0 = arith.constant 0 : index
-  %c1 = arith.constant 1 : index
-  %c4 = arith.constant 4 : index
-  scf.for %i = %c0 to %arg1 step %c1 {
-    %0 = arith.addi %arg2, %i : index
-    %1 = arith.addi %arg2, %c4 : index
-    %2 = arith.muli %0, %1 : index
-    %3 = memref.load %arg0[%2] : memref<?xi32>
-    %4 = arith.muli %3, %3 : i32
-    memref.store %4, %arg0[%2] : memref<?xi32>
-  }
-  return
+%shift, %mul_shift, %lb, %ub, %step = "test.op"() : () -> (index, index, index, index, index)
+scf.for %i = %lb to %ub step %step {
+    %0 = arith.addi %shift, %i : index
+    %1 = arith.muli %0, %mul_shift : index
+    "test.op"(%1) : (index) -> ()
 }
 
-// CHECK:         %c0 = arith.constant 0 : index
-// CHECK-NEXT:    %c1 = arith.constant 1 : index
-// CHECK-NEXT:    %c4 = arith.constant 4 : index
-// CHECK-NEXT:    %0 = arith.addi %c0, %arg2 : index
-// CHECK-NEXT:    %1 = arith.addi %arg1, %arg2 : index
-// CHECK-NEXT:    scf.for %i = %0 to %1 step %c1 {
-// CHECK-NEXT:      %2 = arith.addi %arg2, %c4 : index
-// CHECK-NEXT:      %3 = arith.muli %i, %2 : index
-// CHECK-NEXT:      %4 = memref.load %arg0[%3] : memref<?xi32>
-// CHECK-NEXT:      %5 = arith.muli %4, %4 : i32
-// CHECK-NEXT:      memref.store %5, %arg0[%3] : memref<?xi32>
-// CHECK-NEXT:    }
+// CHECK:       %new_lb_2 = arith.addi %lb, %shift : index
+// CHECK-NEXT:  %new_ub_2 = arith.addi %ub, %shift : index
+// CHECK-NEXT:  scf.for %i_1 = %new_lb_2 to %new_ub_2 step %step {
+// CHECK-NEXT:    %new_shift = arith.addi %mul_shift, %mul_shift : index
+// CHECK-NEXT:    %0 = arith.muli %i_1, %new_shift : index
+// CHECK-NEXT:    "test.op"(%0) : (index) -> ()
+// CHECK-NEXT:  }
 
-func.func @fold_two_loops(%arg0: memref<?xi32>, %arg1: index, %arg2: index) {
-  %c0 = arith.constant 0 : index
-  %c1 = arith.constant 1 : index
-  %c4 = arith.constant 4 : index
-  %c10 = arith.constant 10 : index
-  scf.for %j = %c0 to %c10 step %c1 {
-    scf.for %i = %j to %arg1 step %c1 {
-      %0 = arith.addi %arg2, %i : index
-      %1 = arith.muli %0, %c4 : index
-      %2 = memref.load %arg0[%1] : memref<?xi32>
-      %3 = arith.muli %2, %2 : i32
-      memref.store %3, %arg0[%1] : memref<?xi32>
+// In this example muli can't be taken out of the loop. We need to loop invariant code motion transform to deal with it.
+scf.for %i = %lb to %ub step %step {
+    %0 = arith.addi %shift, %i : index
+    %new_shift = arith.addi %mul_shift, %mul_shift : index
+    %2 = arith.muli %0, %new_shift : index
+    "test.op"(%2) : (index) -> ()
+}
+
+// CHECK:       %new_lb_3 = arith.addi %lb, %shift : index
+// CHECK-NEXT:  %new_ub_3 = arith.addi %ub, %shift : index
+// CHECK-NEXT:  %new_lb_4 = arith.muli %new_lb_3, %mul_shift : index
+// CHECK-NEXT:  %new_ub_4 = arith.muli %new_ub_3, %mul_shift : index
+// CHECK-NEXT:  %new_step_1 = arith.muli %step, %mul_shift : index
+// CHECK-NEXT:  scf.for %j = %new_lb_4 to %new_ub_4 step %new_step_1 {
+// CHECK-NEXT:    %new_ub_5 = arith.addi %ub2, %shift : index
+// CHECK-NEXT:    %new_ub_6 = arith.muli %new_ub_5, %mul_shift : index
+// CHECK-NEXT:    %new_step_2 = arith.muli %step2, %mul_shift : index
+// CHECK-NEXT:    scf.for %i_2 = %j to %new_ub_6 step %new_step_2 {
+// CHECK-NEXT:      "test.op"(%i_2) : (index) -> ()
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+%ub2, %step2 = "test.op"() : () -> (index, index)
+scf.for %j = %lb to %ub step %step {
+    scf.for %i = %j to %ub2 step %step2 {
+        %0 = arith.addi %shift, %i : index
+        %1 = arith.muli %0, %mul_shift : index
+        "test.op"(%1) : (index) -> ()
     }
-  }
-  return
 }
-
-// CHECK:         %c0 = arith.constant 0 : index
-// CHECK-NEXT:    %c1 = arith.constant 1 : index
-// CHECK-NEXT:    %c4 = arith.constant 4 : index
-// CHECK-NEXT:    %c10 = arith.constant 10 : index
-// CHECK-NEXT:    %0 = arith.addi %c0, %arg2 : index
-// CHECK-NEXT:    %1 = arith.addi %c10, %arg2 : index
-// CHECK-NEXT:    %2 = arith.muli %0, %c4 : index
-// CHECK-NEXT:    %3 = arith.muli %1, %c4 : index
-// CHECK-NEXT:    %4 = arith.muli %c1, %c4 : index
-// CHECK-NEXT:    scf.for %j = %2 to %3 step %4 {
-// CHECK-NEXT:      %5 = arith.addi %arg1, %arg2 : index
-// CHECK-NEXT:      %6 = arith.muli %5, %c4 : index
-// CHECK-NEXT:      %7 = arith.muli %c1, %c4 : index
-// CHECK-NEXT:      scf.for %i = %j to %6 step %7 {
-// CHECK-NEXT:        %8 = memref.load %arg0[%i] : memref<?xi32>
-// CHECK-NEXT:        %9 = arith.muli %8, %8 : i32
-// CHECK-NEXT:        memref.store %9, %arg0[%i] : memref<?xi32>
-// CHECK-NEXT:      }
-// CHECK-NEXT:    }

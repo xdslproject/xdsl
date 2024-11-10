@@ -62,8 +62,11 @@ class ScfForLoopRangeFolding(RewritePattern):
                             new_step := arith.Muli(op.step, folding_const),
                         ]
                     )
+                    new_step.result.name_hint = "new_step"
                     op.operands[2] = new_step.result
 
+            new_lb.result.name_hint = "new_lb"
+            new_ub.result.name_hint = "new_ub"
             op.operands[0] = new_lb.result
             op.operands[1] = new_ub.result
 
