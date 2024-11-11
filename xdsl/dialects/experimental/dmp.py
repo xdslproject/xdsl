@@ -34,9 +34,11 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import AttrParser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     EffectInstance,
+    HasCanonicalizationPatternsTrait,
     HasShapeInferencePatternsTrait,
     MemoryEffect,
     MemoryEffectKind,
@@ -685,6 +687,16 @@ class SwapOpMemoryEffect(MemoryEffect):
         }
 
 
+class DmpSwapHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.dmp import (
+            DmpSwapNoExchangeFolding,
+        )
+
+        return (DmpSwapNoExchangeFolding(),)
+
+
 @irdl_op_definition
 class SwapOp(IRDLOperation):
     """
@@ -700,7 +712,11 @@ class SwapOp(IRDLOperation):
 
     strategy = attr_def(DomainDecompositionStrategy)
 
-    traits = traits_def(SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect())
+    traits = traits_def(
+        SwapOpHasShapeInferencePatterns(),
+        SwapOpMemoryEffect(),
+        DmpSwapHasCanonicalizationPatternsTrait(),
+    )
 
     def verify_(self) -> None:
         if self.swapped_values:
