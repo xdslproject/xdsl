@@ -49,7 +49,13 @@ def add_eqsat_costs(block: Block):
 
 class EqsatAddCosts(ModulePass):
     """
-    Replace all eqsat.eclass operations in an MLIR program.
+    Add costs to all operations in blocks that contain eqsat.eclass ops.
+    The cost of an eclass operation is the minimum of all the costs of the operations of
+    the operands, if these are all non-`None`, and `None` otherwise.
+    The cost for all other operations is currently set to the costs of all the
+    operations of the operands, if these are all non-`None` + 1, and `None` otherwise.
+    The cost is stored as an `IntAttr`, and cannot be computed for operations with
+    multiple results.
     """
 
     name = "eqsat-add-costs"
