@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.shape_inference import ShapeInferencePassHelper
+from xdsl.transforms.shape_inference import shape_inference_pass_helper
 
 
 @dataclass
@@ -92,7 +92,7 @@ class StencilShapeMinimize(ModulePass):
                     ]
                 )
             ).rewrite_module(op)
-            ShapeInferencePassHelper(op)
+            shape_inference_pass_helper(op)
         analysis = ShapeAnalysis(seen=set())
         PatternRewriteWalker(analysis).rewrite_module(op)
         bounds = set(
