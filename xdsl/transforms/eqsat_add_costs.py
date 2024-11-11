@@ -60,6 +60,5 @@ class EqsatAddCosts(ModulePass):
             for o in op.walk()
             if o.parent is not None and isinstance(o, eqsat.EClassOp)
         )
-        assert eclass_parent_blocks
         for block in eclass_parent_blocks:
             add_eqsat_costs(block)
