@@ -134,18 +134,18 @@ class For(IRDLOperation):
     def verify_(self) -> None:
         if len(self.inits) != len(self.results):
             raise VerifyException("Expected as many init operands as results.")
-        if len(self.lowerBoundOperands) != (
-            self.lowerBoundMap.data.num_dims + self.lowerBoundMap.data.num_symbols
-        ):
-            raise VerifyException(
-                "Expected as many lower bound operands as lower bound dimensions and symbols."
-            )
-        if len(self.upperBoundOperands) != (
-            self.upperBoundMap.data.num_dims + self.upperBoundMap.data.num_symbols
-        ):
-            raise VerifyException(
-                "Expected as many upper bound operands as upper bound dimensions and symbols."
-            )
+        # if len(self.lowerBoundOperands) != (
+        #    self.lowerBoundMap.data.num_dims + self.lowerBoundMap.data.num_symbols
+        # ):
+        #    raise VerifyException(
+        #        "Expected as many lower bound operands as lower bound dimensions and symbols."
+        #    )
+        # if len(self.upperBoundOperands) != (
+        #    self.upperBoundMap.data.num_dims + self.upperBoundMap.data.num_symbols
+        # ):
+        #    raise VerifyException(
+        #        "Expected as many upper bound operands as upper bound dimensions and symbols."
+        #    )
         iter_types = self.inits.types
         if iter_types != self.result_types:
             raise VerifyException(

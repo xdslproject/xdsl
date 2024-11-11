@@ -93,13 +93,12 @@ class DispatchBlocks(RewritePattern):
 class ConstantFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter):
-        if len(op.result.uses) > 2:
-            parent_op = op.parent_op()
-            while not isinstance(parent_op, func.FuncOp):
-                parent_op = parent_op.parent_op()
+        parent_op = op.parent_op()
+        while not isinstance(parent_op, func.FuncOp):
+            parent_op = parent_op.parent_op()
 
-            op.detach()
-            rewriter.insert_op(op, InsertPoint.at_start(parent_op.body.block))
+        op.detach()
+        rewriter.insert_op(op, InsertPoint.at_start(parent_op.body.block))
 
 
 @dataclass(frozen=True)
