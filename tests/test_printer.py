@@ -10,7 +10,9 @@ from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
     Builtin,
+    FloatAttr,
     FunctionType,
     IntAttr,
     IntegerType,
@@ -759,6 +761,28 @@ def test_densearray_attr():
     parsed = parser.parse_op()
 
     assert_print_op(parsed, prog, None)
+
+
+def test_float_attr_specials():
+    printer = Printer()
+
+    def _test_attr_print(expected: str, attr: AnyFloatAttr):
+        io = StringIO()
+        printer.stream = io
+        printer.print_attribute(attr)
+        assert io.getvalue() == expected
+
+    _test_attr_print("0x7e00 : f16", FloatAttr(float("nan"), 16))
+    _test_attr_print("0x7c00 : f16", FloatAttr(float("inf"), 16))
+    _test_attr_print("0xfc00 : f16", FloatAttr(float("-inf"), 16))
+
+    _test_attr_print("0x7fc00000 : f32", FloatAttr(float("nan"), 32))
+    _test_attr_print("0x7f800000 : f32", FloatAttr(float("inf"), 32))
+    _test_attr_print("0xff800000 : f32", FloatAttr(float("-inf"), 32))
+
+    _test_attr_print("0x7ff8000000000000 : f64", FloatAttr(float("nan"), 64))
+    _test_attr_print("0x7ff0000000000000 : f64", FloatAttr(float("inf"), 64))
+    _test_attr_print("0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64))
 
 
 def test_print_function_type():

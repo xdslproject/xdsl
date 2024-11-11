@@ -6,6 +6,11 @@ from xdsl.passes import ModulePass
 def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
 
+    def get_apply_pdl():
+        from xdsl.transforms import apply_pdl
+
+        return apply_pdl.ApplyPDLPass
+
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
 
@@ -266,6 +271,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return scf_for_loop_flatten.ScfForLoopFlattenPass
 
+    def get_scf_for_loop_range_folding():
+        from xdsl.transforms import scf_for_loop_range_folding
+
+        return scf_for_loop_range_folding.ScfForLoopRangeFoldingPass
+
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
 
@@ -333,6 +343,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
 
+    def get_convert_ptr_to_riscv():
+        from xdsl.transforms import convert_ptr_to_riscv
+
+        return convert_ptr_to_riscv.ConvertPtrToRiscvPass
+
     def get_convert_qref_to_qssa():
         from xdsl.transforms import convert_qref_to_qssa
 
@@ -364,6 +379,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         )
 
         return FunctionConstantPinningPass
+
+    def get_function_persist_arg_names():
+        from xdsl.transforms.function_transformations import FunctionPersistArgNames
+
+        return FunctionPersistArgNames
 
     def get_lower_scf_for_to_labels():
         from xdsl.backend.riscv import riscv_scf_to_asm
@@ -415,6 +435,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_unroll.StencilUnrollPass
 
+    def get_test_add_timers_to_top_level_funcs():
+        from xdsl.transforms.function_transformations import (
+            TestAddBenchTimersToTopLevelFunctions,
+        )
+
+        return TestAddBenchTimersToTopLevelFunctions
+
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
@@ -441,6 +468,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return varith_transformations.VarithFuseRepeatedOperandsPass
 
     return {
+        "apply-pdl": get_apply_pdl,
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
         "canonicalize-dmp": get_canonicalize_dmp,
@@ -469,6 +497,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
+        "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
@@ -482,6 +511,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
+        "function-persist-arg-names": get_function_persist_arg_names,
         "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
@@ -514,6 +544,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
+        "scf-for-loop-range-folding": get_scf_for_loop_range_folding,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
@@ -524,6 +555,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "stencil-bufferize": get_stencil_bufferize,
         "stencil-shape-minimize": get_stencil_shape_minimize,
+        "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,

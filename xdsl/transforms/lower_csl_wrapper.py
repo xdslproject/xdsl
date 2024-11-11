@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
@@ -118,10 +119,12 @@ class ExtractCslModules(RewritePattern):
         outer_loop_block = Block()
         outer_loop_block.insert_arg(builtin.IntegerType(16), 0)
         x = outer_loop_block.args[0]
+        x.name_hint = "x"
 
         inner_loop_block = Block()
         inner_loop_block.insert_arg(builtin.IntegerType(16), 0)
         y = inner_loop_block.args[0]
+        y.name_hint = "y"
 
         assert isa(yield_op := op.layout_module.block.last_op, csl_wrapper.YieldOp)
         rewriter.erase_op(yield_op)
@@ -311,9 +314,11 @@ class LowerImport(RewritePattern):
         import_ = csl.ImportModuleConstOp(
             op.module, structs[-1] if len(structs) > 0 else None
         )
+        import_.result.name_hint = Path(op.module.data.strip("<>")).stem
 
         rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
-        rewriter.replace_matched_op([*structs, import_])
+        rewriter.insert_op(structs, InsertPoint.before(op))
+        rewriter.replace_matched_op(import_)
 
 
 @dataclass(frozen=True)

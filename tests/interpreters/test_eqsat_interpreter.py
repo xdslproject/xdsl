@@ -7,10 +7,8 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     StringAttr,
 )
-from xdsl.interpreters.experimental.eqsat_pdl import EqsatPDLRewritePattern
-from xdsl.interpreters.experimental.pdl import (
-    PDLRewritePattern,
-)
+from xdsl.interpreters.eqsat_pdl import EqsatPDLRewritePattern
+from xdsl.interpreters.pdl import PDLRewritePattern
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,

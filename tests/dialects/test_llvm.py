@@ -13,15 +13,11 @@ from xdsl.utils.test_value import TestSSAValue
 @pytest.mark.parametrize(
     "op_type, attributes",
     [
-        (llvm.UDivOp, {}),
-        (llvm.SDivOp, {}),
         (llvm.URemOp, {}),
         (llvm.SRemOp, {}),
         (llvm.AndOp, {}),
         (llvm.OrOp, {}),
         (llvm.XOrOp, {}),
-        (llvm.LShrOp, {}),
-        (llvm.AShrOp, {}),
     ],
 )
 def test_llvm_arithmetic_ops(
@@ -54,6 +50,26 @@ def test_llvm_overflow_arithmetic_ops(
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
     assert op_type(op1, op2, attributes).is_structurally_equivalent(
         op_type(lhs=op1, rhs=op2, attributes=attributes, overflow=overflow)
+    )
+
+
+@pytest.mark.parametrize(
+    "op_type, attributes, exact",
+    [
+        (llvm.UDivOp, {}, llvm.UnitAttr()),
+        (llvm.SDivOp, {}, llvm.UnitAttr()),
+        (llvm.LShrOp, {}, llvm.UnitAttr()),
+        (llvm.AShrOp, {}, llvm.UnitAttr()),
+    ],
+)
+def test_llvm_exact_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOpExact],
+    attributes: dict[str, Attribute],
+    exact: llvm.UnitAttr,
+):
+    op1, op2 = test.TestOp(result_types=[i32, i32]).results
+    assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(
+        op_type(lhs=op1, rhs=op2, attributes=attributes, is_exact=exact)
     )
 
 

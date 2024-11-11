@@ -8,7 +8,23 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import ConstantLike
 from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
+
+
+class RehoistConstInLoops(RewritePattern):
+    """
+    Carry out const definitions from the loops.
+    In the future this will probably be done by the pattern rewriter itself, like it's done in the MLIR's applyPatternsAndFoldGreedily.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
+        for child_op in op.body.ops:
+            if child_op.has_trait(ConstantLike):
+                # we only rehoist consts that are not embeded in another region inside the loop
+                rewriter.insert_op_before_matched_op((new_const := child_op.clone(),))
+                rewriter.replace_op(child_op, (), new_const.results)
 
 
 class SimplifyTrivialLoops(RewritePattern):

@@ -26,6 +26,12 @@
 %sdiv = llvm.sdiv %arg0, %arg1 : i32
 // CHECK: %sdiv = llvm.sdiv %arg0, %arg1 : i32
 
+%udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+// CHECK: %udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+
+%sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+// CHECK: %sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+
 %urem = llvm.urem %arg0, %arg1 : i32
 // CHECK: %urem = llvm.urem %arg0, %arg1 : i32
 
@@ -53,14 +59,26 @@
 %ashr = llvm.ashr %arg0, %arg1 : i32
 // CHECK: %ashr = llvm.ashr %arg0, %arg1 : i32
 
+%lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+// CHECK: %lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+
+%ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
+// CHECK: %ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
+
 %trunc = llvm.trunc %arg0 : i32 to i16
 // CHECK: %trunc = llvm.trunc %arg0 : i32 to i16
+
+%trunc_overflow = llvm.trunc %arg0 overflow<nsw> : i32 to i16
+// CHECK: %trunc_overflow = llvm.trunc %arg0 overflow<nsw> : i32 to i16
 
 %sext = llvm.sext %arg0 : i32 to i64
 // CHECK: %sext = llvm.sext %arg0 : i32 to i64
 
 %zext = llvm.zext %arg0 : i32 to i64
 // CHECK: %zext = llvm.zext %arg0 : i32 to i64
+
+%zext_nneg = llvm.zext nneg %arg0 : i32 to i64
+// CHECK: %zext_nneg = llvm.zext nneg %arg0 : i32 to i64
 
 %cst1 = llvm.mlir.constant(false) : i1
 // CHECK: %cst1 = llvm.mlir.constant(false) : i1

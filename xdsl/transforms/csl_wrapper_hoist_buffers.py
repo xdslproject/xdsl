@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.csl import csl_wrapper
+from xdsl.dialects.csl import csl, csl_wrapper
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -22,6 +22,10 @@ class HoistBuffers(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
+        # always attempt to set name hints
+        if op.memref.name_hint is None:
+            self._set_name_hint(op)
+
         wrapper = op.parent_op()
         while wrapper and not isinstance(wrapper, csl_wrapper.ModuleOp):
             wrapper = wrapper.parent_op()
@@ -37,6 +41,27 @@ class HoistBuffers(RewritePattern):
             alloc := op.clone(), InsertPoint.at_start(wrapper.program_module.block)
         )
         rewriter.replace_matched_op([], new_results=[alloc.memref])
+
+    @staticmethod
+    def _set_name_hint(op: memref.Alloc):
+        """
+        Attempts to find a chain of:
+          %0 = memref.alloc
+          %1 = csl.addressof(%0)
+          csl.export(%1) <{var_name = "buf"}>
+
+        and sets name hints for alloc and addressof to "buf" and "buf_ptr", respectively
+        """
+        for ptr_use in op.memref.uses:
+            if not isinstance(ptr_op := ptr_use.operation, csl.AddressOfOp):
+                continue
+
+            for exp_use in ptr_op.res.uses:
+                if not isinstance(exp_op := exp_use.operation, csl.SymbolExportOp):
+                    continue
+                op.memref.name_hint = exp_op.get_name()
+                ptr_op.res.name_hint = f"{exp_op.get_name()}_ptr"
+                return
 
 
 @dataclass(frozen=True)

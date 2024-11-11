@@ -8,11 +8,14 @@ from xdsl.dialects.builtin import (
     AnyMemRefType,
     AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
+    ArrayAttr,
+    DictionaryAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
     ShapedType,
     Signedness,
+    StringAttr,
     TensorType,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
@@ -27,12 +30,12 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms import csl_stencil_bufferize
+from xdsl.transforms.function_transformations import (
+    TIMER_END,
+    TIMER_START,
+)
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
-
-_TIMER_START = "timer_start"
-_TIMER_END = "timer_end"
-_TIMER_FUNC_NAMES = [_TIMER_START, _TIMER_END]
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -61,7 +64,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         # erase timer stubs
-        if op.is_declaration and op.sym_name.data in _TIMER_FUNC_NAMES:
+        if op.is_declaration and op.sym_name.data in [TIMER_START, TIMER_END]:
             rewriter.erase_matched_op()
             return
         # find csl_stencil.apply ops, abort if there are none
@@ -153,7 +156,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # set up main function and move func.func ops into this csl.func
         main_func = csl.FuncOp(op.sym_name.data, ((), None))
         func_export = csl.SymbolExportOp(main_func.sym_name, main_func.function_type)
-        args_to_ops, arg_mappings = self._translate_function_args(op.args)
+        args_to_ops, arg_mappings = self._translate_function_args(op.args, op.arg_attrs)
         rewriter.inline_block(
             op.body.block,
             InsertPoint.at_start(main_func.body.block),
@@ -190,7 +193,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         return result
 
     def _translate_function_args(
-        self, args: Sequence[BlockArgument]
+        self, args: Sequence[BlockArgument], attrs: ArrayAttr[DictionaryAttr] | None
     ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
         """
         Args of the top-level function act as the interface to the program and need to be translated to writable buffers.
@@ -201,6 +204,14 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         export_ops: list[Operation] = []
         cast_ops: list[Operation] = []
         import_ops: list[Operation] = []
+
+        if attrs is not None:
+            for arg, attr in zip(args, attrs, strict=True):
+                assert isinstance(attr, DictionaryAttr)
+                if "llvm.name" in attr.data:
+                    nh = attr.data["llvm.name"]
+                    assert isinstance(nh, StringAttr)
+                    arg.name_hint = nh.data
 
         for arg in args:
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
@@ -239,7 +250,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 isinstance(u.operation, llvm.StoreOp)
                 and isinstance(u.operation.value, OpResult)
                 and isinstance(u.operation.value.op, func.Call)
-                and u.operation.value.op.callee.string_value() == _TIMER_END
+                and u.operation.value.op.callee.string_value() == TIMER_END
                 for u in arg.uses
             ):
                 start_end_size = 3
@@ -383,9 +394,9 @@ class LowerTimerFuncCall(RewritePattern):
     def match_and_rewrite(self, op: llvm.StoreOp, rewriter: PatternRewriter, /):
         if (
             not isinstance(end_call := op.value.owner, func.Call)
-            or not end_call.callee.string_value() == _TIMER_END
+            or not end_call.callee.string_value() == TIMER_END
             or not (isinstance(start_call := end_call.arguments[0].owner, func.Call))
-            or not start_call.callee.string_value() == _TIMER_START
+            or not start_call.callee.string_value() == TIMER_START
             or not (wrapper := _get_module_wrapper(op))
             or not isa(op.ptr.type, AnyMemRefType)
         ):
