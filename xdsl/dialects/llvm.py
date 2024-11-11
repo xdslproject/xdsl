@@ -414,6 +414,17 @@ class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
 class OverflowAttr(OverflowAttrBase):
     name = "llvm.overflow"
 
+    @classmethod
+    def parse(cls, parser: Parser) -> OverflowAttr:
+        if parser.parse_optional_keyword("overflow") is not None:
+            return OverflowAttr(OverflowAttr.parse_parameter(parser))
+        return OverflowAttr("none")
+
+    def print(self, printer: Printer):
+        if self.flags:
+            printer.print(" overflow")
+            self.print_parameter(printer)
+
 
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
@@ -444,22 +455,11 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         )
 
     @classmethod
-    def parse_overflow(cls, parser: Parser) -> OverflowAttr:
-        if parser.parse_optional_keyword("overflow") is not None:
-            return OverflowAttr(OverflowAttr.parse_parameter(parser))
-        return OverflowAttr("none")
-
-    def print_overflow(self, printer: Printer) -> None:
-        if self.overflowFlags and self.overflowFlags.flags:
-            printer.print(" overflow")
-            self.overflowFlags.print_parameter(printer)
-
-    @classmethod
     def parse(cls, parser: Parser):
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
-        overflowFlags = cls.parse_overflow(parser)
+        overflowFlags = OverflowAttr.parse(parser)
         attributes = parser.parse_optional_attr_dict()
         parser.parse_characters(":")
         type = parser.parse_type()
@@ -468,7 +468,8 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         printer.print(" ", self.lhs, ", ", self.rhs)
-        self.print_overflow(printer)
+        if self.overflowFlags:
+            self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
         printer.print(" : ")
         printer.print(self.lhs.type)
@@ -589,6 +590,49 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
         )
 
 
+class IntegerConversionOpOverflow(IRDLOperation, ABC):
+    arg = operand_def(IntegerType)
+    res = result_def(IntegerType)
+    overflowFlags = opt_prop_def(OverflowAttr)
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        arg: SSAValue,
+        res_type: Attribute,
+        attributes: dict[str, Attribute] = {},
+        overflow: OverflowAttr = OverflowAttr(None),
+    ):
+        super().__init__(
+            operands=(arg,),
+            attributes=attributes,
+            result_types=(res_type,),
+            properties={
+                "overflowFlags": overflow,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_unresolved_operand()
+        overflowFlags = OverflowAttr.parse(parser)
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        arg_type = parser.parse_type()
+        parser.parse_characters("to")
+        res_type = parser.parse_type()
+        operands = parser.resolve_operands([arg], [arg_type], parser.pos)
+        return cls(operands[0], res_type, attributes, overflowFlags)
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.arg)
+        if self.overflowFlags:
+            self.overflowFlags.print(printer)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.arg.type, " to ", self.res.type)
+
+
 @irdl_op_definition
 class AddOp(ArithmeticBinOpOverflow):
     name = "llvm.add"
@@ -655,7 +699,7 @@ class AShrOp(ArithmeticBinOpExact):
 
 
 @irdl_op_definition
-class TruncOp(IntegerConversionOp):
+class TruncOp(IntegerConversionOpOverflow):
     name = "llvm.trunc"
 
     def verify(self, verify_nested_ops: bool = True):
