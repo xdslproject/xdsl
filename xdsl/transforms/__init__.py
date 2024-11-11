@@ -271,6 +271,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return scf_for_loop_flatten.ScfForLoopFlattenPass
 
+    def get_scf_for_loop_range_folding():
+        from xdsl.transforms import scf_for_loop_range_folding
+
+        return scf_for_loop_range_folding.ScfForLoopRangeFoldingPass
+
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
 
@@ -539,6 +544,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
+        "scf-for-loop-range-folding": get_scf_for_loop_range_folding,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
