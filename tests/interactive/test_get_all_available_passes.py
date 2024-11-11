@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.individual_rewrite import IndividualRewrite
+from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
@@ -97,7 +97,7 @@ def test_get_all_available_passes():
             ),
             AvailablePass(
                 display_name='TestOp("test.op"() {"key" = "b"} : () -> ()):test.op:be',
-                module_pass=IndividualRewrite,
+                module_pass=ApplyIndividualRewritePass,
                 pass_spec=PipelinePassSpec(
                     "apply-individual-rewrite",
                     {
