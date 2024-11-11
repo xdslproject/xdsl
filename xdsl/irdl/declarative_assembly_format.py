@@ -234,7 +234,7 @@ class FormatProgram:
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, (result_type, (_, result_def)) in enumerate(
+        for i, (result_type, (result_name, result_def)) in enumerate(
             zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
@@ -244,7 +244,11 @@ class FormatProgram:
                 # of the results if multiple are variadic.
                 # In order to support variadic results, the types an length of all
                 # variadic results must be present in the custom syntax.
-                assert not isinstance(result_def, OptionalDef | VariadicDef)
+                if isinstance(result_def, OptionalDef | VariadicDef):
+                    raise NotImplementedError(
+                        f"Inference of length of variadic result '{result_name}' not "
+                        "implemented"
+                    )
                 range_length = 1
                 inferred_result_types = result_def.constr.infer(
                     range_length, state.constraint_context

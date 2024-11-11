@@ -291,13 +291,11 @@ class FormatParser(BaseParser):
             self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
-                can_infer_type = result_def.constr.can_infer(seen_variables)
-                can_infer_length = not isinstance(result_def, VariadicDef | OptionalDef)
-                if not (can_infer_type and can_infer_length):
+                if not result_def.constr.can_infer(seen_variables):
                     self.raise_error(
-                        f"type and length of result '{result_name}' cannot be "
-                        f"inferred, consider adding a 'type(${result_name})' directive "
-                        "to the custom assembly format"
+                        f"type of result '{result_name}' cannot be inferred, "
+                        f"consider adding a 'type(${result_name})' directive to the "
+                        "custom assembly format"
                     )
 
     def verify_attr_dict(self):
