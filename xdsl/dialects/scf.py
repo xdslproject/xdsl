@@ -273,9 +273,12 @@ class If(IRDLOperation):
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.scf import SimplifyTrivialLoops
+        from xdsl.transforms.canonicalization_patterns.scf import (
+            RehoistConstInLoops,
+            SimplifyTrivialLoops,
+        )
 
-        return (SimplifyTrivialLoops(),)
+        return (SimplifyTrivialLoops(), RehoistConstInLoops())
 
 
 @irdl_op_definition
