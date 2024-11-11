@@ -460,7 +460,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_eqsat_add_costs():
         from xdsl.transforms import eqsat_add_costs
 
-        return eqsat_add_costs.EqsatAddCosts
+        return eqsat_add_costs.EqsatAddCostsPass
 
     def get_stencil_shape_minimize():
         from xdsl.transforms import stencil_shape_minimize

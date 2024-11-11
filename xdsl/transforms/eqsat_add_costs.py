@@ -47,7 +47,7 @@ def add_eqsat_costs(block: Block):
         op.attributes[EQSAT_COST_LABEL] = IntAttr(cost)
 
 
-class EqsatAddCosts(ModulePass):
+class EqsatAddCostsPass(ModulePass):
     """
     Add costs to all operations in blocks that contain eqsat.eclass ops.
     The cost of an eclass operation is the minimum of all the costs of the operations of
