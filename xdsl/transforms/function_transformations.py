@@ -106,7 +106,7 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
         SymbolTable.insert_or_update(op, end_func)
 
 
-class FunctionPersistArgNames(ModulePass):
+class FunctionPersistArgNamesPass(ModulePass):
     """
     Persists func.func arg name hints to arg_attrs.
 

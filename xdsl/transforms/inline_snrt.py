@@ -658,7 +658,7 @@ class LowerClusterIdx(RewritePattern):
 
 
 @dataclass(frozen=True)
-class ConvertSnrtToRISCV(SnrtConstants, ModulePass):
+class InlineSnrt(SnrtConstants, ModulePass):
     """
     Inline operations of the snrt dialect to their definitions.
 

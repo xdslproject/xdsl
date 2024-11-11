@@ -84,7 +84,7 @@ instances.
 
 
 @dataclass(frozen=True)
-class IndividualRewrite(ModulePass):
+class ApplyIndividualRewrite(ModulePass):
     """
     Module pass representing the application of an individual rewrite pattern to a module.
 
