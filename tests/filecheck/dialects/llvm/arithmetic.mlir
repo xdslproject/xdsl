@@ -74,6 +74,9 @@
 %zext = llvm.zext %arg0 : i32 to i64
 // CHECK: %zext = llvm.zext %arg0 : i32 to i64
 
+%zext_nneg = llvm.zext nneg %arg0 : i32 to i64
+// CHECK: %zext_nneg = llvm.zext nneg %arg0 : i32 to i64
+
 %cst1 = llvm.mlir.constant(false) : i1
 // CHECK: %cst1 = llvm.mlir.constant(false) : i1
 

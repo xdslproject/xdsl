@@ -564,6 +564,31 @@ class IntegerConversionOp(IRDLOperation, ABC):
         printer.print(self.arg.type, " to ", self.res.type)
 
 
+class IntegerConversionOpNNeg(IRDLOperation, ABC):
+    arg = operand_def(IntegerType)
+    res = result_def(IntegerType)
+    traits = traits_def(NoMemoryEffect())
+    non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
+
+    assembly_format = "(`nneg` $nonNeg^)? $arg attr-dict `:` type($arg) `to` type($res)"
+
+    def __init__(
+        self,
+        arg: SSAValue,
+        res_type: Attribute,
+        attributes: dict[str, Attribute] = {},
+        non_neg: UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=(arg,),
+            attributes=attributes,
+            result_types=(res_type,),
+            properties={
+                "nonNeg": non_neg,
+            },
+        )
+
+
 @irdl_op_definition
 class AddOp(ArithmeticBinOpOverflow):
     name = "llvm.add"
@@ -644,7 +669,7 @@ class TruncOp(IntegerConversionOp):
 
 
 @irdl_op_definition
-class ZExtOp(IntegerConversionOp):
+class ZExtOp(IntegerConversionOpNNeg):
     name = "llvm.zext"
 
     def verify(self, verify_nested_ops: bool = True):
