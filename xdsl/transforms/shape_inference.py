@@ -36,7 +36,7 @@ class ShapeInferencePass(ModulePass):
         PatternRewriteWalker(ShapeInferenceRewritePattern()).rewrite_module(op)
 
 
-def ShapeInferencePassHelper(op: builtin.ModuleOp):
+def shape_inference_pass_helper(op: builtin.ModuleOp):
     """
     A helper function for ShapeInferencePass which allows it to be called from
     within other passes while exposing the least restrictive API.
