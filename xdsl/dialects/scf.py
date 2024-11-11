@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import ClassVar
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
-    AnySignlessIntegerOrIndexType,
     DenseArrayBase,
     IndexType,
     IntegerType,
+    SignlessIntegerConstraint,
     i64,
 )
 from xdsl.dialects.utils import (
@@ -20,9 +20,11 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
+    base,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     prop_def,
     region_def,
@@ -56,7 +58,7 @@ class While(IRDLOperation):
     before_region = region_def()
     after_region = region_def()
 
-    traits = frozenset([RecursiveMemoryEffect()])
+    traits = traits_def(RecursiveMemoryEffect())
 
     def __init__(
         self,
@@ -157,13 +159,11 @@ class While(IRDLOperation):
 class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
-    traits = traits_def(
-        lambda: frozenset(
-            [
-                IsTerminator(),
-                HasParent(For, If, ParallelOp, While, IndexSwitchOp),
-                Pure(),
-            ]
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(For, If, While, IndexSwitchOp),
+            Pure(),
         )
     )
 
@@ -178,12 +178,10 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region = region_def()
 
-    traits = frozenset(
-        [
-            SingleBlockImplicitTerminator(Yield),
-            RecursiveMemoryEffect(),
-            RecursivelySpeculatable(),
-        ]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(Yield),
+        RecursiveMemoryEffect(),
+        RecursivelySpeculatable(),
     )
 
     def __init__(
@@ -275,16 +273,19 @@ class If(IRDLOperation):
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.scf import SimplifyTrivialLoops
+        from xdsl.transforms.canonicalization_patterns.scf import (
+            RehoistConstInLoops,
+            SimplifyTrivialLoops,
+        )
 
-        return (SimplifyTrivialLoops(),)
+        return (SimplifyTrivialLoops(), RehoistConstInLoops())
 
 
 @irdl_op_definition
 class For(IRDLOperation):
     name = "scf.for"
 
-    T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
 
     lb = operand_def(T)
     ub = operand_def(T)
@@ -296,12 +297,10 @@ class For(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset(
-        [
-            SingleBlockImplicitTerminator(Yield),
-            ForOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
-        ]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(Yield),
+        ForOpHasCanonicalizationPatternsTrait(),
+        RecursiveMemoryEffect(),
     )
 
     def __init__(
@@ -466,7 +465,12 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield), RecursiveMemoryEffect()])
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(ReduceOp),
+            RecursiveMemoryEffect(),
+        )
+    )
 
     def __init__(
         self,
@@ -483,12 +487,6 @@ class ParallelOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        # This verifies the scf.parallel operation, as can be seen it's fairly complex
-        # due to the restrictions on the operation and ability to mix in reduction operations
-        # All initvals must be handled by an individual reduction operation, with the block
-        # arguments just being induction variables and no arguments to the yield as that is
-        # handled by the reduction op
-
         # First check that the number of lower and upper bounds, along with the number of
         # steps is all equal
         if len(self.lowerBound) != len(self.upperBound) or len(self.lowerBound) != len(
@@ -509,12 +507,18 @@ class ParallelOp(IRDLOperation):
                 "Number of block arguments must exactly equal the number of induction variables"
             )
 
+        reduce_op = self.body.block.last_op
+        # Ensured by trait
+        assert isinstance(reduce_op, ReduceOp)
+
+        num_reductions = len(reduce_op.reductions)
+
         # Check that the number of initial values (initVals)
         # equals the number of reductions
-        if len(self.initVals) != self.count_number_reduction_ops():
+        if len(self.initVals) != num_reductions:
             raise VerifyException(
                 f"Expected {len(self.initVals)} "
-                f"reductions but {self.count_number_reduction_ops()} provided"
+                f"reductions but {num_reductions} provided"
             )
 
         # Check each induction variable argument is present in the block arguments
@@ -527,22 +531,14 @@ class ParallelOp(IRDLOperation):
 
         # Now go through each reduction operation and check that the type
         # matches the corresponding initVals type
-        num_reductions = self.count_number_reduction_ops()
         for reduction in range(num_reductions):
-            arg_type = self.get_arg_type_of_nth_reduction_op(reduction)
+            arg_type = reduce_op.args[reduction].type
             initValsType = self.initVals[reduction].type
             if initValsType != arg_type:
                 raise VerifyException(
                     f"Miss match on scf.parallel argument and reduction op type number {reduction} "
                     f", parallel argment is of type {initValsType} whereas reduction operation is of type {arg_type}"
                 )
-
-        # Ensure that the number of operands in scf.yield is exactly zero
-        if (last_op := self.body.block.last_op) is not None and last_op.operands:
-            raise VerifyException(
-                f"Single-block region terminator scf.yield has {len(last_op.operands)} "
-                "operands but 0 expected inside an scf.parallel"
-            )
 
         # Ensure that the number of reductions matches the
         # number of result types from scf.parallel
@@ -555,7 +551,7 @@ class ParallelOp(IRDLOperation):
         # scf.parallel result type (there is no result type on scf.reduce, hence we check the
         # operand type)
         for reduction in range(num_reductions):
-            arg_type = self.get_arg_type_of_nth_reduction_op(reduction)
+            arg_type = reduce_op.args[reduction].type
             res_type = self.res[reduction].type
             if res_type != arg_type:
                 raise VerifyException(
@@ -563,71 +559,68 @@ class ParallelOp(IRDLOperation):
                     f", parallel argment is of type {res_type} whereas reduction operation is of type {arg_type}"
                 )
 
-    def count_number_reduction_ops(self) -> int:
-        num_reduce = 0
-        for op in self.body.block.ops:
-            if isinstance(op, ReduceOp):
-                num_reduce += 1
-        return num_reduce
-
-    def get_arg_type_of_nth_reduction_op(self, index: int):
-        found = 0
-        for op in self.body.block.ops:
-            if isinstance(op, ReduceOp):
-                if found == index:
-                    return op.argument.type
-                found += 1
-        return None
-
 
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
     name = "scf.reduce"
-    argument = operand_def()
+    args = var_operand_def()
 
-    body = region_def("single_block")
+    reductions = var_region_def("single_block")
 
-    traits = frozenset([RecursiveMemoryEffect()])
+    traits = lazy_traits_def(
+        lambda: (
+            RecursiveMemoryEffect(),
+            HasParent(ParallelOp),
+            IsTerminator(),
+            SingleBlockImplicitTerminator(ReduceReturnOp),
+        )
+    )
+
+    assembly_format = "(`(` $args^ `:` type($args) `)`)? $reductions attr-dict"
 
     def __init__(
         self,
-        argument: SSAValue | Operation,
-        block: Block,
+        args: Sequence[SSAValue | Operation] = (),
+        regions: Sequence[Region] = (),
     ):
-        super().__init__(operands=[argument], regions=[Region(block)])
+        super().__init__(operands=(args,), regions=(regions,))
 
     def verify_(self) -> None:
-        if len(self.body.block.args) != 2:
+        if len(self.args) != len(self.reductions):
             raise VerifyException(
-                "scf.reduce block must have exactly two arguments, but "
-                f"{len(self.body.block.args)} were provided"
+                "scf.reduce must have the same number of arguments and regions"
+                f"but got {len(self.args)} arguments and {len(self.reductions)} regions"
             )
+        for region, argument in zip(self.reductions, self.args):
+            if len(region.block.args) != 2:
+                raise VerifyException(
+                    "scf.reduce block must have exactly two arguments, but "
+                    f"{len(region.block.args)} were provided"
+                )
 
-        if self.body.block.args[0].type != self.body.block.args[1].type:
-            raise VerifyException(
-                "scf.reduce block argument types must be the same but have "
-                f"{self.body.block.args[0].type} and {self.body.block.args[1].type}"
-            )
+            if region.block.args[0].type != region.block.args[1].type:
+                raise VerifyException(
+                    "scf.reduce block argument types must be the same but have "
+                    f"{region.block.args[0].type} and {region.block.args[1].type}"
+                )
 
-        if self.body.block.args[0].type != self.argument.type:
-            raise VerifyException(
-                "scf.reduce block argument types must match the operand type "
-                f" but have {self.body.block.args[0].type} and {self.argument.type}"
-            )
+            if region.block.args[0].type != argument.type:
+                raise VerifyException(
+                    "scf.reduce block argument types must match the operand type "
+                    f" but have {region.block.args[0].type} and {argument.type}"
+                )
 
-        last_op = self.body.block.last_op
+            last_op = region.block.last_op
 
-        if last_op is None or not isinstance(last_op, ReduceReturnOp):
-            raise VerifyException(
-                "Block inside scf.reduce must terminate with an scf.reduce.return"
-            )
+            # Should be checked by traits
+            assert isinstance(last_op, ReduceReturnOp)
 
-        if last_op.result.type != self.argument.type:
-            raise VerifyException(
-                "scf.reduce.return result type at end of scf.reduce block must"
-                f" match the reduction operand type but have {last_op.result.type} "
-                f"and {self.argument.type}"
-            )
+            if last_op.result.type != argument.type:
+                raise VerifyException(
+                    "scf.reduce.return result type at end of scf.reduce block must"
+                    f" match the reduction operand type but have {last_op.result.type} "
+                    f"and {argument.type}"
+                )
 
 
 @irdl_op_definition
@@ -635,7 +628,9 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result = operand_def()
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(ReduceOp), IsTerminator(), Pure())
+
+    assembly_format = "$result attr-dict `:` type($result)"
 
     def __init__(self, result: SSAValue | Operation):
         super().__init__(operands=[result])
@@ -647,7 +642,7 @@ class Condition(IRDLOperation):
     cond = operand_def(IntegerType(1))
     arguments = var_operand_def()
 
-    traits = frozenset([HasParent(While), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(While), IsTerminator(), Pure())
 
     def __init__(
         self,
@@ -708,7 +703,7 @@ class IndexSwitchOp(IRDLOperation):
     default_region = region_def("single_block")
     case_regions = var_region_def("single_block")
 
-    traits = frozenset([RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield)])
+    traits = traits_def(RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield))
 
     def __init__(
         self,

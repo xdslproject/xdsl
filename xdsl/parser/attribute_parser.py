@@ -62,6 +62,11 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import BaseAttr, base
 from xdsl.parser.base_parser import BaseParser
+from xdsl.utils.bitwise_casts import (
+    convert_u16_to_f16,
+    convert_u32_to_f32,
+    convert_u64_to_f64,
+)
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span, StringLiteral, Token
@@ -721,24 +726,29 @@ class AttrParser(BaseParser):
 
         # Use struct builtin package for unpacking f32, f64
         format_str: str = ""
+        num_chunks = 0
         match element_type:
             case Float32Type():
                 chunk_size = 4
-                format_str = "@f"  # @ in format string implies native endianess
+                num_chunks = len(byte_list) // chunk_size
+                format_str = (
+                    f"@{num_chunks}f"  # @ in format string implies native endianess
+                )
             case Float64Type():
                 chunk_size = 8
-                format_str = "@d"
+                num_chunks = len(byte_list) // chunk_size
+                format_str = f"@{num_chunks}d"
             case IntegerType():
                 if element_type.width.data % 8 != 0:
                     self.raise_error(
                         "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
                     )
                 chunk_size = element_type.width.data // 8
+                num_chunks = len(byte_list) // chunk_size
             case _:
                 self.raise_error(
                     "Hex strings for dense literals are only supported for int, f32 and f64 types"
                 )
-        num_chunks = len(byte_list) // chunk_size
 
         data_values: list[int] | list[float] = []
 
@@ -1139,6 +1149,8 @@ class AttrParser(BaseParser):
         if bool is not None:
             return bool
 
+        is_hexadecimal_token: bool = self._current_token.text[:2] in ["0x", "0X"]
+
         # Parse the value
         if (value := self.parse_optional_number()) is None:
             return None
@@ -1153,6 +1165,19 @@ class AttrParser(BaseParser):
         type = self._parse_attribute_type()
 
         if isinstance(type, AnyFloat):
+            if is_hexadecimal_token:
+                assert isinstance(value, int)
+                match type:
+                    case Float16Type():
+                        return FloatAttr(convert_u16_to_f16(value), type)
+                    case Float32Type():
+                        return FloatAttr(convert_u32_to_f32(value), type)
+                    case Float64Type():
+                        return FloatAttr(convert_u64_to_f64(value), type)
+                    case _:
+                        raise NotImplementedError(
+                            f"Cannot parse hexadecimal literal for float type of bit width {type}"
+                        )
             return FloatAttr(float(value), type)
 
         if isinstance(type, IntegerType | IndexType):

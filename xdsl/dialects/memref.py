@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Iterable, Sequence
 from typing import Annotated, ClassVar, cast
 
@@ -7,9 +8,8 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     I64,
-    AnyFloat,
+    AnyFloatConstr,
     AnyIntegerAttr,
-    AnySignlessIntegerType,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     MemrefLayoutAttr,
     MemRefType,
     NoneAttr,
+    SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
@@ -35,18 +36,21 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicResultSize,
+    VarConstraint,
     base,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -67,13 +71,13 @@ from xdsl.utils.hints import isa
 
 @irdl_op_definition
 class Load(IRDLOperation):
-    T = Annotated[Attribute, ConstraintVar("T")]
-
     name = "memref.load"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     nontemporal = opt_prop_def(BoolAttr)
 
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
     res = result_def(T)
 
@@ -106,14 +110,14 @@ class Load(IRDLOperation):
 
 @irdl_op_definition
 class Store(IRDLOperation):
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "memref.store"
 
     nontemporal = opt_prop_def(BoolAttr)
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType())
 
     irdl_options = [ParsePropInAttrDict()]
@@ -160,7 +164,7 @@ class Alloc(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((AllocOpHasCanonicalizationPatterns(),))
+    traits = traits_def(AllocOpHasCanonicalizationPatterns())
 
     def __init__(
         self,
@@ -290,7 +294,7 @@ class AllocaScopeReturnOp(IRDLOperation):
 
     ops = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(AllocaScopeOp)])
+    traits = traits_def(IsTerminator(), HasParent(AllocaScopeOp))
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
@@ -357,13 +361,10 @@ class Alloca(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T = Annotated[
-        AnyFloat | AnySignlessIntegerType,
-        ConstraintVar("T"),
-    ]
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     kind = prop_def(IntegerAttr[I64])
@@ -391,7 +392,7 @@ class GetGlobal(IRDLOperation):
     memref = result_def(MemRefType[Attribute])
     name_ = prop_def(SymbolRefAttr, prop_name="name")
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     assembly_format = "$name `:` type($memref) attr-dict"
 
@@ -415,7 +416,7 @@ class Global(IRDLOperation):
     constant = opt_prop_def(UnitAttr)
     alignment = opt_prop_def(IntegerAttr[I64])
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
@@ -470,7 +471,7 @@ class Dim(IRDLOperation):
 
     result = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def from_source_and_index(
@@ -487,7 +488,7 @@ class Rank(IRDLOperation):
 
     rank = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
@@ -499,33 +500,95 @@ ReassociationAttr = ArrayAttr[
 ]
 
 
-class AlterShapeOp(IRDLOperation):
-    src = operand_def(MemRefType)
+class AlterShapeOperation(IRDLOperation, abc.ABC):
     result = result_def(MemRefType)
     reassociation = prop_def(ReassociationAttr)
-    assembly_format = (
-        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
-    )
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
 
 @irdl_op_definition
-class CollapseShapeOp(AlterShapeOp):
+class CollapseShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
     """
 
     name = "memref.collapse_shape"
 
+    src = operand_def(MemRefType)
+
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
 
 @irdl_op_definition
-class ExpandShapeOp(AlterShapeOp):
+class ExpandShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
     """
 
     name = "memref.expand_shape"
+
+    src = operand_def(MemRefType)
+    output_shape = var_operand_def(IndexType)
+
+    static_output_shape = prop_def(DenseArrayBase)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ExpandShapeOp:
+        src = parser.parse_unresolved_operand()
+        reassociation = parser.parse_attribute()
+        parser.parse_keyword("output_shape")
+        parser.parse_punctuation("[")
+        output_shape: list[SSAValue] = []
+        static_output_shape: list[int] = []
+        while (
+            x := parser.parse_optional_operand() or parser.parse_optional_integer()
+        ) is not None:
+            if isinstance(x, int):
+                static_output_shape.append(x)
+            else:
+                output_shape.append(x)
+            parser.parse_optional_punctuation(",")
+        parser.parse_punctuation("]")
+        attr_dict = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        src = parser.resolve_operand(src, parser.parse_type())
+        parser.parse_keyword("into")
+        result_type = parser.parse_type()
+
+        return cls(
+            operands=[src, output_shape],
+            properties={
+                "reassociation": reassociation,
+                "static_output_shape": DenseArrayBase.create_dense_int(
+                    IntegerType(64), static_output_shape
+                ),
+            },
+            attributes=attr_dict,
+            result_types=[result_type],
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.src)
+        printer.print_string(" ")
+        printer.print_attribute(self.reassociation)
+        printer.print_string(" output_shape [")
+        printer.print_list(self.output_shape, printer.print_operand)
+        t = self.static_output_shape.as_tuple()
+        if self.output_shape and t:
+            printer.print_string(", ")
+        printer.print_list(t, lambda x: printer.print_string(str(x)))
+        printer.print_string("]")
+        if self.attributes:
+            printer.print(" ")
+            printer.print_attr_dict(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.src.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -543,7 +606,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
     sizes = var_result_def(IndexType)
     strides = var_result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     irdl_options = [SameVariadicResultSize()]
 
@@ -578,7 +641,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
 
     aligned_pointer = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(source: SSAValue | Operation):
@@ -618,7 +681,9 @@ class Subview(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect()))
+    traits = lazy_traits_def(
+        lambda: (MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
+    )
 
     def __init__(
         self,
@@ -632,15 +697,11 @@ class Subview(IRDLOperation):
         result_type: Attribute,
     ):
         if not isinstance(static_offsets, DenseArrayBase):
-            static_offsets = DenseArrayBase.create_dense_int_or_index(
-                i64, static_offsets
-            )
+            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
         if not isinstance(static_sizes, DenseArrayBase):
-            static_sizes = DenseArrayBase.create_dense_int_or_index(i64, static_sizes)
+            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
         if not isinstance(static_strides, DenseArrayBase):
-            static_strides = DenseArrayBase.create_dense_int_or_index(
-                i64, static_strides
-            )
+            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
         super().__init__(
             operands=[source, offsets, sizes, strides],
             result_types=[result_type],
@@ -844,7 +905,7 @@ class Cast(IRDLOperation):
     )
     dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
@@ -863,7 +924,7 @@ class MemorySpaceCast(IRDLOperation):
     )
     dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,

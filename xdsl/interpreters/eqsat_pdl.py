@@ -7,7 +7,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import eqsat, pdl
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
-from xdsl.interpreters.experimental.pdl import PDLMatcher
+from xdsl.interpreters.pdl import PDLMatcher
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern

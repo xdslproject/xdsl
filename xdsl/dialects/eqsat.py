@@ -11,12 +11,13 @@ https://github.com/xdslproject/xdsl/issues/3174
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import ClassVar
 
 from xdsl.ir import Attribute, Dialect, SSAValue
 from xdsl.irdl import (
-    ConstraintVar,
+    AnyAttr,
     IRDLOperation,
+    VarConstraint,
     irdl_op_definition,
     result_def,
     var_operand_def,
@@ -26,7 +27,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 @irdl_op_definition
 class EClassOp(IRDLOperation):
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.eclass"
     arguments = var_operand_def(T)

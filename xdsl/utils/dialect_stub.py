@@ -3,7 +3,7 @@ import typing
 from dataclasses import dataclass, field
 from importlib import import_module
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 
 import xdsl.ir
 import xdsl.irdl
@@ -101,7 +101,10 @@ class DialectStubGenerator:
             case AnyAttr():
                 self._import(xdsl.ir, Attribute)
                 return "Attribute"
-            case ParamAttrConstraint(base_type):
+            case ParamAttrConstraint():
+                base_type = cast(
+                    ParamAttrConstraint[ParametrizedAttribute], constraint
+                ).base_attr
                 return base_type.__name__
 
             case _:

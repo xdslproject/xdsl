@@ -86,8 +86,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
             self.file,
-            node.lineno,
-            node.col_offset,
+            getattr(node, "lineno"),
+            getattr(node, "col_offset"),
             f"Unsupported Python AST node {str(node)}",
         )
 
