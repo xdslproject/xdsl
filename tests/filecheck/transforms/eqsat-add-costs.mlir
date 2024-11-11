@@ -9,11 +9,11 @@
 // CHECK-NEXT:      func.return %out : index
 // CHECK-NEXT:    }
 func.func @test(%a : index, %b : index) -> (index) {
-    %a_eq   = eqsat.eclass %a : index
-    %one    = arith.constant 1 : index
+    %a_eq = eqsat.eclass %a : index
+    %one = arith.constant 1 : index
     %one_eq = eqsat.eclass %one : index
-    %amul   = arith.muli %a_eq, %one_eq : index
-    %out    = eqsat.eclass %amul, %a_eq : index
+    %amul = arith.muli %a_eq, %one_eq : index
+    %out = eqsat.eclass %amul, %a_eq : index
     func.return %out : index
 }
 
@@ -23,7 +23,7 @@ func.func @test(%a : index, %b : index) -> (index) {
 // CHECK-NEXT:      func.return %amul : index
 // CHECK-NEXT:    }
 func.func @no_eclass(%a : index, %b : index) -> (index) {
-    %one  = arith.constant 1 : index
+    %one = arith.constant 1 : index
     %amul = arith.muli %a, %one : index
     func.return %amul : index
 }
@@ -38,10 +38,10 @@ func.func @no_eclass(%a : index, %b : index) -> (index) {
 // CHECK-NEXT:    }
 func.func @existing_cost(%a : index, %b : index) -> (index) {
     %a_eq = eqsat.eclass %a : index
-    %one    = arith.constant {"eqsat_cost" = #builtin.int<1000>} 1  : index
+    %one = arith.constant {"eqsat_cost" = #builtin.int<1000>} 1  : index
     %one_eq = eqsat.eclass %one : index
-    %amul   = arith.muli %a_eq, %one_eq : index
-    %out    = eqsat.eclass %amul, %a_eq : index
+    %amul = arith.muli %a_eq, %one_eq : index
+    %out = eqsat.eclass %amul, %a_eq : index
     func.return %out : index
 }
 
@@ -51,10 +51,10 @@ func.func @existing_cost(%a : index, %b : index) -> (index) {
 
 func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
     %a_eq = eqsat.eclass %a  : index
-    %one    = arith.constant {"eqsat_cost" = 1000} 1 : index
+    %one = arith.constant {"eqsat_cost" = 1000} 1 : index
     %one_eq = eqsat.eclass %one : index
-    %amul   = arith.muli %a_eq, %one_eq : index
-    %out    = eqsat.eclass %amul, %a_eq : index
+    %amul = arith.muli %a_eq, %one_eq : index
+    %out = eqsat.eclass %amul, %a_eq : index
     func.return %out : index
 }
 
@@ -65,6 +65,6 @@ func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
 func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
     %a_eq = eqsat.eclass %a  : index
     %test0, %test1 = "test.op"() : () -> (index, index)
-    %out    = eqsat.eclass %test0, %a_eq : index
+    %out = eqsat.eclass %test0, %a_eq : index
     func.return %out : index
 }
