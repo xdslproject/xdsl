@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, cast
+from typing import Literal
 
 from xdsl.dialects.builtin import UnitAttr
 from xdsl.ir import (
@@ -33,7 +33,6 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 from xdsl.utils.lexer import PunctuationSpelling
 
 OperandOrResult = Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT]
@@ -47,11 +46,11 @@ class ParsingState:
     It contains the elements that have already been parsed.
     """
 
-    operands: list[UnresolvedOperand | None | list[UnresolvedOperand | None]]
-    operand_types: list[Attribute | None | list[Attribute | None]]
-    result_types: list[Attribute | None | list[Attribute | None]]
-    regions: list[Region | None | list[Region]]
-    successors: list[Successor | None | list[Successor]]
+    operands: list[UnresolvedOperand | None | Sequence[UnresolvedOperand]]
+    operand_types: list[Attribute | None | Sequence[Attribute]]
+    result_types: list[Attribute | None | Sequence[Attribute]]
+    regions: list[Region | None | Sequence[Region]]
+    successors: list[Successor | None | Sequence[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     constraint_context: ConstraintContext
@@ -125,34 +124,31 @@ class FormatProgram:
 
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
-        assert isa(
-            unresolved_operands,
-            Sequence[UnresolvedOperand | Sequence[UnresolvedOperand]],
-        ), unresolved_operands
         self.resolve_operand_types(state, op_def)
         operand_types = state.operand_types
-        assert isa(operand_types, Sequence[Attribute | Sequence[Attribute]])
+        assert None not in operand_types
 
         # Infer result types that should be inferred
         self.resolve_result_types(state, op_def)
         result_types = state.result_types
-        assert isa(result_types, Sequence[Attribute | Sequence[Attribute]])
+        assert None not in result_types
 
         # Resolve all operands
         operands: Sequence[SSAValue | Sequence[SSAValue]] = []
         for uo, ot in zip(unresolved_operands, operand_types, strict=True):
-            if isinstance(uo, Sequence):
-                assert isinstance(
-                    ot, Sequence
-                ), "Something went wrong with the declarative assembly format parser."
-                "Variadic or optional operand has no type or a single type "
-                operands.append(parser.resolve_operands(uo, ot, parser.pos))
-            else:
+            assert uo is not None
+            if isinstance(uo, UnresolvedOperand):
                 assert isinstance(
                     ot, Attribute
                 ), "Something went wrong with the declarative assembly format parser."
                 "Single operand has no type or variadic/optional type"
                 operands.append(parser.resolve_operand(uo, ot))
+            else:
+                assert isinstance(
+                    ot, Sequence
+                ), f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
+                "Variadic or optional operand has no type or a single type "
+                operands.append(parser.resolve_operands(uo, ot, parser.pos))
 
         # Get the properties from the attribute dictionary if no properties are
         # defined. This is necessary to be compatible with MLIR format, such as
@@ -186,8 +182,7 @@ class FormatProgram:
                     if operand_type is None:
                         continue
                     if isinstance(operand_type, Attribute):
-                        operand_type = [operand_type]
-                    assert isa(operand_type, list[Attribute])
+                        operand_type = (operand_type,)
                     operand_def.constr.verify(operand_type, state.constraint_context)
                 for (_, result_def), result_type in zip(
                     op_def.results, state.result_types, strict=True
@@ -195,8 +190,7 @@ class FormatProgram:
                     if result_type is None:
                         continue
                     if isinstance(result_type, Attribute):
-                        result_type = [result_type]
-                    assert isa(result_type, list[Attribute])
+                        result_type = (result_type,)
                     result_def.constr.verify(result_type, state.constraint_context)
             except VerifyException as e:
                 parser.raise_error(
@@ -213,21 +207,18 @@ class FormatProgram:
         ):
             if operand_type is None:
                 operand = state.operands[i]
-                range_length = len(operand) if isinstance(operand, list) else 1
+                range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
                     range_length, state.constraint_context
                 )
+                resolved_operand_type: Attribute | Sequence[Attribute]
                 if isinstance(operand_def, OptionalDef):
-                    operand_type = (
-                        list[Attribute | None]()
-                        if len(operand_type) == 0
-                        else operand_type[0]
-                    )
+                    resolved_operand_type = operand_type[0] if operand_type else ()
                 elif isinstance(operand_def, VariadicDef):
-                    operand_type = cast(list[Attribute | None], operand_type)
+                    resolved_operand_type = operand_type
                 else:
-                    operand_type = operand_type[0]
-                state.operand_types[i] = operand_type
+                    resolved_operand_type = operand_type[0]
+                state.operand_types[i] = resolved_operand_type
 
     def resolve_result_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
@@ -488,7 +479,7 @@ class VariadicOperandVariable(
         )
         if operands is None:
             operands = []
-        state.operands[self.index] = cast(list[UnresolvedOperand | None], operands)
+        state.operands[self.index] = operands
         return bool(operands)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -511,7 +502,7 @@ class OptionalOperandVariable(OptionalVariable, OptionallyParsableDirective):
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         operand = parser.parse_optional_unresolved_operand()
         if operand is None:
-            operand = list[UnresolvedOperand | None]()
+            operand = ()
         state.operands[self.index] = operand
         return bool(operand)
 
@@ -560,8 +551,8 @@ class VariadicOperandTypeDirective(
             parser.parse_optional_type, parser.parse_type
         )
         if operand_types is None:
-            operand_types = []
-        state.operand_types[self.index] = cast(list[Attribute | None], operand_types)
+            operand_types = ()
+        state.operand_types[self.index] = operand_types
         return bool(operand_types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -582,7 +573,7 @@ class OptionalOperandTypeDirective(OptionalTypeDirective, OptionallyParsableDire
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         type = parser.parse_optional_type()
         if type is None:
-            type = list[Attribute | None]()
+            type = ()
         state.operand_types[self.index] = type
         return bool(type)
 
@@ -700,8 +691,8 @@ class VariadicResultTypeDirective(
             parser.parse_optional_type, parser.parse_type
         )
         if result_types is None:
-            result_types = []
-        state.result_types[self.index] = cast(list[Attribute | None], result_types)
+            result_types = ()
+        state.result_types[self.index] = result_types
         return bool(result_types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -724,7 +715,7 @@ class OptionalResultTypeDirective(
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         type = parser.parse_optional_type()
         if type is None:
-            type = list[Attribute | None]()
+            type = ()
         state.result_types[self.index] = type
         return bool(type)
 
@@ -908,22 +899,15 @@ class AttributeVariable(FormatDirective):
         if unique_base is None:
             attr = parser.parse_attribute()
         elif self.unique_type is not None:
-            unique_base = cast(
-                type[TypedAttribute[Attribute]],
-                unique_base,
-            )
-            attr = unique_base.parse_with_type(parser, self.unique_type)
+            assert issubclass(unique_base, TypedAttribute)
+            attr = unique_base.parse_with_type(parser, self.unique_type)  # pyright: ignore[reportUnknownVariableType]
         elif issubclass(
             unique_base,
             ParametrizedAttribute,
         ):
             attr = unique_base.new(unique_base.parse_parameters(parser))
         elif issubclass(unique_base, Data):
-            unique_base = cast(
-                type[Data[Any]],
-                unique_base,
-            )
-            attr = unique_base.new(unique_base.parse_parameter(parser))
+            attr = unique_base.new(unique_base.parse_parameter(parser))  # pyright: ignore[reportUnknownVariableType]
         else:
             raise ValueError("Attributes must be Data or ParameterizedAttribute.")
         if self.is_property:
@@ -943,7 +927,8 @@ class AttributeVariable(FormatDirective):
             attr = op.attributes[self.name]
 
         if self.unique_type is not None:
-            return cast(TypedAttribute[Attribute], attr).print_without_type(printer)
+            assert isinstance(attr, TypedAttribute)
+            return attr.print_without_type(printer)
         if self.unique_base is None:
             return printer.print_attribute(attr)
         if isinstance(attr, ParametrizedAttribute):
@@ -1115,25 +1100,25 @@ class OptionalGroupDirective(FormatDirective):
                         | VariadicOperandVariable(_, index)
                         | OptionalOperandVariable(_, index)
                     ):
-                        state.operands[index] = list[UnresolvedOperand | None]()
+                        state.operands[index] = ()
                     case (
                         OperandTypeDirective(_, index)
                         | VariadicOperandTypeDirective(_, index)
                         | OptionalOperandTypeDirective(_, index)
                     ):
-                        state.operand_types[index] = list[Attribute | None]()
+                        state.operand_types[index] = ()
                     case (
                         RegionVariable(_, index)
                         | VariadicRegionVariable(_, index)
                         | OptionalRegionVariable(_, index)
                     ):
-                        state.regions[index] = list[Region]()
+                        state.regions[index] = ()
                     case (
                         ResultTypeDirective(_, index)
                         | VariadicResultTypeDirective(_, index)
                         | OptionalResultTypeDirective(_, index)
                     ):
-                        state.result_types[index] = list[Attribute | None]()
+                        state.result_types[index] = ()
                     case _:
                         pass
 
