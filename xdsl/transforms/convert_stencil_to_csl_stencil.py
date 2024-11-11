@@ -114,11 +114,10 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
         assert len(op.offset) == 2
-        if op.temp != op.get_apply().region.block.args[self.arg_index]:
-            return
-
-        # translate access to own data, which operates on stencil.TempType
-        if tuple(op.offset) == (0, 0):
+        # translate access to own data or non-prefetch data, which operates on stencil.TempType
+        if op.temp != op.get_apply().region.block.args[self.arg_index] or tuple(
+            op.offset
+        ) == (0, 0):
             assert isattr(op.res.type, base(AnyTensorType))
             rewriter.replace_matched_op(
                 csl_stencil.AccessOp(

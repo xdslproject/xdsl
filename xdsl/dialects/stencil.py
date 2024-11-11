@@ -1199,6 +1199,27 @@ class LoadOpMemoryEffect(MemoryEffect):
         return {EffectInstance(MemoryEffectKind.READ, cast(LoadOp, op).field)}
 
 
+class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
+    @staticmethod
+    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
+        return (
+            isa(other, TensorType[Attribute])
+            and len(attr.get_shape()) == len(other.get_shape())
+            and attr.get_element_type() == other.get_element_type()
+        )
+
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name in constraint_context.variables:
+            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
+                attr, constraint_context.get_variable(self.name)
+            ):
+                return
+        super().verify(attr, constraint_context)
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
@@ -1216,14 +1237,18 @@ class LoadOp(IRDLOperation):
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr()), "Expected element types to match."
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Expected element types to match.",
             ),
         )
     )
     res = result_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr()), "Expected element types to match."
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Expected element types to match.",
             )
         )
     )
@@ -1337,27 +1362,6 @@ class BufferOp(IRDLOperation):
                 "A stencil.buffer's operand temp should only be buffered. You can use "
                 "stencil.buffer's output instead!"
             )
-
-
-class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
-    @staticmethod
-    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
-        return (
-            isa(other, TensorType[Attribute])
-            and len(attr.get_shape()) == len(other.get_shape())
-            and attr.get_element_type() == other.get_element_type()
-        )
-
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        constraint_context = constraint_context or ConstraintContext()
-        if self.name in constraint_context.variables:
-            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
-                attr, constraint_context.get_variable(self.name)
-            ):
-                return
-        super().verify(attr, constraint_context)
 
 
 class StoreOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
