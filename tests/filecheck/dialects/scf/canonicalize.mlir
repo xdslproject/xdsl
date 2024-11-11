@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p canonicalize --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p canonicalize %s | filecheck %s
 %v0, %v1 = "test.op"() : () -> (index, index)
 
 %c0 = arith.constant 0 : index
