@@ -92,7 +92,7 @@ class StencilShapeMinimize(ModulePass):
                     ]
                 )
             ).rewrite_module(op)
-        ShapeInferencePass().apply(ctx, op)
+            ShapeInferencePass().apply(ctx, op)
         analysis = ShapeAnalysis(seen=set())
         PatternRewriteWalker(analysis).rewrite_module(op)
         bounds = set(
