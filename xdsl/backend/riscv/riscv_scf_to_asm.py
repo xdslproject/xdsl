@@ -99,7 +99,7 @@ class LowerRiscvScfToLabels(RewritePattern):
         self.for_idx += 1
 
 
-class LowerRiscvScfForToLabels(ModulePass):
+class LowerRiscvScfForToLabelsPass(ModulePass):
     name = "lower-riscv-scf-to-labels"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:

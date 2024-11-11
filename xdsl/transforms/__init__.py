@@ -301,7 +301,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_lower_riscv_scf_to_labels():
         from xdsl.backend.riscv import riscv_scf_to_asm
 
-        return riscv_scf_to_asm.LowerRiscvScfForToLabels
+        return riscv_scf_to_asm.LowerRiscvScfForToLabelsPass
 
     def get_lower_snitch():
         from xdsl.transforms import lower_snitch
