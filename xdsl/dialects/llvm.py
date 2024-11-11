@@ -570,6 +570,8 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
     traits = traits_def(NoMemoryEffect())
     non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
 
+    assembly_format = "(`nneg` $nonNeg^)? $arg attr-dict `:` type($arg) `to` type($res)"
+
     def __init__(
         self,
         arg: SSAValue,
@@ -578,41 +580,13 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
         non_neg: UnitAttr | None = None,
     ):
         super().__init__(
-            operands=[arg],
+            operands=(arg,),
             attributes=attributes,
-            result_types=[res_type],
+            result_types=(res_type,),
             properties={
                 "nonNeg": non_neg,
             },
         )
-
-    @classmethod
-    def parse_nneg(cls, parser: Parser):
-        if parser.parse_optional_keyword("nneg") is not None:
-            return UnitAttr()
-
-    def print_nneg(self, printer: Printer) -> None:
-        if self.non_neg:
-            printer.print(" nneg")
-
-    @classmethod
-    def parse(cls, parser: Parser):
-        non_neg = cls.parse_nneg(parser)
-        arg = parser.parse_unresolved_operand()
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_characters(":")
-        arg_type = parser.parse_type()
-        parser.parse_characters("to")
-        res_type = parser.parse_type()
-        operands = parser.resolve_operands([arg], [arg_type], parser.pos)
-        return cls(operands[0], res_type, attributes, non_neg)
-
-    def print(self, printer: Printer):
-        self.print_nneg(printer)
-        printer.print(" ", self.arg)
-        printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.arg.type, " to ", self.res.type)
 
 
 @irdl_op_definition
