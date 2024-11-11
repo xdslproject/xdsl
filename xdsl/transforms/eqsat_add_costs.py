@@ -1,67 +1,65 @@
 from xdsl.context import MLContext
 from xdsl.dialects import builtin, eqsat
 from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import OpResult
+from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.utils.exceptions import DiagnosticException
+
+EQSAT_COST_LABEL = "eqsat_cost"
 
 
-class AddCostEclass(RewritePattern):
-    """
-    Add cost to each operator in an e-class.
-    """
+def get_eqsat_cost(value: SSAValue) -> int | None:
+    if not isinstance(value, OpResult):
+        return 0
+    cost_attribute = value.op.attributes.get(EQSAT_COST_LABEL)
+    if cost_attribute is None:
+        return None
+    if not isinstance(cost_attribute, IntAttr):
+        raise DiagnosticException(
+            f"Unexpected value {cost_attribute} for key {EQSAT_COST_LABEL} in {value.op}"
+        )
+    return cost_attribute.data
 
-    EQSAT_COST_LABEL = "eqsat_cost"
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: eqsat.EClassOp, rewriter: PatternRewriter):
-        for operand in op.operands:
-            if not isinstance(operand, OpResult):
-                # only add costs to operators
-                continue
+def add_eqsat_costs(block: Block):
+    for op in block.ops:
+        if not op.results:
+            # No need to annotate ops without results
+            continue
 
-            # Add cost attribute to operators
-            operation = operand.op
-            operation.attributes[self.EQSAT_COST_LABEL] = IntAttr(1)
+        if EQSAT_COST_LABEL in op.attributes:
+            continue
+
+        if len(op.results) != 1:
+            raise DiagnosticException(
+                f"Cannot compute cost of one result of operation with multiple results: {op}"
+            )
+
+        costs = tuple(get_eqsat_cost(value) for value in op.operands)
+        if None in costs:
+            continue
+
+        if isinstance(op, eqsat.EClassOp):
+            cost = min(cost for cost in costs if cost is not None)
+        else:
+            # For now, set the cost to the costs of the operands + 1
+            cost = sum(cost for cost in costs if cost is not None) + 1
+        op.attributes[EQSAT_COST_LABEL] = IntAttr(cost)
 
 
 class EqsatAddCosts(ModulePass):
     """
     Replace all eqsat.eclass operations in an MLIR program.
-
-    Input example:
-       ```mlir
-        func.func @test(%a : index, %b : index) -> (index) {
-            %a_eq   = eqsat.eclass %a : index
-            %one    = arith.constant 1 : index
-            %one_eq = eqsat.eclass %one : index
-            %amul = arith.muli %a_eq, %one_eq   : index
-
-            %out  = eqsat.eclass %amul, %a_eq : index
-            func.return %out : index
-        }
-       ```
-    Output example:
-        ```mlir
-        builtin.module {
-            func.func @test(%a : index, %b : index) -> index {
-              %a_eq = eqsat.eclass %a {"eqsat_cost" = #builtin.int<1>} : index
-              %one = arith.constant {"eqsat_cost" = #builtin.int<1>} 1 : index
-              %one_eq = eqsat.eclass %one : index
-              %amul = arith.muli %a_eq, %one_eq : index
-              %out = eqsat.eclass %amul, %a_eq : index
-              func.return %out : index
-            }
-        }
-        ```
     """
 
     name = "eqsat-add-costs"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(AddCostEclass()).rewrite_module(op)
+        eclass_parent_blocks = set(
+            o.parent
+            for o in op.walk()
+            if o.parent is not None and isinstance(o, eqsat.EClassOp)
+        )
+        assert eclass_parent_blocks
+        for block in eclass_parent_blocks:
+            add_eqsat_costs(block)
