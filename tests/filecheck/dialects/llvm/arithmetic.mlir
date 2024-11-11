@@ -68,11 +68,17 @@
 %trunc = llvm.trunc %arg0 : i32 to i16
 // CHECK: %trunc = llvm.trunc %arg0 : i32 to i16
 
+%trunc_overflow = llvm.trunc %arg0 overflow<nsw> : i32 to i16
+// CHECK: %trunc_overflow = llvm.trunc %arg0 overflow<nsw> : i32 to i16
+
 %sext = llvm.sext %arg0 : i32 to i64
 // CHECK: %sext = llvm.sext %arg0 : i32 to i64
 
 %zext = llvm.zext %arg0 : i32 to i64
 // CHECK: %zext = llvm.zext %arg0 : i32 to i64
+
+%zext_nneg = llvm.zext nneg %arg0 : i32 to i64
+// CHECK: %zext_nneg = llvm.zext nneg %arg0 : i32 to i64
 
 %cst1 = llvm.mlir.constant(false) : i1
 // CHECK: %cst1 = llvm.mlir.constant(false) : i1

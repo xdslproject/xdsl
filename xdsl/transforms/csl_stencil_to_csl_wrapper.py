@@ -30,12 +30,12 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms import csl_stencil_bufferize
+from xdsl.transforms.function_transformations import (
+    TIMER_END,
+    TIMER_START,
+)
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
-
-_TIMER_START = "timer_start"
-_TIMER_END = "timer_end"
-_TIMER_FUNC_NAMES = [_TIMER_START, _TIMER_END]
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -64,7 +64,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         # erase timer stubs
-        if op.is_declaration and op.sym_name.data in _TIMER_FUNC_NAMES:
+        if op.is_declaration and op.sym_name.data in [TIMER_START, TIMER_END]:
             rewriter.erase_matched_op()
             return
         # find csl_stencil.apply ops, abort if there are none
@@ -250,7 +250,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 isinstance(u.operation, llvm.StoreOp)
                 and isinstance(u.operation.value, OpResult)
                 and isinstance(u.operation.value.op, func.Call)
-                and u.operation.value.op.callee.string_value() == _TIMER_END
+                and u.operation.value.op.callee.string_value() == TIMER_END
                 for u in arg.uses
             ):
                 start_end_size = 3
@@ -394,9 +394,9 @@ class LowerTimerFuncCall(RewritePattern):
     def match_and_rewrite(self, op: llvm.StoreOp, rewriter: PatternRewriter, /):
         if (
             not isinstance(end_call := op.value.owner, func.Call)
-            or not end_call.callee.string_value() == _TIMER_END
+            or not end_call.callee.string_value() == TIMER_END
             or not (isinstance(start_call := end_call.arguments[0].owner, func.Call))
-            or not start_call.callee.string_value() == _TIMER_START
+            or not start_call.callee.string_value() == TIMER_START
             or not (wrapper := _get_module_wrapper(op))
             or not isa(op.ptr.type, AnyMemRefType)
         ):

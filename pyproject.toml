@@ -24,14 +24,14 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.9.15",
+    "marimo==0.9.17",
     "pre-commit==4.0.1",
-    "ruff==0.7.2",
+    "ruff==0.7.3",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.6.1",
     "pytest-asyncio==0.24.0",
-    "pyright==1.1.387",
+    "pyright==1.1.388",
 ]
 gui = ["textual==0.85.2", "pyclip==0.7"]
 jax = ["jax==0.4.35", "numpy==2.1.3"]
