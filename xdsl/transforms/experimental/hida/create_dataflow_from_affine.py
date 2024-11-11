@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.builder import InsertPoint
 from xdsl.context import MLContext
-from xdsl.dialects import affine, builtin, func, memref, scf
+from xdsl.dialects import affine, arith, builtin, func, memref, scf
 from xdsl.dialects.experimental.hida_functional import DispatchOp, TaskOp
 from xdsl.dialects.experimental.hida_structural import NodeOp
 from xdsl.dialects.experimental.utils import (
@@ -87,6 +87,21 @@ class DispatchBlocks(RewritePattern):
             # rewriter.insert_op(dispatch_op, InsertPoint.before(band[-1].body.block.last_op))
 
 
+# Temporary fix for the lack of constant folding in xDSL. MLIR applies constant folding before applying other patterns,
+# as a result, some constants might not belong in the dispatch regions.
+@dataclass
+class ConstantFolding(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter):
+        if len(op.result.uses) > 2:
+            parent_op = op.parent_op()
+            while not isinstance(parent_op, func.FuncOp):
+                parent_op = parent_op.parent_op()
+
+            op.detach()
+            rewriter.insert_op(op, InsertPoint.at_start(parent_op.body.block))
+
+
 @dataclass(frozen=True)
 class CreateDataflowFromAffine(ModulePass):
     name = "hida-create-dataflow-from-affine"
@@ -102,6 +117,17 @@ class CreateDataflowFromAffine(ModulePass):
             walk_reverse=False,
         )
         dispatch_pass.rewrite_module(op)
+
+        constant_folding_pass = PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    ConstantFolding(),
+                ]
+            ),
+            apply_recursively=False,
+            walk_reverse=False,
+        )
+        constant_folding_pass.rewrite_module(op)
 
         task_partition_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
