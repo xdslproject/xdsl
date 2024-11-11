@@ -323,7 +323,7 @@ async def test_rewrites():
 
         addi_pass = AvailablePass(
             display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
-            module_pass=individual_rewrite.ApplyIndividualRewrite,
+            module_pass=individual_rewrite.ApplyIndividualRewritePass,
             pass_spec=list(
                 parse_pipeline(
                     'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
@@ -344,7 +344,7 @@ async def test_rewrites():
         app.pass_pipeline = (
             *app.pass_pipeline,
             (
-                individual_rewrite.ApplyIndividualRewrite,
+                individual_rewrite.ApplyIndividualRewritePass,
                 list(
                     parse_pipeline(
                         'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'

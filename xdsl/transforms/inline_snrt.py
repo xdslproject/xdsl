@@ -658,7 +658,7 @@ class LowerClusterIdx(RewritePattern):
 
 
 @dataclass(frozen=True)
-class InlineSnrt(SnrtConstants, ModulePass):
+class InlineSnrtPass(SnrtConstants, ModulePass):
     """
     Inline operations of the snrt dialect to their definitions.
 

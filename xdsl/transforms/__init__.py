@@ -7,9 +7,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
 
     def get_apply_individual_rewrite():
-        from xdsl.transforms.individual_rewrite import ApplyIndividualRewrite
+        from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 
-        return ApplyIndividualRewrite
+        return ApplyIndividualRewritePass
 
     def get_apply_pdl():
         from xdsl.transforms import apply_pdl
@@ -246,7 +246,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_inline_snrt():
         from xdsl.transforms import inline_snrt
 
-        return inline_snrt.InlineSnrt
+        return inline_snrt.InlineSnrtPass
 
     def get_lift_arith_to_linalg():
         from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg

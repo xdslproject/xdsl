@@ -33,7 +33,7 @@ def convert_indexed_individual_rewrites_to_available_pass(
     """
     rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
     for op_idx, (op_name, pat_name) in rewrites:
-        rewrite_pass = individual_rewrite.ApplyIndividualRewrite
+        rewrite_pass = individual_rewrite.ApplyIndividualRewritePass
         rewrite_spec = PipelinePassSpec(
             name=rewrite_pass.name,
             args={
