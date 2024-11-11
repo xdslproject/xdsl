@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -p eqsat-add-costs --verify-diagnostics --split-input-file %s | filecheck %s
 
-// CHECK:         func.func @test(%a : index, %b : index) -> index {
+// CHECK:         func.func @trivial_arithmetic(%a : index, %b : index) -> index {
 // CHECK-NEXT:      %a_eq = eqsat.eclass %a {"eqsat_cost" = #builtin.int<0>} : index
 // CHECK-NEXT:      %one = arith.constant {"eqsat_cost" = #builtin.int<1>} 1 : index
 // CHECK-NEXT:      %one_eq = eqsat.eclass %one {"eqsat_cost" = #builtin.int<1>} : index
@@ -8,7 +8,7 @@
 // CHECK-NEXT:      %out = eqsat.eclass %amul, %a_eq {"eqsat_cost" = #builtin.int<0>} : index
 // CHECK-NEXT:      func.return %out : index
 // CHECK-NEXT:    }
-func.func @test(%a : index, %b : index) -> (index) {
+func.func @trivial_arithmetic(%a : index, %b : index) -> (index) {
     %a_eq = eqsat.eclass %a : index
     %one = arith.constant 1 : index
     %one_eq = eqsat.eclass %one : index
