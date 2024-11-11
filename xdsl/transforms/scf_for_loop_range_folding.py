@@ -46,6 +46,9 @@ class ScfForLoopRangeFolding(RewritePattern):
                     return
                 folding_const = user.operands[0]
 
+            new_name_hint = (
+                user.result.name_hint if user.result.name_hint is not None else "new"
+            )
             match user:
                 case arith.Addi():
                     rewriter.insert_op_before_matched_op(
@@ -62,11 +65,11 @@ class ScfForLoopRangeFolding(RewritePattern):
                             new_step := arith.Muli(op.step, folding_const),
                         ]
                     )
-                    new_step.result.name_hint = "new_step"
                     op.operands[2] = new_step.result
+                    new_step.result.name_hint = new_name_hint + "_step"
 
-            new_lb.result.name_hint = "new_lb"
-            new_ub.result.name_hint = "new_ub"
+            new_lb.result.name_hint = new_name_hint + "_lb"
+            new_ub.result.name_hint = new_name_hint + "_ub"
             op.operands[0] = new_lb.result
             op.operands[1] = new_ub.result
 
