@@ -40,53 +40,52 @@ class RiscvToLLVMPattern(RewritePattern):
         # populate assembly_args_str and constraints
         for arg in op.assembly_line_args():
             # ssa value used as an output operand
-            if (
-                isinstance(arg, OpResult)
-                and isinstance(arg.type, IntRegisterType)
-                and arg.op is op
-            ):
-                # if we are storing to zero, we can't produce a result, so replace result by
-                # a get_register for the zero registers.
-                if arg.type.is_allocated and arg.type.index == IntAttr(0):
-                    assembly_args_str.append("x0")
-                    ops_to_insert.append(zero := riscv.GetRegisterOp(arg.type))
-                    # map final result to an existing SSA value
-                    result_map.append(zero.res)
-                    continue
-                # all other registers are treated as if they were unallocated
-                # meaning we cast them to i32 and pass values to the op
-                assembly_args_str.append(f"${len(inputs) + num_results}")
-                constraints.append("=r")
-                # map final result to a result of the inline asm op
-                result_map.append(num_results)
-                num_results += 1
+            match arg:
+                case OpResult() if arg.owner is op and isinstance(
+                    arg.type, IntRegisterType
+                ):
+                    # if we are storing to zero, we can't produce a result, so replace result by
+                    # a get_register for the zero registers.
+                    if arg.type.is_allocated and arg.type.index == IntAttr(0):
+                        assembly_args_str.append("x0")
+                        ops_to_insert.append(zero := riscv.GetRegisterOp(arg.type))
+                        # map final result to an existing SSA value
+                        result_map.append(zero.res)
+                        continue
+                    # all other registers are treated as if they were unallocated
+                    # meaning we cast them to i32 and pass values to the op
+                    assembly_args_str.append(f"${len(inputs) + num_results}")
+                    constraints.append("=r")
+                    # map final result to a result of the inline asm op
+                    result_map.append(num_results)
+                    num_results += 1
 
-            # ssa value used as an input operand
-            elif isinstance(arg, SSAValue) and isinstance(arg.type, IntRegisterType):
-                # if the input is allocated to a zero register, use that register
-                # other allocated registers are treaded as if they were unallocated
-                if arg.type.is_allocated and arg.type.index == IntAttr(0):
-                    assembly_args_str.append("x0")
-                # otherwise we need to get the value from the SSA value
-                else:
-                    conversion_op = UnrealizedConversionCastOp.get([arg], [builtin.i32])
-                    ops_to_insert.append(conversion_op)
-                    inputs.append(conversion_op.outputs[0])
-                    constraints.append("rI")
-                    assembly_args_str.append(f"${len(inputs) + num_results - 1}")
+                case SSAValue() if isinstance(arg.type, IntRegisterType):
+                    # if the input is allocated to a zero register, use that register
+                    # other allocated registers are treaded as if they were unallocated
+                    if arg.type.is_allocated and arg.type.index == IntAttr(0):
+                        assembly_args_str.append("x0")
+                    # otherwise we need to get the value from the SSA value
+                    else:
+                        conversion_op = UnrealizedConversionCastOp.get(
+                            [arg], [builtin.i32]
+                        )
+                        ops_to_insert.append(conversion_op)
+                        inputs.append(conversion_op.outputs[0])
+                        constraints.append("rI")
+                        assembly_args_str.append(f"${len(inputs) + num_results - 1}")
 
-            # constant value used as an immediate
-            elif isinstance(arg, IntegerAttr):
-                assembly_args_str.append(str(arg.value.data))
+                case IntegerAttr():
+                    # constant value used as an immediate
+                    assembly_args_str.append(str(arg.value.data))
 
-            # not supported argument
-            else:
-                raise DiagnosticException(
-                    "unsupported argument for conversion to an llvm inline assembly instruction"
-                )
+                case _:
+                    raise DiagnosticException(
+                        "unsupported argument for conversion to an llvm inline assembly instruction"
+                    )
 
         # construct asm_string
-        iname = op.assembly_instruction_name()
+        instruction_name = op.assembly_instruction_name()
 
         # check if the operation has a custom insn string (for compatibility reasons)
         custom_insn = op.get_trait(HasInsnRepresentation)
@@ -94,10 +93,9 @@ class RiscvToLLVMPattern(RewritePattern):
             # generate custom insn inline assembly instruction
             insn_str = custom_insn.get_insn(op)
             asm_string = insn_str.format(*assembly_args_str)
-
         else:
             # generate generic riscv inline assembly instruction
-            asm_string = iname + " " + ", ".join(assembly_args_str)
+            asm_string = instruction_name + " " + ", ".join(assembly_args_str)
 
         # construct constraints_string
         constraints_string = ",".join(constraints)
@@ -115,7 +113,7 @@ class RiscvToLLVMPattern(RewritePattern):
         op_results = new_op.results
 
         # cast output back to original type if necessary
-        if num_results > 0:
+        if num_results:
             ops_to_insert.append(
                 output_op := UnrealizedConversionCastOp.get(
                     new_op.results, [r.type for r in op.results]
