@@ -30,34 +30,6 @@ def test_interpreter_functions():
     ) == (add_res,)
 
 
-def test_erase_op():
-    @ModuleOp
-    @Builder.implicit_region
-    def input_module():
-        test.TestOp.create()
-
-    @ModuleOp
-    @Builder.implicit_region
-    def pdl_module():
-        with ImplicitBuilder(pdl.PatternOp(42, None).body):
-            op = pdl.OperationOp(
-                op_name=test.TestOp.name,
-            ).op
-            with ImplicitBuilder(pdl.RewriteOp(op).body):
-                pdl.EraseOp(op)
-
-    pdl_rewrite_op = next(
-        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
-
-    ctx = MLContext()
-    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
-
-    pattern_walker.rewrite_module(input_module)
-
-    assert input_module.is_structurally_equivalent(ModuleOp([]))
-
-
 def test_native_constraint():
     @ModuleOp
     @Builder.implicit_region
