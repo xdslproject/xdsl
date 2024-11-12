@@ -14,6 +14,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.traits import HasInsnRepresentation
+from xdsl.utils.exceptions import DiagnosticException
 
 
 @dataclass(frozen=True)
@@ -62,7 +63,8 @@ class RiscvToLLVMPattern(RewritePattern):
 
             # ssa value used as an input operand
             elif isinstance(arg, SSAValue) and isinstance(arg.type, IntRegisterType):
-                # if the input is allocated to a register, use that register
+                # if the input is allocated to a zero register, use that register
+                # other allocated registers are treaded as if they were unallocated
                 if arg.type.is_allocated and arg.type.index == IntAttr(0):
                     assembly_args_str.append("x0")
                 # otherwise we need to get the value from the SSA value
@@ -79,7 +81,9 @@ class RiscvToLLVMPattern(RewritePattern):
 
             # not supported argument
             else:
-                return
+                raise DiagnosticException(
+                    "unsupported argument for conversion to an llvm inline assembly instruction"
+                )
 
         # construct asm_string
         iname = op.assembly_instruction_name()
@@ -88,13 +92,7 @@ class RiscvToLLVMPattern(RewritePattern):
         custom_insn = op.get_trait(HasInsnRepresentation)
         if custom_insn is not None:
             # generate custom insn inline assembly instruction
-            # thank you pyright for making my code so much better I truly appreciate your presence
-            # put the forbidden ~fruit~ method in a variable with a short name:
-            n = custom_insn.get_insn
-            # because if the name is too long, black will force the comment to be not in the same line as the call
-            # making pyright not see the comment.
-            # this continues to eat my sanity every day.
-            insn_str = n(op)  # pyright: ignore[reportGeneralTypeIssues]
+            insn_str = custom_insn.get_insn(op)
             asm_string = insn_str.format(*assembly_args_str)
 
         else:
