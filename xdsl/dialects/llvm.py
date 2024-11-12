@@ -532,6 +532,39 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
         printer.print(self.lhs.type)
 
 
+class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
+    """Class for arithmetic binary operations that use a disjoint flag."""
+
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+    is_disjoint = opt_prop_def(UnitAttr, prop_name="isDisjoint")
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = (
+        "(`disjoint` $isDisjoint^)? $lhs `,` $rhs attr-dict `:` type($res)"
+    )
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+        is_disjoint: UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+            properties={
+                "isDisjoint": is_disjoint,
+            },
+        )
+
+
 class IntegerConversionOp(IRDLOperation, ABC):
     arg = operand_def(IntegerType)
 
@@ -674,7 +707,7 @@ class AndOp(ArithmeticBinOperation):
 
 
 @irdl_op_definition
-class OrOp(ArithmeticBinOperation):
+class OrOp(ArithmeticBinOpDisjoint):
     name = "llvm.or"
 
 
