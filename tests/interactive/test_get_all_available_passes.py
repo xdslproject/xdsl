@@ -13,10 +13,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms import (
-    convert_riscv_to_llvm,
-    reconcile_unrealized_casts,
-)
 from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
@@ -92,16 +88,6 @@ def test_get_all_available_passes():
             AvailablePass(
                 display_name="bc",
                 module_pass=BCPass,
-                pass_spec=None,
-            ),
-            AvailablePass(
-                display_name="convert-riscv-to-llvm",
-                module_pass=convert_riscv_to_llvm.ConvertRiscvToLLVMPass,
-                pass_spec=None,
-            ),
-            AvailablePass(
-                display_name="reconcile-unrealized-casts",
-                module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
                 pass_spec=None,
             ),
             AvailablePass(
