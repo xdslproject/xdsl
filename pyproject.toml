@@ -101,7 +101,6 @@ ignore = [
     "PT007", # https://beta.ruff.rs/docs/rules/pytest-parametrize-values-wrong-type/
     "PT011", # https://beta.ruff.rs/docs/rules/pytest-raises-too-broad/
     "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
-    "PT015", # https://beta.ruff.rs/docs/rules/pytest-assert-always-false/
 ]
 
 [tool.ruff.lint.pycodestyle]

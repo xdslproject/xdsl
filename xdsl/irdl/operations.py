@@ -15,6 +15,7 @@ from typing import (
     Literal,
     TypeAlias,
     TypeVar,
+    assert_never,
     cast,
     get_args,
     get_origin,
@@ -1349,15 +1350,16 @@ def get_construct_defs(
     | list[tuple[str, SuccessorDef]]
 ):
     """Get the definitions of this type in an operation definition."""
-    if construct == VarIRConstruct.OPERAND:
-        return op_def.operands
-    if construct == VarIRConstruct.RESULT:
-        return op_def.results
-    if construct == VarIRConstruct.REGION:
-        return op_def.regions
-    if construct == VarIRConstruct.SUCCESSOR:
-        return op_def.successors
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return op_def.operands
+        case VarIRConstruct.RESULT:
+            return op_def.results
+        case VarIRConstruct.REGION:
+            return op_def.regions
+        case VarIRConstruct.SUCCESSOR:
+            return op_def.successors
+    assert_never(construct)
 
 
 def get_op_constructs(
@@ -1368,15 +1370,16 @@ def get_op_constructs(
     For example, if the argument type is an operand, get the list of
     operands.
     """
-    if construct == VarIRConstruct.OPERAND:
-        return op.operands
-    if construct == VarIRConstruct.RESULT:
-        return op.results
-    if construct == VarIRConstruct.REGION:
-        return op.regions
-    if construct == VarIRConstruct.SUCCESSOR:
-        return op.successors
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return op.operands
+        case VarIRConstruct.RESULT:
+            return op.results
+        case VarIRConstruct.REGION:
+            return op.regions
+        case VarIRConstruct.SUCCESSOR:
+            return op.successors
+    assert_never(construct)
 
 
 def get_attr_size_option(
@@ -1388,15 +1391,16 @@ def get_attr_size_option(
     | AttrSizedSuccessorSegments
 ]:
     """Get the AttrSized option for this type."""
-    if construct == VarIRConstruct.OPERAND:
-        return AttrSizedOperandSegments
-    if construct == VarIRConstruct.RESULT:
-        return AttrSizedResultSegments
-    if construct == VarIRConstruct.REGION:
-        return AttrSizedRegionSegments
-    if construct == VarIRConstruct.SUCCESSOR:
-        return AttrSizedSuccessorSegments
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return AttrSizedOperandSegments
+        case VarIRConstruct.RESULT:
+            return AttrSizedResultSegments
+        case VarIRConstruct.REGION:
+            return AttrSizedRegionSegments
+        case VarIRConstruct.SUCCESSOR:
+            return AttrSizedSuccessorSegments
+    assert_never(construct)
 
 
 def get_same_variadic_size_option(
@@ -1408,15 +1412,16 @@ def get_same_variadic_size_option(
     | SameVariadicSuccessorSize
 ]:
     """Get the AttrSized option for this type."""
-    if construct == VarIRConstruct.OPERAND:
-        return SameVariadicOperandSize
-    if construct == VarIRConstruct.RESULT:
-        return SameVariadicResultSize
-    if construct == VarIRConstruct.REGION:
-        return SameVariadicRegionSize
-    if construct == VarIRConstruct.SUCCESSOR:
-        return SameVariadicSuccessorSize
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return SameVariadicOperandSize
+        case VarIRConstruct.RESULT:
+            return SameVariadicResultSize
+        case VarIRConstruct.REGION:
+            return SameVariadicRegionSize
+        case VarIRConstruct.SUCCESSOR:
+            return SameVariadicSuccessorSize
+    assert_never(construct)
 
 
 def get_multiple_variadic_options(
@@ -1538,20 +1543,17 @@ def get_variadic_sizes(
     # If the operation has to related SameSize option, equally distribute the
     # variadic arguments between the variadic definitions.
     option = next((o for o in op_def.options if isinstance(o, same_size_option)), None)
-    if option is not None:
-        non_variadic_defs = len(defs) - len(variadic_defs)
-        variadic_args = len(args) - non_variadic_defs
-        if variadic_args % len(variadic_defs):
-            name = get_construct_name(construct)
-            raise VerifyException(
-                f"Operation has {variadic_args} {name}s for {len(variadic_defs)} variadic {name}s marked as having the same size."
-            )
-        return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
-    # Unreachable, all cases should have been handled.
-    # Additional cases should raise an exception upon
-    # definition of the irdl operation.
-    assert False, "Unexpected xDSL error while fetching variadic sizes"
+    assert option is not None, "Unexpected xDSL error while fetching variadic sizes"
+
+    non_variadic_defs = len(defs) - len(variadic_defs)
+    variadic_args = len(args) - non_variadic_defs
+    if variadic_args % len(variadic_defs):
+        name = get_construct_name(construct)
+        raise VerifyException(
+            f"Operation has {variadic_args} {name}s for {len(variadic_defs)} variadic {name}s marked as having the same size."
+        )
+    return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
 
 def get_operand_result_or_region(
