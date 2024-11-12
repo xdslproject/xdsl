@@ -31,6 +31,7 @@ from xdsl.irdl import (
     opt_operand_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -366,7 +367,7 @@ class AcceleratorOp(IRDLOperation):
 
     name = "accfg.accelerator"
 
-    traits = frozenset([AcceleratorSymbolOpTrait()])
+    traits = traits_def(AcceleratorSymbolOpTrait())
 
     name_prop = prop_def(SymbolRefAttr, prop_name="name")
 
