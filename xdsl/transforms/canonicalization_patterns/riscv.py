@@ -70,6 +70,49 @@ class MultiplyImmediateZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
+class MulImmediatePower2(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
+        lhs: int | None = None
+        rhs: int | None = None
+
+        if (rs1 := get_constant_value(op.rs1)) is not None:
+            lhs = rs1.value.data
+        if (rs2 := get_constant_value(op.rs2)) is not None:
+            rhs = rs2.value.data
+
+        rd = cast(riscv.IntRegisterType, op.rd.type)
+
+        if rhs is None:
+            return
+
+        # get shl immediate
+        i = int(log2(abs(rhs)))
+
+        match (lhs, rhs < 0):
+            case None, False:
+                rewriter.replace_matched_op(
+                    riscv.SlliOp(op.rs1, i, rd=rd, comment=op.comment)
+                )
+            case int(), False:
+                rewriter.replace_matched_op(
+                    riscv.LiOp(lhs << i, rd=rd, comment=op.comment)
+                )
+            case None, True:
+                # no negation operator, so sub from zero register
+                zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
+                rewriter.replace_matched_op(
+                    [
+                        riscv.SlliOp(op.rs1, i, rd=rd),
+                        riscv.SubOp(zero, op.rd, rd=rd, comment=op.comment),
+                    ]
+                )
+            case int(), True:
+                rewriter.replace_matched_op(
+                    riscv.LiOp(-(lhs << i), rd=rd, comment=op.comment)
+                )
+
+
 class AddImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:
@@ -166,106 +209,6 @@ class SubImmediates(RewritePattern):
                 )
             case _:
                 pass
-
-
-class MulImmediatePower2(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
-        lhs: int | None = None
-        rhs: int | None = None
-        if (rs1 := get_constant_value(op.rs1)) is not None:
-            lhs = rs1.value.data
-
-        if (rs2 := get_constant_value(op.rs2)) is not None:
-            rhs = rs2.value.data
-
-        rd = cast(riscv.IntRegisterType, op.rd.type)
-
-        if rhs is None:
-            return
-
-        i = int(log2(abs(rhs)))
-
-        match (lhs, rhs < 0):
-            case None, False:
-                rewriter.replace_matched_op(riscv.SlliOp(op.rs1, i, rd=rd, comment=op.comment))
-            case int(), False:
-                rewriter.replace_matched_op(riscv.LiOp(lhs << i, rd=rd, comment=op.comment))
-            case None, True:
-                zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
-                rewriter.replace_matched_op([
-                    riscv.SlliOp(op.rs1, i, rd=rd),
-                    riscv.SubOp(zero_op, op.rd, rd=rd, comment=op.comment),
-                ])
-            case int(), True:
-                rewriter.replace_matched_op([riscv.LiOp(lhs << i, rd=rd), riscv.(rd=rd)])
-
-
-class MulImmediateConstantPower2(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
-            op.rs2, OpResult
-        ):
-            rhs = get_constant_value(op.rs2)
-        elif (rs2 := get_constant_value(op.rs2)) is not None and isinstance(
-            op.rs1, OpResult
-        ):
-            rhs = get_constant_value(op.rs1)
-        else:
-            return
-
-        rd = cast(riscv.IntRegisterType, op.rd.type)
-
-        if rhs is None:
-            return
-
-        # ignore non power of 2 values
-        if rhs.value.data & (rhs.value.data - 1) != 0:
-            return
-
-        i = int(log2(abs(rhs.value.data)))
-
-        rewriter.replace_matched_op(
-            riscv.SlliOp(
-                rs1 if isinstance(op.rs1, OpResult) else op.rs1,
-                i,
-                rd=rd,
-                comment=op.comment,
-            )
-        )
-
-        # negate if rhs is negative
-        if rhs.value.data < 0:
-            rewriter.replace_op(
-                riscv.NegOp(
-                    rd,
-                    rd=rd,
-                    comment=op.comment,
-                )
-            )
-
-
-class RemoveRedundantSll(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SllOp, rewriter: PatternRewriter) -> None:
-        rhs: int | None = None
-        if (rs2 := get_constant_value(op.rs2)) is not None:
-            rhs = rs2.value.data
-
-        if rhs != 0:
-            return
-
-        rewriter.replace_matched_op([], [op.rs1])
-
-
-class RemoveRedundantSrli(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SrliOp, rewriter: PatternRewriter) -> None:
-        if (
-            immediate := get_constant_value(op.rs2)
-        ) is not None and immediate.value.data == 0:
-            rewriter.replace_matched_op([], [op.rs1])
 
 
 class SubAddi(RewritePattern):
