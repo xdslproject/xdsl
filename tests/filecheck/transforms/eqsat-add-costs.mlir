@@ -5,10 +5,10 @@
 // CHECK-NEXT:      %one = arith.constant {"eqsat_cost" = #builtin.int<1>} 1 : index
 // CHECK-NEXT:      %one_eq = eqsat.eclass %one {"eqsat_cost" = #builtin.int<1>} : index
 // CHECK-NEXT:      %two = arith.constant {"eqsat_cost" = #builtin.int<1>} 2 : index
-// CHECK-NEXT:      %two_eq = eqsat.eclass %one {"eqsat_cost" = #builtin.int<1>} : index
+// CHECK-NEXT:      %two_eq = eqsat.eclass %two {"eqsat_cost" = #builtin.int<1>} : index
+// CHECK-NEXT:      %a_shift_one = arith.shli %a_eq, %one_eq {"eqsat_cost" = #builtin.int<2>} : index
 // CHECK-NEXT:      %a_times_two = arith.muli %a_eq, %two_eq {"eqsat_cost" = #builtin.int<2>} : index
-// CHECK-NEXT:      %a_shift_one = arith.shli %a_eq, %two_eq {"eqsat_cost" = #builtin.int<2>} : index
-// CHECK-NEXT:      %res_eq = eqsat.eclass %a_times_two, %a_shift_one {"eqsat_cost" = #builtin.int<2>} : index
+// CHECK-NEXT:      %res_eq = eqsat.eclass %a_shift_one, %a_times_two {"eqsat_cost" = #builtin.int<2>} : index
 // CHECK-NEXT:      func.return %res_eq : index
 // CHECK-NEXT:    }
 func.func @trivial_arithmetic(%a : index, %b : index) -> (index) {
@@ -16,10 +16,10 @@ func.func @trivial_arithmetic(%a : index, %b : index) -> (index) {
     %one = arith.constant 1 : index
     %one_eq = eqsat.eclass %one : index
     %two = arith.constant 2 : index
-    %two_eq = eqsat.eclass %one : index
+    %two_eq = eqsat.eclass %two : index
+    %a_shift_one = arith.shli %a_eq, %one_eq : index
     %a_times_two = arith.muli %a_eq, %two_eq : index
-    %a_shift_one = arith.shli %a_eq, %two_eq : index
-    %res_eq = eqsat.eclass %a_times_two, %a_shift_one : index
+    %res_eq = eqsat.eclass %a_shift_one, %a_times_two : index
     func.return %res_eq : index
 }
 
@@ -39,10 +39,10 @@ func.func @no_eclass(%a : index, %b : index) -> (index) {
 // CHECK-NEXT:      %one = arith.constant {"eqsat_cost" = #builtin.int<1000>} 1 : index
 // CHECK-NEXT:      %one_eq = eqsat.eclass %one {"eqsat_cost" = #builtin.int<1000>} : index
 // CHECK-NEXT:      %two = arith.constant {"eqsat_cost" = #builtin.int<1>} 2 : index
-// CHECK-NEXT:      %two_eq = eqsat.eclass %one {"eqsat_cost" = #builtin.int<1000>} : index
-// CHECK-NEXT:      %a_times_two = arith.muli %a_eq, %two_eq {"eqsat_cost" = #builtin.int<1001>} : index
-// CHECK-NEXT:      %a_shift_one = arith.shli %a_eq, %two_eq {"eqsat_cost" = #builtin.int<1001>} : index
-// CHECK-NEXT:      %res_eq = eqsat.eclass %a_times_two, %a_shift_one {"eqsat_cost" = #builtin.int<1001>} : index
+// CHECK-NEXT:      %two_eq = eqsat.eclass %two {"eqsat_cost" = #builtin.int<1>} : index
+// CHECK-NEXT:      %a_shift_one = arith.shli %a_eq, %one_eq {"eqsat_cost" = #builtin.int<1001>} : index
+// CHECK-NEXT:      %a_times_two = arith.muli %a_eq, %two_eq {"eqsat_cost" = #builtin.int<2>} : index
+// CHECK-NEXT:      %res_eq = eqsat.eclass %a_shift_one, %a_times_two {"eqsat_cost" = #builtin.int<2>} : index
 // CHECK-NEXT:      func.return %res_eq : index
 // CHECK-NEXT:    }
 func.func @existing_cost(%a : index, %b : index) -> (index) {
@@ -51,10 +51,10 @@ func.func @existing_cost(%a : index, %b : index) -> (index) {
     %one = arith.constant {"eqsat_cost" = #builtin.int<1000>} 1  : index
     %one_eq = eqsat.eclass %one : index
     %two = arith.constant 2 : index
-    %two_eq = eqsat.eclass %one : index
+    %two_eq = eqsat.eclass %two : index
+    %a_shift_one = arith.shli %a_eq, %one_eq : index
     %a_times_two = arith.muli %a_eq, %two_eq : index
-    %a_shift_one = arith.shli %a_eq, %two_eq : index
-    %res_eq = eqsat.eclass %a_times_two, %a_shift_one : index
+    %res_eq = eqsat.eclass %a_shift_one, %a_times_two : index
     func.return %res_eq : index
 }
 
@@ -67,10 +67,10 @@ func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
     %one = arith.constant {"eqsat_cost" = 1000} 1  : index
     %one_eq = eqsat.eclass %one : index
     %two = arith.constant 2 : index
-    %two_eq = eqsat.eclass %one : index
+    %two_eq = eqsat.eclass %two : index
     %a_times_two = arith.muli %a_eq, %two_eq : index
-    %a_shift_one = arith.shli %a_eq, %two_eq : index
-    %res_eq = eqsat.eclass %a_times_two, %a_shift_one : index
+    %a_shift_one = arith.shli %a_eq, %one_eq : index
+    %res_eq = eqsat.eclass %a_shift_one, %a_times_two : index
     func.return %res_eq : index
 }
 
