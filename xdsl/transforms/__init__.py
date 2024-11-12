@@ -213,6 +213,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_global_to_local.DmpToMpiPass
 
+    def get_eqsat_add_costs():
+        from xdsl.transforms import eqsat_add_costs
+
+        return eqsat_add_costs.EqsatAddCostsPass
+
     def get_eqsat_create_eclasses():
         from xdsl.transforms import eqsat_create_eclasses
 
@@ -507,6 +512,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_dmp_to_mpi,
+        "eqsat-add-costs": get_eqsat_add_costs,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
