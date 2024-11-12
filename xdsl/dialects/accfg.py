@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from enum import Enum
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     IntegerAttr,
+    IntegerType,
     StringAttr,
     SymbolRefAttr,
     i32,
@@ -131,7 +132,7 @@ class LaunchOp(IRDLOperation):
 
     def __init__(
         self,
-        vals: list[SSAValue | Operation],
+        vals: Sequence[SSAValue | Operation],
         param_names: Iterable[str] | Iterable[StringAttr],
         state: SSAValue | Operation,
     ):
@@ -238,8 +239,8 @@ class SetupOp(IRDLOperation):
 
     def __init__(
         self,
-        vals: Iterable[SSAValue | Operation],
-        param_names: Iterable[str] | Iterable[StringAttr],
+        vals: Sequence[SSAValue | Operation],
+        param_names: Sequence[str] | Sequence[StringAttr],
         accelerator: str | StringAttr,
         in_state: SSAValue | Operation | None = None,
     ):
@@ -330,7 +331,7 @@ class SetupOp(IRDLOperation):
             ), f"ssa value type mismatch! Expected {typ}, got {val.type}"
             return name, val
 
-        args: list[tuple[str, SSAValue]] = parser.parse_comma_separated_list(
+        args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, parse_itm
         )
 
@@ -375,14 +376,14 @@ class AcceleratorOp(IRDLOperation):
 
     launch_fields = prop_def(DictionaryAttr)
 
-    barrier = prop_def(IntegerAttr)  # TODO: this will be reworked in a later version
+    barrier = prop_def(IntegerAttr[IntegerType])  # TODO: this will be reworked in a later version
 
     def __init__(
         self,
         name: str | StringAttr | SymbolRefAttr,
         fields: dict[str, int] | DictionaryAttr,
         launch_fields: dict[str, int] | DictionaryAttr,
-        barrier: int | IntegerAttr,
+        barrier: int | IntegerAttr[IntegerType],
     ):
         if not isinstance(fields, DictionaryAttr):
             fields = DictionaryAttr(
