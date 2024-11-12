@@ -41,6 +41,7 @@ from xdsl.dialects.stencil import (
 from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp, InsertSliceOp
 from xdsl.ir import (
     Attribute,
+    Block,
     Operation,
     OpResult,
     SSAValue,
@@ -212,7 +213,6 @@ class ApplyOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         if all(is_tensorized(arg.type) for arg in op.args):
-            b = op.region.block
             access_patterns = dict[Operand, AccessPattern](
                 zip(op.region.block.args, op.get_accesses())
             )
@@ -224,16 +224,15 @@ class ApplyOpTensorize(RewritePattern):
                         access_op.offset.array.data[-1].data + z_shift,
                     )
 
-            # TODO check if block args need updating
-            for _ in range(len(b.args)):
-                assert isa(arg_type := b.args[0].type, TempType[Attribute])
-                arg = b.insert_arg(stencil_temp_to_tensor(arg_type), len(b.args))
-                b.args[0].replace_by(arg)
-                b.erase_arg(b.args[0], safe_erase=True)
+            body = Block(arg_types=op.operand_types)
+            rewriter.inline_block(
+                op.region.block, InsertPoint.at_start(body), body.args
+            )
+
             rewriter.replace_matched_op(
                 ApplyOp.get(
                     op.args,
-                    op.region.clone(),
+                    body,
                     [
                         stencil_temp_to_tensor(cast(TempType[Attribute], r.type))
                         for r in op.res
