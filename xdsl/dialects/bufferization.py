@@ -1,4 +1,5 @@
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Self
 
 from xdsl.dialects.builtin import (
     AnyMemRefTypeConstr,
@@ -28,6 +29,8 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -81,6 +84,40 @@ class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
 
 @irdl_op_definition
 class AllocTensorOp(IRDLOperation):
+    """
+    `bufferization.alloc_tensor` materializes an uninitialized tensor with a
+    given shape (dynamic or static). It always bufferizes to a new buffer
+    allocation of the given shape. The optional `copy` operand specifies the
+    contents of the tensors. If no `copy` operand is specified, reading from the
+    result of an `alloc_tensor` op yields an undefined value.
+
+    If `copy` is specified, no dynamic sizes should be passed, since they are
+    the same as the dynamic sizes of the `copy` operand.
+
+    `alloc_tensor` is a helper op for bufferization. The operation is provided
+    as an anchor that marks the beginning of a new tensor SSA use-def chain. It
+    can be used to control in-place bufferization decisions during One-Shot
+    Bufferize: The bufferized result of a `bufferization.alloc_tensor` does not
+    alias with any other buffer, so it can be used to resolve read-after-write
+    conflicts that would have been introduced by the in-place bufferization of
+    another op.
+
+    The optional `memory_space` attribute specifies the memory space when
+    bufferizing this op. The memory space is inferred from `copy` if specified.
+    If neither `copy` nor `memory_space` is specified, the default memory space
+    is used during bufferization.
+
+    The optional `size_hint` operand specifies the number of non-zero elements
+    for sparse tensors. The value of `size_hint` should be not less than 1 and
+    not larger than the linear size of the corresponding dense tensor type. If
+    this requirement is not met, the behavior of the operator is undefined.
+
+    Note: An `alloc_tensor` with a `copy` should also be expressed as an
+    `alloc_tensor` without `copy`, followed by a `copy_tensor`.
+
+    https://mlir.llvm.org/docs/Dialects/BufferizationOps/#bufferizationalloc_tensor-bufferizationalloctensorop
+    """
+
     name = "bufferization.alloc_tensor"
 
     dynamic_sizes = var_operand_def(IndexType())
@@ -94,7 +131,7 @@ class AllocTensorOp(IRDLOperation):
     def __init__(
         self,
         result_type: Attribute,
-        dynamic_sizes: list[Operation | SSAValue] | None = None,
+        dynamic_sizes: Sequence[Operation | SSAValue] | None = None,
         copy: SSAValue | Operation | None = None,
         size_hint: SSAValue | Operation | None = None,
     ):
@@ -102,6 +139,51 @@ class AllocTensorOp(IRDLOperation):
             operands=(dynamic_sizes, copy, size_hint),
             result_types=(result_type,),
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        dynamic_sizes = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_operand
+        )
+        if parser.parse_optional_keyword("copy") is not None:
+            parser.parse_punctuation("(")
+            copy = parser.parse_operand()
+            parser.parse_punctuation(")")
+        else:
+            copy = None
+
+        if parser.parse_optional_keyword("size_hint") is not None:
+            parser.parse_punctuation("=")
+            size_hint = parser.parse_operand()
+        else:
+            size_hint = None
+
+        attr_dict = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+
+        result = cls(result_type, dynamic_sizes, copy, size_hint)
+
+        result.attributes |= attr_dict
+
+        return result
+
+    def print(self, printer: Printer):
+        printer.print_string("(", indent=0)
+        printer.print_list(self.dynamic_sizes, printer.print_ssa_value)
+        printer.print_string(")", indent=0)
+        if self.copy is not None:
+            printer.print_string(" copy(", indent=0)
+            printer.print_ssa_value(self.copy)
+            printer.print_string(")", indent=0)
+        if self.size_hint is not None:
+            printer.print_string(" size_hint=", indent=0)
+            printer.print_ssa_value(self.size_hint)
+
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.tensor.type)
 
 
 @irdl_op_definition
