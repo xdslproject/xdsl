@@ -33,4 +33,13 @@ class ShapeInferencePass(ModulePass):
     name = "shape-inference"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(ShapeInferenceRewritePattern()).rewrite_module(op)
+        infer_shapes(op)
+
+
+def infer_shapes(op: builtin.ModuleOp):
+    """
+    A helper function for ShapeInferencePass which allows it to be called from
+    within other passes while exposing the least restrictive API.
+    """
+
+    PatternRewriteWalker(ShapeInferenceRewritePattern()).rewrite_module(op)
