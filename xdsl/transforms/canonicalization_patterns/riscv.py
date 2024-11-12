@@ -72,7 +72,7 @@ class MultiplyImmediateZero(RewritePattern):
 
 class MulImmediatePower2(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
         lhs: int | None = None
         rhs: int | None = None
 
