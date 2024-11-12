@@ -38,6 +38,7 @@ func.func @no_eclass(%a : index, %b : index) -> (index) {
 // CHECK-NEXT:    }
 func.func @existing_cost(%a : index, %b : index) -> (index) {
     %a_eq = eqsat.eclass %a : index
+    // Another pass can set the cost, which must not be overwritten
     %one = arith.constant {"eqsat_cost" = #builtin.int<1000>} 1  : index
     %one_eq = eqsat.eclass %one : index
     %amul = arith.muli %a_eq, %one_eq : index
@@ -62,7 +63,7 @@ func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
 
 // CHECK:  Cannot compute cost of one result of operation with multiple results: TestOp(%test0, %test1 = "test.op"() : () -> (index, index))
 
-func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
+func.func @multiple_results(%a : index, %b : index) -> (index) {
     %a_eq = eqsat.eclass %a  : index
     %test0, %test1 = "test.op"() : () -> (index, index)
     %out = eqsat.eclass %test0, %a_eq : index
