@@ -11,6 +11,9 @@ EQSAT_COST_LABEL = "eqsat_cost"
 def get_eqsat_cost(value: SSAValue) -> int | None:
     if not isinstance(value, OpResult):
         return 0
+    if isinstance(value.op, eqsat.EClassOp):
+        if (min_cost_index := value.op.min_cost_index) is not None:
+            return get_eqsat_cost(value.op.operands[min_cost_index.data])
     cost_attribute = value.op.attributes.get(EQSAT_COST_LABEL)
     if cost_attribute is None:
         return None
@@ -41,10 +44,12 @@ def add_eqsat_costs(block: Block):
 
         if isinstance(op, eqsat.EClassOp):
             cost = min(cost for cost in costs if cost is not None)
+            index = costs.index(cost)
+            op.min_cost_index = IntAttr(index)
         else:
             # For now, set the cost to the costs of the operands + 1
             cost = sum(cost for cost in costs if cost is not None) + 1
-        op.attributes[EQSAT_COST_LABEL] = IntAttr(cost)
+            op.attributes[EQSAT_COST_LABEL] = IntAttr(cost)
 
 
 class EqsatAddCostsPass(ModulePass):
