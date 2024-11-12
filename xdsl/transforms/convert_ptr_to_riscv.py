@@ -73,7 +73,7 @@ class ConvertStoreOp(RewritePattern):
                         )
                     case _:
                         raise DiagnosticException(
-                            f"Unexpected floating point type {float_type}"
+                            f"Lowering memref.store op with floating point type {float_type} not yet implemented"
                         )
             case _:
                 raise ValueError(f"Unexpected register type {op.value.type}")
@@ -101,7 +101,7 @@ class ConvertLoadOp(RewritePattern):
                     lw_op = riscv.FLdOp(addr, 0, comment="load double from pointer")
                 case _:
                     raise DiagnosticException(
-                        f"Unexpected floating point type {float_type}"
+                        f"Lowering memref.load op with floating point type {float_type} not yet implemented"
                     )
 
         rewriter.replace_matched_op(
