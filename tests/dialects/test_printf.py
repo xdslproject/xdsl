@@ -7,13 +7,13 @@ from xdsl.transforms import printf_to_llvm
 
 @pytest.mark.parametrize(
     "given,expected",
-    (
+    [
         ("test", "test"),
         ("@hello  world", "hello_world"),
         ("something.with.dots", "something_with_dots"),
         ("this is 💩", "this_is"),
         ("123 is a number!", "123_is_a_number"),
-    ),
+    ],
 )
 def test_symbol_sanitizer(given: str, expected: str):
     assert printf_to_llvm.legalize_str_for_symbol_name(given) == expected

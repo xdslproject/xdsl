@@ -36,7 +36,7 @@ blocks = op.regions[0].blocks
 
 @pytest.mark.parametrize(
     ("a", "b", "expected"),
-    (
+    [
         (1, 1, False),
         (1, 2, True),
         (1, 3, True),
@@ -58,7 +58,7 @@ blocks = op.regions[0].blocks
         (5, 5, False),
         (5, 6, False),
         (6, 6, False),
-    ),
+    ],
 )
 def test_region_strictly_dominates_block(a: int, b: int, expected: bool):
     """

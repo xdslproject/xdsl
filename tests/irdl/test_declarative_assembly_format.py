@@ -2009,7 +2009,7 @@ def test_optional_group_variadic_result_anchor(
 
 @pytest.mark.parametrize(
     "format, error",
-    (
+    [
         ("()?", "An optional group must have a non-whitespace directive"),
         ("(`keyword`)?", "Every optional group must have an anchor."),
         (
@@ -2024,7 +2024,7 @@ def test_optional_group_variadic_result_anchor(
             "($mandatory_arg^)?",
             "First element of an optional group must be optionally parsable.",
         ),
-    ),
+    ],
 )
 def test_optional_group_checkers(format: str, error: str):
     with pytest.raises(
