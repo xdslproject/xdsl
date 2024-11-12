@@ -370,7 +370,7 @@ class PropSymbolOp(IRDLOperation):
         return super().__init__(properties={"sym_name": StringAttr(name)})
 
 
-@pytest.mark.parametrize("SymbolOp", (SymbolOp, PropSymbolOp))
+@pytest.mark.parametrize("SymbolOp", [SymbolOp, PropSymbolOp])
 def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
     # Some helper classes
     @irdl_op_definition
