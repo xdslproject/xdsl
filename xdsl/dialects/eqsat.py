@@ -26,6 +26,11 @@ from xdsl.irdl import (
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
+EQSAT_COST_LABEL = "eqsat_cost"
+"""
+Key used to store the cost of computing the result of an operation.
+"""
+
 
 @irdl_op_definition
 class EClassOp(IRDLOperation):

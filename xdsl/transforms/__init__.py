@@ -228,6 +228,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_create_eclasses.EqsatCreateEclassesPass
 
+    def get_eqsat_extract():
+        from xdsl.transforms import eqsat_extract
+
+        return eqsat_extract.EqsatExtractPass
+
     def get_frontend_desymrefy():
         from xdsl.frontend.passes.desymref import FrontendDesymrefyPass
 
@@ -520,6 +525,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "dmp-to-mpi": get_dmp_to_mpi,
         "eqsat-add-costs": get_eqsat_add_costs,
         "eqsat-create-eclasses": get_eqsat_create_eclasses,
+        "eqsat-extract": get_eqsat_extract,
         "frontend-desymrefy": get_frontend_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
         "function-persist-arg-names": get_function_persist_arg_names,
