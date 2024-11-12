@@ -22,7 +22,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
 @irdl_op_definition
@@ -42,6 +42,16 @@ class EClassOp(IRDLOperation):
             res_type = arguments[0].type
 
         super().__init__(operands=[arguments], result_types=[res_type])
+
+    def verify_(self) -> None:
+        # Check that none of the operands are produced by another eclass op.
+        # In that case the two ops should have been merged into one.
+        for operand in self.operands:
+            if isinstance(operand.owner, EClassOp):
+                raise VerifyException(
+                    "A result of an eclass operation cannot be used as an operand of "
+                    "another eclass."
+                )
 
 
 EqSat = Dialect(
