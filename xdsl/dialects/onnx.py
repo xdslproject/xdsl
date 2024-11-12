@@ -160,16 +160,10 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
 
     def verify_(self) -> None:
         # Check that the arguments are broadcastable (using Numpy semantics) and that the result type is correct.
-        if (
-            not isinstance(lhs_type := self.lhs.type, TensorType)
-            or not isinstance(rhs_type := self.rhs.type, TensorType)
-            or not isinstance(res_type := self.res.type, TensorType)
-        ):
-            assert False, "onnx elementwise binary operation operands and result must be of type TensorType"
-        lhs_type = cast(TensorType[Attribute], lhs_type)
-        rhs_type = cast(TensorType[Attribute], rhs_type)
-        res_type = cast(TensorType[Attribute], res_type)
-        verify_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)
+        assert isinstance(lhs_type := self.lhs.type, TensorType)
+        assert isinstance(rhs_type := self.rhs.type, TensorType)
+        assert isinstance(res_type := self.res.type, TensorType)
+        verify_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)  # pyright: ignore[reportUnknownArgumentType]
 
 
 @irdl_op_definition
@@ -276,13 +270,10 @@ class Gemm(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if (
-            not isinstance(tensor_a_type := self.tensor_a.type, TensorType)
-            or not isinstance(tensor_b_type := self.tensor_b.type, TensorType)
-            or not isinstance(tensor_c_type := self.tensor_c.type, TensorType)
-            or not isinstance(res_tensor_type := self.res_tensor.type, TensorType)
-        ):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(tensor_a_type := self.tensor_a.type, TensorType)
+        assert isinstance(tensor_b_type := self.tensor_b.type, TensorType)
+        assert isinstance(tensor_c_type := self.tensor_c.type, TensorType)
+        assert isinstance(res_tensor_type := self.res_tensor.type, TensorType)
 
         tensor_a_type = cast(TensorType[Attribute], tensor_a_type)
         tensor_b_type = cast(TensorType[Attribute], tensor_b_type)
@@ -362,12 +353,9 @@ class Reshape(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if (
-            not isinstance(data_type := self.data.type, TensorType)
-            or not isinstance(shape_type := self.shape.type, TensorType)
-            or not isinstance(reshaped_type := self.reshaped.type, TensorType)
-        ):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(data_type := self.data.type, TensorType)
+        assert isinstance(shape_type := self.shape.type, TensorType)
+        assert isinstance(reshaped_type := self.reshaped.type, TensorType)
 
         data_type = cast(TensorType[Attribute], data_type)
         reshaped_type = cast(TensorType[Attribute], reshaped_type)
@@ -506,16 +494,10 @@ class Conv(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if (
-            not isinstance(data_type := self.data.type, TensorType)
-            or not isinstance(weight_type := self.weight.type, TensorType)
-            or not isinstance(bias_type := self.bias.type, TensorType | NoneType)
-            or not isinstance(res_type := self.res.type, TensorType)
-        ):
-            assert False, (
-                "onnx elementwise operation operands (data, weight) and result (res) must be of type TensorType,"
-                "operand (bias) must be of type TensorType or NoneType"
-            )
+        assert isinstance(data_type := self.data.type, TensorType)
+        assert isinstance(weight_type := self.weight.type, TensorType)
+        assert isinstance(bias_type := self.bias.type, TensorType | NoneType)
+        assert isinstance(res_type := self.res.type, TensorType)
 
         weight_type = cast(TensorType[Attribute], weight_type)
         data_type = cast(TensorType[Attribute], data_type)
@@ -763,13 +745,8 @@ class MaxPoolSingleOut(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(
-            data_type := self.data.type, TensorType | MemRefType
-        ) or not isinstance(output_type := self.output.type, TensorType | MemRefType):
-            assert False, (
-                "onnx elementwise operation operands (data) and result (output) must be of type TensorType or "
-                "MemRefTyoe "
-            )
+        assert isinstance(data_type := self.data.type, TensorType | MemRefType)
+        assert isinstance(output_type := self.output.type, TensorType | MemRefType)
 
         data_type = cast(TensorType[Attribute], data_type)
         output_type = cast(TensorType[Attribute], output_type)
@@ -956,10 +933,8 @@ class Transpose(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(
-            tensor_input_type := self.tensor_input.type, TensorType
-        ) or not isinstance(tensor_output_type := self.tensor_output.type, TensorType):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(tensor_input_type := self.tensor_input.type, TensorType)
+        assert isinstance(tensor_output_type := self.tensor_output.type, TensorType)
 
         tensor_input_shape = tensor_input_type.get_shape()
         tensor_output_shape = tensor_output_type.get_shape()
@@ -1041,8 +1016,9 @@ class Squeeze(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(input_tensor_type := self.input_tensor.type, TensorType):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(
+            input_tensor_type := self.input_tensor.type, TensorType
+        ), "onnx elementwise operation operands and result must be of type TensorType"
 
         input_tensor_shape = input_tensor_type.get_shape()
 
@@ -1091,10 +1067,8 @@ class Sigmoid(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(
-            input_tensor_type := self.input_tensor.type, TensorType
-        ) or not isinstance(output_tensor_type := self.output_tensor.type, TensorType):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(input_tensor_type := self.input_tensor.type, TensorType)
+        assert isinstance(output_tensor_type := self.output_tensor.type, TensorType)
 
         input_tensor_shape = input_tensor_type.get_shape()
         output_tensor_shape = output_tensor_type.get_shape()

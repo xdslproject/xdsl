@@ -6,7 +6,7 @@ from io import StringIO
 from itertools import chain
 from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
@@ -515,8 +515,8 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
             reg = arg.type.register_name
             return reg
         else:
-            assert False, f"{arg.type}"
-    assert False, f"{arg}"
+            raise ValueError(f"Unexpected register type {arg.type}")
+    assert_never(arg)
 
 
 def _assembly_line(

@@ -31,7 +31,7 @@ class ForwardDeclaredValue(SSAValue):
 
     @property
     def owner(self) -> Operation | Block:
-        assert False, "Forward declared values do not have an owner"
+        raise ValueError("Forward declared values do not have an owner")
 
 
 @dataclass
