@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     BitEnumAttribute,
     Data,
     EnumAttribute,
@@ -39,8 +40,11 @@ from xdsl.irdl import (
     ConstraintVar,
     GenericData,
     MessageConstraint,
+    ParamAttrConstraint,
     ParamAttrDef,
     ParameterDef,
+    TypeVarConstraint,
+    base,
     irdl_attr_definition,
     irdl_to_attr_constraint,
     param_def,
@@ -886,6 +890,62 @@ def test_custom_constructor():
 
     assert OveriddenInitAttr.new([IntData(42)]) == OveriddenInitAttr(42)
     assert OveriddenInitAttr.new([StringData("17")]) == OveriddenInitAttr("17")
+
+
+@irdl_attr_definition
+class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
+    name = "test.generic_attr"
+
+    param: ParameterDef[AttributeInvT]
+
+
+def test_generic_attr():
+    """Test the generic parameter of a ParametrizedAttribute."""
+
+    assert GenericAttr.get_irdl_definition() == ParamAttrDef(
+        "test.generic_attr",
+        [
+            (
+                "param",
+                TypeVarConstraint(
+                    type_var=AttributeInvT,
+                    constraint=AnyAttr(),
+                ),
+            )
+        ],
+    )
+
+    assert base(GenericAttr[IntAttr]) == ParamAttrConstraint(
+        GenericAttr, (BaseAttr(IntAttr),)
+    )
+
+
+@irdl_attr_definition
+class GenericAttr2(Generic[AttributeInvT], ParametrizedAttribute):
+    name = "test.generic_attr"
+
+    param = param_def(AttributeInvT)
+
+
+def test_generic_attr2():
+    """Test the generic parameter of a ParametrizedAttribute."""
+
+    assert GenericAttr2.get_irdl_definition() == ParamAttrDef(
+        "test.generic_attr",
+        [
+            (
+                "param",
+                TypeVarConstraint(
+                    type_var=AttributeInvT,
+                    constraint=AnyAttr(),
+                ),
+            )
+        ],
+    )
+
+    assert base(GenericAttr2[IntAttr]) == ParamAttrConstraint(
+        GenericAttr2, (BaseAttr(IntAttr),)
+    )
 
 
 ################################################################################

@@ -21,6 +21,7 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
 from xdsl.ir import (
@@ -89,7 +90,6 @@ ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
 
 # Field definition classes for `@irdl_param_attr_definition`
 class _ParameterDef:
-
     param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
 
     def __init__(
@@ -97,6 +97,26 @@ class _ParameterDef:
         param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
     ):
         self.param = param
+
+
+@overload
+def param_def(
+    constraint: TypeVar,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Attribute: ...
+
+
+@overload
+def param_def(
+    constraint: type[AttributeInvT] | GenericAttrConstraint[AttributeInvT],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT: ...
 
 
 def param_def(
@@ -177,7 +197,7 @@ class ParamAttrDef:
 
             # Parameter def must be a field def
             if isinstance(value, _ParameterDef):
-                constraint = irdl_to_attr_constraint(value.param)
+                constraint = irdl_to_attr_constraint(value.param, allow_type_var=True)
                 parameters.append((field_name, constraint))
                 continue
 
@@ -448,7 +468,7 @@ def irdl_to_attr_constraint(
             irdl_to_attr_constraint(
                 param, allow_type_var=True, type_var_mapping=type_var_mapping
             )
-            for param in origin_parameters.values()
+            for _, param in origin_parameters
         ]
         return ParamAttrConstraint(origin, origin_constraints)
 
