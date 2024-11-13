@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import ClassVar, Generic, TypeAlias, TypeVar, cast, overload
+from typing import ClassVar, Generic, TypeVar, cast, overload
 
 from typing_extensions import Self
 
@@ -140,9 +140,6 @@ class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElem
         return ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]](
             WritableStreamType, (element_type,)
         )
-
-
-AnyWritableStreamType: TypeAlias = WritableStreamType[Attribute]
 
 
 class ReadOperation(IRDLOperation, abc.ABC):
