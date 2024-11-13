@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Block, Operation, SSAValue
+from xdsl.irdl import BaseAttr
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -26,6 +27,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
+    attr_constr_rewrite_pattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
@@ -1713,3 +1715,37 @@ Error while applying pattern: Expected operation to not be erroneous!
     walker = PatternRewriteWalker(Rewrite())
     with pytest.raises(ValueError, match=re.escape(expected)):
         walker.rewrite_module(module)
+
+
+def test_attr_constr_rewrite_pattern():
+    prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xui16>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^bb0(%arg0 : memref<2x4xui16>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+    expected_prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xindex>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^0(%arg0 : memref<2x4xindex>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class IndexConversion(TypeConversionPattern):
+        @attr_constr_rewrite_pattern(BaseAttr(IntegerType))
+        def convert_type(self, typ: IntegerType) -> IndexType:
+            return IndexType()
+
+    rewrite_and_compare(
+        prog,
+        expected_prog,
+        PatternRewriteWalker(IndexConversion(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+        op_modified=1,
+    )
