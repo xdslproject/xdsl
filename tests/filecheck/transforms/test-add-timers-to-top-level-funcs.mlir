@@ -47,8 +47,8 @@ builtin.module {
   // CHECK-NEXT:     "llvm.store"(%timediff, %timers) <{"ordering" = 0 : i64}> : (f64, !llvm.ptr) -> ()
   // CHECK-NEXT:     func.return
   // CHECK-NEXT:   }
-  // CHECK-NEXT:   func.func @timer_start() -> f64
-  // CHECK-NEXT:   func.func @timer_end(f64) -> f64
+  // CHECK-NEXT:   func.func private @timer_start() -> f64
+  // CHECK-NEXT:   func.func private @timer_end(f64) -> f64
   // CHECK-NEXT: }
 
   func.func @has_no_timers(%arg0 : i32, %arg1 : i32) -> i32 {
