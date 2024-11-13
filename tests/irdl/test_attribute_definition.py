@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     BitEnumAttribute,
     Data,
     EnumAttribute,
@@ -39,8 +40,11 @@ from xdsl.irdl import (
     ConstraintVar,
     GenericData,
     MessageConstraint,
+    ParamAttrConstraint,
     ParamAttrDef,
     ParameterDef,
+    TypeVarConstraint,
+    base,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
@@ -393,6 +397,11 @@ class PositiveIntConstr(AttrConstraint):
         if attr.data <= 0:
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> PositiveIntConstr:
+        return self
+
 
 @irdl_attr_definition
 class PositiveIntAttr(ParametrizedAttribute):
@@ -669,6 +678,15 @@ class DataListAttr(AttrConstraint):
         for e in attr.data:
             self.elem_constr.verify(e, constraint_context)
 
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> DataListAttr:
+        mapped_constraint = self.elem_constr.mapping_type_vars(type_var_mapping)
+        if mapped_constraint is self.elem_constr:
+            return self
+        else:
+            return DataListAttr(mapped_constraint)
+
 
 @irdl_attr_definition
 class ListData(GenericData[list[A]]):
@@ -851,6 +869,34 @@ def test_custom_constructor():
 
     assert OveriddenInitAttr.new([IntData(42)]) == OveriddenInitAttr(42)
     assert OveriddenInitAttr.new([StringData("17")]) == OveriddenInitAttr("17")
+
+
+@irdl_attr_definition
+class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
+    name = "test.generic_attr"
+
+    param: ParameterDef[AttributeInvT]
+
+
+def test_generic_attr():
+    """Test the generic parameter of a ParametrizedAttribute."""
+
+    assert GenericAttr.get_irdl_definition() == ParamAttrDef(
+        "test.generic_attr",
+        [
+            (
+                "param",
+                TypeVarConstraint(
+                    type_var=AttributeInvT,
+                    constraint=AnyAttr(),
+                ),
+            )
+        ],
+    )
+
+    assert base(GenericAttr[IntAttr]) == ParamAttrConstraint(
+        GenericAttr, (BaseAttr(IntAttr),)
+    )
 
 
 ################################################################################
