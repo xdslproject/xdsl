@@ -106,6 +106,11 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     ) -> AnyOf[AttributeCovT | _AttributeCovT]:
         return AnyOf((self, value))
 
+    def __and__(
+        self, value: GenericAttrConstraint[AttributeCovT], /
+    ) -> AllOf[AttributeCovT]:
+        return AllOf((self, value))
+
     @abstractmethod
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]
@@ -440,6 +445,11 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             if base is not None:
                 return base
         return None
+
+    def __and__(
+        self, value: GenericAttrConstraint[AttributeCovT], /
+    ) -> AllOf[AttributeCovT]:
+        return AllOf((*self.attr_constrs, value))
 
     def mapping_type_vars(
         self, type_var_mapping: dict[TypeVar, AttrConstraint]

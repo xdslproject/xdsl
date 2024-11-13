@@ -330,7 +330,6 @@ def irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[Any],
     *,
     allow_type_var: bool = False,
-    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     """
     Convert a list of PyRDL type annotations to an AttrConstraint.
@@ -344,27 +343,23 @@ def irdl_list_to_attr_constraint(
             constraint = irdl_list_to_attr_constraint(
                 list(pyrdl_constraints[:idx]) + list(pyrdl_constraints[idx + 1 :]),
                 allow_type_var=allow_type_var,
-                type_var_mapping=type_var_mapping,
             )
             return VarConstraint(arg.name, constraint)
 
-    constraints: list[AttrConstraint] = []
-    for arg in pyrdl_constraints:
-        # We should not try to convert IRDL annotations, which do not
-        # correspond to constraints
-        if isinstance(arg, IRDLAnnotations):
-            continue
-        constraints.append(
-            irdl_to_attr_constraint(
-                arg,
-                allow_type_var=allow_type_var,
-                type_var_mapping=type_var_mapping,
-            )
-        )
-    if len(constraints) == 0:
-        return AnyAttr()
+    constraints = tuple(
+        irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
+        for arg in pyrdl_constraints
+        # We should not try to convert IRDL annotations, which do not correspond to
+        # constraints
+        if not isinstance(arg, IRDLAnnotations)
+    )
+
     if len(constraints) > 1:
-        return AllOf(tuple(constraints))
+        return AllOf(constraints)
+
+    if not constraints:
+        return AnyAttr()
+
     return constraints[0]
 
 
@@ -372,14 +367,10 @@ def irdl_to_attr_constraint(
     irdl: Any,
     *,
     allow_type_var: bool = False,
-    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
         irdl = cast(AttrConstraint, irdl)
-        if type_var_mapping is None:
-            return irdl
-        else:
-            return irdl.mapping_type_vars(type_var_mapping)
+        return irdl
 
     if isinstance(irdl, Attribute):
         return EqAttrConstraint(irdl)
@@ -392,7 +383,6 @@ def irdl_to_attr_constraint(
         return irdl_list_to_attr_constraint(
             get_args(irdl),
             allow_type_var=allow_type_var,
-            type_var_mapping=type_var_mapping,
         )
 
     # Attribute class case
@@ -413,12 +403,9 @@ def irdl_to_attr_constraint(
     # We take the type variable bound constraint.
     if isinstance(irdl, TypeVar):
         if not allow_type_var:
-            raise Exception("TypeVar in unexpected context.")
-        if type_var_mapping:
-            if irdl in type_var_mapping:
-                return type_var_mapping[irdl]
+            raise ValueError("TypeVar in unexpected context.")
         if irdl.__bound__ is None:
-            raise Exception("Type variables used in IRDL are expected to" " be bound.")
+            raise ValueError("Type variables used in IRDL are expected to be bound.")
         # We do not allow nested type variables.
         constraint = irdl_to_attr_constraint(irdl.__bound__)
         return TypeVarConstraint(irdl, constraint)
@@ -442,9 +429,7 @@ def irdl_to_attr_constraint(
         and issubclass(origin, Generic)
     ):
         args = [
-            irdl_to_attr_constraint(
-                arg, allow_type_var=allow_type_var, type_var_mapping=type_var_mapping
-            )
+            irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
             for arg in get_args(irdl)
         ]
         generic_args = get_type_var_from_generic_class(origin)
@@ -456,17 +441,15 @@ def irdl_to_attr_constraint(
                 f" parameters, got {len(args)}."
             )
 
-        type_var_mapping = {
-            parameter: arg for parameter, arg in zip(generic_args, args)
-        }
+        type_var_mapping = dict(zip(generic_args, args))
 
         # Map the constraints in the attribute definition
         attr_def = origin.get_irdl_definition()
         origin_parameters = attr_def.parameters
 
         origin_constraints = [
-            irdl_to_attr_constraint(
-                param, allow_type_var=True, type_var_mapping=type_var_mapping
+            irdl_to_attr_constraint(param, allow_type_var=True).mapping_type_vars(
+                type_var_mapping
             )
             for _, param in origin_parameters
         ]
@@ -485,7 +468,6 @@ def irdl_to_attr_constraint(
                 irdl_to_attr_constraint(
                     arg,
                     allow_type_var=allow_type_var,
-                    type_var_mapping=type_var_mapping,
                 )
             )
         if len(constraints) > 1:
