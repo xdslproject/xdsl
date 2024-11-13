@@ -22,8 +22,10 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.irdl import GenericAttrConstraint, base
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @dataclass(eq=False)
@@ -551,8 +553,34 @@ _AttributeT = TypeVar("_AttributeT", bound=Attribute)
 _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
+def attr_constr_rewrite_pattern(
+    constr: GenericAttrConstraint[_AttributeT],
+) -> Callable[
+    [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
+    Callable[[_TypeConversionPatternT, Attribute], Attribute | None],
+]:
+    """
+    This function is intended to be used as a decorator on a TypeConversionPattern
+    method. It uses the passed constraint to match on a specific attribute type before
+    calling the decorated function.
+    """
+
+    def wrapper(
+        func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
+    ):
+        @wraps(func)
+        def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
+            if isattr(typ, constr):
+                return func(self, typ)
+            return None
+
+        return impl
+
+    return wrapper
+
+
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
+    func: Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None],
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern
@@ -561,14 +589,8 @@ def attr_type_rewrite_pattern(
     """
     params = list(inspect.signature(func).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
-
-    @wraps(func)
-    def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-        if isa(typ, expected_type):
-            return func(self, typ)
-        return None
-
-    return impl
+    constr = base(expected_type)
+    return attr_constr_rewrite_pattern(constr)(func)
 
 
 @dataclass(eq=False, repr=False)
