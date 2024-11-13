@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import abc
-from typing import ClassVar, Generic, TypeAlias, TypeVar, cast
+from typing import ClassVar, Generic, TypeAlias, TypeVar, cast, overload
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    ContainerType,
-)
+from xdsl.dialects.builtin import ContainerType
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -31,7 +29,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
-_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute)
+_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
 _StreamTypeElementConstrT = TypeVar("_StreamTypeElementConstrT", bound=Attribute)
 
 
@@ -49,37 +47,93 @@ class StreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
+    @overload
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: None = None,
+    ) -> BaseAttr[StreamType[Attribute]]: ...
+
+    @overload
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
+    ) -> ParamAttrConstraint[Self]: ...
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT] | None = None,
+    ) -> BaseAttr[StreamType[Attribute]] | ParamAttrConstraint[Self]:
+        if element_type is None:
+            return BaseAttr[StreamType[Attribute]](cls)
+        return ParamAttrConstraint[Self](cls, (element_type,))
+
 
 @irdl_attr_definition
 class ReadableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.readable"
 
-    @staticmethod
+    @overload
+    @classmethod
     def constr(
+        cls,
         *,
-        element_type: GenericAttrConstraint[_StreamTypeElementConstrT] = AnyAttr(),
-    ) -> GenericAttrConstraint[StreamType[_StreamTypeElementConstrT]]:
-        if element_type == AnyAttr():
-            return BaseAttr[StreamType[_StreamTypeElementConstrT]](StreamType)
-        return ParamAttrConstraint[StreamType[_StreamTypeElementConstrT]](
-            StreamType, (element_type,)
-        )
+        element_type: None = None,
+    ) -> BaseAttr[ReadableStreamType[Attribute]]: ...
+
+    @overload
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
+    ) -> ParamAttrConstraint[Self]: ...
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT] | None = None,
+    ) -> BaseAttr[ReadableStreamType[Attribute]] | ParamAttrConstraint[Self]:
+        if element_type is None:
+            return BaseAttr[ReadableStreamType[Attribute]](cls)
+        return ParamAttrConstraint[Self](cls, (element_type,))
 
 
 @irdl_attr_definition
 class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.writable"
 
-    @staticmethod
+    @overload
+    @classmethod
     def constr(
+        cls,
         *,
-        element_type: GenericAttrConstraint[_StreamTypeElementConstrT] = AnyAttr(),
-    ) -> GenericAttrConstraint[StreamType[_StreamTypeElementConstrT]]:
-        if element_type == AnyAttr():
-            return BaseAttr[StreamType[_StreamTypeElementConstrT]](StreamType)
-        return ParamAttrConstraint[StreamType[_StreamTypeElementConstrT]](
-            StreamType, (element_type,)
-        )
+        element_type: None = None,
+    ) -> BaseAttr[WritableStreamType[Attribute]]: ...
+
+    @overload
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
+    ) -> ParamAttrConstraint[Self]: ...
+
+    @classmethod
+    def constr(
+        cls,
+        *,
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT] | None = None,
+    ) -> BaseAttr[WritableStreamType[Attribute]] | ParamAttrConstraint[Self]:
+        if element_type is None:
+            return BaseAttr[WritableStreamType[Attribute]](cls)
+        return ParamAttrConstraint[Self](cls, (element_type,))
 
 
 AnyWritableStreamType: TypeAlias = WritableStreamType[Attribute]
@@ -92,7 +146,7 @@ class ReadOperation(IRDLOperation, abc.ABC):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(ReadableStreamType.constr(element_type=T))
+    stream = operand_def(ReadableStreamType[Attribute].constr(element_type=T))
     res = result_def(T)
 
     def __init__(self, stream: SSAValue, result_type: Attribute | None = None):
@@ -126,7 +180,7 @@ class WriteOperation(IRDLOperation, abc.ABC):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    stream = operand_def(WritableStreamType.constr(element_type=T))
+    stream = operand_def(WritableStreamType[Attribute].constr(element_type=T))
 
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])
