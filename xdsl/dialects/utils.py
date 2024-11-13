@@ -394,7 +394,7 @@ def parse_dynamic_index_list_without_types(
     return values, indices
 
 
-# Fast Math Flags
+# region Fast Math Flags
 
 
 class FastMathFlag(StrEnum):
@@ -419,3 +419,6 @@ class FastMathAttrBase(BitEnumAttribute[FastMathFlag], ABC):
 
     none_value = "none"
     all_value = "fast"
+
+
+# endregion
