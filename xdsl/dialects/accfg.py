@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from enum import Enum
+from typing import cast
 
 from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
     ArrayAttr,
     DictionaryAttr,
     IntegerAttr,
@@ -376,7 +378,9 @@ class AcceleratorOp(IRDLOperation):
 
     launch_fields = prop_def(DictionaryAttr)
 
-    barrier = prop_def(IntegerAttr[IntegerType])  # TODO: this will be reworked in a later version
+    barrier = prop_def(
+        IntegerAttr[IntegerType]
+    )  # TODO: this will be reworked in a later version
 
     def __init__(
         self,
@@ -418,18 +422,16 @@ class AcceleratorOp(IRDLOperation):
     def field_names(self) -> tuple[str, ...]:
         return tuple(self.fields.data.keys())
 
-    def field_items(self) -> Iterable[tuple[str, IntegerAttr]]:
+    def field_items(self) -> Iterable[tuple[str, AnyIntegerAttr]]:
         for name, val in self.fields.data.items():
-            assert isinstance(val, IntegerAttr)
-            yield name, val
+            yield name, cast(AnyIntegerAttr, val)
 
     def launch_field_names(self) -> tuple[str, ...]:
         return tuple(self.launch_fields.data.keys())
 
-    def launch_field_items(self) -> Iterable[tuple[str, IntegerAttr]]:
+    def launch_field_items(self) -> Iterable[tuple[str, AnyIntegerAttr]]:
         for name, val in self.launch_fields.data.items():
-            assert isinstance(val, IntegerAttr)
-            yield name, val
+            yield name, cast(AnyIntegerAttr, val)
 
 
 @irdl_op_definition
