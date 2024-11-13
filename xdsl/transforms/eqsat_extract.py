@@ -4,8 +4,6 @@ from xdsl.ir import Block, Operation, OpResult
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 
-EQSAT_COST_LABEL = "eqsat_cost"
-
 
 def eqsat_extract(block: Block):
     ops_to_erase = set[Operation]()
