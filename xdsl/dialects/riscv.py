@@ -362,7 +362,7 @@ class RISCVAsmOperation(HasRegisterConstraints, IRDLOperation, ABC):
         raise NotImplementedError()
 
 
-class RISCVCustomFormatOperation(RISCVAsmOperation, ABC):
+class RISCVCustomFormatOperation(IRDLOperation, ABC):
     """
     Base class for RISC-V operations that specialize their custom format.
     """
