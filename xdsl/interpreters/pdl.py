@@ -373,7 +373,9 @@ class PDLRewriteFunctions(InterpreterFunctions):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
         else:
-            assert False, "Unexpected ReplaceOp"
+            raise ValueError(
+                "Either a replacing operatoin or values must be provided with replace op"
+            )
 
         return ()
 

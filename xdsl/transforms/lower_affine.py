@@ -29,34 +29,35 @@ def affine_expr_ops(
     Returns the operations that evaluate the affine expression when given input SSA
     values, along with the SSAValue representing the result.
     """
-    if isinstance(expr, AffineConstantExpr):
-        constant = arith.Constant(builtin.IntegerAttr.from_index_int_value(expr.value))
-        return [constant], constant.result
+    match expr:
+        case AffineConstantExpr():
+            constant = arith.Constant(
+                builtin.IntegerAttr.from_index_int_value(expr.value)
+            )
+            return [constant], constant.result
+        case AffineDimExpr():
+            return [], dims[expr.position]
+        case AffineSymExpr():
+            return [], symbols[expr.position]
+        case AffineBinaryOpExpr():
+            lhs_ops, lhs_val = affine_expr_ops(expr.lhs, dims, symbols)
+            rhs_ops, rhs_val = affine_expr_ops(expr.rhs, dims, symbols)
 
-    if isinstance(expr, AffineDimExpr):
-        return [], dims[expr.position]
-    if isinstance(expr, AffineSymExpr):
-        return [], symbols[expr.position]
+            match expr.kind:
+                case AffineBinaryOpKind.Add:
+                    op = arith.Addi(lhs_val, rhs_val)
+                case AffineBinaryOpKind.Mul:
+                    op = arith.Muli(lhs_val, rhs_val)
+                case AffineBinaryOpKind.Mod:
+                    op = arith.RemSI(lhs_val, rhs_val)
+                case AffineBinaryOpKind.FloorDiv:
+                    op = arith.FloorDivSI(lhs_val, rhs_val)
+                case AffineBinaryOpKind.CeilDiv:
+                    op = arith.CeilDivSI(lhs_val, rhs_val)
 
-    if isinstance(expr, AffineBinaryOpExpr):
-        lhs_ops, lhs_val = affine_expr_ops(expr.lhs, dims, symbols)
-        rhs_ops, rhs_val = affine_expr_ops(expr.rhs, dims, symbols)
-
-        match expr.kind:
-            case AffineBinaryOpKind.Add:
-                op = arith.Addi(lhs_val, rhs_val)
-            case AffineBinaryOpKind.Mul:
-                op = arith.Muli(lhs_val, rhs_val)
-            case AffineBinaryOpKind.Mod:
-                op = arith.RemSI(lhs_val, rhs_val)
-            case AffineBinaryOpKind.FloorDiv:
-                op = arith.FloorDivSI(lhs_val, rhs_val)
-            case AffineBinaryOpKind.CeilDiv:
-                op = arith.CeilDivSI(lhs_val, rhs_val)
-
-        return [*lhs_ops, *rhs_ops, op], op.result
-
-    assert False, "Unreachable"
+            return [*lhs_ops, *rhs_ops, op], op.result
+        case _:
+            raise ValueError(f"Unexpected affine expr: {expr}")
 
 
 def insert_affine_map_ops(
