@@ -948,6 +948,22 @@ def test_generic_attr2():
     )
 
 
+def test_mixed_param_def_apis():
+    """Test that using both ParamDef and param_def raises an error."""
+    with pytest.raises(
+        ValueError,
+        match="ParametrizedAttribute definitions must not mix `param_def` and ParamDef "
+        "declarations.",
+    ):
+
+        @irdl_attr_definition
+        class InvalidAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+            name = "test.invalid"
+            # Using both styles is invalid
+            param1: ParameterDef[IntegerType]  # Using annotation style
+            param2 = param_def(IntegerType)  # Using param_def style
+
+
 ################################################################################
 # ConstraintVar
 ################################################################################

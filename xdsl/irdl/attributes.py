@@ -84,7 +84,7 @@ class GenericData(Data[_DataElement], ABC):
 _A = TypeVar("_A", bound=Attribute)
 
 
-# Deprecated
+# Will deprecate soon
 ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
 
 
@@ -237,8 +237,8 @@ class ParamAttrDef:
 
         if parameters and param_hints:
             raise ValueError(
-                "ParametrizedAttribute definitions must use only one of `param_def` or "
-                "ParamDef for all fields."
+                "ParametrizedAttribute definitions must not mix `param_def` and "
+                "ParamDef declarations."
             )
 
         for param_name, param_type in param_hints.items():
