@@ -361,6 +361,12 @@ class RISCVAsmOperation(HasRegisterConstraints, IRDLOperation, ABC):
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
 
+
+class RISCVCustomFormatOperation(IRDLOperation, ABC):
+    """
+    Base class for RISC-V operations that specialize their custom format.
+    """
+
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         args = cls.parse_unresolved_operands(parser)
@@ -552,7 +558,9 @@ def riscv_code(module: ModuleOp) -> str:
 # region Base Operation classes
 
 
-class RdRsRsOperation(Generic[RDInvT, RS1InvT, RS2InvT], RISCVInstruction, ABC):
+class RdRsRsOperation(
+    Generic[RDInvT, RS1InvT, RS2InvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -587,7 +595,9 @@ class RdRsRsOperation(Generic[RDInvT, RS1InvT, RS2InvT], RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2
 
 
-class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
+class RdRsRsFloatOperationWithFastMath(
+    RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     and two source floating-point registers and can be annotated with fastmath flags.
@@ -640,7 +650,7 @@ class RdRsRsFloatOperationWithFastMath(RISCVInstruction, ABC):
         return {"fastmath"}
 
 
-class RdImmIntegerOperation(RISCVInstruction, ABC):
+class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
@@ -690,7 +700,7 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
         return {"immediate"}
 
 
-class RdImmJumpOperation(RISCVInstruction, ABC):
+class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     In the RISC-V spec, this is the same as `RdImmOperation`. For jumps, the `rd` register
     is neither an operand, because the stored value is overwritten, nor a result value,
@@ -757,7 +767,7 @@ class RdImmJumpOperation(RISCVInstruction, ABC):
         return (), ()
 
 
-class RdRsImmIntegerOperation(RISCVInstruction, ABC):
+class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -812,7 +822,7 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
         return {"immediate"}
 
 
-class RdRsImmShiftOperation(RISCVInstruction, ABC):
+class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -873,7 +883,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
         return {"immediate"}
 
 
-class RdRsImmJumpOperation(RISCVInstruction, ABC):
+class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -942,7 +952,9 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
         return {"immediate", "rd"}
 
 
-class RdRsOperation(Generic[RDInvT, RSInvT], RISCVInstruction, ABC):
+class RdRsOperation(
+    Generic[RDInvT, RSInvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
     source register.
@@ -970,7 +982,7 @@ class RdRsOperation(Generic[RDInvT, RSInvT], RISCVInstruction, ABC):
         return self.rd, self.rs
 
 
-class RsRsOffIntegerOperation(RISCVInstruction, ABC):
+class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
     register, and an offset.
@@ -1020,7 +1032,7 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
         return {"offset"}
 
 
-class RsRsImmIntegerOperation(RISCVInstruction, ABC):
+class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -1070,7 +1082,7 @@ class RsRsImmIntegerOperation(RISCVInstruction, ABC):
         return {"immediate"}
 
 
-class RsRsIntegerOperation(RISCVInstruction, ABC):
+class RsRsIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source
     registers.
@@ -1098,7 +1110,7 @@ class RsRsIntegerOperation(RISCVInstruction, ABC):
         return self.rs1, self.rs2
 
 
-class NullaryOperation(RISCVInstruction, ABC):
+class NullaryOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
     """
@@ -1134,7 +1146,7 @@ class NullaryOperation(RISCVInstruction, ABC):
         return (), ()
 
 
-class CsrReadWriteOperation(RISCVInstruction, ABC):
+class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a swap to/from a CSR.
 
@@ -1210,7 +1222,7 @@ class CsrReadWriteOperation(RISCVInstruction, ABC):
         return {"csr", "writeonly"}
 
 
-class CsrBitwiseOperation(RISCVInstruction, ABC):
+class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value.
@@ -1288,7 +1300,7 @@ class CsrBitwiseOperation(RISCVInstruction, ABC):
         return {"csr", "readonly"}
 
 
-class CsrReadWriteImmOperation(RISCVInstruction, ABC):
+class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a write immediate to/read from a CSR.
 
@@ -1368,7 +1380,7 @@ class CsrReadWriteImmOperation(RISCVInstruction, ABC):
         return {"csr", "immediate", "writeonly"}
 
 
-class CsrBitwiseImmOperation(RISCVInstruction, ABC):
+class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value. The bitmask is specified in the 'immediate'
@@ -2473,7 +2485,7 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class LiOp(RISCVInstruction, ABC):
+class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     Loads a 32-bit immediate into rd.
 
@@ -2558,7 +2570,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVAsmOperation):
+class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -2613,7 +2625,7 @@ class LabelOp(RISCVAsmOperation):
 
 
 @irdl_op_definition
-class DirectiveOp(RISCVAsmOperation):
+class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -2744,7 +2756,7 @@ class AssemblySectionOp(RISCVAsmOperation):
 
 
 @irdl_op_definition
-class CustomAssemblyInstructionOp(RISCVInstruction):
+class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     """
     An instruction with unspecified semantics, that can be printed during assembly
     emission.
@@ -2798,7 +2810,7 @@ class CustomAssemblyInstructionOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVAsmOperation):
+class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
 
@@ -2868,7 +2880,9 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
         return effects
 
 
-class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
+class GetAnyRegisterOperation(
+    Generic[RDInvT], RISCVCustomFormatOperation, RISCVAsmOperation
+):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
     is useful for bridging the RISC-V convention that stores the result of function calls
@@ -2932,7 +2946,7 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
 
-class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
+class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RV32F operations that take three
     floating-point input registers and a destination register,
@@ -2974,7 +2988,9 @@ class RdRsRsRsFloatOperation(RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
-class RdRsRsFloatFloatIntegerOperation(RISCVInstruction, ABC):
+class RdRsRsFloatFloatIntegerOperation(
+    RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RV32F operations that take
     two floating-point input registers and an integer destination register.
@@ -3011,7 +3027,9 @@ class RdRsRsFloatFloatIntegerOperation(RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2
 
 
-class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
+class RdRsRsFloatFloatIntegerOperationWithFastMath(
+    RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RISC-V operations that have two source floating-point
     registers with an integer destination register, and can be annotated with fastmath flags.
@@ -3068,7 +3086,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(RISCVInstruction, ABC):
         return {"fastmath"}
 
 
-class RsRsImmFloatOperation(RISCVInstruction, ABC):
+class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RV32F operations that have two source registers
     (one integer and one floating-point) and an immediate.
@@ -3116,7 +3134,7 @@ class RsRsImmFloatOperation(RISCVInstruction, ABC):
         return {"immediate"}
 
 
-class RdRsImmFloatOperation(RISCVInstruction, ABC):
+class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RV32Foperations that have one floating-point
     destination register, one source register and

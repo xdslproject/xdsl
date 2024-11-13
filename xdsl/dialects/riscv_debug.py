@@ -9,7 +9,7 @@ from xdsl.printer import Printer
 
 
 @irdl_op_definition
-class PrintfOp(riscv.RISCVInstruction):
+class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
     """
     An instruction to print the contents of registers when emulating riscv code.
 
