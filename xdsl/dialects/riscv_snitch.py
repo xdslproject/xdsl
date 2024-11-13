@@ -459,8 +459,7 @@ class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(
-        stream.ReadableStreamType.constr(element_type=BaseAttr(riscv.FloatRegisterType))
-        | stream.WritableStreamType.constr(
+        stream.StreamType[riscv.FloatRegisterType].constr(
             element_type=BaseAttr(riscv.FloatRegisterType)
         )
     )
