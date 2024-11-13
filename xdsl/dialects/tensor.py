@@ -262,7 +262,9 @@ class ReshapeOp(IRDLOperation):
             or not isinstance(shape_type := self.shape.type, TensorType)
             or not isinstance(res_type := self.result.type, TensorType)
         ):
-            assert False, "tensor elementwise operation operands and result must be of type TensorType"
+            raise ValueError(
+                "tensor elementwise operation operands and result must be of type TensorType"
+            )
 
         source_type = cast(TensorType[Attribute], source_type)
         shape_type = cast(TensorType[Attribute], shape_type)

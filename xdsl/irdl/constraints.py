@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar
 
+from typing_extensions import assert_never
+
 from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
@@ -103,6 +105,11 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         self, value: GenericAttrConstraint[_AttributeCovT], /
     ) -> AnyOf[AttributeCovT | _AttributeCovT]:
         return AnyOf((self, value))
+
+    def __and__(
+        self, value: GenericAttrConstraint[AttributeCovT], /
+    ) -> AllOf[AttributeCovT]:
+        return AllOf((self, value))
 
 
 AttrConstraint: TypeAlias = GenericAttrConstraint[Attribute]
@@ -228,7 +235,7 @@ def attr_constr_coercion(
         return EqAttrConstraint(attr)
     if isclass(attr):
         return BaseAttr(attr)
-    assert False
+    assert_never(attr)
 
 
 @dataclass(frozen=True)
@@ -357,6 +364,11 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             if base is not None:
                 return base
         return None
+
+    def __and__(
+        self, value: GenericAttrConstraint[AttributeCovT], /
+    ) -> AllOf[AttributeCovT]:
+        return AllOf((*self.attr_constrs, value))
 
 
 ParametrizedAttributeCovT = TypeVar(

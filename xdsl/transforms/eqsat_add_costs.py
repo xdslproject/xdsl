@@ -5,18 +5,19 @@ from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
 
-EQSAT_COST_LABEL = "eqsat_cost"
-
 
 def get_eqsat_cost(value: SSAValue) -> int | None:
     if not isinstance(value, OpResult):
         return 0
-    cost_attribute = value.op.attributes.get(EQSAT_COST_LABEL)
+    if isinstance(value.op, eqsat.EClassOp):
+        if (min_cost_index := value.op.min_cost_index) is not None:
+            return get_eqsat_cost(value.op.operands[min_cost_index.data])
+    cost_attribute = value.op.attributes.get(eqsat.EQSAT_COST_LABEL)
     if cost_attribute is None:
         return None
     if not isinstance(cost_attribute, IntAttr):
         raise DiagnosticException(
-            f"Unexpected value {cost_attribute} for key {EQSAT_COST_LABEL} in {value.op}"
+            f"Unexpected value {cost_attribute} for key {eqsat.EQSAT_COST_LABEL} in {value.op}"
         )
     return cost_attribute.data
 
@@ -27,7 +28,7 @@ def add_eqsat_costs(block: Block):
             # No need to annotate ops without results
             continue
 
-        if EQSAT_COST_LABEL in op.attributes:
+        if eqsat.EQSAT_COST_LABEL in op.attributes:
             continue
 
         if len(op.results) != 1:
@@ -41,10 +42,12 @@ def add_eqsat_costs(block: Block):
 
         if isinstance(op, eqsat.EClassOp):
             cost = min(cost for cost in costs if cost is not None)
+            index = costs.index(cost)
+            op.min_cost_index = IntAttr(index)
         else:
             # For now, set the cost to the costs of the operands + 1
             cost = sum(cost for cost in costs if cost is not None) + 1
-        op.attributes[EQSAT_COST_LABEL] = IntAttr(cost)
+            op.attributes[eqsat.EQSAT_COST_LABEL] = IntAttr(cost)
 
 
 class EqsatAddCostsPass(ModulePass):

@@ -185,7 +185,7 @@ class LowerBinaryFloatOp(RewritePattern):
             case Float64Type():
                 cls = self.riscv_d_op_cls
             case _:
-                assert False, f"Unexpected float type {op.lhs.type}"
+                raise ValueError(f"Unexpected float type {op.lhs.type}")
 
         rv_flags = riscv.FastMathFlagsAttr("none")
         if op.fastmath is not None:
@@ -443,7 +443,7 @@ class LowerArithSIToFPOp(RewritePattern):
             case Float64Type():
                 cls = riscv.FCvtDWOp
             case _:
-                assert False, f"Unexpected float type {op.result.type}"
+                raise ValueError(f"Unexpected float type {op.result.type}")
 
         rewriter.replace_matched_op(
             (

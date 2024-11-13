@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Annotated, Generic, TypeVar
+from typing import IO, Generic, TypeVar
 
 from typing_extensions import Self
 
@@ -24,7 +24,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     Successor,
     attr_def,
@@ -374,7 +373,6 @@ class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     A base class for x86 operations that have one register acting as both source and destination.
     """
 
-    T = Annotated[GeneralRegisterType, ConstraintVar("T")]
     source = operand_def(R1InvT)
     destination = result_def(R1InvT)
 

@@ -207,10 +207,10 @@ class ConvertMemrefStoreOp(RewritePattern):
                             comment=f"store double value to memref of shape {shape}",
                         )
                     case _:
-                        assert False, f"Unexpected floating point type {float_type}"
+                        raise ValueError(f"Unexpected floating point type {float_type}")
 
             case _:
-                assert False, f"Unexpected register type {value.type}"
+                raise ValueError(f"Unexpected register type {value.type}")
 
         rewriter.replace_matched_op(new_op)
 
@@ -248,10 +248,10 @@ class ConvertMemrefLoadOp(RewritePattern):
                             ptr, 0, comment=f"load double from memref of shape {shape}"
                         )
                     case _:
-                        assert False, f"Unexpected floating point type {float_type}"
+                        raise ValueError(f"Unexpected floating point type {float_type}")
 
             case _:
-                assert False, f"Unexpected register type {result_register_type}"
+                raise ValueError(f"Unexpected register type {result_register_type}")
 
         rewriter.replace_matched_op(
             [

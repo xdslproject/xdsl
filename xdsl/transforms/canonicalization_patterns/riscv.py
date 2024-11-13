@@ -1,8 +1,9 @@
 from math import log2
 from typing import cast
 
-from xdsl.dialects import llvm, riscv, riscv_snitch
+from xdsl.dialects import riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -380,10 +381,7 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
 
 
 def _has_contract_flag(op: riscv.RdRsRsFloatOperationWithFastMath) -> bool:
-    return (
-        op.fastmath is not None
-        and llvm.FastMathFlag.ALLOW_CONTRACT in op.fastmath.flags
-    )
+    return op.fastmath is not None and FastMathFlag.ALLOW_CONTRACT in op.fastmath.flags
 
 
 class FuseMultiplyAddD(RewritePattern):

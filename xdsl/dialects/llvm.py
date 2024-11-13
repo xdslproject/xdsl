@@ -24,6 +24,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.utils import FastMathAttrBase
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -1581,22 +1582,6 @@ class ConstantOp(IRDLOperation):
         else:
             printer.print(self.value)
         printer.print(") : ", self.result.type)
-
-
-class FastMathFlag(StrEnum):
-    REASSOC = "reassoc"
-    NO_NANS = "nnan"
-    NO_INFS = "ninf"
-    NO_SIGNED_ZEROS = "nsz"
-    ALLOW_RECIP = "arcp"
-    ALLOW_CONTRACT = "contract"
-    APPROX_FUNC = "afn"
-
-
-@dataclass(frozen=True, init=False)
-class FastMathAttrBase(BitEnumAttribute[FastMathFlag]):
-    none_value = "none"
-    all_value = "fast"
 
 
 @irdl_attr_definition

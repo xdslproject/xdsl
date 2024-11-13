@@ -955,10 +955,9 @@ class Operation(IRNode):
         """Get the region position in the operation."""
         if region.parent is not self:
             raise Exception("Region is not attached to the operation.")
-        for idx, curr_region in enumerate(self.regions):
-            if curr_region is region:
-                return idx
-        assert False, "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
+        return next(
+            idx for idx, curr_region in enumerate(self.regions) if curr_region is region
+        )
 
     def detach_region(self, region: int | Region) -> Region:
         """
@@ -1652,10 +1651,7 @@ class Block(IRNode, IRWithUses):
         """Get the operation position in a block."""
         if op.parent is not self:
             raise Exception("Operation is not a children of the block.")
-        for idx, block_op in enumerate(self.ops):
-            if block_op is op:
-                return idx
-        assert False, "Unexpected xdsl error"
+        return next(idx for idx, block_op in enumerate(self.ops) if block_op is op)
 
     def detach_op(self, op: Operation) -> Operation:
         """
@@ -2176,10 +2172,9 @@ class Region(IRNode):
         """Get the block position in a region."""
         if block.parent is not self:
             raise Exception("Block is not a child of the region.")
-        for idx, region_block in enumerate(self.blocks):
-            if region_block is block:
-                return idx
-        assert False, "Unexpected xdsl error"
+        return next(
+            idx for idx, region_block in enumerate(self.blocks) if region_block is block
+        )
 
     def detach_block(self, block: int | Block) -> Block:
         """
