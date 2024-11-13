@@ -40,6 +40,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
+    BaseAttr,
     VarConstraint,
     attr_def,
     base,
@@ -457,7 +458,12 @@ class FrepInner(FRepOperation):
 class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
-    stream = result_def(stream.StreamType[riscv.FloatRegisterType])
+    stream = result_def(
+        stream.ReadableStreamType.constr(element_type=BaseAttr(riscv.FloatRegisterType))
+        | stream.WritableStreamType.constr(
+            element_type=BaseAttr(riscv.FloatRegisterType)
+        )
+    )
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
