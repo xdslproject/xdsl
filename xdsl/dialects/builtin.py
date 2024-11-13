@@ -41,7 +41,6 @@ from xdsl.ir.affine import (
     AffineSymExpr,
 )
 from xdsl.irdl import (
-    AllOf,
     AnyAttr,
     AnyOf,
     AttrConstraint,
@@ -271,7 +270,7 @@ FlatSymbolRefAttrConstraint = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
-FlatSymbolRefAttrConstr = AllOf((base(SymbolRefAttr), FlatSymbolRefAttrConstraint))
+FlatSymbolRefAttrConstr = base(SymbolRefAttr) & FlatSymbolRefAttrConstraint
 
 
 @irdl_attr_definition
@@ -920,12 +919,9 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     """The expected vector rank."""
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        constraint = AllOf(
-            (
-                VectorBaseTypeConstraint(self.expected_type),
-                VectorRankConstraint(self.expected_rank),
-            )
-        )
+        constraint = VectorBaseTypeConstraint(
+            self.expected_type
+        ) & VectorRankConstraint(self.expected_rank)
         constraint.verify(attr, constraint_context)
 
 
