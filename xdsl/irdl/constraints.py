@@ -478,7 +478,7 @@ class ParamAttrConstraint(
         ],
     ):
         constrs = tuple(
-            AnyAttr() if constr is None else attr_constr_coercion(constr)
+            attr_constr_coercion(constr) if constr is not None else AnyAttr()
             for constr in param_constrs
         )
         object.__setattr__(self, "base_attr", base_attr)
