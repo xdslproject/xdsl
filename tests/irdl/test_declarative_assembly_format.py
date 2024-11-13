@@ -8,7 +8,14 @@ from typing import ClassVar, Generic, TypeVar
 import pytest
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import I32, BoolAttr, IntegerAttr, ModuleOp, UnitAttr
+from xdsl.dialects import test
+from xdsl.dialects.builtin import (
+    I32,
+    BoolAttr,
+    IntegerAttr,
+    ModuleOp,
+    UnitAttr,
+)
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -29,6 +36,8 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     ParsePropInAttrDict,
+    RangeOf,
+    RangeVarConstraint,
     VarConstraint,
     VarOperand,
     VarOpResult,
@@ -1745,6 +1754,35 @@ def test_non_verifying_inference():
         check_roundtrip(program, ctx)
 
 
+def test_variadic_length_inference():
+    @irdl_op_definition
+    class RangeVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+        name = "test.range_var"
+        T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
+        ins = var_operand_def(T)
+        outs = var_result_def(T)
+
+        assembly_format = "$ins attr-dict `:` type($ins)"
+
+    with pytest.raises(
+        NotImplementedError,
+        match="Inference of length of variadic result 'outs' not implemented",
+    ):
+        ctx = MLContext()
+        ctx.load_op(RangeVarOp)
+        ctx.load_dialect(Test)
+        program = textwrap.dedent("""\
+        %in0, %in1 = "test.op"() : () -> (index, index)
+        %out0, %out1 = test.range_var %in0, %in1 : index, index
+        """)
+
+        parser = Parser(ctx, program)
+        test_op = parser.parse_optional_operation()
+        assert isinstance(test_op, test.Operation)
+        my_op = parser.parse_optional_operation()
+        assert isinstance(my_op, RangeVarOp)
+
+
 ################################################################################
 # Declarative Format Verification                                              #
 ################################################################################
@@ -1971,7 +2009,7 @@ def test_optional_group_variadic_result_anchor(
 
 @pytest.mark.parametrize(
     "format, error",
-    (
+    [
         ("()?", "An optional group must have a non-whitespace directive"),
         ("(`keyword`)?", "Every optional group must have an anchor."),
         (
@@ -1986,7 +2024,7 @@ def test_optional_group_variadic_result_anchor(
             "($mandatory_arg^)?",
             "First element of an optional group must be optionally parsable.",
         ),
-    ),
+    ],
 )
 def test_optional_group_checkers(format: str, error: str):
     with pytest.raises(

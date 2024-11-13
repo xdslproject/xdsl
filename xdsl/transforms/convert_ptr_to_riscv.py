@@ -73,11 +73,10 @@ class ConvertStoreOp(RewritePattern):
                         )
                     case _:
                         raise DiagnosticException(
-                            f"Unexpected floating point type {float_type}"
+                            f"Lowering memref.store op with floating point type {float_type} not yet implemented"
                         )
-
             case _:
-                assert False, f"Unexpected register type {op.value.type}"
+                raise ValueError(f"Unexpected register type {op.value.type}")
 
         rewriter.replace_matched_op(new_op)
 
@@ -91,23 +90,19 @@ class ConvertLoadOp(RewritePattern):
 
         result_register_type = register_type_for_type(op.res.type)
 
-        match result_register_type:
-            case riscv.IntRegisterType:
-                lw_op = riscv.LwOp(addr, 0, comment="load word from pointer")
-            case riscv.FloatRegisterType:
-                float_type = cast(AnyFloat, op.res.type)
-                match float_type:
-                    case Float32Type():
-                        lw_op = riscv.FLwOp(addr, 0, comment="load float from pointer")
-                    case Float64Type():
-                        lw_op = riscv.FLdOp(addr, 0, comment="load double from pointer")
-                    case _:
-                        raise DiagnosticException(
-                            f"Unexpected floating point type {float_type}"
-                        )
-
-            case _:
-                assert False, f"Unexpected register type {result_register_type}"
+        if issubclass(result_register_type, riscv.IntRegisterType):
+            lw_op = riscv.LwOp(addr, 0, comment="load word from pointer")
+        else:
+            float_type = cast(AnyFloat, op.res.type)
+            match float_type:
+                case Float32Type():
+                    lw_op = riscv.FLwOp(addr, 0, comment="load float from pointer")
+                case Float64Type():
+                    lw_op = riscv.FLdOp(addr, 0, comment="load double from pointer")
+                case _:
+                    raise DiagnosticException(
+                        f"Lowering memref.load op with floating point type {float_type} not yet implemented"
+                    )
 
         rewriter.replace_matched_op(
             (lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,)))

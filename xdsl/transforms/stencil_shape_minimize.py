@@ -13,6 +13,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.shape_inference import infer_shapes
 
 
 @dataclass
@@ -34,12 +35,41 @@ class ShapeMinimisation(TypeConversionPattern):
             return stencil.FieldType(self.shape, typ.element_type)
 
 
+@dataclass
+class InvalidateTemps(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: stencil.TempType[Attribute], /) -> Attribute | None:
+        if isinstance(typ.bounds, stencil.StencilBoundsAttr):
+            return stencil.TempType(len(typ.bounds.lb), typ.element_type)
+
+
 @dataclass(frozen=True)
 class FuncOpShapeUpdate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         if not op.is_declaration:
             op.update_function_type()
+
+
+@dataclass
+class RestrictStoreOp(RewritePattern):
+    restrict: tuple[int, ...]
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
+        new_bounds = [
+            (min(lower_bound, bound_lim), min(upper_bound, bound_lim))
+            for lower_bound, upper_bound, bound_lim in zip(
+                op.bounds.lb, op.bounds.ub, self.restrict
+            )
+        ]
+        new_bounds_attr = stencil.StencilBoundsAttr(new_bounds)
+        if new_bounds_attr != op.bounds:
+            rewriter.replace_matched_op(
+                stencil.StoreOp.get(
+                    temp=op.temp, field=op.field, bounds=new_bounds_attr
+                )
+            )
 
 
 @dataclass(frozen=True)
@@ -50,7 +80,19 @@ class StencilShapeMinimize(ModulePass):
 
     name = "stencil-shape-minimize"
 
+    restrict: tuple[int, ...] | None = None
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        if self.restrict:
+            PatternRewriteWalker(
+                GreedyRewritePatternApplier(
+                    [
+                        InvalidateTemps(),
+                        RestrictStoreOp(restrict=self.restrict),
+                    ]
+                )
+            ).rewrite_module(op)
+            infer_shapes(op)
         analysis = ShapeAnalysis(seen=set())
         PatternRewriteWalker(analysis).rewrite_module(op)
         bounds = set(

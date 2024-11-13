@@ -691,7 +691,7 @@ class CustomFormatAttr(ParametrizedAttribute):
         if parser.parse_optional_keyword("one") is not None:
             parser.parse_characters(">")
             return [IntAttr(1)]
-        assert False
+        pytest.fail("zero or one expected")
 
     def print_parameters(self, printer: Printer) -> None:
         assert 0 <= self.attr.data <= 1

@@ -63,6 +63,6 @@ def sum_to_interp(n: int) -> int:
     return result
 
 
-@pytest.mark.parametrize("n", (0, 1, 2, 3, 4))
+@pytest.mark.parametrize("n", [0, 1, 2, 3, 4])
 def test_sum_to(n: int):
     assert sum_to_fn(n) == sum_to_interp(n)

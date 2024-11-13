@@ -368,7 +368,7 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
 
-class DesymrefyPass(ModulePass):
+class FrontendDesymrefyPass(ModulePass):
     name = "frontend-desymrefy"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp):

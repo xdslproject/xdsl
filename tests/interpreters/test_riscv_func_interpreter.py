@@ -30,6 +30,6 @@ def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     return result
 
 
-@pytest.mark.parametrize("n,res", ((0, 0), (1, 1)))
+@pytest.mark.parametrize("n,res", [(0, 0), (1, 1)])
 def test_sum_to(n: int, res: int):
     assert res == scf_interp(my_module, "id", n)

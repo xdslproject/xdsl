@@ -16,7 +16,6 @@ from xdsl.utils.test_value import TestSSAValue
         (llvm.URemOp, {}),
         (llvm.SRemOp, {}),
         (llvm.AndOp, {}),
-        (llvm.OrOp, {}),
         (llvm.XOrOp, {}),
     ],
 )
@@ -70,6 +69,24 @@ def test_llvm_exact_arithmetic_ops(
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
     assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(
         op_type(lhs=op1, rhs=op2, attributes=attributes, is_exact=exact)
+    )
+
+
+@pytest.mark.parametrize(
+    "op_type, attributes, disjoint",
+    [
+        (llvm.OrOp, {}, llvm.UnitAttr()),
+        (llvm.OrOp, {}, None),
+    ],
+)
+def test_llvm_disjoint_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOpDisjoint],
+    attributes: dict[str, Attribute],
+    disjoint: llvm.UnitAttr | None,
+):
+    op1, op2 = test.TestOp(result_types=[i32, i32]).results
+    assert op_type(op1, op2, attributes, disjoint).is_structurally_equivalent(
+        op_type(lhs=op1, rhs=op2, attributes=attributes, is_disjoint=disjoint)
     )
 
 
