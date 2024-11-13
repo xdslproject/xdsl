@@ -3,7 +3,7 @@ import typing
 from collections.abc import Callable
 from typing import overload
 
-from xdsl.dialects import arith, builtin, llvm, scf
+from xdsl.dialects import arith, builtin, llvm, printf, scf
 from xdsl.dialects.builtin import (
     AnyFloat,
     DenseArrayBase,
@@ -17,8 +17,9 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.experimental import dlt
 from xdsl.dialects.experimental.dlt import SetAttr
 from xdsl.ir import Block, Operation, SSAValue
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.experimental.dlt.layout_manipulation import Manipulator
+
 
 class NumericResult:
     def __init__(
@@ -95,10 +96,14 @@ class NumericResult:
         if self.used | other.used:
             raise ValueError()
 
-    def __add__(self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]) -> typing.Self:
-        if isinstance(other, int|SSAValue):
+    def __add__(
+        self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]
+    ) -> typing.Self:
+        if isinstance(other, int | SSAValue):
             other = NumericResult.from_mixed([], other)
-        elif isinstance(other, tuple) and all(isinstance(v, int|SSAValue) for v in other):
+        elif isinstance(other, tuple) and all(
+            isinstance(v, int | SSAValue) for v in other
+        ):
             other = NumericResult.from_mixed([], *other)
 
         if not isinstance(other, NumericResult):
@@ -131,10 +136,14 @@ class NumericResult:
         other.used = True
         return NumericResult(all_ops, tuple(new_static), tuple(new_ssa))
 
-    def __sub__(self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]) -> typing.Self:
+    def __sub__(
+        self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]
+    ) -> typing.Self:
         if isinstance(other, int | SSAValue):
             other = NumericResult.from_mixed([], other)
-        elif isinstance(other, tuple) and all(isinstance(v, int | SSAValue) for v in other):
+        elif isinstance(other, tuple) and all(
+            isinstance(v, int | SSAValue) for v in other
+        ):
             other = NumericResult.from_mixed([], *other)
 
         if not isinstance(other, NumericResult):
@@ -171,10 +180,14 @@ class NumericResult:
         other.used = True
         return NumericResult(all_ops, tuple(new_static), tuple(new_ssa))
 
-    def __mul__(self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]) -> typing.Self:
+    def __mul__(
+        self, other: typing.Self | int | SSAValue | tuple[int | SSAValue, ...]
+    ) -> typing.Self:
         if isinstance(other, int | SSAValue):
             other = NumericResult.from_mixed([], other)
-        elif isinstance(other, tuple) and all(isinstance(v, int | SSAValue) for v in other):
+        elif isinstance(other, tuple) and all(
+            isinstance(v, int | SSAValue) for v in other
+        ):
             other = NumericResult.from_mixed([], *other)
 
         if not isinstance(other, NumericResult):
@@ -579,12 +592,13 @@ class LoopCallback(abc.ABC):
 
     # returns ops, list of iter args to be passed in to the next invocation
 
+
 class DerivedLoopCallback(LoopCallback):
     def __init__(
         self,
         original: LoopCallback,
         members: set[dlt.MemberAttr],
-        dim_map: dict[dlt.DimensionAttr, SSAValue|IndexGetter],
+        dim_map: dict[dlt.DimensionAttr, SSAValue | IndexGetter],
     ):
         self.original = original
         self.members = members
@@ -620,6 +634,7 @@ class DerivedLoopCallback(LoopCallback):
             iter_args,
         )
         return ops, iter_args_out
+
 
 class Callback(abc.ABC):
     def __init__(self, initial_args: list[SSAValue] = None, can_exits_early=False):
@@ -728,7 +743,10 @@ EnsureSpaceFunc = Callable[[FillValueGetter], tuple[list[Operation], SSAValue]]
 LinearIterCallbackFunc = Callable[
     [Callback, bool | SSAValue], tuple[list[Operation], list[SSAValue], bool | SSAValue]
 ]
-IterateInnerBodyFunc = Callable[[dict[int, SSAValue], list[SSAValue], InsertPoint], list[SSAValue]]
+IterateInnerBodyFunc = Callable[
+    [dict[int, SSAValue], list[SSAValue], InsertPoint], list[SSAValue]
+]
+
 
 class SemanticsMapper:
     def __init__(self):
@@ -1153,16 +1171,16 @@ class SemanticsMapper:
         )
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.DirectLayout,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.DirectLayout,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         assert starting_layout.has_sub_layout(ending_layout)
         assert isinstance(input_ptr.type, llvm.LLVMPointerType)
@@ -1176,20 +1194,20 @@ class SemanticsMapper:
             callback_args,
             set(members),
             dict(dim_mapping),
-            set(dims_to_loop)
+            set(dims_to_loop),
         )
 
     def make_sparse_loop_callback_for(
-            self,
-            starting_layout: dlt.IndexedLayout,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.IndexedLayout,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], LoopCallback]:
         assert starting_layout.has_sub_layout(ending_layout)
         assert isinstance(input_ptr.type, llvm.LLVMPointerType)
@@ -1203,9 +1221,8 @@ class SemanticsMapper:
             callback_args,
             set(members),
             dict(dim_mapping),
-            set(dims_to_loop)
+            set(dims_to_loop),
         )
-
 
     @staticmethod
     def get_data_type_from_dlt_ptr(ptr_type: dlt.PtrType) -> llvm.LLVMStructType:
@@ -1447,18 +1464,19 @@ class DirectLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.A
 
     @abc.abstractmethod
     def make_sparse_loop_for(
-            self,
-            starting_layout: T,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: T,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         raise NotImplementedError
+
 
 class IndexedLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.ABC):
 
@@ -1557,16 +1575,16 @@ class IndexedLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.
 
     @abc.abstractmethod
     def make_sparse_loop_callback_for(
-            self,
-            starting_layout: dlt.IndexedLayout,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.IndexedLayout,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], LoopCallback]:
         raise NotImplementedError
 
@@ -1740,16 +1758,16 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         return ops, val
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.PrimitiveLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.PrimitiveLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         assert starting_layout == ending_layout
         assert len(members) == 0
@@ -1765,6 +1783,7 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
             callback_args,
         )
         return callback_ops, iter_args_out
+
 
 class ConstantSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
 
@@ -1853,16 +1872,16 @@ class ConstantSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         )
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.ConstantLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.ConstantLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         assert starting_layout == ending_layout
         assert len(members) == 0
@@ -2019,16 +2038,16 @@ class MemberSemantics(DirectLayoutNodeSemantics[dlt.MemberLayoutAttr]):
         return ops, iter_args_out, exited
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.MemberLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.MemberLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         if starting_layout == ending_layout:
             callback_ops, iter_args_out = callback.callback(
@@ -2043,7 +2062,9 @@ class MemberSemantics(DirectLayoutNodeSemantics[dlt.MemberLayoutAttr]):
             return callback_ops, iter_args_out
         elif starting_layout.member_specifier in members:
             ops = []
-            new_callback = DerivedLoopCallback(callback, {starting_layout.member_specifier}, {})
+            new_callback = DerivedLoopCallback(
+                callback, {starting_layout.member_specifier}, {}
+            )
             child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
                 starting_layout.child,
                 ending_layout,
@@ -2053,7 +2074,7 @@ class MemberSemantics(DirectLayoutNodeSemantics[dlt.MemberLayoutAttr]):
                 callback_args,
                 members - {starting_layout.member_specifier},
                 dim_mapping,
-                dims_to_loop
+                dims_to_loop,
             )
             ops.extend(child_ops)
             return ops, iter_args_out
@@ -2600,16 +2621,16 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         return ops, output_callback_iter_args, did_exit_early
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.DenseLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.DenseLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         if starting_layout == ending_layout:
             callback_ops, iter_args_out = callback.callback(
@@ -2631,7 +2652,9 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
                 extent_resolver,
                 input_ptr,
             )
-            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            new_callback = DerivedLoopCallback(
+                callback, set(), {starting_layout.dimension: index}
+            )
             child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
                 starting_layout.child,
                 ending_layout,
@@ -2677,7 +2700,9 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
             ptr_add_ops, ptr_arg = offset.add_to_llvm_pointer(input_ptr)
             block.add_ops(ptr_add_ops)
 
-            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            new_callback = DerivedLoopCallback(
+                callback, set(), {starting_layout.dimension: index}
+            )
             new_callback_args = []
             for arg in callback_args:
                 new_callback_args.append(block.insert_arg(arg.type, len(block.args)))
@@ -2696,7 +2721,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
             block.add_ops(child_ops)
 
             block.add_op(scf.Yield(*iter_args_out))
-            for_loop =  scf.For(start_idx, end_idx, step, callback_args, block)
+            for_loop = scf.For(start_idx, end_idx, step, callback_args, block)
             ops.append(for_loop)
             output_callback_iter_args = list(for_loop.res)
 
@@ -2726,24 +2751,24 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
 
     @overload
     def pick_child(
-            self,
-            starting_layout: dlt.StructLayoutAttr,
-            members: set[dlt.MemberAttr],
-            dimensions: set[dlt.DimensionAttr],
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            none_okay: typing.Literal[False] = False,
+        self,
+        starting_layout: dlt.StructLayoutAttr,
+        members: set[dlt.MemberAttr],
+        dimensions: set[dlt.DimensionAttr],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        none_okay: typing.Literal[False] = False,
     ) -> tuple[list[Operation], SSAValue, dlt.Layout, int]: ...
 
     @overload
     def pick_child(
-            self,
-            starting_layout: dlt.StructLayoutAttr,
-            members: set[dlt.MemberAttr],
-            dimensions: set[dlt.DimensionAttr],
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            none_okay: typing.Literal[True] = False,
+        self,
+        starting_layout: dlt.StructLayoutAttr,
+        members: set[dlt.MemberAttr],
+        dimensions: set[dlt.DimensionAttr],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        none_okay: typing.Literal[True] = False,
     ) -> tuple[list[Operation], SSAValue, dlt.Layout, int] | None: ...
 
     def pick_child(
@@ -2753,7 +2778,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         dimensions: set[dlt.DimensionAttr],
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
-        none_okay: typing.Literal[True]|typing.Literal[False] = False,
+        none_okay: typing.Literal[True] | typing.Literal[False] = False,
     ) -> tuple[list[Operation], SSAValue, dlt.Layout, int] | None:
         if (
             sum(
@@ -2775,10 +2800,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         offset = NumericResult.from_mixed([], 0)
         for i, child_layout in enumerate(starting_layout.children):
             child_layout: dlt.Layout = child_layout
-            if (
-                child_layout.contents_type.has_selectable(members, dimensions)
-                > 0
-            ):
+            if child_layout.contents_type.has_selectable(members, dimensions) > 0:
                 child = child_layout
                 child_idx = i
                 break
@@ -2798,7 +2820,11 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue]:
         ptr_ops, ptr, child, _ = self.pick_child(
-            starting_layout, members, set(dim_mapping.keys()), extent_resolver, input_ptr
+            starting_layout,
+            members,
+            set(dim_mapping.keys()),
+            extent_resolver,
+            input_ptr,
         )
         child_ops, child_res = self.semantics.get_select_for(
             child, ending_layout, members, dim_mapping, extent_resolver, ptr
@@ -2815,7 +2841,11 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         input_ptr: SSAValue,
     ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
         ptr_ops, ptr, child, _ = self.pick_child(
-            starting_layout, members, set(dim_mapping.keys()), extent_resolver, input_ptr
+            starting_layout,
+            members,
+            set(dim_mapping.keys()),
+            extent_resolver,
+            input_ptr,
         )
         child_ops, child_res, child_found = self.semantics.get_getter_for(
             child, get_type, members, dim_mapping, extent_resolver, ptr
@@ -2832,7 +2862,11 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         input_ptr: SSAValue,
     ) -> list[Operation]:
         ptr_ops, ptr, child, _ = self.pick_child(
-            starting_layout, members, set(dim_mapping.keys()), extent_resolver, input_ptr
+            starting_layout,
+            members,
+            set(dim_mapping.keys()),
+            extent_resolver,
+            input_ptr,
         )
         child_ops = self.semantics.get_setter_for(
             child, set_val, members, dim_mapping, extent_resolver, ptr
@@ -2901,7 +2935,9 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
                     running_known,
                     [IntegerType(1), base_type],
                     [scf.Yield(true_op.result, running_val)],
-                    lin_iter_ops + bool_ops + [scf.Yield(exited_early, callback_results[0])],
+                    lin_iter_ops
+                    + bool_ops
+                    + [scf.Yield(exited_early, callback_results[0])],
                 )
                 # if_op.attributes["debug"] = StringAttr(f"Struct_ensure")
                 f_ops.append(if_op)
@@ -3068,16 +3104,16 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
         return ops, current_callback_args, current_exit
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.StructLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.StructLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         if starting_layout == ending_layout:
             callback_ops, iter_args_out = callback.callback(
@@ -3090,7 +3126,16 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
                 callback_args,
             )
             return callback_ops, iter_args_out
-        elif (child_data := self.pick_child(starting_layout, members, set(dim_mapping.keys())|dims_to_loop, extent_resolver, input_ptr, none_okay=True)) is not None:
+        elif (
+            child_data := self.pick_child(
+                starting_layout,
+                members,
+                set(dim_mapping.keys()) | dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                none_okay=True,
+            )
+        ) is not None:
             ptr_ops, ptr, child, child_idx = child_data
             new_callback = DerivedLoopCallback(callback, set(), {})
             child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
@@ -3116,6 +3161,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
                 callback_args,
             )
             return callback_ops, iter_args_out
+
 
 class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
 
@@ -3275,16 +3321,16 @@ class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
         return ops, iter_args_out, exited
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.ArithDropLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.ArithDropLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         if starting_layout == ending_layout:
             callback_ops, iter_args_out = callback.callback(
@@ -3300,7 +3346,9 @@ class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
         elif starting_layout.dimension in dim_mapping:
             idx_getter = dim_mapping.pop(starting_layout.dimension)
             idx_ops, (index) = idx_getter.get().output()
-            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            new_callback = DerivedLoopCallback(
+                callback, set(), {starting_layout.dimension: index}
+            )
             child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
                 starting_layout.child,
                 ending_layout,
@@ -3342,7 +3390,9 @@ class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
             index = block.insert_arg(
                 IndexType(), 0
             )  # index - to run through the dense dimension
-            new_callback = DerivedLoopCallback(callback, set(), {starting_layout.dimension: index})
+            new_callback = DerivedLoopCallback(
+                callback, set(), {starting_layout.dimension: index}
+            )
             new_callback_args = []
             for arg in callback_args:
                 new_callback_args.append(block.insert_arg(arg.type, len(block.args)))
@@ -3533,7 +3583,6 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
             )
             return ops, iter_args_out, exit_early
 
-
     class ReplacementLoopCallback(LoopCallback):
         def __init__(self, layout: dlt.ArithReplaceLayoutAttr, original: LoopCallback):
             self.layout = layout
@@ -3541,19 +3590,20 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
             super().__init__(original.initial_iter_args())
 
         def callback(
-                self,
-                terminal_layout: dlt.Layout,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, IndexGetter],
-                dims_left_to_loop: set[dlt.DimensionAttr],
-                extent_resolver: ExtentResolver,
-                ptr: SSAValue,
-                iter_args: list[SSAValue],
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, IndexGetter],
+            dims_left_to_loop: set[dlt.DimensionAttr],
+            extent_resolver: ExtentResolver,
+            ptr: SSAValue,
+            iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue]]:
             replacements = {
                 r
                 for r in self.layout.replacements
-                if r.inner_member in members and r.inner_dimension in (set(dim_map.keys())|dims_left_to_loop)
+                if r.inner_member in members
+                and r.inner_dimension in (set(dim_map.keys()) | dims_left_to_loop)
             }
             if len(replacements) != 1:
                 raise ValueError()
@@ -3570,12 +3620,18 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
             }
             if len(new_dim_map) < len(dim_map):
                 dim_in_map = True
-                new_dim_map |= {replacement.outer_dimension: dim_map[replacement.inner_dimension]}
+                new_dim_map |= {
+                    replacement.outer_dimension: dim_map[replacement.inner_dimension]
+                }
 
-            new_dims_left_to_loop = {dim for dim in dims_left_to_loop if dim != replacement.inner_dimension}
+            new_dims_left_to_loop = {
+                dim for dim in dims_left_to_loop if dim != replacement.inner_dimension
+            }
             if len(new_dims_left_to_loop) < len(dims_left_to_loop):
                 dim_in_loop = True
-                new_dims_left_to_loop |= {replacement.outer_dimension: dim_map[replacement.inner_dimension]}
+                new_dims_left_to_loop |= {
+                    replacement.outer_dimension: dim_map[replacement.inner_dimension]
+                }
 
             assert not (dim_in_map and dim_in_loop)
 
@@ -3726,28 +3782,28 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
         return child_ops, iter_args_out, exited
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.ArithReplaceLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.ArithReplaceLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         if starting_layout == ending_layout:
-                callback_ops, iter_args_out = callback.callback(
-                    starting_layout,
-                    members,
-                    dim_mapping,
-                    dims_to_loop,
-                    extent_resolver,
-                    input_ptr,
-                    callback_args,
-                )
-                return callback_ops, iter_args_out
+            callback_ops, iter_args_out = callback.callback(
+                starting_layout,
+                members,
+                dim_mapping,
+                dims_to_loop,
+                extent_resolver,
+                input_ptr,
+                callback_args,
+            )
+            return callback_ops, iter_args_out
 
         overlap_dims = set(dim_mapping.keys()) & starting_layout.outer_dimensions()
         if len(overlap_dims) > 0:
@@ -3778,7 +3834,9 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
             assert len(overlap_dims) == 1
             dim = overlap_dims.pop()
             replacement = starting_layout.replacement_for(dim)
-            new_dims_to_loop = (dims_to_loop-{replacement.outer_dimension})|{replacement.inner_dimension}
+            new_dims_to_loop = (dims_to_loop - {replacement.outer_dimension}) | {
+                replacement.inner_dimension
+            }
             new_members = members | {replacement.inner_member}
 
             new_callback = self.ReplacementLoopCallback(starting_layout, callback)
@@ -3805,6 +3863,7 @@ class ArithReplaceSemantics(DirectLayoutNodeSemantics[dlt.ArithReplaceLayoutAttr
             callback_args,
         )
         return callback_ops, iter_args_out
+
 
 class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
@@ -4233,16 +4292,16 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         return ops, child_iter_args, child_exited_early
 
     def make_sparse_loop_for(
-            self,
-            starting_layout: dlt.IndexingLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.IndexingLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], list[SSAValue]]:
         if starting_layout == ending_layout:
             callback_ops, iter_args_out = callback.callback(
@@ -4258,16 +4317,23 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
         dir_type = starting_layout.directChild.contents_type
         direct_members = dir_type.all_member_attributes() & members
-        direct_dims = dir_type.all_dimension_attributes() & (dims_to_loop | set(dim_mapping.keys()))
-        dir_select_type = dlt.TypeType([(direct_members, direct_dims, starting_layout.indexedChild.indexed_by())])
+        direct_dims = dir_type.all_dimension_attributes() & (
+            dims_to_loop | set(dim_mapping.keys())
+        )
+        dir_select_type = dlt.TypeType(
+            [(direct_members, direct_dims, starting_layout.indexedChild.indexed_by())]
+        )
         if (SetAttr([]), SetAttr([])) in dir_type.has_selectable_type(dir_select_type):
             ops = []
-            ptr_space = self.semantics.get_size(starting_layout.indexedChild, extent_resolver).sum()
+            ptr_space = self.semantics.get_size(
+                starting_layout.indexedChild, extent_resolver
+            ).sum()
             direct_ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
             ops.extend(direct_ptr_ops)
 
-
-            direct_dim_mapping = {d: dim_mapping[d] for d in direct_dims if d in dim_mapping}
+            direct_dim_mapping = {
+                d: dim_mapping[d] for d in direct_dims if d in dim_mapping
+            }
             direct_dims_to_loop = {d for d in direct_dims if d in dims_to_loop}
 
             direct_terminal = Manipulator.reduce_to_terminal(
@@ -4278,17 +4344,23 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             )
             assert direct_terminal is not None
 
-            callback_setup_ops, new_callback = self.semantics.make_sparse_loop_callback_for(
-                starting_layout.indexedChild,
-                ending_layout,
-                extent_resolver,
-                input_ptr,
-                callback,
-                callback_args,
-                members-direct_members,
-                {d: g for d, g in dim_mapping.items() if d not in direct_dim_mapping},
-                dims_to_loop - direct_dims_to_loop,
+            callback_setup_ops, new_callback = (
+                self.semantics.make_sparse_loop_callback_for(
+                    starting_layout.indexedChild,
+                    ending_layout,
+                    extent_resolver,
+                    input_ptr,
+                    callback,
+                    callback_args,
+                    members - direct_members,
+                    {
+                        d: g
+                        for d, g in dim_mapping.items()
+                        if d not in direct_dim_mapping
+                    },
+                    dims_to_loop - direct_dims_to_loop,
                 )
+            )
             ops.extend(callback_setup_ops)
 
             child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
@@ -4428,11 +4500,11 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
     class SparseIndexWritingCallback(Callback):
 
         def __init__(
-                self,
-                indexed_child_typetype: dlt.TypeType,
-                init_total: SSAValue,
-                sparse_initial_values: Initialiser,
-                sparse_dims: list[dlt.DimensionAttr],
+            self,
+            indexed_child_typetype: dlt.TypeType,
+            init_total: SSAValue,
+            sparse_initial_values: Initialiser,
+            sparse_dims: list[dlt.DimensionAttr],
         ):
             self.indexed_child_typetype = indexed_child_typetype
             self.sparse_initial_values = sparse_initial_values
@@ -4440,16 +4512,16 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             super().__init__([init_total])
 
         def callback(
-                self,
-                terminal_layout: dlt.Layout,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, SSAValue],
-                extent_resolver: ExtentResolver,
-                base_type: dlt.AcceptedTypes,
-                ptr: SSAValue,
-                has_extra_space: SSAValue,
-                is_last_element: bool | SSAValue,
-                iter_args: list[SSAValue],
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, SSAValue],
+            extent_resolver: ExtentResolver,
+            base_type: dlt.AcceptedTypes,
+            ptr: SSAValue,
+            has_extra_space: SSAValue,
+            is_last_element: bool | SSAValue,
+            iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
             # This callback keeps track of a running total of non-zeros, and sets the index value to that running total
             # as we go
@@ -4481,8 +4553,8 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
                 {
                     dim: ArgIndexGetter(arg)
                     for dim, arg in zip(
-                    self.sparse_dims, iter_op.get_block_args_for_extent_args()
-                )
+                        self.sparse_dims, iter_op.get_block_args_for_extent_args()
+                    )
                 },
                 self.indexed_child_typetype,
             )
@@ -4523,10 +4595,10 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
     class WriteEmptyRangeInitialiser(Initialiser):
 
         def __init__(
-                self,
-                fill_value: SSAValue,  # the index value at the point the index was found.
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, IndexGetter],
+            self,
+            fill_value: SSAValue,  # the index value at the point the index was found.
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, IndexGetter],
         ):
             self.fill_value = fill_value
             self.members = members
@@ -4535,10 +4607,10 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             super().__init__()
 
         def get_value(
-                self,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, IndexGetter],
-                base_type: dlt.AcceptedTypes,
+            self,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, IndexGetter],
+            base_type: dlt.AcceptedTypes,
         ) -> tuple[list[Operation], None | SSAValue, bool | SSAValue]:
             if self.fill_value.type != base_type:
                 return [], None, False
@@ -4546,15 +4618,15 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
                 return [], self.fill_value, True
 
         def get_non_zero(
-                self,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, None | IndexGetter],
-                type_type: dlt.TypeType,
+            self,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, None | IndexGetter],
+            type_type: dlt.TypeType,
         ) -> tuple[list[Operation], bool | SSAValue]:
             full_type = type_type.add_members(members).add_dimensions(dim_map.keys())
             if (
-                    dlt.ElementAttr(self.members, self.dim_map.keys(), dlt.IndexRangeType())
-                    not in full_type.elements
+                dlt.ElementAttr(self.members, self.dim_map.keys(), dlt.IndexRangeType())
+                not in full_type.elements
             ):
                 return [], False
             ops = []
@@ -4575,12 +4647,12 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
 
     class DeallocCallback(Callback):
         def __init__(
-                self,
-                semantics: SemanticsMapper,
-                coo_layout: dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr,
-                extent_resolver: ExtentResolver,
-                data_buffer_ptr: SSAValue,
-                data_elem_size: SSAValue,
+            self,
+            semantics: SemanticsMapper,
+            coo_layout: dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr,
+            extent_resolver: ExtentResolver,
+            data_buffer_ptr: SSAValue,
+            data_elem_size: SSAValue,
         ):
             self.semantics = semantics
             self.coo_layout = coo_layout
@@ -4590,16 +4662,16 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             super().__init__([])
 
         def callback(
-                self,
-                terminal_layout: dlt.Layout,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, SSAValue],
-                extent_resolver: ExtentResolver,
-                base_type: dlt.AcceptedTypes,
-                ptr: SSAValue,
-                has_extra_space: SSAValue,
-                is_last_element: bool | SSAValue,
-                iter_args: list[SSAValue],
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, SSAValue],
+            extent_resolver: ExtentResolver,
+            base_type: dlt.AcceptedTypes,
+            ptr: SSAValue,
+            has_extra_space: SSAValue,
+            is_last_element: bool | SSAValue,
+            iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
             ops = []
 
@@ -4618,8 +4690,8 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             index = block.insert_arg(IndexType(), 0)
 
             data_buffer_ops, current_data_buffer_ptr = (
-                    NumericResult.from_mixed([], index)
-                    * NumericResult.from_mixed([], self.data_elem_size)
+                NumericResult.from_mixed([], index)
+                * NumericResult.from_mixed([], self.data_elem_size)
             ).add_to_llvm_pointer(self.data_buffer_ptr)
             block.add_ops(data_buffer_ops)
 
@@ -4779,6 +4851,7 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
                 ],
                 False,
             )
+
 
 class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
@@ -5078,7 +5151,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             if_needs_new_buffers.extend(do_new_buffers_ops)
 
-            initialiser = SingletonInitialiser(set_val, set(child_members), dict(child_dim_mapping))
+            initialiser = SingletonInitialiser(
+                set_val, set(child_members), dict(child_dim_mapping)
+            )
             set_up_child_ops = self.set_up_new_child(
                 starting_layout,
                 extent_resolver,
@@ -5093,13 +5168,17 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_needs_new_buffers.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
             # if_needs_new_buffers.append(
             #     printf.PrintFormatOp("4616 new data {}", new_data_buffer_ptr))
-            if_needs_new_buffers.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+            if_needs_new_buffers.append(
+                llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr)
+            )
             if_needs_new_buffers.append(llvm.StoreOp(new_size, buffer_size_ptr))
             if_needs_new_buffers.append(scf.Yield())
 
             # alternatively we don't need new buffers - just need to move the data in the buffers we have
             if_needs_moved_buffers = []
-            calc_old_elems_ops, (elems_to_copy,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_elems_ops, (elems_to_copy,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_needs_moved_buffers.extend(calc_old_elems_ops)
             (
                 do_move_buffers_ops,
@@ -5116,7 +5195,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
                 index,
             )
             if_needs_moved_buffers.extend(do_move_buffers_ops)
-            initialiser = SingletonInitialiser(set_val, set(child_members), dict(child_dim_mapping))
+            initialiser = SingletonInitialiser(
+                set_val, set(child_members), dict(child_dim_mapping)
+            )
             set_up_child_ops = self.set_up_new_child(
                 starting_layout,
                 extent_resolver,
@@ -5128,13 +5209,20 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_needs_moved_buffers.extend(set_up_child_ops)
             if_needs_moved_buffers.append(scf.Yield())
 
-            if_new_buffers_op = scf.If(cmp_buffer_size_op.result, [], if_needs_new_buffers, if_needs_moved_buffers)
+            if_new_buffers_op = scf.If(
+                cmp_buffer_size_op.result,
+                [],
+                if_needs_new_buffers,
+                if_needs_moved_buffers,
+            )
             if_found_false.append(if_new_buffers_op)
         else:
             # if it's not buffered then we know we just need to always do new buffers at the size of last_index
             # and we know the old buffer size was just one element less than the new last_index
             new_size = last_index
-            calc_old_size_ops, (old_buffer_size,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_size_ops, (old_buffer_size,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_found_false.extend(calc_old_size_ops)
             (
                 do_new_buffers_ops,
@@ -5154,7 +5242,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_found_false.extend(do_new_buffers_ops)
             # New we fill in the new index tuple and data elem
 
-            initialiser = SingletonInitialiser(set_val, set(child_members), dict(child_dim_mapping))
+            initialiser = SingletonInitialiser(
+                set_val, set(child_members), dict(child_dim_mapping)
+            )
             set_up_child_ops = self.set_up_new_child(
                 starting_layout,
                 extent_resolver,
@@ -5171,7 +5261,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_found_false.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
             # if_found_false.append(
             #     printf.PrintFormatOp("4696 new data {}", new_data_buffer_ptr))
-            if_found_false.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+            if_found_false.append(
+                llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr)
+            )
 
         if_found_false.append(scf.Yield())
 
@@ -5369,8 +5461,14 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
-            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
-                                                     new_idx_elem_ptr, new_data_elem_ptr)
+            set_up_child_ops = self.set_up_new_child(
+                layout,
+                extent_resolver,
+                dim_mapping,
+                initialiser,
+                new_idx_elem_ptr,
+                new_data_elem_ptr,
+            )
             if_needs_new_buffers.extend(set_up_child_ops)
 
             # if_needs_new_buffers.append(
@@ -5378,7 +5476,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_needs_new_buffers.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
             # if_needs_new_buffers.append(
             #     printf.PrintFormatOp("4909 new data {}", new_data_buffer_ptr))
-            if_needs_new_buffers.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+            if_needs_new_buffers.append(
+                llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr)
+            )
             # if_needs_new_buffers.append(
             #     printf.PrintFormatOp("4912 new size {}", new_size))
             if_needs_new_buffers.append(llvm.StoreOp(new_size, buffer_size_ptr))
@@ -5386,7 +5486,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             # alternatively we don't need new buffers - just need to move the data in the buffers we have
             if_needs_moved_buffers = []
-            calc_old_elems_ops, (elems_to_copy,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_elems_ops, (elems_to_copy,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_needs_moved_buffers.extend(calc_old_elems_ops)
             (
                 do_move_buffers_ops,
@@ -5410,20 +5512,33 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
-            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
-                                                     new_idx_elem_ptr, new_data_elem_ptr)
+            set_up_child_ops = self.set_up_new_child(
+                layout,
+                extent_resolver,
+                dim_mapping,
+                initialiser,
+                new_idx_elem_ptr,
+                new_data_elem_ptr,
+            )
             if_needs_moved_buffers.extend(set_up_child_ops)
 
             if_needs_moved_buffers.append(scf.Yield(child_fill_value))
 
-            if_new_buffers_op = scf.If(need_bigger_buffers, [base_type], if_needs_new_buffers, if_needs_moved_buffers)
+            if_new_buffers_op = scf.If(
+                need_bigger_buffers,
+                [base_type],
+                if_needs_new_buffers,
+                if_needs_moved_buffers,
+            )
             if_found_false.append(if_new_buffers_op)
             child_fill_value = if_new_buffers_op.results[0]
         else:
             # if it's not buffered then we know we just need to always do new buffers at the size of last_index
             # and we know the old buffer size was just one element less than the new last_index
             new_size = last_index
-            calc_old_size_ops, (old_buffer_size,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_size_ops, (old_buffer_size,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_found_false.extend(calc_old_size_ops)
             (
                 do_new_buffers_ops,
@@ -5448,8 +5563,14 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
-            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
-                                                     new_idx_elem_ptr, new_data_elem_ptr)
+            set_up_child_ops = self.set_up_new_child(
+                layout,
+                extent_resolver,
+                dim_mapping,
+                initialiser,
+                new_idx_elem_ptr,
+                new_data_elem_ptr,
+            )
             if_found_false.extend(set_up_child_ops)
 
             # if_found_false.append(
@@ -5457,7 +5578,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_found_false.append(llvm.StoreOp(new_idx_buffer_ptr, input_ptr))
             # if_found_false.append(
             #     printf.PrintFormatOp("4990 new data {}", new_data_buffer_ptr))
-            if_found_false.append(llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr))
+            if_found_false.append(
+                llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr)
+            )
 
         if_found_false.append(scf.Yield(child_fill_value))
 
@@ -5470,7 +5593,6 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops.append(if_found_op)
 
         return ops, if_found_op.output[0]
-
 
     def init_layout(
         self,
@@ -5566,14 +5688,14 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
         )
         ops.extend(data_buffer_ptr_ptr_ops)
-        data_buffer_ptr_op = llvm.LoadOp(data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque())
+        data_buffer_ptr_op = llvm.LoadOp(
+            data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque()
+        )
         ops.append(data_buffer_ptr_op)
         data_buffer_ptr = data_buffer_ptr_op.dereferenced_value
 
         data_elem_size_ops, (data_elem_size,) = (
-            self.semantics.get_size(layout.child, extent_resolver)
-            .keep(1)
-            .output()
+            self.semantics.get_size(layout.child, extent_resolver).keep(1).output()
         )
         ops.extend(data_elem_size_ops)
 
@@ -5641,16 +5763,16 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         return ops, child_iter_args, child_exited_early
 
     def make_sparse_loop_callback_for(
-            self,
-            starting_layout: dlt.UnpackedCOOLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.UnpackedCOOLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], LoopCallback]:
         ops = []
         idx_buffer_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
@@ -5665,7 +5787,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         data_buffer_ptr = data_buffer_op.dereferenced_value
 
         data_elem_size_ops, (data_elem_size,) = (
-            self.semantics.get_size(starting_layout.child, extent_resolver).keep(1).output()
+            self.semantics.get_size(starting_layout.child, extent_resolver)
+            .keep(1)
+            .output()
         )
         ops.extend(data_elem_size_ops)
 
@@ -5816,9 +5940,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops = []
         # Malloc the Unpacked COO index Buffer:
         alloc_idx_buffer_bytes_numeric = (
-                _get_accepted_type_size(IndexType()).sum()
-                * NumericResult.from_mixed([], len(upcoo_layout.dimensions))
-                * NumericResult.from_mixed([], num_non_zero)
+            _get_accepted_type_size(IndexType()).sum()
+            * NumericResult.from_mixed([], len(upcoo_layout.dimensions))
+            * NumericResult.from_mixed([], num_non_zero)
         )
         alloc_idx_buffer_bytes_ops, (alloc_idx_buffer_bytes,) = (
             alloc_idx_buffer_bytes_numeric.output()
@@ -5827,7 +5951,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
         if old_buffers is None:
             malloc_idx_buffer = llvm.CallOp(
-                "malloc", alloc_idx_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                "malloc",
+                alloc_idx_buffer_bytes,
+                return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(malloc_idx_buffer)
             idx_buffer_ptr = malloc_idx_buffer.returned
@@ -5835,7 +5961,10 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         else:
 
             realloc_idx_buffer = llvm.CallOp(
-                "realloc", old_buffers[0], alloc_idx_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                "realloc",
+                old_buffers[0],
+                alloc_idx_buffer_bytes,
+                return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(realloc_idx_buffer)
             idx_buffer_ptr = realloc_idx_buffer.returned
@@ -5846,7 +5975,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
         # Malloc the Unpacked COO data Buffer:
         alloc_data_buffer_bytes_numeric = (
-                child_size * NumericResult.from_mixed([], num_non_zero)
+            child_size * NumericResult.from_mixed([], num_non_zero)
         ).sum()
         alloc_data_buffer_ops, (alloc_data_buffer_bytes,) = (
             alloc_data_buffer_bytes_numeric.output()
@@ -5854,26 +5983,29 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops.extend(alloc_data_buffer_ops)
         if old_buffers is None:
             malloc_data_buffer = llvm.CallOp(
-                "malloc", alloc_data_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                "malloc",
+                alloc_data_buffer_bytes,
+                return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(malloc_data_buffer)
             data_buffer_ptr = malloc_data_buffer.returned
             # ops.append(printf.PrintFormatOp("# malloc data size: {} -> {}", alloc_data_buffer_bytes, data_buffer_ptr))
         else:
             realloc_data_buffer = llvm.CallOp(
-                "realloc", old_buffers[1], alloc_data_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                "realloc",
+                old_buffers[1],
+                alloc_data_buffer_bytes,
+                return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(realloc_data_buffer)
             data_buffer_ptr = realloc_data_buffer.returned
             # ops.append(printf.PrintFormatOp("# Realloc data: {} to size: {} -> {}", old_buffers[1], alloc_data_buffer_bytes, data_buffer_ptr))
-
 
         # db_ops, (child_size_db_base, child_size_db_extra) = child_size_debug.output()
         # ops.extend(db_ops)
         # ops.append(printf.PrintFormatOp("Malloc  capacity:{}  child_size:{} + {}", num_non_zero, child_size_db_base, child_size_db_extra))
         # ops.append(printf.PrintFormatOp("Malloc  index buffer:{}  data buffer:{}", malloc_idx_buffer.returned, malloc_data_buffer.returned))
         # ops.append(printf.PrintFormatOp("Malloc  index bytes:{}  data bytes:{} for "+str(upcoo_layout), alloc_idx_buffer_bytes,  alloc_data_buffer_bytes))
-
 
         return ops, idx_buffer_ptr, data_buffer_ptr
 
@@ -5925,16 +6057,16 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         # calculate how much data to move, this will be the new last_index (new number of elements in the buffer)
         # minus what was copied already (new_elem_index), minus 1 to account for 1 new element
         post_elem_buffer_size_ops, (post_elem_buffer_size,) = (
-                (
-                        NumericResult.from_ssa(element_size)
-                        * (
-                            (
-                                    NumericResult.from_ssa(elements_to_copy)
-                                    - NumericResult.from_ssa(new_elem_index)
-                            )
-                        )
+            (
+                NumericResult.from_ssa(element_size)
+                * (
+                    (
+                        NumericResult.from_ssa(elements_to_copy)
+                        - NumericResult.from_ssa(new_elem_index)
+                    )
                 )
-                + NumericResult.from_ssa(extra_space)
+            )
+            + NumericResult.from_ssa(extra_space)
         ).output()
         ops.extend(post_elem_buffer_size_ops)
         zero_op = arith.Constant(IntegerAttr(0, IndexType()))
@@ -6049,7 +6181,6 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
                     ops.extend(ext_ops)
                     extent_args.extend(ext)
 
-
             derived_initialiser = DerivedInitialiser(
                 self.sparse_initial_values, members, dim_map
             )
@@ -6093,7 +6224,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
 
             get_non_zeros_ops, found_non_zeros = derived_initialiser.get_non_zero(
-                set(), {k: ArgIndexGetter(v) for k, v in block_dim_map.items()}, self.unpack_coo_layout.child.contents_type
+                set(),
+                {k: ArgIndexGetter(v) for k, v in block_dim_map.items()},
+                self.unpack_coo_layout.child.contents_type,
             )
             sparse_iter_block.add_ops(get_non_zeros_ops)
             bool_ssa_ops, has_non_zero = _make_bool_ssa(found_non_zeros)
@@ -6425,14 +6558,14 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             super().__init__(inner_callback_args)
 
         def callback(
-                self,
-                terminal_layout: dlt.Layout,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, IndexGetter],
-                dims_left_to_loop: set[dlt.DimensionAttr],
-                extent_resolver: ExtentResolver,
-                ptr: SSAValue,
-                iter_args: list[SSAValue],
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, IndexGetter],
+            dims_left_to_loop: set[dlt.DimensionAttr],
+            extent_resolver: ExtentResolver,
+            ptr: SSAValue,
+            iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue]]:
             assert len(dims_left_to_loop) == 0
             ops: list[Operation] = []
@@ -6504,27 +6637,36 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             if_checked_true = []
             block_callback = DerivedLoopCallback(
-                self.inner_callback, members, dim_map | looped_sparse_dims | checked_sparse_dims
+                self.inner_callback,
+                members,
+                dim_map | looped_sparse_dims | checked_sparse_dims,
             )
 
-            child_ops, new_inner_callback_arg = (
-                self.semantics.make_sparse_loop_for(
-                    self.unpack_coo_layout.child,
-                    self.end_layout,
-                    self.extent_resolver,
-                    current_data_buffer_ptr,
-                    block_callback,
-                    block_inner_callback_args,
-                    self.members,
-                    {d: g for d,g in self.dim_mapping.items() if d not in checked_sparse_dims},
-                    self.dims_to_loop - set(looped_sparse_dims.keys()),
-                )
+            child_ops, new_inner_callback_arg = self.semantics.make_sparse_loop_for(
+                self.unpack_coo_layout.child,
+                self.end_layout,
+                self.extent_resolver,
+                current_data_buffer_ptr,
+                block_callback,
+                block_inner_callback_args,
+                self.members,
+                {
+                    d: g
+                    for d, g in self.dim_mapping.items()
+                    if d not in checked_sparse_dims
+                },
+                self.dims_to_loop - set(looped_sparse_dims.keys()),
             )
             if_checked_true.extend(child_ops)
             if_checked_true.append(scf.Yield(*new_inner_callback_arg))
             if_checked_false = []
             if_checked_false.append(scf.Yield(*block_inner_callback_args))
-            if_checked_op = scf.If(checked, [arg.type for arg in iter_args], if_checked_true, if_checked_false)
+            if_checked_op = scf.If(
+                checked,
+                [arg.type for arg in iter_args],
+                if_checked_true,
+                if_checked_false,
+            )
             block.add_op(if_checked_op)
 
             block.add_op(scf.Yield(*if_checked_op.results))
@@ -6592,13 +6734,11 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops.append(zero_op)
 
         # Malloc the new Unpacked COO Buffer:
-        malloc_ops, new_idx_buffer_ptr, new_data_buffer_ptr = (
-            self.malloc_buffers(
-                starting_layout,
-                new_size,
-                self.semantics.get_size(starting_layout.child, extent_resolver),
-                old_buffers=(idx_buffer_ptr, data_buffer_ptr),
-            )
+        malloc_ops, new_idx_buffer_ptr, new_data_buffer_ptr = self.malloc_buffers(
+            starting_layout,
+            new_size,
+            self.semantics.get_size(starting_layout.child, extent_resolver),
+            old_buffers=(idx_buffer_ptr, data_buffer_ptr),
         )
         ops.extend(malloc_ops)
 
@@ -6707,7 +6847,16 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
 class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
-    def _get_buffer_ptrs(self, layout: dlt.SeparatedCOOLayoutAttr, input_ptr: SSAValue, get_capacity: bool = False) -> tuple[list[Operation], tuple[tuple[SSAValue,...], SSAValue, SSAValue|None] | tuple[tuple[SSAValue,...], SSAValue]]:
+    def _get_buffer_ptrs(
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        input_ptr: SSAValue,
+        get_capacity: bool = False,
+    ) -> tuple[
+        list[Operation],
+        tuple[tuple[SSAValue, ...], SSAValue, SSAValue | None]
+        | tuple[tuple[SSAValue, ...], SSAValue],
+    ]:
         ops = []
         idxs = []
         for i, _ in enumerate(layout.dimensions):
@@ -6735,7 +6884,14 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         ops.append(capacity_op)
         return ops, (tuple(idxs), data_buffer_ptr, capacity)
 
-    def _set_buffer_ptrs(self, layout: dlt.SeparatedCOOLayoutAttr, input_ptr: SSAValue, new_idx_buffer_ptrs: tuple[SSAValue,...], new_data_buffer_ptr: SSAValue, capacity: SSAValue = None) -> list[Operation]:
+    def _set_buffer_ptrs(
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        input_ptr: SSAValue,
+        new_idx_buffer_ptrs: tuple[SSAValue, ...],
+        new_data_buffer_ptr: SSAValue,
+        capacity: SSAValue = None,
+    ) -> list[Operation]:
         ops = []
         for idx_buffer_ptr in new_idx_buffer_ptrs:
             idx_buffer_ptr_op = llvm.StoreOp(idx_buffer_ptr, input_ptr)
@@ -6757,9 +6913,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         ops.append(capacity_op)
         return ops
 
-
     def get_size(
-            self, layout: dlt.SeparatedCOOLayoutAttr, extent_resolver: ExtentResolver
+        self, layout: dlt.SeparatedCOOLayoutAttr, extent_resolver: ExtentResolver
     ) -> NumericResult2:
         # [*index_buffer per dimension, data_buffer]
         if layout.is_buffered():
@@ -6768,48 +6923,40 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             return _get_accepted_type_size(IndexType()) * (len(layout.dimensions) + 1)
 
     def get_getter_for(
-            self,
-            starting_layout: dlt.SeparatedCOOLayoutAttr,
-            get_type: dlt.AcceptedTypes,
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            index_range: SSAValue,
-            index_found: bool | SSAValue,
+        self,
+        starting_layout: dlt.SeparatedCOOLayoutAttr,
+        get_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index_range: SSAValue,
+        index_found: bool | SSAValue,
     ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
         ops = []
 
         extract_ops, start, end = _extract_indices_from_index_range(index_range)
         ops.extend(extract_ops)
 
-        extract_ptr_ops, (idx_buffers, data_buffer) = self._get_buffer_ptrs(starting_layout, input_ptr)
+        extract_ptr_ops, (idx_buffers, data_buffer_ptr) = self._get_buffer_ptrs(
+            starting_layout, input_ptr
+        )
         ops.extend(extract_ptr_ops)
 
-        while_op, index_is_found, index = self.loop_to_find_index(
+        search_loop_ops, index_is_found, index = self.search_to_find_index(
             starting_layout,
             start,
             end,
             idx_buffers,
             dim_mapping,
         )
-        ops.append(while_op)
+        ops.extend(search_loop_ops)
         # If index is found we can use it, else we return an appropriate zero element
         if_found_true = []
-
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
-        data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
-            input_ptr
-        )
-        if_found_true.extend(data_buffer_ptr_ops)
-        data_buffer_ptr_op = llvm.LoadOp(
-            data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque()
-        )
-        if_found_true.append(data_buffer_ptr_op)
         data_ptr_ops, child_elem_ptr = (
-                NumericResult.from_ssa(index)
-                * self.semantics.get_size(starting_layout.child, extent_resolver).keep(1)
-        ).add_to_llvm_pointer(data_buffer_ptr_op.dereferenced_value)
+            NumericResult.from_ssa(index)
+            * self.semantics.get_size(starting_layout.child, extent_resolver).keep(1)
+        ).add_to_llvm_pointer(data_buffer_ptr)
         if_found_true.extend(data_ptr_ops)
 
         child_dim_mapping = {
@@ -6848,19 +6995,19 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         return ops, if_found_op.output[0], if_found_op.output[1]
 
     def get_setter_for(
-            self,
-            starting_layout: dlt.SeparatedCOOLayoutAttr,
-            set_val: SSAValue,
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            index_range: SSAValue,
-            index_range_found: bool | SSAValue,
-            ensure_space_func: EnsureSpaceFunc,
-            direct_iterate_func: LinearIterCallbackFunc,
-            direct_members: set[dlt.MemberAttr],
-            direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        self,
+        starting_layout: dlt.SeparatedCOOLayoutAttr,
+        set_val: SSAValue,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index_range: SSAValue,
+        index_range_found: bool | SSAValue,
+        ensure_space_func: EnsureSpaceFunc,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
     ) -> list[Operation]:
 
         # get the members and dim_mapping that will be needed by the recursive child get_setter_for
@@ -6909,17 +7056,19 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         extract_ops, start, end = _extract_indices_from_index_range(true_index_range)
         if_must_start_set_ops.extend(extract_ops)
 
-        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr, buffer_size) = self._get_buffer_ptrs(starting_layout, input_ptr, get_capacity=True)
+        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr, buffer_size) = (
+            self._get_buffer_ptrs(starting_layout, input_ptr, get_capacity=True)
+        )
         if_must_start_set_ops.extend(extract_ptr_ops)
 
-        while_op, index_is_found, index = self.loop_to_find_index(
+        search_loop_ops, index_is_found, index = self.search_to_find_index(
             starting_layout,
             start,
             end,
             idx_buffer_ptrs,
             dim_mapping,
         )
-        if_must_start_set_ops.append(while_op)
+        if_must_start_set_ops.extend(search_loop_ops)
         # index_is_found iff we find an index tuple that matches the sparse dimension values from dim_mapping index
         # will be the index offset in the index-buffer (and data-buffer) of the match if there is one, else it will
         # be the index it was expected to be (i.e. the index where the loop stopped because either the range ran out,
@@ -6934,8 +7083,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         if_found_true = []
 
         data_ptr_ops, child_elem_ptr = (
-                NumericResult.from_ssa(index)
-                * self.semantics.get_size(starting_layout.child, extent_resolver).keep(1)
+            NumericResult.from_ssa(index)
+            * self.semantics.get_size(starting_layout.child, extent_resolver).keep(1)
         ).add_to_llvm_pointer(data_buffer_ptr)
         if_found_true.extend(data_ptr_ops)
 
@@ -7028,7 +7177,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             )
             if_needs_new_buffers.extend(do_new_buffers_ops)
 
-            initialiser = SingletonInitialiser(set_val, set(child_members), dict(child_dim_mapping))
+            initialiser = SingletonInitialiser(
+                set_val, set(child_members), dict(child_dim_mapping)
+            )
             set_up_child_ops = self.set_up_new_child(
                 starting_layout,
                 extent_resolver,
@@ -7039,12 +7190,22 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             )
             if_needs_new_buffers.extend(set_up_child_ops)
 
-            if_needs_new_buffers.extend(self._set_buffer_ptrs(starting_layout, input_ptr, new_idx_buffer_ptrs, new_data_buffer_ptr, new_size))
+            if_needs_new_buffers.extend(
+                self._set_buffer_ptrs(
+                    starting_layout,
+                    input_ptr,
+                    new_idx_buffer_ptrs,
+                    new_data_buffer_ptr,
+                    new_size,
+                )
+            )
             if_needs_new_buffers.append(scf.Yield())
 
             # alternatively we don't need new buffers - just need to move the data in the buffers we have
             if_needs_moved_buffers = []
-            calc_old_elems_ops, (elems_to_copy,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_elems_ops, (elems_to_copy,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_needs_moved_buffers.extend(calc_old_elems_ops)
             (
                 do_move_buffers_ops,
@@ -7061,7 +7222,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 index,
             )
             if_needs_moved_buffers.extend(do_move_buffers_ops)
-            initialiser = SingletonInitialiser(set_val, set(child_members), dict(child_dim_mapping))
+            initialiser = SingletonInitialiser(
+                set_val, set(child_members), dict(child_dim_mapping)
+            )
             set_up_child_ops = self.set_up_new_child(
                 starting_layout,
                 extent_resolver,
@@ -7073,13 +7236,20 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             if_needs_moved_buffers.extend(set_up_child_ops)
             if_needs_moved_buffers.append(scf.Yield())
 
-            if_new_buffers_op = scf.If(cmp_buffer_size_op.result, [], if_needs_new_buffers, if_needs_moved_buffers)
+            if_new_buffers_op = scf.If(
+                cmp_buffer_size_op.result,
+                [],
+                if_needs_new_buffers,
+                if_needs_moved_buffers,
+            )
             if_found_false.append(if_new_buffers_op)
         else:
             # if it's not buffered then we know we just need to always do new buffers at the size of last_index
             # and we know the old buffer size was just one element less than the new last_index
             new_size = last_index
-            calc_old_size_ops, (old_buffer_size,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_size_ops, (old_buffer_size,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_found_false.extend(calc_old_size_ops)
             (
                 do_new_buffers_ops,
@@ -7099,7 +7269,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             if_found_false.extend(do_new_buffers_ops)
             # New we fill in the new index tuple and data elem
 
-            initialiser = SingletonInitialiser(set_val, set(child_members), dict(child_dim_mapping))
+            initialiser = SingletonInitialiser(
+                set_val, set(child_members), dict(child_dim_mapping)
+            )
             set_up_child_ops = self.set_up_new_child(
                 starting_layout,
                 extent_resolver,
@@ -7111,7 +7283,11 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             if_found_false.extend(set_up_child_ops)
 
             # The new buffers need to be put in the indexing struct and the old ones freed
-            if_found_false.extend(self._set_buffer_ptrs(starting_layout, input_ptr, new_idx_buffer_ptrs, new_data_buffer_ptr))
+            if_found_false.extend(
+                self._set_buffer_ptrs(
+                    starting_layout, input_ptr, new_idx_buffer_ptrs, new_data_buffer_ptr
+                )
+            )
 
         if_found_false.append(scf.Yield())
 
@@ -7134,36 +7310,37 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         return ops
 
     def ensure_space(
-            self,
-            layout: dlt.SeparatedCOOLayoutAttr,
-            base_type: dlt.AcceptedTypes,
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            fill_value_getter: FillValueGetter,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            index_range: SSAValue,
-            direct_iterate_func: LinearIterCallbackFunc,
-            direct_members: set[dlt.MemberAttr],
-            direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        base_type: dlt.AcceptedTypes,
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        fill_value_getter: FillValueGetter,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        index_range: SSAValue,
+        direct_iterate_func: LinearIterCallbackFunc,
+        direct_members: set[dlt.MemberAttr],
+        direct_dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
     ) -> tuple[list[Operation], SSAValue]:
 
         ops = []
         extract_ops, start, end = _extract_indices_from_index_range(index_range)
         ops.extend(extract_ops)
 
-        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr, buffer_size) = self._get_buffer_ptrs(layout, input_ptr, get_capacity=True)
+        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr, buffer_size) = (
+            self._get_buffer_ptrs(layout, input_ptr, get_capacity=True)
+        )
         ops.extend(extract_ptr_ops)
 
-
-        while_op, index_is_found, index = self.loop_to_find_index(
+        search_loop_ops, index_is_found, index = self.search_to_find_index(
             layout,
             start,
             end,
             idx_buffer_ptrs,
             dim_mapping,
         )
-        ops.append(while_op)
+        ops.extend(search_loop_ops)
 
         # get the members and dim_mapping that will eventually be needed by the recursive child get_setter_for
         child_dim_mapping = {
@@ -7190,7 +7367,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         if_found_true = []
 
         data_ptr_ops, child_elem_ptr = (
-                NumericResult.from_ssa(index) * NumericResult.from_ssa(data_elem_size)
+            NumericResult.from_ssa(index) * NumericResult.from_ssa(data_elem_size)
         ).add_to_llvm_pointer(data_buffer_ptr)
         if_found_true.extend(data_ptr_ops)
 
@@ -7289,16 +7466,32 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
-            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
-                                                     new_idx_elem_ptrs, new_data_elem_ptr)
+            set_up_child_ops = self.set_up_new_child(
+                layout,
+                extent_resolver,
+                dim_mapping,
+                initialiser,
+                new_idx_elem_ptrs,
+                new_data_elem_ptr,
+            )
             if_needs_new_buffers.extend(set_up_child_ops)
 
-            if_needs_new_buffers.extend(self._set_buffer_ptrs(layout, input_ptr, new_idx_buffer_ptrs, new_data_buffer_ptr, new_size))
+            if_needs_new_buffers.extend(
+                self._set_buffer_ptrs(
+                    layout,
+                    input_ptr,
+                    new_idx_buffer_ptrs,
+                    new_data_buffer_ptr,
+                    new_size,
+                )
+            )
             if_needs_new_buffers.append(scf.Yield(child_fill_value))
 
             # alternatively we don't need new buffers - just need to move the data in the buffers we have
             if_needs_moved_buffers = []
-            calc_old_elems_ops, (elems_to_copy,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_elems_ops, (elems_to_copy,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_needs_moved_buffers.extend(calc_old_elems_ops)
             (
                 do_move_buffers_ops,
@@ -7322,20 +7515,33 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
-            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
-                                                     new_idx_elem_ptrs, new_data_elem_ptr)
+            set_up_child_ops = self.set_up_new_child(
+                layout,
+                extent_resolver,
+                dim_mapping,
+                initialiser,
+                new_idx_elem_ptrs,
+                new_data_elem_ptr,
+            )
             if_needs_moved_buffers.extend(set_up_child_ops)
 
             if_needs_moved_buffers.append(scf.Yield(child_fill_value))
 
-            if_new_buffers_op = scf.If(need_bigger_buffers, [base_type], if_needs_new_buffers, if_needs_moved_buffers)
+            if_new_buffers_op = scf.If(
+                need_bigger_buffers,
+                [base_type],
+                if_needs_new_buffers,
+                if_needs_moved_buffers,
+            )
             if_found_false.append(if_new_buffers_op)
             child_fill_value = if_new_buffers_op.results[0]
         else:
             # if it's not buffered then we know we just need to always do new buffers at the size of last_index
             # and we know the old buffer size was just one element less than the new last_index
             new_size = last_index
-            calc_old_size_ops, (old_buffer_size,) = (NumericResult.from_ssa(last_index) - 1).output()
+            calc_old_size_ops, (old_buffer_size,) = (
+                NumericResult.from_ssa(last_index) - 1
+            ).output()
             if_found_false.extend(calc_old_size_ops)
             (
                 do_new_buffers_ops,
@@ -7360,11 +7566,21 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
-            set_up_child_ops = self.set_up_new_child(layout, extent_resolver, dim_mapping, initialiser,
-                                                     new_idx_elem_ptrs, new_data_elem_ptr)
+            set_up_child_ops = self.set_up_new_child(
+                layout,
+                extent_resolver,
+                dim_mapping,
+                initialiser,
+                new_idx_elem_ptrs,
+                new_data_elem_ptr,
+            )
             if_found_false.extend(set_up_child_ops)
 
-            if_found_false.extend(self._set_buffer_ptrs(layout, input_ptr, new_idx_buffer_ptrs, new_data_buffer_ptr))
+            if_found_false.extend(
+                self._set_buffer_ptrs(
+                    layout, input_ptr, new_idx_buffer_ptrs, new_data_buffer_ptr
+                )
+            )
 
         if_found_false.append(scf.Yield(child_fill_value))
 
@@ -7379,16 +7595,16 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         return ops, if_found_op.output[0]
 
     def init_layout(
-            self,
-            layout: dlt.SeparatedCOOLayoutAttr,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            initial_values: Initialiser,
-            init_callback: Callback,
-            callback_args: list[SSAValue],
-            is_last_element: bool | SSAValue,
-            direct_init_func: LinearIterCallbackFunc,
-            direct_iter_func: LinearIterCallbackFunc,
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        initial_values: Initialiser,
+        init_callback: Callback,
+        callback_args: list[SSAValue],
+        is_last_element: bool | SSAValue,
+        direct_init_func: LinearIterCallbackFunc,
+        direct_iter_func: LinearIterCallbackFunc,
     ) -> tuple[list[Operation], list[SSAValue]]:
         assert len(callback_args) == len(init_callback.initial_iter_args())
         ops = []
@@ -7420,7 +7636,11 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         else:
             buffer_size = None
 
-        ops.extend(self._set_buffer_ptrs(layout, input_ptr, idx_buffer_ptrs, data_buffer_ptr, buffer_size))
+        ops.extend(
+            self._set_buffer_ptrs(
+                layout, input_ptr, idx_buffer_ptrs, data_buffer_ptr, buffer_size
+            )
+        )
 
         data_element_size_ops, (data_element_size,) = (
             self.semantics.get_size(layout.child, extent_resolver).keep(1).output()
@@ -7443,29 +7663,29 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             set_data_callback, is_last_element
         )
         ops.extend(set_data_ops)
-        callback_iter_args = iter_args[3:]
+        callback_iter_args = iter_args[len(idx_buffer_ptrs)+2:]
         assert len(callback_args) == len(callback_iter_args)
         return ops, callback_iter_args
 
     def dealloc_layout(
-            self,
-            layout: dlt.SeparatedCOOLayoutAttr,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            direct_iter_func: LinearIterCallbackFunc,
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        direct_iter_func: LinearIterCallbackFunc,
     ) -> list[Operation]:
 
         ops = []
         true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
         ops.append(true_op)
 
-        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr) = self._get_buffer_ptrs(layout, input_ptr)
+        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr) = self._get_buffer_ptrs(
+            layout, input_ptr
+        )
         ops.extend(extract_ptr_ops)
 
         data_elem_size_ops, (data_elem_size,) = (
-            self.semantics.get_size(layout.child, extent_resolver)
-            .keep(1)
-            .output()
+            self.semantics.get_size(layout.child, extent_resolver).keep(1).output()
         )
         ops.extend(data_elem_size_ops)
 
@@ -7489,18 +7709,20 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         return ops
 
     def linear_iterate(
-            self,
-            layout: dlt.SeparatedCOOLayoutAttr,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: Callback,
-            callback_args: list[SSAValue],
-            is_last_element: bool | SSAValue,
-            direct_iter_func: LinearIterCallbackFunc,
-            reversed_direction: bool = False,
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: Callback,
+        callback_args: list[SSAValue],
+        is_last_element: bool | SSAValue,
+        direct_iter_func: LinearIterCallbackFunc,
+        reversed_direction: bool = False,
     ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
         ops = []
-        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr) = self._get_buffer_ptrs(layout, input_ptr)
+        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr) = self._get_buffer_ptrs(
+            layout, input_ptr
+        )
         ops.extend(extract_ptr_ops)
 
         data_elem_size_ops, (data_elem_size,) = (
@@ -7526,23 +7748,27 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         return ops, child_iter_args, child_exited_early
 
     def make_sparse_loop_callback_for(
-            self,
-            starting_layout: dlt.SeparatedCOOLayoutAttr,
-            ending_layout: dlt.DirectLayout,
-            extent_resolver: ExtentResolver,
-            input_ptr: SSAValue,
-            callback: LoopCallback,
-            callback_args: list[SSAValue],
-            members: set[dlt.MemberAttr],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            dims_to_loop: set[dlt.DimensionAttr],
+        self,
+        starting_layout: dlt.SeparatedCOOLayoutAttr,
+        ending_layout: dlt.DirectLayout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+        callback: LoopCallback,
+        callback_args: list[SSAValue],
+        members: set[dlt.MemberAttr],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        dims_to_loop: set[dlt.DimensionAttr],
     ) -> tuple[list[Operation], LoopCallback]:
         ops = []
-        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr) = self._get_buffer_ptrs(starting_layout, input_ptr)
+        extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr) = self._get_buffer_ptrs(
+            starting_layout, input_ptr
+        )
         ops.extend(extract_ptr_ops)
 
         data_elem_size_ops, (data_elem_size,) = (
-            self.semantics.get_size(starting_layout.child, extent_resolver).keep(1).output()
+            self.semantics.get_size(starting_layout.child, extent_resolver)
+            .keep(1)
+            .output()
         )
         ops.extend(data_elem_size_ops)
 
@@ -7564,12 +7790,14 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
     @staticmethod
     def loop_to_find_index(
-            scoo_layout: dlt.SeparatedCOOLayoutAttr,
-            start: SSAValue,
-            end: SSAValue,
-            index_buffer_ptrs: tuple[SSAValue],
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-    ):
+        scoo_layout: dlt.SeparatedCOOLayoutAttr,
+        start: SSAValue,
+        end: SSAValue,
+        index_buffer_ptrs: tuple[SSAValue],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> tuple[
+        list[Operation], SSAValue, SSAValue
+    ]:  # ops, index_is_found(bool), index(IndexType)
         num_dims = len(scoo_layout.dimensions)
         assert len(index_buffer_ptrs) == num_dims
 
@@ -7602,23 +7830,52 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         running_is_over = false_op.result
         running_is_found = true_op.result
 
-        for i, (dim, idx_buffer_ptr) in enumerate(zip(scoo_layout.dimensions, index_buffer_ptrs)):
+        for i, (dim, idx_buffer_ptr, idx_buffer_type) in enumerate(
+            zip(
+                scoo_layout.dimensions,
+                index_buffer_ptrs,
+                scoo_layout.index_buffer_types,
+            )
+        ):
             i_cast_op = builtin.UnrealizedConversionCastOp.get([before_index], [i64])
             if_in_range_true.append(i_cast_op)
-            idx_ptr_arith_op = llvm.GEPOp(idx_buffer_ptr, [llvm.GEP_USE_SSA_VAL], i_cast_op.outputs, pointee_type=IndexType())
+            idx_ptr_arith_op = llvm.GEPOp(
+                idx_buffer_ptr,
+                [llvm.GEP_USE_SSA_VAL],
+                i_cast_op.outputs,
+                pointee_type=idx_buffer_type,
+            )
             if_in_range_true.append(idx_ptr_arith_op)
-            inner_load_stored_index = llvm.LoadOp(idx_ptr_arith_op.result, IndexType())
-            if_in_range_true.append(inner_load_stored_index)
+            inner_load_stored_index_op = llvm.LoadOp(
+                idx_ptr_arith_op.result, idx_buffer_type
+            )
+            if_in_range_true.append(inner_load_stored_index_op)
+            if idx_buffer_type.width.data < builtin.i64.width.data:
+                inner_ext_idx_op = arith.ExtUIOp(
+                    inner_load_stored_index_op.dereferenced_value, builtin.i64
+                )
+                inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
+                    [inner_ext_idx_op.result], [IndexType()]
+                )
+                if_in_range_true.extend([inner_ext_idx_op, inner_idx_cast_op])
+                inner_idx = inner_idx_cast_op.outputs[0]
+            elif idx_buffer_type == builtin.i64:
+                inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
+                    [inner_load_stored_index_op.dereferenced_value], [IndexType()]
+                )
+                if_in_range_true.extend([inner_idx_cast_op])
+                inner_idx = inner_idx_cast_op.outputs[0]
+            else:
+                raise NotImplementedError(
+                    f"{idx_buffer_type} not supported as Separated COO index buffer type"
+                )
+
             get_index_ops, (get_index,) = dim_mapping[dim].get().output()
             if_in_range_true.extend(get_index_ops)
 
-            inner_is_over_cmp = arith.Cmpi(
-                inner_load_stored_index.dereferenced_value, get_index, "ugt"
-            )
+            inner_is_over_cmp = arith.Cmpi(inner_idx, get_index, "ugt")
             if_in_range_true.append(inner_is_over_cmp)
-            inner_is_found_cmp = arith.Cmpi(
-                inner_load_stored_index.dereferenced_value, get_index, "eq"
-            )
+            inner_is_found_cmp = arith.Cmpi(inner_idx, get_index, "eq")
             if_in_range_true.append(inner_is_found_cmp)
 
             inner_is_now_over = arith.AndI(running_is_found, inner_is_over_cmp)
@@ -7672,46 +7929,686 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         index_is_found = while_op.res[0]
         index = while_op.res[1]
 
-        return while_op, index_is_found, index
+        return [while_op], index_is_found, index
+
+    @staticmethod
+    def loop_back_to_find_index(
+            scoo_layout: dlt.SeparatedCOOLayoutAttr,
+            start: SSAValue,
+            end: SSAValue,
+            index_buffer_ptrs: tuple[SSAValue],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> tuple[
+        list[Operation], SSAValue, SSAValue
+    ]:  # ops, index_is_found(bool), index(IndexType)
+        num_dims = len(scoo_layout.dimensions)
+        assert len(index_buffer_ptrs) == num_dims
+        # found = False
+        # under = False
+        # idx = end
+        # while(!found and !under and start < idx) {
+        #   next_idx = idx - 1
+        #   check if arr[next_index] is found or under
+        #   out_idex = idx if under else next_idx
+        #   yield (found, under, next_idx)
+        # }
+        ops = []
+        one_op = arith.Constant(IntegerAttr(1, IndexType()))
+        false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.extend([one_op, false_op, true_op])
+
+        init_found = false_op.result
+        init_under = false_op.result
+        init_index = end
+
+        before_block = Block(arg_types=(IntegerType(1), IntegerType(1), IndexType()))
+        before_found, before_under, before_index = before_block.args
+        exit_cond_op = arith.OrI(before_found, before_under)
+        idx_cmp_op = arith.Cmpi(start, before_index, "ult")
+        continue_op = arith.Select(exit_cond_op.result, false_op.result, idx_cmp_op.result)
+        before_block.add_ops([exit_cond_op, idx_cmp_op, continue_op])
+        before_condition_op = scf.Condition(continue_op.result, before_found, before_index)
+        before_block.add_op(before_condition_op)
+
+        after_block = Block(arg_types=[a.type for a in before_condition_op.arguments])
+        _, after_index = after_block.args
+
+        after_next_index_op = arith.Subi(after_index, one_op.result)
+        after_block.add_op(after_next_index_op)
+
+        running_is_under = false_op.result
+        running_is_found = true_op.result
+
+        for i, (dim, idx_buffer_ptr, idx_buffer_type) in enumerate(
+                zip(
+                    scoo_layout.dimensions,
+                    index_buffer_ptrs,
+                    scoo_layout.index_buffer_types,
+                )
+        ):
+            i_cast_op = builtin.UnrealizedConversionCastOp.get([after_next_index_op.result], [i64])
+            idx_ptr_arith_op = llvm.GEPOp(
+                idx_buffer_ptr,
+                [llvm.GEP_USE_SSA_VAL],
+                i_cast_op.outputs,
+                pointee_type=idx_buffer_type,
+            )
+            inner_load_stored_index_op = llvm.LoadOp(
+                idx_ptr_arith_op.result, idx_buffer_type
+            )
+            after_block.add_ops([i_cast_op, idx_ptr_arith_op, inner_load_stored_index_op])
+            current_value = inner_load_stored_index_op.dereferenced_value
+
+            get_index_ops, (target,) = dim_mapping[dim].get().output()
+            after_block.add_ops(get_index_ops)
+            convert_target_ops, target = SeparatedCOOSemantics.index_convert(target, idx_buffer_type)
+            after_block.add_ops(convert_target_ops)
+
+            inner_is_under_cmp = arith.Cmpi(current_value, target, "ult")
+            inner_is_found_cmp = arith.Cmpi(current_value, target, "eq")
+            after_block.add_ops([inner_is_under_cmp, inner_is_found_cmp])
+
+            inner_is_now_under = arith.AndI(running_is_found, inner_is_under_cmp)
+            inner_is_lesser_reduce = arith.OrI(running_is_under, inner_is_now_under)
+            inner_is_found_reduce = arith.AndI(running_is_found, inner_is_found_cmp)
+            after_block.add_ops([inner_is_now_under, inner_is_lesser_reduce, inner_is_found_reduce])
+
+            running_is_found = inner_is_found_reduce.result
+            running_is_under = inner_is_lesser_reduce.result
+
+        after_is_found = running_is_found
+        after_is_under = running_is_under
+        after_out_index_op = arith.Select(after_is_under, after_index, after_next_index_op.result)
+        after_block.add_op(after_out_index_op)
+        after_block.add_op(scf.Yield(after_is_found, after_is_under, after_out_index_op.result))
+
+        # While op, index <= start, returns (found, index)
+        while_op = scf.While([init_found, init_under, init_index], [IntegerType(1), IndexType()], [before_block], [after_block])
+        ops.append(while_op)
+        index_is_found, index = while_op.res
+        return ops, index_is_found, index
+
+    @staticmethod
+    def search_to_find_index(
+        scoo_layout: dlt.SeparatedCOOLayoutAttr,
+        start: SSAValue,
+        end: SSAValue,
+        index_buffer_ptrs: tuple[SSAValue],
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> tuple[
+        list[Operation], SSAValue, SSAValue
+    ]:  # ops, index_is_found(bool), index(IndexType)
+
+        # return SeparatedCOOSemantics.loop_to_find_index(scoo_layout, start, end, index_buffer_ptrs, dim_mapping)
+        # return SeparatedCOOSemantics.loop_back_to_find_index(scoo_layout, start, end, index_buffer_ptrs, dim_mapping)
+        return SeparatedCOOSemantics.binary_search_to_find_index(scoo_layout, start, end, index_buffer_ptrs, dim_mapping)
+
+
+    @staticmethod
+    def index_convert(
+        input: SSAValue, target_type: IntegerType | IndexType
+    ) -> tuple[list[Operation], SSAValue]:
+        if input.type == target_type:
+            return [], input
+        ops = []
+        input_type = input.type
+        if not isinstance(input_type, IntegerType):
+            input_cast_op = builtin.UnrealizedConversionCastOp.get(
+                [input], [builtin.i64]
+            )
+            ops.append(input_cast_op)
+            input = input_cast_op.outputs[0]
+            input_type = builtin.i64
+
+        if isinstance(target_type, IntegerType):
+            target_width = target_type.width
+            target_int_type = target_type
+        else:
+            target_width = builtin.i64.width
+            target_int_type = builtin.i64
+
+        if input_type.width.data > target_width.data:
+            trunc_op = arith.TruncIOp(input, target_int_type)
+            ops.append(trunc_op)
+            input = trunc_op.result
+        elif input_type.width.data < target_width.data:
+            extend_op = arith.ExtUIOp(input, target_int_type)
+            ops.append(extend_op)
+            input = extend_op.result
+
+        if target_type == IndexType():
+            output_cast_op = builtin.UnrealizedConversionCastOp.get(
+                [input], [IndexType()]
+            )
+            ops.append(output_cast_op)
+            input = output_cast_op.outputs[0]
+
+        return ops, input
+
+
+    @staticmethod
+    def binary_search_to_find_index(
+            scoo_layout: dlt.SeparatedCOOLayoutAttr,
+            start: SSAValue,
+            end: SSAValue,
+            index_buffer_ptrs: tuple[SSAValue],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+    ) -> tuple[
+        list[Operation], SSAValue, SSAValue
+    ]:  # ops, index_is_found(bool), index(IndexType)
+        ops = []
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.append(true_op)
+
+        last_dim = len(scoo_layout.dimensions) - 1
+        range_start = start
+        range_end = end
+        found = true_op.result
+        found_index = None
+        for i, (dim, index_buffer_ptr, index_buffer_type) in enumerate(zip(scoo_layout.dimensions, index_buffer_ptrs, scoo_layout.index_buffer_types)):
+            get_target_ops, (target,) = dim_mapping[dim].get().output()
+            ops.extend(get_target_ops)
+            if i < last_dim:
+                bin_search_ops, result_start, result_end, result_found = SeparatedCOOSemantics.binary_search_buffer_to_find_index_range(range_start, range_end, index_buffer_ptr, index_buffer_type, target)
+                ops.extend(bin_search_ops)
+                range_start = result_start
+                range_end = result_end
+                found = result_found
+            else:
+                bin_search_ops, result_index, result_found = SeparatedCOOSemantics.binary_search_buffer_to_find_index(
+                    range_start, range_end, index_buffer_ptr, index_buffer_type, target)
+                ops.extend(bin_search_ops)
+                found_index = result_index
+                found = result_found
+        return ops, found, found_index
+
+    @staticmethod
+    def binary_search_buffer_to_find_index_range(
+        start: SSAValue,  # search range: [start, end)
+        end: SSAValue,  # IndexType()
+        index_buffer_ptr: SSAValue,  # ptr to array of index_buffer_type
+        index_buffer_type: IntegerType,
+        target: SSAValue,  # IndexType()
+    ) -> tuple[
+        list[Operation], SSAValue, SSAValue, SSAValue
+    ]:  # ops, index_start(IndexType), index_end(IndexType), found(IntegerType(1))
+        # the range [index_start, index_end) holds where the target is in the sorted array.
+        # start <= index_start <= index_end <= end
+        # found iff index_start != index_end
+        # if !found, index_start is where target would be placed
+        # We do 2 binary searches, one that loops to find the lower index, and one that finds the upper index
+        ops = []
+        zero_op = arith.Constant(IntegerAttr(0, IndexType()))
+        one_op = arith.Constant(IntegerAttr(1, IndexType()))
+        two_op = arith.Constant(IntegerAttr(2, IndexType()))
+        false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.extend([zero_op, one_op, two_op, false_op, true_op])
+
+        # ops.append(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx_range: start: {}, end: {}, ptr: {}, type: "+str(index_buffer_type)+", target: {}",
+        #     start, end, index_buffer_ptr, target))
+
+        convert_ops, target = SeparatedCOOSemantics.index_convert(
+            target, index_buffer_type
+        )
+        ops.extend(convert_ops)
+
+        lower_init_start = start
+        lower_init_end = end
+        init_start_index = start
+
+        lower_init_max_index = start
+        lower_init_min_gt_index = end
+
+        lower_init_found = false_op.result
+
+        lower_init_middle_op = arith.Subi(lower_init_end, one_op.result)
+        ops.append(lower_init_middle_op)
+        lower_init_middle = lower_init_middle_op
+
+        lower_before_block = Block(
+            arg_types=[
+                IndexType(),  # lower_start
+                IndexType(),  # lower_end
+                IndexType(),  # start_index
+                IndexType(),  # max_index
+                IndexType(),  # min_gt_index
+                IntegerType(1),  # found
+                IndexType(),  # lower_middle
+            ]
+        )
+        lower_before_start, lower_before_end, _, _, _, _, _ = lower_before_block.args
+        # lower_before_block.add_op(printf.PrintFormatOp("# Bin_search_for_idx_range-Lower_before_block: start: {}, end: {}, s_idx: {}, max_idx: {}, min_gt_index: {}, found: {}, middle: {}", *lower_before_block.args))
+
+        lower_loop_cmp_op = arith.Cmpi(lower_before_start, lower_before_end, "ult")
+        lower_before_block.add_op(lower_loop_cmp_op)
+        lower_before_block.add_op(
+            scf.Condition(lower_loop_cmp_op.result, *lower_before_block.args)
+        )
+
+        lower_after_block = Block(arg_types=[a.type for a in lower_before_block.args])
+        (
+            lower_after_start,
+            lower_after_end,
+            lower_after_start_index,
+            lower_after_max_index,
+            lower_after_min_gt_index,
+            lower_after_found,
+            lower_after_middle,
+        ) = lower_after_block.args
+        # lower_after_block.add_op(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx_range-Lower_after_block-begin: start: {}, end: {}, s_idx: {}, max_idx: {}, min_gt_index: {}, found: {}, middle: {}",
+        #     *lower_after_block.args))
+
+        lower_middle_cast_op = builtin.UnrealizedConversionCastOp.get(
+            [lower_after_middle], [i64]
+        )
+        lower_index_ptr_arith_op = llvm.GEPOp(
+            index_buffer_ptr,
+            [llvm.GEP_USE_SSA_VAL],
+            lower_middle_cast_op.outputs,
+            pointee_type=index_buffer_type,
+        )
+        lower_load_stored_index_op = llvm.LoadOp(
+            lower_index_ptr_arith_op.result, index_buffer_type
+        )
+        lower_after_block.add_ops(
+            [lower_middle_cast_op, lower_index_ptr_arith_op, lower_load_stored_index_op]
+        )
+        lower_current_value = lower_load_stored_index_op.dereferenced_value
+
+        # comparison ops
+        lower_value_gt_op = arith.Cmpi(lower_current_value, target, "ugt")
+        lower_value_eq_op = arith.Cmpi(lower_current_value, target, "eq")
+        lower_value_lt_op = arith.Cmpi(lower_current_value, target, "ult")
+        lower_after_block.add_ops(
+            [lower_value_gt_op, lower_value_eq_op, lower_value_lt_op]
+        )
+
+        # middle plus 1
+        lower_after_middle_plus_1_op = arith.Addi(lower_after_middle, one_op.result)
+        lower_after_block.add_op(lower_after_middle_plus_1_op)
+
+        # select new start and end
+        lower_select_start_op = arith.Select(
+            lower_value_lt_op.result,
+            lower_after_middle_plus_1_op.result,
+            lower_after_start,
+        )
+        lower_select_end_op = arith.Select(
+            lower_value_lt_op.result, lower_after_end, lower_after_middle
+        )
+
+        # select start index output
+        lower_select_start_index_op1 = arith.Select(
+            lower_after_found,
+            lower_after_start_index,
+            lower_after_middle_plus_1_op.result,
+        )
+        lower_select_start_index_op2 = arith.Select(
+            lower_value_gt_op.result, lower_after_start_index, lower_after_middle
+        )
+        lower_select_start_index_op3 = arith.Select(
+            lower_value_lt_op.result,
+            lower_select_start_index_op1.result,
+            lower_select_start_index_op2.result,
+        )
+
+        # select max index
+        lower_select_max_index_op1 = arith.Select(
+            lower_value_eq_op.result,
+            lower_after_middle,
+            lower_after_max_index,
+        )
+        lower_select_max_index_op2 = arith.Select(
+            lower_after_found,
+            lower_after_max_index,
+            lower_select_max_index_op1.result,
+        )
+
+        # select min gt index
+        lower_select_min_gt_index_op = arith.Select(
+            lower_value_gt_op.result, lower_after_middle, lower_after_min_gt_index
+        )
+
+        # select if found flag
+        lower_select_found_op = arith.Select(
+            lower_value_eq_op.result, true_op.result, lower_after_found
+        )
+
+        lower_after_block.add_ops(
+            [
+                lower_select_start_op,
+                lower_select_end_op,
+                lower_select_start_index_op1,
+                lower_select_start_index_op2,
+                lower_select_start_index_op3,
+                lower_select_max_index_op1,
+                lower_select_max_index_op2,
+                lower_select_min_gt_index_op,
+                lower_select_found_op,
+            ]
+        )
+
+        # make new middle (a+b)/2  --->  a + (b-a)/2  --- this mitigates possible overflows in the a+b part.
+        lower_end_sub_start_op = arith.Subi(lower_select_end_op.result, lower_select_start_op.result)
+        lower_div_2_op = arith.DivUI(lower_end_sub_start_op.result, two_op.result)
+        lower_make_new_middle_op = arith.Addi(lower_select_start_op.result, lower_div_2_op)
+        lower_after_block.add_ops(
+            [
+                lower_end_sub_start_op,
+                lower_div_2_op,
+                lower_make_new_middle_op
+            ]
+        )
+        lower_after_yield_op = scf.Yield(
+            lower_select_start_op.result,
+            lower_select_end_op.result,
+            lower_select_start_index_op3.result,
+            lower_select_max_index_op2.result,
+            lower_select_min_gt_index_op.result,
+            lower_select_found_op.result,
+            lower_make_new_middle_op.result,
+        )
+        # lower_after_block.add_op(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx_range-Lower_after_block-exit: start: {}, end: {}, s_idx: {}, max_idx: {}, min_gt_index: {}, found: {}, middle: {}",
+        #     *lower_after_yield_op.operands))
+
+        lower_after_block.add_op(lower_after_yield_op)
+
+        lower_while_op = scf.While([lower_init_start, lower_init_end, init_start_index, lower_init_max_index, lower_init_min_gt_index, lower_init_found, lower_init_middle],
+                                   [a.type for a in lower_after_block.args],
+                                   [lower_before_block], [lower_after_block])
+        ops.append(lower_while_op)
+        (
+            lower_result_start,
+            lower_result_end,
+            start_index,
+            lower_result_max_index,
+            lower_result_min_gt_index,
+            found,
+            lower_result_middle,
+        ) = lower_while_op.res
+
+
+        max_index_plus_1_op = arith.Addi(lower_result_max_index, one_op.result)
+        init_end_index_op = arith.Select(found, max_index_plus_1_op.result, start_index)
+        ops.extend([max_index_plus_1_op, init_end_index_op])
+
+        upper_init_start = init_end_index_op.result
+        upper_init_end = lower_result_min_gt_index
+        init_end_index = init_end_index_op.result
+
+        upper_before_block = Block(arg_types=[IndexType(), IndexType(), IndexType()])
+        upper_before_start, upper_before_end, _ = upper_before_block.args
+        # upper_before_block.add_op(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx_range-Upper_before_block: start: {}, end: {}, index: {}",
+        #     *upper_before_block.args))
+
+        upper_loop_cmp_op = arith.Cmpi(upper_before_start, upper_before_end, "ult")
+        upper_before_block.add_op(upper_loop_cmp_op)
+        upper_before_block.add_op(
+            scf.Condition(upper_loop_cmp_op.result, *upper_before_block.args)
+        )
+
+        upper_after_block = Block(arg_types=[a.type for a in upper_before_block.args])
+        upper_after_start, upper_after_end, upper_after_end_index = upper_after_block.args
+        # upper_after_block.add_op(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx_range-Upper_after_block-begin: start: {}, end: {}, index: {}",
+        #     *upper_after_block.args))
+
+        upper_end_sub_start_op = arith.Subi(upper_after_end, upper_after_start)
+        upper_middle_div_2_op = arith.DivUI(upper_end_sub_start_op.result, two_op.result)
+        upper_middle_op = arith.Addi(upper_after_start, upper_middle_div_2_op.result)
+        upper_after_block.add_ops([upper_end_sub_start_op, upper_middle_div_2_op, upper_middle_op])
+        upper_middle = upper_middle_op.result
+
+
+        upper_middle_cast_op = builtin.UnrealizedConversionCastOp.get(
+            [upper_middle], [i64]
+        )
+        upper_index_ptr_arith_op = llvm.GEPOp(
+            index_buffer_ptr,
+            [llvm.GEP_USE_SSA_VAL],
+            upper_middle_cast_op.outputs,
+            pointee_type=index_buffer_type,
+        )
+        upper_load_stored_index_op = llvm.LoadOp(
+            upper_index_ptr_arith_op.result, index_buffer_type
+        )
+        upper_after_block.add_ops(
+            [upper_middle_cast_op, upper_index_ptr_arith_op, upper_load_stored_index_op]
+        )
+        upper_current_value = upper_load_stored_index_op.dereferenced_value
+
+        # comparison ops
+        upper_value_eq_op = arith.Cmpi(upper_current_value, target, "eq")
+        upper_after_block.add_op(upper_value_eq_op)
+
+        # middle plus 1
+        upper_middle_plus_1_op = arith.Addi(upper_middle, one_op.result)
+        upper_after_block.add_op(upper_middle_plus_1_op)
+
+        #select upper start
+        upper_select_start_op = arith.Select(upper_value_eq_op.result, upper_middle_plus_1_op.result, upper_after_start)
+        # select upper end
+        upper_select_end_op = arith.Select(upper_value_eq_op.result, upper_after_end, upper_middle)
+        # select upper end index
+        upper_select_end_index_op = arith.Select(upper_value_eq_op.result, upper_middle_plus_1_op.result, upper_after_end_index)
+
+        upper_after_block.add_ops([upper_select_start_op, upper_select_end_op, upper_select_end_index_op])
+        upper_after_yield_op = scf.Yield(upper_select_start_op.result, upper_select_end_op.result, upper_select_end_index_op.result)
+
+        # upper_after_block.add_op(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx_range-Upper_after_block-exit: start: {}, end: {}, index: {}",
+        #     *upper_after_yield_op.operands))
+        upper_after_block.add_op(upper_after_yield_op)
+
+        upper_while_op = scf.While([upper_init_start, upper_init_end, init_end_index], [a.type for a in upper_after_block.args], [upper_before_block], [upper_after_block])
+        ops.append(upper_while_op)
+        (
+            upper_result_start,
+            upper_result_end,
+            end_index
+        ) = upper_while_op.res
+
+        # ops.append(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx_range finished: res_start: {}, res_end: {}, found: {}",
+        #     start_index, end_index, found))
+
+        return ops, start_index, end_index, found
+
+
+    @staticmethod
+    def binary_search_buffer_to_find_index(
+        start: SSAValue,
+        end: SSAValue,
+        index_buffer_ptr: SSAValue,
+        index_buffer_type: IntegerType,
+        target: SSAValue,
+    ) -> tuple[
+        list[Operation], SSAValue, SSAValue
+    ]:  # ops, index(IndexType) found(IntegerType(1))
+
+        # index = start
+        # middle = end -1
+        #
+        # while start < end {
+        #   if idx[middle] > target {
+        #       yield (start, middle, middle, (s+e)/2 ) # start end index new_middle
+        #   } else {
+        #   if idx[middle] < target {
+        #       yield (middle+1, end, middle+1, (s+e)/2) # start end index new_middle
+        #   } else {
+        #       yield (middle+1, middle+1, middle, middle?) # start end index middle(don't care)
+        #   }
+        #   }
+        #
+        # }
+        # found = start != index
+
+        ops = []
+        zero_op = arith.Constant(IntegerAttr(0, IndexType()))
+        one_op = arith.Constant(IntegerAttr(1, IndexType()))
+        two_op = arith.Constant(IntegerAttr(2, IndexType()))
+        false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.extend([zero_op, one_op, two_op, false_op, true_op])
+
+        # ops.append(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx: start: {}, end: {}, ptr: {}, type: "+str(index_buffer_type)+", target: {}",
+        #     start, end, index_buffer_ptr, target))
+
+
+        convert_ops, target = SeparatedCOOSemantics.index_convert(
+            target, index_buffer_type
+        )
+        ops.extend(convert_ops)
+
+        init_middle_op = arith.Subi(end, one_op.result)
+        ops.append(init_middle_op)
+
+        init_start = start
+        init_end = end
+        init_index = start
+        init_middle = init_middle_op.result
+
+        before_block = Block(
+            arg_types=[
+                IndexType(),
+                IndexType(),
+                IndexType(),
+                IndexType(),
+            ]
+        )
+        before_start, before_end, before_index, before_middle = (
+            before_block.args
+        )
+
+        loop_cmp_op = arith.Cmpi(before_start, before_end, "ult")
+        before_block.add_op(loop_cmp_op)
+        before_block.add_op(
+            scf.Condition(loop_cmp_op.result, *before_block.args)
+        )
+
+        after_block = Block(
+            arg_types=[a.type for a in before_block.args]
+        )  # start, end, index, middle
+        after_start, after_end, after_index, after_middle = after_block.args
+
+        middle_cast_op = builtin.UnrealizedConversionCastOp.get(
+            [after_middle], [i64]
+        )
+        index_ptr_arith_op = llvm.GEPOp(
+            index_buffer_ptr,
+            [llvm.GEP_USE_SSA_VAL],
+            middle_cast_op.outputs,
+            pointee_type=index_buffer_type,
+        )
+        load_stored_index_op = llvm.LoadOp(
+            index_ptr_arith_op.result, index_buffer_type
+        )
+        after_block.add_ops(
+            [middle_cast_op, index_ptr_arith_op, load_stored_index_op]
+        )
+        current_value = load_stored_index_op.dereferenced_value
+
+        # comparison ops
+        value_gt_op = arith.Cmpi(current_value, target, "ugt")
+        value_eq_op = arith.Cmpi(current_value, target, "eq")
+        value_lt_op = arith.Cmpi(current_value, target, "ult")
+        after_block.add_ops(
+            [value_gt_op, value_eq_op, value_lt_op]
+        )
+        # middle plus 1
+        middle_plus_1_op = arith.Addi(after_middle, one_op.result)
+        after_block.add_op(middle_plus_1_op)
+
+        # select upper start
+        select_start_op = arith.Select(value_gt_op.result, after_start, middle_plus_1_op.result)
+        # select upper end
+        select_end_op1 = arith.Select(value_gt_op.result, after_middle, middle_plus_1_op)
+        select_end_op2 = arith.Select(value_lt_op.result, after_end, select_end_op1.result)
+        # select  index
+        select_index_op = arith.Select(value_lt_op.result, middle_plus_1_op.result, after_middle)
+        after_block.add_ops([select_start_op, select_end_op1, select_end_op2, select_index_op])
+
+        # make new middle (a+b)/2  --->  a + (b-a)/2  --- this mitigates possible overflows in the a+b part.
+        end_sub_start_op = arith.Subi(select_end_op2.result, select_start_op.result)
+        div_2_op = arith.DivUI(end_sub_start_op.result, two_op.result)
+        make_new_middle_op = arith.Addi(select_start_op.result, div_2_op)
+        after_block.add_ops(
+            [
+                end_sub_start_op,
+                div_2_op,
+                make_new_middle_op
+            ]
+        )
+
+        after_block.add_op(scf.Yield(select_start_op.result, select_end_op2.result, select_index_op.result, make_new_middle_op.result))
+
+        while_op = scf.While([init_start, init_end, init_index, init_middle], [a.type for a in after_block.args], [before_block], [after_block])
+        ops.append(while_op)
+        result_start, result_end, result_index, result_middle = while_op.res
+
+        found_op = arith.Cmpi(result_start, result_index, "ne")
+        ops.append(found_op)
+
+        # ops.append(printf.PrintFormatOp(
+        #     "# Bin_search_for_idx: res index: {}, found: {}",
+        #     result_index, found_op.result))
+
+        return ops, result_index, found_op.result
 
     @staticmethod
     def malloc_buffers(
-            scoo_layout: dlt.SeparatedCOOLayoutAttr,
-            num_non_zero: SSAValue,
-            child_size: NumericResult2,
-            old_buffers: tuple[tuple[SSAValue,...], SSAValue] | None = None,
-    ) -> tuple[list[Operation], tuple[SSAValue,...], SSAValue]:
+        scoo_layout: dlt.SeparatedCOOLayoutAttr,
+        num_non_zero: SSAValue,
+        child_size: NumericResult2,
+        old_buffers: tuple[tuple[SSAValue, ...], SSAValue] | None = None,
+    ) -> tuple[list[Operation], tuple[SSAValue, ...], SSAValue]:
         ops = []
         idx_buffers = []
         # Malloc the Unpacked COO index Buffers:
-        for i, _ in enumerate(scoo_layout.dimensions):
+        for i, idx_buffer_type in enumerate(scoo_layout.index_buffer_types):
             alloc_idx_buffer_bytes_ops, (alloc_idx_buffer_bytes,) = (
-                        _get_accepted_type_size(IndexType()).sum()
-                        * NumericResult.from_ssa(num_non_zero)
-                ).output()
+                _get_accepted_type_size(idx_buffer_type).sum()
+                * NumericResult.from_ssa(num_non_zero)
+            ).output()
             ops.extend(alloc_idx_buffer_bytes_ops)
 
             if old_buffers is None:
                 malloc_idx_buffer = llvm.CallOp(
-                    "malloc", alloc_idx_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                    "malloc",
+                    alloc_idx_buffer_bytes,
+                    return_type=llvm.LLVMPointerType.opaque(),
                 )
                 ops.append(malloc_idx_buffer)
                 idx_buffers.append(malloc_idx_buffer.returned)
-                # ops.append(printf.PrintFormatOp("# malloc idx size: {} -> {}", alloc_idx_buffer_bytes, idx_buffer_ptr))
+                # ops.append(printf.PrintFormatOp("# malloc idx size: {} -> {}", alloc_idx_buffer_bytes, malloc_idx_buffer.returned))
             else:
+                # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {}", old_buffers[0][i],
+                #                                 alloc_idx_buffer_bytes))
                 realloc_idx_buffer = llvm.CallOp(
-                    "realloc", old_buffers[0][i], alloc_idx_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                    "realloc",
+                    old_buffers[0][i],
+                    alloc_idx_buffer_bytes,
+                    return_type=llvm.LLVMPointerType.opaque(),
                 )
                 ops.append(realloc_idx_buffer)
                 idx_buffers.append(realloc_idx_buffer.returned)
-                # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {} -> {}", old_buffers[0], alloc_idx_buffer_bytes, idx_buffer_ptr))
+                # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {} -> {}", old_buffers[0][i],
+                #                                 alloc_idx_buffer_bytes, realloc_idx_buffer.returned))
+
 
         # c_db_ops, (child_size, child_size_debug) = child_size.split_n(2)
         # ops.extend(c_db_ops)
 
         # Malloc the Unpacked COO data Buffer:
         alloc_data_buffer_bytes_numeric = (
-                child_size * NumericResult.from_ssa(num_non_zero)
+            child_size * NumericResult.from_ssa(num_non_zero)
         ).sum()
         alloc_data_buffer_ops, (alloc_data_buffer_bytes,) = (
             alloc_data_buffer_bytes_numeric.output()
@@ -7719,14 +8616,21 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         ops.extend(alloc_data_buffer_ops)
         if old_buffers is None:
             malloc_data_buffer = llvm.CallOp(
-                "malloc", alloc_data_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                "malloc",
+                alloc_data_buffer_bytes,
+                return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(malloc_data_buffer)
             data_buffer_ptr = malloc_data_buffer.returned
             # ops.append(printf.PrintFormatOp("# malloc data size: {} -> {}", alloc_data_buffer_bytes, data_buffer_ptr))
         else:
+            # ops.append(
+            #     printf.PrintFormatOp("# Realloc data: {} to size: {}", old_buffers[1], alloc_data_buffer_bytes,))
             realloc_data_buffer = llvm.CallOp(
-                "realloc", old_buffers[1], alloc_data_buffer_bytes, return_type=llvm.LLVMPointerType.opaque()
+                "realloc",
+                old_buffers[1],
+                alloc_data_buffer_bytes,
+                return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(realloc_data_buffer)
             data_buffer_ptr = realloc_data_buffer.returned
@@ -7742,14 +8646,14 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
     @staticmethod
     def copy_to_new_buffers(
-            old_buffer_ptr: SSAValue,
-            new_buffer_ptr: SSAValue,
-            element_size: SSAValue,
-            new_elem_index: SSAValue,
-            new_capacity: SSAValue,
-            elements_to_copy: SSAValue,
-            extra_space: SSAValue,
-            shuffle_instead: bool = False,
+        old_buffer_ptr: SSAValue,
+        new_buffer_ptr: SSAValue,
+        element_size: SSAValue,
+        new_elem_index: SSAValue,
+        new_capacity: SSAValue,
+        elements_to_copy: SSAValue,
+        extra_space: SSAValue,
+        shuffle_instead: bool = False,
     ) -> tuple[list[Operation], SSAValue]:
         ops = []
 
@@ -7757,8 +8661,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         # ops.append(printf.PrintFormatOp("# old buffer: {}  new buffer: {}", old_buffer_ptr, new_buffer_ptr))
         # calculate how many bytes to copy before the new element
         pre_elem_buffer_size_ops, (pre_elem_buffer_size,) = (
-                NumericResult.from_ssa(element_size)
-                * NumericResult.from_ssa(new_elem_index)
+            NumericResult.from_ssa(element_size)
+            * NumericResult.from_ssa(new_elem_index)
         ).output()
         ops.extend(pre_elem_buffer_size_ops)
 
@@ -7781,23 +8685,23 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         ops.extend(post_elem_buffer_ptr_ops)
         # calculate the ptr in the new buffer, adding an extra element_size to give room for the new element
         new_post_elem_buffer_ptr_ops, new_post_elem_buffer_ptr = (
-                NumericResult.from_ssa(pre_elem_buffer_size)
-                + NumericResult.from_ssa(element_size)
+            NumericResult.from_ssa(pre_elem_buffer_size)
+            + NumericResult.from_ssa(element_size)
         ).add_to_llvm_pointer(new_buffer_ptr)
         ops.extend(new_post_elem_buffer_ptr_ops)
         # calculate how much data to move, this will be the new last_index (new number of elements in the buffer)
         # minus what was copied already (new_elem_index), minus 1 to account for 1 new element
         post_elem_buffer_size_ops, (post_elem_buffer_size,) = (
-                (
-                        NumericResult.from_ssa(element_size)
-                        * (
-                            (
-                                    NumericResult.from_ssa(elements_to_copy)
-                                    - NumericResult.from_ssa(new_elem_index)
-                            )
-                        )
+            (
+                NumericResult.from_ssa(element_size)
+                * (
+                    (
+                        NumericResult.from_ssa(elements_to_copy)
+                        - NumericResult.from_ssa(new_elem_index)
+                    )
                 )
-                + NumericResult.from_ssa(extra_space)
+            )
+            + NumericResult.from_ssa(extra_space)
         ).output()
         ops.extend(post_elem_buffer_size_ops)
         zero_op = arith.Constant(IntegerAttr(0, IndexType()))
@@ -7844,23 +8748,25 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
     class SparseDataWritingCallback(Callback):
         def __init__(
-                self,
-                semantics: SemanticsMapper,
-                s_coo_layout: dlt.SeparatedCOOLayoutAttr,
-                running_idx_buffer_ptrs: tuple[SSAValue,...],
-                running_data_buffer_ptr: SSAValue,
-                running_total: SSAValue,
-                total_non_zeros: SSAValue,
-                sparse_initial_values: Initialiser,
-                data_element_size: SSAValue,
-                inner_callback: Callback,
-                inner_callback_args: list[SSAValue],
+            self,
+            semantics: SemanticsMapper,
+            s_coo_layout: dlt.SeparatedCOOLayoutAttr,
+            running_idx_buffer_ptrs: tuple[SSAValue, ...],
+            running_data_buffer_ptr: SSAValue,
+            running_total: SSAValue,
+            total_non_zeros: SSAValue,
+            sparse_initial_values: Initialiser,
+            data_element_size: SSAValue,
+            inner_callback: Callback,
+            inner_callback_args: list[SSAValue],
         ):
             self.semantics = semantics
             self.s_coo_layout = s_coo_layout
 
             self.idx_buffer_ptrs = running_idx_buffer_ptrs
-            assert all(isinstance(i.type, llvm.LLVMPointerType) for i in self.idx_buffer_ptrs)
+            assert all(
+                isinstance(i.type, llvm.LLVMPointerType) for i in self.idx_buffer_ptrs
+            )
             self.data_buffer_ptr = running_data_buffer_ptr
             assert isinstance(self.data_buffer_ptr.type, llvm.LLVMPointerType)
             self.running_total = running_total
@@ -7884,16 +8790,16 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             )
 
         def callback(
-                self,
-                terminal_layout: dlt.Layout,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, SSAValue],
-                extent_resolver: ExtentResolver,
-                base_type: dlt.AcceptedTypes,
-                ptr: SSAValue,
-                has_extra_space: SSAValue,
-                is_last_element: bool | SSAValue,
-                iter_args: list[SSAValue],
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, SSAValue],
+            extent_resolver: ExtentResolver,
+            base_type: dlt.AcceptedTypes,
+            ptr: SSAValue,
+            has_extra_space: SSAValue,
+            is_last_element: bool | SSAValue,
+            iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
 
             ops: list[Operation] = []
@@ -7933,9 +8839,16 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             sparse_iter_block.erase_op(
                 sparse_iter_block.last_op
             )  # remove yield as we will add our own
-            block_running_idx_buffer_ptrs = [iter_op.get_block_arg_for_iter_arg_idx(i) for i in range(len(self.idx_buffer_ptrs))]
-            block_running_data_buffer_ptr = iter_op.get_block_arg_for_iter_arg_idx(len(self.idx_buffer_ptrs))
-            block_running_total = iter_op.get_block_arg_for_iter_arg_idx(len(self.idx_buffer_ptrs)+1)
+            block_running_idx_buffer_ptrs = [
+                iter_op.get_block_arg_for_iter_arg_idx(i)
+                for i in range(len(self.idx_buffer_ptrs))
+            ]
+            block_running_data_buffer_ptr = iter_op.get_block_arg_for_iter_arg_idx(
+                len(self.idx_buffer_ptrs)
+            )
+            block_running_total = iter_op.get_block_arg_for_iter_arg_idx(
+                len(self.idx_buffer_ptrs) + 1
+            )
 
             init_data_callback_args = [
                 iter_op.get_block_arg_for_iter_arg_idx(3 + i)
@@ -7955,8 +8868,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             )
 
             get_non_zeros_ops, found_non_zeros = derived_initialiser.get_non_zero(
-                set(), {k: ArgIndexGetter(v) for k, v in block_dim_map.items()},
-                self.s_coo_layout.child.contents_type
+                set(),
+                {k: ArgIndexGetter(v) for k, v in block_dim_map.items()},
+                self.s_coo_layout.child.contents_type,
             )
             sparse_iter_block.add_ops(get_non_zeros_ops)
             bool_ssa_ops, has_non_zero = _make_bool_ssa(found_non_zeros)
@@ -7970,11 +8884,31 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             true_ops.extend(new_total_ops)
 
             new_block_running_idx_buffer_ptrs = []
-            for idx_arg, running_idx_buffer_ptr in zip(iter_op.get_block_args_for_extent_args(), block_running_idx_buffer_ptrs):
-                true_ops.append(
-                    llvm.StoreOp(idx_arg, running_idx_buffer_ptr)
-                )
-                idx_size = _get_accepted_type_size(IndexType()).sum()
+            for idx_arg, running_idx_buffer_ptr, idx_buffer_type in zip(
+                iter_op.get_block_args_for_extent_args(),
+                block_running_idx_buffer_ptrs,
+                self.s_coo_layout.index_buffer_types,
+            ):
+                if idx_buffer_type.width.data < builtin.i64.width.data:
+                    cast_op = builtin.UnrealizedConversionCastOp.get(
+                        idx_arg, builtin.i64
+                    )
+                    true_ops.append(cast_op)
+                    trunc_op = arith.TruncIOp(cast_op.outputs[0], idx_buffer_type)
+                    true_ops.append(trunc_op)
+                    idx_val = trunc_op.result
+                elif idx_buffer_type.width.data == builtin.i64.width.data:
+                    cast_op = builtin.UnrealizedConversionCastOp.get(
+                        idx_arg, builtin.i64
+                    )
+                    ops.append(cast_op)
+                    idx_val = cast_op.outputs[0]
+                else:
+                    raise NotImplementedError(
+                        f"{idx_buffer_type} not supported as COO index buffer type"
+                    )
+                true_ops.append(llvm.StoreOp(idx_val, running_idx_buffer_ptr))
+                idx_size = _get_accepted_type_size(idx_buffer_type).sum()
                 new_idx_ptr_ops, new_running_idx_buffer_ptr = (
                     idx_size.add_to_llvm_pointer(running_idx_buffer_ptr)
                 )
@@ -8019,8 +8953,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
             if_op = scf.If(
                 has_non_zero,
-                [llvm.LLVMPointerType.opaque()]*len(self.idx_buffer_ptrs) +
-                [
+                [llvm.LLVMPointerType.opaque()] * len(self.idx_buffer_ptrs)
+                + [
                     llvm.LLVMPointerType.opaque(),
                     IndexType(),
                 ]
@@ -8043,22 +8977,24 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
     class SparseLinearIterCallback(Callback):
         def __init__(
-                self,
-                semantics: SemanticsMapper,
-                s_coo_layout: dlt.SeparatedCOOLayoutAttr,
-                idx_buffer_ptrs: tuple[SSAValue,...],
-                data_buffer_ptr: SSAValue,
-                data_element_size: SSAValue,
-                inner_callback: Callback,
-                inner_callback_args: list[SSAValue],
-                inner_is_last_element: bool | SSAValue,
-                reversed_direction: bool,
+            self,
+            semantics: SemanticsMapper,
+            s_coo_layout: dlt.SeparatedCOOLayoutAttr,
+            idx_buffer_ptrs: tuple[SSAValue, ...],
+            data_buffer_ptr: SSAValue,
+            data_element_size: SSAValue,
+            inner_callback: Callback,
+            inner_callback_args: list[SSAValue],
+            inner_is_last_element: bool | SSAValue,
+            reversed_direction: bool,
         ):
             self.semantics = semantics
             self.s_coo_layout = s_coo_layout
 
             self.idx_buffer_ptrs = idx_buffer_ptrs
-            assert all(isinstance(i.type, llvm.LLVMPointerType) for i in self.idx_buffer_ptrs)
+            assert all(
+                isinstance(i.type, llvm.LLVMPointerType) for i in self.idx_buffer_ptrs
+            )
             self.data_buffer_ptr = data_buffer_ptr
             assert isinstance(self.data_buffer_ptr.type, llvm.LLVMPointerType)
 
@@ -8074,16 +9010,16 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             super().__init__(inner_callback_args, inner_callback.can_exits_early())
 
         def callback(
-                self,
-                terminal_layout: dlt.Layout,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, SSAValue],
-                extent_resolver: ExtentResolver,
-                base_type: dlt.AcceptedTypes,
-                ptr: SSAValue,
-                has_extra_space: SSAValue,
-                is_last_element: bool | SSAValue,
-                iter_args: list[SSAValue],
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, SSAValue],
+            extent_resolver: ExtentResolver,
+            base_type: dlt.AcceptedTypes,
+            ptr: SSAValue,
+            has_extra_space: SSAValue,
+            is_last_element: bool | SSAValue,
+            iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
             ops: list[Operation] = []
             true_const = arith.Constant(IntegerAttr(1, IntegerType(1)))
@@ -8160,24 +9096,51 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 inner_is_last_element = inner_last_elem_op.result
 
             current_idx_buffer_ptrs = []
-            for idx_buffer_ptr in self.idx_buffer_ptrs:
+            for idx_buffer_ptr, idx_buffer_type in zip(
+                self.idx_buffer_ptrs, self.s_coo_layout.index_buffer_types
+            ):
                 idx_buffer_ops, current_idx_buffer_ptr = (
-                        _get_accepted_type_size(IndexType()).sum()
-                        * NumericResult.from_ssa(index)
+                    _get_accepted_type_size(idx_buffer_type).sum()
+                    * NumericResult.from_ssa(index)
                 ).add_to_llvm_pointer(idx_buffer_ptr)
                 block.add_ops(idx_buffer_ops)
                 current_idx_buffer_ptrs.append(current_idx_buffer_ptr)
             data_buffer_ops, current_data_buffer_ptr = (
-                    NumericResult.from_mixed([], index)
-                    * NumericResult.from_mixed([], self.data_element_size)
+                NumericResult.from_mixed([], index)
+                * NumericResult.from_mixed([], self.data_element_size)
             ).add_to_llvm_pointer(self.data_buffer_ptr)
             block.add_ops(data_buffer_ops)
 
             sparse_dims = {}
-            for dim, idx_buffer_ptr in zip(self.s_coo_layout.dimensions, current_idx_buffer_ptrs):
-                sparse_index_load = llvm.LoadOp(idx_buffer_ptr, IndexType())
+            for dim, idx_buffer_ptr, idx_buffer_type in zip(
+                self.s_coo_layout.dimensions,
+                current_idx_buffer_ptrs,
+                self.s_coo_layout.index_buffer_types,
+            ):
+                sparse_index_load = llvm.LoadOp(idx_buffer_ptr, idx_buffer_type)
                 block.add_op(sparse_index_load)
-                sparse_dims[dim] = sparse_index_load.dereferenced_value
+
+                if idx_buffer_type.width.data < builtin.i64.width.data:
+                    inner_ext_idx_op = arith.ExtUIOp(
+                        sparse_index_load.dereferenced_value, builtin.i64
+                    )
+                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
+                        [inner_ext_idx_op.result], [IndexType()]
+                    )
+                    block.add_ops([inner_ext_idx_op, inner_idx_cast_op])
+                    inner_idx = inner_idx_cast_op.outputs[0]
+                elif idx_buffer_type == builtin.i64:
+                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
+                        [sparse_index_load.dereferenced_value], [IndexType()]
+                    )
+                    block.add_op(inner_idx_cast_op)
+                    inner_idx = inner_idx_cast_op.outputs[0]
+                else:
+                    raise NotImplementedError(
+                        f"{idx_buffer_type} not supported as Separated COO index buffer type"
+                    )
+
+                sparse_dims[dim] = inner_idx
 
             block_callback = DerivedCallback(
                 self.inner_callback, members, dim_map | sparse_dims
@@ -8238,7 +9201,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             )
             ops.append(while_loop)
             output_inner_callback_iter_args = list(
-                while_loop.results[2: 2 + len(iter_args)]
+                while_loop.results[2 : 2 + len(iter_args)]
             )
             did_exit_early = while_loop.results[1]
 
@@ -8246,19 +9209,19 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
     class SparseMakeLoopCallback(LoopCallback):
         def __init__(
-                self,
-                semantics: SemanticsMapper,
-                s_coo_layout: dlt.SeparatedCOOLayoutAttr,
-                end_layout: dlt.DirectLayout,
-                extent_resolver: ExtentResolver,
-                members: set[dlt.MemberAttr],
-                dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-                dims_to_loop: set[dlt.DimensionAttr],
-                idx_buffer_ptrs: tuple[SSAValue,...],
-                data_buffer_ptr: SSAValue,
-                data_element_size: SSAValue,
-                inner_callback: LoopCallback,
-                inner_callback_args: list[SSAValue],
+            self,
+            semantics: SemanticsMapper,
+            s_coo_layout: dlt.SeparatedCOOLayoutAttr,
+            end_layout: dlt.DirectLayout,
+            extent_resolver: ExtentResolver,
+            members: set[dlt.MemberAttr],
+            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+            dims_to_loop: set[dlt.DimensionAttr],
+            idx_buffer_ptrs: tuple[SSAValue, ...],
+            data_buffer_ptr: SSAValue,
+            data_element_size: SSAValue,
+            inner_callback: LoopCallback,
+            inner_callback_args: list[SSAValue],
         ):
             self.semantics = semantics
             self.s_coo_layout = s_coo_layout
@@ -8270,7 +9233,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             self.dims_to_loop = dims_to_loop
 
             self.idx_buffer_ptrs = idx_buffer_ptrs
-            assert all(isinstance(i.type, llvm.LLVMPointerType) for i in self.idx_buffer_ptrs)
+            assert all(
+                isinstance(i.type, llvm.LLVMPointerType) for i in self.idx_buffer_ptrs
+            )
             self.data_buffer_ptr = data_buffer_ptr
             assert isinstance(self.data_buffer_ptr.type, llvm.LLVMPointerType)
 
@@ -8282,14 +9247,14 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             super().__init__(inner_callback_args)
 
         def callback(
-                self,
-                terminal_layout: dlt.Layout,
-                members: set[dlt.MemberAttr],
-                dim_map: dict[dlt.DimensionAttr, IndexGetter],
-                dims_left_to_loop: set[dlt.DimensionAttr],
-                extent_resolver: ExtentResolver,
-                ptr: SSAValue,
-                iter_args: list[SSAValue],
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, IndexGetter],
+            dims_left_to_loop: set[dlt.DimensionAttr],
+            extent_resolver: ExtentResolver,
+            ptr: SSAValue,
+            iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue]]:
             assert len(dims_left_to_loop) == 0
             ops: list[Operation] = []
@@ -8315,29 +9280,54 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 block.insert_arg(arg.type, len(block.args)) for arg in iter_args
             ]
             current_idx_buffer_ptrs = []
-            for idx_buffer_ptr in self.idx_buffer_ptrs:
+            for idx_buffer_ptr, idx_buffer_type in zip(
+                self.idx_buffer_ptrs, self.s_coo_layout.index_buffer_types
+            ):
                 idx_buffer_ops, current_idx_buffer_ptr = (
-                        NumericResult.from_mixed([], index)
-                        * _get_accepted_type_size(IndexType()).sum()
+                    NumericResult.from_mixed([], index)
+                    * _get_accepted_type_size(idx_buffer_type).sum()
                 ).add_to_llvm_pointer(idx_buffer_ptr)
                 block.add_ops(idx_buffer_ops)
                 current_idx_buffer_ptrs.append(current_idx_buffer_ptr)
             data_buffer_ops, current_data_buffer_ptr = (
-                    NumericResult.from_mixed([], index)
-                    * NumericResult.from_mixed([], self.data_element_size)
+                NumericResult.from_mixed([], index)
+                * NumericResult.from_mixed([], self.data_element_size)
             ).add_to_llvm_pointer(self.data_buffer_ptr)
             block.add_ops(data_buffer_ops)
 
             looped_sparse_dims = {}
             checked_sparse_dims = {}
             checked = true_const.result
-            for dim, current_idx_buffer_ptr in zip(self.s_coo_layout.dimensions, current_idx_buffer_ptrs):
-                sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, IndexType())
+            for dim, current_idx_buffer_ptr, idx_buffer_type in zip(
+                self.s_coo_layout.dimensions,
+                current_idx_buffer_ptrs,
+                self.s_coo_layout.index_buffer_types,
+            ):
+                sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, idx_buffer_type)
                 block.add_op(sparse_index_load)
+                if idx_buffer_type.width.data < builtin.i64.width.data:
+                    inner_ext_idx_op = arith.ExtUIOp(
+                        sparse_index_load.dereferenced_value, builtin.i64
+                    )
+                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
+                        [inner_ext_idx_op.result], [IndexType()]
+                    )
+                    block.add_ops([inner_ext_idx_op, inner_idx_cast_op])
+                    inner_idx = inner_idx_cast_op.outputs[0]
+                elif idx_buffer_type == builtin.i64:
+                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
+                        [sparse_index_load.dereferenced_value], [IndexType()]
+                    )
+                    block.add_op(inner_idx_cast_op)
+                    inner_idx = inner_idx_cast_op.outputs[0]
+                else:
+                    raise NotImplementedError(
+                        f"{idx_buffer_type} not supported as Separated COO index buffer type"
+                    )
                 if dim in self.dims_to_loop:
-                    looped_sparse_dims[dim] = sparse_index_load.dereferenced_value
+                    looped_sparse_dims[dim] = inner_idx
                 elif dim in self.dim_mapping:
-                    checked_sparse_dims[dim] = sparse_index_load.dereferenced_value
+                    checked_sparse_dims[dim] = inner_idx
                     val_wanted_ops, (val_wanted,) = self.dim_mapping[dim].get().output()
                     block.add_ops(val_wanted_ops)
                     cmp_op = arith.Cmpi(checked_sparse_dims[dim], val_wanted, "eq")
@@ -8348,27 +9338,36 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
             if_checked_true = []
             block_callback = DerivedLoopCallback(
-                self.inner_callback, members, dim_map | looped_sparse_dims | checked_sparse_dims
+                self.inner_callback,
+                members,
+                dim_map | looped_sparse_dims | checked_sparse_dims,
             )
 
-            child_ops, new_inner_callback_arg = (
-                self.semantics.make_sparse_loop_for(
-                    self.s_coo_layout.child,
-                    self.end_layout,
-                    self.extent_resolver,
-                    current_data_buffer_ptr,
-                    block_callback,
-                    block_inner_callback_args,
-                    self.members,
-                    {d: g for d, g in self.dim_mapping.items() if d not in checked_sparse_dims},
-                    self.dims_to_loop - set(looped_sparse_dims.keys()),
-                )
+            child_ops, new_inner_callback_arg = self.semantics.make_sparse_loop_for(
+                self.s_coo_layout.child,
+                self.end_layout,
+                self.extent_resolver,
+                current_data_buffer_ptr,
+                block_callback,
+                block_inner_callback_args,
+                self.members,
+                {
+                    d: g
+                    for d, g in self.dim_mapping.items()
+                    if d not in checked_sparse_dims
+                },
+                self.dims_to_loop - set(looped_sparse_dims.keys()),
             )
             if_checked_true.extend(child_ops)
             if_checked_true.append(scf.Yield(*new_inner_callback_arg))
             if_checked_false = []
             if_checked_false.append(scf.Yield(*block_inner_callback_args))
-            if_checked_op = scf.If(checked, [arg.type for arg in iter_args], if_checked_true, if_checked_false)
+            if_checked_op = scf.If(
+                checked,
+                [arg.type for arg in iter_args],
+                if_checked_true,
+                if_checked_false,
+            )
             block.add_op(if_checked_op)
 
             block.add_op(scf.Yield(*if_checked_op.results))
@@ -8379,27 +9378,42 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             return ops, output_callback_iter_args
 
     def set_up_new_child(
-            self,
-            starting_layout: dlt.SeparatedCOOLayoutAttr,
-            extent_resolver: ExtentResolver,
-            dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
-            initialiser: Initialiser,
-            idx_elem_ptrs: tuple[SSAValue,...],
-            data_elem_ptr: SSAValue,
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        extent_resolver: ExtentResolver,
+        dim_mapping: dict[dlt.DimensionAttr, IndexGetter],
+        initialiser: Initialiser,
+        idx_elem_ptrs: tuple[SSAValue, ...],
+        data_elem_ptr: SSAValue,
     ) -> list[Operation]:
         assert isinstance(data_elem_ptr.type, llvm.LLVMPointerType)
         ops = []
         false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
         ops.append(false_op)
 
-
-        for idx_elem_ptr, dim in zip(idx_elem_ptrs, starting_layout.dimensions):
+        for idx_elem_ptr, dim, idx_buffer_type in zip(
+            idx_elem_ptrs, layout.dimensions, layout.index_buffer_types
+        ):
             idx_arg_ops, (idx_arg,) = dim_mapping[dim].get().output()
             ops.extend(idx_arg_ops)
-            ops.append(llvm.StoreOp(idx_arg, idx_elem_ptr))
+            if idx_buffer_type.width.data < builtin.i64.width.data:
+                cast_op = builtin.UnrealizedConversionCastOp.get(idx_arg, builtin.i64)
+                ops.append(cast_op)
+                trunc_op = arith.TruncIOp(cast_op.outputs[0], idx_buffer_type)
+                ops.append(trunc_op)
+                idx_val = trunc_op.result
+            elif idx_buffer_type.width.data == builtin.i64.width.data:
+                cast_op = builtin.UnrealizedConversionCastOp.get(idx_arg, builtin.i64)
+                ops.append(cast_op)
+                idx_val = cast_op.outputs[0]
+            else:
+                raise NotImplementedError(
+                    f"{idx_buffer_type} not supported as COO index buffer type"
+                )
+            ops.append(llvm.StoreOp(idx_val, idx_elem_ptr))
         # this is a new data element and so it needs to be init-ed
         child_init_ops, _ = self.semantics.init_layout(
-            starting_layout.child,
+            layout.child,
             extent_resolver,
             data_elem_ptr,
             initialiser,
@@ -8412,39 +9426,46 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         return ops
 
     def do_new_buffers(
-            self,
-            starting_layout: dlt.SeparatedCOOLayoutAttr,
-            extent_resolver: ExtentResolver,
-            new_size: SSAValue,
-            idx_buffer_ptrs: tuple[SSAValue,...],
-            data_buffer_ptr: SSAValue,
-            old_size: SSAValue,
-            index: SSAValue,
-    ) -> tuple[list[Operation], tuple[SSAValue,...], SSAValue, tuple[SSAValue,...], SSAValue]:
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        extent_resolver: ExtentResolver,
+        new_size: SSAValue,
+        idx_buffer_ptrs: tuple[SSAValue, ...],
+        data_buffer_ptr: SSAValue,
+        old_size: SSAValue,
+        index: SSAValue,
+    ) -> tuple[
+        list[Operation], tuple[SSAValue, ...], SSAValue, tuple[SSAValue, ...], SSAValue
+    ]:
         assert isinstance(new_size.type, IndexType)
-        assert all(isinstance(idx_buffer_ptr.type, llvm.LLVMPointerType) for idx_buffer_ptr in idx_buffer_ptrs)
+        assert all(
+            isinstance(idx_buffer_ptr.type, llvm.LLVMPointerType)
+            for idx_buffer_ptr in idx_buffer_ptrs
+        )
         assert isinstance(data_buffer_ptr.type, llvm.LLVMPointerType)
         assert isinstance(index.type, IndexType)
         ops = []
         zero_op = arith.Constant(IntegerAttr(0, IndexType()))
         ops.append(zero_op)
 
-        # Malloc the new Unpacked COO Buffer:
-        malloc_ops, new_idx_buffer_ptrs, new_data_buffer_ptr = (
-            self.malloc_buffers(
-                starting_layout,
-                new_size,
-                self.semantics.get_size(starting_layout.child, extent_resolver),
-                old_buffers=(idx_buffer_ptrs, data_buffer_ptr),
-            )
+        # Malloc the new COO Buffers:
+        malloc_ops, new_idx_buffer_ptrs, new_data_buffer_ptr = self.malloc_buffers(
+            layout,
+            new_size,
+            self.semantics.get_size(layout.child, extent_resolver),
+            old_buffers=(idx_buffer_ptrs, data_buffer_ptr),
         )
         ops.extend(malloc_ops)
 
         # Set up for lots of memory copies to move the sparse index tuples and child data into their new larger buffers
         # Starting with Index tuples
         idx_elem_ptrs = []
-        for new_idx_buffer_ptr in new_idx_buffer_ptrs:
-            index_tuple_size_ops, (index_size,) = _get_accepted_type_size(IndexType()).sum().output()
+        for new_idx_buffer_ptr, idx_buffer_type in zip(
+            new_idx_buffer_ptrs, layout.index_buffer_types
+        ):
+            index_tuple_size_ops, (index_size,) = (
+                _get_accepted_type_size(idx_buffer_type).sum().output()
+            )
             ops.extend(index_tuple_size_ops)
 
             idx_copy_ops, idx_elem_ptr = self.copy_to_new_buffers(
@@ -8461,7 +9482,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             idx_elem_ptrs.append(idx_elem_ptr)
 
         data_elem_size_ops, (data_elem_size, data_elem_size_extra) = (
-            self.semantics.get_size(starting_layout.child, extent_resolver).output()
+            self.semantics.get_size(layout.child, extent_resolver).output()
         )
         ops.extend(data_elem_size_ops)
 
@@ -8482,19 +9503,25 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         # ops.append(printf.PrintFormatOp("# free data {}", data_buffer_ptr))
         # not needed since using realloc: ops.append(llvm.CallOp("free", data_buffer_ptr))
 
-        return ops, new_idx_buffer_ptrs, new_data_buffer_ptr, tuple(idx_elem_ptrs), data_elem_ptr
+        return (
+            ops,
+            new_idx_buffer_ptrs,
+            new_data_buffer_ptr,
+            tuple(idx_elem_ptrs),
+            data_elem_ptr,
+        )
 
     def do_move_buffers(
-            self,
-            starting_layout: dlt.SeparatedCOOLayoutAttr,
-            extent_resolver: ExtentResolver,
-            buffer_size: SSAValue,
-            new_number_of_elems: SSAValue,
-            old_number_of_elems: SSAValue,
-            idx_buffer_ptrs: tuple[SSAValue,...],
-            data_buffer_ptr: SSAValue,
-            index: SSAValue,
-    ) -> tuple[list[Operation], tuple[SSAValue,...], SSAValue]:
+        self,
+        layout: dlt.SeparatedCOOLayoutAttr,
+        extent_resolver: ExtentResolver,
+        buffer_size: SSAValue,
+        new_number_of_elems: SSAValue,
+        old_number_of_elems: SSAValue,
+        idx_buffer_ptrs: tuple[SSAValue, ...],
+        data_buffer_ptr: SSAValue,
+        index: SSAValue,
+    ) -> tuple[list[Operation], tuple[SSAValue, ...], SSAValue]:
         assert isinstance(buffer_size.type, IndexType)
         assert isinstance(data_buffer_ptr.type, llvm.LLVMPointerType)
         assert isinstance(index.type, IndexType)
@@ -8505,17 +9532,18 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         # Set up for lots of memory copies to move the sparse index tuples and child data into their new larger buffers
         # Starting with Index tuples
         idx_elem_ptrs = []
-        for idx_buffer_ptr in idx_buffer_ptrs:
-            index_tuple_size_ops, (index_tuple_size,) = (
-                    _get_accepted_type_size(IndexType()).keep(1)
-                    * NumericResult.from_const(len(starting_layout.dimensions))
+        for idx_buffer_ptr, idx_buffer_type in zip(
+            idx_buffer_ptrs, layout.index_buffer_types
+        ):
+            index_size_ops, (index_size,) = (
+                _get_accepted_type_size(idx_buffer_type).sum()
             ).output()
-            ops.extend(index_tuple_size_ops)
+            ops.extend(index_size_ops)
 
             idx_copy_ops, idx_elem_ptr = self.copy_to_new_buffers(
                 idx_buffer_ptr,
                 idx_buffer_ptr,
-                index_tuple_size,
+                index_size,
                 index,
                 buffer_size,
                 old_number_of_elems,
@@ -8526,7 +9554,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             idx_elem_ptrs.append(idx_elem_ptr)
 
         data_elem_size_ops, (data_elem_size, data_elem_size_extra) = (
-            self.semantics.get_size(starting_layout.child, extent_resolver).output()
+            self.semantics.get_size(layout.child, extent_resolver).output()
         )
         ops.extend(data_elem_size_ops)
 
@@ -9002,4 +10030,6 @@ Semantic_Map.add_direct(dlt.ArithReplaceLayoutAttr, ArithReplaceSemantics(Semant
 
 Semantic_Map.add_direct(dlt.IndexingLayoutAttr, IndexingSemantics(Semantic_Map))
 Semantic_Map.add_indexed(dlt.UnpackedCOOLayoutAttr, UnpackCOOSemantics(Semantic_Map))
-Semantic_Map.add_indexed(dlt.SeparatedCOOLayoutAttr, SeparatedCOOSemantics(Semantic_Map))
+Semantic_Map.add_indexed(
+    dlt.SeparatedCOOLayoutAttr, SeparatedCOOSemantics(Semantic_Map)
+)

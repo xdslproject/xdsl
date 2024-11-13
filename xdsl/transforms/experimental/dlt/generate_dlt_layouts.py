@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 from dtl.visualise import LayoutPlotter
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.experimental import dlt
 from xdsl.dialects.experimental.dlt import PtrIdent
+from xdsl.ir import TypeAttribute
 from xdsl.transforms.experimental.dlt.layout_graph import LayoutGraph
 
 T = TypeVar("T", dlt.Layout, list[dlt.Layout])
@@ -91,6 +93,7 @@ def _make_sparse_layout(
     child_dims: list[dlt.DimensionAttr],
     buffer_scalar: int = 0,
     separated: bool = False,
+    index_type: TypeAttribute|None = None,
 ) -> dlt.AbstractLayoutAttr:
     common_dims = layout.common_abstract_dimensions()
     assert common_dims.issuperset(direct_dims + sparse_dims + child_dims)
@@ -110,8 +113,10 @@ def _make_sparse_layout(
         for a_child in layout.children
     ]
     if separated:
+        if index_type is not None:
+            index_type = [index_type]*len(sparse_dims)
         coo_node = dlt.SeparatedCOOLayoutAttr(
-            dlt.AbstractLayoutAttr(abstract_children), sparse_dims, buffer_scaler=buffer_scalar
+            dlt.AbstractLayoutAttr(abstract_children), sparse_dims, buffer_scaler=buffer_scalar, index_buffer_types=index_type,
         )
     else:
         coo_node = dlt.UnpackedCOOLayoutAttr(
@@ -265,6 +270,7 @@ class ReifyConfig():
     dense: bool = True # do we try dense layouts
     unpacked_coo_buffer_options: frozenset[int] = frozenset([0, 2, 8, -8]) # do we try coo layouts and if so, what buffer options
     separated_coo_buffer_options: frozenset[int] = frozenset([0, 2, 8, -8])  # do we try coo layouts and if so, what buffer options
+    separated_coo_buffer_index_options: frozenset[TypeAttribute] = frozenset([builtin.i32, builtin.i64])
     coo_minimum_dims: int = 2
     arith_replace: bool = True # do we try index replacement layouts
     force_arith_replace_immediate_use: bool = True
@@ -303,11 +309,12 @@ class LayoutGenerator:
 
     def __init__(self, layout_graph: LayoutGraph, config_map: dict[PtrIdent, ReifyConfig], plot_dir: str = None):
         self.layout_graph = layout_graph
+        type_map = layout_graph.get_type_map()
         self.abstract_maps: list[tuple[PtrMapping, list[PtrMapping]|None]] = [(
-            PtrMapping(0, layout_graph.get_type_map()), None)
+            PtrMapping(0, type_map), None)
         ]
         self.config_map = config_map
-        assert all(ident in config_map for ident in layout_graph.get_idents())
+        assert all(ident in config_map for ident in layout_graph.get_idents() if type_map[ident].layout.is_abstract)
         self._max_size = 0
         self.final_maps: set[PtrMapping] = set()
         self.seen_mappings = set()
@@ -636,7 +643,14 @@ class LayoutGenerator:
                                 # print(f"abstract_dims: {[d.dimensionName for d in abstract_dims]}")
                                 for abstract_child_dims in self._subsets(abstract_dims):
                                     # print(f"abstract_child_dims: {[d.dimensionName for d in abstract_child_dims]}")
-                                    if len(sparse_perm) > 1:
+                                    separated_buffer_options = config.separated_coo_buffer_options if config is not None else [
+                                        0,
+                                        2,
+                                        8,
+                                        -8]
+                                    separated_buffer_idx_type_options = config.separated_coo_buffer_index_options if config is not None else [
+                                        builtin.i32, builtin.i64]
+                                    if len(separated_buffer_options)==0 or builtin.i64 not in separated_buffer_idx_type_options or len(sparse_perm) > 1:
                                         unpacked_buffer_options = config.unpacked_coo_buffer_options if config is not None else [0,
                                                                                                                         2,
                                                                                                                         8,
@@ -644,15 +658,12 @@ class LayoutGenerator:
                                         for buffer_scaler in unpacked_buffer_options:
                                             layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
 
-                                    separated_buffer_options = config.separated_coo_buffer_options if config is not None else [
-                                        0,
-                                        2,
-                                        8,
-                                        -8]
                                     for buffer_scaler in separated_buffer_options:
-                                        layouts.append(
-                                            _make_sparse_layout(abstract_layout, list(direct), list(sparse_perm),
-                                                                list(abstract_child_dims), buffer_scalar=buffer_scaler, separated=True))
+
+                                        for index_type in separated_buffer_idx_type_options:
+                                            layouts.append(
+                                                _make_sparse_layout(abstract_layout, list(direct), list(sparse_perm),
+                                                                    list(abstract_child_dims), buffer_scalar=buffer_scaler, separated=True, index_type=index_type))
         return layouts
 
     def _try_dense(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: dlt.DimensionAttr = None) -> list[dlt.Layout]:

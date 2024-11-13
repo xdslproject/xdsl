@@ -1649,6 +1649,7 @@ class UnpackedCOOLayoutAttr(Layout):
         return (
             isinstance(other, UnpackedCOOLayoutAttr)
             and self.dimensions == other.dimensions
+            and self.buffer_scaler == other.buffer_scaler
         )
 
     def get_children(self) -> list[Layout]:
@@ -1677,19 +1678,28 @@ class SeparatedCOOLayoutAttr(Layout):
     child: ParameterDef[DirectLayout]
     dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
     buffer_scaler: ParameterDef[IntAttr]
+    index_buffer_types: ParameterDef[ArrayAttr[IntegerType]]
 
     def __init__(
         self,
         child: Layout,
         dimensions: Iterable[DimensionAttr],
         buffer_scaler: int | IntAttr = 0,
+        index_buffer_types: Iterable[IntegerType]|None = None
     ):
         if not isinstance(dimensions, ArrayAttr):
             dimensions = ArrayAttr(dimensions)
         if not isinstance(buffer_scaler, IntAttr):
             buffer_scaler = IntAttr(buffer_scaler)
+        if index_buffer_types is None:
+            index_buffer_types = [builtin.i64 for _ in dimensions]
+        if not isinstance(index_buffer_types, ArrayAttr):
+            index_buffer_types = ArrayAttr(index_buffer_types)
 
-        super().__init__((child, dimensions, buffer_scaler))
+        super().__init__((child, dimensions, buffer_scaler, index_buffer_types))
+
+    def verify(self) -> None:
+        super().verify()
 
     def indexed_by(self) -> None | IndexRangeType | IndexType:
         return IndexRangeType()
@@ -1702,6 +1712,8 @@ class SeparatedCOOLayoutAttr(Layout):
         return (
             isinstance(other, SeparatedCOOLayoutAttr)
             and self.dimensions == other.dimensions
+            and self.buffer_scaler == other.buffer_scaler
+            and self.index_buffer_types == other.index_buffer_types
         )
 
     def get_children(self) -> list[Layout]:
@@ -1709,7 +1721,7 @@ class SeparatedCOOLayoutAttr(Layout):
 
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == 1
-        return SeparatedCOOLayoutAttr(children[0], self.dimensions, self.buffer_scaler)
+        return SeparatedCOOLayoutAttr(children[0], self.dimensions, self.buffer_scaler, self.index_buffer_types)
 
     def get_stage(self) -> Stage:
         child_stage = self.child.get_stage()
@@ -3526,6 +3538,7 @@ DLT = Dialect(
         DenseLayoutAttr,
         IndexingLayoutAttr,
         UnpackedCOOLayoutAttr,
+        SeparatedCOOLayoutAttr,
         ArithDropLayoutAttr,
         PtrType,
     ],
