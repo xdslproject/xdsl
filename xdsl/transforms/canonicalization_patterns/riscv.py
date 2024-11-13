@@ -100,11 +100,11 @@ class MulImmediatePower2(RewritePattern):
                 )
             case None, True:
                 # no negation operator, so sub from zero register
-                zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
+                zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
                 rewriter.replace_matched_op(
                     [
                         riscv.SlliOp(op.rs1, i, rd=rd),
-                        riscv.SubOp(zero, op.rd, rd=rd, comment=op.comment),
+                        riscv.SubOp(zero_op, op.rd, rd=rd, comment=op.comment),
                     ]
                 )
             case int(), True:
