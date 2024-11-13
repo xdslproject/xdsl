@@ -24,6 +24,7 @@ from xdsl.dialects.riscv import (
     IntRegisterType,
     RdRsRsOperation,
     RISCVAsmOperation,
+    RISCVCustomFormatOperation,
     RISCVInstruction,
     RsRsIntegerOperation,
     SImm12Attr,
@@ -95,7 +96,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
 
 @irdl_op_definition
-class ScfgwiOp(RISCVInstruction):
+class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
     """
     Write the value in rs to the Snitch stream configuration location pointed by
     immediate value in the memory-mapped address space.
@@ -483,7 +484,7 @@ class GetStreamOp(RISCVAsmOperation):
 
 
 @irdl_op_definition
-class DMSourceOp(RISCVInstruction):
+class DMSourceOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -501,7 +502,7 @@ class DMSourceOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMDestinationOp(RISCVInstruction):
+class DMDestinationOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -519,7 +520,7 @@ class DMDestinationOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStrideOp(RISCVInstruction):
+class DMStrideOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
     srcstrd = operand_def(riscv.IntRegisterType)
@@ -537,7 +538,7 @@ class DMStrideOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMRepOp(RISCVInstruction):
+class DMRepOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
     reps = operand_def(riscv.IntRegisterType)
@@ -554,7 +555,7 @@ class DMRepOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyOp(RISCVInstruction):
+class DMCopyOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
@@ -578,7 +579,7 @@ class DMCopyOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatOp(RISCVInstruction):
+class DMStatOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
     dest = result_def(riscv.IntRegisterType)
@@ -799,7 +800,9 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     traits = traits_def(Pure())
 
 
-class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
+class RdRsRsAccumulatingFloatOperationWithFastMath(
+    RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and two source floating-point registers and can
@@ -864,7 +867,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
         )
 
 
-class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
+class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and a source floating-point register.
