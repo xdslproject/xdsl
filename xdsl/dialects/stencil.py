@@ -32,7 +32,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     BaseAttr,
     ConstraintContext,
-    ConstraintVar,
     GenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
@@ -844,8 +843,6 @@ class DynAccessOp(IRDLOperation):
 
     name = "stencil.dyn_access"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
-
     temp = operand_def(
         StencilType[Attribute].constr(
             element_type=MessageConstraint(
@@ -993,8 +990,6 @@ class AccessOp(IRDLOperation):
     Example:
       %0 = stencil.access %temp[-1, 0, 0] : !stencil.temp<?x?x?xf64>
     """
-
-    T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "stencil.access"
     temp = operand_def(
@@ -1231,8 +1226,6 @@ class LoadOp(IRDLOperation):
 
     name = "stencil.load"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
-
     field = operand_def(
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
@@ -1310,8 +1303,6 @@ class BufferOp(IRDLOperation):
     """
 
     name = "stencil.buffer"
-
-    T = Annotated[TempType[_FieldTypeElement], ConstraintVar("T")]
 
     temp = operand_def(
         TempType[Attribute].constr(
