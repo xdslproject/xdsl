@@ -13,7 +13,7 @@ from xdsl.parser import Parser
 
 pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
 
-from xdsl.interpreters.experimental.wgpu import WGPUFunctions  # noqa: E402
+from xdsl.interpreters.wgpu import WGPUFunctions  # noqa: E402
 
 
 def test_init():

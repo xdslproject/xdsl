@@ -28,7 +28,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     attr_def,
@@ -41,6 +40,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -262,8 +262,7 @@ class GetResultOp(IRDLOperation):
 
     name = "transform.get_result"
 
-    result_number = prop_def(AnyIntegerAttr)
-    raw_position_list = opt_prop_def(DenseArrayBase)
+    raw_position_list = prop_def(DenseArrayBase)
     is_inverted = opt_prop_def(UnitAttr)
     is_all = opt_prop_def(UnitAttr)
     target = operand_def(TransformOpHandleType)
@@ -271,23 +270,17 @@ class GetResultOp(IRDLOperation):
 
     def __init__(
         self,
-        result_number: int | AnyIntegerAttr,
         target: SSAValue,
-        raw_position_list: (
-            Sequence[int] | Sequence[IntAttr] | DenseArrayBase | None
-        ) = None,
+        raw_position_list: (Sequence[int] | Sequence[IntAttr] | DenseArrayBase),
         is_inverted: bool = False,
         is_all: bool = False,
     ):
-        if isinstance(result_number, int):
-            result_number = IntegerAttr(result_number, IntegerType(64))
         if isinstance(raw_position_list, Sequence):
-            raw_position_list = DenseArrayBase.create_dense_int_or_index(
+            raw_position_list = DenseArrayBase.create_dense_int(
                 IntegerType(64), raw_position_list
             )
         super().__init__(
             properties={
-                "result_number": result_number,
                 "raw_position_list": raw_position_list,
                 "is_inverted": UnitAttr() if is_inverted else None,
                 "is_all": UnitAttr() if is_all else None,
@@ -514,7 +507,7 @@ class YieldOp(IRDLOperation):
 
     name = "transform.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -525,15 +518,13 @@ class SequenceOp(IRDLOperation):
 
     name = "transform.sequence"
 
-    T = Annotated[AnyIntegerOrFailurePropagationModeAttr, ConstraintVar("T")]
-
     body = region_def("single_block")
     failure_propagation_mode = prop_def(Attribute)
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = frozenset([IsolatedFromAbove()])
+    traits = traits_def(IsolatedFromAbove())
 
     def __init__(
         self,
@@ -591,15 +582,13 @@ class TileOp(IRDLOperation):
         ) = None,
     ):
         if isinstance(static_sizes, Sequence):
-            static_sizes = DenseArrayBase.create_dense_int_or_index(
+            static_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_sizes
             )
         if isinstance(interchange, Sequence):
-            interchange = DenseArrayBase.create_dense_int_or_index(
-                IntegerType(64), interchange
-            )
+            interchange = DenseArrayBase.create_dense_int(IntegerType(64), interchange)
         if isinstance(scalable_sizes, Sequence):
-            scalable_sizes = DenseArrayBase.create_dense_int_or_index(
+            scalable_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(1), scalable_sizes
             )
         super().__init__(
@@ -660,15 +649,15 @@ class TileToForallOp(IRDLOperation):
         mapping: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
     ):
         if isinstance(static_num_threads, Sequence):
-            static_num_threads = DenseArrayBase.create_dense_int_or_index(
+            static_num_threads = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_num_threads
             )
         if isinstance(static_tile_sizes, Sequence):
-            static_tile_sizes = DenseArrayBase.create_dense_int_or_index(
+            static_tile_sizes = DenseArrayBase.create_dense_int(
                 IntegerType(64), static_tile_sizes
             )
         if isinstance(mapping, Sequence):
-            mapping = DenseArrayBase.create_dense_int_or_index(IntegerType(64), mapping)
+            mapping = DenseArrayBase.create_dense_int(IntegerType(64), mapping)
 
         super().__init__(
             operands=[

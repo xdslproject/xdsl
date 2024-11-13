@@ -105,11 +105,11 @@ def test_DenseArrayBase_verifier_failure():
 
 @pytest.mark.parametrize(
     "ref,expected",
-    (
+    [
         (SymbolRefAttr("test"), "test"),
         (SymbolRefAttr("test", ["2"]), "test.2"),
         (SymbolRefAttr("test", ["2", "3"]), "test.2.3"),
-    ),
+    ],
 )
 def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
@@ -127,13 +127,13 @@ def test_array_len_and_iter_attr():
 
 @pytest.mark.parametrize(
     "attr, dims, num_scalable_dims",
-    (
+    [
         (i32, (1, 2), 0),
         (i32, (1, 2), 1),
         (i32, (1, 1, 3), 0),
         (i64, (1, 1, 3), 2),
         (i64, (), 0),
-    ),
+    ],
 )
 def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims: int):
     vec = VectorType(attr, dims, num_scalable_dims)
@@ -145,11 +145,11 @@ def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims:
 
 @pytest.mark.parametrize(
     "dims, num_scalable_dims",
-    (
+    [
         ([], 1),
         ([1, 2], 3),
         ([1], 2),
-    ),
+    ],
 )
 def test_vector_verifier_fail(dims: list[int], num_scalable_dims: int):
     with pytest.raises(VerifyException):
@@ -292,9 +292,6 @@ def test_dense_as_tuple():
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
-
-    indices = DenseArrayBase.from_list(IndexType(), [1, 1, 2, 3, 5, 8])
-    assert indices.as_tuple() == (1, 1, 2, 3, 5, 8)
 
 
 def test_strides():

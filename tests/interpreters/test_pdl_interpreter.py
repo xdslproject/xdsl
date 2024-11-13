@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.experimental.pdl import (
+from xdsl.interpreters.pdl import (
     PDLMatcher,
     PDLRewriteFunctions,
     PDLRewritePattern,
@@ -119,10 +119,13 @@ def swap_arguments_pdl():
             ).op
             x_y = pdl.ResultOp(IntegerAttr(0, 32), parent=x_y_op).val
             z = pdl.OperandOp().value
+            overflow = pdl.AttributeOp().output
             x_y_z_op = pdl.OperationOp(
                 op_name=StringAttr("arith.addi"),
                 operand_values=[x_y, z],
                 type_values=[pdl_type],
+                attribute_value_names=(StringAttr("overflowFlags"),),
+                attribute_values=(overflow,),
             ).op
 
             with ImplicitBuilder(pdl.RewriteOp(x_y_z_op).body):
@@ -130,6 +133,8 @@ def swap_arguments_pdl():
                     StringAttr("arith.addi"),
                     operand_values=[z, x_y],
                     type_values=[pdl_type],
+                    attribute_value_names=(StringAttr("overflowFlags"),),
+                    attribute_values=(overflow,),
                 ).op
                 pdl.ReplaceOp(x_y_z_op, z_x_y_op)
 
@@ -475,6 +480,48 @@ def test_native_constraint():
 
     assert new_input_module_false.is_structurally_equivalent(ModuleOp([]))
     assert new_input_module_true.is_structurally_equivalent(input_module_true)
+
+
+def test_match_type():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.TypeOp()
+    ssa_value = pdl_op.result
+    xdsl_value = StringAttr("a")
+
+    # New value
+    assert matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Same value
+    assert matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Other value
+    assert not matcher.match_type(ssa_value, pdl_op, StringAttr("b"))
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+
+def test_match_fixed_type():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.TypeOp(IntegerType(32))
+    xdsl_value = IntegerType(32)
+    ssa_value = pdl_op.result
+
+    assert matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+
+def test_not_match_fixed_type():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.TypeOp(IntegerType(64))
+    xdsl_value = IntegerType(32)
+    ssa_value = pdl_op.result
+
+    assert not matcher.match_type(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {}
 
 
 def test_native_constraint_constant_parameter():

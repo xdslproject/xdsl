@@ -319,16 +319,12 @@ class TblgenLoader:
                 return "BaseAttr(BoolAttr)"
             case "IndexAttr":
                 return textwrap.dedent("""
-                ParamAttrConstraint(
-                    IntegerAttr, (AnyAttr(), EqAttrConstraint(IndexType()))
-                )
+                IntegerAttr.constr(type=IndexTypeConstr)
                 """)
 
             case "APIntAttr":
                 return textwrap.dedent("""
-                ParamAttrConstraint(
-                    IntegerAttr, (AnyAttr(), AnyAttr())
-                )
+                IntegerAttr.constr()
                 """)  # TODO can't represent APInt properly
 
             case "StrAttr":
@@ -355,13 +351,7 @@ class TblgenLoader:
             or "UnsignedIntegerAttrBase" in rec.superclasses
         ):
             return textwrap.dedent(f"""
-            ParamAttrConstraint(
-                IntegerAttr,
-                (
-                    AnyAttr(),
-                    {self._resolve_type_constraint(rec["valueType"]["def"])},
-                ),
-            )
+            IntegerAttr.constr(type={self._resolve_type_constraint(rec["valueType"]["def"])})
             """)
 
         if "FloatAttrBase" in rec.superclasses:
@@ -474,8 +464,6 @@ class TblgenLoader:
                     fields[name] = "var_region_def()"
                 case (True, True):
                     fields[name] = 'var_region_def("single_block")'
-                case _:
-                    pass  # Make pyright happy
 
         for [succ, name] in tblgen_op.successors:
             name = self._resolve_name(name)

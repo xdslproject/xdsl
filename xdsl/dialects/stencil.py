@@ -29,11 +29,11 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     AttrSizedOperandSegments,
     BaseAttr,
     ConstraintContext,
     ConstraintVar,
+    GenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -49,6 +49,7 @@ from xdsl.irdl import (
     opt_prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -122,10 +123,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
                 )
             ]
         )
-
-    @staticmethod
-    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
-        return [ub - lb for lb, ub in zip(lb, ub)]
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
@@ -359,6 +356,20 @@ class StencilType(
             nbounds = bounds
         return super().__init__([nbounds, element_type])
 
+    @classmethod
+    def constr(
+        cls,
+        *,
+        bounds: GenericAttrConstraint[Attribute] | None = None,
+        element_type: GenericAttrConstraint[_FieldTypeElement] | None = None,
+    ) -> (
+        BaseAttr[StencilType[Attribute]]
+        | ParamAttrConstraint[StencilType[_FieldTypeElement]]
+    ):
+        if bounds is None and element_type is None:
+            return BaseAttr(cls)
+        return ParamAttrConstraint(cls, (bounds, element_type))
+
 
 @irdl_attr_definition
 class FieldType(
@@ -392,9 +403,9 @@ class TempType(
     name = "stencil.temp"
 
 
-StencilTypeConstr = BaseAttr[StencilType[Attribute]](StencilType)
-FieldTypeConstr = BaseAttr[FieldType[Attribute]](FieldType)
-TempTypeConstr = BaseAttr[TempType[Attribute]](TempType)
+StencilTypeConstr = StencilType[Attribute].constr()
+FieldTypeConstr = FieldType[Attribute].constr()
+TempTypeConstr = TempType[Attribute].constr()
 
 AnyTempType: TypeAlias = TempType[Attribute]
 
@@ -465,8 +476,6 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
 
-    B = Annotated[Attribute, ConstraintVar("B")]
-
     args = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
     region = region_def()
@@ -474,13 +483,11 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(StencilBoundsAttr)
 
-    traits = frozenset(
-        [
-            IsolatedFromAbove(),
-            ApplyOpHasCanonicalizationPatternsTrait(),
-            ApplyOpHasShapeInferencePatternsTrait(),
-            ApplyMemoryEffect(),
-        ]
+    traits = traits_def(
+        IsolatedFromAbove(),
+        ApplyOpHasCanonicalizationPatternsTrait(),
+        ApplyOpHasShapeInferencePatternsTrait(),
+        ApplyMemoryEffect(),
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -631,13 +638,6 @@ class ApplyOp(IRDLOperation):
             assert self.bounds is not None
             return len(self.bounds.lb)
 
-    def get_num_results(self) -> int:
-        res = len(self.res)
-        if res > 0:
-            return res
-        else:
-            return len(self.dest)
-
     def get_accesses(self) -> Iterable[AccessPattern]:
         """
         Return the access patterns of each input.
@@ -687,7 +687,7 @@ class AllocOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($field)"
 
-    traits = frozenset([AllocOpEffect()])
+    traits = traits_def(AllocOpEffect())
 
 
 @irdl_op_definition
@@ -702,27 +702,19 @@ class CastOp(IRDLOperation):
     name = "stencil.cast"
 
     field = operand_def(
-        ParamAttrConstraint(
-            FieldTypeConstr,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+        FieldType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            )
         )
     )
     result = result_def(
-        ParamAttrConstraint(
-            FieldTypeConstr,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+        FieldType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            )
         )
     )
 
@@ -730,7 +722,7 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
@@ -815,11 +807,9 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
-    traits = frozenset(
-        [
-            Pure(),
-            CombineOpHasShapeInferencePatternsTrait(),
-        ]
+    traits = traits_def(
+        Pure(),
+        CombineOpHasShapeInferencePatternsTrait(),
     )
 
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
@@ -857,17 +847,14 @@ class DynAccessOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     temp = operand_def(
-        ParamAttrConstraint(
-            StencilTypeConstr,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Expected result type to be the accessed temp's element type.",
-                ),
-            ],
+        StencilType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Expected result type to be the accessed temp's element type.",
+            )
         )
     )
+
     offset = var_operand_def(builtin.IndexType())
     lb = attr_def(IndexAttr)
     ub = attr_def(IndexAttr)
@@ -883,12 +870,10 @@ class DynAccessOp(IRDLOperation):
         "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
     )
 
-    traits = frozenset(
-        [
-            HasAncestor(ApplyOp),
-            NoMemoryEffect(),
-            DynAccessOpHasShapeInferencePatternsTrait(),
-        ]
+    traits = traits_def(
+        HasAncestor(ApplyOp),
+        NoMemoryEffect(),
+        DynAccessOpHasShapeInferencePatternsTrait(),
     )
 
     def __init__(
@@ -968,7 +953,7 @@ class IndexOp(IRDLOperation):
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
 
-    traits = frozenset([HasAncestor(ApplyOp), Pure()])
+    traits = traits_def(HasAncestor(ApplyOp), Pure())
 
     def get_apply(self):
         """
@@ -1013,15 +998,11 @@ class AccessOp(IRDLOperation):
 
     name = "stencil.access"
     temp = operand_def(
-        ParamAttrConstraint(
-            StencilTypeConstr,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Expected return type to match the accessed temp's element type.",
-                ),
-            ],
+        StencilType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Expected return type to match the accessed temp's element type.",
+            )
         )
     )
     offset = attr_def(IndexAttr)
@@ -1033,8 +1014,8 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = frozenset(
-        [HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()]
+    traits = traits_def(
+        HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()
     )
 
     def print(self, printer: Printer):
@@ -1218,6 +1199,27 @@ class LoadOpMemoryEffect(MemoryEffect):
         return {EffectInstance(MemoryEffectKind.READ, cast(LoadOp, op).field)}
 
 
+class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
+    @staticmethod
+    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
+        return (
+            isa(other, TensorType[Attribute])
+            and len(attr.get_shape()) == len(other.get_shape())
+            and attr.get_element_type() == other.get_element_type()
+        )
+
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name in constraint_context.variables:
+            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
+                attr, constraint_context.get_variable(self.name)
+            ):
+                return
+        super().verify(attr, constraint_context)
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
@@ -1232,31 +1234,28 @@ class LoadOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     field = operand_def(
-        ParamAttrConstraint(
-            FieldTypeConstr,
-            [
-                StencilBoundsAttr,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()), "Expected element types to match."
-                ),
-            ],
+        FieldType[Attribute].constr(
+            bounds=base(StencilBoundsAttr),
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Expected element types to match.",
+            ),
         )
     )
     res = result_def(
-        ParamAttrConstraint(
-            TempTypeConstr,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()), "Expected element types to match."
-                ),
-            ],
+        TempType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Expected element types to match.",
+            )
         )
     )
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
-    traits = frozenset([LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect()])
+    traits = traits_def(LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect())
 
     @staticmethod
     def get(
@@ -1315,39 +1314,33 @@ class BufferOp(IRDLOperation):
     T = Annotated[TempType[_FieldTypeElement], ConstraintVar("T")]
 
     temp = operand_def(
-        ParamAttrConstraint(
-            TempTypeConstr,
-            [
-                MessageConstraint(
-                    VarConstraint("B", AnyAttr()),
-                    "Expected input and output to have the same bounds",
-                ),
-                MessageConstraint(
-                    VarConstraint("E", AnyAttr()),
-                    "Expected input and output to have the same element type",
-                ),
-            ],
+        TempType[Attribute].constr(
+            bounds=MessageConstraint(
+                VarConstraint("B", AnyAttr()),
+                "Expected input and output to have the same bounds",
+            ),
+            element_type=MessageConstraint(
+                VarConstraint("E", AnyAttr()),
+                "Expected input and output to have the same element type",
+            ),
         )
     )
     res = result_def(
-        ParamAttrConstraint(
-            StencilTypeConstr,
-            [
-                MessageConstraint(
-                    VarConstraint("B", AnyAttr()),
-                    "Expected input and output to have the same bounds",
-                ),
-                MessageConstraint(
-                    VarConstraint("E", AnyAttr()),
-                    "Expected input and output to have the same element type",
-                ),
-            ],
+        StencilType[Attribute].constr(
+            bounds=MessageConstraint(
+                VarConstraint("B", AnyAttr()),
+                "Expected input and output to have the same bounds",
+            ),
+            element_type=MessageConstraint(
+                VarConstraint("E", AnyAttr()),
+                "Expected input and output to have the same element type",
+            ),
         )
     )
 
     assembly_format = "$temp attr-dict-with-keyword `:` type($temp) `->` type($res)"
 
-    traits = frozenset([Pure(), BufferOpHasShapeInferencePatternsTrait()])
+    traits = traits_def(Pure(), BufferOpHasShapeInferencePatternsTrait())
 
     def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
@@ -1369,27 +1362,6 @@ class BufferOp(IRDLOperation):
                 "A stencil.buffer's operand temp should only be buffered. You can use "
                 "stencil.buffer's output instead!"
             )
-
-
-class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
-    @staticmethod
-    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
-        return (
-            isa(other, TensorType[Attribute])
-            and len(attr.get_shape()) == len(other.get_shape())
-            and attr.get_element_type() == other.get_element_type()
-        )
-
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        constraint_context = constraint_context or ConstraintContext()
-        if self.name in constraint_context.variables:
-            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
-                attr, constraint_context.variables[self.name]
-            ):
-                return
-        super().verify(attr, constraint_context)
 
 
 class StoreOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
@@ -1420,47 +1392,31 @@ class StoreOp(IRDLOperation):
     name = "stencil.store"
 
     temp = operand_def(
-        ParamAttrConstraint(
-            TempTypeConstr,
-            [
-                Attribute,
-                MessageConstraint(
-                    AnyOf(
-                        [
-                            VarConstraint("T", AnyAttr()),
-                            TensorIgnoreSizeConstraint("T", AnyAttr()),
-                        ]
-                    ),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+        TempType[Attribute].constr(
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            ),
         )
     )
-    # field = operand_def(FieldType)
     field = operand_def(
-        ParamAttrConstraint(
-            FieldTypeConstr,
-            [
-                MessageConstraint(
-                    StencilBoundsAttr, "Output type's size must be explicit"
-                ),
-                MessageConstraint(
-                    AnyOf(
-                        [
-                            VarConstraint("T", AnyAttr()),
-                            TensorIgnoreSizeConstraint("T", AnyAttr()),
-                        ]
-                    ),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+        FieldType[Attribute].constr(
+            bounds=MessageConstraint(
+                StencilBoundsAttr, "Output type's size must be explicit"
+            ),
+            element_type=MessageConstraint(
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Input and output fields must have the same element types",
+            ),
         )
     )
     bounds = attr_def(StencilBoundsAttr)
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
-    traits = frozenset([StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect()])
+    traits = traits_def(StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect())
 
     @staticmethod
     def get(
@@ -1503,7 +1459,7 @@ class StoreResultOp(IRDLOperation):
 
     assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
 
-    traits = frozenset([HasAncestor(ApplyOp), Pure()])
+    traits = traits_def(HasAncestor(ApplyOp), Pure())
 
 
 @irdl_op_definition
@@ -1534,7 +1490,7 @@ class ReturnOp(IRDLOperation):
             return 1
         return prod(self.unroll)
 
-    traits = frozenset([HasParent(ApplyOp), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

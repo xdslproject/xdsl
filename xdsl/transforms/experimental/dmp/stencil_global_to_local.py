@@ -633,7 +633,7 @@ class DistributeStencilPass(DmpDecompositionPass):
 
 
 @dataclass(frozen=True)
-class LowerHaloToMPI(ModulePass):
+class DmpToMpiPass(ModulePass):
     name = "dmp-to-mpi"
 
     mpi_init: bool = True

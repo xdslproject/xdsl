@@ -49,15 +49,7 @@ class Test_AnyOp(IRDLOperation):
 class Test_AttributesOp(IRDLOperation):
     name = "test.attributes"
 
-    int_attr = prop_def(
-        ParamAttrConstraint(
-            IntegerAttr,
-            (
-                AnyAttr(),
-                EqAttrConstraint(IntegerType(16)),
-            ),
-        )
-    )
+    int_attr = prop_def(IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16))))
 
     in_ = prop_def(BaseAttr(Test_TestAttr), prop_name="in")
 

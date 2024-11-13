@@ -17,7 +17,9 @@ from typing import Annotated, ClassVar, TypeAlias
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
+    AnyFloatAttrConstr,
     AnyIntegerAttr,
+    AnyIntegerAttrConstr,
     AnyMemRefType,
     ArrayAttr,
     BoolAttr,
@@ -48,10 +50,12 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    ConstraintVar,
+    AnyOf,
+    BaseAttr,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
+    VarConstraint,
     attr_def,
     base,
     eq,
@@ -64,6 +68,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
@@ -75,6 +80,8 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     NoMemoryEffect,
     NoTerminator,
     OpTrait,
@@ -309,8 +316,35 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     kind: ParameterDef[PtrKindAttr]
     constness: ParameterDef[PtrConstAttr]
 
+    @staticmethod
+    def get(typ: Attribute, is_single: bool, is_const: bool):
+        return PtrType(
+            [
+                typ,
+                PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),
+                PtrConstAttr(PtrConst.CONST if is_const else PtrConst.VAR),
+            ]
+        )
+
     def get_element_type(self) -> Attribute:
         return self.type
+
+
+@irdl_op_definition
+class PtrCastOp(IRDLOperation):
+    """
+    Implements `@ptrcast(destination_ptr_type, ptr)`
+    """
+
+    name = "csl.ptrcast"
+
+    ptr = operand_def(PtrType)
+    result = result_def(PtrType)
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(self, ptr: Operation | SSAValue, result_type: PtrType):
+        super().__init__(operands=[ptr], result_types=[result_type])
 
 
 DsdElementTypeConstr = (
@@ -380,6 +414,7 @@ ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+ParamAttrConstr = AnyFloatAttrConstr | AnyIntegerAttrConstr
 
 
 @irdl_op_definition
@@ -395,7 +430,7 @@ class VariableOp(IRDLOperation):
 
     name = "csl.variable"
 
-    default = opt_prop_def(ParamAttr)
+    default = opt_prop_def(ParamAttrConstr)
     res = result_def(VarType)
 
     def get_element_type(self):
@@ -435,6 +470,8 @@ class LoadVarOp(IRDLOperation):
     var = operand_def(VarType)
     res = result_def()
 
+    traits = traits_def(MemoryReadEffect())
+
     def __init__(self, var: VariableOp | SSAValue):
         if isinstance(var, SSAValue):
             assert isinstance(var.type, VarType)
@@ -465,6 +502,8 @@ class StoreVarOp(IRDLOperation):
     var = operand_def(VarType)
     new_value = operand_def()
 
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
         super().__init__(operands=[var, new_value])
 
@@ -485,7 +524,7 @@ class DirectionOp(IRDLOperation):
 
     res = result_def(DirectionType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, direction: DirectionAttr | Direction):
         if isinstance(direction, Direction):
@@ -504,13 +543,11 @@ class CslModuleOp(IRDLOperation):
     kind = prop_def(ModuleKindAttr)
     sym_name = attr_def(StringAttr)
 
-    traits = frozenset(
-        [
-            HasParent(ModuleOp),
-            IsolatedFromAbove(),
-            NoTerminator(),
-            SymbolOpInterface(),
-        ]
+    traits = traits_def(
+        HasParent(ModuleOp),
+        IsolatedFromAbove(),
+        NoTerminator(),
+        SymbolOpInterface(),
     )
 
 
@@ -522,7 +559,7 @@ class ImportModuleConstOp(IRDLOperation):
 
     name = "csl.import_module"
 
-    traits = frozenset([HasParent(CslModuleOp)])
+    traits = traits_def(HasParent(CslModuleOp))
 
     module = prop_def(StringAttr)
 
@@ -546,7 +583,7 @@ class ImportModuleConstOp(IRDLOperation):
 class ConstStructOp(IRDLOperation):
     name = "csl.const_struct"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     items = opt_prop_def(DictionaryAttr)
     ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
@@ -578,6 +615,12 @@ class ConstStructOp(IRDLOperation):
         )
 
 
+ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
+ZerosOpAttrConstr: AnyOf[ZerosOpAttr] = (
+    BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
+)
+
+
 @irdl_op_definition
 class ZerosOp(IRDLOperation):
     """
@@ -586,17 +629,17 @@ class ZerosOp(IRDLOperation):
 
     name = "csl.zeros"
 
-    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", ZerosOpAttrConstr)
 
     size = opt_operand_def(T)
 
-    result = result_def(MemRefType[T])
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
     def __init__(
         self,
-        memref: MemRefType[T],
+        memref: MemRefType[IntegerType | Float32Type | Float16Type],
         dynamic_size: SSAValue | Operation | None = None,
         is_const: builtin.UnitAttr | None = None,
     ):
@@ -619,13 +662,15 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+    T: ClassVar = VarConstraint(
+        "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
+    )
 
     size = operand_def(IntegerType)
 
     value = operand_def(T)
 
-    result = result_def(MemRefType[T])
+    result = result_def(MemRefType.constr(element_type=T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -640,7 +685,7 @@ class ConstantsOp(IRDLOperation):
 class GetColorOp(IRDLOperation):
     name = "csl.get_color"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     id = operand_def(IntegerType)
     res = result_def(ColorType)
@@ -657,7 +702,7 @@ class MemberAccessOp(IRDLOperation):
 
     name = "csl.member_access"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     struct = operand_def(StructLikeConstr)
 
@@ -774,7 +819,7 @@ class TaskOp(_FuncBase):
     kind = prop_def(TaskKindAttr)
     id = opt_prop_def(ColorIdAttr)
 
-    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+    traits = traits_def(InModuleKind(ModuleKind.PROGRAM))
 
     def __init__(
         self,
@@ -916,7 +961,7 @@ class ReturnOp(IRDLOperation):
 
     assembly_format = "attr-dict ($ret_val^ `:` type($ret_val))?"
 
-    traits = frozenset([HasParent(FuncOp, TaskOp), IsTerminator()])
+    traits = traits_def(HasParent(FuncOp, TaskOp), IsTerminator())
 
     def __init__(self, return_val: SSAValue | Operation | None = None):
         super().__init__(operands=[return_val])
@@ -937,7 +982,7 @@ class LayoutOp(IRDLOperation):
 
     body = region_def()
 
-    traits = frozenset([NoTerminator(), InModuleKind(ModuleKind.LAYOUT)])
+    traits = traits_def(NoTerminator(), InModuleKind(ModuleKind.LAYOUT))
 
     def __init__(self, ops: Sequence[Operation] | Region):
         if not isinstance(ops, Region):
@@ -985,7 +1030,7 @@ class CallOp(IRDLOperation):
 class SetRectangleOp(IRDLOperation):
     name = "csl.set_rectangle"
 
-    traits = frozenset([HasParent(LayoutOp)])
+    traits = traits_def(HasParent(LayoutOp))
 
     x_dim = operand_def(IntegerType)
     y_dim = operand_def(IntegerType)
@@ -995,7 +1040,7 @@ class SetRectangleOp(IRDLOperation):
 class SetTileCodeOp(IRDLOperation):
     name = "csl.set_tile_code"
 
-    traits = frozenset([HasAncestor(LayoutOp)])
+    traits = traits_def(HasAncestor(LayoutOp))
 
     file = prop_def(StringAttr)
 
@@ -1086,11 +1131,9 @@ class GetMemDsdOp(_GetDsdOp):
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
 
-    traits = frozenset(
-        [
-            Pure(),
-            DsdOpHasCanonicalizationPatternsTrait(),
-        ]
+    traits = traits_def(
+        Pure(),
+        DsdOpHasCanonicalizationPatternsTrait(),
     )
 
     def verify_(self) -> None:
@@ -1170,7 +1213,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
     )
     result = result_def(DsdType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def verify_(self) -> None:
         if (
@@ -1210,7 +1253,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
-    traits = frozenset([Pure(), IncrementDsdOffsetOpHasCanonicalizationPatternsTrait()])
+    traits = traits_def(Pure(), IncrementDsdOffsetOpHasCanonicalizationPatternsTrait())
 
     def verify_(self) -> None:
         if (
@@ -1237,7 +1280,7 @@ class SetDsdLengthOp(IRDLOperation):
     length = operand_def(u16_value)
     result = result_def(DsdType)
 
-    traits = frozenset([Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait()])
+    traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
 
     def verify_(self) -> None:
         if (
@@ -1265,7 +1308,7 @@ class SetDsdStrideOp(IRDLOperation):
     stride = operand_def(IntegerType(8, Signedness.SIGNED))
     result = result_def(DsdType)
 
-    traits = frozenset([Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait()])
+    traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())
 
     def verify_(self) -> None:
         if (
@@ -1722,7 +1765,7 @@ class SymbolExportOp(IRDLOperation):
 
     name = "csl.export"
 
-    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+    traits = traits_def(InModuleKind(ModuleKind.PROGRAM))
 
     value = opt_operand_def(PtrType)
 
@@ -1833,7 +1876,10 @@ class AddressOfOp(IRDLOperation):
     value = operand_def()
     res = result_def(PtrType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(self, value: SSAValue | Operation, result_type: PtrType):
+        super().__init__(operands=[value], result_types=[result_type])
 
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
         """
@@ -1893,9 +1939,30 @@ class RpcOp(IRDLOperation):
 
     name = "csl.rpc"
 
-    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+    traits = traits_def(InModuleKind(ModuleKind.PROGRAM))
 
     id = operand_def(ColorType)
+
+
+ParamOpAttr: TypeAlias = (
+    Float16Type
+    | Float32Type
+    | IntegerType
+    | ColorType
+    | FunctionType
+    | ImportedModuleType
+    | ComptimeStructType
+)
+
+ParamOpAttrConstr = (
+    BaseAttr(Float16Type)
+    | BaseAttr(Float32Type)
+    | BaseAttr(IntegerType)
+    | BaseAttr(ColorType)
+    | BaseAttr(FunctionType)
+    | BaseAttr(ImportedModuleType)
+    | BaseAttr(ComptimeStructType)
+)
 
 
 @irdl_op_definition
@@ -1910,20 +1977,11 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
-    T = Annotated[
-        Float16Type
-        | Float32Type
-        | IntegerType
-        | ColorType
-        | FunctionType
-        | ImportedModuleType
-        | ComptimeStructType,
-        ConstraintVar("T"),
-    ]
+    T: ClassVar = VarConstraint("T", ParamOpAttrConstr)
 
     name = "csl.param"
 
-    traits = frozenset([HasParent(CslModuleOp)])  # has to be at top level
+    traits = traits_def(HasParent(CslModuleOp))  # has to be at top level
 
     param_name = prop_def(StringAttr)
     init_value = opt_operand_def(T)
@@ -1931,7 +1989,10 @@ class ParamOp(IRDLOperation):
     res = result_def(T)
 
     def __init__(
-        self, name: str, result_type: T, init_value: SSAValue | Operation | None = None
+        self,
+        name: str,
+        result_type: ParamOpAttr,
+        init_value: SSAValue | Operation | None = None,
     ):
         super().__init__(
             operands=[init_value],
@@ -1946,7 +2007,7 @@ class SignednessCastOp(IRDLOperation):
     Cast that throws away signedness attributes
     """
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     name = "csl.mlir.signedness_cast"
 
@@ -2076,6 +2137,7 @@ CSL = Dialect(
         Or16Op,
         ParamOp,
         PopcntOp,
+        PtrCastOp,
         ReturnOp,
         RpcOp,
         Sar16Op,

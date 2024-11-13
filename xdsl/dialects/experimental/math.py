@@ -9,6 +9,7 @@ from xdsl.irdl import (
     operand_def,
     opt_prop_def,
     result_def,
+    traits_def,
 )
 from xdsl.traits import Pure
 
@@ -31,7 +32,7 @@ class AbsFOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -61,7 +62,7 @@ class AbsIOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -97,7 +98,7 @@ class Atan2Op(IRDLOperation):
     rhs = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -134,7 +135,7 @@ class AtanOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -167,7 +168,7 @@ class CbrtOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -201,7 +202,7 @@ class CeilOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -237,7 +238,7 @@ class CopySignOp(IRDLOperation):
     rhs = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -275,7 +276,7 @@ class CosOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -304,7 +305,7 @@ class CountLeadingZerosOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -327,7 +328,7 @@ class CountTrailingZerosOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -350,7 +351,7 @@ class CtPopOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -378,7 +379,7 @@ class ErfOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -412,7 +413,7 @@ class Exp2Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -448,7 +449,7 @@ class ExpM1Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -482,7 +483,7 @@ class ExpOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -525,7 +526,7 @@ class FPowIOp(IRDLOperation):
     rhs = operand_def(IntegerType)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -563,7 +564,7 @@ class FloorOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -604,7 +605,7 @@ class FmaOp(IRDLOperation):
     c = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -642,7 +643,7 @@ class IPowIOp(IRDLOperation):
     rhs = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
         lhs = SSAValue.get(lhs)
@@ -668,7 +669,7 @@ class Log10Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -701,7 +702,7 @@ class Log1pOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -732,7 +733,7 @@ class Log2Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -763,7 +764,7 @@ class LogOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -798,7 +799,7 @@ class PowFOp(IRDLOperation):
     rhs = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -839,7 +840,7 @@ class RoundEvenOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -876,7 +877,7 @@ class RoundOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -906,7 +907,7 @@ class RsqrtOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -940,7 +941,7 @@ class SinOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -970,7 +971,7 @@ class SqrtOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1001,7 +1002,7 @@ class TanOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1032,7 +1033,7 @@ class TanhOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1068,7 +1069,7 @@ class TruncOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None

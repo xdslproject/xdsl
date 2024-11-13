@@ -202,7 +202,7 @@ class ParamAttrDef:
             param_def.verify(param, constraint_context)
 
 
-_PAttrT = TypeVar("_PAttrT", bound=ParametrizedAttribute)
+_PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
 
 
 def get_accessors_from_param_attr_def(attr_def: ParamAttrDef):
@@ -220,14 +220,14 @@ def get_accessors_from_param_attr_def(attr_def: ParamAttrDef):
         new_fields[param_name] = param_name_field(idx)
 
     @classmethod
-    def get_irdl_definition(cls: type[_PAttrT]):
+    def get_irdl_definition(cls: type[ParametrizedAttribute]):
         return attr_def
 
     new_fields["get_irdl_definition"] = get_irdl_definition
     return new_fields
 
 
-def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
+def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     """Decorator used on classes to define a new attribute definition."""
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
@@ -238,12 +238,13 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
         type_index = parameter_names.index("type")
         new_fields["get_type_index"] = lambda: type_index
 
-    cls = cast(type[_PAttrT], cls)
-
     return runtime_final(
         dataclass(frozen=True, init=False)(
             type.__new__(
-                type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields}
+                type(cls),
+                cls.__name__,
+                (cls,),
+                {**cls.__dict__, **new_fields},
             )
         )
     )

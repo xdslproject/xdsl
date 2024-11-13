@@ -158,6 +158,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MLProgram
 
+    def get_mod_arith():
+        from xdsl.dialects.mod_arith import ModArith
+
+        return ModArith
+
     def get_mpi():
         from xdsl.dialects.mpi import MPI
 
@@ -182,6 +187,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.printf import Printf
 
         return Printf
+
+    def get_ptr_xdsl():
+        from xdsl.dialects.ptr import Ptr
+
+        return Ptr
 
     def get_quantum():
         from xdsl.dialects.quantum import QUANTUM
@@ -349,11 +359,13 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "memref": get_memref,
         "memref_stream": get_memref_stream,
         "ml_program": get_ml_program,
+        "mod_arith": get_mod_arith,
         "mpi": get_mpi,
         "omp": get_omp,
         "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
+        "ptr_xdsl": get_ptr_xdsl,
         "quantum": get_quantum,
         "qref": get_qref,
         "qssa": get_qssa,

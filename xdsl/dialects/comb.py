@@ -11,14 +11,21 @@ Up to date as of CIRCT commit `2e23cda6c2cbedb118b92fab755f1e36d80b13f5`.
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import Annotated
+from typing import ClassVar
 
-from xdsl.dialects.builtin import I32, I64, IntegerAttr, IntegerType, UnitAttr
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    IntegerAttr,
+    IntegerType,
+    UnitAttr,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -49,7 +56,7 @@ class BinCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -96,7 +103,7 @@ class VariadicCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
     inputs = var_operand_def(T)
     result = result_def(T)
@@ -253,7 +260,7 @@ class ICmpOp(IRDLOperation, ABC):
 
     name = "comb.icmp"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
     predicate = attr_def(IntegerAttr[I64])
     lhs = operand_def(T)
@@ -555,7 +562,7 @@ class MuxOp(IRDLOperation):
 
     name = "comb.mux"
 
-    T = Annotated[TypeAttribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(TypeAttribute))
 
     cond = operand_def(IntegerType(1))
     true_value = operand_def(T)

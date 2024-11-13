@@ -3,13 +3,12 @@ from dataclasses import dataclass
 from typing import TypeGuard, cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
     Addf,
-    BinaryOperation,
     Constant,
     Divf,
-    FloatingPointLikeBinaryOp,
+    FloatingPointLikeBinaryOperation,
     Mulf,
     Subf,
 )
@@ -42,6 +41,7 @@ from xdsl.dialects.stencil import (
 from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp, InsertSliceOp
 from xdsl.ir import (
     Attribute,
+    Block,
     Operation,
     OpResult,
     SSAValue,
@@ -187,7 +187,7 @@ class ArithOpTensorize(RewritePattern):
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
         dest_typ: TensorType[Attribute],
-        op: FloatingPointLikeBinaryOp,
+        op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
         """
@@ -213,7 +213,6 @@ class ApplyOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         if all(is_tensorized(arg.type) for arg in op.args):
-            b = op.region.block
             access_patterns = dict[Operand, AccessPattern](
                 zip(op.region.block.args, op.get_accesses())
             )
@@ -225,16 +224,15 @@ class ApplyOpTensorize(RewritePattern):
                         access_op.offset.array.data[-1].data + z_shift,
                     )
 
-            # TODO check if block args need updating
-            for _ in range(len(b.args)):
-                assert isa(arg_type := b.args[0].type, TempType[Attribute])
-                arg = b.insert_arg(stencil_temp_to_tensor(arg_type), len(b.args))
-                b.args[0].replace_by(arg)
-                b.erase_arg(b.args[0], safe_erase=True)
+            body = Block(arg_types=op.operand_types)
+            rewriter.inline_block(
+                op.region.block, InsertPoint.at_start(body), body.args
+            )
+
             rewriter.replace_matched_op(
                 ApplyOp.get(
                     op.args,
-                    op.region.clone(),
+                    body,
                     [
                         stencil_temp_to_tensor(cast(TempType[Attribute], r.type))
                         for r in op.res
@@ -246,9 +244,10 @@ class ApplyOpTensorize(RewritePattern):
 class FuncOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        for arg in op.args:
-            if isa(arg.type, FieldType[Attribute]):
-                op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
+        if not op.is_declaration:
+            for arg in op.args:
+                if isa(arg.type, FieldType[Attribute]):
+                    op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
 
 
 def is_tensorized(
@@ -369,7 +368,7 @@ class ExtractSliceOpUpdateShape(RewritePattern):
 
 
 def arithBinaryOpUpdateShape(
-    op: BinaryOperation[Attribute],
+    op: FloatingPointLikeBinaryOperation,
     rewriter: PatternRewriter,
     /,
 ):
@@ -387,6 +386,17 @@ class ArithOpUpdateShape(RewritePattern):
         self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
     ):
         arithBinaryOpUpdateShape(op, rewriter)
+
+
+class VarithOpUpdateShape(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
+        type_constructor = type(op)
+        if typ := get_required_result_type(op):
+            if needs_update_shape(op.result_types[0], typ):
+                rewriter.replace_matched_op(
+                    type_constructor.build(operands=[op.args], result_types=[typ])
+                )
 
 
 class EmptyOpUpdateShape(RewritePattern):
@@ -437,6 +447,7 @@ class BackpropagateStencilShapes(ModulePass):
                     EmptyOpUpdateShape(),
                     FillOpUpdateShape(),
                     ArithOpUpdateShape(),
+                    VarithOpUpdateShape(),
                     ConstOpUpdateShape(),
                 ]
             ),

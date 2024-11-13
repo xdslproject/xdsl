@@ -9,7 +9,7 @@ from xdsl.dialects.irdl.irdl import (
     ResultsOp,
 )
 from xdsl.ir import Attribute, Block, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import AttrConstraint, IRDLOperation, RangeConstraint
+from xdsl.irdl import AttrConstraint, GenericRangeConstraint, IRDLOperation
 
 
 def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue:
@@ -21,7 +21,9 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     return any_op.output
 
 
-def range_to_irdl(builder: Builder, constraint: RangeConstraint[Attribute]) -> SSAValue:
+def range_to_irdl(
+    builder: Builder, constraint: GenericRangeConstraint[Attribute]
+) -> SSAValue:
     """
     Convert a range constraint to IRDL.
     This will create new operations at the provided builder location.

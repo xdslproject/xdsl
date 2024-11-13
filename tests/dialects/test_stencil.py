@@ -200,7 +200,7 @@ def test_stencil_apply_no_results():
 
 @pytest.mark.parametrize(
     "indices",
-    (
+    [
         ([1]),
         ([1, 2]),
         ([1, 2, 3]),
@@ -211,7 +211,7 @@ def test_stencil_apply_no_results():
                 IntAttr(3),
             ]
         ),
-    ),
+    ],
 )
 def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -235,24 +235,8 @@ def test_create_index_attr_from_list_edge_case2():
 
 
 @pytest.mark.parametrize(
-    "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
-)
-def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr.get(*indices1)
-    stencil_index_attr2 = IndexAttr.get(*indices2)
-
-    size_from_bounds = IndexAttr.size_from_bounds(
-        stencil_index_attr1, stencil_index_attr2
-    )
-    expected_list = [abs(idx1 - idx2) for idx1, idx2 in zip(indices1, indices2)]
-
-    assert size_from_bounds == expected_list
-
-
-@pytest.mark.parametrize(
     "indices",
-    (([1]), ([1, 2]), ([1, 2, 3])),
+    [([1]), ([1, 2]), ([1, 2, 3])],
 )
 def test_index_attr_neg(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -264,7 +248,7 @@ def test_index_attr_neg(indices: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_add(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -280,7 +264,7 @@ def test_index_attr_add(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_sub(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -296,7 +280,7 @@ def test_index_attr_sub(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_min(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -312,7 +296,7 @@ def test_index_attr_min(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_max(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -328,7 +312,7 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices",
-    (((1,)), ((1, 2)), ((1, 2, 3))),
+    [((1,)), ((1, 2)), ((1, 2, 3))],
 )
 def test_index_attr_iter(indices: tuple[int, ...]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -336,7 +320,7 @@ def test_index_attr_iter(indices: tuple[int, ...]):
     assert tuple(stencil_index_attr) == indices
 
 
-@pytest.mark.parametrize("indices", (([1]), ([1, 2]), ([1, 2, 3])))
+@pytest.mark.parametrize("indices", [([1]), ([1, 2]), ([1, 2, 3])])
 def test_index_attr_indices_length(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     stencil_index_attr_iter = iter(stencil_index_attr)
@@ -347,13 +331,13 @@ def test_index_attr_indices_length(indices: list[int]):
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, ((0, 64), (0, 64))),
         (
             i64,
             ((0, 32), (0, 32), (0, 32)),
         ),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor_with_ArrayAttr(
     attr: IntegerType, bounds: tuple[tuple[int, int], ...]
@@ -370,11 +354,11 @@ def test_stencil_fieldtype_constructor_with_ArrayAttr(
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, ((0, 1), (0, 2))),
         (i32, ((0, 1), (0, 1), (0, 3))),
         (i64, ((0, 1), (0, 1), (0, 3))),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor(
     attr: IntegerType, bounds: tuple[tuple[int, int], ...]
@@ -391,10 +375,10 @@ def test_stencil_fieldtype_constructor(
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, []),
         (i64, []),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor_empty_list(
     attr: IntegerType, bounds: list[tuple[int, int]]
@@ -440,13 +424,13 @@ def test_stencil_load_bounds():
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, ((0, 64), (0, 64))),
         (
             i64,
             ((0, 32), (0, 32), (0, 32)),
         ),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor_with_ArrayAttr(
     attr: IntegerType, dims: tuple[tuple[int, int], ...]
@@ -462,11 +446,11 @@ def test_stencil_temptype_constructor_with_ArrayAttr(
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, ((0, 1), (0, 2))),
         (i32, ((0, 1), (0, 1), (0, 3))),
         (i64, ((0, 1), (0, 1), (0, 3))),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor(
     attr: IntegerType, dims: tuple[tuple[int, int], ...]
@@ -482,10 +466,10 @@ def test_stencil_temptype_constructor(
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, []),
         (i64, []),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor_empty_list(
     attr: IntegerType, dims: list[tuple[int, int]]
@@ -497,7 +481,7 @@ def test_stencil_temptype_constructor_empty_list(
 
 @pytest.mark.parametrize(
     "float_type",
-    ((bf16), (f16), (f32), (f64), (f80), (f128)),
+    [(bf16), (f16), (f32), (f64), (f80), (f128)],
 )
 def test_stencil_resulttype(float_type: AnyFloat):
     stencil_resulttype = ResultType(float_type)

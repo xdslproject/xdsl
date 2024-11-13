@@ -9,18 +9,20 @@ from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith, func, riscv, riscv_func
+from xdsl.dialects import arith, func, get_all_dialects, riscv, riscv_func
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
+from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
+    get_all_passes,
     individual_rewrite,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
@@ -31,7 +33,10 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 @pytest.mark.asyncio
 async def test_inputs():
     """Test different inputs produce desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -42,7 +47,7 @@ async def test_inputs():
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
 
-        # Test inccorect input
+        # Test incorrect input
         app.input_text_area.insert("dkjfd")
         await pilot.pause()
         assert (
@@ -97,7 +102,10 @@ async def test_inputs():
 @pytest.mark.asyncio
 async def test_buttons():
     """Test pressing keys has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -198,6 +206,15 @@ async def test_buttons():
 """
         )
 
+        # Test that the current pipeline command is correctly copied
+        def callback(x: str):
+            assert (
+                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
+            )
+
+        _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
+        await pilot.click("#copy_query_button")
+
         current_pipeline = app.pass_pipeline
         # press "Remove Last Pass" button
         await pilot.click("#remove_last_pass_button")
@@ -249,6 +266,7 @@ async def test_buttons():
         with ImplicitBuilder(expected_module.body):
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
+                n.name_hint = "n"
                 two = arith.Constant(IntegerAttr(2, index)).result
                 res = arith.Muli(n, two)
                 func.Return(res)
@@ -265,7 +283,9 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.available_pass_list == get_condensed_pass_list(expected_module)
+        assert app.available_pass_list == get_condensed_pass_list(
+            expected_module, app.all_passes
+        )
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
@@ -278,7 +298,10 @@ async def test_buttons():
 @pytest.mark.asyncio
 async def test_rewrites():
     """Test rewrite application has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -300,7 +323,7 @@ async def test_rewrites():
 
         addi_pass = AvailablePass(
             display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
-            module_pass=individual_rewrite.IndividualRewrite,
+            module_pass=individual_rewrite.ApplyIndividualRewritePass,
             pass_spec=list(
                 parse_pipeline(
                     'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
@@ -312,14 +335,16 @@ async def test_rewrites():
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
         assert isinstance(app.current_module, ModuleOp)
-        condensed_list = get_condensed_pass_list(app.current_module) + (addi_pass,)
+        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
+            addi_pass,
+        )
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite
         app.pass_pipeline = (
             *app.pass_pipeline,
             (
-                individual_rewrite.IndividualRewrite,
+                individual_rewrite.ApplyIndividualRewritePass,
                 list(
                     parse_pipeline(
                         'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
@@ -345,7 +370,10 @@ async def test_rewrites():
 @pytest.mark.asyncio
 async def test_passes():
     """Test pass application has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -437,7 +465,10 @@ async def test_passes():
 @pytest.mark.asyncio
 async def test_argument_pass_screen():
     """Test that clicking on a pass that requires passes opens a screen to specify them."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()

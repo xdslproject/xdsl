@@ -26,7 +26,7 @@ _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
 
 @dataclass
 class LowerBinaryFloatVectorOp(RewritePattern):
-    arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
+    arith_op_cls: type[arith.FloatingPointLikeBinaryOperation]
     riscv_d_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
     riscv_snitch_v_f32_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
     riscv_snitch_v_f16_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
@@ -61,7 +61,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
                     return
                 cls = self.riscv_snitch_v_f16_op_cls
             case _:
-                assert False, f"Unexpected float type {op.lhs.type}"
+                raise ValueError(f"Unexpected float type {op.lhs.type}")
 
         rv_flags = riscv.FastMathFlagsAttr("none")
         if op.fastmath is not None:

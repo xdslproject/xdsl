@@ -24,6 +24,7 @@ from xdsl.irdl import (
     OptOperandDef,
     OptRegionDef,
     OptResultDef,
+    OptSingleBlockRegionDef,
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
@@ -31,12 +32,14 @@ from xdsl.irdl import (
     VarOperandDef,
     VarRegionDef,
     VarResultDef,
+    VarSingleBlockRegionDef,
     VarSuccessorDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
     AttrDictDirective,
     AttributeVariable,
+    DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
     KeywordDirective,
@@ -181,7 +184,7 @@ class FormatParser(BaseParser):
         self.verify_results(seen_variables)
         self.verify_regions()
         self.verify_successors()
-        return FormatProgram(elements)
+        return FormatProgram(tuple(elements))
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
@@ -429,9 +432,9 @@ class FormatParser(BaseParser):
                 continue
             self.seen_regions[idx] = True
             match region_def:
-                case OptRegionDef():
+                case OptRegionDef() | OptSingleBlockRegionDef():
                     return OptionalRegionVariable(variable_name, idx)
-                case VarRegionDef():
+                case VarRegionDef() | VarSingleBlockRegionDef():
                     return VariadicRegionVariable(variable_name, idx)
                 case _:
                     return RegionVariable(variable_name, idx)
@@ -506,6 +509,15 @@ class FormatParser(BaseParser):
 
                 # Chill pyright with TypedAttribute without parameter
                 unique_base = cast(type[Attribute] | None, unique_base)
+
+                if attr_def.default_value is not None:
+                    return DefaultValuedAttributeVariable(
+                        variable_name,
+                        is_property,
+                        unique_base,
+                        unique_type,
+                        attr_def.default_value,
+                    )
 
                 variable_type = (
                     OptionalAttributeVariable

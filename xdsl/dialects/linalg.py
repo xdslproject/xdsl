@@ -49,6 +49,7 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -386,7 +387,7 @@ class Generic(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 class NamedOpBase(IRDLOperation, ABC):
@@ -815,7 +816,7 @@ class TransposeOp(IRDLOperation):
         transpose = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int_or_index(i64, permutation),
+            DenseArrayBase.create_dense_int(i64, permutation),
             result,
         )
         return transpose
@@ -1151,7 +1152,7 @@ class BroadcastOp(IRDLOperation):
         broadcast = cls(
             input,
             init,
-            DenseArrayBase.create_dense_int_or_index(i64, dimensions),
+            DenseArrayBase.create_dense_int(i64, dimensions),
             result,
         )
         return broadcast

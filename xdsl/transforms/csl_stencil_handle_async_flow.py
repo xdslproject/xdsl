@@ -7,8 +7,10 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     ModuleOp,
+    Signedness,
     SymbolRefAttr,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
@@ -29,6 +31,8 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
+
+u32 = IntegerType(32, Signedness.UNSIGNED)
 
 
 @dataclass()
@@ -162,11 +166,15 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # create csl.vars for loop var and iter_args outside the parent func
         rewriter.insert_op(
-            iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, 16)),
+            iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, u32)),
             InsertPoint.before(parent_func),
         )
         iter_vars = [csl.VariableOp.from_type(arg_t) for arg_t in op.iter_args.types]
         rewriter.insert_op(iter_vars, InsertPoint.before(parent_func))
+
+        iv.res.name_hint = "iteration"
+        for i, v in enumerate(iter_vars):
+            v.res.name_hint = f"var{i}"
 
         # parent func (pre loop): setup iter vars and activate cond_func
         with ImplicitBuilder(pre_block):
@@ -177,8 +185,9 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # for-loop condition func
         with ImplicitBuilder(cond_func.body.block):
-            ub = arith.Constant.from_int_and_width(op.ub.op.value.value, 16)
+            ub = arith.Constant.from_int_and_width(op.ub.op.value.value, u32)
             iv_load = csl.LoadVarOp(iv)
+            iv_load.res.name_hint = f"{iv.res.name_hint}_cond"
             cond = arith.Cmpi(iv_load, ub, "slt")
             branch = scf.If(cond, [], Region(Block()), Region(Block()))
             with ImplicitBuilder(branch.true_region):
@@ -191,13 +200,16 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # for-loop inc func
         with ImplicitBuilder(inc_func.body.block):
-            step = arith.Constant.from_int_and_width(op.step.op.value.value, 16)
+            step = arith.Constant.from_int_and_width(op.step.op.value.value, u32)
             iv_load = csl.LoadVarOp(iv)
+            iv_load.res.name_hint = f"{iv.res.name_hint}_inc"
             stepped = arith.Addi(iv_load, step)
             csl.StoreVarOp(iv, stepped)
 
             # pre-load iter_vars and store them in the order specified in scf.yield
             load_vars = [csl.LoadVarOp(v) for v in iter_vars]
+            for v in load_vars:
+                v.res.name_hint = f"{v.var.name_hint}_inc"
 
             # for out-of-order yields, store yielded var to iter_var
             for iter_var, yielded_var in zip(iter_vars, terminator.arguments):
@@ -210,6 +222,8 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         # for-loop body func
         with ImplicitBuilder(body_func.body.block):
             body_vars = [csl.LoadVarOp(var) for var in [iv, *iter_vars]]
+            for v in body_vars:
+                v.res.name_hint = f"{v.var.name_hint}_bdy"
         rewriter.inline_block(
             op.body.block,
             InsertPoint.at_end(body_func.body.block),

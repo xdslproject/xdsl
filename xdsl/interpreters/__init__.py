@@ -10,6 +10,7 @@ from xdsl.interpreters import (
     memref,
     memref_stream,
     ml_program,
+    pdl,
     printf,
     riscv,
     riscv_debug,
@@ -21,7 +22,6 @@ from xdsl.interpreters import (
     snitch_stream,
     tensor,
 )
-from xdsl.interpreters.experimental import pdl
 
 
 def register_implementations(
@@ -51,7 +51,7 @@ def register_implementations(
         interpreter.register_implementations(onnx.OnnxFunctions())
 
     if include_wgpu:
-        from xdsl.interpreters.experimental import wgpu
+        from xdsl.interpreters import wgpu
 
         interpreter.register_implementations(wgpu.WGPUFunctions())
     interpreter.register_implementations(builtin.BuiltinFunctions())

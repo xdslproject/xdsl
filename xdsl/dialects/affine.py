@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated, Any, cast
+from typing import Any, ClassVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -20,9 +20,10 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -30,6 +31,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -52,7 +54,7 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(
@@ -207,7 +209,7 @@ class If(IRDLOperation):
     then_region = region_def("single_block")
     else_region = region_def()
 
-    traits = frozenset([RecursiveMemoryEffect(), RecursivelySpeculatable()])
+    traits = traits_def(RecursiveMemoryEffect(), RecursivelySpeculatable())
 
 
 @irdl_op_definition
@@ -258,10 +260,10 @@ class ParallelOp(IRDLOperation):
 class Store(IRDLOperation):
     name = "affine.store"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
     map = opt_prop_def(AffineMapAttr)
 
@@ -291,9 +293,9 @@ class Store(IRDLOperation):
 class Load(IRDLOperation):
     name = "affine.load"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     result = result_def(T)
@@ -305,7 +307,7 @@ class Load(IRDLOperation):
         memref: SSAValue,
         indices: Sequence[SSAValue],
         map: AffineMapAttr | None = None,
-        result_type: T | None = None,
+        result_type: Attribute | None = None,
     ):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
@@ -354,7 +356,7 @@ class Yield(IRDLOperation):
     name = "affine.yield"
     arguments = var_operand_def()
 
-    traits = frozenset([IsTerminator(), Pure()])
+    traits = traits_def(IsTerminator(), Pure())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
