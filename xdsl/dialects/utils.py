@@ -1,8 +1,6 @@
 from collections.abc import Iterable, Sequence
 from typing import Generic
 
-from typing_extensions import Self
-
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
@@ -67,43 +65,6 @@ def parse_call_op_like(
     )
 
 
-def print_return_op_like(
-    printer: Printer, attributes: dict[str, Attribute], arguments: Sequence[SSAValue]
-) -> None:
-    if attributes:
-        printer.print(" ")
-        printer.print_op_attributes(attributes)
-
-    if arguments:
-        printer.print(" ")
-        printer.print_list(arguments, printer.print_ssa_value)
-        printer.print(" : ")
-        printer.print_list((x.type for x in arguments), printer.print_attribute)
-
-
-def parse_return_op_like(
-    parser: Parser,
-) -> tuple[dict[str, Attribute], Sequence[SSAValue]]:
-    attrs = parser.parse_optional_attr_dict()
-
-    pos = parser.pos
-    unresolved_operands = parser.parse_optional_undelimited_comma_separated_list(
-        parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
-    )
-
-    args: Sequence[SSAValue]
-    if unresolved_operands is not None:
-        parser.parse_punctuation(":")
-        types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type, "Expected return value type"
-        )
-        args = parser.resolve_operands(unresolved_operands, types, pos)
-    else:
-        args = ()
-
-    return attrs, args
-
-
 class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
     """
     A base class for yielding operations to inherit, provides the standard custom syntax
@@ -112,18 +73,10 @@ class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
 
     arguments = var_operand_def(AttributeInvT)
 
+    assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
+
     def __init__(self, *operands: SSAValue | Operation):
         super().__init__(operands=[operands])
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = cls(*args)
-        op.attributes.update(attrs)
-        return op
 
 
 def print_func_op_like(
