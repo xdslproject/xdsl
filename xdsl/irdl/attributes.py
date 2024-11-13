@@ -369,8 +369,8 @@ def irdl_to_attr_constraint(
     allow_type_var: bool = False,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
-        irdl = cast(AttrConstraint, irdl)
-        return irdl
+        constr: GenericAttrConstraint[Attribute] = irdl
+        return constr
 
     if isinstance(irdl, Attribute):
         return EqAttrConstraint(irdl)
@@ -417,9 +417,8 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
-        origin = cast(type[GenericData[Any]], origin)
-        args = cast(tuple[Attribute], args)
-        return AllOf((BaseAttr(origin), origin.generic_constraint_coercion(args)))
+        cls: type[GenericData[Attribute]] = origin
+        return AllOf((BaseAttr(cls), origin.generic_constraint_coercion(args)))
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
