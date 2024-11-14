@@ -1,7 +1,12 @@
 from collections.abc import Sequence
 from enum import auto
 
-from xdsl.dialects.builtin import ParameterDef, ParametrizedAttribute, TypeAttribute
+from xdsl.dialects.builtin import (
+    IntAttr,
+    ParameterDef,
+    ParametrizedAttribute,
+    TypeAttribute,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -18,6 +23,8 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 
 
 class MemoryKind(StrEnum):
@@ -39,6 +46,46 @@ class MemoryKind(StrEnum):
 @irdl_attr_definition
 class MemoryKindAttr(EnumAttribute[MemoryKind], SpacedOpaqueSyntaxAttribute):
     name = "hida_prim.mem"
+
+
+@irdl_attr_definition
+class TimingAttr(ParametrizedAttribute):
+    name = "hida_prim.time"
+
+    begin: ParameterDef[IntAttr]
+    end: ParameterDef[IntAttr]
+    latency: ParameterDef[IntAttr]
+    interval: ParameterDef[IntAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        printer.print(self.begin.data)
+        printer.print_string(" -> ")
+        printer.print(self.end.data)
+        printer.print_string(", ")
+        printer.print_string("latency = ")
+        printer.print(self.latency.data)
+        printer.print_string(", ")
+        printer.print_string("interval = ")
+        printer.print(self.interval.data)
+        printer.print(">")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_punctuation("<")
+        begin = IntAttr(parser.parse_integer())
+        parser.parse_characters("->")
+        end = IntAttr(parser.parse_integer())
+        parser.parse_punctuation(",")
+        parser.parse_identifier()
+        parser.parse_punctuation("=")
+        latency = IntAttr(parser.parse_integer())
+        parser.parse_punctuation(",")
+        parser.parse_identifier()
+        parser.parse_punctuation("=")
+        interval = IntAttr(parser.parse_integer())
+        parser.parse_punctuation(">")
+        return [begin, end, latency, interval]
 
 
 @irdl_op_definition
@@ -70,4 +117,6 @@ class StreamType(ParametrizedAttribute, TypeAttribute):
     depth: ParameterDef[Attribute]
 
 
-HIDA_prim = Dialect("hida_prim", [AffineSelectOp], [MemoryKindAttr, StreamType])
+HIDA_prim = Dialect(
+    "hida_prim", [AffineSelectOp], [MemoryKindAttr, StreamType, TimingAttr]
+)
