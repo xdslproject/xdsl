@@ -475,6 +475,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return dataflow_splitting.SplitDataflowNodes
 
+    def get_expand_copy():
+        from xdsl.transforms.experimental import expand_copy
+
+        return expand_copy.ExpandCopyPass
+
     return {
         "apply-pdl": get_apply_pdl,
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -569,4 +574,5 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "hida-lower-dataflow": get_hida_lower_dataflow,
         "hida-convert-dataflow-to-func": get_hida_convert_dataflow_to_func,
         "split-dataflow-nodes": get_split_dataflow,
+        "expand-copy": get_expand_copy,
     }
