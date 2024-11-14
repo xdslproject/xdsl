@@ -212,6 +212,11 @@ class xDSLOptMain(CommandLineTool):
 
             print_assembly(prog, output)
 
+        def _output_arm_asm(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.arm.ops import print_assembly
+
+            print_assembly(prog, output)
+
         def _output_wat(prog: ModuleOp, output: IO[str]):
             from xdsl.dialects.wasm import WasmModule
             from xdsl.dialects.wasm.wat import WatPrinter
@@ -244,6 +249,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
+        self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["riscemu"] = _emulate_riscv
         self.available_targets["wat"] = _output_wat
         self.available_targets["csl"] = _print_to_csl
