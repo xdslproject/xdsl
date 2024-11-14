@@ -8,7 +8,6 @@ from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Muli
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     Builtin,
     IndexType,
     IntegerAttr,
@@ -33,7 +32,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.utils.hints import isa
 
 
 def rewrite_and_compare(
@@ -246,7 +244,7 @@ def test_recursive_rewriter():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            if not isa(op_val := op.value, AnyIntegerAttr):
+            if not isinstance(op_val := op.value, IntegerAttr):
                 return
             val = op_val.value.data
             if val == 0 or val == 1:
@@ -289,7 +287,7 @@ def test_recursive_rewriter_reversed():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            if not isa(op_val := op.value, AnyIntegerAttr):
+            if not isinstance(op_val := op.value, IntegerAttr):
                 return
             val = op_val.value.data
             if val == 0 or val == 1:

@@ -5,7 +5,6 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
-    AnyMemRefTypeConstr,
     ArrayAttr,
     DenseIntOrFPElementsAttr,
     Float32Type,
@@ -13,6 +12,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
     i16,
@@ -38,7 +38,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 def get_dir_and_distance(
@@ -441,7 +440,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         if (
-            not isattr(accumulator.type, AnyMemRefTypeConstr)
+            not isinstance(accumulator.type, MemRefType)
             or not isinstance(op.accumulator, OpResult)
             or not isinstance(alloc := op.accumulator.op, memref.Alloc)
         ):
