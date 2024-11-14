@@ -125,7 +125,7 @@ class ApplyOpBufferize(RewritePattern):
             zip(op.receive_chunk.block.args, buf_apply_op.receive_chunk.block.args)
         ):
             # arg0 has special meaning and does not need a `to_tensor` op
-            if isattr(old_arg.type, TensorType) and idx != 0:
+            if isattr(old_arg.type, AnyTensorTypeConstr) and idx != 0:
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 2),
@@ -139,7 +139,7 @@ class ApplyOpBufferize(RewritePattern):
         for idx, (old_arg, arg) in enumerate(
             zip(op.done_exchange.block.args, buf_apply_op.done_exchange.block.args)
         ):
-            if isattr(old_arg.type, TensorType):
+            if isattr(old_arg.type, AnyTensorTypeConstr):
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 1),

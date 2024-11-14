@@ -360,7 +360,7 @@ class MyParamAttr(Generic[_T], ParametrizedAttribute):
 def test_parametrized_attribute():
     attr = MyParamAttr[IntAttr]([IntAttr(0)])
 
-    assert isa(attr, MyParamAttr)
+    # `assert isa(attr, MyParamAttr)` not supported: use isinstance instead
     assert isa(attr, MyParamAttr[IntAttr])
     assert isa(attr, MyParamAttr[IntAttr | FloatData])
     assert not isa(attr, MyParamAttr[FloatData])

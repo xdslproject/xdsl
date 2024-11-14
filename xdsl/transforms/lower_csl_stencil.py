@@ -5,6 +5,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
+    AnyMemRefTypeConstr,
     ArrayAttr,
     DenseIntOrFPElementsAttr,
     Float32Type,
@@ -440,7 +441,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         if (
-            not isattr(accumulator.type, memref.MemRefType)
+            not isattr(accumulator.type, AnyMemRefTypeConstr)
             or not isinstance(op.accumulator, OpResult)
             or not isinstance(alloc := op.accumulator.op, memref.Alloc)
         ):

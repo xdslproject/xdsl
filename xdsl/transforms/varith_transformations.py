@@ -14,7 +14,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.utils.hints import isa
 
 # map the arith operation to the right varith op:
 ARITH_TO_VARITH_TYPE_MAP: dict[
@@ -138,14 +137,14 @@ class MergeVarithOpsPattern(RewritePattern):
         # iterate over operands of the varith op:
         for inp in op.operands:
             # if the input happens to be the right arith op:
-            if isa(inp.owner, target_arith_type):
+            if isinstance(inp.owner, target_arith_type):
                 # fuse the operands of the arith op into the new varith op
                 new_operands.append(inp.owner.lhs)
                 new_operands.append(inp.owner.rhs)
                 # check if the old arith op can be erased
                 possibly_erased_ops.append(inp.owner)
             # if the parent op is a varith op of the same type as us
-            elif isa(inp.owner, type(op)):
+            elif isinstance(inp.owner, type(op)):
                 # include all operands of that
                 new_operands.extend(inp.owner.operands)
                 # check the old varith op for usages
