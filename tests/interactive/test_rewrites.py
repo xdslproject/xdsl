@@ -97,7 +97,7 @@ def test_convert_indexed_individual_rewrites_to_available_pass():
         (
             AvailablePass(
                 display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
-                module_pass=individual_rewrite.IndividualRewrite,
+                module_pass=individual_rewrite.ApplyIndividualRewritePass,
                 pass_spec=list(
                     parse_pipeline(
                         'apply-individual-rewrite{matched_operation_index=1 operation_name="test.op" pattern_name="TestRewrite"}'
@@ -106,7 +106,7 @@ def test_convert_indexed_individual_rewrites_to_available_pass():
             ),
             AvailablePass(
                 display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
-                module_pass=individual_rewrite.IndividualRewrite,
+                module_pass=individual_rewrite.ApplyIndividualRewritePass,
                 pass_spec=list(
                     parse_pipeline(
                         'apply-individual-rewrite{matched_operation_index=2 operation_name="test.op" pattern_name="TestRewrite"}'

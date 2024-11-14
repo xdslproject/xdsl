@@ -109,9 +109,11 @@ class PDLMatcher:
         if ssa_val in self.matching_context:
             return self.matching_context[ssa_val] == xdsl_attr
 
-        self.matching_context[ssa_val] = xdsl_attr
-
-        return True
+        if pdl_op.constantType is None or pdl_op.constantType == xdsl_attr:
+            self.matching_context[ssa_val] = xdsl_attr
+            return True
+        else:
+            return False
 
     def match_attribute(
         self,
@@ -371,7 +373,9 @@ class PDLRewriteFunctions(InterpreterFunctions):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
         else:
-            assert False, "Unexpected ReplaceOp"
+            raise ValueError(
+                "Either a replacing operatoin or values must be provided with replace op"
+            )
 
         return ()
 

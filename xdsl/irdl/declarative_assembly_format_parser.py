@@ -184,7 +184,7 @@ class FormatParser(BaseParser):
         self.verify_results(seen_variables)
         self.verify_regions()
         self.verify_successors()
-        return FormatProgram(elements)
+        return FormatProgram(tuple(elements))
 
     def verify_directives(self, elements: list[FormatDirective]):
         """

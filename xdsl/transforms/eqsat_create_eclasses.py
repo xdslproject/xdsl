@@ -52,7 +52,7 @@ class InsertEclassOps(RewritePattern):
         insert_eclass_ops(op.body.block)
 
 
-class EqsatCreateEclasses(ModulePass):
+class EqsatCreateEclassesPass(ModulePass):
     """
     Create initial eclasses from an MLIR program.
 

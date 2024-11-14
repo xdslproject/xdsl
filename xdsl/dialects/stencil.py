@@ -32,7 +32,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     BaseAttr,
     ConstraintContext,
-    ConstraintVar,
     GenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
@@ -844,8 +843,6 @@ class DynAccessOp(IRDLOperation):
 
     name = "stencil.dyn_access"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
-
     temp = operand_def(
         StencilType[Attribute].constr(
             element_type=MessageConstraint(
@@ -993,8 +990,6 @@ class AccessOp(IRDLOperation):
     Example:
       %0 = stencil.access %temp[-1, 0, 0] : !stencil.temp<?x?x?xf64>
     """
-
-    T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "stencil.access"
     temp = operand_def(
@@ -1199,6 +1194,27 @@ class LoadOpMemoryEffect(MemoryEffect):
         return {EffectInstance(MemoryEffectKind.READ, cast(LoadOp, op).field)}
 
 
+class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
+    @staticmethod
+    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
+        return (
+            isa(other, TensorType[Attribute])
+            and len(attr.get_shape()) == len(other.get_shape())
+            and attr.get_element_type() == other.get_element_type()
+        )
+
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name in constraint_context.variables:
+            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
+                attr, constraint_context.get_variable(self.name)
+            ):
+                return
+        super().verify(attr, constraint_context)
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
@@ -1210,20 +1226,22 @@ class LoadOp(IRDLOperation):
 
     name = "stencil.load"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
-
     field = operand_def(
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr()), "Expected element types to match."
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Expected element types to match.",
             ),
         )
     )
     res = result_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr()), "Expected element types to match."
+                VarConstraint("T", AnyAttr())
+                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                "Expected element types to match.",
             )
         )
     )
@@ -1286,8 +1304,6 @@ class BufferOp(IRDLOperation):
 
     name = "stencil.buffer"
 
-    T = Annotated[TempType[_FieldTypeElement], ConstraintVar("T")]
-
     temp = operand_def(
         TempType[Attribute].constr(
             bounds=MessageConstraint(
@@ -1337,27 +1353,6 @@ class BufferOp(IRDLOperation):
                 "A stencil.buffer's operand temp should only be buffered. You can use "
                 "stencil.buffer's output instead!"
             )
-
-
-class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
-    @staticmethod
-    def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
-        return (
-            isa(other, TensorType[Attribute])
-            and len(attr.get_shape()) == len(other.get_shape())
-            and attr.get_element_type() == other.get_element_type()
-        )
-
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        constraint_context = constraint_context or ConstraintContext()
-        if self.name in constraint_context.variables:
-            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
-                attr, constraint_context.get_variable(self.name)
-            ):
-                return
-        super().verify(attr, constraint_context)
 
 
 class StoreOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):

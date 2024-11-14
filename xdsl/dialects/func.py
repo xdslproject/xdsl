@@ -13,10 +13,8 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     parse_call_op_like,
     parse_func_op_like,
-    parse_return_op_like,
     print_call_op_like,
     print_func_op_like,
-    print_return_op_like,
 )
 from xdsl.ir import (
     Attribute,
@@ -319,6 +317,8 @@ class Return(IRDLOperation):
 
     traits = traits_def(HasParent(FuncOp), IsTerminator())
 
+    assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
+
     def __init__(self, *return_vals: SSAValue | Operation):
         super().__init__(operands=[return_vals])
 
@@ -332,16 +332,6 @@ class Return(IRDLOperation):
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"
             )
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Return:
-        attrs, args = parse_return_op_like(parser)
-        op = Return(*args)
-        op.attributes.update(attrs)
-        return op
 
 
 Func = Dialect("func", [FuncOp, Call, Return], [])

@@ -44,6 +44,9 @@
 %or = llvm.or %arg0, %arg1 : i32
 // CHECK: %or = llvm.or %arg0, %arg1 : i32
 
+%or_disjoint = llvm.or disjoint %arg0, %arg1 : i32
+// CHECK: %or_disjoint = llvm.or disjoint %arg0, %arg1 : i32
+
 %xor = llvm.xor %arg0, %arg1 : i32
 // CHECK: %xor = llvm.xor %arg0, %arg1 : i32
 
