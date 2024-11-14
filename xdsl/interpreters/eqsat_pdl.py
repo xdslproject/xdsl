@@ -242,6 +242,8 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
 
         assert not op.repl_values
 
+        assert op.repl_operation is not None or op.repl_values
+
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
             assert isinstance(new_op, Operation)
@@ -253,8 +255,6 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
             eclass_op = self.value_to_eclass[old.results[0]]
             eclass_op.operands = eclass_op.arguments + results
         elif op.repl_values:
-            assert False, "Not implemented"
-        else:
-            assert False, "Unexpected ReplaceOp"
+            raise NotImplementedError()
 
         return ()
