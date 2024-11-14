@@ -89,7 +89,8 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
             buf_args.append(node_arg_buf_map[arg])
 
         node_call = func.Call(node.sym_name.data, buf_args, [])
-        rewriter.insert_op(node_call, InsertPoint.after(call_copy_nodes[-1]))
+
+        rewriter.insert_op(node_call, InsertPoint.before(top.body.block.last_op))
 
 
 @dataclass(frozen=True)
