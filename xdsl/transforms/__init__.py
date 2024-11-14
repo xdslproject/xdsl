@@ -470,6 +470,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_dataflow_to_func.ConvertDataflowToFunc
 
+    def get_split_dataflow():
+        from xdsl.transforms.experimental import dataflow_splitting
+
+        return dataflow_splitting.SplitDataflowNodes
+
     return {
         "apply-pdl": get_apply_pdl,
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -563,4 +568,5 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "hida-create-dataflow-from-affine": get_hida_create_dataflow_from_affine,
         "hida-lower-dataflow": get_hida_lower_dataflow,
         "hida-convert-dataflow-to-func": get_hida_convert_dataflow_to_func,
+        "split-dataflow-nodes": get_split_dataflow,
     }
