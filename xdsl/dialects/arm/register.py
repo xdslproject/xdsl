@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Sequence
 
 from xdsl.backend.register_type import RegisterType
 from xdsl.ir import Attribute
 from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
-from xdsl.utils.exceptions import VerifyException
 
 
 class ARMRegisterType(RegisterType, abc.ABC):
@@ -20,19 +20,13 @@ class ARMRegisterType(RegisterType, abc.ABC):
             name = parser.parse_identifier()
             parser.parse_punctuation(">")
             if not name.startswith("x"):  # only including x regs for now
-                assert (
-                    name in cls.abi_index_by_name()
-                ), f"{name}"  # abi_index_by_name raises NotImplementedError (?)
+                assert name in cls.abi_index_by_name(), f"{name}"
         else:
             name = ""
         return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
-        name = self.spelling.data
-        if not self.is_allocated or name.startswith("x"):
-            return
-        if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
+        return
 
 
 ARM_INDEX_BY_NAME = {
@@ -79,8 +73,8 @@ class IntRegisterType(ARMRegisterType):
     name = "arm.reg"
 
     @classmethod
-    def unallocated(cls) -> GeneralRegisterType:
-        return UNALLOCATED_GENERAL
+    def unallocated(cls) -> IntRegisterType:
+        return UNALLOCATED_INT
 
     @classmethod
     def instruction_set_name(cls) -> str:
@@ -91,35 +85,35 @@ class IntRegisterType(ARMRegisterType):
         return ARM_INDEX_BY_NAME
 
 
-UNALLOCATED_INT = GeneralRegisterType("")
-X0 = GeneralRegisterType("x0")
-X1 = GeneralRegisterType("x1")
-X2 = GeneralRegisterType("x2")
-X3 = GeneralRegisterType("x3")
-X4 = GeneralRegisterType("x4")
-X5 = GeneralRegisterType("x5")
-X6 = GeneralRegisterType("x6")
-X7 = GeneralRegisterType("x7")
-X8 = GeneralRegisterType("x8")
-X9 = GeneralRegisterType("x9")
-X10 = GeneralRegisterType("x10")
-X11 = GeneralRegisterType("x11")
-X12 = GeneralRegisterType("x12")
-X13 = GeneralRegisterType("x13")
-X14 = GeneralRegisterType("x14")
-X15 = GeneralRegisterType("x15")
-X16 = GeneralRegisterType("x16")
-X17 = GeneralRegisterType("x17")
-X18 = GeneralRegisterType("x18")
-X19 = GeneralRegisterType("x19")
-X20 = GeneralRegisterType("x20")
-X21 = GeneralRegisterType("x21")
-X22 = GeneralRegisterType("x22")
-X23 = GeneralRegisterType("x23")
-X24 = GeneralRegisterType("x24")
-X25 = GeneralRegisterType("x25")
-X26 = GeneralRegisterType("x26")
-X27 = GeneralRegisterType("x27")
-X28 = GeneralRegisterType("x28")
-X29 = GeneralRegisterType("x29")
-X30 = GeneralRegisterType("x30")
+UNALLOCATED_INT = IntRegisterType("")
+X0 = IntRegisterType("x0")
+X1 = IntRegisterType("x1")
+X2 = IntRegisterType("x2")
+X3 = IntRegisterType("x3")
+X4 = IntRegisterType("x4")
+X5 = IntRegisterType("x5")
+X6 = IntRegisterType("x6")
+X7 = IntRegisterType("x7")
+X8 = IntRegisterType("x8")
+X9 = IntRegisterType("x9")
+X10 = IntRegisterType("x10")
+X11 = IntRegisterType("x11")
+X12 = IntRegisterType("x12")
+X13 = IntRegisterType("x13")
+X14 = IntRegisterType("x14")
+X15 = IntRegisterType("x15")
+X16 = IntRegisterType("x16")
+X17 = IntRegisterType("x17")
+X18 = IntRegisterType("x18")
+X19 = IntRegisterType("x19")
+X20 = IntRegisterType("x20")
+X21 = IntRegisterType("x21")
+X22 = IntRegisterType("x22")
+X23 = IntRegisterType("x23")
+X24 = IntRegisterType("x24")
+X25 = IntRegisterType("x25")
+X26 = IntRegisterType("x26")
+X27 = IntRegisterType("x27")
+X28 = IntRegisterType("x28")
+X29 = IntRegisterType("x29")
+X30 = IntRegisterType("x30")

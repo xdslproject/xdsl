@@ -1,6 +1,6 @@
 from xdsl.ir import Dialect
 
-from .register import GeneralRegisterType
+from .register import IntRegisterType
 
 """
 ARM dialect, based on the ISA specification in:
@@ -11,6 +11,6 @@ ARM = Dialect(
     "arm",
     [],
     [
-        GeneralRegisterType,
+        IntRegisterType,
     ],
 )
