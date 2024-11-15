@@ -431,13 +431,11 @@ class ParamAttrConstraint(
     def get_resolvers(
         self,
     ) -> dict[str, Callable[[ParametrizedAttributeCovT], ResolveType]]:
-        resolvers: dict[str, Callable[[ParametrizedAttributeCovT], ResolveType]] = (
-            dict()
-        )
-        for i, param_constr in enumerate(self.param_constrs):
-            for v, r in param_constr.get_resolvers().items():
-                resolvers[v] = self._wrap_resolver(i, r)
-        return resolvers
+        return {
+            v: self._wrap_resolver(i, r)
+            for i, param_constr in enumerate(self.param_constrs)
+            for v, r in param_constr.get_resolvers().items()
+        }
 
     def get_unique_base(self) -> type[Attribute] | None:
         if is_runtime_final(self.base_attr):
