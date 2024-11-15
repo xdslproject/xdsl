@@ -4,9 +4,7 @@ from collections.abc import Sequence
 
 from xdsl.backend.register_type import RegisterType
 from xdsl.ir import Attribute
-from xdsl.irdl import (
-    irdl_attr_definition,
-)
+from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.utils.exceptions import VerifyException
 
