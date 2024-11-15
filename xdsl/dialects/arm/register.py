@@ -19,8 +19,7 @@ class ARMRegisterType(RegisterType, abc.ABC):
         if parser.parse_optional_punctuation("<"):
             name = parser.parse_identifier()
             parser.parse_punctuation(">")
-            if not name.startswith("x"):  # only including x regs for now
-                assert name in cls.abi_index_by_name(), f"{name}"
+            assert name.startswith("x"), f"{name}"
         else:
             name = ""
         return cls._parameters_from_spelling(name)
