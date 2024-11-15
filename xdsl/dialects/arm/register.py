@@ -29,7 +29,7 @@ class ARMRegisterType(RegisterType, abc.ABC):
         return
 
 
-ARM_INDEX_BY_NAME = { f"x{i}": i for i in range(0, 31) }
+ARM_INDEX_BY_NAME = {f"x{i}": i for i in range(0, 31)}
 
 
 @irdl_attr_definition

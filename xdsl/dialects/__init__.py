@@ -339,6 +339,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "aie": get_aie,
         "air": get_air,
         "arith": get_arith,
+        "arm": get_arm,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,
@@ -397,7 +398,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "vector": get_vector,
         "wasm": get_wasm,
         "x86": get_x86,
-        "arm": get_arm,
         "transform": get_transform,
     }
 
