@@ -54,6 +54,9 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
         )
         __class__.copy_node_idx += 1
 
+        copy_node.attributes["top_func"] = builtin.UnitAttr(
+            []
+        )  # NOTE: Needed by ScaleHLS to trigger the QoR estimation
         rewriter.insert_op(copy_node, InsertPoint.at_start(self.module.body.block))
 
         return copy_node
@@ -82,6 +85,9 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
             builder.insert(func.Return())
 
         top = FuncOp("top", builtin.FunctionType.from_lists(memref_types, []), top_body)
+        top.attributes["top_func"] = builtin.UnitAttr(
+            []
+        )  # NOTE: Needed by ScaleHLS to trigger the QoR estimation
         rewriter.insert_op(top, InsertPoint.at_start(self.module.body.block))
 
         node_arg_buf_map = dict()
