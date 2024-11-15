@@ -153,6 +153,8 @@ def get_loop_band_from_innermost(for_op: affine.For):
     return band
 
 
+# NOTE: this is the method used in HIDA for partitioning of affine: it only considers
+# bands where loop nests have one or more children
 def get_loop_bands(
     block: Block, bands: list[list[affine.For]], allow_having_children: bool
 ):
@@ -164,6 +166,15 @@ def get_loop_bands(
 
         if n_children == 0 or (n_children > 1 and allow_having_children):
             bands.append(get_loop_band_from_innermost(loop))
+
+
+def get_loop_bands_any_nchildren(block: Block):
+    bands: list[list[affine.For]] = []
+
+    for loop in filter(lambda x: isinstance(x, affine.For), block.walk()):
+        bands.append(get_loop_band_from_innermost(loop))
+
+    return bands
 
 
 def is_fully_contained_in_band(op: Operation, band: list[affine.For]):
@@ -186,6 +197,28 @@ def get_minimum_independent_band(bands: list[list[affine.For]]):
                 is_minimum_band = False
 
         if is_minimum_band:
+            return band
+
+    return None
+
+
+def is_store_invariant_in_band(store: affine.Store, band: list[affine.For]):
+    innermost_band_loop = band[-1]
+    for st_idx in store.indices:
+        if st_idx == innermost_band_loop.body.block.args[0]:
+            return False
+
+    return True
+
+
+def get_invariant_output_band(bands: list[list[affine.For]]):
+    # This method assumes the bands contain a convolution or similar local reduction pattern.
+    # Returns the band where the output store is invariant in the innermost band loop.
+    outermost_loop = bands[0][0]
+    store = [op for op in outermost_loop.walk() if isinstance(op, affine.Store)][0]
+
+    for band in bands:
+        if is_store_invariant_in_band(store, band):
             return band
 
     return None
