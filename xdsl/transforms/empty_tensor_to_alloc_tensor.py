@@ -22,7 +22,7 @@ class EmptyTensorLoweringPattern(RewritePattern):
 
 class EmptyTensorToAllocTensorPass(ModulePass):
     """
-    tensor.empty ops return a tensor of unspecified contents who's only purpose
+    tensor.empty ops return a tensor of unspecified contents whose only purpose
     is to carry the tensor shape. This pass converts such ops to
     bufferization.alloc_tensor ops, which bufferize to buffer allocations.
     """
