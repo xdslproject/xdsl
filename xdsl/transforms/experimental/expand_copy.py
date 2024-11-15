@@ -9,7 +9,6 @@ from xdsl.dialects.affine import AffineExpr, AffineMap, AffineMapAttr
 from xdsl.ir import BlockArgument
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -60,8 +59,8 @@ class ExpandCopy(RewritePattern):
             )
             for_indices.append(args[0])
 
-            symbols = list(map(lambda dim: AffineExpr.dimension(dim), range(ndims)))
-            aff_map = AffineMapAttr(AffineMap(ndims, ndims, symbols))
+            dims = [AffineExpr.dimension(dim) for dim in range(ndims)]
+            aff_map = AffineMapAttr(AffineMap(ndims, 0, dims))
             load = affine.Load(in_buf, for_indices, aff_map, res_type)
             store = affine.Store(load.result, out_buf, for_indices, aff_map)
 
@@ -86,7 +85,7 @@ class ExpandCopyPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         expand_copy_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([ExpandCopy()]),
+            ExpandCopy(),
             apply_recursively=False,
             walk_reverse=False,
         )
