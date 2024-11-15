@@ -279,7 +279,7 @@ class ReifyConfig():
 
     @property
     def coo(self) -> bool:
-        return len(self.unpacked_coo_buffer_options) > 0 or len(self.separated_coo_buffer_options) > 0
+        return len(self.unpacked_coo_buffer_options) > 0 or (len(self.separated_coo_buffer_options)*len(self.separated_coo_buffer_index_options)) > 0
 
 
 class PtrMapping():
