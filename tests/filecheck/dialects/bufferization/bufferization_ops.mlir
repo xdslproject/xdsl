@@ -10,10 +10,10 @@
 
 // CHECK-NEXT:    %t1 = bufferization.alloc_tensor(%i0, %i1) {"hello" = "world"} : tensor<10x20x?x?xf64>
 // CHECK-NEXT:    %t2 = bufferization.alloc_tensor() copy(%t0) : tensor<10x20x30xf64>
-// CHECK-NEXT:    %t3 = bufferization.alloc_tensor(%i0, %i1) size_hint=%i1 : tensor<10x20x?x?xf64>
+// CHECK-NEXT:    %t3 = bufferization.alloc_tensor(%i0, %i1) size_hint = %i1 : tensor<10x20x?x?xf64>
 %t1 = bufferization.alloc_tensor(%i0, %i1) {"hello"="world"}: tensor<10x20x?x?xf64>
 %t2 = bufferization.alloc_tensor() copy(%t0) : tensor<10x20x30xf64>
-%t3 = bufferization.alloc_tensor(%i0, %i1) size_hint=%i1: tensor<10x20x?x?xf64>
+%t3 = bufferization.alloc_tensor(%i0, %i1) size_hint = %i1: tensor<10x20x?x?xf64>
 
 // CHECK-NEXT:  }
 
