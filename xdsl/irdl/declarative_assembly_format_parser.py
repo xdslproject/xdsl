@@ -6,7 +6,7 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence, Set
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import pairwise
@@ -18,7 +18,6 @@ from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
     AttrSizedSegments,
-    ConstraintContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -28,6 +27,8 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
+    Resolver,
+    ResolveType,
     VariadicDef,
     VarOperandDef,
     VarRegionDef,
@@ -56,6 +57,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalResultVariable,
     OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
+    ParsingState,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
@@ -176,15 +178,15 @@ class FormatParser(BaseParser):
             elements.append(self.parse_directive())
 
         self.add_reserved_attrs_to_directive(elements)
-        seen_variables = self.resolve_types()
+        resolvers = self.resolve_types()
         self.verify_directives(elements)
         self.verify_attr_dict()
         self.verify_properties()
-        self.verify_operands(seen_variables)
-        self.verify_results(seen_variables)
+        self.verify_operands(resolvers.keys())
+        self.verify_results(resolvers.keys())
         self.verify_regions()
         self.verify_successors()
-        return FormatProgram(tuple(elements))
+        return FormatProgram(tuple(elements), resolvers)
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
@@ -241,20 +243,46 @@ class FormatParser(BaseParser):
                 )
                 return
 
-    def resolve_types(self) -> set[str]:
+    @dataclass(frozen=True)
+    class _OperandResultResolver(Resolver[ParsingState]):
+        idx: int
+        is_operand: bool
+        resolver: Resolver[Sequence[Attribute]]
+
+        def resolve(self, a: ParsingState) -> ResolveType:
+            if self.is_operand:
+                types = a.operand_types[self.idx]
+            else:
+                types = a.result_types[self.idx]
+            assert types is not None
+            if isinstance(types, Attribute):
+                types = (types,)
+            return self.resolver.resolve(types)
+
+    def resolve_types(self) -> dict[str, Resolver[ParsingState]]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
-        seen_variables = set[str]()
+        resolvers = dict[str, Resolver[ParsingState]]()
         for i, (_, operand_def) in enumerate(self.op_def.operands):
             if self.seen_operand_types[i]:
-                seen_variables |= operand_def.constr.get_resolved_variables()
+                resolvers.update(
+                    {
+                        v: self._OperandResultResolver(i, True, r)
+                        for v, r in operand_def.constr.get_resolvers().items()
+                    }
+                )
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
-                seen_variables |= result_def.constr.get_resolved_variables()
-        return seen_variables
+                resolvers.update(
+                    {
+                        v: self._OperandResultResolver(i, False, r)
+                        for v, r in result_def.constr.get_resolvers().items()
+                    }
+                )
+        return resolvers
 
-    def verify_operands(self, seen_variables: set[str]):
+    def verify_operands(self, variables: Set[str]):
         """
         Check that all operands and operand types are refered at least once, or inferred
         from another construct.
@@ -276,14 +304,14 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format"
                 )
             if not seen_operand_type:
-                if not operand_def.constr.can_infer(seen_variables):
+                if not operand_def.constr.can_infer(variables):
                     self.raise_error(
                         f"type of operand '{operand_name}' cannot be inferred, "
                         f"consider adding a 'type(${operand_name})' directive to the "
                         "custom assembly format"
                     )
 
-    def verify_results(self, seen_variables: set[str]):
+    def verify_results(self, variables: Set[str]):
         """Check that all result types are refered at least once, or inferred
         from another construct."""
 
@@ -291,7 +319,7 @@ class FormatParser(BaseParser):
             self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
-                if not result_def.constr.can_infer(seen_variables):
+                if not result_def.constr.can_infer(variables):
                     self.raise_error(
                         f"type of result '{result_name}' cannot be inferred, "
                         f"consider adding a 'type(${result_name})' directive to the "
@@ -499,7 +527,7 @@ class FormatParser(BaseParser):
                             unique_base.get_type_index()
                         ]
                         if type_constraint.can_infer(set()):
-                            unique_type = type_constraint.infer(ConstraintContext())
+                            unique_type = type_constraint.infer(dict())
                 if (
                     unique_base is not None
                     and unique_base in Builtin.attributes
