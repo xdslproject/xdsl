@@ -9,7 +9,7 @@ from xdsl.parser import AttrParser
 from xdsl.utils.exceptions import VerifyException
 
 
-class ARMRegisterType(RegisterType):
+class ARMRegisterType(RegisterType, abc.ABC):
     """
     The abstract class for all ARM register types.
     """
