@@ -12,18 +12,6 @@ from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
-_AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
-
-ResolveType: TypeAlias = Attribute | Sequence[Attribute]
-
-
-def print_resolve_type(r: ResolveType | None) -> str:
-    if isinstance(r, Attribute):
-        return str(r)
-    elif isinstance(r, Sequence):
-        return str(tuple(str(x) for x in r))
-    return "None"
-
 
 @dataclass
 class ConstraintContext:
@@ -63,6 +51,11 @@ class ConstraintContext:
     def update(self, other: ConstraintContext):
         self._variables.update(other._variables)
         self._range_variables.update(other._range_variables)
+
+
+_AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
+
+ResolveType: TypeAlias = Attribute | Sequence[Attribute]
 
 
 @dataclass(frozen=True)
@@ -583,8 +576,7 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         variables: dict[str, ResolveType],
     ) -> Sequence[AttributeCovT]:
         v = variables[self.name]
-        assert not isinstance(V, Attribute)
-        return v
+        return cast(Sequence[AttributeCovT], v)
 
 
 @dataclass(frozen=True)
