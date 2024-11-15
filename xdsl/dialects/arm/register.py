@@ -91,7 +91,7 @@ class IntRegisterType(ARMRegisterType):
         return ARM_INDEX_BY_NAME
 
 
-UNALLOCATED_GENERAL = GeneralRegisterType("")
+UNALLOCATED_INT = GeneralRegisterType("")
 X0 = GeneralRegisterType("x0")
 X1 = GeneralRegisterType("x1")
 X2 = GeneralRegisterType("x2")
