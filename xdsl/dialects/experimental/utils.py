@@ -166,6 +166,31 @@ def get_loop_bands(
             bands.append(get_loop_band_from_innermost(loop))
 
 
+def is_fully_contained_in_band(op: Operation, band: list[affine.For]):
+    for operand in op.operands:
+        outer_band_loop = band[0]
+        if not outer_band_loop.is_ancestor(operand.owner):
+            return False
+
+    return True
+
+
+def get_minimum_independent_band(bands: list[list[affine.For]]):
+    for band in reversed(bands):
+        is_minimum_band = True
+
+        # NOTE: this is assuming perfect loops for simplicity for now.
+        inner_band_loop = bands[-1]
+        for op in inner_band_loop:
+            if not is_fully_contained_in_band(op, band):
+                is_minimum_band = False
+
+        if is_minimum_band:
+            return band
+
+    return None
+
+
 def is_written(use: Use):
     # For ScheduleOp, we don't rely on memory effect interface. Instead, we delve
     # into its region to figure out the effect. However, for NodeOp, we don't
