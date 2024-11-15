@@ -71,7 +71,7 @@ ARM_INDEX_BY_NAME = {
 
 
 @irdl_attr_definition
-class GeneralRegisterType(ARMRegisterType):
+class IntRegisterType(ARMRegisterType):
     """
     A scalar ARM register type representing general registers.
     """
