@@ -16,7 +16,7 @@ class ARMRegisterType(RegisterType, abc.ABC):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        if parser.parse_optional_punctuation("<") is not None:
+        if parser.parse_optional_punctuation("<"):
             name = parser.parse_identifier()
             parser.parse_punctuation(">")
             if not name.startswith("x"):  # only including x regs for now
