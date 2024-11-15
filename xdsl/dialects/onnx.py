@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import math
 from abc import ABC
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     Any,
     AnyFloat,
+    AnyFloatConstr,
     AnyIntegerAttr,
     AnyTensorType,
     ArrayAttr,
@@ -22,6 +23,7 @@ from xdsl.dialects.builtin import (
     SSAValue,
     StringAttr,
     SymbolRefAttr,
+    TensorOrMemrefOf,
     TensorType,
 )
 from xdsl.ir import (
@@ -31,6 +33,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     attr_def,
     base,
     irdl_op_definition,
@@ -703,9 +706,9 @@ class MaxPoolSingleOut(IRDLOperation):
 
     name = "onnx.MaxPoolSingleOut"
 
-    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
-    data = operand_def(base(TensorType[T]) | base(MemRefType[T]))
-    output = result_def(base(TensorType[T]) | base(MemRefType[T]))
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
+    data = operand_def(TensorOrMemrefOf(T))
+    output = result_def(TensorOrMemrefOf(T))
 
     auto_pad = attr_def(StringAttr)
     ceil_mode = attr_def(AnyIntegerAttr)

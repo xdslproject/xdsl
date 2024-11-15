@@ -62,7 +62,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError
+from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError, VerifyException
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -1748,10 +1748,12 @@ def test_non_verifying_inference():
     %1 = test.one_operand_one_result_nested %0 : i32"""
     )
     with pytest.raises(
-        ParseError,
-        match="Verification error while inferring operation type: ",
+        VerifyException,
+        match="i32 should be of base attribute test.param_one",
     ):
-        check_roundtrip(program, ctx)
+        parser = Parser(ctx, program)
+        while (op := parser.parse_optional_operation()) is not None:
+            op.verify()
 
 
 def test_variadic_length_inference():

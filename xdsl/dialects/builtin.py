@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -52,6 +52,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
+    ResolveType,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -83,7 +84,7 @@ A constant value denoting a dynamic index in a shape.
 """
 
 
-class ShapedType(ABC):
+class ShapedType(Attribute, ABC):
     @abstractmethod
     def get_num_dims(self) -> int: ...
 
@@ -99,14 +100,6 @@ class ShapedType(ABC):
         from itertools import accumulate
 
         return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
-
-
-class AnyShapedType(AttrConstraint):
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        if not isinstance(attr, ShapedType):
-            raise Exception(f"expected type ShapedType but got {attr}")
 
 
 _ContainerElementTypeT = TypeVar(
@@ -1635,6 +1628,47 @@ class MemRefType(
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
 AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
+
+
+@dataclass(frozen=True, init=False)
+class TensorOrMemrefOf(
+    GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
+):
+    """A type constraint that can be nested once in a vector or a tensor."""
+
+    elem_constr: GenericAttrConstraint[AttributeCovT]
+
+    def __init__(
+        self,
+        elem_constr: AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT],
+    ) -> None:
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
+
+    @staticmethod
+    def _wrap_resolver(
+        resolver: Callable[[AttributeCovT], ResolveType],
+    ) -> Callable[[TensorType[AttributeCovT] | MemRefType[AttributeCovT]], ResolveType]:
+        return lambda attr: resolver(attr.element_type)
+
+    def get_resolvers(
+        self,
+    ) -> dict[
+        str,
+        Callable[[TensorType[AttributeCovT] | MemRefType[AttributeCovT]], ResolveType],
+    ]:
+        return {
+            v: self._wrap_resolver(r)
+            for v, r in self.elem_constr.get_resolvers().items()
+        }
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
+            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+            self.elem_constr.verify(attr.element_type, constraint_context)
+        else:
+            raise VerifyException(f"Expected tensor or memref type, got {attr}")
 
 
 @irdl_attr_definition
