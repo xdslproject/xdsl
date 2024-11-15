@@ -583,7 +583,8 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         variables: dict[str, ResolveType],
     ) -> Sequence[AttributeCovT]:
         v = variables[self.name]
-        return cast(Sequence[AttributeCovT], v)
+        assert not isinstance(V, Attribute)
+        return v
 
 
 @dataclass(frozen=True)
