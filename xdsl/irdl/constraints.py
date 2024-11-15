@@ -613,7 +613,7 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
         variables: dict[str, ResolveType],
     ) -> Sequence[AttributeCovT]:
         attr = self.constr.infer(variables)
-        return tuple(attr for _ in range(length))
+        return (attr,) * length
 
 
 @dataclass(frozen=True)
