@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from xdsl.builder import Builder, InsertPoint
 from xdsl.context import MLContext
 from xdsl.dialects import affine, builtin, func, memref
+from xdsl.dialects.experimental.hida_prim import MemoryKind, MemoryKindAttr
 from xdsl.dialects.func import FuncOp
 from xdsl.ir import BlockArgument
 from xdsl.passes import ModulePass
@@ -17,6 +18,12 @@ from xdsl.pattern_rewriter import (
 
 @dataclass
 class HoistLoadsIntoCopyNodes(RewritePattern):
+    #########################################################################################
+    # Generates a copy node for each load operation. The memref buffer is copied to on-chip
+    # memory.  The idea is that these nodes can  be pipelined in a load-compute-store manner
+    # whilst reducing the latency of the  computation.
+    #########################################################################################
+
     module: builtin.ModuleOp
     copy_node_idx = 0
 
@@ -28,8 +35,13 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
             parent_function = parent_function.parent_op()
 
         buf_type = load.memref.type
+        onchip_buf_type = builtin.MemRefType(
+            buf_type.element_type,
+            buf_type.shape,
+            memory_space=MemoryKindAttr(MemoryKind.BRAM_2P),
+        )
 
-        @Builder.region([buf_type, buf_type])
+        @Builder.region([buf_type, onchip_buf_type])
         def copy_body(builder: Builder, args: [BlockArgument, ...]):
             copy = memref.CopyOp(args[0], args[1])
             builder.insert(copy)
@@ -37,7 +49,7 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
 
         copy_node = FuncOp(
             f"copy_node_{__class__.copy_node_idx}",
-            builtin.FunctionType.from_lists([buf_type, buf_type], []),
+            builtin.FunctionType.from_lists([buf_type, onchip_buf_type], []),
             copy_body,
         )
         __class__.copy_node_idx += 1
@@ -45,6 +57,21 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
         rewriter.insert_op(copy_node, InsertPoint.at_start(self.module.body.block))
 
         return copy_node
+
+    def update_node_mem_space(self, node: FuncOp, mem_kind: MemoryKind):
+        new_input_types: list[builtin.Attribute] = []
+        for i in range(len(node.args)):
+            assert isinstance(node.args[i].type, builtin.MemRefType)
+            new_type = builtin.MemRefType(
+                node.args[i].type.element_type,
+                node.args[i].type.shape,
+                memory_space=MemoryKindAttr(mem_kind),
+            )
+            node.args[i].type = new_type
+
+            new_input_types.append(new_type)
+
+        node.function_type = builtin.FunctionType.from_lists(new_input_types, [])
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, node: func.FuncOp, rewriter: PatternRewriter):
@@ -70,9 +97,10 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
             assert isinstance(load.memref.type, builtin.MemRefType)
             buf_type = load.memref.type.element_type
             buf_shape = load.memref.type.shape
-            buf_mem_space = load.memref.type.memory_space
             buf = memref.Alloc.get(
-                buf_type, shape=buf_shape, memory_space=buf_mem_space
+                buf_type,
+                shape=buf_shape,
+                memory_space=MemoryKindAttr(MemoryKind.BRAM_2P),
             )
             rewriter.insert_op(buf, InsertPoint.at_start(top.body.block))
 
@@ -91,6 +119,8 @@ class HoistLoadsIntoCopyNodes(RewritePattern):
         node_call = func.Call(node.sym_name.data, buf_args, [])
 
         rewriter.insert_op(node_call, InsertPoint.before(top.body.block.last_op))
+
+        self.update_node_mem_space(node, MemoryKind.BRAM_2P)
 
 
 @dataclass(frozen=True)
