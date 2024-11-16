@@ -1,10 +1,12 @@
-from xdsl.dialects import affine, builtin, func, linalg, memref
+from xdsl.builder import Builder
+from xdsl.dialects import affine, arith, builtin, func, linalg, memref
 from xdsl.dialects.experimental.hida_functional import DispatchOp, TaskOp, YieldOp
 from xdsl.dialects.experimental.hida_structural import NodeOp, ScheduleOp
-from xdsl.ir import Use
+from xdsl.ir import BlockArgument, Use
 from xdsl.irdl import Block, Operation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.experimental.liveness import Liveness
 
 # from xdsl.traits import MemoryEffect, MemoryEffectKind, get_effects
 from xdsl.utils.hints import isa
@@ -222,6 +224,98 @@ def get_invariant_output_band(bands: list[list[affine.For]]):
             return band
 
     return None
+
+
+def hoist_constants(node: func.FuncOp, rewriter: PatternRewriter):
+    all_constants = [op for op in node.walk() if isinstance(op, arith.Constant)]
+
+    for constant in all_constants:
+        constant.detach()
+        rewriter.insert_op(constant, InsertPoint.before(node))
+
+
+def tile_loop(
+    loop: affine.For,
+    index: int,
+    factor: int,
+    rewriter: PatternRewriter,
+    parent_node: func.FuncOp,
+):
+    # TODO: For now the tiling is happening at the outermost loop
+    # TODO: assuming for now that the bounds are constant. Also assuming step=1
+    lb = loop.lowerBoundMap.get_affine_map().results[0].value
+    ub = loop.upperBoundMap.get_affine_map().results[0].value
+    n_subloops = factor  # TODO: assuming even division for now
+
+    sub_len = int((ub - lb) / factor)
+    sub_lb = lb
+    sub_ub = lb + sub_len
+
+    sub_loop_idx = 0
+    sub_loops_lst: list[affine.For] = []
+    sub_loop_nodes_lst: list[func.FuncOp] = []
+
+    # Convert into a list to guarantee ordering
+    liveins = list(Liveness(loop).get_livein(loop.body.block))
+    external_liveins = [
+        livein
+        for livein in liveins
+        if any(
+            [
+                loop.is_ancestor(use.operation) and not loop.is_ancestor(livein.owner)
+                for use in livein.uses
+            ]
+        )
+    ]
+    in_types = [livein.type for livein in external_liveins]
+
+    for _ in range(n_subloops):
+        print()
+        loop_clone = loop.clone()
+        sub_region = rewriter.move_region_contents_to_new_regions(loop_clone.body)
+
+        sub_loop = affine.For.from_region((), (), (), (), sub_lb, sub_ub, sub_region)
+        sub_loops_lst.append(sub_loop)
+        sub_lb += sub_len
+        sub_ub += sub_len
+
+        rewriter.insert_op(sub_loop, InsertPoint.before(loop))
+
+        @Builder.region(in_types)
+        def node_body(builder: Builder, args: list[BlockArgument, ...]):
+            sub_loop.detach()
+            builder.insert(sub_loop)
+            for livein, func_arg in zip(external_liveins, args):
+                livein.replace_by_if(
+                    func_arg, lambda use: sub_loop.is_ancestor(use.operation)
+                )
+
+            builder.insert(func.Return())
+
+        sub_loop_node = func.FuncOp(
+            f"sub_loop_node_{sub_loop_idx}",
+            builtin.FunctionType.from_lists(in_types, []),
+            node_body,
+        )
+        sub_loop_nodes_lst.append(sub_loop_node)
+        sub_loop_idx += 1
+        sub_loop_node.attributes["top_func"] = builtin.UnitAttr()
+
+        rewriter.insert_op(sub_loop_node, InsertPoint.before(parent_node))
+        print()
+
+    @Builder.region(in_types)
+    def parent_node_body(builder: Builder, args: list[BlockArgument, ...]):
+        for sub_loop_node in sub_loop_nodes_lst:
+            builder.insert(func.Call(sub_loop_node.sym_name.data, args, []))
+        builder.insert(func.Return())
+
+    top = func.FuncOp(
+        parent_node.sym_name.data,
+        builtin.FunctionType.from_lists(in_types, []),
+        parent_node_body,
+    )
+    rewriter.replace_matched_op(top)
 
 
 def is_written(use: Use):
