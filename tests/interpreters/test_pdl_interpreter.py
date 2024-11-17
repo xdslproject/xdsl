@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     StringAttr,
     i32,
+    i64,
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.pdl import PDLMatcher, PDLRewriteFunctions, PDLRewritePattern
@@ -117,6 +118,34 @@ def test_not_match_fixed_type():
 
     assert not matcher.match_type(ssa_value, pdl_op, xdsl_value)
     assert matcher.matching_context == {}
+
+
+def test_match_operand():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.OperandOp()
+    ssa_value = pdl_op.value
+    xdsl_value = TestSSAValue(i32)
+
+    # New value
+    assert matcher.match_operand(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Same value
+    assert matcher.match_operand(ssa_value, pdl_op, xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Other value
+    other_value = TestSSAValue(i32)
+    assert not matcher.match_operand(ssa_value, pdl_op, other_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Wrong type
+    type_op = pdl.TypeOp(i64)
+    new_pdl_op = pdl.OperandOp(type_op.result)
+    new_value = TestSSAValue(i32)
+    assert not matcher.match_operand(new_pdl_op.value, new_pdl_op, new_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
 
 
 def test_native_constraint_constant_parameter():

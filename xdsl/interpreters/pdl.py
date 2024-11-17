@@ -61,7 +61,7 @@ class PDLMatcher:
         self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue
     ):
         if ssa_val in self.matching_context:
-            return True
+            return self.matching_context[ssa_val] == xdsl_val
 
         if pdl_op.value_type is not None:
             assert isinstance(pdl_op.value_type, OpResult)
