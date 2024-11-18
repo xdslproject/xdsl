@@ -120,6 +120,68 @@ def test_not_match_fixed_type():
     assert matcher.matching_context == {}
 
 
+def test_match_attribute():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.AttributeOp()
+    ssa_value = pdl_op.output
+    xdsl_value = StringAttr("test")
+
+    # New value
+    assert matcher.match_attribute(ssa_value, pdl_op, "attr", xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Same value
+    assert matcher.match_attribute(ssa_value, pdl_op, "attr", xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+    # Other value
+    assert not matcher.match_attribute(
+        ssa_value, pdl_op, "attr", StringAttr("different")
+    )
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+
+def test_match_fixed_attribute():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.AttributeOp(IntegerAttr(42, i32))
+    ssa_value = pdl_op.output
+    xdsl_value = IntegerAttr(42, i32)
+
+    assert matcher.match_attribute(ssa_value, pdl_op, "attr", xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value}
+
+
+def test_not_match_fixed_attribute():
+    matcher = PDLMatcher()
+
+    pdl_op = pdl.AttributeOp(IntegerAttr(42, i32))
+    ssa_value = pdl_op.output
+    xdsl_value = IntegerAttr(24, i32)
+
+    assert not matcher.match_attribute(ssa_value, pdl_op, "attr", xdsl_value)
+    assert matcher.matching_context == {}
+
+
+def test_match_attribute_with_type():
+    matcher = PDLMatcher()
+
+    type_op = pdl.TypeOp(i32)
+    pdl_op = pdl.AttributeOp(type_op.result)
+    ssa_value = pdl_op.output
+    xdsl_value = IntegerAttr(42, i32)
+
+    # Value with wrong type
+    wrong_value = IntegerAttr(42, i64)
+    assert not matcher.match_attribute(ssa_value, pdl_op, "attr", wrong_value)
+    assert matcher.matching_context == {}
+
+    # Value with matching type
+    assert matcher.match_attribute(ssa_value, pdl_op, "attr", xdsl_value)
+    assert matcher.matching_context == {ssa_value: xdsl_value, type_op.result: i32}
+
+
 def test_match_operand():
     matcher = PDLMatcher()
 
