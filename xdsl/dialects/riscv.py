@@ -2881,7 +2881,7 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
 
 
 class GetAnyRegisterOperation(
-    Generic[RDInvT], RISCVCustomFormatOperation, RISCVAsmOperation
+    Generic[RDInvT], RISCVCustomFormatOperation, RISCVAsmOperation, ABC
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This

@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from xdsl.ir import Operation
 from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
 
-from .register import IntRegisterType
+from .register import ARMRegisterType
 
-R1InvT = TypeVar("R1InvT", bound=IntRegisterType)
+R1InvT = TypeVar("R1InvT", bound=ARMRegisterType)
 
 
 class ARMOp(IRDLOperation, ABC):
@@ -19,7 +18,7 @@ class ARMOp(IRDLOperation, ABC):
         raise NotImplementedError()
 
 
-class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, ARMOp, ABC):
+class GetAnyRegisterOperation(Generic[R1InvT], ARMOp, ABC):
     """
     This instruction allows us to create an SSAValue for a given register name.
     """
@@ -34,6 +33,6 @@ class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, ARMOp, ABC):
 
 
 @irdl_op_definition
-class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+class GetRegisterOp(GetAnyRegisterOperation[ARMRegisterType]):
     name = "arm.get_register"
     assembly_format = "attr-dict `:` type($result)"
