@@ -9,7 +9,7 @@ from .register import IntRegisterType
 R1InvT = TypeVar("R1InvT", bound=IntRegisterType)
 
 
-class ARMOp(Operation, ABC):
+class ARMOp(IRDLOperation, ABC):
     """
     Base class for operations that can be a part of ARM assembly printing.
     """
