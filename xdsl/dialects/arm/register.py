@@ -19,13 +19,13 @@ class ARMRegisterType(RegisterType, abc.ABC):
         if parser.parse_optional_punctuation("<"):
             name = parser.parse_identifier()
             parser.parse_punctuation(">")
-            assert name.startswith("x"), f"{name}"
         else:
             name = ""
         return cls._parameters_from_spelling(name)
 
-    def verify(self) -> None:
-        return
+    def verify(self):
+        # No verification for now
+        ...
 
 
 ARM_INDEX_BY_NAME = {f"x{i}": i for i in range(0, 31)}
