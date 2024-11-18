@@ -1,4 +1,5 @@
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, ClassVar
 
 from xdsl.dialects.builtin import (
     AnyMemRefTypeConstr,
@@ -81,20 +82,58 @@ class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
 
 @irdl_op_definition
 class AllocTensorOp(IRDLOperation):
+    """
+    `bufferization.alloc_tensor` materializes an uninitialized tensor with a
+    given shape (dynamic or static). It always bufferizes to a new buffer
+    allocation of the given shape. The optional `copy` operand specifies the
+    contents of the tensors. If no `copy` operand is specified, reading from the
+    result of an `alloc_tensor` op yields an undefined value.
+
+    If `copy` is specified, no dynamic sizes should be passed, since they are
+    the same as the dynamic sizes of the `copy` operand.
+
+    `alloc_tensor` is a helper op for bufferization. The operation is provided
+    as an anchor that marks the beginning of a new tensor SSA use-def chain. It
+    can be used to control in-place bufferization decisions during One-Shot
+    Bufferize: The bufferized result of a `bufferization.alloc_tensor` does not
+    alias with any other buffer, so it can be used to resolve read-after-write
+    conflicts that would have been introduced by the in-place bufferization of
+    another op.
+
+    The optional `memory_space` attribute specifies the memory space when
+    bufferizing this op. The memory space is inferred from `copy` if specified.
+    If neither `copy` nor `memory_space` is specified, the default memory space
+    is used during bufferization.
+
+    The optional `size_hint` operand specifies the number of non-zero elements
+    for sparse tensors. The value of `size_hint` should be not less than 1 and
+    not larger than the linear size of the corresponding dense tensor type. If
+    this requirement is not met, the behavior of the operator is undefined.
+
+    Note: An `alloc_tensor` with a `copy` should also be expressed as an
+    `alloc_tensor` without `copy`, followed by a `copy_tensor`.
+
+    https://mlir.llvm.org/docs/Dialects/BufferizationOps/#bufferizationalloc_tensor-bufferizationalloctensorop
+    """
+
     name = "bufferization.alloc_tensor"
 
+    T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
+
     dynamic_sizes = var_operand_def(IndexType())
-    copy = opt_operand_def(AnyOf((AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr)))
+    copy = opt_operand_def(T)
     size_hint = opt_operand_def(IndexType())
 
-    tensor = result_def(AnyOf((AnyTensorTypeConstr, AnyUnrankedTensorTypeConstr)))
+    tensor = result_def(T)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    assembly_format = "`(` $dynamic_sizes `)` ( `copy` `(` $copy^ `)`)? (`size_hint` `=` $size_hint^)? attr-dict `:` type($tensor)"
 
     def __init__(
         self,
         result_type: Attribute,
-        dynamic_sizes: list[Operation | SSAValue] | None = None,
+        dynamic_sizes: Sequence[Operation | SSAValue] | None = None,
         copy: SSAValue | Operation | None = None,
         size_hint: SSAValue | Operation | None = None,
     ):
