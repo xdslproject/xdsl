@@ -158,6 +158,7 @@ def test_match_result():
     xdsl_value = xdsl_op.res[0]
 
     # New result
+    # If the result of an operation has the expected type we should match
     assert matcher.match_result(result_op.val, result_op, xdsl_value)
     assert matcher.matching_context == {
         result_op.val: xdsl_value,
@@ -166,6 +167,7 @@ def test_match_result():
     }
 
     # Same result
+    # We should accept the same value given the same constraint
     assert matcher.match_result(result_op.val, result_op, xdsl_value)
     assert matcher.matching_context == {
         result_op.val: xdsl_value,
@@ -174,6 +176,7 @@ def test_match_result():
     }
 
     # Other result
+    # We should not match again with a different value, even if it has the correct type
     other_xdsl_op = test.TestOp(result_types=(i32,))
     other_xdsl_value = other_xdsl_op.res[0]
 
@@ -185,6 +188,7 @@ def test_match_result():
     }
 
     # Wrong type
+    # Matching should fail if the result's type differs from the expected type
     wrong_type_op = pdl.TypeOp(i64)
     wrong_type_operation_op = pdl.OperationOp(
         op_name=None, type_values=(wrong_type_op.result,)
@@ -201,6 +205,8 @@ def test_match_result():
     }
 
     # Index out of range
+    # If the operation has only one result, we should not match results at different
+    # indices
     out_of_range_result_op = pdl.ResultOp(1, operation_op.op)
     assert not matcher.match_result(
         out_of_range_result_op.val, out_of_range_result_op, xdsl_value
@@ -212,6 +218,7 @@ def test_match_result():
     }
 
     # Block argument
+    # Result patterns should not match on block arguments
     block = Block(arg_types=(i32,))
     block_arg_result_op = pdl.ResultOp(1, operation_op.op)
     assert not matcher.match_result(
