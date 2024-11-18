@@ -119,23 +119,6 @@ class ParsingContext(Enum):
     TypeDirective = auto()
 
 
-@dataclass(frozen=True)
-class ParsingStateOperandResolver(Resolver[ParsingState]):
-    idx: int
-    is_operand: bool
-    resolver: Resolver[Sequence[Attribute]]
-
-    def resolve(self, a: ParsingState) -> ResolveType:
-        if self.is_operand:
-            types = a.operand_types[self.idx]
-        else:
-            types = a.result_types[self.idx]
-        assert types is not None
-        if isinstance(types, Attribute):
-            types = (types,)
-        return self.resolver.resolve(types)
-
-
 @dataclass(init=False)
 class FormatParser(BaseParser):
     """
@@ -260,6 +243,22 @@ class FormatParser(BaseParser):
                 )
                 return
 
+    @dataclass(frozen=True)
+    class _OperandResultResolver(Resolver[ParsingState]):
+        idx: int
+        is_operand: bool
+        resolver: Resolver[Sequence[Attribute]]
+
+        def resolve(self, a: ParsingState) -> ResolveType:
+            if self.is_operand:
+                types = a.operand_types[self.idx]
+            else:
+                types = a.result_types[self.idx]
+            assert types is not None
+            if isinstance(types, Attribute):
+                types = (types,)
+            return self.resolver.resolve(types)
+
     def resolve_types(self) -> dict[str, Resolver[ParsingState]]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
@@ -269,7 +268,7 @@ class FormatParser(BaseParser):
             if self.seen_operand_types[i]:
                 resolvers.update(
                     {
-                        v: ParsingStateOperandResolver(i, True, r)
+                        v: self._OperandResultResolver(i, True, r)
                         for v, r in operand_def.constr.get_resolvers().items()
                     }
                 )
@@ -277,7 +276,7 @@ class FormatParser(BaseParser):
             if self.seen_result_types[i]:
                 resolvers.update(
                     {
-                        v: ParsingStateOperandResolver(i, False, r)
+                        v: self._OperandResultResolver(i, False, r)
                         for v, r in result_def.constr.get_resolvers().items()
                     }
                 )

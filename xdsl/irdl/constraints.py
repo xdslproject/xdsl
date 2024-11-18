@@ -387,15 +387,6 @@ ParametrizedAttributeCovT = TypeVar(
 )
 
 
-@dataclass(frozen=True)
-class ParamResolver(Resolver[ParametrizedAttributeT]):
-    idx: int
-    resolver: Resolver[Attribute]
-
-    def resolve(self, a: ParametrizedAttributeT) -> ResolveType:
-        return self.resolver.resolve(a.parameters[self.idx])
-
-
 @dataclass(frozen=True, init=False)
 class ParamAttrConstraint(
     Generic[ParametrizedAttributeCovT], GenericAttrConstraint[ParametrizedAttributeCovT]
@@ -440,11 +431,19 @@ class ParamAttrConstraint(
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(attr.parameters[idx], constraint_context)
 
+    @dataclass(frozen=True)
+    class _Resolver(Resolver[ParametrizedAttributeT]):
+        idx: int
+        resolver: Resolver[Attribute]
+
+        def resolve(self, a: ParametrizedAttributeT) -> ResolveType:
+            return self.resolver.resolve(a.parameters[self.idx])
+
     def get_resolvers(
         self,
     ) -> dict[str, Resolver[ParametrizedAttributeCovT]]:
         return {
-            v: ParamResolver(i, r)
+            v: self._Resolver(i, r)
             for i, param_constr in enumerate(self.param_constrs)
             for v, r in param_constr.get_resolvers().items()
         }
@@ -627,14 +626,6 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
-class SingleOfResolver(Resolver[Sequence[AttributeInvT]]):
-    resolver: Resolver[AttributeInvT]
-
-    def resolve(self, a: Sequence[AttributeInvT]) -> ResolveType:
-        return self.resolver.resolve(a[0])
-
-
-@dataclass(frozen=True)
 class SingleOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain a range to only contain a single element, which should satisfy a given constraint.
@@ -651,10 +642,17 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
             raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
         self.constr.verify(attrs[0], constraint_context)
 
+    @dataclass(frozen=True)
+    class _Resolver(Resolver[Sequence[AttributeInvT]]):
+        resolver: Resolver[AttributeInvT]
+
+        def resolve(self, a: Sequence[AttributeInvT]) -> ResolveType:
+            return self.resolver.resolve(a[0])
+
     def get_resolvers(
         self,
     ) -> dict[str, Resolver[Sequence[AttributeCovT]]]:
-        return {v: SingleOfResolver(r) for v, r in self.constr.get_resolvers().items()}
+        return {v: self._Resolver(r) for v, r in self.constr.get_resolvers().items()}
 
     def can_infer(self, variables: Set[str]) -> bool:
         return self.constr.can_infer(variables)

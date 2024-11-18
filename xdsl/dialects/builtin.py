@@ -1632,18 +1632,6 @@ AnyMemRefType: TypeAlias = MemRefType[Attribute]
 AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
 
 
-@dataclass(frozen=True)
-class TensorOrMemrefOfResolver(
-    Resolver[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]
-):
-    resolver: Resolver[AttributeInvT]
-
-    def resolve(
-        self, a: TensorType[AttributeInvT] | MemRefType[AttributeInvT]
-    ) -> ResolveType:
-        return self.resolver.resolve(a.element_type)
-
-
 @dataclass(frozen=True, init=False)
 class TensorOrMemrefOf(
     GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
@@ -1660,6 +1648,15 @@ class TensorOrMemrefOf(
     ) -> None:
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
+    @dataclass(frozen=True)
+    class _Resolver(Resolver[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]):
+        resolver: Resolver[AttributeInvT]
+
+        def resolve(
+            self, a: TensorType[AttributeInvT] | MemRefType[AttributeInvT]
+        ) -> ResolveType:
+            return self.resolver.resolve(a.element_type)
+
     def get_resolvers(
         self,
     ) -> dict[
@@ -1667,8 +1664,7 @@ class TensorOrMemrefOf(
         Resolver[TensorType[AttributeCovT] | MemRefType[AttributeCovT]],
     ]:
         return {
-            v: TensorOrMemrefOfResolver(r)
-            for v, r in self.elem_constr.get_resolvers().items()
+            v: self._Resolver(r) for v, r in self.elem_constr.get_resolvers().items()
         }
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
