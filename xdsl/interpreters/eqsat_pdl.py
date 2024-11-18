@@ -6,8 +6,8 @@ from typing import IO, Any, cast
 from xdsl.context import MLContext
 from xdsl.dialects import eqsat, pdl
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
-from xdsl.interpreters.pdl import PDLMatcher
+from xdsl.interpreter import Interpreter, impl, register_impls
+from xdsl.interpreters.pdl import PDLMatcher, PDLRewriteFunctions
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
@@ -104,7 +104,7 @@ class EqsatPDLRewritePattern(RewritePattern):
 
 @register_impls
 @dataclass
-class EqsatPDLRewriteFunctions(InterpreterFunctions):
+class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
     """
     The implementations in this class are for the RHS of the rewrite. The SSA values
     referenced within the rewrite block are guaranteed to have been matched with the
@@ -112,8 +112,6 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
     values.
     """
 
-    ctx: MLContext
-    _rewriter: PatternRewriter | None = field(default=None)
     value_to_eclass: dict[SSAValue, eqsat.EClassOp] = field(default_factory=dict)
     operation_to_eclass: dict[
         tuple[str, tuple[tuple[str, Attribute], ...], tuple[SSAValue, ...]],
@@ -135,15 +133,6 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
                             (source.name, attributes, tuple(source.operands))
                         ] = op
         self.did_populate = True
-
-    @property
-    def rewriter(self) -> PatternRewriter:
-        assert self._rewriter is not None
-        return self._rewriter
-
-    @rewriter.setter
-    def rewriter(self, rewriter: PatternRewriter):
-        self._rewriter = rewriter
 
     @impl(pdl.OperationOp)
     def run_operation(
@@ -215,21 +204,6 @@ class EqsatPDLRewriteFunctions(InterpreterFunctions):
         )
 
         return (result_op,)
-
-    @impl(pdl.ResultOp)
-    def run_result(
-        self, interpreter: Interpreter, op: pdl.ResultOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        (parent,) = args
-        assert isinstance(parent, Operation)
-        return (parent.results[op.index.value.data],)
-
-    @impl(pdl.AttributeOp)
-    def run_attribute(
-        self, interpreter: Interpreter, op: pdl.AttributeOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        assert isinstance(op.value, Attribute)
-        return (op.value,)
 
     @impl(pdl.ReplaceOp)
     def run_replace(
