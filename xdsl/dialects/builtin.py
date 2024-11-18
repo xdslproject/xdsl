@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -22,6 +22,7 @@ from typing_extensions import Self, deprecated
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     Block,
     BlockOps,
     Data,
@@ -52,6 +53,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
+    Resolver,
     ResolveType,
     attr_constr_coercion,
     base,
@@ -1630,6 +1632,18 @@ AnyMemRefType: TypeAlias = MemRefType[Attribute]
 AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
 
 
+@dataclass(frozen=True)
+class TensorOrMemrefOfResolver(
+    Resolver[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]
+):
+    resolver: Resolver[AttributeInvT]
+
+    def resolve(
+        self, a: TensorType[AttributeInvT] | MemRefType[AttributeInvT]
+    ) -> ResolveType:
+        return self.resolver.resolve(a.element_type)
+
+
 @dataclass(frozen=True, init=False)
 class TensorOrMemrefOf(
     GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
@@ -1646,20 +1660,14 @@ class TensorOrMemrefOf(
     ) -> None:
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
-    @staticmethod
-    def _wrap_resolver(
-        resolver: Callable[[AttributeCovT], ResolveType],
-    ) -> Callable[[TensorType[AttributeCovT] | MemRefType[AttributeCovT]], ResolveType]:
-        return lambda attr: resolver(attr.element_type)
-
     def get_resolvers(
         self,
     ) -> dict[
         str,
-        Callable[[TensorType[AttributeCovT] | MemRefType[AttributeCovT]], ResolveType],
+        Resolver[TensorType[AttributeCovT] | MemRefType[AttributeCovT]],
     ]:
         return {
-            v: self._wrap_resolver(r)
+            v: TensorOrMemrefOfResolver(r)
             for v, r in self.elem_constr.get_resolvers().items()
         }
 

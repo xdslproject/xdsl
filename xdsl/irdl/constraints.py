@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import abc
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence, Set
+from collections.abc import Sequence, Set
 from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import assert_never
 
-from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute
+from xdsl.ir import Attribute, AttributeCovT, AttributeInvT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
@@ -55,7 +56,14 @@ class ConstraintContext:
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
 
-ResolveType: TypeAlias = Attribute | Sequence[Attribute]
+ResolveType = Attribute | Sequence[Attribute]
+
+T = TypeVar("T")
+
+
+class Resolver(Generic[T], abc.ABC):
+    @abstractmethod
+    def resolve(self, a: T) -> ResolveType: ...
 
 
 @dataclass(frozen=True)
@@ -74,7 +82,7 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         """
         ...
 
-    def get_resolvers(self) -> dict[str, Callable[[AttributeCovT], ResolveType]]:
+    def get_resolvers(self) -> dict[str, Resolver[AttributeCovT]]:
         """
         Get a dictionary of variables that can be solved from this attribute.
         """
@@ -114,6 +122,13 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
 
 
 AttrConstraint: TypeAlias = GenericAttrConstraint[Attribute]
+ResolveTypeT = TypeVar("ResolveTypeT", bound=ResolveType)
+
+
+@dataclass(frozen=True)
+class IdResolver(Resolver[ResolveTypeT]):
+    def resolve(self, a: ResolveTypeT) -> ResolveType:
+        return a
 
 
 @dataclass(frozen=True)
@@ -144,8 +159,8 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
             self.constraint.verify(attr, constraint_context)
             constraint_context.set_variable(self.name, attr)
 
-    def get_resolvers(self) -> dict[str, Callable[[AttributeCovT], ResolveType]]:
-        return {self.name: lambda attr: attr}
+    def get_resolvers(self) -> dict[str, Resolver[AttributeCovT]]:
+        return {self.name: IdResolver()}
 
     def infer(self, variables: dict[str, ResolveType]) -> AttributeCovT:
         v = variables[self.name]
@@ -295,7 +310,7 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     ) -> AnyOf[AttributeCovT | _AttributeCovT]:
         return AnyOf((*self.attr_constrs, value))
 
-    def get_resolvers(self) -> dict[str, Callable[[AttributeCovT], ResolveType]]:
+    def get_resolvers(self) -> dict[str, Resolver[AttributeCovT]]:
         if len(self.attr_constrs) == 1:
             return self.attr_constrs[0].get_resolvers()
         return dict()
@@ -336,8 +351,8 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             exc_msg += "\n".join([str(e) for e in exc_bucket])
             raise VerifyException(exc_msg)
 
-    def get_resolvers(self) -> dict[str, Callable[[AttributeCovT], ResolveType]]:
-        d: dict[str, Callable[[AttributeCovT], ResolveType]] = dict()
+    def get_resolvers(self) -> dict[str, Resolver[AttributeCovT]]:
+        d: dict[str, Resolver[AttributeCovT]] = dict()
         for constr in self.attr_constrs:
             d |= constr.get_resolvers()
         return d
@@ -366,9 +381,19 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
         return AllOf((*self.attr_constrs, value))
 
 
+ParametrizedAttributeT = TypeVar("ParametrizedAttributeT", bound=ParametrizedAttribute)
 ParametrizedAttributeCovT = TypeVar(
     "ParametrizedAttributeCovT", bound=ParametrizedAttribute, covariant=True
 )
+
+
+@dataclass(frozen=True)
+class ParamResolver(Resolver[ParametrizedAttributeT]):
+    idx: int
+    resolver: Resolver[Attribute]
+
+    def resolve(self, a: ParametrizedAttributeT) -> ResolveType:
+        return self.resolver.resolve(a.parameters[self.idx])
 
 
 @dataclass(frozen=True, init=False)
@@ -415,17 +440,11 @@ class ParamAttrConstraint(
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(attr.parameters[idx], constraint_context)
 
-    @staticmethod
-    def _wrap_resolver(
-        i: int, resolver: Callable[[Attribute], ResolveType]
-    ) -> Callable[[ParametrizedAttributeCovT], ResolveType]:
-        return lambda a: resolver(a.parameters[i])
-
     def get_resolvers(
         self,
-    ) -> dict[str, Callable[[ParametrizedAttributeCovT], ResolveType]]:
+    ) -> dict[str, Resolver[ParametrizedAttributeCovT]]:
         return {
-            v: self._wrap_resolver(i, r)
+            v: ParamResolver(i, r)
             for i, param_constr in enumerate(self.param_constrs)
             for v, r in param_constr.get_resolvers().items()
         }
@@ -469,7 +488,7 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
                 *e.args[1:],
             )
 
-    def get_resolvers(self) -> dict[str, Callable[[AttributeCovT], ResolveType]]:
+    def get_resolvers(self) -> dict[str, Resolver[AttributeCovT]]:
         return self.constr.get_resolvers()
 
     def get_unique_base(self) -> type[Attribute] | None:
@@ -500,7 +519,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
 
     def get_resolvers(
         self,
-    ) -> dict[str, Callable[[Sequence[AttributeCovT]], ResolveType]]:
+    ) -> dict[str, Resolver[Sequence[AttributeCovT]]]:
         """
         Get a dictionary of variables that can be solved from this attribute.
         """
@@ -564,8 +583,8 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
 
     def get_resolvers(
         self,
-    ) -> dict[str, Callable[[Sequence[AttributeCovT]], ResolveType]]:
-        return {self.name: lambda attr_tuple: attr_tuple}
+    ) -> dict[str, Resolver[Sequence[AttributeCovT]]]:
+        return {self.name: IdResolver[Sequence[AttributeCovT]]()}
 
     def can_infer(self, variables: Set[str]) -> bool:
         return self.name in variables
@@ -608,6 +627,14 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
+class SingleOfResolver(Resolver[Sequence[AttributeInvT]]):
+    resolver: Resolver[AttributeInvT]
+
+    def resolve(self, a: Sequence[AttributeInvT]) -> ResolveType:
+        return self.resolver.resolve(a[0])
+
+
+@dataclass(frozen=True)
 class SingleOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain a range to only contain a single element, which should satisfy a given constraint.
@@ -626,10 +653,8 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
 
     def get_resolvers(
         self,
-    ) -> dict[str, Callable[[Sequence[AttributeCovT]], ResolveType]]:
-        return {
-            v: lambda attrs: r(attrs[0]) for v, r in self.constr.get_resolvers().items()
-        }
+    ) -> dict[str, Resolver[Sequence[AttributeCovT]]]:
+        return {v: SingleOfResolver(r) for v, r in self.constr.get_resolvers().items()}
 
     def can_infer(self, variables: Set[str]) -> bool:
         return self.constr.can_infer(variables)

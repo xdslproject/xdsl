@@ -27,6 +27,7 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
+    Resolver,
     ResolveType,
     VariadicDef,
     VarOperandDef,
@@ -116,6 +117,23 @@ class ParsingContext(Enum):
 
     TopLevel = auto()
     TypeDirective = auto()
+
+
+@dataclass(frozen=True)
+class ParsingStateOperandResolver(Resolver[ParsingState]):
+    idx: int
+    is_operand: bool
+    resolver: Resolver[Sequence[Attribute]]
+
+    def resolve(self, a: ParsingState) -> ResolveType:
+        if self.is_operand:
+            types = a.operand_types[self.idx]
+        else:
+            types = a.result_types[self.idx]
+        assert types is not None
+        if isinstance(types, Attribute):
+            types = (types,)
+        return self.resolver.resolve(types)
 
 
 @dataclass(init=False)
@@ -242,34 +260,16 @@ class FormatParser(BaseParser):
                 )
                 return
 
-    @staticmethod
-    def wrap_resolver(
-        i: int,
-        is_operands: bool,
-        resolver: Callable[[Sequence[Attribute]], ResolveType],
-    ) -> Callable[[ParsingState], ResolveType]:
-        def wrapped(state: ParsingState) -> ResolveType:
-            if is_operands:
-                types = state.operand_types[i]
-            else:
-                types = state.result_types[i]
-            assert types is not None
-            if isinstance(types, Attribute):
-                types = (types,)
-            return resolver(types)
-
-        return wrapped
-
-    def resolve_types(self) -> dict[str, Callable[[ParsingState], ResolveType]]:
+    def resolve_types(self) -> dict[str, Resolver[ParsingState]]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
-        resolvers = dict[str, Callable[[ParsingState], ResolveType]]()
+        resolvers = dict[str, Resolver[ParsingState]]()
         for i, (_, operand_def) in enumerate(self.op_def.operands):
             if self.seen_operand_types[i]:
                 resolvers.update(
                     {
-                        v: self.wrap_resolver(i, True, r)
+                        v: ParsingStateOperandResolver(i, True, r)
                         for v, r in operand_def.constr.get_resolvers().items()
                     }
                 )
@@ -277,7 +277,7 @@ class FormatParser(BaseParser):
             if self.seen_result_types[i]:
                 resolvers.update(
                     {
-                        v: self.wrap_resolver(i, False, r)
+                        v: ParsingStateOperandResolver(i, False, r)
                         for v, r in result_def.constr.get_resolvers().items()
                     }
                 )

@@ -7,7 +7,7 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -25,6 +25,7 @@ from xdsl.irdl import (
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
+    Resolver,
     ResolveType,
     Successor,
     VariadicDef,
@@ -93,7 +94,7 @@ class FormatProgram:
     stmts: tuple[FormatDirective, ...]
     """The statements composing the program. They are executed in order."""
 
-    resolvers: dict[str, Callable[[ParsingState], ResolveType]]
+    resolvers: dict[str, Resolver[ParsingState]]
     """Resolvers for all type variables."""
 
     @staticmethod
@@ -170,7 +171,7 @@ class FormatProgram:
         )
 
     def resolve_constraint_variables(self, state: ParsingState):
-        state.variables = {v: r(state) for v, r in self.resolvers.items()}
+        state.variables = {v: r.resolve(state) for v, r in self.resolvers.items()}
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
