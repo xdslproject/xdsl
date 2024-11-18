@@ -56,14 +56,14 @@ class ConstraintContext:
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
 
-ResolveType = Attribute | Sequence[Attribute]
+ResolveType: TypeAlias = Attribute | Sequence[Attribute]
 
-T = TypeVar("T")
+_T = TypeVar("_T")
 
 
-class Resolver(Generic[T], abc.ABC):
+class Resolver(Generic[_T], abc.ABC):
     @abstractmethod
-    def resolve(self, a: T) -> ResolveType: ...
+    def resolve(self, a: _T) -> ResolveType: ...
 
 
 @dataclass(frozen=True)
