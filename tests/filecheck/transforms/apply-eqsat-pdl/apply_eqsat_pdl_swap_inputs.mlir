@@ -5,9 +5,9 @@
 // CHECK-NEXT:      %c4_eq = eqsat.eclass %c4 : i32
 // CHECK-NEXT:      %c2 = arith.constant 2 : i32
 // CHECK-NEXT:      %c2_eq = eqsat.eclass %c2 : i32
-// CHECK-NEXT:      %0 = arith.addi %c2_eq, %c4_eq : i32
-// CHECK-NEXT:      %sum = arith.addi %c4_eq, %c2_eq : i32
-// CHECK-NEXT:      %sum_eq = eqsat.eclass %sum, %0 : i32
+// CHECK-NEXT:      %sum = arith.addi %c2_eq, %c4_eq : i32
+// CHECK-NEXT:      %sum_1 = arith.addi %c4_eq, %c2_eq : i32
+// CHECK-NEXT:      %sum_eq = eqsat.eclass %sum_1, %sum : i32
 // CHECK-NEXT:      func.return %sum_eq : i32
 // CHECK-NEXT:    }
 

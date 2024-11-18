@@ -226,6 +226,7 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
             # Add new op to eclass
             results = new_op.results
             assert len(results) == 1
+            results[0].name_hint = old.results[0].name_hint
             eclass_op = self.value_to_eclass[old.results[0]]
             eclass_op.operands = eclass_op.arguments + results
         elif op.repl_values:
