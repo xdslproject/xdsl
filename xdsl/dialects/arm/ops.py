@@ -36,3 +36,4 @@ class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, ARMOp, ABC):
 @irdl_op_definition
 class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
     name = "arm.get_register"
+    assembly_format = "attr-dict `:` type($result)"
