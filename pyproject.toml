@@ -7,7 +7,7 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.2.1",
+    "immutabledict<4.2.2",
     "typing-extensions>=4.7,<4.13",
     "ordered-set==4.1.0",
 ]
