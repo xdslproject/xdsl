@@ -5417,6 +5417,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             # if we need new buffers - handle it
             if_needs_new_buffers = []
+            get_fill_value_ops, child_fill_value = child_fill_value_getter()
+            if_needs_new_buffers.extend(get_fill_value_ops)
+
             buffer_scaler = layout.buffer_scaler.data
             buffer_scaler_const = arith.Constant(
                 IntegerAttr(abs(buffer_scaler), IndexType())
@@ -5456,8 +5459,6 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_needs_new_buffers.extend(do_new_buffers_ops)
 
             # Now we fill in the new index tuple and data elem
-            get_fill_value_ops, child_fill_value = child_fill_value_getter()
-            if_needs_new_buffers.extend(get_fill_value_ops)
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
@@ -5535,6 +5536,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         else:
             # if it's not buffered then we know we just need to always do new buffers at the size of last_index
             # and we know the old buffer size was just one element less than the new last_index
+            get_fill_value_ops, child_fill_value = child_fill_value_getter()
+            if_found_false.extend(get_fill_value_ops)
+
             new_size = last_index
             calc_old_size_ops, (old_buffer_size,) = (
                 NumericResult.from_ssa(last_index) - 1
@@ -5558,8 +5562,6 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_found_false.extend(do_new_buffers_ops)
 
             # Now we fill in the new index tuple and data elem
-            get_fill_value_ops, child_fill_value = child_fill_value_getter()
-            if_found_false.extend(get_fill_value_ops)
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
@@ -7422,6 +7424,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
             # if we need new buffers - handle it
             if_needs_new_buffers = []
+            get_fill_value_ops, child_fill_value = child_fill_value_getter()
+            if_needs_new_buffers.extend(get_fill_value_ops)
+
             buffer_scaler = layout.buffer_scaler.data
             buffer_scaler_const = arith.Constant(
                 IntegerAttr(abs(buffer_scaler), IndexType())
@@ -7461,8 +7466,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             if_needs_new_buffers.extend(do_new_buffers_ops)
 
             # Now we fill in the new index tuple and data elem
-            get_fill_value_ops, child_fill_value = child_fill_value_getter()
-            if_needs_new_buffers.extend(get_fill_value_ops)
+
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
@@ -7538,6 +7542,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         else:
             # if it's not buffered then we know we just need to always do new buffers at the size of last_index
             # and we know the old buffer size was just one element less than the new last_index
+            get_fill_value_ops, child_fill_value = child_fill_value_getter()
+            if_found_false.extend(get_fill_value_ops)
+
             new_size = last_index
             calc_old_size_ops, (old_buffer_size,) = (
                 NumericResult.from_ssa(last_index) - 1
@@ -7561,8 +7568,6 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             if_found_false.extend(do_new_buffers_ops)
 
             # Now we fill in the new index tuple and data elem
-            get_fill_value_ops, child_fill_value = child_fill_value_getter()
-            if_found_false.extend(get_fill_value_ops)
             initialiser = self.WriteEmptyRangeInitialiser(
                 child_fill_value, child_members, child_dim_mapping
             )
