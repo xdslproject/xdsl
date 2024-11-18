@@ -33,6 +33,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Arith
 
+    def get_arm():
+        from xdsl.dialects.arm import ARM
+
+        return ARM
+
     def get_bufferization():
         from xdsl.dialects.bufferization import Bufferization
 
@@ -322,11 +327,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.x86 import X86
 
         return X86
-
-    def get_arm():
-        from xdsl.dialects.arm import ARM
-
-        return ARM
 
     def get_transform():
         from xdsl.dialects.transform import Transform
