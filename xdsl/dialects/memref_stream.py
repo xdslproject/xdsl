@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     StringAttr,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils.format import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,

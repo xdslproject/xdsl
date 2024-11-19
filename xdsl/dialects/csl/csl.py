@@ -37,7 +37,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
 )
-from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
+from xdsl.dialects.utils.format import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
     Attribute,
     Block,
