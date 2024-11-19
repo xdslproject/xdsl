@@ -179,15 +179,15 @@ class FormatParser(BaseParser):
             elements.append(self.parse_directive())
 
         self.add_reserved_attrs_to_directive(elements)
-        resolvers = self.resolve_types()
+        extractors = self.extractors_by_name()
         self.verify_directives(elements)
         self.verify_attr_dict()
         self.verify_properties()
-        self.verify_operands(resolvers.keys())
-        self.verify_results(resolvers.keys())
+        self.verify_operands(extractors.keys())
+        self.verify_results(extractors.keys())
         self.verify_regions()
         self.verify_successors()
-        return FormatProgram(tuple(elements), resolvers)
+        return FormatProgram(tuple(elements), extractors)
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
@@ -260,7 +260,7 @@ class FormatParser(BaseParser):
                 types = (types,)
             return self.inner.extract_var(types)
 
-    def resolve_types(self) -> dict[str, VarExtractor[ParsingState]]:
+    def extractors_by_name(self) -> dict[str, VarExtractor[ParsingState]]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
