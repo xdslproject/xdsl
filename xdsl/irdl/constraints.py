@@ -423,7 +423,9 @@ class ParamAttrConstraint(
             param_constr.verify(attr.parameters[idx], constraint_context)
 
     def can_infer(self, constraint_names: set[str]) -> bool:
-        return all(constr.can_infer(constraint_names) for constr in self.param_constrs)
+        return is_runtime_final(self.base_attr) and all(
+            constr.can_infer(constraint_names) for constr in self.param_constrs
+        )
 
     def infer(self, constraint_context: ConstraintContext) -> Attribute:
         params = tuple(

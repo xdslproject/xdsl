@@ -60,11 +60,13 @@ def test_attr_constraint_get_unique_base(
 
 
 def test_param_attr_constraint_inference():
-    @irdl_attr_definition
-    class WrapAttr(ParametrizedAttribute):
+    class BaseWrapAttr(ParametrizedAttribute):
         name = "wrap"
 
         inner: ParameterDef[Attribute]
+
+    @irdl_attr_definition
+    class WrapAttr(BaseWrapAttr): ...
 
     constr = ParamAttrConstraint(
         WrapAttr,
@@ -94,3 +96,13 @@ def test_param_attr_constraint_inference():
     assert var_constr.infer(ConstraintContext({"T": StringAttr("Hello")})) == WrapAttr(
         (StringAttr("Hello"),)
     )
+
+    base_constr = ParamAttrConstraint(
+        BaseWrapAttr,
+        (
+            eq(
+                StringAttr("Hello"),
+            ),
+        ),
+    )
+    assert not base_constr.can_infer(set())
