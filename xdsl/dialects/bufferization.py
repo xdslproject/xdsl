@@ -63,11 +63,13 @@ class TensorFromMemrefConstraint(
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isa(attr, TensorType[Attribute]):
             memref_type = MemRefType(attr.element_type, attr.shape)
-            return self.memref_constraint.verify(memref_type, constraint_context)
-        if isa(attr, UnrankedTensorType[Attribute]):
+        elif isa(attr, UnrankedTensorType[Attribute]):
             memref_type = UnrankedMemrefType.from_type(attr.element_type)
-
-        raise VerifyException(f"Expected TensorType or UnrankedTensorType, got {attr}")
+        else:
+            raise VerifyException(
+                f"Expected tensor or unranked tensor type, got {attr}"
+            )
+        return self.memref_constraint.verify(memref_type, constraint_context)
 
 
 @irdl_op_definition
