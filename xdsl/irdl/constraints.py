@@ -572,7 +572,7 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
 
 @dataclass(frozen=True)
 class GenericRangeConstraint(Generic[AttributeCovT], ABC):
-    """Constrain an range of attributes to certain values."""
+    """Constrain a range of attributes to certain values."""
 
     @abstractmethod
     def verify(
