@@ -97,7 +97,7 @@ class MergeExtractor(VarExtractor[_T]):
             )
 
     def flatten(self) -> Iterator[VarExtractor[_T]]:
-        return self.extractors.__iter__()
+        return iter(self.extractors)
 
 
 def merge_extractors(variable: str, *extractors: VarExtractor[_T]) -> VarExtractor[_T]:
