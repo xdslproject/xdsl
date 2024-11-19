@@ -146,7 +146,7 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         which provide a method to obtain the value of each constraint variable from
         the value of the attribute which is verified by this constraint.
         """
-        return dict()
+        return {}
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         """
