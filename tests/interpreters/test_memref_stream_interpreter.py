@@ -16,8 +16,8 @@ from xdsl.dialects.builtin import (
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.memref_stream import MemrefStreamFunctions
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue

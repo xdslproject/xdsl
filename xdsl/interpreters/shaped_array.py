@@ -10,7 +10,7 @@ from typing import Generic, TypeVar
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import ShapedType
-from xdsl.interpreters.utils.ptr import TypedPtr
+from xdsl.interpreters.ptr import TypedPtr
 
 _T = TypeVar("_T")
 

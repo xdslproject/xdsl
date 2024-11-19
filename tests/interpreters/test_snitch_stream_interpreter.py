@@ -4,10 +4,10 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
-from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.utils.test_value import TestSSAValue
 

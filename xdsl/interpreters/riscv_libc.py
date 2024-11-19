@@ -7,7 +7,7 @@ from xdsl.interpreter import (
     impl_external,
     register_impls,
 )
-from xdsl.interpreters.utils import ptr
+from xdsl.interpreters import ptr
 from xdsl.ir import Operation
 
 

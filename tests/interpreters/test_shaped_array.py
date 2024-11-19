@@ -1,5 +1,5 @@
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.interpreters.utils.ptr import TypedPtr
 
 
 def test_shaped_array_offset():

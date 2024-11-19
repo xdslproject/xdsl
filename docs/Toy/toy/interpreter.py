@@ -14,8 +14,8 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.interpreters.utils.ptr import TypedPtr
 
 from .dialects import toy as toy
 

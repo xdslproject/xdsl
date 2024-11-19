@@ -10,9 +10,9 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.interpreter import Interpreter
+from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.interpreters.utils import ptr
 
 interpreter = Interpreter(ModuleOp([]))
 interpreter.register_implementations(BuiltinFunctions())

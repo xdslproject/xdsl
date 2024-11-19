@@ -12,9 +12,9 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.interpreters.utils import ptr
 from xdsl.utils.exceptions import InterpretationError
 
 

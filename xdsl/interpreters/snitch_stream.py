@@ -10,7 +10,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.interpreters.utils import ptr
+from xdsl.interpreters import ptr
 from xdsl.interpreters.utils.stream import ReadableStream, WritableStream
 
 

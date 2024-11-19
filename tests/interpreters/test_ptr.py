@@ -1,4 +1,4 @@
-from xdsl.interpreters.utils import ptr
+from xdsl.interpreters import ptr
 
 
 def test_ptr():

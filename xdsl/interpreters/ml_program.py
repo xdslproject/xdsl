@@ -9,8 +9,8 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.traits import SymbolTable
 
 
