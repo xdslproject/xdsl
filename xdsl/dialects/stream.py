@@ -22,7 +22,6 @@ from xdsl.irdl import (
     ParameterDef,
     VarConstraint,
     irdl_attr_definition,
-    irdl_op_definition,
     operand_def,
     result_def,
 )
@@ -210,22 +209,9 @@ class WriteOperation(IRDLOperation, abc.ABC):
         printer.print_attribute(self.value.type)
 
 
-@irdl_op_definition
-class ReadOp(ReadOperation):
-    name = "stream.read"
-
-
-@irdl_op_definition
-class WriteOp(WriteOperation):
-    name = "stream.write"
-
-
 Stream = Dialect(
     "stream",
-    [
-        ReadOp,
-        WriteOp,
-    ],
+    [],
     [
         ReadableStreamType,
         WritableStreamType,
