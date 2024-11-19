@@ -24,7 +24,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnrealizedConversionCastOp,
 )
-from xdsl.interpreters.ptr import TypedPtr
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Attribute, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
