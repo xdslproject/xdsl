@@ -27,7 +27,7 @@ class ARMOperation(IRDLOperation, ABC):
 @irdl_op_definition
 class DSMovOp(ARMOperation):
     """
-    Copies the value of r1 into r2.
+    Copies the value of operand into rd.
 
     https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/mov
     """
@@ -35,8 +35,8 @@ class DSMovOp(ARMOperation):
     name = "arm.ds.mov"
 
     rd = result_def(IntRegisterType)
-    operand2 = operand_def(IntRegisterType)
-    assembly_format = "$operand2 attr-dict `:` `(` type($operand2) `)` `->` type($rd)"
+    operand = operand_def(IntRegisterType)
+    assembly_format = "$operand attr-dict `:` `(` type($operand) `)` `->` type($rd)"
 
     def __init__(
         self,
