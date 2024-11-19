@@ -148,7 +148,7 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         """
         return dict()
 
-    def can_infer(self, variables: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
         """
         Check if there is enough information to infer the attribute given the
         constraint variables that are already set.
@@ -232,8 +232,8 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         v = variables[self.name]
         return cast(AttributeCovT, v)
 
-    def can_infer(self, variables: Set[str]) -> bool:
-        return self.name in variables
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.name in var_constraint_names
 
     def get_unique_base(self) -> type[Attribute] | None:
         return self.constraint.get_unique_base()
@@ -269,7 +269,7 @@ class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCo
         if attr != self.attr:
             raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
 
-    def can_infer(self, variables: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return True
 
     def infer(self, variables: dict[str, ConstraintVariableType]) -> AttributeCovT:
@@ -422,8 +422,10 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             *(constr.get_variable_extractors() for constr in self.attr_constrs)
         )
 
-    def can_infer(self, variables: Set[str]) -> bool:
-        return any(constr.can_infer(variables) for constr in self.attr_constrs)
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return any(
+            constr.can_infer(var_constraint_names) for constr in self.attr_constrs
+        )
 
     def infer(self, variables: dict[str, ConstraintVariableType]) -> AttributeCovT:
         for constr in self.attr_constrs:
@@ -561,8 +563,8 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
     def get_unique_base(self) -> type[Attribute] | None:
         return self.constr.get_unique_base()
 
-    def can_infer(self, variables: Set[str]) -> bool:
-        return self.constr.can_infer(variables)
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.constr.can_infer(var_constraint_names)
 
     def infer(self, variables: dict[str, ConstraintVariableType]) -> AttributeCovT:
         return self.constr.infer(variables)
@@ -594,7 +596,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         """
         return dict()
 
-    def can_infer(self, variables: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
         """
         Check if there is enough information to infer the attribute given the
         constraint variables that are already set.
@@ -655,8 +657,8 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
         return {self.name: IdExtractor[Sequence[AttributeCovT]]()}
 
-    def can_infer(self, variables: Set[str]) -> bool:
-        return self.name in variables
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.name in var_constraint_names
 
     def infer(
         self,
@@ -683,8 +685,8 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
         for a in attrs:
             self.constr.verify(a, constraint_context)
 
-    def can_infer(self, variables: Set[str]) -> bool:
-        return self.constr.can_infer(variables)
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.constr.can_infer(var_constraint_names)
 
     def infer(
         self,
@@ -727,8 +729,8 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
             for v, r in self.constr.get_variable_extractors().items()
         }
 
-    def can_infer(self, variables: Set[str]) -> bool:
-        return self.constr.can_infer(variables)
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.constr.can_infer(var_constraint_names)
 
     def infer(
         self,

@@ -283,7 +283,7 @@ class FormatParser(BaseParser):
                 )
         return merge_extractor_dicts(*extractor_dicts)
 
-    def verify_operands(self, variables: Set[str]):
+    def verify_operands(self, var_constraint_names: Set[str]):
         """
         Check that all operands and operand types are refered at least once, or inferred
         from another construct.
@@ -305,14 +305,14 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format"
                 )
             if not seen_operand_type:
-                if not operand_def.constr.can_infer(variables):
+                if not operand_def.constr.can_infer(var_constraint_names):
                     self.raise_error(
                         f"type of operand '{operand_name}' cannot be inferred, "
                         f"consider adding a 'type(${operand_name})' directive to the "
                         "custom assembly format"
                     )
 
-    def verify_results(self, variables: Set[str]):
+    def verify_results(self, var_constraint_names: Set[str]):
         """Check that all result types are refered at least once, or inferred
         from another construct."""
 
@@ -320,7 +320,7 @@ class FormatParser(BaseParser):
             self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
-                if not result_def.constr.can_infer(variables):
+                if not result_def.constr.can_infer(var_constraint_names):
                     self.raise_error(
                         f"type of result '{result_name}' cannot be inferred, "
                         f"consider adding a 'type(${result_name})' directive to the "

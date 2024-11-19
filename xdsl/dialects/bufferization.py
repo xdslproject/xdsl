@@ -49,8 +49,8 @@ class TensorFromMemrefConstraint(
         MemRefType[Attribute] | UnrankedMemrefType[Attribute]
     ]
 
-    def can_infer(self, variables: Set[str]) -> bool:
-        return self.memref_constraint.can_infer(variables)
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.memref_constraint.can_infer(var_constraint_names)
 
     def infer(
         self, variables: dict[str, ConstraintVariableType]
