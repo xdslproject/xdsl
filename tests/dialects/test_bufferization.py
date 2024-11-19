@@ -39,7 +39,7 @@ def test_tensor_from_memref_inference():
         EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
     )
     assert constr2.can_infer(set())
-    assert constr2.infer(dict()) == TensorType(f64, [10, 20, 30])
+    assert constr2.infer({}) == TensorType(f64, [10, 20, 30])
 
     constr3 = TensorFromMemrefConstraint(
         EqAttrConstraint(UnrankedMemrefType.from_type(f64))
