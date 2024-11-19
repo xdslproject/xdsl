@@ -5,7 +5,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
-from xdsl.interpreters.stream import Acc, Nats
+from xdsl.interpreters.utils.stream import Acc, Nats
 from xdsl.ir import BlockArgument
 from xdsl.utils.test_value import TestSSAValue
 
