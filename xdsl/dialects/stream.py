@@ -46,9 +46,8 @@ class StreamType(
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
     ) -> ParamAttrConstraint[StreamType[_StreamTypeElementConstrT]]:
         return ParamAttrConstraint[StreamType[_StreamTypeElementConstrT]](
@@ -60,6 +59,14 @@ class StreamType(
 class ReadableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.readable"
 
+    @staticmethod
+    def constr(
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
+    ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]]:
+        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]](
+            ReadableStreamType, (element_type,)
+        )
+
 
 AnyReadableStreamTypeConstr = BaseAttr[ReadableStreamType[Attribute]](
     ReadableStreamType
@@ -69,6 +76,14 @@ AnyReadableStreamTypeConstr = BaseAttr[ReadableStreamType[Attribute]](
 @irdl_attr_definition
 class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.writable"
+
+    @staticmethod
+    def constr(
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
+    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]]:
+        return ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]](
+            WritableStreamType, (element_type,)
+        )
 
 
 AnyWritableStreamTypeConstr = BaseAttr[WritableStreamType[Attribute]](
