@@ -444,17 +444,17 @@ class ExtractOp(IRDLOperation):
     tensor = operand_def(TensorType)
     indices = var_operand_def(IndexType)
     result = result_def(Attribute)
+    # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
 
-    @classmethod
-    def get(
-        cls,
+    def __init__(
+        self,
         tensor: SSAValue,
         indices: Sequence[SSAValue] | SSAValue,
         result_type: Attribute,
     ):
         if isinstance(indices, SSAValue):
             indices = [indices]
-        return cls(operands=[tensor, indices], result_types=[result_type])
+        return super().__init__(operands=[tensor, indices], result_types=[result_type])
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -474,7 +474,7 @@ class ExtractOp(IRDLOperation):
         parser.parse_punctuation(":")
         source_tensor_type = parser.parse_type()
         tensor_type = cast(TensorType[Attribute], source_tensor_type)
-        return cls.get(tensor, indices, tensor_type.get_element_type())
+        return cls(tensor, indices, tensor_type.get_element_type())
 
 
 @irdl_op_definition
@@ -485,17 +485,17 @@ class InsertOp(IRDLOperation):
     dest = operand_def(TensorType)
     indices = var_operand_def(IndexType)
     result = result_def(TensorType)
+    # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
 
-    @classmethod
-    def get(
-        cls,
+    def __init__(
+        self,
         scalar: SSAValue,
         dest: SSAValue,
         indices: Sequence[SSAValue] | SSAValue,
     ):
         if isinstance(indices, SSAValue):
             indices = [indices]
-        return cls(operands=[scalar, dest, indices], result_types=[dest.type])
+        super().__init__(operands=(scalar, dest, indices), result_types=(dest.type,))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -518,7 +518,7 @@ class InsertOp(IRDLOperation):
         )
         parser.parse_punctuation(":")
         parser.parse_type()
-        return cls.get(scalar, dest, indices)
+        return cls(scalar, dest, indices)
 
 
 Tensor = Dialect(
