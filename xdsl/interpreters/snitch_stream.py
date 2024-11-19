@@ -11,10 +11,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters import ptr
-from xdsl.interpreters.stream import (
-    ReadableStream,
-    WritableStream,
-)
+from xdsl.interpreters.utils.stream import ReadableStream, WritableStream
 
 
 @dataclass
