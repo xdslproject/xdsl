@@ -47,7 +47,7 @@ def __():
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
-    from xdsl.interpreters.ptr import TypedPtr
+    from xdsl.interpreters.utils.ptr import TypedPtr
     from xdsl.ir import Attribute, Block, Region, SSAValue
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
