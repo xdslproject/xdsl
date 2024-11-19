@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from abc import ABC, abstractmethod
-from collections.abc import Sequence, Set
+from collections.abc import Generator, Iterator, Sequence, Set
 from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar, cast
@@ -64,6 +64,7 @@ Possible types that a constraint variable can have.
 _T = TypeVar("_T")
 
 
+@dataclass(frozen=True)
 class VarExtractor(Generic[_T], abc.ABC):
     """
     A VarExtractor describes how to extract the value of a constraint variable
@@ -73,6 +74,54 @@ class VarExtractor(Generic[_T], abc.ABC):
 
     @abstractmethod
     def extract_var(self, a: _T) -> ConstraintVariableType: ...
+
+    def flatten(self) -> Iterator[VarExtractor[_T]]:
+        """Helper function to merge extractors, should only be overloaded by MergeExtractor"""
+        yield self
+
+
+@dataclass(frozen=True)
+class MergeExtractor(VarExtractor[_T]):
+    variable: str
+    extractors: tuple[VarExtractor[_T], ...]
+    """Extractors to merge, should not be empty."""
+
+    def extract_var(self, a: _T) -> ConstraintVariableType:
+        res = set(x.extract_var(a) for x in self.extractors)
+        if len(res) == 1:
+            return res.pop()
+        else:
+            raise ValueError(
+                f"Value of variable {self.variable} could not be uniquely extracted.\n"
+                f"Possible values are: {{{', '.join(sorted(str(x) for x in res))}}}"
+            )
+
+    def flatten(self) -> Iterator[VarExtractor[_T]]:
+        return self.extractors.__iter__()
+
+
+def merge_extractors(variable: str, *extractors: VarExtractor[_T]) -> VarExtractor[_T]:
+    """
+    Helper method used for merging dictionaries of extractors.
+    Must not be called with no extractors.
+    """
+    if len(extractors) == 1:
+        return extractors[0]
+    extractor_tuple = tuple(x for ex in extractors for x in ex.flatten())
+    return MergeExtractor(variable, extractor_tuple)
+
+
+def merge_extractor_dicts(
+    *dicts: dict[str, VarExtractor[_T]],
+) -> dict[str, VarExtractor[_T]]:
+    """
+    Merge dictionaries of extractors.
+    The keys of the resulting dictionary is equal to the union of the keys
+    of the input dictionaries, with duplicated values being merged to a
+    single MergeExtractor
+    """
+    keys = set(key for d in dicts for key in d)
+    return {v: merge_extractors(v, *(d[v] for d in dicts if v in d)) for v in keys}
 
 
 @dataclass(frozen=True)
@@ -369,10 +418,9 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             raise VerifyException(exc_msg)
 
     def get_variable_extractors(self) -> dict[str, VarExtractor[AttributeCovT]]:
-        d: dict[str, VarExtractor[AttributeCovT]] = dict()
-        for constr in self.attr_constrs:
-            d |= constr.get_variable_extractors()
-        return d
+        return merge_extractor_dicts(
+            *(constr.get_variable_extractors() for constr in self.attr_constrs)
+        )
 
     def can_infer(self, variables: Set[str]) -> bool:
         return any(constr.can_infer(variables) for constr in self.attr_constrs)
@@ -459,11 +507,14 @@ class ParamAttrConstraint(
     def get_variable_extractors(
         self,
     ) -> dict[str, VarExtractor[ParametrizedAttributeCovT]]:
-        return {
-            v: self._Extractor(i, r)
+        dicts: Generator[dict[str, VarExtractor[ParametrizedAttributeCovT]]] = (
+            {
+                v: self._Extractor(i, r)
+                for v, r in param_constr.get_variable_extractors().items()
+            }
             for i, param_constr in enumerate(self.param_constrs)
-            for v, r in param_constr.get_variable_extractors().items()
-        }
+        )
+        return merge_extractor_dicts(*dicts)
 
     def get_unique_base(self) -> type[Attribute] | None:
         if is_runtime_final(self.base_attr):

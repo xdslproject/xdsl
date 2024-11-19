@@ -35,6 +35,7 @@ from xdsl.irdl import (
     VarResultDef,
     VarSingleBlockRegionDef,
     VarSuccessorDef,
+    merge_extractor_dicts,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
@@ -263,10 +264,10 @@ class FormatParser(BaseParser):
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
-        resolvers = dict[str, VarExtractor[ParsingState]]()
+        extractor_dicts: list[dict[str, VarExtractor[ParsingState]]] = []
         for i, (_, operand_def) in enumerate(self.op_def.operands):
             if self.seen_operand_types[i]:
-                resolvers.update(
+                extractor_dicts.append(
                     {
                         v: self._OperandResultExtractor(i, True, r)
                         for v, r in operand_def.constr.get_variable_extractors().items()
@@ -274,13 +275,13 @@ class FormatParser(BaseParser):
                 )
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
-                resolvers.update(
+                extractor_dicts.append(
                     {
                         v: self._OperandResultExtractor(i, False, r)
                         for v, r in result_def.constr.get_variable_extractors().items()
                     }
                 )
-        return resolvers
+        return merge_extractor_dicts(*extractor_dicts)
 
     def verify_operands(self, variables: Set[str]):
         """
