@@ -18,6 +18,7 @@ from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
     AttrSizedSegments,
+    ConstraintVariableType,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -27,8 +28,7 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
-    Resolver,
-    ResolveType,
+    VarExtractor,
     VariadicDef,
     VarOperandDef,
     VarRegionDef,
@@ -244,12 +244,12 @@ class FormatParser(BaseParser):
                 return
 
     @dataclass(frozen=True)
-    class _OperandResultResolver(Resolver[ParsingState]):
+    class _OperandResultExtractor(VarExtractor[ParsingState]):
         idx: int
         is_operand: bool
-        resolver: Resolver[Sequence[Attribute]]
+        inner: VarExtractor[Sequence[Attribute]]
 
-        def resolve(self, a: ParsingState) -> ResolveType:
+        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
             if self.is_operand:
                 types = a.operand_types[self.idx]
             else:
@@ -257,27 +257,27 @@ class FormatParser(BaseParser):
             assert types is not None
             if isinstance(types, Attribute):
                 types = (types,)
-            return self.resolver.resolve(types)
+            return self.inner.extract_var(types)
 
-    def resolve_types(self) -> dict[str, Resolver[ParsingState]]:
+    def resolve_types(self) -> dict[str, VarExtractor[ParsingState]]:
         """
         Find out which constraint variables can be inferred from the parsed attributes.
         """
-        resolvers = dict[str, Resolver[ParsingState]]()
+        resolvers = dict[str, VarExtractor[ParsingState]]()
         for i, (_, operand_def) in enumerate(self.op_def.operands):
             if self.seen_operand_types[i]:
                 resolvers.update(
                     {
-                        v: self._OperandResultResolver(i, True, r)
-                        for v, r in operand_def.constr.get_resolvers().items()
+                        v: self._OperandResultExtractor(i, True, r)
+                        for v, r in operand_def.constr.get_variable_extractors().items()
                     }
                 )
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
                 resolvers.update(
                     {
-                        v: self._OperandResultResolver(i, False, r)
-                        for v, r in result_def.constr.get_resolvers().items()
+                        v: self._OperandResultExtractor(i, False, r)
+                        for v, r in result_def.constr.get_variable_extractors().items()
                     }
                 )
         return resolvers

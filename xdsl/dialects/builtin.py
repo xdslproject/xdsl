@@ -47,14 +47,14 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
-    Resolver,
-    ResolveType,
+    VarExtractor,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -1649,22 +1649,25 @@ class TensorOrMemrefOf(
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
     @dataclass(frozen=True)
-    class _Resolver(Resolver[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]):
-        resolver: Resolver[AttributeInvT]
+    class _Extractor(
+        VarExtractor[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]
+    ):
+        inner: VarExtractor[AttributeInvT]
 
-        def resolve(
+        def extract_var(
             self, a: TensorType[AttributeInvT] | MemRefType[AttributeInvT]
-        ) -> ResolveType:
-            return self.resolver.resolve(a.element_type)
+        ) -> ConstraintVariableType:
+            return self.inner.extract_var(a.element_type)
 
     def get_resolvers(
         self,
     ) -> dict[
         str,
-        Resolver[TensorType[AttributeCovT] | MemRefType[AttributeCovT]],
+        VarExtractor[TensorType[AttributeCovT] | MemRefType[AttributeCovT]],
     ]:
         return {
-            v: self._Resolver(r) for v, r in self.elem_constr.get_resolvers().items()
+            v: self._Extractor(r)
+            for v, r in self.elem_constr.get_variable_extractors().items()
         }
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:

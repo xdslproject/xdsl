@@ -21,13 +21,13 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
+    ConstraintVariableType,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
-    Resolver,
-    ResolveType,
     Successor,
+    VarExtractor,
     VariadicDef,
     VarIRConstruct,
 )
@@ -53,7 +53,7 @@ class ParsingState:
     successors: list[Successor | None | Sequence[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
-    variables: dict[str, ResolveType]
+    variables: dict[str, ConstraintVariableType]
 
     def __init__(self, op_def: OpDef):
         self.operands = [None] * len(op_def.operands)
@@ -94,8 +94,8 @@ class FormatProgram:
     stmts: tuple[FormatDirective, ...]
     """The statements composing the program. They are executed in order."""
 
-    resolvers: dict[str, Resolver[ParsingState]]
-    """Resolvers for all type variables."""
+    extractors: dict[str, VarExtractor[ParsingState]]
+    """Extractors for all type variables from the parsing state."""
 
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
@@ -171,7 +171,7 @@ class FormatProgram:
         )
 
     def resolve_constraint_variables(self, state: ParsingState):
-        state.variables = {v: r.resolve(state) for v, r in self.resolvers.items()}
+        state.variables = {v: r.extract_var(state) for v, r in self.extractors.items()}
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
