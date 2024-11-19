@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator, Sequence, Set
-from dataclasses import dataclass, field
+from dataclasses import KW_ONLY, dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar, cast
 
@@ -32,17 +32,26 @@ class ConstraintContext:
     _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
     """The assignment of constraint range variables."""
 
+    _int_variables: dict[str, int] = field(default_factory=dict)
+    """The assignment of constraint int variables."""
+
     def get_variable(self, key: str) -> Attribute | None:
         return self._variables.get(key)
 
     def get_range_variable(self, key: str) -> tuple[Attribute, ...] | None:
         return self._range_variables.get(key)
 
+    def get_int_variable(self, key: str) -> int | None:
+        return self._int_variables.get(key)
+
     def set_variable(self, key: str, attr: Attribute):
         self._variables[key] = attr
 
     def set_range_variable(self, key: str, attr: tuple[Attribute, ...]):
         self._range_variables[key] = attr
+
+    def set_int_variable(self, key: str, i: int):
+        self._int_variables[key] = i
 
     @property
     def variables(self) -> Sequence[str]:
@@ -52,17 +61,26 @@ class ConstraintContext:
     def range_variables(self) -> Sequence[str]:
         return tuple(self._range_variables.keys())
 
+    @property
+    def int_variables(self) -> Sequence[str]:
+        return tuple(self._int_variables.keys())
+
     def copy(self):
-        return ConstraintContext(self._variables.copy(), self._range_variables.copy())
+        return ConstraintContext(
+            self._variables.copy(),
+            self._range_variables.copy(),
+            self._int_variables.copy(),
+        )
 
     def update(self, other: ConstraintContext):
         self._variables.update(other._variables)
         self._range_variables.update(other._range_variables)
+        self._int_variables.update(other._int_variables)
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
 
-ConstraintVariableType: TypeAlias = Attribute | Sequence[Attribute]
+ConstraintVariableType: TypeAlias = Attribute | Sequence[Attribute] | int
 """
 Possible types that a constraint variable can have.
 """
@@ -652,6 +670,102 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
 
 
 @dataclass(frozen=True)
+class IntConstraint(ABC):
+    """Constrain an integer to certain values."""
+
+    @abstractmethod
+    def verify(
+        self,
+        i: int,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        """
+        Check if the integer satisfies the constraint, or raise an exception otherwise.
+        """
+        ...
+
+    def get_length_extractors(
+        self,
+    ) -> dict[str, VarExtractor[int]]:
+        """
+        Get a dictionary of variables that can be solved from this attribute.
+        """
+        return dict()
+
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        """
+        Check if there is enough information to infer the integer given the
+        constraint variables that are already set.
+        """
+        # By default, we cannot infer anything.
+        return False
+
+    def infer(self, context: InferenceContext) -> int:
+        """
+        Infer the attribute given the the values for all variables.
+
+        Raises an exception if the attribute cannot be inferred. If `can_infer`
+        returns `True` with the given constraint variables, this method should
+        not raise an exception.
+        """
+        raise ValueError("Cannot infer attribute from constraint")
+
+
+class AnyInt(IntConstraint):
+    """
+    Constraint that is verified by all integers.
+    """
+
+    def verify(self, i: int, constraint_context: ConstraintContext) -> None:
+        pass
+
+
+@dataclass(frozen=True)
+class IntVarConstraint(IntConstraint):
+    """
+    Constrain an integer with the given constraint, and constrain all occurences
+    of this constraint (i.e, sharing the same name) to be equal.
+    """
+
+    name: str
+    """The variable name. All uses of that name refer to the same variable."""
+
+    constraint: IntConstraint
+    """The constraint that the variable must satisfy."""
+
+    def verify(
+        self,
+        i: int,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        if self.name in constraint_context.int_variables:
+            if i != constraint_context.get_int_variable(self.name):
+                raise VerifyException(
+                    f"integer {constraint_context.get_int_variable(self.name)} expected from int variable "
+                    f"'{self.name}', but got {i}"
+                )
+        else:
+            self.constraint.verify(i, constraint_context)
+            constraint_context.set_int_variable(self.name, i)
+
+    def get_length_extractors(
+        self,
+    ) -> dict[str, VarExtractor[int]]:
+        return {self.name: IdExtractor()}
+
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.name in var_constraint_names
+
+    def infer(
+        self,
+        context: InferenceContext,
+    ) -> int:
+        v = context.variables[self.name]
+        assert isinstance(v, int)
+        return v
+
+
+@dataclass(frozen=True)
 class GenericRangeConstraint(Generic[AttributeCovT], ABC):
     """Constrain a range of attributes to certain values."""
 
@@ -677,6 +791,14 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         """
         return {}
 
+    def get_length_extractors(
+        self,
+    ) -> dict[str, VarExtractor[int]]:
+        """
+        Get a dictionary of variables that can be solved using the length of the range.
+        """
+        return dict()
+
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         """
         Check if there is enough information to infer the attribute given the
@@ -698,10 +820,6 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         not raise an exception.
         """
         raise ValueError("Cannot infer attribute from constraint")
-
-    def get_unique_base(self) -> type[Attribute] | None:
-        """Get the unique base type that can satisfy the constraint, if any."""
-        return None
 
 
 RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
@@ -758,6 +876,8 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
     """
 
     constr: GenericAttrConstraint[AttributeCovT]
+    _: KW_ONLY
+    length: IntConstraint = field(default_factory=AnyInt)
 
     def verify(
         self,
@@ -766,9 +886,13 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
     ) -> None:
         for a in attrs:
             self.constr.verify(a, constraint_context)
+        self.length.verify(len(attrs), constraint_context)
+
+    def get_length_extractors(self) -> dict[str, VarExtractor[int]]:
+        return self.length.get_length_extractors()
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
-        return length_known and self.constr.can_infer(var_constraint_names)
+        return (length_known or self.length.can_infer(var_constraint_names)) and self.constr.can_infer(var_constraint_names)
 
     def infer(
         self,
@@ -776,7 +900,8 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
         *,
         length: int | None,
     ) -> Sequence[AttributeCovT]:
-        assert length is not None
+        if length is None:
+            length = self.length.infer(context)
         attr = self.constr.infer(context)
         return (attr,) * length
 
@@ -834,7 +959,7 @@ def range_constr_coercion(
 ) -> GenericRangeConstraint[AttributeCovT]:
     if isinstance(attr, GenericRangeConstraint):
         return attr
-    return RangeOf(attr_constr_coercion(attr))
+    return RangeOf(attr_constr_coercion(attr), length=AnyInt())
 
 
 def single_range_constr_coercion(
