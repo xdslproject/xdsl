@@ -328,11 +328,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return X86
 
-    def get_arm():
-        from xdsl.dialects.arm import ARM
-
-        return ARM
-
     def get_transform():
         from xdsl.dialects.transform import Transform
 
