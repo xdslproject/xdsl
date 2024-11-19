@@ -437,6 +437,90 @@ class InsertSliceOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ExtractOp(IRDLOperation):
+    name = "tensor.extract"
+
+    tensor = operand_def(TensorType)
+    indices = var_operand_def(IndexType)
+    result = result_def(Attribute)
+
+    @classmethod
+    def get(
+        cls,
+        tensor: SSAValue,
+        indices: Sequence[SSAValue] | SSAValue,
+        result_type: Attribute,
+    ):
+        if isinstance(indices, SSAValue):
+            indices = [indices]
+        return cls(operands=[tensor, indices], result_types=[result_type])
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.tensor)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_ssa_value)
+        printer.print_string("]")
+        printer.print_string(" : ")
+        printer.print_attribute(self.tensor.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        tensor = parser.parse_operand()
+        indices = parser.parse_comma_separated_list(
+            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
+        )
+        parser.parse_punctuation(":")
+        source_tensor_type = parser.parse_type()
+        tensor_type = cast(TensorType[Attribute], source_tensor_type)
+        return cls.get(tensor, indices, tensor_type.get_element_type())
+
+
+@irdl_op_definition
+class InsertOp(IRDLOperation):
+    name = "tensor.insert"
+
+    scalar = operand_def(Attribute)
+    dest = operand_def(TensorType)
+    indices = var_operand_def(IndexType)
+    result = result_def(TensorType)
+
+    @classmethod
+    def get(
+        cls,
+        scalar: SSAValue,
+        dest: SSAValue,
+        indices: Sequence[SSAValue] | SSAValue,
+    ):
+        if isinstance(indices, SSAValue):
+            indices = [indices]
+        return cls(operands=[scalar, dest, indices], result_types=[dest.type])
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.scalar)
+        printer.print_string(" into ")
+        printer.print_ssa_value(self.dest)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_ssa_value)
+        printer.print_string("]")
+        printer.print_string(" : ")
+        printer.print_attribute(self.dest.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        scalar = parser.parse_operand()
+        parser.parse_characters("into")
+        dest = parser.parse_operand()
+        indices = parser.parse_comma_separated_list(
+            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
+        )
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        return cls.get(scalar, dest, indices)
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -447,6 +531,8 @@ Tensor = Dialect(
         InsertSliceOp,
         ReshapeOp,
         CollapseShapeOp,
+        ExtractOp,
+        InsertOp,
     ],
     [],
 )
