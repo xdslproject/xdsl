@@ -6,8 +6,8 @@
 %dim2 = "tensor.dim"(%tensor, %index) {"hello" = "world"}: (tensor<?x?xf32>, index) -> index
 %cast1 = "tensor.cast"(%tensor) : (tensor<?x?xf32>) -> tensor<4x4xf32>
 %cast2 = "tensor.cast"(%tensor) {"hello" = "world"} : (tensor<?x?xf32>) -> tensor<4x4xf32>
-%extract1 = "tensor.extract"(%tensor, %index, %index1) : (tensor<?x?xf32>, index, index) -> f32
-%insert1 = "tensor.insert"(%extract1, %tensor, %index, %index1) : (f32, tensor<?x?xf32>, index, index) -> tensor<?x?xf32>
+%extract1 = tensor.extract %tensor[%index, %index1] : tensor<?x?xf32>
+%insert1 = tensor.insert %extract1 into %tensor[%index, %index1] : tensor<?x?xf32>
 
 
 // CHECK: builtin.module {
