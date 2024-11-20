@@ -24,7 +24,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils.fast_math import FastMathAttrBase
+from xdsl.dialects.utils import FastMathAttrBase
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
