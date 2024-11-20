@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
+    AnyDenseElement,
     AnyFloat,
     AnyFloatConstr,
     AnyIntegerAttr,
@@ -132,7 +133,9 @@ class Constant(IRDLOperation):
     @overload
     def __init__(
         self,
-        value: AnyIntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: AnyIntegerAttr
+        | FloatAttr[AnyFloat]
+        | DenseIntOrFPElementsAttr[AnyDenseElement],
         value_type: None = None,
     ) -> None: ...
 
@@ -179,7 +182,7 @@ class Constant(IRDLOperation):
             value,
             base(AnyIntegerAttr)
             | base(FloatAttr[AnyFloat])
-            | base(DenseIntOrFPElementsAttr),
+            | base(DenseIntOrFPElementsAttr[AnyDenseElement]),
         ):
             parser.raise_error("Invalid constant value", p0, parser.pos)
 

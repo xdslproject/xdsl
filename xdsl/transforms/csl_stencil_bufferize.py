@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyDenseElement,
     AnyMemRefType,
     AnyTensorType,
     AnyTensorTypeConstr,
@@ -24,6 +25,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.irdl import base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -368,10 +370,10 @@ class ArithConstBufferize(RewritePattern):
     def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter, /):
         if not isa(op.result.type, TensorType[Attribute]):
             return
-        assert isinstance(op.value, DenseIntOrFPElementsAttr)
-        assert isa(op.value.type, TensorType[Attribute])
-        typ = DenseIntOrFPElementsAttr(
-            [tensor_to_memref_type(op.value.type), op.value.data]
+        assert isattr(v := op.value, base(DenseIntOrFPElementsAttr[AnyDenseElement]))
+        assert isa(v.type, TensorType[Attribute])
+        typ = DenseIntOrFPElementsAttr[v.get_element_type()](
+            [tensor_to_memref_type(v.type), v.data]
         )
         rewriter.replace_matched_op(
             [

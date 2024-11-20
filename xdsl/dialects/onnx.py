@@ -8,6 +8,7 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     Any,
+    AnyDenseElement,
     AnyFloat,
     AnyFloatConstr,
     AnyIntegerAttr,
@@ -44,6 +45,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.isattr import isattr
 
 
 def verify_unidirectional_broadcast_shape(
@@ -591,7 +593,7 @@ class Constant(IRDLOperation):
     name = "onnx.Constant"
     output = result_def(AnyTensorType)
 
-    value = opt_attr_def(DenseIntOrFPElementsAttr)
+    value = opt_attr_def(DenseIntOrFPElementsAttr[AnyDenseElement])
     value_float = opt_attr_def(FloatAttr[Float32Type])
     value_floats = opt_attr_def(ArrayAttr[FloatAttr[Float32Type]])
     value_int = opt_attr_def(IntegerAttr[IntegerType])
@@ -664,7 +666,7 @@ class Constant(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         v = parser.parse_attribute()
-        if not isinstance(v, DenseIntOrFPElementsAttr):
+        if not isattr(v, base(DenseIntOrFPElementsAttr[AnyDenseElement])):
             raise NotImplementedError()
         constant = cls(v, None, None, None, None, None, None, v.type)
         return constant

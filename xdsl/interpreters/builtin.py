@@ -2,6 +2,7 @@ from typing import Any, Literal, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
+    AnyDenseElement,
     AnyFloatAttr,
     AnyIntegerAttr,
     Float32Type,
@@ -19,7 +20,9 @@ from xdsl.interpreter import (
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute
+from xdsl.irdl import base
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 def xtype_for_el_type(
@@ -85,7 +88,7 @@ class BuiltinFunctions(InterpreterFunctions):
         attr: Attribute,
         type_attr: builtin.MemRefType[Any],
     ) -> ShapedArray[Any]:
-        assert isinstance(attr, builtin.DenseIntOrFPElementsAttr)
+        assert isattr(attr, base(builtin.DenseIntOrFPElementsAttr[AnyDenseElement]))
         shape = attr.get_shape()
         data = [el.value.data for el in attr.data]
         data_ptr = ptr.TypedPtr[Any].new(

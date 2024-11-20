@@ -13,6 +13,7 @@ from xdsl.dialects.arith import (
     Subf,
 )
 from xdsl.dialects.builtin import (
+    AnyDenseElement,
     AnyFloat,
     ArrayAttr,
     ContainerType,
@@ -46,7 +47,7 @@ from xdsl.ir import (
     OpResult,
     SSAValue,
 )
-from xdsl.irdl import Operand
+from xdsl.irdl import Operand, base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -59,6 +60,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
@@ -423,7 +425,9 @@ class ConstOpUpdateShape(RewritePattern):
         if is_tensor(op.result.type):
             if typ := get_required_result_type(op):
                 if needs_update_shape(op.result.type, typ):
-                    assert isinstance(op.value, DenseIntOrFPElementsAttr)
+                    assert isattr(
+                        op.value, base(DenseIntOrFPElementsAttr[AnyDenseElement])
+                    )
                     rewriter.replace_matched_op(
                         Constant(DenseIntOrFPElementsAttr([typ, op.value.data]))
                     )
