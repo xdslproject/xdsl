@@ -1213,10 +1213,7 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
             and attr.get_element_type() == other.get_element_type()
         )
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        constraint_context = constraint_context or ConstraintContext()
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if self.name in constraint_context.variables:
             if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
                 attr, constraint_context.get_variable(self.name)
