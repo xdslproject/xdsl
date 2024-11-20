@@ -235,7 +235,12 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     if issubclass(cls, TypedAttribute):
         parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
         type_index = parameter_names.index("type")
-        new_fields["get_type_index"] = lambda: type_index
+
+        @classmethod
+        def get_type_index(cls: Any) -> int:
+            return type_index
+
+        new_fields["get_type_index"] = get_type_index
 
     return runtime_final(
         dataclass(frozen=True, init=False)(

@@ -30,7 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils.format import (
+from xdsl.dialects.utils import (
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
 )

@@ -33,7 +33,7 @@ from xdsl.dialects.riscv import (
     print_immediate_value,
     si12,
 )
-from xdsl.dialects.utils.format import (
+from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
     print_assignment,

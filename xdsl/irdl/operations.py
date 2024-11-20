@@ -356,10 +356,7 @@ class VarOperandDef(OperandDef, VariadicDef):
 
     def __init__(
         self,
-        attr: Attribute
-        | type[Attribute]
-        | AttrConstraint
-        | GenericRangeConstraint[Attribute],
+        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint,
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -386,13 +383,10 @@ class ResultDef(OperandOrResultDef):
     """The result constraint."""
 
     def __init__(
-        self,
-        attr: Attribute
-        | type[Attribute]
-        | AttrConstraint
-        | GenericRangeConstraint[Attribute],
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
     ):
-        self.constr = range_constr_coercion(attr)
+        assert not isinstance(attr, GenericRangeConstraint)
+        self.constr = single_range_constr_coercion(attr)
 
 
 @dataclass(init=False)
@@ -400,11 +394,7 @@ class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
 
     def __init__(
-        self,
-        attr: Attribute
-        | type[Attribute]
-        | AttrConstraint
-        | GenericRangeConstraint[Attribute],
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -530,36 +520,24 @@ class _OpDefField(Generic[_ClsT]):
 
 
 class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: (
-        RangeConstraint
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-        | ConstraintVar
-    )
+    param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
 
     def __init__(
         self,
         cls: type[_ClsT],
-        param: RangeConstraint
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-        | ConstraintVar,
+        param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar,
     ):
         super().__init__(cls)
         self.param = param
 
 
 class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
+    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
 
     def __init__(
         self,
         cls: type[_ClsT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     ):
         super().__init__(cls)
         self.param = param
@@ -589,7 +567,7 @@ class _AttrOrPropFieldDef(
     def __init__(
         self,
         cls: type[AttrOrPropInvT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
         ir_name: str | None = None,
         default_value: Attribute | None = None,
     ):
@@ -637,9 +615,7 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
 
 
 def result_def(
-    constraint: (
-        AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
-    ) = Attribute,
+    constraint: (AttrConstraint | Attribute | type[Attribute] | TypeVar) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -738,12 +714,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: (
-        type[AttributeInvT]
-        | TypeVar
-        | GenericAttrConstraint[AttributeInvT]
-        | ConstraintVar
-    ),
+    constraint: (type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT]),
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -803,9 +774,7 @@ def opt_attr_def(
 
 
 def operand_def(
-    constraint: (
-        AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
-    ) = Attribute,
+    constraint: (AttrConstraint | Attribute | type[Attribute] | TypeVar) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1160,14 +1129,14 @@ class OpDef:
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_range_constraint(
                     pyrdl_constr: (
-                        GenericRangeConstraint[Attribute]
+                        RangeConstraint
                         | AttrConstraint
                         | Attribute
                         | type[Attribute]
                         | TypeVar
                         | ConstraintVar
                     ),
-                ) -> GenericRangeConstraint[Attribute]:
+                ) -> RangeConstraint:
                     if isinstance(pyrdl_constr, GenericRangeConstraint):
                         return pyrdl_constr
                     return RangeOf(get_constraint(pyrdl_constr))
