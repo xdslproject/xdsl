@@ -40,7 +40,7 @@ class DSMovOp(ARMOperation):
 
     def __init__(
         self,
-        operand2: Operation | SSAValue,
+        s: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
         rd: IntRegisterType,
