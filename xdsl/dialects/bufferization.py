@@ -28,6 +28,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    opt_result_def,
     result_def,
     var_operand_def,
 )
@@ -208,15 +209,15 @@ class ToMemrefOp(IRDLOperation):
 class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
-    T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
-    source = operand_def(T)
-    dest = operand_def(T)
-    result = result_def(T)
+    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    source = operand_def(TensorFromMemrefConstraint(T))
+    dest = operand_def(T | TensorFromMemrefConstraint(T))
+    result = opt_result_def(TensorFromMemrefConstraint(T))
 
     restrict = opt_prop_def(UnitAttr)
     writable = opt_prop_def(UnitAttr)
 
-    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` `(` type($source) `,` type($dest) `)` `->` type($result)"
+    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"
 
 
 Bufferization = Dialect(
