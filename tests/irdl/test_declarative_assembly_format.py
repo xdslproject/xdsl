@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     I32,
     BoolAttr,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     UnitAttr,
 )
@@ -62,7 +63,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError
+from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError, VerifyException
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -1748,10 +1749,12 @@ def test_non_verifying_inference():
     %1 = test.one_operand_one_result_nested %0 : i32"""
     )
     with pytest.raises(
-        ParseError,
-        match="Verification error while inferring operation type: ",
+        VerifyException,
+        match="i32 should be of base attribute test.param_one",
     ):
-        check_roundtrip(program, ctx)
+        parser = Parser(ctx, program)
+        while (op := parser.parse_optional_operation()) is not None:
+            op.verify()
 
 
 def test_variadic_length_inference():
@@ -2213,3 +2216,103 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     printer.print_op(parsed)
 
     assert generic == stream.getvalue()
+
+
+################################################################################
+#                                Extractors                                    #
+################################################################################
+
+
+@irdl_op_definition
+class AllOfExtractorOp(IRDLOperation):
+    name = "test.all_of_extractor"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    lhs = operand_def(T & MemRefType.constr(element_type=T))
+    rhs = operand_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+
+
+def test_all_of_extraction_fails():
+    ctx = MLContext()
+    ctx.load_op(AllOfExtractorOp)
+    ctx.load_dialect(Test)
+    parser = Parser(
+        ctx,
+        '%0 = "test.op"() : () -> memref<10xindex>\ntest.all_of_extractor %0, %0 : memref<10xindex>',
+    )
+    parser.parse_operation()
+    with pytest.raises(
+        ValueError,
+        match="Value of variable T could not be uniquely extracted.\n"
+        "Possible values are: {index, memref<10xindex>}",
+    ):
+        parser.parse_operation()
+
+
+@irdl_attr_definition
+class DoubleParamAttr(ParametrizedAttribute, TypeAttribute):
+    """An attribute with two unbounded attribute parameters."""
+
+    name = "test.param"
+
+    param1: ParameterDef[Attribute]
+    param2: ParameterDef[Attribute]
+
+
+@irdl_op_definition
+class ParamExtractorOp(IRDLOperation):
+    name = "test.param_extractor"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    lhs = operand_def(ParamAttrConstraint(DoubleParamAttr, (T, T)))
+    rhs = operand_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+
+
+def test_param_extraction_fails():
+    ctx = MLContext()
+    ctx.load_attr(DoubleParamAttr)
+    ctx.load_op(ParamExtractorOp)
+    ctx.load_dialect(Test)
+    parser = Parser(
+        ctx,
+        '%0 = "test.op"() : () -> !test.param<i32,i64>\ntest.param_extractor %0, %0 : !test.param<i32,i64>',
+    )
+    parser.parse_operation()
+    with pytest.raises(
+        ValueError,
+        match="Value of variable T could not be uniquely extracted.\n"
+        "Possible values are: {i32, i64}",
+    ):
+        parser.parse_operation()
+
+
+@irdl_op_definition
+class MultipleOperandExtractorOp(IRDLOperation):
+    name = "test.multiple_operand_extractor"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)"
+
+
+def test_multiple_operand_extraction_fails():
+    ctx = MLContext()
+    ctx.load_op(MultipleOperandExtractorOp)
+    ctx.load_dialect(Test)
+    parser = Parser(
+        ctx,
+        '%0, %1 = "test.op"() : () -> (index, i32)\ntest.multiple_operand_extractor %0, %1 : index, i32',
+    )
+    parser.parse_operation()
+    with pytest.raises(
+        ValueError,
+        match="Value of variable T could not be uniquely extracted.\n"
+        "Possible values are: {i32, index}",
+    ):
+        parser.parse_operation()

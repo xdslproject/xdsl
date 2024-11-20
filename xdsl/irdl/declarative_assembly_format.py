@@ -21,18 +21,18 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
-    ConstraintContext,
+    ConstraintVariableType,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
     OptionalDef,
     Successor,
+    VarExtractor,
     VariadicDef,
     VarIRConstruct,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.lexer import PunctuationSpelling
 
 OperandOrResult = Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT]
@@ -53,7 +53,7 @@ class ParsingState:
     successors: list[Successor | None | Sequence[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
-    constraint_context: ConstraintContext
+    variables: dict[str, ConstraintVariableType]
 
     def __init__(self, op_def: OpDef):
         self.operands = [None] * len(op_def.operands)
@@ -63,7 +63,7 @@ class ParsingState:
         self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
-        self.constraint_context = ConstraintContext()
+        self.variables = {}
 
 
 @dataclass
@@ -94,6 +94,9 @@ class FormatProgram:
     stmts: tuple[FormatDirective, ...]
     """The statements composing the program. They are executed in order."""
 
+    extractors: dict[str, VarExtractor[ParsingState]]
+    """Extractors for all type variables from the parsing state."""
+
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
         """
@@ -120,7 +123,7 @@ class FormatProgram:
             stmt.parse(parser, state)
 
         # Get constraint variables from the parsed operand and result types
-        self.assign_constraint_variables(parser, state, op_def)
+        self.resolve_constraint_variables(state)
 
         # Infer operand types that should be inferred
         unresolved_operands = state.operands
@@ -167,35 +170,8 @@ class FormatProgram:
             successors=state.successors,
         )
 
-    def assign_constraint_variables(
-        self, parser: Parser, state: ParsingState, op_def: OpDef
-    ):
-        """
-        Assign constraint variables with values got from the
-        parsed operand and result types.
-        """
-        if any(type is None for type in (*state.operand_types, *state.result_types)):
-            try:
-                for (_, operand_def), operand_type in zip(
-                    op_def.operands, state.operand_types, strict=True
-                ):
-                    if operand_type is None:
-                        continue
-                    if isinstance(operand_type, Attribute):
-                        operand_type = (operand_type,)
-                    operand_def.constr.verify(operand_type, state.constraint_context)
-                for (_, result_def), result_type in zip(
-                    op_def.results, state.result_types, strict=True
-                ):
-                    if result_type is None:
-                        continue
-                    if isinstance(result_type, Attribute):
-                        result_type = (result_type,)
-                    result_def.constr.verify(result_type, state.constraint_context)
-            except VerifyException as e:
-                parser.raise_error(
-                    "Verification error while inferring operation type: " + str(e)
-                )
+    def resolve_constraint_variables(self, state: ParsingState):
+        state.variables = {v: r.extract_var(state) for v, r in self.extractors.items()}
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
@@ -209,7 +185,8 @@ class FormatProgram:
                 operand = state.operands[i]
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
-                    range_length, state.constraint_context
+                    range_length,
+                    state.variables,
                 )
                 resolved_operand_type: Attribute | Sequence[Attribute]
                 if isinstance(operand_def, OptionalDef):
@@ -242,7 +219,8 @@ class FormatProgram:
                     )
                 range_length = 1
                 inferred_result_types = result_def.constr.infer(
-                    range_length, state.constraint_context
+                    range_length,
+                    state.variables,
                 )
                 resolved_result_type = inferred_result_types[0]
                 state.result_types[i] = resolved_result_type
