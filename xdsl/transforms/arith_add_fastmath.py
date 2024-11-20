@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.utils import FastMathFlag
+from xdsl.dialects.utils.fast_math import FastMathFlag
 from xdsl.passes import MLContext, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

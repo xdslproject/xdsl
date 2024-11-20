@@ -24,7 +24,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     i64,
 )
-from xdsl.dialects.utils import (
+from xdsl.dialects.utils.format import (
     AbstractYieldOperation,
 )
 from xdsl.ir import (

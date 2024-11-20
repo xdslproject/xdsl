@@ -2,7 +2,7 @@ from typing import cast
 
 from xdsl.dialects import riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.dialects.utils import FastMathFlag
+from xdsl.dialects.utils.fast_math import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,

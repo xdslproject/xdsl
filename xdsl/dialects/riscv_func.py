@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
 )
-from xdsl.dialects.utils import (
+from xdsl.dialects.utils.format import (
     parse_call_op_like,
     parse_func_op_like,
     print_call_op_like,

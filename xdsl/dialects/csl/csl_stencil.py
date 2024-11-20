@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     TensorType,
 )
 from xdsl.dialects.experimental import dmp
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils.format import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,

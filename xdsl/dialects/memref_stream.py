@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     StringAttr,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils.format import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -370,7 +370,7 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(AnyMemRefTypeConstr | stream.WritableStreamType.constr())
+    outputs = var_operand_def(AnyMemRefTypeConstr | stream.AnyWritableStreamTypeConstr)
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
