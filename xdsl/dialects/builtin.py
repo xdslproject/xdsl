@@ -501,17 +501,13 @@ class IntegerAttr(
                 f"range [{min_value}, {max_value})"
             )
 
-    @classmethod
+    @staticmethod
     def parse_with_type(
-        cls: type[IntegerAttr[_IntegerAttrType]],
         parser: AttrParser,
-        type: Attribute,
-    ) -> IntegerAttr[_IntegerAttrType]:
-        assert isinstance(type, IntegerType) or isinstance(type, IndexType)
-        return cast(
-            IntegerAttr[_IntegerAttrType],
-            IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type),
-        )
+        type: AttributeInvT,
+    ) -> TypedAttribute[AttributeInvT]:
+        assert isinstance(type, IntegerType | IndexType)
+        return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
