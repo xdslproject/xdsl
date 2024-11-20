@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import ClassVar, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
@@ -12,6 +12,8 @@ from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     I32,
     BoolAttr,
+    Float64Type,
+    FloatAttr,
     IntegerAttr,
     MemRefType,
     ModuleOp,
@@ -603,20 +605,21 @@ def test_optional_attribute(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            "test.typed_attr 3",
-            '"test.typed_attr"() {"attr" = 3 : i32} : () -> ()',
+            "test.typed_attr 3 3.000000e+00",
+            '"test.typed_attr"() {"attr" = 3 : i32, "float_attr" = 3.000000e+00 : f64} : () -> ()',
         ),
     ],
 )
 def test_typed_attribute_variable(program: str, generic_program: str):
-    """Test the parsing of optional operands"""
+    """Test the parsing of typed attributes"""
 
     @irdl_op_definition
     class TypedAttributeOp(IRDLOperation):
         name = "test.typed_attr"
         attr = attr_def(IntegerAttr[I32])
+        float_attr = attr_def(FloatAttr[Annotated[Float64Type, Float64Type()]])
 
-        assembly_format = "$attr attr-dict"
+        assembly_format = "$attr $float_attr attr-dict"
 
     ctx = MLContext()
     ctx.load_op(TypedAttributeOp)
