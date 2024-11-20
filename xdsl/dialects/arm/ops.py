@@ -78,10 +78,10 @@ class DSMovOp(ARMInstruction):
 
     def __init__(
         self,
+        d: IntRegisterType,
         s: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        d: IntRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
