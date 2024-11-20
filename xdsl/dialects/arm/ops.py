@@ -43,7 +43,7 @@ class DSMovOp(ARMOperation):
         s: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        rd: IntRegisterType,
+        d: IntRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
