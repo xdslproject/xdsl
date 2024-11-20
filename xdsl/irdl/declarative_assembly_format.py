@@ -900,7 +900,7 @@ class AttributeVariable(FormatDirective):
             attr = parser.parse_attribute()
         elif self.unique_type is not None:
             assert issubclass(unique_base, TypedAttribute)
-            attr = unique_base.parse_with_type(parser, self.unique_type)  # pyright: ignore[reportUnknownVariableType]
+            attr = unique_base.parse_with_type(parser, self.unique_type)
         elif issubclass(
             unique_base,
             ParametrizedAttribute,
