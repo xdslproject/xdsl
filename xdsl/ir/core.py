@@ -611,15 +611,14 @@ class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
     An attribute with a type.
     """
 
-    @staticmethod
-    def get_type_index() -> int: ...
-
     @classmethod
+    def get_type_index(cls) -> int: ...
+
+    @staticmethod
     def parse_with_type(
-        cls: type[TypedAttribute[AttributeCovT]],
         parser: AttrParser,
-        type: Attribute,
-    ) -> TypedAttribute[AttributeCovT]:
+        type: AttributeInvT,
+    ) -> TypedAttribute[AttributeInvT]:
         """
         Parse the attribute with the given type.
         """

@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from typing_extensions import Self
 
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
-from xdsl.dialects.utils.format import (
+from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
     print_assignment,

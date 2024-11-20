@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Sequence, Set
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -20,6 +20,7 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintContext,
+    ConstraintVariableType,
     GenericAttrConstraint,
     IRDLOperation,
     VarConstraint,
@@ -48,27 +49,27 @@ class TensorFromMemrefConstraint(
         MemRefType[Attribute] | UnrankedMemrefType[Attribute]
     ]
 
-    def can_infer(self, constraint_names: set[str]) -> bool:
-        return self.memref_constraint.can_infer(constraint_names)
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.memref_constraint.can_infer(var_constraint_names)
 
-    def infer(self, constraint_context: ConstraintContext) -> Attribute:
-        memref_type = self.memref_constraint.infer(constraint_context)
-        if isa(memref_type, MemRefType[Attribute]):
+    def infer(
+        self, variables: dict[str, ConstraintVariableType]
+    ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
+        memref_type = self.memref_constraint.infer(variables)
+        if isinstance(memref_type, MemRefType):
             return TensorType(memref_type.element_type, memref_type.shape)
-        assert isa(memref_type, UnrankedMemrefType[Attribute])
         return UnrankedTensorType(memref_type.element_type)
-
-    def get_resolved_variables(self) -> set[str]:
-        return self.memref_constraint.get_resolved_variables()
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isa(attr, TensorType[Attribute]):
             memref_type = MemRefType(attr.element_type, attr.shape)
-            return self.memref_constraint.verify(memref_type, constraint_context)
-        if isa(attr, UnrankedTensorType[Attribute]):
+        elif isa(attr, UnrankedTensorType[Attribute]):
             memref_type = UnrankedMemrefType.from_type(attr.element_type)
-            return self.memref_constraint.verify(memref_type, constraint_context)
-        raise VerifyException(f"Expected tensor or unranked tensor type, got {attr}")
+        else:
+            raise VerifyException(
+                f"Expected tensor or unranked tensor type, got {attr}"
+            )
+        return self.memref_constraint.verify(memref_type, constraint_context)
 
 
 @irdl_op_definition
