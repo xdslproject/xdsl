@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     SignlessIntegerConstraint,
     i64,
 )
-from xdsl.dialects.utils.format import (
+from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
     print_assignment,
