@@ -561,13 +561,6 @@ class Printer:
                 self.print_identifier_or_string_literal(ref.data)
             return
 
-        if isinstance(attribute, FloatAttr):
-            attr = cast(AnyFloatAttr, attribute)
-            self.print_float(attr)
-            self.print_string(" : ")
-            self.print_attribute(attr.type)
-            return
-
         # Complex types have MLIR shorthands but XDSL does not.
         if isinstance(attribute, ComplexType):
             self.print_string("complex<")
