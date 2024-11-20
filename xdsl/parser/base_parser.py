@@ -362,7 +362,7 @@ class BaseParser:
     def parse_optional_float(
         self,
         *,
-        allow_negative: bool = False,
+        allow_negative: bool = True,
     ) -> float | None:
         """
         Parse a (possibly negative) float, if present.
@@ -378,7 +378,7 @@ class BaseParser:
     def parse_float(
         self,
         *,
-        allow_negative: bool = False,
+        allow_negative: bool = True,
     ) -> float:
         """
         Parse a (possibly negative) float.
