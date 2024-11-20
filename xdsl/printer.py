@@ -535,7 +535,7 @@ class Printer:
                 )
                 and ty.width.data == 1
             ):
-                self.print_string("false" if attribute.value.data == 0 else "true")
+                self.print_string("true" if attribute.value.data else "false")
                 return
             # Otherwise we fall through to TypedAttribute case
 
