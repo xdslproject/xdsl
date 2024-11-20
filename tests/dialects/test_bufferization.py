@@ -45,7 +45,7 @@ def test_tensor_from_memref_inference():
         EqAttrConstraint(UnrankedMemrefType.from_type(f64))
     )
     assert constr3.can_infer(set())
-    assert constr3.infer(dict()) == UnrankedTensorType(f64)
+    assert constr3.infer({}) == UnrankedTensorType(f64)
 
 
 @irdl_op_definition

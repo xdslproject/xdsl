@@ -528,7 +528,7 @@ class FormatParser(BaseParser):
                             unique_base.get_type_index()
                         ]
                         if type_constraint.can_infer(set()):
-                            unique_type = type_constraint.infer(dict())
+                            unique_type = type_constraint.infer({})
                 if (
                     unique_base is not None
                     and unique_base in Builtin.attributes
