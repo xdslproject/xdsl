@@ -3,7 +3,7 @@ from abc import ABC
 import pytest
 
 from xdsl.dialects.builtin import StringAttr
-from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
@@ -105,3 +105,35 @@ def test_param_attr_constraint_inference():
         ),
     )
     assert not base_constr.can_infer(set())
+
+
+def test_base_attr_constraint_inference():
+    class BaseNoParamAttr(ParametrizedAttribute):
+        name = "no_param"
+
+    @irdl_attr_definition
+    class WithParamAttr(ParametrizedAttribute):
+        name = "with_param"
+
+        inner: ParameterDef[Attribute]
+
+    @irdl_attr_definition
+    class DataAttr(Data[int]):
+        name = "data"
+
+    @irdl_attr_definition
+    class NoParamAttr(BaseNoParamAttr): ...
+
+    constr = BaseAttr(NoParamAttr)
+
+    assert constr.can_infer(set())
+    assert constr.infer({}) == NoParamAttr()
+
+    base_constr = BaseAttr(BaseNoParamAttr)
+    assert not base_constr.can_infer(set())
+
+    with_param_constr = BaseAttr(WithParamAttr)
+    assert not with_param_constr.can_infer(set())
+
+    data_constr = BaseAttr(DataAttr)
+    assert not data_constr.can_infer(set())

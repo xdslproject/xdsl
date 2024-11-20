@@ -296,6 +296,18 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
                 f"{attr} should be of base attribute {self.attr.name}"
             )
 
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return (
+            is_runtime_final(self.attr)
+            and issubclass(self.attr, ParametrizedAttribute)
+            and not self.attr.get_irdl_definition().parameters
+        )
+
+    def infer(self, variables: dict[str, ConstraintVariableType]) -> AttributeCovT:
+        assert issubclass(self.attr, ParametrizedAttribute)
+        attr = self.attr.new(())
+        return attr
+
     def get_unique_base(self) -> type[Attribute] | None:
         if is_runtime_final(self.attr):
             return self.attr
