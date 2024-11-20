@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import DYNAMIC_INDEX, IndexType, IntegerType, i32
-from xdsl.dialects.utils.format import (
+from xdsl.dialects.utils import (
     parse_dynamic_index_list_with_types,
     parse_dynamic_index_list_without_types,
     parse_dynamic_index_with_type,
