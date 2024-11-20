@@ -49,11 +49,11 @@ class DSMovOp(ARMOperation):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=(operand2,),
+            operands=(s,),
             attributes={
                 "comment": comment,
             },
-            result_types=(rd,),
+            result_types=(d,),
         )
 
 
