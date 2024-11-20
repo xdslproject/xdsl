@@ -2,6 +2,7 @@ from abc import ABC
 
 import pytest
 
+from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
@@ -12,6 +13,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     VarConstraint,
+    eq,
     irdl_attr_definition,
 )
 
@@ -54,3 +56,52 @@ def test_attr_constraint_get_unique_base(
     constraint: AttrConstraint, expected: type[Attribute] | None
 ):
     assert constraint.get_unique_base() == expected
+
+
+def test_param_attr_constraint_inference():
+    class BaseWrapAttr(ParametrizedAttribute):
+        name = "wrap"
+
+        inner: ParameterDef[Attribute]
+
+    @irdl_attr_definition
+    class WrapAttr(BaseWrapAttr): ...
+
+    constr = ParamAttrConstraint(
+        WrapAttr,
+        (
+            eq(
+                StringAttr("Hello"),
+            ),
+        ),
+    )
+
+    assert constr.can_infer(set())
+    assert constr.infer({}) == WrapAttr((StringAttr("Hello"),))
+
+    var_constr = ParamAttrConstraint(
+        WrapAttr,
+        (
+            VarConstraint(
+                "T",
+                eq(
+                    StringAttr("Hello"),
+                ),
+            ),
+        ),
+    )
+
+    assert var_constr.can_infer({"T"})
+    assert var_constr.infer({"T": StringAttr("Hello")}) == WrapAttr(
+        (StringAttr("Hello"),)
+    )
+
+    base_constr = ParamAttrConstraint(
+        BaseWrapAttr,
+        (
+            eq(
+                StringAttr("Hello"),
+            ),
+        ),
+    )
+    assert not base_constr.can_infer(set())

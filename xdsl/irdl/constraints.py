@@ -518,6 +518,18 @@ class ParamAttrConstraint(
         )
         return merge_extractor_dicts(*dicts)
 
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return is_runtime_final(self.base_attr) and all(
+            constr.can_infer(var_constraint_names) for constr in self.param_constrs
+        )
+
+    def infer(
+        self, variables: dict[str, ConstraintVariableType]
+    ) -> ParametrizedAttributeCovT:
+        params = tuple(constr.infer(variables) for constr in self.param_constrs)
+        attr = self.base_attr.new(params)
+        return attr
+
     def get_unique_base(self) -> type[Attribute] | None:
         if is_runtime_final(self.base_attr):
             return self.base_attr
