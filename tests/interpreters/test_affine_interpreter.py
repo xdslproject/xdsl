@@ -8,8 +8,8 @@ from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.test_value import TestSSAValue
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.8.20"
+__generated_with = "0.9.17"
 app = marimo.App()
 
 
@@ -168,6 +168,7 @@ def __(mo):
 @app.cell
 def __(
     ConvertOnnxToLinalgPass,
+    EmptyTensorToAllocTensorPass,
     MLIROptPass,
     init_module,
     mo,
@@ -196,11 +197,16 @@ def __(
             ),
             (
                 mo.md(
+                    """We prepare the result tensors for bufferization:"""
+                ),
+                EmptyTensorToAllocTensorPass()
+            ),
+            (
+                mo.md(
                     """We then use MLIR to bufferize our function:"""
                 ),
                 MLIROptPass(
                     arguments=[
-                        "--empty-tensor-to-alloc-tensor",
                         "--one-shot-bufferize=bufferize-function-boundaries function-boundary-type-conversion=identity-layout-map",
                     ]
                 )
@@ -232,10 +238,12 @@ def __():
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
     from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
+    from xdsl.transforms.empty_tensor_to_alloc_tensor import EmptyTensorToAllocTensorPass
     from xdsl.transforms.mlir_opt import MLIROptPass
     return (
         Attribute,
         ConvertOnnxToLinalgPass,
+        EmptyTensorToAllocTensorPass,
         MLContext,
         MLIROptPass,
         PipelinePass,

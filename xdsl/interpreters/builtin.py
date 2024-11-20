@@ -16,8 +16,8 @@ from xdsl.interpreter import (
     impl_attr,
     register_impls,
 )
-from xdsl.interpreters import ptr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute
 from xdsl.utils.hints import isa
 

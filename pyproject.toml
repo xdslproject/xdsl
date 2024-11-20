@@ -7,7 +7,7 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.2.1",
+    "immutabledict<4.2.2",
     "typing-extensions>=4.7,<4.13",
     "ordered-set==4.1.0",
 ]
@@ -24,20 +24,20 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.9.17",
+    "marimo==0.9.20",
     "pre-commit==4.0.1",
-    "ruff==0.7.3",
+    "ruff==0.7.4",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
-    "textual-dev==1.6.1",
+    "textual-dev==1.7.0",
     "pytest-asyncio==0.24.0",
-    "pyright==1.1.388",
+    "pyright==1.1.389",
 ]
-gui = ["textual==0.85.2", "pyclip==0.7"]
+gui = ["textual==0.86.3", "pyclip==0.7"]
 jax = ["jax==0.4.35", "numpy==2.1.3"]
 onnx = ["onnx==1.17.0", "numpy==2.1.3"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.19.0"]
+wgpu = ["wgpu==0.19.1"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -78,7 +78,7 @@ typeCheckingMode = "strict"
     "tests/test_frontend_python_code_check.py",
     "xdsl/frontend/onnx/ir_builder.py",
     "xdsl/frontend/onnx/type.py",
-    "xdsl/interpreters/experimental/wgpu.py",
+    "xdsl/interpreters/wgpu.py",
 ]
 "ignore" = [
     "docs/marimo",

@@ -689,6 +689,16 @@ class AllocOp(IRDLOperation):
     traits = traits_def(AllocOpEffect())
 
 
+class CastOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.stencil import (
+            RemoveCastWithNoEffect,
+        )
+
+        return (RemoveCastWithNoEffect(),)
+
+
 @irdl_op_definition
 class CastOp(IRDLOperation):
     """
@@ -721,7 +731,7 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect(), CastOpHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def get(
