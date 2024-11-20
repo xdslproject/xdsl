@@ -406,7 +406,7 @@ class BaseParser:
         ) is not None:
             return -value if is_negative else value
 
-        if (value := self.parse_optional_float()) is not None:
+        if (value := self.parse_optional_float(allow_negative=False)) is not None:
             return -value if is_negative else value
 
         if is_negative:
