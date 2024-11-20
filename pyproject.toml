@@ -77,7 +77,7 @@ typeCheckingMode = "strict"
     "tests/test_frontend_python_code_check.py",
     "xdsl/frontend/onnx/ir_builder.py",
     "xdsl/frontend/onnx/type.py",
-    "xdsl/interpreters/wgpu.py",
+    "xdsl/interpreters/experimental/wgpu.py",
 ]
 "ignore" = [
     "docs/marimo",
