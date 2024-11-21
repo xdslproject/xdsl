@@ -388,11 +388,7 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
-    ) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
@@ -614,7 +610,7 @@ def test_informative_constraint():
         match="User-enlightening message.\nUnderlying verification failure: Expected attribute #none but got #builtin.int<1>",
     ):
         constr.verify(IntAttr(1), ConstraintContext())
-    assert constr.get_resolved_variables() == set()
+    assert constr.can_infer(set())
     assert constr.get_unique_base() == NoneAttr
 
 

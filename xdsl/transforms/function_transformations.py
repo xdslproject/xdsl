@@ -95,8 +95,8 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
         end_func_t = func.FunctionType.from_lists(
             [builtin.Float64Type()], [builtin.Float64Type()]
         )
-        start_func = func.FuncOp(TIMER_START, start_func_t, Region([]))
-        end_func = func.FuncOp(TIMER_END, end_func_t, Region([]))
+        start_func = func.FuncOp(TIMER_START, start_func_t, Region([]), "private")
+        end_func = func.FuncOp(TIMER_END, end_func_t, Region([]), "private")
 
         PatternRewriteWalker(
             AddBenchTimersPattern(start_func_t, end_func_t), apply_recursively=False

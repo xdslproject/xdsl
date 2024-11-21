@@ -22,6 +22,7 @@ from typing_extensions import Self, deprecated
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     Block,
     BlockOps,
     Data,
@@ -46,12 +47,14 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
+    VarExtractor,
     attr_constr_coercion,
     base,
     irdl_attr_definition,
@@ -83,7 +86,7 @@ A constant value denoting a dynamic index in a shape.
 """
 
 
-class ShapedType(ABC):
+class ShapedType(Attribute, ABC):
     @abstractmethod
     def get_num_dims(self) -> int: ...
 
@@ -99,19 +102,6 @@ class ShapedType(ABC):
         from itertools import accumulate
 
         return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
-
-
-class AnyShapedType(AttrConstraint):
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        if not isinstance(attr, ShapedType):
-            raise Exception(f"expected type ShapedType but got {attr}")
-
-    def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> AnyShapedType:
-        return self
 
 
 _ContainerElementTypeT = TypeVar(
@@ -525,17 +515,13 @@ class IntegerAttr(
                 f"range [{min_value}, {max_value})"
             )
 
-    @classmethod
+    @staticmethod
     def parse_with_type(
-        cls: type[IntegerAttr[_IntegerAttrType]],
         parser: AttrParser,
-        type: Attribute,
-    ) -> IntegerAttr[_IntegerAttrType]:
-        assert isinstance(type, IntegerType) or isinstance(type, IndexType)
-        return cast(
-            IntegerAttr[_IntegerAttrType],
-            IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type),
-        )
+        type: AttributeInvT,
+    ) -> TypedAttribute[AttributeInvT]:
+        assert isinstance(type, IntegerType | IndexType)
+        return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
@@ -662,7 +648,7 @@ _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
+class FloatAttr(Generic[_FloatAttrType], TypedAttribute[_FloatAttrType]):
     name = "float"
 
     value: ParameterDef[FloatData]
@@ -695,6 +681,17 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
         super().__init__([data_attr, type])
+
+    @staticmethod
+    def parse_with_type(
+        parser: AttrParser,
+        type: AttributeInvT,
+    ) -> TypedAttribute[AttributeInvT]:
+        assert isinstance(type, AnyFloat)
+        return FloatAttr(parser.parse_float(), type)
+
+    def print_without_type(self, printer: Printer):
+        return printer.print_float(self)
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -1678,6 +1675,61 @@ class MemRefType(
 
 AnyMemRefType: TypeAlias = MemRefType[Attribute]
 AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
+
+
+@dataclass(frozen=True, init=False)
+class TensorOrMemrefOf(
+    GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
+):
+    """A type constraint that can be nested once in a memref or a tensor."""
+
+    elem_constr: GenericAttrConstraint[AttributeCovT]
+
+    def __init__(
+        self,
+        elem_constr: AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT],
+    ) -> None:
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
+
+    @dataclass(frozen=True)
+    class _Extractor(
+        VarExtractor[TensorType[AttributeInvT] | MemRefType[AttributeInvT]]
+    ):
+        inner: VarExtractor[AttributeInvT]
+
+        def extract_var(
+            self, a: TensorType[AttributeInvT] | MemRefType[AttributeInvT]
+        ) -> ConstraintVariableType:
+            return self.inner.extract_var(a.element_type)
+
+    def get_resolvers(
+        self,
+    ) -> dict[
+        str,
+        VarExtractor[TensorType[AttributeCovT] | MemRefType[AttributeCovT]],
+    ]:
+        return {
+            v: self._Extractor(r)
+            for v, r in self.elem_constr.get_variable_extractors().items()
+        }
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
+            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+            self.elem_constr.verify(attr.element_type, constraint_context)
+        else:
+            raise VerifyException(f"Expected tensor or memref type, got {attr}")
+
+    def mapping_type_vars(
+        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+    ) -> Self:
+        elem_constr = self.elem_constr.mapping_type_vars(type_var_mapping)
+        if elem_constr is self.elem_constr:
+            return self
+        else:
+            return type(self)(elem_constr)
 
 
 @irdl_attr_definition

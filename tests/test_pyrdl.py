@@ -137,7 +137,7 @@ class LessThan(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(f"{attr} should be of base attribute {IntData.name}")

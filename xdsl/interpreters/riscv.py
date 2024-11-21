@@ -20,8 +20,8 @@ from xdsl.interpreter import (
     impl_cast,
     register_impls,
 )
-from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned

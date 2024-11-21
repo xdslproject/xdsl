@@ -68,6 +68,7 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.bitwise_casts import (
@@ -525,6 +526,25 @@ class Printer:
             self.print_string("f128")
             return
 
+        if isinstance(attribute, IntegerAttr):
+            # boolean shorthands
+            if (
+                isinstance(
+                    (ty := attribute.parameters[attribute.get_type_index()]),
+                    IntegerType,
+                )
+                and ty.width.data == 1
+            ):
+                self.print_string("true" if attribute.value.data else "false")
+                return
+            # Otherwise we fall through to TypedAttribute case
+
+        if isinstance(attribute, TypedAttribute):
+            attribute.print_without_type(self)
+            self.print_string(" : ")
+            self.print_attribute(attribute.parameters[attribute.get_type_index()])
+            return
+
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
             return
@@ -539,31 +559,6 @@ class Printer:
             for ref in attribute.nested_references.data:
                 self.print_string("::@")
                 self.print_identifier_or_string_literal(ref.data)
-            return
-
-        if isinstance(attribute, IntegerAttr):
-            attribute = cast(AnyIntegerAttr, attribute)
-
-            # boolean shorthands
-            if (
-                isinstance((attr_type := attribute.type), IntegerType)
-                and attr_type.width.data == 1
-            ):
-                self.print_string("false" if attribute.value.data == 0 else "true")
-                return
-
-            width = attribute.value
-            attr_type = attribute.type
-            assert isinstance(width, IntAttr)
-            self.print_string(f"{width.data} : ")
-            self.print_attribute(attr_type)
-            return
-
-        if isinstance(attribute, FloatAttr):
-            attr = cast(AnyFloatAttr, attribute)
-            self.print_float(attr)
-            self.print_string(" : ")
-            self.print_attribute(attr.type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.

@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
     AnyMemRefType,
-    AnyShapedType,
     AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
@@ -100,7 +99,7 @@ class Generic(IRDLOperation):
     name = "linalg.generic"
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
@@ -396,7 +395,7 @@ class NamedOpBase(IRDLOperation, ABC):
     """
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
@@ -951,7 +950,7 @@ class PoolingOpsBase(IRDLOperation, ABC):
     """Base class for linalg pooling operations."""
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
@@ -1002,7 +1001,7 @@ class ConvOpsBase(IRDLOperation, ABC):
     """Base class for linalg convolution operations."""
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
