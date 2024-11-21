@@ -1004,6 +1004,235 @@ def test_operands_graph_region(format: str, program: str):
     check_roundtrip(program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.operands_directive %0 : i32",
+        "test.operands_directive %0, %1 : i32, i32",
+        "test.operands_directive %0, %1, %2 : i32, i32, i32",
+    ],
+)
+def test_operands_directive(program: str):
+    """Test the operands directive"""
+
+    @irdl_op_definition
+    class OperandsDirectiveOp(IRDLOperation):
+        name = "test.operands_directive"
+
+        op1 = operand_def()
+        op2 = var_operand_def()
+
+        assembly_format = "operands `:` type(operands) attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OperandsDirectiveOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.operands_directive %0 : i32",
+        "test.operands_directive %0, %1 : i32, i32",
+    ],
+)
+def test_operands_directive_with_optional(program: str):
+    """Test the operands directive"""
+
+    @irdl_op_definition
+    class OperandsDirectiveOp(IRDLOperation):
+        name = "test.operands_directive"
+
+        op1 = opt_operand_def()
+        op2 = operand_def()
+
+        assembly_format = "operands `:` type(operands) attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OperandsDirectiveOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+
+
+def test_operands_directive_fails_with_two_var():
+    """Test operands directive cannot be used with two variadic operands"""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'operands' is ambiguous with multiple variadic operands",
+    ):
+
+        @irdl_op_definition
+        class TwoVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.two_var_op"
+
+            op1 = var_operand_def()
+            op2 = var_operand_def()
+
+            irdl_options = [AttrSizedOperandSegments()]
+
+            assembly_format = "operands attr-dict `:` type(operands)"
+
+
+def test_operands_directive_fails_with_no_operands():
+    """Test operands directive cannot be used with no operands"""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'operands' should not be used when there are no operands",
+    ):
+
+        @irdl_op_definition
+        class NoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.no_operands_op"
+
+            assembly_format = "operands attr-dict `:` type(operands)"
+
+
+def test_operands_directive_fails_with_other_directive():
+    """Test operands directive cannot be used with no operands"""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'operands' cannot be used with other operand directives",
+    ):
+
+        @irdl_op_definition
+        class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.two_operands_op"
+
+            op1 = operand_def()
+            op2 = operand_def()
+
+            assembly_format = "$op1 `,` operands attr-dict `:` type(operands)"
+
+
+def test_operands_directive_fails_with_other_type_directive():
+    """Test operands directive cannot be used with no operands"""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'operands' cannot be used in a type directive with other operand type directives",
+    ):
+
+        @irdl_op_definition
+        class TwoOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.two_operands_op"
+
+            op1 = operand_def()
+            op2 = operand_def()
+
+            assembly_format = "operands attr-dict `:` type($op1) `,` type(operands)"
+
+
+@pytest.mark.parametrize(
+    "program, error",
+    [
+        ("test.two_operands %0 : i32, i32", "Expected 2 operands but found 1"),
+        (
+            "test.two_operands %0, %1, %2 : i32, i32",
+            "Expected 2 operands but found 3",
+        ),
+        ("test.two_operands %0, %1 : i32", "Expected 2 operand types but found 1"),
+        (
+            "test.two_operands %0, %1 : i32, i32, i32",
+            "Expected 2 operand types but found 3",
+        ),
+    ],
+)
+def test_operands_directive_bounds(program: str, error: str):
+    @irdl_op_definition
+    class TwoOperandsOp(IRDLOperation):
+        name = "test.two_operands"
+
+        op1 = operand_def()
+        op2 = operand_def()
+
+        assembly_format = "operands attr-dict `:` type(operands)"
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandsOp)
+
+    with pytest.raises(ParseError, match=error):
+        parser = Parser(ctx, program)
+        parser.parse_operation()
+
+
+@pytest.mark.parametrize(
+    "program, error",
+    [
+        (
+            "test.three_operands %0 : i32, i32",
+            "Expected at least 2 operands but found 1",
+        ),
+        (
+            "test.three_operands %0, %1, %2, %3 : i32, i32, i32",
+            "Expected at most 3 operands but found 4",
+        ),
+        (
+            "test.three_operands %0, %1 : i32",
+            "Expected at least 2 operand types but found 1",
+        ),
+        (
+            "test.three_operands %0, %1, %3 : i32, i32, i32, i32",
+            "Expected at most 3 operand types but found 4",
+        ),
+    ],
+)
+def test_operands_directive_bounds_with_opt(program: str, error: str):
+    @irdl_op_definition
+    class ThreeOperandsOp(IRDLOperation):
+        name = "test.three_operands"
+
+        op1 = operand_def()
+        op2 = opt_operand_def()
+        op3 = operand_def()
+
+        assembly_format = "operands attr-dict `:` type(operands)"
+
+    ctx = MLContext()
+    ctx.load_op(ThreeOperandsOp)
+
+    with pytest.raises(ParseError, match=error):
+        parser = Parser(ctx, program)
+        parser.parse_operation()
+
+
+@pytest.mark.parametrize(
+    "program, error",
+    [
+        (
+            "test.three_operands %0 : i32, i32",
+            "Expected at least 2 operands but found 1",
+        ),
+        (
+            "test.three_operands %0, %1 : i32",
+            "Expected at least 2 operand types but found 1",
+        ),
+    ],
+)
+def test_operands_directive_bound_with_var(program: str, error: str):
+    @irdl_op_definition
+    class ThreeOperandsOp(IRDLOperation):
+        name = "test.three_operands"
+
+        op1 = operand_def()
+        op2 = var_operand_def()
+        op3 = operand_def()
+
+        assembly_format = "operands attr-dict `:` type(operands)"
+
+    ctx = MLContext()
+    ctx.load_op(ThreeOperandsOp)
+
+    with pytest.raises(ParseError, match=error):
+        parser = Parser(ctx, program)
+        parser.parse_operation()
+
+
 ################################################################################
 # Results                                                                      #
 ################################################################################

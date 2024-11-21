@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, TypeVar
 
 from xdsl.dialects.builtin import UnitAttr
 from xdsl.ir import (
@@ -598,6 +598,100 @@ class OptionalOperandVariable(OptionalVariable, VariadicOperandDirective):
 
     def set_types_empty(self, state: ParsingState) -> None:
         state.operand_types[self.index] = ()
+
+
+_T = TypeVar("_T")
+
+
+@dataclass(frozen=True)
+class OperandsDirective(VariadicOperandDirective, VariadicTypeableDirective):
+    """
+    An operands directive, with the following format:
+      operands-directive ::= operands
+    Prints each operand of the operation, inserting a comma between each.
+    """
+
+    variadic_index: tuple[bool, int] | None
+    """
+    Represents the position of a (single) variadic variable, with the boolean
+    representing whether it is optional
+    """
+
+    def _set_using_variadic_index(
+        self,
+        field: list[_T | None | Sequence[_T]],
+        field_name: str,
+        set_to: Sequence[_T],
+    ) -> str | None:
+        if self.variadic_index is None:
+            if len(set_to) != len(field):
+                return f"Expected {len(field)} {field_name} but found {len(set_to)}"
+            field = [o for o in set_to]  # Copy needed as list is not covariant
+            return
+
+        is_optional, var_position = self.variadic_index
+        var_length = len(set_to) - len(field) + 1
+        if var_length < 0:
+            return f"Expected at least {len(field) - 1} {field_name} but found {len(set_to)}"
+        if var_length > 1 and is_optional:
+            return f"Expected at most {len(field)} {field_name} but found {len(set_to)}"
+        field[:var_position] = set_to[:var_position]
+        field[var_position] = set_to[var_position : var_position + var_length]
+        field[var_position + 1 :] = set_to[var_position + var_length :]
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        pos_start = parser.pos
+        operands = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_unresolved_operand,
+                parser.parse_unresolved_operand,
+            )
+            or []
+        )
+
+        if s := self._set_using_variadic_index(state.operands, "operands", operands):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+        return bool(operands)
+
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        if len(state.operand_types) > 1:
+            parser.raise_error("Expected multiple types but received one.")
+        state.operand_types[0] = parser.parse_type()
+
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        pos_start = parser.pos
+        types = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_type, parser.parse_type
+            )
+            or []
+        )
+
+        if s := self._set_using_variadic_index(
+            state.operand_types, "operand types", types
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+        return bool(types)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if op.operands:
+            if state.should_emit_space or not state.last_was_punctuation:
+                printer.print(" ")
+            printer.print_list(op.operands, printer.print_ssa_value)
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.operand_types = [() for _ in state.operand_types]
+
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
+        return op.operand_types
+
+    def set_empty(self, state: ParsingState):
+        state.operands = [() for _ in state.operands]
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(op.operands)
 
 
 @dataclass(frozen=True)
