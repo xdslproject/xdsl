@@ -72,7 +72,7 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 
 %quant_mat_mul = linalg.quantized_matmul ins(%21, %22, %23, %24 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%25 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
 
-// CHECK:       #map = affine_map<(d0, d1) -> ()>
+// CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:  module {
 // CHECK-NEXT:    %0:2 = "test.op"() : () -> (f32, memref<1x256xf32>)
@@ -89,9 +89,9 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %cst = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:    %3 = linalg.fill ins(%cst : f32) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    linalg.fill ins(%cst : f32) outs(%0#1 : memref<1x256xf32>)
-// CHECK-NEXT:    %4 = linalg.mul ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#1 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %4 = linalg.mul  ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#1 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    %5:2 = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16xf32>)
-// CHECK-NEXT:    %transposed = linalg.transpose ins(%5#0 : tensor<16x64xf32>) outs(%5#1 : tensor<64x16xf32>) permutation = [1, 0] 
+// CHECK-NEXT:    %transposed  = linalg.transpose ins(%5#0 : tensor<16x64xf32>) outs(%5#1 : tensor<64x16xf32>) permutation = [1, 0]
 // CHECK-NEXT:    %6:2 = "test.op"() : () -> (tensor<64x9216xf32>, tensor<9216x4096xf32>)
 // CHECK-NEXT:    %7 = "test.op"() : () -> tensor<64x4096xf32>
 // CHECK-NEXT:    %8 = linalg.matmul ins(%6#0, %6#1 : tensor<64x9216xf32>, tensor<9216x4096xf32>) outs(%7 : tensor<64x4096xf32>) -> tensor<64x4096xf32>
