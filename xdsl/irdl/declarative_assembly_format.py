@@ -604,11 +604,9 @@ _T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
-class OperandsDirective(VariadicOperandDirective, VariadicTypeableDirective):
+class OperandsOrResultDirective(VariadicTypeableDirective, ABC):
     """
-    An operands directive, with the following format:
-      operands-directive ::= operands
-    Prints each operand of the operation, inserting a comma between each.
+    Base class for the 'operands' and 'results' directives.
     """
 
     variadic_index: tuple[bool, int] | None
@@ -638,6 +636,14 @@ class OperandsDirective(VariadicOperandDirective, VariadicTypeableDirective):
         field[:var_position] = set_to[:var_position]
         field[var_position] = set_to[var_position : var_position + var_length]
         field[var_position + 1 :] = set_to[var_position + var_length :]
+
+
+class OperandsDirective(VariadicOperandDirective, OperandsOrResultDirective):
+    """
+    An operands directive, with the following format:
+      operands-directive ::= operands
+    Prints each operand of the operation, inserting a comma between each.
+    """
 
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         pos_start = parser.pos
@@ -766,6 +772,43 @@ class OptionalResultVariable(OptionalVariable, VariadicTypeableDirective):
 
     def set_types_empty(self, state: ParsingState) -> None:
         state.result_types[self.index] = ()
+
+
+class ResultsDirective(OperandsOrResultDirective):
+    """
+    A results directive, with the following format:
+      results-directive ::= results
+    A typeable directive which processes the result types of the operation.
+    """
+
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        if len(state.result_types) > 1:
+            parser.raise_error("Expected multiple types but received one.")
+        state.result_types[0] = parser.parse_type()
+
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        pos_start = parser.pos
+        types = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_type, parser.parse_type
+            )
+            or []
+        )
+
+        if s := self._set_using_variadic_index(
+            state.result_types, "result types", types
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+        return bool(types)
+
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.result_types = [() for _ in state.operand_types]
+
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
+        return op.result_types
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(op.results)
 
 
 class RegionDirective(OptionallyParsableDirective, ABC):
