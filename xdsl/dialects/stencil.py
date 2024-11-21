@@ -1214,9 +1214,10 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
         )
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if self.name in constraint_context.variables:
+        ctx_attr = constraint_context.get_variable(self.name)
+        if ctx_attr is not None:
             if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
-                attr, constraint_context.get_variable(self.name)
+                attr, ctx_attr
             ):
                 return
         super().verify(attr, constraint_context)

@@ -12,6 +12,7 @@ from typing_extensions import assert_never
 from xdsl.ir import Attribute, AttributeCovT, AttributeInvT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
+from xdsl.utils.scoped_dict import ScopedDict
 
 
 @dataclass
@@ -20,17 +21,19 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    _variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: ScopedDict[str, Attribute] = field(default_factory=lambda: ScopedDict())
     """The assignment of constraint variables."""
 
-    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    _range_variables: ScopedDict[str, tuple[Attribute, ...]] = field(
+        default_factory=lambda: ScopedDict()
+    )
     """The assignment of constraint range variables."""
 
-    def get_variable(self, key: str) -> Attribute:
-        return self._variables[key]
+    def get_variable(self, key: str) -> Attribute | None:
+        return self._variables.get(key)
 
-    def get_range_variable(self, key: str) -> tuple[Attribute, ...]:
-        return self._range_variables[key]
+    def get_range_variable(self, key: str) -> tuple[Attribute, ...] | None:
+        return self._range_variables.get(key)
 
     def set_variable(self, key: str, attr: Attribute):
         self._variables[key] = attr
@@ -38,20 +41,15 @@ class ConstraintContext:
     def set_range_variable(self, key: str, attr: tuple[Attribute, ...]):
         self._range_variables[key] = attr
 
-    @property
-    def variables(self) -> Sequence[str]:
-        return tuple(self._variables.keys())
+    def push_variable_scope(self, name: str | None = None):
+        self._variables = ScopedDict(self._variables, name=name)
+        self._range_variables = ScopedDict(self._range_variables, name=name)
 
-    @property
-    def range_variables(self) -> Sequence[str]:
-        return tuple(self._range_variables.keys())
-
-    def copy(self):
-        return ConstraintContext(self._variables.copy(), self._range_variables.copy())
-
-    def update(self, other: ConstraintContext):
-        self._variables.update(other._variables)
-        self._range_variables.update(other._range_variables)
+    def pop_variable_scope(self):
+        assert self._variables.parent is not None
+        assert self._range_variables.parent is not None
+        self._variables = self._variables.parent
+        self._range_variables = self._range_variables.parent
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
@@ -224,8 +222,9 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         attr: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if self.name in constraint_context.variables:
-            if attr != constraint_context.get_variable(self.name):
+        ctx_attr = constraint_context.get_variable(self.name)
+        if ctx_attr is not None:
+            if attr != ctx_attr:
                 raise VerifyException(
                     f"attribute {constraint_context.get_variable(self.name)} expected from variable "
                     f"'{self.name}', but got {attr}"
@@ -380,15 +379,14 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     ) -> None:
         constraint_context = constraint_context or ConstraintContext()
         for attr_constr in self.attr_constrs:
-            # Copy the constraint to ensure that if the constraint fails, the
-            # constraint context is not modified.
-            constraint_context_copy = constraint_context.copy()
+            # Push a new scope that will be discarded if the constraint fails to verify,
+            # and kept if verification succeeds
+            constraint_context.push_variable_scope()
             try:
-                attr_constr.verify(attr, constraint_context_copy)
-                # If the constraint succeeds, we update back the constraint variables
-                constraint_context.update(constraint_context_copy)
+                attr_constr.verify(attr, constraint_context)
                 return
             except VerifyException:
+                constraint_context.pop_variable_scope()
                 pass
         raise VerifyException(f"Unexpected attribute {attr}")
 
@@ -671,10 +669,11 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
     ) -> None:
-        if self.name in constraint_context.range_variables:
-            if tuple(attrs) != constraint_context.get_range_variable(self.name):
+        ctx_attrs = constraint_context.get_range_variable(self.name)
+        if ctx_attrs is not None:
+            if attrs != ctx_attrs:
                 raise VerifyException(
-                    f"attributes {tuple(str(x) for x in constraint_context.get_range_variable(self.name))} expected from range variable "
+                    f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
                 )
         else:
