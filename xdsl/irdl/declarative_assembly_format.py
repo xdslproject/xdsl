@@ -22,6 +22,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     ConstraintVariableType,
+    InferenceContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
@@ -186,7 +187,7 @@ class FormatProgram:
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
                     range_length,
-                    state.variables,
+                    InferenceContext(state.variables),
                 )
                 resolved_operand_type: Attribute | Sequence[Attribute]
                 if isinstance(operand_def, OptionalDef):
@@ -220,7 +221,7 @@ class FormatProgram:
                 range_length = 1
                 inferred_result_types = result_def.constr.infer(
                     range_length,
-                    state.variables,
+                    InferenceContext(state.variables),
                 )
                 resolved_result_type = inferred_result_types[0]
                 state.result_types[i] = resolved_result_type
@@ -885,7 +886,9 @@ class AttributeVariable(FormatDirective):
         ):
             attr = unique_base.new(unique_base.parse_parameters(parser))
         elif issubclass(unique_base, Data):
-            attr = unique_base.new(unique_base.parse_parameter(parser))  # pyright: ignore[reportUnknownVariableType]
+            attr = unique_base.new(  # pyright: ignore[reportUnknownVariableType]
+                unique_base.parse_parameter(parser)
+            )
         else:
             raise ValueError("Attributes must be Data or ParameterizedAttribute.")
         if self.is_property:
