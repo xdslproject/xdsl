@@ -634,7 +634,7 @@ _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], TypedAttribute[_FloatAttrType]):
+class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
@@ -671,8 +671,8 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute[_FloatAttrType]):
     @staticmethod
     def parse_with_type(
         parser: AttrParser,
-        type: AttributeInvT,
-    ) -> TypedAttribute[AttributeInvT]:
+        type: Attribute,
+    ) -> TypedAttribute:
         assert isinstance(type, AnyFloat)
         return FloatAttr(parser.parse_float(), type)
 
