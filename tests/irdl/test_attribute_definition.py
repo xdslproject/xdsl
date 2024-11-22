@@ -19,7 +19,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
-    StringAttr,
 )
 from xdsl.ir import (
     Attribute,
@@ -252,22 +251,9 @@ def test_typed_attribute():
 
         @irdl_attr_definition
         class TypedAttr(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute[Attribute]
+            TypedAttribute
         ):
             name = "test.typed"
-
-    with pytest.raises(
-        Exception,
-        match="A TypedAttribute `type` parameter must be of the same type as the type variable in the TypedAttribute base class.",
-    ):
-
-        @irdl_attr_definition
-        class TypedAttrBis(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute[IntegerAttr[IndexType]]
-        ):
-            name = "test.typed"
-
-            type: ParameterDef[StringAttr]
 
 
 ################################################################################
