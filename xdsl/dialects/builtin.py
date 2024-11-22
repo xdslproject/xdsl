@@ -74,6 +74,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
@@ -1715,11 +1716,11 @@ RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
 )
 
+AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+
 
 @irdl_attr_definition
-class DenseIntOrFPElementsAttr(
-    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat]
-):
+class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     name = "dense"
     type: ParameterDef[
         RankedStructure[IntegerType]
@@ -1870,6 +1871,59 @@ class DenseIntOrFPElementsAttr(
     ) -> DenseIntOrFPElementsAttr:
         t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
+
+    @staticmethod
+    def parse_with_type(parser: AttrParser, type: Attribute) -> TypedAttribute:
+        assert isa(type, RankedStructure[AnyDenseElement])
+        return parser.parse_dense_int_or_fp_elements_attr(type)
+
+    @staticmethod
+    def _print_one_elem(val: Attribute, printer: Printer):
+        if isinstance(val, IntegerAttr):
+            printer.print_string(f"{val.value.data}")
+        elif isinstance(val, FloatAttr):
+            printer.print_float(cast(AnyFloatAttr, val))
+        else:
+            raise Exception(
+                "unexpected attribute type "
+                "in DenseIntOrFPElementsAttr: "
+                f"{type(val)}"
+            )
+
+    @staticmethod
+    def _print_dense_list(
+        array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
+        shape: Sequence[int],
+        printer: Printer,
+    ):
+        printer.print_string("[")
+        if len(shape) > 1:
+            k = len(array) // shape[0]
+            printer.print_list(
+                (array[i : i + k] for i in range(0, len(array), k)),
+                lambda subarray: DenseIntOrFPElementsAttr._print_dense_list(
+                    subarray, shape[1:], printer
+                ),
+            )
+        else:
+            printer.print_list(
+                array,
+                lambda val: DenseIntOrFPElementsAttr._print_one_elem(val, printer),
+            )
+        printer.print_string("]")
+
+    def print_without_type(self, printer: Printer):
+        printer.print_string("dense<")
+        data = self.data.data
+        shape = self.get_shape() if self.shape_is_complete else (len(data),)
+        assert shape is not None, "If shape is complete, then it cannot be None"
+        if len(data) == 0:
+            pass
+        elif data.count(data[0]) == len(data):
+            DenseIntOrFPElementsAttr._print_one_elem(data[0], printer)
+        else:
+            DenseIntOrFPElementsAttr._print_dense_list(data, shape, printer)
+        printer.print_string(">")
 
 
 Builtin = Dialect(
