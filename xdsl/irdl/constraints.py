@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator, Sequence, Set
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar, cast
@@ -41,15 +42,25 @@ class ConstraintContext:
     def set_range_variable(self, key: str, attr: tuple[Attribute, ...]):
         self._range_variables[key] = attr
 
-    def push_variable_scope(self, name: str | None = None):
-        self._variables = ScopedDict(self._variables, name=name)
-        self._range_variables = ScopedDict(self._range_variables, name=name)
+    @contextmanager
+    def scoped_context(self):
+        inner_variables = ScopedDict(parent=self._variables)
+        inner_range_variables = ScopedDict(parent=self._range_variables)
+        scoped_context = ScopedConstraintContext(inner_variables, inner_range_variables)
+        yield scoped_context
+        if scoped_context.commit_scope:
+            self._variables = inner_variables
+            self._range_variables = inner_range_variables
 
-    def pop_variable_scope(self):
-        assert self._variables.parent is not None
-        assert self._range_variables.parent is not None
-        self._variables = self._variables.parent
-        self._range_variables = self._range_variables.parent
+
+@dataclass
+class ScopedConstraintContext(ConstraintContext):
+    """
+    A discardable constraint context. To commit this constraint context beyond its
+    scope, set `commit_scope` to True.
+    """
+
+    commit_scope: bool = field(default=False)
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
@@ -381,13 +392,13 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         for attr_constr in self.attr_constrs:
             # Push a new scope that will be discarded if the constraint fails to verify,
             # and kept if verification succeeds
-            constraint_context.push_variable_scope()
-            try:
-                attr_constr.verify(attr, constraint_context)
-                return
-            except VerifyException:
-                constraint_context.pop_variable_scope()
-                pass
+            with constraint_context.scoped_context() as ctx:
+                try:
+                    attr_constr.verify(attr, ctx)
+                    ctx.commit_scope = True
+                    return
+                except VerifyException:
+                    pass
         raise VerifyException(f"Unexpected attribute {attr}")
 
     def __or__(
