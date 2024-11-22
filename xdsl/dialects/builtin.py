@@ -634,7 +634,7 @@ _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
+class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
@@ -667,6 +667,17 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
         super().__init__([data_attr, type])
+
+    @staticmethod
+    def parse_with_type(
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute:
+        assert isinstance(type, AnyFloat)
+        return FloatAttr(parser.parse_float(), type)
+
+    def print_without_type(self, printer: Printer):
+        return printer.print_float(self)
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
