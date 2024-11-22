@@ -251,7 +251,7 @@ def test_typed_attribute():
 
         @irdl_attr_definition
         class TypedAttr(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute[Attribute]
+            TypedAttribute
         ):
             name = "test.typed"
 

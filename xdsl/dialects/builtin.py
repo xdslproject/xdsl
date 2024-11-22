@@ -449,7 +449,7 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 @irdl_attr_definition
 class IntegerAttr(
     Generic[_IntegerAttrType],
-    TypedAttribute[_IntegerAttrType],
+    TypedAttribute,
 ):
     name = "integer"
     value: ParameterDef[IntAttr]
@@ -504,8 +504,8 @@ class IntegerAttr(
     @staticmethod
     def parse_with_type(
         parser: AttrParser,
-        type: AttributeInvT,
-    ) -> TypedAttribute[AttributeInvT]:
+        type: Attribute,
+    ) -> TypedAttribute:
         assert isinstance(type, IntegerType | IndexType)
         return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
