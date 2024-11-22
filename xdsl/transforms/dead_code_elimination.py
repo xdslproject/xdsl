@@ -159,14 +159,12 @@ def region_dce(region: Region, listener: PatternRewriterListener | None = None) 
     return live_set.changed
 
 
-def op_dce(op: Operation, listener: PatternRewriterListener | None = None):
-    changed = tuple(region_dce(region, listener) for region in op.regions)
-
-    return any(changed)
+def op_dce(region: Region, listener: PatternRewriterListener | None = None):
+    return region_dce(region, listener)
 
 
 class DeadCodeElimination(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        op_dce(op)
+        op_dce(op.body)
