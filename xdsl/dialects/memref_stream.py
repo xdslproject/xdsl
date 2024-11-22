@@ -46,6 +46,7 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
 )
@@ -187,13 +188,43 @@ class StridePattern(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class ReadOp(stream.ReadOperation):
+class ReadOp(IRDLOperation):
     name = "memref_stream.read"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    stream = operand_def(stream.ReadableStreamType.constr(T))
+    res = result_def(T)
+
+    assembly_format = "`from` $stream attr-dict `:` type($res)"
+
+    def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
+        if result_type is None:
+            assert isinstance(stream_type := stream_val.type, stream.ReadableStreamType)
+            stream_type = cast(stream.ReadableStreamType[Attribute], stream_type)
+            result_type = stream_type.element_type
+        super().__init__(operands=[stream_val], result_types=[result_type])
+
+    def assembly_line(self) -> str | None:
+        return None
 
 
 @irdl_op_definition
-class WriteOp(stream.WriteOperation):
+class WriteOp(IRDLOperation):
     name = "memref_stream.write"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    value = operand_def(T)
+    stream = operand_def(stream.WritableStreamType.constr(T))
+
+    assembly_format = "$value `to` $stream attr-dict `:` type($value)"
+
+    def __init__(self, value: SSAValue, stream: SSAValue):
+        super().__init__(operands=[value, stream])
+
+    def assembly_line(self) -> str | None:
+        return None
 
 
 @irdl_op_definition
@@ -370,7 +401,7 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(AnyMemRefTypeConstr | stream.WritableStreamType.constr())
+    outputs = var_operand_def(AnyMemRefTypeConstr | stream.AnyWritableStreamTypeConstr)
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written

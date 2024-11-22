@@ -642,6 +642,8 @@ class FillOp(NamedOpBase):
 
     name = "linalg.fill"
 
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
+
     def __init__(
         self,
         inputs: Sequence[SSAValue],
