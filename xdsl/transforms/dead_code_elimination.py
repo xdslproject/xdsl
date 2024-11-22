@@ -159,10 +159,6 @@ def region_dce(region: Region, listener: PatternRewriterListener | None = None) 
     return live_set.changed
 
 
-def op_dce(region: Region, listener: PatternRewriterListener | None = None):
-    return region_dce(region, listener)
-
-
 class DeadCodeElimination(ModulePass):
     name = "dce"
 

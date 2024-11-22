@@ -391,10 +391,10 @@ def test_insert_op_at_start():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: test.TestOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             new_cst = Constant.from_int_and_width(42, i32)
 
-            rewriter.insert_op(new_cst, InsertPoint.at_start(mod.regions[0].blocks[0]))
+            rewriter.insert_op(new_cst, InsertPoint.at_start(op.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -422,10 +422,10 @@ def test_insert_op_before():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: test.TestOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             new_cst = Constant.from_int_and_width(42, i32)
 
-            first_op = mod.regions[0].block.ops.first
+            first_op = op.regions[0].block.ops.first
             assert first_op is not None
             rewriter.insert_op(new_cst, InsertPoint.before(first_op))
 
@@ -455,10 +455,10 @@ def test_insert_op_after():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: test.TestOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             new_cst = Constant.from_int_and_width(42, i32)
 
-            first_op = mod.regions[0].block.ops.first
+            first_op = op.regions[0].block.ops.first
             assert first_op is not None
             rewriter.insert_op(new_cst, InsertPoint.after(first_op))
 
