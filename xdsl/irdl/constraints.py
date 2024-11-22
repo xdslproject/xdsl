@@ -26,11 +26,11 @@ class ConstraintContext:
     _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
     """The assignment of constraint range variables."""
 
-    def get_variable(self, key: str) -> Attribute:
-        return self._variables[key]
+    def get_variable(self, key: str) -> Attribute | None:
+        return self._variables.get(key)
 
-    def get_range_variable(self, key: str) -> tuple[Attribute, ...]:
-        return self._range_variables[key]
+    def get_range_variable(self, key: str) -> tuple[Attribute, ...] | None:
+        return self._range_variables.get(key)
 
     def set_variable(self, key: str, attr: Attribute):
         self._variables[key] = attr
@@ -224,8 +224,9 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         attr: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if self.name in constraint_context.variables:
-            if attr != constraint_context.get_variable(self.name):
+        ctx_attr = constraint_context.get_variable(self.name)
+        if ctx_attr is not None:
+            if attr != ctx_attr:
                 raise VerifyException(
                     f"attribute {constraint_context.get_variable(self.name)} expected from variable "
                     f"'{self.name}', but got {attr}"
@@ -671,10 +672,11 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
     ) -> None:
-        if self.name in constraint_context.range_variables:
-            if tuple(attrs) != constraint_context.get_range_variable(self.name):
+        ctx_attrs = constraint_context.get_range_variable(self.name)
+        if ctx_attrs is not None:
+            if attrs != ctx_attrs:
                 raise VerifyException(
-                    f"attributes {tuple(str(x) for x in constraint_context.get_range_variable(self.name))} expected from range variable "
+                    f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
                 )
         else:
