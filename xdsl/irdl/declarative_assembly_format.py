@@ -446,7 +446,7 @@ class VariableDirective(Directive, ABC):
 
 class VariadicVariable(VariableDirective, AnchorableDirective, ABC):
     def is_present(self, op: IRDLOperation) -> bool:
-        return len(getattr(op, self.name)) > 0
+        return bool(getattr(op, self.name))
 
 
 class OptionalVariable(VariableDirective, AnchorableDirective, ABC):
