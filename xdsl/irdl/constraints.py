@@ -49,8 +49,8 @@ class ConstraintContext:
         scoped_context = ScopedConstraintContext(inner_variables, inner_range_variables)
         yield scoped_context
         if scoped_context.commit_scope:
-            self._variables = inner_variables
-            self._range_variables = inner_range_variables
+            self._variables.local_scope |= inner_variables.local_scope
+            self._range_variables.local_scope |= inner_range_variables.local_scope
 
 
 @dataclass
