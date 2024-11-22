@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator, Sequence, Set
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar, cast
@@ -13,7 +12,6 @@ from typing_extensions import assert_never
 from xdsl.ir import Attribute, AttributeCovT, AttributeInvT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
-from xdsl.utils.scoped_dict import ScopedDict
 
 
 @dataclass
@@ -22,12 +20,10 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    _variables: ScopedDict[str, Attribute] = field(default_factory=lambda: ScopedDict())
+    _variables: dict[str, Attribute] = field(default_factory=dict)
     """The assignment of constraint variables."""
 
-    _range_variables: ScopedDict[str, tuple[Attribute, ...]] = field(
-        default_factory=lambda: ScopedDict()
-    )
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
     """The assignment of constraint range variables."""
 
     def get_variable(self, key: str) -> Attribute | None:
@@ -42,25 +38,20 @@ class ConstraintContext:
     def set_range_variable(self, key: str, attr: tuple[Attribute, ...]):
         self._range_variables[key] = attr
 
-    @contextmanager
-    def scoped_context(self):
-        inner_variables = ScopedDict(parent=self._variables)
-        inner_range_variables = ScopedDict(parent=self._range_variables)
-        scoped_context = ScopedConstraintContext(inner_variables, inner_range_variables)
-        yield scoped_context
-        if scoped_context.commit_scope:
-            self._variables.local_scope |= inner_variables.local_scope
-            self._range_variables.local_scope |= inner_range_variables.local_scope
+    @property
+    def variables(self) -> Sequence[str]:
+        return tuple(self._variables.keys())
 
+    @property
+    def range_variables(self) -> Sequence[str]:
+        return tuple(self._range_variables.keys())
 
-@dataclass
-class ScopedConstraintContext(ConstraintContext):
-    """
-    A discardable constraint context. To commit this constraint context beyond its
-    scope, set `commit_scope` to True.
-    """
+    def copy(self):
+        return ConstraintContext(self._variables.copy(), self._range_variables.copy())
 
-    commit_scope: bool = field(default=False)
+    def update(self, other: ConstraintContext):
+        self._variables.update(other._variables)
+        self._range_variables.update(other._range_variables)
 
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
@@ -390,15 +381,16 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     ) -> None:
         constraint_context = constraint_context or ConstraintContext()
         for attr_constr in self.attr_constrs:
-            # Push a new scope that will be discarded if the constraint fails to verify,
-            # and kept if verification succeeds
-            with constraint_context.scoped_context() as ctx:
-                try:
-                    attr_constr.verify(attr, ctx)
-                    ctx.commit_scope = True
-                    return
-                except VerifyException:
-                    pass
+            # Copy the constraint to ensure that if the constraint fails, the
+            # constraint context is not modified.
+            constraint_context_copy = constraint_context.copy()
+            try:
+                attr_constr.verify(attr, constraint_context_copy)
+                # If the constraint succeeds, we update back the constraint variables
+                constraint_context.update(constraint_context_copy)
+                return
+            except VerifyException:
+                pass
         raise VerifyException(f"Unexpected attribute {attr}")
 
     def __or__(

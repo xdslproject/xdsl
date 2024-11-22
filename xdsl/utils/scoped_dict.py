@@ -19,7 +19,7 @@ class ScopedDict(Generic[_Key, _Value]):
     ScopedDict instances may have a `name` property as a hint during debugging.
     """
 
-    local_scope: dict[_Key, _Value]
+    _local_scope: dict[_Key, _Value]
     parent: ScopedDict[_Key, _Value] | None
     name: str | None
 
@@ -30,7 +30,7 @@ class ScopedDict(Generic[_Key, _Value]):
         name: str | None = None,
         local_scope: dict[_Key, _Value] | None = None,
     ) -> None:
-        self.local_scope = {} if local_scope is None else local_scope
+        self._local_scope = {} if local_scope is None else local_scope
         self.parent = parent
         self.name = name
 
@@ -41,7 +41,7 @@ class ScopedDict(Generic[_Key, _Value]):
     def get(self, key: _Key, default: _Value) -> _Value: ...
 
     def get(self, key: _Key, default: _Value | None = None) -> _Value | None:
-        local = self.local_scope.get(key)
+        local = self._local_scope.get(key)
         if local is not None:
             return local
         if self.parent is None:
@@ -53,7 +53,7 @@ class ScopedDict(Generic[_Key, _Value]):
         Fetch key from environment. Attempts to first fetch from current scope,
         then from parent scopes. Raises KeyError error if not found.
         """
-        local = self.local_scope.get(key)
+        local = self._local_scope.get(key)
         if local is not None:
             return local
         if self.parent is None:
@@ -65,11 +65,13 @@ class ScopedDict(Generic[_Key, _Value]):
         Assign key to current scope. Raises InterpretationError if key already
         assigned to.
         """
-        if key in self.local_scope:
+        if key in self._local_scope:
             raise ValueError(
-                f"Cannot overwrite value {self.local_scope[key]} for key {key}"
+                f"Cannot overwrite value {self._local_scope[key]} for key {key}"
             )
-        self.local_scope[key] = value
+        self._local_scope[key] = value
 
     def __contains__(self, key: _Key) -> bool:
-        return key in self.local_scope or self.parent is not None and key in self.parent
+        return (
+            key in self._local_scope or self.parent is not None and key in self.parent
+        )
