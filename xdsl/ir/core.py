@@ -614,6 +614,9 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     @classmethod
     def get_type_index(cls) -> int: ...
 
+    def get_type(self) -> Attribute:
+        return self.parameters[self.get_type_index()]
+
     @staticmethod
     def parse_with_type(
         parser: AttrParser,

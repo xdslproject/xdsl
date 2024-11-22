@@ -530,7 +530,7 @@ class Printer:
             # boolean shorthands
             if (
                 isinstance(
-                    (ty := attribute.parameters[attribute.get_type_index()]),
+                    (ty := attribute.get_type()),
                     IntegerType,
                 )
                 and ty.width.data == 1
@@ -542,7 +542,7 @@ class Printer:
         if isinstance(attribute, TypedAttribute):
             attribute.print_without_type(self)
             self.print_string(" : ")
-            self.print_attribute(attribute.parameters[attribute.get_type_index()])
+            self.print_attribute(attribute.get_type())
             return
 
         if isinstance(attribute, StringAttr):
