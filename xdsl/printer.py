@@ -29,7 +29,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
-    FloatAttr,
     FloatData,
     FunctionType,
     IndexType,
