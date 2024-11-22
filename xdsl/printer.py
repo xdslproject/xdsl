@@ -14,7 +14,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyFloatAttr,
-    AnyIntegerAttr,
     AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -23,7 +22,6 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     ComplexType,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
     Float16Type,
@@ -610,51 +608,6 @@ class Printer:
                 self.print_string("(")
                 self.print_list(outputs, self.print_attribute)
                 self.print_string(")")
-            return
-
-        if isinstance(attribute, DenseIntOrFPElementsAttr):
-
-            def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr):
-                    self.print_string(f"{val.value.data}")
-                elif isinstance(val, FloatAttr):
-                    self.print_float(cast(AnyFloatAttr, val))
-                else:
-                    raise Exception(
-                        "unexpected attribute type "
-                        "in DenseIntOrFPElementsAttr: "
-                        f"{type(val)}"
-                    )
-
-            def print_dense_list(
-                array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: Sequence[int],
-            ):
-                self.print_string("[")
-                if len(shape) > 1:
-                    k = len(array) // shape[0]
-                    self.print_list(
-                        (array[i : i + k] for i in range(0, len(array), k)),
-                        lambda subarray: print_dense_list(subarray, shape[1:]),
-                    )
-                else:
-                    self.print_list(array, print_one_elem)
-                self.print_string("]")
-
-            self.print_string("dense<")
-            data = attribute.data.data
-            shape = (
-                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
-            )
-            assert shape is not None, "If shape is complete, then it cannot be None"
-            if len(data) == 0:
-                pass
-            elif data.count(data[0]) == len(data):
-                print_one_elem(data[0])
-            else:
-                print_dense_list(data, shape)
-            self.print_string("> : ")
-            self.print_attribute(attribute.type)
             return
 
         if isinstance(attribute, DenseResourceAttr):
