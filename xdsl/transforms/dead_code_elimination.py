@@ -163,4 +163,4 @@ class DeadCodeElimination(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        op_dce(op.body)
+        region_dce(op.body)
