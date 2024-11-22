@@ -9,7 +9,13 @@ from typing import Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import assert_never
 
-from xdsl.ir import Attribute, AttributeCovT, AttributeInvT, ParametrizedAttribute
+from xdsl.ir import (
+    Attribute,
+    AttributeCovT,
+    AttributeInvT,
+    ParametrizedAttribute,
+    TypedAttribute,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
@@ -204,6 +210,49 @@ class IdExtractor(VarExtractor[ConstraintVariableTypeT]):
 
     def extract_var(self, a: ConstraintVariableTypeT) -> ConstraintVariableType:
         return a
+
+
+TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covariant=True)
+TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
+
+
+@dataclass(frozen=True)
+class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
+    """
+    Constrains the type of a typed attribute.
+    """
+
+    attr_constraint: GenericAttrConstraint[TypedAttributeCovT]
+
+    type_constraint: GenericAttrConstraint[Attribute]
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        self.attr_constraint.verify(attr, constraint_context)
+        if not isinstance(attr, TypedAttribute):
+            raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
+        self.type_constraint.verify(attr.get_type(), constraint_context)
+
+    @dataclass(frozen=True)
+    class _Extractor(VarExtractor[TypedAttributeT]):
+        inner: VarExtractor[Attribute]
+
+        def extract_var(self, a: TypedAttributeT) -> ConstraintVariableType:
+            return self.inner.extract_var(a.get_type())
+
+    def get_variable_extractors(self) -> dict[str, VarExtractor[TypedAttributeCovT]]:
+        return merge_extractor_dicts(
+            self.attr_constraint.get_variable_extractors(),
+            {
+                v: self._Extractor(r)
+                for v, r in self.type_constraint.get_variable_extractors().items()
+            },
+        )
+
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.attr_constraint.can_infer(var_constraint_names)
+
+    def infer(self, context: InferenceContext) -> TypedAttributeCovT:
+        return self.attr_constraint.infer(context)
 
 
 @dataclass(frozen=True)

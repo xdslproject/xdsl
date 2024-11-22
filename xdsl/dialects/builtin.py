@@ -513,6 +513,9 @@ class IntegerAttr(
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)
 
+    def get_type(self) -> Attribute:
+        return self.type
+
     @staticmethod
     def constr(
         *,
