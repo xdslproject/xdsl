@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
     ContainerType,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -224,9 +224,9 @@ class ParallelOp(IRDLOperation):
 
     reductions = prop_def(ArrayAttr[StringAttr])
     lowerBoundsMap = prop_def(AffineMapAttr)
-    lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    lowerBoundsGroups = prop_def(DenseIntElementsAttr)
     upperBoundsMap = prop_def(AffineMapAttr)
-    upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    upperBoundsGroups = prop_def(DenseIntElementsAttr)
     steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
 
     res = var_result_def()

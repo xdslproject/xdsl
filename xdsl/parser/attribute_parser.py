@@ -6,7 +6,7 @@ import struct
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast, overload
 
 import xdsl.parser as affine_parser
 from xdsl.context import MLContext
@@ -27,6 +27,7 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     ComplexType,
     DenseArrayBase,
+    DenseElementT,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
@@ -792,9 +793,19 @@ class AttrParser(BaseParser):
             self.raise_error("Dense literal attribute should have a static shape.")
         return type
 
+    @overload
+    def parse_dense_int_or_fp_elements_attr(
+        self, type: RankedStructure[DenseElementT]
+    ) -> DenseIntOrFPElementsAttr[DenseElementT]: ...
+
+    @overload
+    def parse_dense_int_or_fp_elements_attr(
+        self, type: None
+    ) -> DenseIntOrFPElementsAttr[AnyDenseElement]: ...
+
     def parse_dense_int_or_fp_elements_attr(
         self, type: RankedStructure[AnyDenseElement] | None
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[AnyDenseElement]:
         dense_contents: (
             tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
         )
@@ -866,7 +877,9 @@ class AttrParser(BaseParser):
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
+    def _parse_builtin_dense_attr(
+        self, _name: Span
+    ) -> DenseIntOrFPElementsAttr[AnyDenseElement]:
         return self.parse_dense_int_or_fp_elements_attr(None)
 
     def _parse_builtin_opaque_attr(self, _name: Span):

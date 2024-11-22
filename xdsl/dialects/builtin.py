@@ -1717,16 +1717,19 @@ RankedStructure: TypeAlias = (
 )
 
 AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
+DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, covariant=True)
+_DenseElementT = TypeVar("_DenseElementT", bound=AnyDenseElement)
+FloatTypeT = TypeVar("FloatTypeT", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
+class DenseIntOrFPElementsAttr(
+    Generic[DenseElementT],
+    TypedAttribute,
+    ContainerType[DenseElementT],
+):
     name = "dense"
-    type: ParameterDef[
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-    ]
+    type: ParameterDef[RankedStructure[DenseElementT]]
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
@@ -1735,7 +1738,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             return None
         return self.type.get_shape()
 
-    def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
+    def get_element_type(self) -> DenseElementT:
         return self.type.get_element_type()
 
     @property
@@ -1758,7 +1761,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def create_dense_index(
         type: RankedStructure[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[IndexType]:
         if len(data) and isinstance(data[0], int):
             attr_list = [
                 IntegerAttr.from_index_int_value(d) for d in cast(Sequence[int], data)
@@ -1766,13 +1769,13 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         else:
             attr_list = cast(Sequence[IntegerAttr[IndexType]], data)
 
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+        return DenseIntOrFPElementsAttr[IndexType]([type, ArrayAttr(attr_list)])
 
     @staticmethod
     def create_dense_int(
         type: RankedStructure[IntegerType],
         data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[IntegerType]:
         if len(data) and isinstance(data[0], int):
             attr_list = [
                 IntegerAttr[IntegerType](d, type.element_type)
@@ -1785,9 +1788,9 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
 
     @staticmethod
     def create_dense_float(
-        type: RankedStructure[AnyFloat],
+        type: RankedStructure[FloatTypeT],
         data: Sequence[int | float] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[FloatTypeT]:
         if len(data) and isinstance(data[0], int | float):
             attr_list = [
                 FloatAttr(float(d), type.element_type)
@@ -1798,64 +1801,40 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
 
         return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
 
-    @overload
     @staticmethod
     def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: (
-            Sequence[int]
-            | Sequence[IntegerAttr[IndexType]]
-            | Sequence[IntegerAttr[IntegerType]]
-        ),
-    ) -> DenseIntOrFPElementsAttr: ...
-
-    @overload
-    @staticmethod
-    def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: Sequence[int | float] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr: ...
-
-    @staticmethod
-    def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
+        type: RankedStructure[_DenseElementT],
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[_DenseElementT]:
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
             new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
-            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
+            return cast(
+                DenseIntOrFPElementsAttr[_DenseElementT],
+                DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data),
+            )
         elif isinstance(type.element_type, IntegerType):
             new_type = cast(RankedStructure[IntegerType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+            return cast(
+                DenseIntOrFPElementsAttr[_DenseElementT],
+                DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data),
+            )
         else:
             new_type = cast(RankedStructure[IndexType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+            return cast(
+                DenseIntOrFPElementsAttr[_DenseElementT],
+                DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data),
+            )
 
     @staticmethod
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
-        data_type: IntegerType | IndexType | AnyFloat,
-    ) -> DenseIntOrFPElementsAttr:
+        data_type: _DenseElementT,
+    ) -> DenseIntOrFPElementsAttr[_DenseElementT]:
         t = VectorType(data_type, [len(data)])
-        return DenseIntOrFPElementsAttr.from_list(t, data)
+        return DenseIntOrFPElementsAttr[_DenseElementT].from_list(t, data)
 
     @staticmethod
     def tensor_from_list(
@@ -1866,15 +1845,20 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             | Sequence[IntegerAttr[IntegerType]]
             | Sequence[AnyFloatAttr]
         ),
-        data_type: IntegerType | IndexType | AnyFloat,
+        data_type: _DenseElementT,
         shape: Sequence[int],
-    ) -> DenseIntOrFPElementsAttr:
+    ) -> DenseIntOrFPElementsAttr[_DenseElementT]:
         t = TensorType(data_type, shape)
-        return DenseIntOrFPElementsAttr.from_list(t, data)
+        return DenseIntOrFPElementsAttr[_DenseElementT].from_list(t, data)
 
     @staticmethod
     def parse_with_type(parser: AttrParser, type: Attribute) -> TypedAttribute:
-        assert isa(type, RankedStructure[AnyDenseElement])
+        assert (
+            isa(type, VectorType[AnyDenseElement])
+            or isa(type, TensorType[AnyDenseElement])
+            or isa(type, MemRefType[AnyDenseElement])
+        )
+
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
     @staticmethod
@@ -1924,6 +1908,9 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         else:
             DenseIntOrFPElementsAttr._print_dense_list(data, shape, printer)
         printer.print_string(">")
+
+
+DenseIntElementsAttr: TypeAlias = DenseIntOrFPElementsAttr[IntegerType]
 
 
 Builtin = Dialect(

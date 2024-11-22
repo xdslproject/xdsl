@@ -1,7 +1,7 @@
 from typing import Any
 
 from xdsl.dialects import ml_program
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
+from xdsl.dialects.builtin import AnyDenseElement, DenseIntOrFPElementsAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -12,6 +12,7 @@ from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.traits import SymbolTable
+from xdsl.utils.isattr import isattr
 
 
 @register_impls
@@ -26,7 +27,7 @@ class MLProgramFunctions(InterpreterFunctions):
         global_op = SymbolTable.lookup_symbol(op, op.global_attr)
         assert isinstance(global_op, ml_program.Global)
         global_value = global_op.value
-        assert isinstance(global_value, DenseIntOrFPElementsAttr)
+        assert isattr(global_value, DenseIntOrFPElementsAttr[AnyDenseElement])
         shape = global_value.get_shape()
         if shape is None:
             raise NotImplementedError()

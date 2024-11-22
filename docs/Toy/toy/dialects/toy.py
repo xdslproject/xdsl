@@ -84,12 +84,12 @@ class ConstantOp(IRDLOperation):
     """
 
     name = "toy.constant"
-    value = attr_def(DenseIntOrFPElementsAttr)
+    value = attr_def(DenseIntOrFPElementsAttr[Float64Type])
     res = result_def(TensorTypeF64)
 
     traits = traits_def(Pure())
 
-    def __init__(self, value: DenseIntOrFPElementsAttr):
+    def __init__(self, value: DenseIntOrFPElementsAttr[Float64Type]):
         super().__init__(result_types=[value.type], attributes={"value": value})
 
     @staticmethod

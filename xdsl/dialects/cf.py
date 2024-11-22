@@ -7,8 +7,7 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
-    IndexType,
+    DenseIntElementsAttr,
     IndexTypeConstr,
     IntegerType,
     SignlessIntegerConstraint,
@@ -178,7 +177,7 @@ class Switch(IRDLOperation):
 
     name = "cf.switch"
 
-    case_values = opt_prop_def(DenseIntOrFPElementsAttr)
+    case_values = opt_prop_def(DenseIntElementsAttr)
 
     flag = operand_def(IndexTypeConstr | SignlessIntegerConstraint)
 
@@ -202,7 +201,7 @@ class Switch(IRDLOperation):
         flag: Operation | SSAValue,
         default_block: Successor,
         default_operands: Sequence[Operation | SSAValue],
-        case_values: DenseIntOrFPElementsAttr | None = None,
+        case_values: DenseIntElementsAttr | None = None,
         case_blocks: Sequence[Successor] = [],
         case_operands: Sequence[Sequence[Operation | SSAValue]] = [],
         attr_dict: dict[str, Attribute] | None = None,
@@ -355,15 +354,15 @@ class Switch(IRDLOperation):
         parser.parse_punctuation("[")
         parser.parse_keyword("default")
         (default_block, default_args) = cls._parse_case_body(parser)
-        case_values: DenseIntOrFPElementsAttr | None = None
+        case_values: DenseIntElementsAttr | None = None
         case_blocks: tuple[Block, ...] = ()
         case_operands: tuple[tuple[SSAValue, ...], ...] = ()
         if parser.parse_optional_punctuation(","):
             cases = parser.parse_comma_separated_list(
                 Parser.Delimiter.NONE, lambda: cls._parse_case(parser)
             )
-            assert isinstance(flag_type, IntegerType | IndexType)
-            case_values = DenseIntOrFPElementsAttr.vector_from_list(
+            assert isinstance(flag_type, IntegerType)
+            case_values = DenseIntElementsAttr.vector_from_list(
                 [x for (x, _, _) in cases], flag_type
             )
             case_blocks = tuple(x for (_, x, _) in cases)

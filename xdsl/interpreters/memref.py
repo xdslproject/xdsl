@@ -14,6 +14,7 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Attribute
 from xdsl.traits import SymbolTable
+from xdsl.utils.isattr import isattr
 
 
 @register_impls
@@ -72,7 +73,9 @@ class MemrefFunctions(InterpreterFunctions):
         mem = SymbolTable.lookup_symbol(op, op.name_)
         assert isinstance(mem, memref.Global)
         initial_value = mem.initial_value
-        if not isinstance(initial_value, builtin.DenseIntOrFPElementsAttr):
+        if not isattr(
+            initial_value, builtin.DenseIntOrFPElementsAttr[builtin.AnyDenseElement]
+        ):
             raise NotImplementedError(
                 "Memrefs that are not dense int or float arrays are not implemented"
             )

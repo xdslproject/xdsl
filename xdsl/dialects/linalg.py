@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
+    DenseIntElementsAttr,
     IntegerType,
     MemRefType,
     ShapedType,
@@ -961,8 +961,8 @@ class PoolingOpsBase(IRDLOperation, ABC):
         "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
     )
 
-    strides = attr_def(DenseIntOrFPElementsAttr)
-    dilations = attr_def(DenseIntOrFPElementsAttr)
+    strides = attr_def(DenseIntElementsAttr)
+    dilations = attr_def(DenseIntElementsAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
@@ -1012,8 +1012,8 @@ class ConvOpsBase(IRDLOperation, ABC):
         "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
     )
 
-    strides = attr_def(DenseIntOrFPElementsAttr)
-    dilations = attr_def(DenseIntOrFPElementsAttr)
+    strides = attr_def(DenseIntElementsAttr)
+    dilations = attr_def(DenseIntElementsAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
