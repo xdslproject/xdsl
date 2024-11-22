@@ -19,6 +19,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedSegments,
     ConstraintVariableType,
+    InferenceContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -528,7 +529,7 @@ class FormatParser(BaseParser):
                             unique_base.get_type_index()
                         ]
                         if type_constraint.can_infer(set()):
-                            unique_type = type_constraint.infer({})
+                            unique_type = type_constraint.infer(InferenceContext())
                 if (
                     unique_base is not None
                     and unique_base in Builtin.attributes

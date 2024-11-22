@@ -10,6 +10,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     EqAttrConstraint,
+    InferenceContext,
     ParamAttrConstraint,
     ParameterDef,
     VarConstraint,
@@ -77,7 +78,7 @@ def test_param_attr_constraint_inference():
     )
 
     assert constr.can_infer(set())
-    assert constr.infer({}) == WrapAttr((StringAttr("Hello"),))
+    assert constr.infer(InferenceContext()) == WrapAttr((StringAttr("Hello"),))
 
     var_constr = ParamAttrConstraint(
         WrapAttr,
@@ -92,7 +93,7 @@ def test_param_attr_constraint_inference():
     )
 
     assert var_constr.can_infer({"T"})
-    assert var_constr.infer({"T": StringAttr("Hello")}) == WrapAttr(
+    assert var_constr.infer(InferenceContext({"T": StringAttr("Hello")})) == WrapAttr(
         (StringAttr("Hello"),)
     )
 
@@ -127,7 +128,7 @@ def test_base_attr_constraint_inference():
     constr = BaseAttr(NoParamAttr)
 
     assert constr.can_infer(set())
-    assert constr.infer({}) == NoParamAttr()
+    assert constr.infer(InferenceContext()) == NoParamAttr()
 
     base_constr = BaseAttr(BaseNoParamAttr)
     assert not base_constr.can_infer(set())
