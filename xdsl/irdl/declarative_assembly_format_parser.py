@@ -40,6 +40,7 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
+    AnyTypeableDirective,
     AttrDictDirective,
     AttributeVariable,
     DefaultValuedAttributeVariable,
@@ -47,35 +48,35 @@ from xdsl.irdl.declarative_assembly_format import (
     FormatProgram,
     KeywordDirective,
     OperandOrResult,
-    OperandTypeDirective,
     OperandVariable,
     OptionalAttributeVariable,
     OptionalGroupDirective,
     OptionallyParsableDirective,
-    OptionalOperandTypeDirective,
     OptionalOperandVariable,
     OptionalRegionVariable,
-    OptionalResultTypeDirective,
     OptionalResultVariable,
     OptionalSuccessorVariable,
+    OptionalTypeableDirective,
+    OptionalTypeDirective,
     OptionalUnitAttrVariable,
     ParsingState,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
-    ResultTypeDirective,
     ResultVariable,
     SuccessorVariable,
-    VariableDirective,
+    TypeDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
-    VariadicLikeVariable,
-    VariadicOperandTypeDirective,
+    VariadicOperandDirective,
     VariadicOperandVariable,
+    VariadicRegionDirective,
     VariadicRegionVariable,
-    VariadicResultTypeDirective,
     VariadicResultVariable,
+    VariadicSuccessorDirective,
     VariadicSuccessorVariable,
+    VariadicTypeableDirective,
+    VariadicTypeDirective,
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -148,8 +149,6 @@ class FormatParser(BaseParser):
     """The successor variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
-    context: ParsingContext = field(default=ParsingContext.TopLevel)
-    """Indicates if the parser is nested in a particular directive."""
     type_resolutions: dict[
         tuple[OperandOrResult, int],
         tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
@@ -177,7 +176,7 @@ class FormatParser(BaseParser):
         """
         elements: list[FormatDirective] = []
         while self._current_token.kind != Token.Kind.EOF:
-            elements.append(self.parse_directive())
+            elements.append(self.parse_format_directive())
 
         self.add_reserved_attrs_to_directive(elements)
         extractors = self.extractors_by_name()
@@ -205,25 +204,19 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
-                case VariadicLikeVariable(), VariadicLikeVariable():
-                    if not (
-                        isinstance(a, RegionDirective | VariadicLikeTypeDirective)
-                        or isinstance(b, RegionDirective | VariadicLikeTypeDirective)
-                    ):
-                        self.raise_error(
-                            "A variadic operand variable cannot be followed by another variadic operand variable."
-                        )
-                    elif isinstance(a, RegionDirective) and isinstance(
-                        b, RegionDirective
-                    ):
-                        self.raise_error(
-                            "A variadic region variable cannot be followed by another variadic region variable."
-                        )
-                case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
+                case VariadicOperandDirective(), VariadicOperandDirective():
                     self.raise_error(
-                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
+                        "A variadic operand variable cannot be followed by another variadic operand variable."
                     )
-                case AttrDictDirective(), RegionVariable() if not (a.with_keyword):
+                case VariadicRegionDirective(), VariadicRegionDirective():
+                    self.raise_error(
+                        "A variadic region variable cannot be followed by another variadic region variable."
+                    )
+                case VariadicSuccessorDirective(), VariadicSuccessorDirective():
+                    self.raise_error(
+                        "A variadic successor variable cannot be followed by another variadic successor variable."
+                    )
+                case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
                     self.raise_error(
                         "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
                     )
@@ -403,30 +396,22 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format."
                 )
 
-    def parse_optional_variable(
-        self,
-    ) -> VariableDirective | AttributeVariable | None:
-        """
-        Parse a variable, if present, with the following format:
-          variable ::= `$` bare-ident
-        The variable should refer to an operand, attribute, region, result,
-        or successor.
-        """
-        if self._current_token.text[0] != "$":
-            return None
-        self._consume_token()
-        variable_name = self.parse_identifier(" after '$'")
-
-        # Check if the variable is an operand
+    def _parse_optional_operand(
+        self, variable_name: str, top_level: bool
+    ) -> OptionalOperandVariable | VariadicOperandVariable | OperandVariable | None:
         for idx, (operand_name, operand_def) in enumerate(self.op_def.operands):
             if variable_name != operand_name:
                 continue
-            if self.context == ParsingContext.TopLevel:
+            if top_level:
                 if self.seen_operands[idx]:
                     self.raise_error(f"operand '{variable_name}' is already bound")
                 self.seen_operands[idx] = True
                 if isinstance(operand_def, VariadicDef | OptionalDef):
                     self.seen_attributes.add(AttrSizedOperandSegments.attribute_name)
+            else:
+                if self.seen_operand_types[idx]:
+                    self.raise_error(f"type of '{variable_name}' is already bound")
+                self.seen_operand_types[idx] = True
             match operand_def:
                 case OptOperandDef():
                     return OptionalOperandVariable(variable_name, idx)
@@ -435,15 +420,28 @@ class FormatParser(BaseParser):
                 case _:
                     return OperandVariable(variable_name, idx)
 
+    def parse_optional_typeable_variable(self) -> AnyTypeableDirective | None:
+        """
+        Parse a variable, if present, with the following format:
+          variable ::= `$` bare-ident
+        The variable should refer to an operand or result.
+        """
+        if self._current_token.text[0] != "$":
+            return None
+        self._consume_token()
+        variable_name = self.parse_identifier(" after '$'")
+
+        # Check if the variable is an operand
+        if (variable := self._parse_optional_operand(variable_name, False)) is not None:
+            return variable
+
         # Check if the variable is a result
         for idx, (result_name, result_def) in enumerate(self.op_def.results):
             if variable_name != result_name:
                 continue
-            if self.context == ParsingContext.TopLevel:
-                self.raise_error(
-                    "result variable cannot be in a toplevel directive. "
-                    f"Consider using 'type({variable_name})' instead."
-                )
+            if self.seen_result_types[idx]:
+                self.raise_error(f"type of '{variable_name}' is already bound")
+            self.seen_result_types[idx] = True
             match result_def:
                 case OptResultDef():
                     return OptionalResultVariable(variable_name, idx)
@@ -451,10 +449,25 @@ class FormatParser(BaseParser):
                     return VariadicResultVariable(variable_name, idx)
                 case _:
                     return ResultVariable(variable_name, idx)
-            if isinstance(result_def, VariadicDef):
-                return VariadicResultVariable(variable_name, idx)
-            else:
-                return ResultVariable(variable_name, idx)
+
+        self.raise_error("expected typeable variable to refer to an operand or result")
+
+    def parse_optional_variable(
+        self,
+    ) -> FormatDirective | None:
+        """
+        Parse a variable, if present, with the following format:
+          variable ::= `$` bare-ident
+        The variable should refer to an operand, attribute, region, or successor.
+        """
+        if self._current_token.text[0] != "$":
+            return None
+        self._consume_token()
+        variable_name = self.parse_identifier(" after '$'")
+
+        # Check if the variable is an operand
+        if (variable := self._parse_optional_operand(variable_name, True)) is not None:
+            return variable
 
         # Check if the variable is a region
         for idx, (region_name, region_def) in enumerate(self.op_def.regions):
@@ -492,17 +505,14 @@ class FormatParser(BaseParser):
             attr_name = variable_name
             attr_or_prop = attr_or_prop_by_name[attr_name]
             is_property = attr_or_prop == "property"
-            if self.context == ParsingContext.TopLevel:
-                if is_property:
-                    if attr_name in self.seen_properties:
-                        self.raise_error(f"property '{variable_name}' is already bound")
-                    self.seen_properties.add(attr_name)
-                else:
-                    if attr_name in self.seen_attributes:
-                        self.raise_error(
-                            f"attribute '{variable_name}' is already bound"
-                        )
-                    self.seen_attributes.add(attr_name)
+            if is_property:
+                if attr_name in self.seen_properties:
+                    self.raise_error(f"property '{variable_name}' is already bound")
+                self.seen_properties.add(attr_name)
+            else:
+                if attr_name in self.seen_attributes:
+                    self.raise_error(f"attribute '{variable_name}' is already bound")
+                self.seen_attributes.add(attr_name)
 
             attr_def = (
                 self.op_def.properties.get(attr_name)
@@ -560,63 +570,23 @@ class FormatParser(BaseParser):
 
         self.raise_error(
             "expected variable to refer to an operand, "
-            "attribute, region, result, or successor"
+            "attribute, region, or successor"
         )
 
     def parse_type_directive(self) -> FormatDirective:
         """
         Parse a type directive with the following format:
-          type-directive ::= `type` `(` variable `)`
+          type-directive ::= `type` `(` typeable-directive `)`
         `type` is expected to have already been parsed
         """
         self.parse_punctuation("(")
-
-        # Update the current context, since we are now in a type directive
-        previous_context = self.context
-        self.context = ParsingContext.TypeDirective
-
-        variable = self.parse_optional_variable()
-        match variable:
-            case None:
-                self.raise_error("'type' directive expects a variable argument")
-            case OptionalOperandVariable(name, index):
-                if self.seen_operand_types[index]:
-                    self.raise_error(f"types of '{name}' is already bound")
-                self.seen_operand_types[index] = True
-                res = OptionalOperandTypeDirective(name, index)
-            case VariadicOperandVariable(name, index):
-                if self.seen_operand_types[index]:
-                    self.raise_error(f"types of '{name}' is already bound")
-                self.seen_operand_types[index] = True
-                res = VariadicOperandTypeDirective(name, index)
-            case OperandVariable(name, index):
-                if self.seen_operand_types[index]:
-                    self.raise_error(f"type of '{name}' is already bound")
-                self.seen_operand_types[index] = True
-                res = OperandTypeDirective(name, index)
-            case OptionalResultVariable(name, index):
-                if self.seen_result_types[index]:
-                    self.raise_error(f"types of '{name}' is already bound")
-                self.seen_result_types[index] = True
-                res = OptionalResultTypeDirective(name, index)
-            case VariadicResultVariable(name, index):
-                if self.seen_result_types[index]:
-                    self.raise_error(f"types of '{name}' is already bound")
-                self.seen_result_types[index] = True
-                res = VariadicResultTypeDirective(name, index)
-            case ResultVariable(name, index):
-                if self.seen_result_types[index]:
-                    self.raise_error(f"type of '{name}' is already bound")
-                self.seen_result_types[index] = True
-                res = ResultTypeDirective(name, index)
-            case AttributeVariable():
-                self.raise_error("can only take the type of an operand or result")
-            case _:
-                raise ValueError(f"Unexpected variable type {type(variable)}")
-
+        inner = self.parse_typeable_directive()
         self.parse_punctuation(")")
-        self.context = previous_context
-        return res
+        if isinstance(inner, VariadicTypeableDirective):
+            return VariadicTypeDirective(inner)
+        if isinstance(inner, OptionalTypeableDirective):
+            return OptionalTypeDirective(inner)
+        return TypeDirective(inner)
 
     def parse_optional_group(self) -> FormatDirective:
         """
@@ -627,7 +597,7 @@ class FormatParser(BaseParser):
         anchor: FormatDirective | None = None
 
         while not self.parse_optional_punctuation(")"):
-            then_elements += (self.parse_directive(),)
+            then_elements += (self.parse_format_directive(),)
             if self.parse_optional_keyword("^"):
                 if anchor is not None:
                     self.raise_error("An optional group can only have one anchor.")
@@ -710,7 +680,16 @@ class FormatParser(BaseParser):
         self.parse_characters("`")
         return KeywordDirective(ident)
 
-    def parse_directive(self) -> FormatDirective:
+    def parse_typeable_directive(self) -> AnyTypeableDirective:
+        """
+        Parse a typeable directive, with the following format:
+          directive ::= variable
+        """
+        if variable := self.parse_optional_typeable_variable():
+            return variable
+        self.raise_error(f"unexpected token '{self._current_token.text}'")
+
+    def parse_format_directive(self) -> FormatDirective:
         """
         Parse a format directive, with the following format:
           directive ::= `attr-dict`
