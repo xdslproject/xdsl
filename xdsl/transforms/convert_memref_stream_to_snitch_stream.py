@@ -11,8 +11,8 @@ from xdsl.dialects import (
     memref_stream,
     riscv,
     riscv_snitch,
+    snitch,
     snitch_stream,
-    stream,
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -65,9 +65,9 @@ class ReadOpLowering(RewritePattern):
         self, op: memref_stream.ReadOp, rewriter: PatternRewriter
     ) -> None:
         stream_type = op.stream.type
-        assert isinstance(stream_type, stream.ReadableStreamType)
+        assert isinstance(stream_type, memref_stream.ReadableStreamType)
         value_type = cast(
-            stream.ReadableStreamType[Attribute], stream_type
+            memref_stream.ReadableStreamType[Attribute], stream_type
         ).element_type
         if not snitch_stream_element_type_is_valid(value_type):
             raise DiagnosticException(
@@ -76,7 +76,7 @@ class ReadOpLowering(RewritePattern):
         register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
-            (op.stream,), (stream.ReadableStreamType(register_type),)
+            (op.stream,), (snitch.ReadableStreamType(register_type),)
         )
         new_op = riscv_snitch.ReadOp(new_stream.results[0])
         if len(op.res.uses) == 1:
@@ -103,9 +103,9 @@ class WriteOpLowering(RewritePattern):
         self, op: memref_stream.WriteOp, rewriter: PatternRewriter
     ) -> None:
         stream_type = op.stream.type
-        assert isinstance(stream_type, stream.WritableStreamType)
+        assert isinstance(stream_type, memref_stream.WritableStreamType)
         value_type = cast(
-            stream.WritableStreamType[Attribute], stream_type
+            memref_stream.WritableStreamType[Attribute], stream_type
         ).element_type
         if not snitch_stream_element_type_is_valid(value_type):
             raise DiagnosticException(
@@ -114,7 +114,7 @@ class WriteOpLowering(RewritePattern):
         register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
-            (op.stream,), (stream.WritableStreamType(register_type),)
+            (op.stream,), (snitch.WritableStreamType(register_type),)
         )
         cast_op = UnrealizedConversionCastOp.get((op.value,), (register_type,))
         if isinstance(defining_op := op.value.owner, Operation) and (
@@ -175,8 +175,8 @@ class StreamOpLowering(RewritePattern):
 
         new_body = new_op.body.block
 
-        input_stream_types = (stream.ReadableStreamType(freg),) * len(op.inputs)
-        output_stream_types = (stream.WritableStreamType(freg),) * len(op.outputs)
+        input_stream_types = (snitch.ReadableStreamType(freg),) * len(op.inputs)
+        output_stream_types = (snitch.WritableStreamType(freg),) * len(op.outputs)
         stream_types = input_stream_types + output_stream_types
         for i in reversed(range(len(stream_types))):
             arg = new_body.args[i]
