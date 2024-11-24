@@ -14,12 +14,14 @@ from typing import (
     Annotated,
     Any,
     Generic,
+    Literal,
     TypeVar,
     Union,
     cast,
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
 from xdsl.ir import (
@@ -79,12 +81,56 @@ class GenericData(Data[_DataElement], ABC):
 
 _A = TypeVar("_A", bound=Attribute)
 
+
+# Will deprecate soon
 ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
 
 
-def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> list[tuple[str, Any]]:
+# Field definition classes for `@irdl_param_attr_definition`
+class _ParameterDef:
+    param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
+
+    def __init__(
+        self,
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
+    ):
+        self.param = param
+
+
+@overload
+def param_def(
+    constraint: TypeVar,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Attribute: ...
+
+
+@overload
+def param_def(
+    constraint: type[AttributeInvT] | GenericAttrConstraint[AttributeInvT],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT: ...
+
+
+def param_def(
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT:
+    """Defines a property of an operation."""
+    return cast(AttributeInvT, _ParameterDef(constraint))
+
+
+def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> dict[str, Any]:
     """Get the type hints of an IRDL parameter definitions."""
-    res = list[tuple[str, Any]]()
+    res: dict[str, Any] = {}
     for field_name, field_type in get_type_hints(cls, include_extras=True).items():
         if field_name == "name" or field_name == "parameters":
             continue
@@ -98,7 +144,7 @@ def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> list[tuple[str, Any]]
                 + f"type `ParameterDef[<Constraint>]`, got type {field_type}."
             )
 
-        res.append((field_name, field_type))
+        res[field_name] = field_type
     return res
 
 
@@ -131,16 +177,28 @@ class ParamAttrDef:
             for key, value in parent_cls.__dict__.items()
             if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
         }
+        # Fields of the class with type annotations
+        param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
 
-        # Check that all fields of the attribute definition are either already
-        # in ParametrizedAttribute, or are class functions or methods.
+        # The resulting parameters
+        parameters = list[tuple[str, AttrConstraint]]()
+
         for field_name, value in clsdict.items():
             if field_name == "name":
+                # Ignore name field
                 continue
             if isinstance(
                 value, FunctionType | PropertyType | classmethod | staticmethod
             ):
+                # Ignore functions
                 continue
+
+            # Parameter def must be a field def
+            if isinstance(value, _ParameterDef):
+                constraint = irdl_to_attr_constraint(value.param, allow_type_var=True)
+                parameters.append((field_name, constraint))
+                continue
+
             # Constraint variables are allowed
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
@@ -158,10 +216,13 @@ class ParamAttrDef:
 
         name = clsdict["name"]
 
-        param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        if parameters and param_hints:
+            raise ValueError(
+                "ParametrizedAttribute definitions must not mix `param_def` and "
+                "ParamDef declarations."
+            )
 
-        parameters = list[tuple[str, AttrConstraint]]()
-        for param_name, param_type in param_hints:
+        for param_name, param_type in param_hints.items():
             constraint = irdl_to_attr_constraint(param_type, allow_type_var=True)
             parameters.append((param_name, constraint))
 
@@ -300,7 +361,8 @@ def irdl_to_attr_constraint(
     allow_type_var: bool = False,
 ) -> AttrConstraint:
     if isinstance(irdl, GenericAttrConstraint):
-        return cast(AttrConstraint, irdl)
+        constr: GenericAttrConstraint[Attribute] = irdl
+        return constr
 
     if isinstance(irdl, Attribute):
         return EqAttrConstraint(irdl)
@@ -347,9 +409,8 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
-        origin = cast(type[GenericData[Any]], origin)
-        args = cast(tuple[Attribute], args)
-        return AllOf((BaseAttr(origin), origin.generic_constraint_coercion(args)))
+        cls: type[GenericData[Attribute]] = origin
+        return AllOf((BaseAttr(cls), origin.generic_constraint_coercion(args)))
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
@@ -373,7 +434,10 @@ def irdl_to_attr_constraint(
 
         type_var_mapping = dict(zip(generic_args, args))
 
-        origin_parameters = irdl_param_attr_get_param_type_hints(origin)
+        # Map the constraints in the attribute definition
+        attr_def = origin.get_irdl_definition()
+        origin_parameters = attr_def.parameters
+
         origin_constraints = [
             irdl_to_attr_constraint(param, allow_type_var=True).mapping_type_vars(
                 type_var_mapping
