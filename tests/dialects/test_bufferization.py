@@ -23,6 +23,7 @@ from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute
 from xdsl.irdl import (
     EqAttrConstraint,
+    InferenceContext,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -39,13 +40,13 @@ def test_tensor_from_memref_inference():
         EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
     )
     assert constr2.can_infer(set())
-    assert constr2.infer({}) == TensorType(f64, [10, 20, 30])
+    assert constr2.infer(InferenceContext()) == TensorType(f64, [10, 20, 30])
 
     constr3 = TensorFromMemrefConstraint(
         EqAttrConstraint(UnrankedMemrefType.from_type(f64))
     )
     assert constr3.can_infer(set())
-    assert constr3.infer({}) == UnrankedTensorType(f64)
+    assert constr3.infer(InferenceContext()) == UnrankedTensorType(f64)
 
 
 @irdl_op_definition

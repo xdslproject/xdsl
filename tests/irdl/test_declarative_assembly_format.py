@@ -696,7 +696,7 @@ def test_unknown_variable():
     """Test that variables should refer to an element in the operation."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="expected variable to refer to an operand, attribute, region, result, or successor",
+        match="expected variable to refer to an operand, attribute, region, or successor",
     ):
 
         @irdl_op_definition

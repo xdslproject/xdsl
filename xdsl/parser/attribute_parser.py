@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyArrayAttr,
+    AnyDenseElement,
     AnyFloat,
     AnyFloatAttr,
     AnyFloatConstr,
@@ -698,11 +699,7 @@ class AttrParser(BaseParser):
     def _parse_builtin_dense_attr_hex(
         self,
         hex_string: str,
-        type: (
-            RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-            | RankedStructure[AnyFloat]
-        ),
+        type: RankedStructure[AnyDenseElement],
     ) -> tuple[list[int] | list[float], list[int]]:
         """
         Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
@@ -795,7 +792,9 @@ class AttrParser(BaseParser):
             self.raise_error("Dense literal attribute should have a static shape.")
         return type
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
+    def parse_dense_int_or_fp_elements_attr(
+        self, type: RankedStructure[AnyDenseElement] | None
+    ) -> DenseIntOrFPElementsAttr:
         dense_contents: (
             tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
         )
@@ -821,8 +820,9 @@ class AttrParser(BaseParser):
             self.parse_punctuation(">", " in dense attribute")
 
         # Parse the dense type and check for correctness
-        self.parse_punctuation(":", " in dense attribute")
-        type = self._parse_dense_literal_type()
+        if type is None:
+            self.parse_punctuation(":", " in dense attribute")
+            type = self._parse_dense_literal_type()
         type_shape = list(type.get_shape())
         type_num_values = math.prod(type_shape)
 
@@ -865,6 +865,9 @@ class AttrParser(BaseParser):
                 data_values *= type_num_values
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
+
+    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
+        return self.parse_dense_int_or_fp_elements_attr(None)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
         str_lit_list = self.parse_comma_separated_list(

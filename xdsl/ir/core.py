@@ -606,7 +606,7 @@ class ParametrizedAttribute(Attribute):
         super()._verify()
 
 
-class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
+class TypedAttribute(ParametrizedAttribute, ABC):
     """
     An attribute with a type.
     """
@@ -614,11 +614,14 @@ class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
     @classmethod
     def get_type_index(cls) -> int: ...
 
+    def get_type(self) -> Attribute:
+        return self.parameters[self.get_type_index()]
+
     @staticmethod
     def parse_with_type(
         parser: AttrParser,
-        type: AttributeInvT,
-    ) -> TypedAttribute[AttributeInvT]:
+        type: Attribute,
+    ) -> TypedAttribute:
         """
         Parse the attribute with the given type.
         """

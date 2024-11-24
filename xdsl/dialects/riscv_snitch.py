@@ -40,6 +40,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     VarConstraint,
     attr_def,
     base,
@@ -155,16 +156,40 @@ class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
 
 
 @irdl_op_definition
-class ReadOp(stream.ReadOperation, RISCVAsmOperation):
+class ReadOp(RISCVAsmOperation):
     name = "riscv_snitch.read"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    stream = operand_def(stream.ReadableStreamType.constr(T))
+    res = result_def(T)
+
+    assembly_format = "`from` $stream attr-dict `:` type($res)"
+
+    def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
+        if result_type is None:
+            assert isinstance(stream_type := stream_val.type, stream.ReadableStreamType)
+            stream_type = cast(stream.ReadableStreamType[Attribute], stream_type)
+            result_type = stream_type.element_type
+        super().__init__(operands=[stream_val], result_types=[result_type])
 
     def assembly_line(self) -> str | None:
         return None
 
 
 @irdl_op_definition
-class WriteOp(stream.WriteOperation, RISCVAsmOperation):
+class WriteOp(RISCVAsmOperation):
     name = "riscv_snitch.write"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    value = operand_def(T)
+    stream = operand_def(stream.WritableStreamType.constr(T))
+
+    assembly_format = "$value `to` $stream attr-dict `:` type($value)"
+
+    def __init__(self, value: SSAValue, stream: SSAValue):
+        super().__init__(operands=[value, stream])
 
     def assembly_line(self) -> str | None:
         return None

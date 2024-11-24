@@ -386,3 +386,10 @@ class PDLRewriteFunctions(InterpreterFunctions):
         (old,) = interpreter.get_values((op.op_value,))
         self.rewriter.erase_op(old)
         return ()
+
+    @impl(pdl.TypeOp)
+    def run_type(
+        self, interpreter: Interpreter, op: pdl.TypeOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert isinstance(op.constantType, Attribute)
+        return (op.constantType,)
