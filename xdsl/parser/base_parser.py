@@ -359,6 +359,36 @@ class BaseParser:
             "Expected integer literal" + context_msg,
         )
 
+    def parse_optional_float(
+        self,
+        *,
+        allow_negative: bool = True,
+    ) -> float | None:
+        """
+        Parse a (possibly negative) float, if present.
+        """
+        is_negative = False
+        if allow_negative:
+            is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+
+        if (value := self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
+            value = value.get_float_value()
+            return -value if is_negative else value
+
+    def parse_float(
+        self,
+        *,
+        allow_negative: bool = True,
+    ) -> float:
+        """
+        Parse a (possibly negative) float.
+        """
+
+        return self.expect(
+            lambda: self.parse_optional_float(allow_negative=allow_negative),
+            "Expected float literal",
+        )
+
     def parse_optional_number(
         self, *, allow_boolean: bool = False
     ) -> int | float | None:
@@ -376,8 +406,7 @@ class BaseParser:
         ) is not None:
             return -value if is_negative else value
 
-        if (value := self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
-            value = value.get_float_value()
+        if (value := self.parse_optional_float(allow_negative=False)) is not None:
             return -value if is_negative else value
 
         if is_negative:

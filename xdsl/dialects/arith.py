@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
     AnyIntegerAttr,
+    AnyIntegerAttrConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -25,8 +26,11 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AnyOf,
+    BaseAttr,
     IRDLOperation,
+    TypedAttributeConstraint,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -48,7 +52,6 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.isattr import isattr
 from xdsl.utils.str_enum import StrEnum
 
 boolLike = ContainerOf(IntegerType(1))
@@ -124,10 +127,20 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 @irdl_op_definition
 class Constant(IRDLOperation):
     name = "arith.constant"
-    result = result_def(Attribute)
-    value = prop_def(Attribute)
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+    result = result_def(_T)
+    value = prop_def(
+        TypedAttributeConstraint(
+            AnyIntegerAttrConstr
+            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
+            | BaseAttr(DenseIntOrFPElementsAttr),
+            _T,
+        )
+    )
 
     traits = traits_def(ConstantLike(), Pure())
+
+    assembly_format = "attr-dict $value"
 
     @overload
     def __init__(
@@ -161,31 +174,6 @@ class Constant(IRDLOperation):
             result_types=[value_type],
             properties={"value": IntegerAttr(value, value_type)},
         )
-
-    def print(self, printer: Printer):
-        printer.print_op_attributes(self.attributes)
-
-        printer.print(" ")
-        printer.print_attribute(self.value)
-
-    @classmethod
-    def parse(cls: type[Constant], parser: Parser) -> Constant:
-        attrs = parser.parse_optional_attr_dict()
-
-        p0 = parser.pos
-        value = parser.parse_attribute()
-
-        if not isattr(
-            value,
-            base(AnyIntegerAttr)
-            | base(FloatAttr[AnyFloat])
-            | base(DenseIntOrFPElementsAttr),
-        ):
-            parser.raise_error("Invalid constant value", p0, parser.pos)
-
-        c = Constant(value)
-        c.attributes.update(attrs)
-        return c
 
 
 _T = TypeVar("_T", bound=Attribute)

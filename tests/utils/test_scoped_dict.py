@@ -32,3 +32,16 @@ def test_simple():
     assert 3 not in table
     assert 3 in inner
     assert 4 not in inner
+
+
+def test_get():
+    parent = ScopedDict(local_scope={"a": 1, "b": 2})
+    child = ScopedDict(parent, local_scope={"a": 3, "c": 4})
+
+    assert child.get("a") == 3
+    assert child.get("b") == 2
+    assert child.get("c") == 4
+    assert child.get("d") is None
+
+    assert child.get("a", 5) == 3
+    assert child.get("d", 5) == 5
