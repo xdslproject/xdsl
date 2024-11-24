@@ -264,6 +264,28 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
 
 @dataclass(frozen=True)
+class CopyArithConstants(RewritePattern):
+    """ """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter, /):
+        if not (parent_func := self._get_enclosing_function(op)):
+            return
+        for use in list(op.result.uses):
+            use_func = self._get_enclosing_function(use.operation)
+            if use_func != parent_func:
+                rewriter.insert_op(cln := op.clone(), InsertPoint.before(use.operation))
+                op.result.replace_by_if(cln.result, lambda x: x == use)
+
+    @staticmethod
+    def _get_enclosing_function(op: Operation) -> csl.FuncOp | None:
+        parent = op.parent_op()
+        while parent and not isinstance(parent, csl.FuncOp):
+            parent = parent.parent_op()
+        return parent
+
+
+@dataclass(frozen=True)
 class CslStencilHandleAsyncControlFlow(ModulePass):
     """
     Handles the async control flow of csl_stencil.apply and any enclosing loops
@@ -283,3 +305,6 @@ class CslStencilHandleAsyncControlFlow(ModulePass):
             apply_recursively=False,
         )
         module_pass.rewrite_module(op)
+        PatternRewriteWalker(
+            CopyArithConstants(), apply_recursively=False
+        ).rewrite_module(op)

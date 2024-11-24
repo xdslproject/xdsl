@@ -11,8 +11,8 @@ from xdsl.dialects.builtin import (
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.memref import MemrefFunctions
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 
 interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
 interpreter.register_implementations(ArithFunctions())

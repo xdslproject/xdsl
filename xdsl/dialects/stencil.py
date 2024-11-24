@@ -689,6 +689,16 @@ class AllocOp(IRDLOperation):
     traits = traits_def(AllocOpEffect())
 
 
+class CastOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.stencil import (
+            RemoveCastWithNoEffect,
+        )
+
+        return (RemoveCastWithNoEffect(),)
+
+
 @irdl_op_definition
 class CastOp(IRDLOperation):
     """
@@ -721,7 +731,7 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(NoMemoryEffect(), CastOpHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def get(
@@ -1203,13 +1213,11 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
             and attr.get_element_type() == other.get_element_type()
         )
 
-    def verify(
-        self, attr: Attribute, constraint_context: ConstraintContext | None = None
-    ) -> None:
-        constraint_context = constraint_context or ConstraintContext()
-        if self.name in constraint_context.variables:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        ctx_attr = constraint_context.get_variable(self.name)
+        if ctx_attr is not None:
             if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.matches(
-                attr, constraint_context.get_variable(self.name)
+                attr, ctx_attr
             ):
                 return
         super().verify(attr, constraint_context)

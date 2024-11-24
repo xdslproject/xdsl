@@ -61,7 +61,7 @@ class PDLMatcher:
         self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue
     ):
         if ssa_val in self.matching_context:
-            return True
+            return self.matching_context[ssa_val] == xdsl_val
 
         if pdl_op.value_type is not None:
             assert isinstance(pdl_op.value_type, OpResult)
@@ -386,3 +386,10 @@ class PDLRewriteFunctions(InterpreterFunctions):
         (old,) = interpreter.get_values((op.op_value,))
         self.rewriter.erase_op(old)
         return ()
+
+    @impl(pdl.TypeOp)
+    def run_type(
+        self, interpreter: Interpreter, op: pdl.TypeOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert isinstance(op.constantType, Attribute)
+        return (op.constantType,)

@@ -26,7 +26,6 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
-    AttributeCovT,
     AttributeInvT,
     Data,
     ParametrizedAttribute,
@@ -36,7 +35,6 @@ from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
-    get_type_var_mapping,
 )
 from xdsl.utils.runtime_final import runtime_final
 
@@ -218,23 +216,6 @@ class ParamAttrDef:
 
         name = clsdict["name"]
 
-        if issubclass(pyrdl_def, TypedAttribute):
-            pyrdl_def = cast(type[TypedAttribute[Attribute]], pyrdl_def)
-            if "type" not in param_hints:
-                raise PyRDLAttrDefinitionError(
-                    f"TypedAttribute {pyrdl_def.__name__} should have a 'type' parameter."
-                )
-            typed_hint = param_hints["type"]
-            if get_origin(typed_hint) is Annotated:
-                typed_hint = get_args(typed_hint)[0]
-            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeCovT]
-
-            if typed_hint != type_var:
-                raise ValueError(
-                    "A TypedAttribute `type` parameter must be of the same type"
-                    " as the type variable in the TypedAttribute base class."
-                )
-
         if parameters and param_hints:
             raise ValueError(
                 "ParametrizedAttribute definitions must not mix `param_def` and "
@@ -293,9 +274,20 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     new_fields = get_accessors_from_param_attr_def(attr_def)
 
     if issubclass(cls, TypedAttribute):
-        parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
-        type_index = parameter_names.index("type")
-        new_fields["get_type_index"] = lambda: type_index
+        type_indexes = tuple(
+            i for i, (p, _) in enumerate(attr_def.parameters) if p == "type"
+        )
+        if not type_indexes:
+            raise PyRDLAttrDefinitionError(
+                f"TypedAttribute {cls.__name__} should have a 'type' parameter."
+            )
+        type_index = type_indexes[0]
+
+        @classmethod
+        def get_type_index(cls: Any) -> int:
+            return type_index
+
+        new_fields["get_type_index"] = get_type_index
 
     return runtime_final(
         dataclass(frozen=True, init=False)(

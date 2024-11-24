@@ -2474,7 +2474,7 @@ class RM_VbroadcastsdOp(R_RM_Operation[AVXRegisterType, GeneralRegisterType]):
     name = "x86.rm.vbroadcastsd"
 
 
-class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
+class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op, ABC):
     """
     This instruction allows us to create an SSAValue for a given register name.
     """

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, overload
 
 _Key = TypeVar("_Key")
 _Value = TypeVar("_Value")
@@ -28,10 +28,25 @@ class ScopedDict(Generic[_Key, _Value]):
         parent: ScopedDict[_Key, _Value] | None = None,
         *,
         name: str | None = None,
+        local_scope: dict[_Key, _Value] | None = None,
     ) -> None:
-        self._local_scope = {}
+        self._local_scope = {} if local_scope is None else local_scope
         self.parent = parent
         self.name = name
+
+    @overload
+    def get(self, key: _Key, default: None = None) -> _Value | None: ...
+
+    @overload
+    def get(self, key: _Key, default: _Value) -> _Value: ...
+
+    def get(self, key: _Key, default: _Value | None = None) -> _Value | None:
+        local = self._local_scope.get(key)
+        if local is not None:
+            return local
+        if self.parent is None:
+            return default
+        return self.parent.get(key, default)
 
     def __getitem__(self, key: _Key) -> _Value:
         """

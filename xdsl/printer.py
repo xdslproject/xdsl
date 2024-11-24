@@ -14,7 +14,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyFloatAttr,
-    AnyIntegerAttr,
     AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -23,7 +22,6 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     ComplexType,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
     Float16Type,
@@ -31,7 +29,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
-    FloatAttr,
     FloatData,
     FunctionType,
     IndexType,
@@ -68,6 +65,7 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.bitwise_casts import (
@@ -525,6 +523,25 @@ class Printer:
             self.print_string("f128")
             return
 
+        if isinstance(attribute, IntegerAttr):
+            # boolean shorthands
+            if (
+                isinstance(
+                    (ty := attribute.get_type()),
+                    IntegerType,
+                )
+                and ty.width.data == 1
+            ):
+                self.print_string("true" if attribute.value.data else "false")
+                return
+            # Otherwise we fall through to TypedAttribute case
+
+        if isinstance(attribute, TypedAttribute):
+            attribute.print_without_type(self)
+            self.print_string(" : ")
+            self.print_attribute(attribute.get_type())
+            return
+
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
             return
@@ -539,31 +556,6 @@ class Printer:
             for ref in attribute.nested_references.data:
                 self.print_string("::@")
                 self.print_identifier_or_string_literal(ref.data)
-            return
-
-        if isinstance(attribute, IntegerAttr):
-            attribute = cast(AnyIntegerAttr, attribute)
-
-            # boolean shorthands
-            if (
-                isinstance((attr_type := attribute.type), IntegerType)
-                and attr_type.width.data == 1
-            ):
-                self.print_string("false" if attribute.value.data == 0 else "true")
-                return
-
-            width = attribute.value
-            attr_type = attribute.type
-            assert isinstance(width, IntAttr)
-            self.print_string(f"{width.data} : ")
-            self.print_attribute(attr_type)
-            return
-
-        if isinstance(attribute, FloatAttr):
-            attr = cast(AnyFloatAttr, attribute)
-            self.print_float(attr)
-            self.print_string(" : ")
-            self.print_attribute(attr.type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
@@ -615,51 +607,6 @@ class Printer:
                 self.print_string("(")
                 self.print_list(outputs, self.print_attribute)
                 self.print_string(")")
-            return
-
-        if isinstance(attribute, DenseIntOrFPElementsAttr):
-
-            def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr):
-                    self.print_string(f"{val.value.data}")
-                elif isinstance(val, FloatAttr):
-                    self.print_float(cast(AnyFloatAttr, val))
-                else:
-                    raise Exception(
-                        "unexpected attribute type "
-                        "in DenseIntOrFPElementsAttr: "
-                        f"{type(val)}"
-                    )
-
-            def print_dense_list(
-                array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: Sequence[int],
-            ):
-                self.print_string("[")
-                if len(shape) > 1:
-                    k = len(array) // shape[0]
-                    self.print_list(
-                        (array[i : i + k] for i in range(0, len(array), k)),
-                        lambda subarray: print_dense_list(subarray, shape[1:]),
-                    )
-                else:
-                    self.print_list(array, print_one_elem)
-                self.print_string("]")
-
-            self.print_string("dense<")
-            data = attribute.data.data
-            shape = (
-                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
-            )
-            assert shape is not None, "If shape is complete, then it cannot be None"
-            if len(data) == 0:
-                pass
-            elif data.count(data[0]) == len(data):
-                print_one_elem(data[0])
-            else:
-                print_dense_list(data, shape)
-            self.print_string("> : ")
-            self.print_attribute(attribute.type)
             return
 
         if isinstance(attribute, DenseResourceAttr):
