@@ -11,7 +11,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
-    UnrealizedConversionCastOp,
     i64,
 )
 from xdsl.dialects.experimental import dlt
@@ -326,8 +325,8 @@ class NumericResult:
         assert isinstance(ptr.type, llvm.LLVMPointerType)
         ops, (val,) = self.output()
         ops = list(ops)
-        ops.append(cast_op := UnrealizedConversionCastOp.get([val], [i64]))
-        val = cast_op.outputs[0]
+        ops.append(cast_op := arith.IndexCastOp(val, i64))
+        val = cast_op.result
         ops.append(ptr_to_int_op := llvm.PtrToIntOp(ptr))
         ops.append(add_op := arith.Addi(ptr_to_int_op.output, val))
         ops.append(int_to_ptr_op := llvm.IntToPtrOp(add_op.result))
@@ -362,24 +361,49 @@ NumericResult3 = typing.Annotated[NumericResult, 3]
 NumericResult4 = typing.Annotated[NumericResult, 4]
 
 
+def index_convert(
+        input: SSAValue, target_type: IntegerType | IndexType
+) -> tuple[list[Operation], SSAValue]:
+    if input.type == target_type:
+        return [], input
+    ops = []
+    input_type = input.type
+    if not isinstance(input_type, IntegerType):
+        assert isinstance(input_type, IndexType)
+        input_cast_op = arith.IndexCastOp(input, builtin.i64)
+        ops.append(input_cast_op)
+        input = input_cast_op.result
+        input_type = builtin.i64
+
+    if isinstance(target_type, IntegerType):
+        target_width = target_type.width
+        target_int_type = target_type
+    else:
+        target_width = builtin.i64.width
+        target_int_type = builtin.i64
+
+    if input_type.width.data > target_width.data:
+        trunc_op = arith.TruncIOp(input, target_int_type)
+        ops.append(trunc_op)
+        input = trunc_op.result
+    elif input_type.width.data < target_width.data:
+        extend_op = arith.ExtUIOp(input, target_int_type)
+        ops.append(extend_op)
+        input = extend_op.result
+
+    if target_type == IndexType():
+        output_cast_op = arith.IndexCastOp(input, IndexType())
+        ops.append(output_cast_op)
+        input = output_cast_op.result
+
+    return ops, input
+
 def _get_as_i64(value: SSAValue) -> tuple[list[Operation], SSAValue]:
-    assert isinstance(value.type, IndexType | IntegerType)
-    if isinstance(value.type, IntegerType):
-        t = typing.cast(IntegerType, value.type)
-        assert (
-            t.width.data <= i64.width.data
-        ), f"Expected {i64.width.data} got {t.width.data}"
-    return [op := UnrealizedConversionCastOp.get([value], [i64])], op.outputs[0]
+    return index_convert(value, i64)
 
 
 def _get_as_index(value: SSAValue) -> tuple[list[Operation], SSAValue]:
-    assert isinstance(value.type, IndexType | IntegerType)
-    if isinstance(value.type, IntegerType):
-        t = typing.cast(IntegerType, value.type)
-        assert (
-            t.width.data <= i64.width.data
-        ), f"Expected {i64.width.data} got {t.width.data}"
-    return [op := UnrealizedConversionCastOp.get([value], [IndexType()])], op.outputs[0]
+    return index_convert(value, IndexType())
 
 
 class IndexGetter(abc.ABC):
@@ -7842,12 +7866,12 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 scoo_layout.index_buffer_types,
             )
         ):
-            i_cast_op = builtin.UnrealizedConversionCastOp.get([before_index], [i64])
-            if_in_range_true.append(i_cast_op)
+            before_index_convert_ops, before_index_i64 = index_convert(before_index, i64)
+            if_in_range_true.extend(before_index_convert_ops)
             idx_ptr_arith_op = llvm.GEPOp(
                 idx_buffer_ptr,
                 [llvm.GEP_USE_SSA_VAL],
-                i_cast_op.outputs,
+                [before_index_i64],
                 pointee_type=idx_buffer_type,
             )
             if_in_range_true.append(idx_ptr_arith_op)
@@ -7855,22 +7879,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 idx_ptr_arith_op.result, idx_buffer_type
             )
             if_in_range_true.append(inner_load_stored_index_op)
-            if idx_buffer_type.width.data < builtin.i64.width.data:
-                inner_ext_idx_op = arith.ExtUIOp(
-                    inner_load_stored_index_op.dereferenced_value, builtin.i64
-                )
-                inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
-                    [inner_ext_idx_op.result], [IndexType()]
-                )
-                if_in_range_true.extend([inner_ext_idx_op, inner_idx_cast_op])
-                inner_idx = inner_idx_cast_op.outputs[0]
-            elif idx_buffer_type == builtin.i64:
-                inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
-                    [inner_load_stored_index_op.dereferenced_value], [IndexType()]
-                )
-                if_in_range_true.extend([inner_idx_cast_op])
-                inner_idx = inner_idx_cast_op.outputs[0]
-            else:
+            convert_inner_idx_ops, inner_idx = index_convert(inner_load_stored_index_op.dereferenced_value, IndexType())
+            if_in_range_true.extend(convert_inner_idx_ops)
+            if idx_buffer_type.width.data > builtin.i64.width.data:
                 raise NotImplementedError(
                     f"{idx_buffer_type} not supported as Separated COO index buffer type"
                 )
@@ -7992,22 +8003,23 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                     scoo_layout.index_buffer_types,
                 )
         ):
-            i_cast_op = builtin.UnrealizedConversionCastOp.get([after_next_index_op.result], [i64])
+            convert_after_next_index_ops, after_next_index_i64 = index_convert(after_next_index_op.result, i64)
+            after_block.add_ops(convert_after_next_index_ops)
             idx_ptr_arith_op = llvm.GEPOp(
                 idx_buffer_ptr,
                 [llvm.GEP_USE_SSA_VAL],
-                i_cast_op.outputs,
+                [after_next_index_i64],
                 pointee_type=idx_buffer_type,
             )
             inner_load_stored_index_op = llvm.LoadOp(
                 idx_ptr_arith_op.result, idx_buffer_type
             )
-            after_block.add_ops([i_cast_op, idx_ptr_arith_op, inner_load_stored_index_op])
+            after_block.add_ops([idx_ptr_arith_op, inner_load_stored_index_op])
             current_value = inner_load_stored_index_op.dereferenced_value
 
             get_index_ops, (target,) = dim_mapping[dim].get().output()
             after_block.add_ops(get_index_ops)
-            convert_target_ops, target = SeparatedCOOSemantics.index_convert(target, idx_buffer_type)
+            convert_target_ops, target = index_convert(target, idx_buffer_type)
             after_block.add_ops(convert_target_ops)
 
             inner_is_under_cmp = arith.Cmpi(current_value, target, "ult")
@@ -8048,48 +8060,6 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         # return SeparatedCOOSemantics.loop_to_find_index(scoo_layout, start, end, index_buffer_ptrs, dim_mapping)
         # return SeparatedCOOSemantics.loop_back_to_find_index(scoo_layout, start, end, index_buffer_ptrs, dim_mapping)
         return SeparatedCOOSemantics.binary_search_to_find_index(scoo_layout, start, end, index_buffer_ptrs, dim_mapping)
-
-
-    @staticmethod
-    def index_convert(
-        input: SSAValue, target_type: IntegerType | IndexType
-    ) -> tuple[list[Operation], SSAValue]:
-        if input.type == target_type:
-            return [], input
-        ops = []
-        input_type = input.type
-        if not isinstance(input_type, IntegerType):
-            input_cast_op = builtin.UnrealizedConversionCastOp.get(
-                [input], [builtin.i64]
-            )
-            ops.append(input_cast_op)
-            input = input_cast_op.outputs[0]
-            input_type = builtin.i64
-
-        if isinstance(target_type, IntegerType):
-            target_width = target_type.width
-            target_int_type = target_type
-        else:
-            target_width = builtin.i64.width
-            target_int_type = builtin.i64
-
-        if input_type.width.data > target_width.data:
-            trunc_op = arith.TruncIOp(input, target_int_type)
-            ops.append(trunc_op)
-            input = trunc_op.result
-        elif input_type.width.data < target_width.data:
-            extend_op = arith.ExtUIOp(input, target_int_type)
-            ops.append(extend_op)
-            input = extend_op.result
-
-        if target_type == IndexType():
-            output_cast_op = builtin.UnrealizedConversionCastOp.get(
-                [input], [IndexType()]
-            )
-            ops.append(output_cast_op)
-            input = output_cast_op.outputs[0]
-
-        return ops, input
 
 
     @staticmethod
@@ -8155,7 +8125,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         #     "# Bin_search_for_idx_range: start: {}, end: {}, ptr: {}, type: "+str(index_buffer_type)+", target: {}",
         #     start, end, index_buffer_ptr, target))
 
-        convert_ops, target = SeparatedCOOSemantics.index_convert(
+        convert_ops, target = index_convert(
             target, index_buffer_type
         )
         ops.extend(convert_ops)
@@ -8207,20 +8177,19 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         #     "# Bin_search_for_idx_range-Lower_after_block-begin: start: {}, end: {}, s_idx: {}, max_idx: {}, min_gt_index: {}, found: {}, middle: {}",
         #     *lower_after_block.args))
 
-        lower_middle_cast_op = builtin.UnrealizedConversionCastOp.get(
-            [lower_after_middle], [i64]
-        )
+        convert_lower_after_middle_ops, lower_after_middle_i64 = index_convert(lower_after_middle, i64)
+        lower_after_block.add_ops(convert_lower_after_middle_ops)
         lower_index_ptr_arith_op = llvm.GEPOp(
             index_buffer_ptr,
             [llvm.GEP_USE_SSA_VAL],
-            lower_middle_cast_op.outputs,
+            [lower_after_middle_i64],
             pointee_type=index_buffer_type,
         )
         lower_load_stored_index_op = llvm.LoadOp(
             lower_index_ptr_arith_op.result, index_buffer_type
         )
         lower_after_block.add_ops(
-            [lower_middle_cast_op, lower_index_ptr_arith_op, lower_load_stored_index_op]
+            [lower_index_ptr_arith_op, lower_load_stored_index_op]
         )
         lower_current_value = lower_load_stored_index_op.dereferenced_value
 
@@ -8370,21 +8339,19 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         upper_after_block.add_ops([upper_end_sub_start_op, upper_middle_div_2_op, upper_middle_op])
         upper_middle = upper_middle_op.result
 
-
-        upper_middle_cast_op = builtin.UnrealizedConversionCastOp.get(
-            [upper_middle], [i64]
-        )
+        convert_upper_middle_cast_ops, upper_middle_i64 = index_convert(upper_middle, i64)
+        upper_after_block.add_ops(convert_upper_middle_cast_ops)
         upper_index_ptr_arith_op = llvm.GEPOp(
             index_buffer_ptr,
             [llvm.GEP_USE_SSA_VAL],
-            upper_middle_cast_op.outputs,
+            [upper_middle_i64],
             pointee_type=index_buffer_type,
         )
         upper_load_stored_index_op = llvm.LoadOp(
             upper_index_ptr_arith_op.result, index_buffer_type
         )
         upper_after_block.add_ops(
-            [upper_middle_cast_op, upper_index_ptr_arith_op, upper_load_stored_index_op]
+            [upper_index_ptr_arith_op, upper_load_stored_index_op]
         )
         upper_current_value = upper_load_stored_index_op.dereferenced_value
 
@@ -8467,7 +8434,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         #     start, end, index_buffer_ptr, target))
 
 
-        convert_ops, target = SeparatedCOOSemantics.index_convert(
+        convert_ops, target = index_convert(
             target, index_buffer_type
         )
         ops.extend(convert_ops)
@@ -8503,20 +8470,19 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         )  # start, end, index, middle
         after_start, after_end, after_index, after_middle = after_block.args
 
-        middle_cast_op = builtin.UnrealizedConversionCastOp.get(
-            [after_middle], [i64]
-        )
+        convert_after_middle_cast_ops, after_middle_i64 = index_convert(after_middle, i64)
+        after_block.add_ops(convert_after_middle_cast_ops)
         index_ptr_arith_op = llvm.GEPOp(
             index_buffer_ptr,
             [llvm.GEP_USE_SSA_VAL],
-            middle_cast_op.outputs,
+            [after_middle_i64],
             pointee_type=index_buffer_type,
         )
         load_stored_index_op = llvm.LoadOp(
             index_ptr_arith_op.result, index_buffer_type
         )
         after_block.add_ops(
-            [middle_cast_op, index_ptr_arith_op, load_stored_index_op]
+            [index_ptr_arith_op, load_stored_index_op]
         )
         current_value = load_stored_index_op.dereferenced_value
 
@@ -8894,21 +8860,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 block_running_idx_buffer_ptrs,
                 self.s_coo_layout.index_buffer_types,
             ):
-                if idx_buffer_type.width.data < builtin.i64.width.data:
-                    cast_op = builtin.UnrealizedConversionCastOp.get(
-                        idx_arg, builtin.i64
-                    )
-                    true_ops.append(cast_op)
-                    trunc_op = arith.TruncIOp(cast_op.outputs[0], idx_buffer_type)
-                    true_ops.append(trunc_op)
-                    idx_val = trunc_op.result
-                elif idx_buffer_type.width.data == builtin.i64.width.data:
-                    cast_op = builtin.UnrealizedConversionCastOp.get(
-                        idx_arg, builtin.i64
-                    )
-                    ops.append(cast_op)
-                    idx_val = cast_op.outputs[0]
-                else:
+                convert_idx_arg_ops, idx_val = index_convert(idx_arg, idx_buffer_type)
+                true_ops.extend(convert_idx_arg_ops)
+                if idx_buffer_type.width.data > builtin.i64.width.data:
                     raise NotImplementedError(
                         f"{idx_buffer_type} not supported as COO index buffer type"
                     )
@@ -9125,22 +9079,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 sparse_index_load = llvm.LoadOp(idx_buffer_ptr, idx_buffer_type)
                 block.add_op(sparse_index_load)
 
-                if idx_buffer_type.width.data < builtin.i64.width.data:
-                    inner_ext_idx_op = arith.ExtUIOp(
-                        sparse_index_load.dereferenced_value, builtin.i64
-                    )
-                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
-                        [inner_ext_idx_op.result], [IndexType()]
-                    )
-                    block.add_ops([inner_ext_idx_op, inner_idx_cast_op])
-                    inner_idx = inner_idx_cast_op.outputs[0]
-                elif idx_buffer_type == builtin.i64:
-                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
-                        [sparse_index_load.dereferenced_value], [IndexType()]
-                    )
-                    block.add_op(inner_idx_cast_op)
-                    inner_idx = inner_idx_cast_op.outputs[0]
-                else:
+                convert_inner_idx_ops, inner_idx = index_convert(sparse_index_load.dereferenced_value, IndexType())
+                block.add_ops(convert_inner_idx_ops)
+                if idx_buffer_type.width.data > builtin.i64.width.data:
                     raise NotImplementedError(
                         f"{idx_buffer_type} not supported as Separated COO index buffer type"
                     )
@@ -9310,22 +9251,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             ):
                 sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, idx_buffer_type)
                 block.add_op(sparse_index_load)
-                if idx_buffer_type.width.data < builtin.i64.width.data:
-                    inner_ext_idx_op = arith.ExtUIOp(
-                        sparse_index_load.dereferenced_value, builtin.i64
-                    )
-                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
-                        [inner_ext_idx_op.result], [IndexType()]
-                    )
-                    block.add_ops([inner_ext_idx_op, inner_idx_cast_op])
-                    inner_idx = inner_idx_cast_op.outputs[0]
-                elif idx_buffer_type == builtin.i64:
-                    inner_idx_cast_op = builtin.UnrealizedConversionCastOp.get(
-                        [sparse_index_load.dereferenced_value], [IndexType()]
-                    )
-                    block.add_op(inner_idx_cast_op)
-                    inner_idx = inner_idx_cast_op.outputs[0]
-                else:
+                convert_inner_idx_ops, inner_idx = index_convert(sparse_index_load.dereferenced_value, IndexType())
+                block.add_ops(convert_inner_idx_ops)
+                if idx_buffer_type.width.data > builtin.i64.width.data:
                     raise NotImplementedError(
                         f"{idx_buffer_type} not supported as Separated COO index buffer type"
                     )
@@ -9401,17 +9329,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         ):
             idx_arg_ops, (idx_arg,) = dim_mapping[dim].get().output()
             ops.extend(idx_arg_ops)
-            if idx_buffer_type.width.data < builtin.i64.width.data:
-                cast_op = builtin.UnrealizedConversionCastOp.get(idx_arg, builtin.i64)
-                ops.append(cast_op)
-                trunc_op = arith.TruncIOp(cast_op.outputs[0], idx_buffer_type)
-                ops.append(trunc_op)
-                idx_val = trunc_op.result
-            elif idx_buffer_type.width.data == builtin.i64.width.data:
-                cast_op = builtin.UnrealizedConversionCastOp.get(idx_arg, builtin.i64)
-                ops.append(cast_op)
-                idx_val = cast_op.outputs[0]
-            else:
+            convert_idx_arg_ops, idx_val = index_convert(idx_arg, idx_buffer_type)
+            ops.extend(convert_idx_arg_ops)
+            if idx_buffer_type.width.data > builtin.i64.width.data:
                 raise NotImplementedError(
                     f"{idx_buffer_type} not supported as COO index buffer type"
                 )

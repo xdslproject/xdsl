@@ -2,11 +2,9 @@ import typing
 from dataclasses import dataclass
 from typing import assert_type, cast
 
-from numpy.f2py.cfuncs import callbacks
-
-from xdsl.dialects import arith, builtin, llvm, printf, scf
+from xdsl.dialects import affine, arith, builtin, llvm, printf, scf
 from xdsl.dialects.builtin import (
-    AnyFloat,
+    AffineMapAttr, AnyFloat,
     ArrayAttr, DenseArrayBase,
     Float32Type, IndexType,
     IntegerAttr,
@@ -16,7 +14,8 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.experimental import dlt
-from xdsl.ir import Attribute, Block, BlockArgument, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, Block, BlockArgument, MLContext, Operation, Region, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -44,12 +43,13 @@ from xdsl.transforms.experimental.dlt.layout_llvm_semantics import (
 
 
 def get_as_i64(value: SSAValue) -> tuple[list[Operation], SSAValue]:
-    assert isinstance(value.type, IndexType | IntegerType)
+    assert isinstance(value.type, IndexType)
     if isinstance(value.type, IntegerType):
         assert (
             value.type.width.data <= i64.width.data
         ), f"Expected {i64.width.data} got {value.type.width.data}"
-    return [op := UnrealizedConversionCastOp.get([value], [i64])], op.outputs[0]
+    return [op := arith.IndexCastOp(value, i64)], op.result
+    # return [op := UnrealizedConversionCastOp.get([value], [i64])], op.outputs[0]
 
 
 @dataclass
@@ -728,10 +728,13 @@ class DLTIterateRewriter(RewritePattern):
                 sub_insert_point,
                 pre_ops,
             )
-            loop_body.add_op(scf.Yield(*resulting_iter_args))
-            for_op = scf.For(lb, ext_ssa, step, iter_args, loop_body)
-            Rewriter.insert_ops_at_location([for_op], insert_point)
-            return list(for_op.res)
+            # loop_body.add_op(scf.Yield(*resulting_iter_args))
+            loop_body.add_op(affine.Yield.get(*resulting_iter_args))
+            result_types = [v.type for v in resulting_iter_args]
+            # for_op = scf.For(lb, ext_ssa, step, iter_args, loop_body)
+            affine_for_op = affine.For.from_region([lb], [ext_ssa], iter_args, result_types, AffineMapAttr(AffineMap.identity(1)), AffineMapAttr(AffineMap.identity(1)), Region(loop_body))
+            Rewriter.insert_ops_at_location([affine_for_op], insert_point)
+            return list(affine_for_op.res)
         elif isinstance(iteration_order, dlt.NonZeroIterationOrderAttr):
             ops = []
             sparse_tensor_idx = iteration_order.tensor_index.data
