@@ -10,15 +10,16 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from enum import auto
 from itertools import product
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar, Generic, TypeVar, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects import memref, stream
+from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyMemRefTypeConstr,
     ArrayAttr,
+    ContainerType,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -33,11 +34,15 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
+    BaseAttr,
+    GenericAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     VarConstraint,
     irdl_attr_definition,
@@ -60,6 +65,71 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
+
+_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
+_StreamTypeElementConstrT = TypeVar("_StreamTypeElementConstrT", bound=Attribute)
+
+
+@irdl_attr_definition
+class ReadableStreamType(
+    Generic[_StreamTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[_StreamTypeElement],
+):
+    name = "memref_stream.readable"
+
+    element_type: ParameterDef[_StreamTypeElement]
+
+    def get_element_type(self) -> _StreamTypeElement:
+        return self.element_type
+
+    def __init__(self, element_type: _StreamTypeElement):
+        super().__init__([element_type])
+
+    @staticmethod
+    def constr(
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
+    ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]]:
+        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]](
+            ReadableStreamType, (element_type,)
+        )
+
+
+AnyReadableStreamTypeConstr = BaseAttr[ReadableStreamType[Attribute]](
+    ReadableStreamType
+)
+
+
+@irdl_attr_definition
+class WritableStreamType(
+    Generic[_StreamTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[_StreamTypeElement],
+):
+    name = "memref_stream.writable"
+
+    element_type: ParameterDef[_StreamTypeElement]
+
+    def get_element_type(self) -> _StreamTypeElement:
+        return self.element_type
+
+    def __init__(self, element_type: _StreamTypeElement):
+        super().__init__([element_type])
+
+    @staticmethod
+    def constr(
+        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
+    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]]:
+        return ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]](
+            WritableStreamType, (element_type,)
+        )
+
+
+AnyWritableStreamTypeConstr = BaseAttr[WritableStreamType[Attribute]](
+    WritableStreamType
+)
 
 
 class IteratorType(StrEnum):
@@ -193,15 +263,15 @@ class ReadOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(stream.ReadableStreamType.constr(T))
+    stream = operand_def(ReadableStreamType.constr(T))
     res = result_def(T)
 
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
-            assert isinstance(stream_type := stream_val.type, stream.ReadableStreamType)
-            stream_type = cast(stream.ReadableStreamType[Attribute], stream_type)
+            assert isinstance(stream_type := stream_val.type, ReadableStreamType)
+            stream_type = cast(ReadableStreamType[Attribute], stream_type)
             result_type = stream_type.element_type
         super().__init__(operands=[stream_val], result_types=[result_type])
 
@@ -216,7 +286,7 @@ class WriteOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    stream = operand_def(stream.WritableStreamType.constr(T))
+    stream = operand_def(WritableStreamType.constr(T))
 
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
@@ -401,7 +471,7 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(AnyMemRefTypeConstr | stream.AnyWritableStreamTypeConstr)
+    outputs = var_operand_def(AnyMemRefTypeConstr | AnyWritableStreamTypeConstr)
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
@@ -902,6 +972,8 @@ MemrefStream = Dialect(
         FillOp,
     ],
     [
+        ReadableStreamType,
+        WritableStreamType,
         IteratorTypeAttr,
         StridePattern,
     ],
