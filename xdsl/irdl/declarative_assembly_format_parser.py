@@ -40,7 +40,6 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
-    AnyTypeableDirective,
     AttrDictDirective,
     AttributeVariable,
     DefaultValuedAttributeVariable,
@@ -56,8 +55,6 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalRegionVariable,
     OptionalResultVariable,
     OptionalSuccessorVariable,
-    OptionalTypeableDirective,
-    OptionalTypeDirective,
     OptionalUnitAttrVariable,
     ParsingState,
     PunctuationDirective,
@@ -65,9 +62,9 @@ from xdsl.irdl.declarative_assembly_format import (
     RegionVariable,
     ResultVariable,
     SuccessorVariable,
+    TypeableDirective,
     TypeDirective,
     VariadicLikeFormatDirective,
-    VariadicLikeTypeDirective,
     VariadicOperandDirective,
     VariadicOperandVariable,
     VariadicRegionDirective,
@@ -200,7 +197,7 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic directive cannot be followed by a comma literal."
                     )
-                case VariadicLikeTypeDirective(), VariadicLikeTypeDirective():
+                case VariadicTypeDirective(), VariadicTypeDirective():
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
@@ -447,7 +444,7 @@ class FormatParser(BaseParser):
                 case _:
                     return OperandVariable(variable_name, idx)
 
-    def parse_optional_typeable_variable(self) -> AnyTypeableDirective | None:
+    def parse_optional_typeable_variable(self) -> TypeableDirective | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
@@ -611,8 +608,6 @@ class FormatParser(BaseParser):
         self.parse_punctuation(")")
         if isinstance(inner, VariadicTypeableDirective):
             return VariadicTypeDirective(inner)
-        if isinstance(inner, OptionalTypeableDirective):
-            return OptionalTypeDirective(inner)
         return TypeDirective(inner)
 
     def parse_optional_group(self) -> FormatDirective:
@@ -707,7 +702,7 @@ class FormatParser(BaseParser):
         self.parse_characters("`")
         return KeywordDirective(ident)
 
-    def parse_typeable_directive(self) -> AnyTypeableDirective:
+    def parse_typeable_directive(self) -> TypeableDirective:
         """
         Parse a typeable directive, with the following format:
           directive ::= variable
