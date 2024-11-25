@@ -1,12 +1,11 @@
-from typing import Self, cast
+from typing import Self
 
-from xdsl.dialects import func, scf
+from xdsl.dialects import func
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.experimental import dlt
 from xdsl.ir import Operation
 from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, RewritePattern, attr_type_rewrite_pattern, \
     op_type_rewrite_pattern
-from xdsl.transforms.experimental.dlt.layout_graph import LayoutGraph
 
 NestOp = dlt.IterateOp | func.FuncOp | dlt.LayoutScopeOp
 
