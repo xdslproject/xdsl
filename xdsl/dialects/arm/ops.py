@@ -114,3 +114,43 @@ class GetRegisterOp(ARMOperation):
 
     def assembly_line(self):
         return None
+
+
+@irdl_op_definition
+class DSSMulOp(ARMInstruction):
+    """
+    Multiplies the values in s1 and s2 and stores the result in d.
+
+    https://developer.arm.com/documentation/ddi0597/2024-06/Base-Instructions/MUL--MULS--Multiply-?lang=en
+    """
+
+    name = "arm.dss.mul"
+
+    d = result_def(IntRegisterType)
+    s1 = operand_def(IntRegisterType)
+    s2 = operand_def(IntRegisterType)
+    assembly_format = (
+        "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+    )
+
+    def __init__(
+        self,
+        d: IntRegisterType,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_line_args(self):
+        return (self.d, self.s1, self.s2)
