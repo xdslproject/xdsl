@@ -171,7 +171,6 @@ def test_hello():
 
     PatternRewriteWalker(
         EqsatPDLRewritePattern(pdl_rewrite_op, ctx),
-        apply_recursively=False,
     ).rewrite_module(input_module)
 
     assert input_module.is_structurally_equivalent(output_module)

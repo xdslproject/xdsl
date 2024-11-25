@@ -36,6 +36,4 @@ class ApplyEqsatPDLPass(ModulePass):
         ]
         pattern_applier = GreedyRewritePatternApplier(rewrite_patterns)
         # TODO: remove apply_recursively=False
-        PatternRewriteWalker(pattern_applier, apply_recursively=False).rewrite_op(
-            payload_module
-        )
+        PatternRewriteWalker(pattern_applier).rewrite_op(payload_module)
