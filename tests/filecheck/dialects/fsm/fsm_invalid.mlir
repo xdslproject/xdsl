@@ -141,9 +141,9 @@
     "fsm.transition"() ({
         "fsm.return"(%arg0) : (i1) -> ()
     }, {
-        
+
     }) {nextState = @A} : () -> ()
-    
+
 }) {sym_name = "A"} : () -> ()
 }) {function_type = (i1) -> (i1), initialState = "A", sym_name = "foo", res_names = ["names"],res_attrs = [{"name"="1","type"="2"}] } : () -> ()
 
@@ -160,7 +160,7 @@
     "fsm.output"() : () -> ()
 }, {
     "fsm.transition"() ({
-        ^bb1(%arg3: i1): 
+        ^bb1(%arg3: i1):
             "fsm.update"(%arg1, %arg2) {variable = "v1" , value = "v2"}: (i16,i16) -> ()
             "fsm.output"() : () -> ()
     }, {
@@ -179,16 +179,16 @@
 
 "fsm.state"() ({
     "fsm.output"() : () -> ()
-    
+
 }, {
     "fsm.transition"() ({
-        
+
     }, {
-        ^bb1(%arg3: i1): 
+        ^bb1(%arg3: i1):
             "fsm.update"(%arg1, %arg2) {variable = "v1" , value = "v2"}: (i16,i16) -> ()
             "fsm.update"(%arg1, %arg2) {variable = "v1" , value = "v2"}: (i16,i16) -> ()
     }) {nextState = @A} : () -> ()
-    
+
 }) {sym_name = "A"} : () -> ()
 }) {function_type = () -> (), initialState = "A", sym_name = "foo", res_names = ["names"],res_attrs = [{"name"="1","type"="2"}] } : () -> ()
 
@@ -203,10 +203,10 @@
 
 }, {
     "fsm.transition"() ({
-        
+
     }, {
     }) {nextState = @A} : () -> ()
-    
+
 }) {sym_name = "A"} : () -> ()
 
 }) {function_type = (i16) -> (i16) , initialState = "A", sym_name = "foo"} : () -> ()
@@ -257,7 +257,7 @@
       }, {
       }) {nextState = @A} : () -> ()
     }) {sym_name = "A"} : () -> ()
-    
+
   }) {function_type = (i16) -> (i1), initialState = "A", sym_name = "foo"} : () -> ()
   %arg1 = "arith.constant"() {value = 0 : i16} : () -> i16
   %arg2 = "arith.constant"() {value = 0 : i16} : () -> i16
@@ -328,12 +328,12 @@
         }) {nextState = @C} : () -> ()
     }) {sym_name = "C"} : () -> ()
     }) {function_type = (i16) -> (i16), initialState = "A", sym_name = "foo"} : () -> ()
- 
+
     "func.func"() ({
     %3 = "arith.constant"() {value = 16: i16} : () -> i16
-    
+
     %4 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
-    %1 = "arith.constant"() {value = true} : () -> i16
+    %1 = "arith.constant"() {value = 0 : i16} : () -> i16
     %2 = "fsm.trigger"(%1, %4) : (i16, !fsm.instancetype) -> i1
     "func.return"() : () -> ()
   }) {function_type = () -> (), sym_name = "qux"} : () -> ()
@@ -371,10 +371,10 @@
         }) {nextState = @C} : () -> ()
     }) {sym_name = "C"} : () -> ()
     }) {function_type = (i16) -> (i16), initialState = "A", sym_name = "foo"} : () -> ()
- 
+
     "func.func"() ({
     %3 = "arith.constant"() {value = 16: i16} : () -> i16
-    
+
     %4 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
     %1 = "arith.constant"() {value = true} : () -> i1
     %2 = "fsm.trigger"(%1, %4) : (i1, !fsm.instancetype) -> i16
@@ -391,8 +391,8 @@
     %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
     "fsm.machine"() ({
     %4 = "test.op"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
-    %1 = "arith.constant"() {value = true} : () -> i16
-    %2 = "fsm.trigger"(%1, %4) : (i16, !fsm.instancetype) -> i1
+    %1 = "arith.constant"() {value = true} : () -> i1
+    %2 = "fsm.trigger"(%1, %4) : (i1, !fsm.instancetype) -> i1
     "func.return"() : () -> ()
   }) {function_type = () -> (), sym_name = "qux"} : () -> ()
 

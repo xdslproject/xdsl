@@ -9,7 +9,13 @@ from typing import Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import assert_never
 
-from xdsl.ir import Attribute, AttributeCovT, AttributeInvT, ParametrizedAttribute
+from xdsl.ir import (
+    Attribute,
+    AttributeCovT,
+    AttributeInvT,
+    ParametrizedAttribute,
+    TypedAttribute,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
@@ -26,11 +32,11 @@ class ConstraintContext:
     _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
     """The assignment of constraint range variables."""
 
-    def get_variable(self, key: str) -> Attribute:
-        return self._variables[key]
+    def get_variable(self, key: str) -> Attribute | None:
+        return self._variables.get(key)
 
-    def get_range_variable(self, key: str) -> tuple[Attribute, ...]:
-        return self._range_variables[key]
+    def get_range_variable(self, key: str) -> tuple[Attribute, ...] | None:
+        return self._range_variables.get(key)
 
     def set_variable(self, key: str, attr: Attribute):
         self._variables[key] = attr
@@ -206,6 +212,49 @@ class IdExtractor(VarExtractor[ConstraintVariableTypeT]):
         return a
 
 
+TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covariant=True)
+TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
+
+
+@dataclass(frozen=True)
+class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
+    """
+    Constrains the type of a typed attribute.
+    """
+
+    attr_constraint: GenericAttrConstraint[TypedAttributeCovT]
+
+    type_constraint: GenericAttrConstraint[Attribute]
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        self.attr_constraint.verify(attr, constraint_context)
+        if not isinstance(attr, TypedAttribute):
+            raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
+        self.type_constraint.verify(attr.get_type(), constraint_context)
+
+    @dataclass(frozen=True)
+    class _Extractor(VarExtractor[TypedAttributeT]):
+        inner: VarExtractor[Attribute]
+
+        def extract_var(self, a: TypedAttributeT) -> ConstraintVariableType:
+            return self.inner.extract_var(a.get_type())
+
+    def get_variable_extractors(self) -> dict[str, VarExtractor[TypedAttributeCovT]]:
+        return merge_extractor_dicts(
+            self.attr_constraint.get_variable_extractors(),
+            {
+                v: self._Extractor(r)
+                for v, r in self.type_constraint.get_variable_extractors().items()
+            },
+        )
+
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.attr_constraint.can_infer(var_constraint_names)
+
+    def infer(self, context: InferenceContext) -> TypedAttributeCovT:
+        return self.attr_constraint.infer(context)
+
+
 @dataclass(frozen=True)
 class VarConstraint(GenericAttrConstraint[AttributeCovT]):
     """
@@ -224,8 +273,9 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
         attr: Attribute,
         constraint_context: ConstraintContext,
     ) -> None:
-        if self.name in constraint_context.variables:
-            if attr != constraint_context.get_variable(self.name):
+        ctx_attr = constraint_context.get_variable(self.name)
+        if ctx_attr is not None:
+            if attr != ctx_attr:
                 raise VerifyException(
                     f"attribute {constraint_context.get_variable(self.name)} expected from variable "
                     f"'{self.name}', but got {attr}"
@@ -671,10 +721,11 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         attrs: Sequence[Attribute],
         constraint_context: ConstraintContext,
     ) -> None:
-        if self.name in constraint_context.range_variables:
-            if tuple(attrs) != constraint_context.get_range_variable(self.name):
+        ctx_attrs = constraint_context.get_range_variable(self.name)
+        if ctx_attrs is not None:
+            if attrs != ctx_attrs:
                 raise VerifyException(
-                    f"attributes {tuple(str(x) for x in constraint_context.get_range_variable(self.name))} expected from range variable "
+                    f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
                 )
         else:
