@@ -192,6 +192,11 @@ class xDSLOptMain(CommandLineTool):
         Add other/additional targets by overloading this function.
         """
 
+        def _output_arm_asm(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.arm import print_assembly
+
+            print_assembly(prog, output)
+
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
                 stream=output,
@@ -241,6 +246,7 @@ class xDSLOptMain(CommandLineTool):
 
             print_to_csl(prog, output)
 
+        self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
