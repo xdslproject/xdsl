@@ -19,7 +19,6 @@
               LD_LIBRARY_PATH = "${stdenv.cc.cc.lib}/lib";
               buildInputs = [
                 nodejs_22
-                ruff
               ];
             };
           }
