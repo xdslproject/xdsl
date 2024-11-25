@@ -33,4 +33,4 @@ class ConvertQssaToQRef(ModulePass):
     name = "convert-qssa-to-qref"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(ConvertQssaToQRefPattern()).rewrite_op(op)
+        PatternRewriteWalker(ConvertQssaToQRefPattern()).rewrite_module(op)

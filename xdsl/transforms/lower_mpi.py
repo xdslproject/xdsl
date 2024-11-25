@@ -738,7 +738,7 @@ class LowerMpiCommSize(_MPIToLLVMRewriteBase):
         ], [rank.dereferenced_value]
 
 
-class MpiAddExternalFuncDefs(RewritePattern):
+def add_external_func_defs(module: builtin.ModuleOp):
     """
     This rewriter adds all external function definitions for MPI calls to the module.
 
@@ -751,26 +751,22 @@ class MpiAddExternalFuncDefs(RewritePattern):
 
     mpi_func_call_names = set(_MPIToLLVMRewriteBase.MPI_SYMBOL_NAMES.values())
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, module: builtin.ModuleOp, rewriter: PatternRewriter, /):
-        # collect all func calls to MPI functions
-        funcs_to_emit: dict[str, tuple[Sequence[Attribute], Sequence[Attribute]]] = (
-            dict()
+    # collect all func calls to MPI functions
+    funcs_to_emit: dict[str, tuple[Sequence[Attribute], Sequence[Attribute]]] = dict()
+
+    for op in module.walk():
+        if not isinstance(op, func.Call):
+            continue
+        if op.callee.string_value() not in mpi_func_call_names:
+            continue
+        funcs_to_emit[op.callee.string_value()] = (
+            op.arguments.types,
+            op.result_types,
         )
 
-        for op in module.walk():
-            if not isinstance(op, func.Call):
-                continue
-            if op.callee.string_value() not in self.mpi_func_call_names:
-                continue
-            funcs_to_emit[op.callee.string_value()] = (
-                op.arguments.types,
-                op.result_types,
-            )
-
-        # for each func found, add a FuncOp to the top of the module.
-        for name, types in funcs_to_emit.items():
-            SymbolTable.insert_or_update(module, func.FuncOp.external(name, *types))
+    # for each func found, add a FuncOp to the top of the module.
+    for name, types in funcs_to_emit.items():
+        SymbolTable.insert_or_update(module, func.FuncOp.external(name, *types))
 
 
 class LowerNullRequestOp(_MPIToLLVMRewriteBase):
@@ -863,8 +859,7 @@ class LowerMPIPass(ModulePass):
             apply_recursively=True,
         )
 
-        # add func.func to declare external functions
-        walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
-
         walker1.rewrite_module(op)
-        walker2.rewrite_module(op)
+
+        # add func.func to declare external functions
+        add_external_func_defs(op)

@@ -238,4 +238,4 @@ class ConvertScfToCf(ModulePass):
                     ForLowering(),
                 ]
             )
-        ).rewrite_op(op)
+        ).rewrite_module(op)
