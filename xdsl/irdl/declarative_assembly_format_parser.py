@@ -44,6 +44,7 @@ from xdsl.irdl.declarative_assembly_format import (
     DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
+    FunctionalTypeDirective,
     KeywordDirective,
     OperandOrResult,
     OperandsDirective,
@@ -617,6 +618,19 @@ class FormatParser(BaseParser):
             return VariadicTypeDirective(inner)
         return TypeDirective(inner)
 
+    def parse_functional_type_directive(self) -> FormatDirective:
+        """
+        Parse a functional-type directive with the following format
+          functional-type-directive ::= `functional-type` `(` typeable-directive `,` typeable-directive `)`
+        `functional-type` is expected to have already been parsed
+        """
+        self.parse_punctuation("(")
+        operands = self.parse_typeable_directive()
+        self.parse_punctuation(",")
+        results = self.parse_typeable_directive()
+        self.parse_punctuation(")")
+        return FunctionalTypeDirective(operands, results)
+
     def parse_optional_group(self) -> FormatDirective:
         """
         Parse an optional group, with the following format:
@@ -739,6 +753,8 @@ class FormatParser(BaseParser):
             return self.parse_type_directive()
         if self.parse_optional_keyword("operands"):
             return self.create_operands_directive(True)
+        if self.parse_optional_keyword("functional-type"):
+            return self.parse_functional_type_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):

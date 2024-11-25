@@ -1759,6 +1759,70 @@ def test_results_directive_with_variadic_type_directive():
 
 
 ################################################################################
+# Functional type                                                              #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
+        "test.functional_type %0, %1 : (i32, i32) -> ()",
+        "%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
+        "%0 = test.functional_type %1 : (i32) -> i32",
+        "%0 = test.functional_type : () -> i32",
+    ],
+)
+def test_functional_type(program: str):
+    """Test the parsing of the functional-type directive"""
+
+    @irdl_op_definition
+    class FunctionalTypeOp(IRDLOperation):
+        name = "test.functional_type"
+
+        ops = var_operand_def()
+        res = var_result_def()
+
+        assembly_format = "$ops attr-dict `:` functional-type($ops, $res)"
+
+    ctx = MLContext()
+    ctx.load_op(FunctionalTypeOp)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
+        "%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
+        "%0 = test.functional_type %1 : (i32) -> i32",
+    ],
+)
+def test_functional_type_with_operands_and_results(program: str):
+    """
+    Test the parsing of the functional-type directive using the operands and
+    results directives
+    """
+
+    @irdl_op_definition
+    class FunctionalTypeOp(IRDLOperation):
+        name = "test.functional_type"
+
+        op1 = operand_def()
+        ops2 = var_operand_def()
+        res1 = var_result_def()
+        res2 = result_def()
+
+        assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    ctx = MLContext()
+    ctx.load_op(FunctionalTypeOp)
+
+    check_roundtrip(program, ctx)
+
+
+################################################################################
 # Regions                                                                     #
 ################################################################################
 

@@ -820,6 +820,61 @@ class ResultsDirective(OperandsOrResultDirective):
         return bool(op.results)
 
 
+@dataclass(frozen=True)
+class FunctionalTypeDirective(OptionallyParsableDirective):
+    """
+    A directive which parses a functional type, with format:
+      functional-type-directive ::= functional-type(typeable-directive, typeable-directive)
+    A functional type is either of the form
+      `(` type-list `)` `->` `(` type-list `)`
+    or
+      `(` type-list `)` `->` type
+    where type-list is a comma separated list of types (or the empty string to signify the empty list).
+    The second format is preferred for printing when possible.
+    """
+
+    operand_typeable_directive: TypeableDirective
+    result_typeable_directive: TypeableDirective
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            return False
+        if isinstance(self.operand_typeable_directive, VariadicTypeableDirective):
+            self.operand_typeable_directive.parse_many_types(parser, state)
+        else:
+            self.operand_typeable_directive.parse_single_type(parser, state)
+        parser.parse_punctuation(")")
+        parser.parse_punctuation("->")
+        if parser.parse_optional_punctuation("("):
+            if isinstance(self.result_typeable_directive, VariadicTypeableDirective):
+                self.result_typeable_directive.parse_many_types(parser, state)
+            else:
+                self.result_typeable_directive.parse_single_type(parser, state)
+            parser.parse_punctuation(")")
+        else:
+            self.result_typeable_directive.parse_single_type(parser, state)
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print_string(" ")
+        state.should_emit_space = True
+        printer.print_string("(")
+        printer.print_list(
+            self.operand_typeable_directive.get_types(op), printer.print_attribute
+        )
+        printer.print_string(") -> ")
+        result_types = self.result_typeable_directive.get_types(op)
+        if len(result_types) == 1:
+            printer.print_attribute(result_types[0])
+            state.last_was_punctuation = False
+        else:
+            printer.print_string("(")
+            printer.print_list(result_types, printer.print_attribute)
+            printer.print_string(")")
+            state.last_was_punctuation = True
+
+
 class RegionDirective(OptionallyParsableDirective, ABC):
     """
     Baseclass to help keep typechecking simple.
