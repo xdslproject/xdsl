@@ -986,6 +986,16 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
+    def get_parent_of_type(self, parent_type: type[Operation]) -> Operation | None:
+        current_op = self
+
+        while parent := current_op.parent_op():
+            if isinstance(parent, parent_type):
+                return parent
+            current_op = parent
+
+        return None
+
     def walk(
         self, *, reverse: bool = False, region_first: bool = False
     ) -> Iterator[Operation]:
@@ -1002,6 +1012,13 @@ class Operation(IRNode):
         if region_first:
             yield self
 
+    def walk_blocks_preorder(self) -> Iterator[Block]:
+        for region in self.regions:
+            for block in region.blocks:
+                yield block
+                for op in block.ops:
+                    yield from op.walk_blocks_preorder()
+
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
         Get a named attribute or property.
@@ -1012,6 +1029,17 @@ class Operation(IRNode):
         if name in self.attributes:
             return self.attributes[name]
         return None
+
+    def is_before_in_block(self, other_op: Operation) -> bool:
+        parent_block = self.parent_block()
+        assert isinstance(parent_block, Block)
+
+        if parent_block.get_operation_index(self) < parent_block.get_operation_index(
+            other_op
+        ):
+            return True
+        else:
+            return False
 
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
@@ -1442,6 +1470,11 @@ class Block(IRNode, IRWithUses):
             p for use in self.uses if (p := use.operation.parent_block()) is not None
         )
 
+    def successors(self) -> tuple[Block, ...]:
+        terminator = self.last_op
+        assert isinstance(terminator, Operation)
+        return tuple(successor for successor in terminator.successors)
+
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
 
@@ -1753,6 +1786,19 @@ class Block(IRNode, IRWithUses):
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
+    def get_terminator(self) -> Operation | None:
+        if self.last_op and self.last_op.has_trait(IsTerminator):
+            return self.last_op
+        else:
+            return None
+
+    def find_ancestor_op_in_block(self, other_op: Operation) -> Operation | None:
+        for op in self.ops:
+            if op.is_ancestor(other_op):
+                return op
+
+        return None
+
     def is_structurally_equivalent(
         self,
         other: IRNode,
@@ -1976,6 +2022,17 @@ class Region(IRNode):
             if self.parent is not None and self.parent.parent is not None
             else None
         )
+
+    def find_ancestor_block_in_region(self, block: Block) -> Block | None:
+        curr_block = block
+        while curr_block.parent_region() != self:
+            parent_op = curr_block.parent_op()
+            if not parent_op or not parent_op.parent_block():
+                return None
+            curr_block = parent_op.parent_block()
+            assert isinstance(curr_block, Block)
+
+        return curr_block
 
     @property
     def blocks(self) -> RegionBlocks:
