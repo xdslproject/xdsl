@@ -135,10 +135,10 @@ class DSSMulOp(ARMInstruction):
 
     def __init__(
         self,
-        d: IntRegisterType,
         s1: Operation | SSAValue,
         s2: Operation | SSAValue,
         *,
+        d: IntRegisterType,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
