@@ -8,7 +8,7 @@ from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
-from xdsl.dialects import riscv, stream
+from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
@@ -41,6 +41,7 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
+    BaseAttr,
     VarConstraint,
     attr_def,
     base,
@@ -163,15 +164,15 @@ class ReadOp(RISCVAsmOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    stream = operand_def(stream.ReadableStreamType.constr(T))
+    stream = operand_def(snitch.ReadableStreamType.constr(T))
     res = result_def(T)
 
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
-            assert isinstance(stream_type := stream_val.type, stream.ReadableStreamType)
-            stream_type = cast(stream.ReadableStreamType[Attribute], stream_type)
+            assert isinstance(stream_type := stream_val.type, snitch.ReadableStreamType)
+            stream_type = cast(snitch.ReadableStreamType[Attribute], stream_type)
             result_type = stream_type.element_type
         super().__init__(operands=[stream_val], result_types=[result_type])
 
@@ -186,7 +187,7 @@ class WriteOp(RISCVAsmOperation):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    stream = operand_def(stream.WritableStreamType.constr(T))
+    stream = operand_def(snitch.WritableStreamType.constr(T))
 
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
@@ -484,7 +485,10 @@ class FrepInnerOp(FRepOperation):
 class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
-    stream = result_def(stream.StreamType[riscv.FloatRegisterType])
+    stream = result_def(
+        snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+        | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
+    )
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])

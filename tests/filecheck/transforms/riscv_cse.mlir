@@ -30,7 +30,7 @@ riscv.assembly_section ".text" {
 
 // -----
 
-%0, %1, %2 = "test.op"() : () -> (!stream.readable<!riscv.freg>, !stream.readable<!riscv.freg>, !riscv.reg)
+%0, %1, %2 = "test.op"() : () -> (!snitch.readable<!riscv.freg>, !snitch.readable<!riscv.freg>, !riscv.reg)
 
 %8 = riscv.li 8 : !riscv.reg
 %9 = riscv.li 8 : !riscv.reg
@@ -65,7 +65,7 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!stream.readable<!riscv.freg>, !stream.readable<!riscv.freg>, !riscv.reg)
+// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!snitch.readable<!riscv.freg>, !snitch.readable<!riscv.freg>, !riscv.reg)
 // CHECK-NEXT:    %{{.*}} = riscv.li 8 : !riscv.reg
 // CHECK-NEXT:    %{{.*}} = riscv.li 0 : !riscv.reg
 // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg

@@ -379,20 +379,24 @@ def test_insert_op_at_start():
     """Test rewrites where operations are inserted with a given position."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+    %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op(new_cst, InsertPoint.at_start(mod.regions[0].blocks[0]))
+            rewriter.insert_op(new_cst, InsertPoint.at_start(op.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -406,20 +410,24 @@ def test_insert_op_before():
     """Test rewrites where operations are inserted before a given operation."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+    %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            first_op = mod.ops.first
+            first_op = op.regions[0].block.ops.first
             assert first_op is not None
             rewriter.insert_op(new_cst, InsertPoint.before(first_op))
 
@@ -435,20 +443,24 @@ def test_insert_op_after():
     """Test rewrites where operations are inserted after a given operation."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            first_op = mod.ops.first
+            first_op = op.regions[0].block.ops.first
             assert first_op is not None
             rewriter.insert_op(new_cst, InsertPoint.after(first_op))
 
@@ -594,17 +606,21 @@ def test_delete_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-^0:
+  "test.op"() ({
+  ^0:
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
-            first_op = op.ops.first
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
 
             assert first_op is not None
             rewriter.erase_op(first_op)
@@ -621,17 +637,21 @@ def test_replace_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
-            first_op = op.ops.first
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
 
             assert first_op is not None
             rewriter.replace_op(first_op, [ConstantOp.from_int_and_width(42, i32)])
@@ -1050,29 +1070,36 @@ def test_move_region_contents_to_new_regions():
 
     prog = """\
 "builtin.module"() ({
-  %0 = "test.op"() : () -> !test.type<"int">
-  %1 = "test.op"() ({
-  ^0:
-    %2 = "test.op"() : () -> !test.type<"int">
-  }) : () -> !test.type<"int">
+  "test.op"() ({
+    %0 = "test.op"() : () -> !test.type<"int">
+    %1 = "test.op"() ({
+    ^0:
+      %2 = "test.op"() : () -> !test.type<"int">
+    }) : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "test.op"() : () -> !test.type<"int">
-  %1 = "test.op"() ({
-  }) : () -> !test.type<"int">
-  %2 = "test.op"() ({
-    %3 = "test.op"() : () -> !test.type<"int">
-  }) : () -> !test.type<"int">
+  "test.op"() ({
+    %0 = "test.op"() : () -> !test.type<"int">
+    %1 = "test.op"() ({
+    }) : () -> !test.type<"int">
+    %2 = "test.op"() ({
+      %3 = "test.op"() : () -> !test.type<"int">
+    }) : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
-            ops_iter = iter(op.ops)
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            # Match the toplevel test.op
+            if not isinstance(op.parent_op(), ModuleOp):
+                return
+            ops_iter = iter(op.regions[0].block.ops)
 
             _ = next(ops_iter)  # skip first op
             old_op = next(ops_iter)

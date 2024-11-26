@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
+from xdsl.dialects import riscv, riscv_snitch, snitch, snitch_stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RiscvFunctions
@@ -71,9 +71,9 @@ def test_snitch_stream_interpreter():
     streaming_region_body = Region(
         Block(
             arg_types=(
-                stream.ReadableStreamType(riscv.Registers.FT0),
-                stream.ReadableStreamType(riscv.Registers.FT1),
-                stream.WritableStreamType(riscv.Registers.FT2),
+                snitch.ReadableStreamType(riscv.Registers.FT0),
+                snitch.ReadableStreamType(riscv.Registers.FT1),
+                snitch.WritableStreamType(riscv.Registers.FT2),
             )
         )
     )

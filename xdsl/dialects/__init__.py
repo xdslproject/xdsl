@@ -283,11 +283,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Stim
 
-    def get_stream():
-        from xdsl.dialects.stream import Stream
-
-        return Stream
-
     def get_symref():
         from xdsl.frontend.symref import Symref
 
@@ -389,7 +384,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "stablehlo": get_stablehlo,
         "stencil": get_stencil,
         "stim": get_stim,
-        "stream": get_stream,
         "symref": get_symref,
         "tensor": get_tensor,
         "test": get_test,

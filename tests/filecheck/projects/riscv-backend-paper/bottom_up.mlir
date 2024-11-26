@@ -181,7 +181,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
           #memref_stream.stride_pattern<ub = [128], index_map = (d0) -> (d0)>
       ]
     } ins(%X, %Y : memref<128xf64>, memref<128xf64>) {
-    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
+    ^0(%x_stream : !memref_stream.readable<f64>, %y_stream : !memref_stream.readable<f64>):
         %zero_float = arith.constant 0.0 : f64
 
         %c0 = arith.constant 0 : i32
@@ -593,7 +593,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
           #snitch_stream.stride_pattern<ub = [128], strides = [8]>
         ]
       } ins(%X_1 : !riscv.reg) outs(%Y_1 : !riscv.reg) {
-      ^0(%x : !stream.readable<!riscv.freg<ft0>>, %0 : !stream.writable<!riscv.freg<ft1>>):
+      ^0(%x : !snitch.readable<!riscv.freg<ft0>>, %0 : !snitch.writable<!riscv.freg<ft1>>):
         %c128 = riscv.li 128 : !riscv.reg
         %c0 = riscv.li 0 : !riscv.reg
         %c1 = riscv.li 1 : !riscv.reg

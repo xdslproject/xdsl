@@ -252,7 +252,7 @@ class ConvertArithToVarithPass(ModulePass):
                 ]
             ),
             walk_reverse=True,
-        ).rewrite_op(op)
+        ).rewrite_module(op)
 
 
 class ConvertVarithToArithPass(ModulePass):
@@ -268,7 +268,7 @@ class ConvertVarithToArithPass(ModulePass):
         PatternRewriteWalker(
             VarithToArithPattern(),
             apply_recursively=False,
-        ).rewrite_op(op)
+        ).rewrite_module(op)
 
 
 class VarithFuseRepeatedOperandsPass(ModulePass):
@@ -285,4 +285,4 @@ class VarithFuseRepeatedOperandsPass(ModulePass):
         PatternRewriteWalker(
             FuseRepeatedAddArgsPattern(self.min_reps),
             apply_recursively=False,
-        ).rewrite_op(op)
+        ).rewrite_module(op)

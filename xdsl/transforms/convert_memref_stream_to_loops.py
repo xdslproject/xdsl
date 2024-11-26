@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, memref, memref_stream, stream
+from xdsl.dialects import arith, memref, memref_stream
 from xdsl.dialects.builtin import AffineMapAttr, IntegerAttr, ModuleOp, UnitAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -33,7 +33,7 @@ def _insert_load(
             rewriter, insertion_point, affine_map_attr.data, ind_vars
         )
         op = memref.LoadOp.get(source, indices)
-    elif isinstance(source.type, stream.ReadableStreamType):
+    elif isinstance(source.type, memref_stream.ReadableStreamType):
         op = memref_stream.ReadOp(source)
     else:
         return source

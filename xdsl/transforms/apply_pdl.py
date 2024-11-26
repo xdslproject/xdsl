@@ -22,7 +22,6 @@ class ApplyPDLPass(ModulePass):
     pdl_file: str | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        payload_module = op
         if self.pdl_file is not None:
             assert os.path.exists(self.pdl_file)
             with open(self.pdl_file) as f:
@@ -30,11 +29,11 @@ class ApplyPDLPass(ModulePass):
                 parser = Parser(ctx, pdl_module_str)
                 pdl_module = parser.parse_module()
         else:
-            pdl_module = payload_module
+            pdl_module = op
         rewrite_patterns: list[RewritePattern] = [
             PDLRewritePattern(op, ctx, None)
             for op in pdl_module.walk()
             if isinstance(op, pdl.RewriteOp)
         ]
         pattern_applier = GreedyRewritePatternApplier(rewrite_patterns)
-        PatternRewriteWalker(pattern_applier).rewrite_op(payload_module)
+        PatternRewriteWalker(pattern_applier).rewrite_module(op)

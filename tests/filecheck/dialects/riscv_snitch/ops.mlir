@@ -25,15 +25,15 @@ riscv_func.func @xfrep() {
   // CHECK-NEXT:    %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
   // CHECK-NEXT:  }
 
-  %readable = riscv_snitch.get_stream : !stream.readable<!riscv.freg<ft0>>
-  %writable = riscv_snitch.get_stream : !stream.writable<!riscv.freg<ft1>>
+  %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
+  %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
   riscv_snitch.frep_outer %0 {
     %val0 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     %val1 = riscv.fmv.d %val0 : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
     riscv_snitch.write %val1 to %writable : !riscv.freg<ft1>
   }
-  // CHECK-NEXT:  %readable = riscv_snitch.get_stream : !stream.readable<!riscv.freg<ft0>>
-  // CHECK-NEXT:  %writable = riscv_snitch.get_stream : !stream.writable<!riscv.freg<ft1>>
+  // CHECK-NEXT:  %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
+  // CHECK-NEXT:  %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>
   // CHECK-NEXT:  riscv_snitch.frep_outer %0 {
   // CHECK-NEXT:    %val0 = riscv_snitch.read from %readable : !riscv.freg<ft0>
   // CHECK-NEXT:    %val1 = riscv.fmv.d %val0 : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
@@ -129,12 +129,12 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:      %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"() : () -> ()
 // CHECK-GENERIC-NEXT:    }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg) -> ()
-// CHECK-GENERIC-NEXT:        %readable = "riscv_snitch.get_stream"() : () -> !stream.readable<!riscv.freg<ft0>>
-// CHECK-GENERIC-NEXT:        %writable = "riscv_snitch.get_stream"() : () -> !stream.writable<!riscv.freg<ft1>>
+// CHECK-GENERIC-NEXT:        %readable = "riscv_snitch.get_stream"() : () -> !snitch.readable<!riscv.freg<ft0>>
+// CHECK-GENERIC-NEXT:        %writable = "riscv_snitch.get_stream"() : () -> !snitch.writable<!riscv.freg<ft1>>
 // CHECK-GENERIC-NEXT:        "riscv_snitch.frep_outer"(%0) ({
-// CHECK-GENERIC-NEXT:          %val0 = "riscv_snitch.read"(%readable) : (!stream.readable<!riscv.freg<ft0>>) -> !riscv.freg<ft0>
+// CHECK-GENERIC-NEXT:          %val0 = "riscv_snitch.read"(%readable) : (!snitch.readable<!riscv.freg<ft0>>) -> !riscv.freg<ft0>
 // CHECK-GENERIC-NEXT:          %val1 = "riscv.fmv.d"(%val0) : (!riscv.freg<ft0>) -> !riscv.freg<ft1>
-// CHECK-GENERIC-NEXT:          "riscv_snitch.write"(%val1, %writable) : (!riscv.freg<ft1>, !stream.writable<!riscv.freg<ft1>>) -> ()
+// CHECK-GENERIC-NEXT:          "riscv_snitch.write"(%val1, %writable) : (!riscv.freg<ft1>, !snitch.writable<!riscv.freg<ft1>>) -> ()
 // CHECK-GENERIC-NEXT:          "riscv_snitch.frep_yield"() : () -> ()
 // CHECK-GENERIC-NEXT:        }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:    %init = "test.op"() : () -> !riscv.freg<ft3>

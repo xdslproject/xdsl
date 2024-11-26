@@ -252,7 +252,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
                 ConvertAccessOpFromPrefetchPattern(arg_idx)
             )
 
-            nested_rewriter.rewrite_op(new_apply_op)
+            nested_rewriter.rewrite_region(new_apply_op.region)
 
 
 def split_ops(
@@ -415,7 +415,7 @@ class ConvertApplyOpPattern(RewritePattern):
         PatternRewriteWalker(
             SplitVarithOpPattern(op.region.block.args[prefetch_idx]),
             apply_recursively=False,
-        ).rewrite_op(op)
+        ).rewrite_region(op.region)
 
         # determine how ops should be split across the two regions
         chunk_region_ops, done_exchange_ops = split_ops(
