@@ -149,7 +149,9 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
     name = "riscv_snitch.frep_yield"
 
-    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(FrepInner, FrepOuter)))
+    traits = lazy_traits_def(
+        lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp))
+    )
 
     def assembly_line(self) -> str | None:
         return None
@@ -415,7 +417,7 @@ class FRepOperation(RISCVInstruction):
 
 
 @irdl_op_definition
-class FrepOuter(FRepOperation):
+class FrepOuterOp(FRepOperation):
     """
     Repeats the instruction in the body as if the body were the body of a for loop, for
     example:
@@ -448,7 +450,7 @@ class FrepOuter(FRepOperation):
 
 
 @irdl_op_definition
-class FrepInner(FRepOperation):
+class FrepInnerOp(FRepOperation):
     """
     Repeats the instruction in the body, as if each were in its own body of a for loop,
     for example:
@@ -970,8 +972,8 @@ RISCV_Snitch = Dialect(
     [
         ScfgwOp,
         ScfgwiOp,
-        FrepOuter,
-        FrepInner,
+        FrepOuterOp,
+        FrepInnerOp,
         FrepYieldOp,
         ReadOp,
         WriteOp,

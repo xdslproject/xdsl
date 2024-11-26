@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
@@ -248,8 +248,8 @@ memref<1x2xi32> should be of type VectorType."""
 
 
 def test_unrealized_conversion_cast():
-    i64_constant = Constant.from_int_and_width(1, 64)
-    f32_constant = Constant(FloatAttr(10.1, f32))
+    i64_constant = ConstantOp.from_int_and_width(1, 64)
+    f32_constant = ConstantOp(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
     conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])

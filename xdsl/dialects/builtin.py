@@ -1317,7 +1317,7 @@ class UnregisteredOp(Operation, ABC):
         `MLContext` to get an `UnregisteredOp` type.
         """
 
-        class UnregisteredOpWithName(UnregisteredOp):
+        class UnregisteredOpWithNameOp(UnregisteredOp):
             @classmethod
             def create(
                 cls,
@@ -1340,7 +1340,7 @@ class UnregisteredOp(Operation, ABC):
                 op.attributes["op_name__"] = StringAttr(name)
                 return op
 
-        return UnregisteredOpWithName
+        return UnregisteredOpWithNameOp
 
 
 class UnregisteredAttr(ParametrizedAttribute, ABC):

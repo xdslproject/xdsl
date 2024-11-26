@@ -20,7 +20,7 @@ from xdsl.pattern_rewriter import (
 class ConvertGlobalPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: ml_program.Global, rewriter: PatternRewriter
+        self, op: ml_program.GlobalOp, rewriter: PatternRewriter
     ) -> None:
         if op.value is None:
             raise NotImplementedError(
@@ -31,7 +31,7 @@ class ConvertGlobalPattern(RewritePattern):
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
-                memref.Global.get(
+                memref.GlobalOp.get(
                     op.sym_name,
                     new_type,
                     op.value,
@@ -45,14 +45,14 @@ class ConvertGlobalPattern(RewritePattern):
 class ConvertGlobalLoadConst(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: ml_program.GlobalLoadConstant, rewriter: PatternRewriter
+        self, op: ml_program.GlobalLoadConstantOp, rewriter: PatternRewriter
     ) -> None:
         assert isinstance(op_type := op.result.type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
-                mem := memref.GetGlobal(op.global_attr, new_type),
+                mem := memref.GetGlobalOp(op.global_attr, new_type),
                 bufferization.ToTensorOp(mem.memref),
             )
         )

@@ -111,7 +111,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     f"'ast.{type(node.msg).__name__}'",
                 )
             msg = str(node.msg.value)
-        op = cf.Assert(self.inserter.get_operand(), msg)
+        op = cf.AssertOp(self.inserter.get_operand(), msg)
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -330,7 +330,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     ) -> tuple[SSAValue, SSAValue, SSAValue]:
         # Process loop start.
         if len(args) <= 1:
-            start = arith.Constant.from_int_and_width(0, builtin.IndexType())
+            start = arith.ConstantOp.from_int_and_width(0, builtin.IndexType())
             self.inserter.insert_op(start)
         else:
             self.visit(args[0])
@@ -362,7 +362,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if len(args) == 3:
             self.visit(args[2])
         else:
-            step = arith.Constant.from_int_and_width(1, builtin.IndexType())
+            step = arith.ConstantOp.from_int_and_width(1, builtin.IndexType())
             self.inserter.insert_op(step)
         step = self.inserter.get_operand()
         if not isinstance(step.type, builtin.IndexType):
@@ -444,17 +444,17 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         for stmt in node.body:
             self.visit(stmt)
         if is_affine:
-            self.inserter.insert_op(affine.Yield.get())
+            self.inserter.insert_op(affine.YieldOp.get())
             assert isinstance(start, int)
             assert isinstance(end, int)
             assert isinstance(step, int)
-            op = affine.For.from_region([], [], [], [], start, end, body, step)
+            op = affine.ForOp.from_region([], [], [], [], start, end, body, step)
         else:
-            self.inserter.insert_op(scf.Yield())
+            self.inserter.insert_op(scf.YieldOp())
             assert isinstance(start, SSAValue)
             assert isinstance(end, SSAValue)
             assert isinstance(step, SSAValue)
-            op = scf.For(start, end, step, [], body)
+            op = scf.ForOp(start, end, step, [], body)
 
         self.inserter.set_insertion_point_from_block(curr_block)
         self.inserter.insert_op(op)
@@ -492,8 +492,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             symbol_name = str(arg.arg)
             block_arg = entry_block.insert_arg(argument_types[i], i)
             self.symbol_table[symbol_name] = argument_types[i]
-            entry_block.add_op(symref.Declare.get(symbol_name))
-            entry_block.add_op(symref.Update.get(symbol_name, block_arg))
+            entry_block.add_op(symref.DeclareOp.get(symbol_name))
+            entry_block.add_op(symref.UpdateOp.get(symbol_name, block_arg))
 
         # Parse function body.
         for stmt in node.body:
@@ -526,9 +526,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # In our case, if statement never returns a value and therefore we can
         # simply yield nothing. It is the responsibility of subsequent passes to
         # ensure SSA-form of IR and that values are yielded correctly.
-        true_region.blocks[-1].add_op(scf.Yield())
-        false_region.blocks[-1].add_op(scf.Yield())
-        op = scf.If(cond, [], true_region, false_region)
+        true_region.blocks[-1].add_op(scf.YieldOp())
+        false_region.blocks[-1].add_op(scf.YieldOp())
+        op = scf.IfOp(cond, [], true_region, false_region)
 
         # Reset insertion point and insert a new operation.
         self.inserter.set_insertion_point_from_block(cond_block)
@@ -544,7 +544,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.inserter.set_insertion_point_from_region(region)
             self.visit(expr)
             result = self.inserter.get_operand()
-            self.inserter.insert_op(scf.Yield(result))
+            self.inserter.insert_op(scf.YieldOp(result))
             return result.type, region
 
         # Generate code for both branches.
@@ -560,14 +560,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Expected the same types for if expression,"
                 f" but got {true_type} and {false_type}.",
             )
-        op = scf.If(cond, [true_type], true_region, false_region)
+        op = scf.IfOp(cond, [true_type], true_region, false_region)
 
         # Reset insertion point to add scf.if.
         self.inserter.set_insertion_point_from_block(cond_block)
         self.inserter.insert_op(op)
 
     def visit_Name(self, node: ast.Name):
-        fetch_op = symref.Fetch.get(node.id, self.get_symbol(node))
+        fetch_op = symref.FetchOp.get(node.id, self.get_symbol(node))
         self.inserter.insert_op(fetch_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
@@ -586,7 +586,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.col_offset,
                     f"Expected '{function_name}' to return a type.",
                 )
-            self.inserter.insert_op(func.Return())
+            self.inserter.insert_op(func.ReturnOp())
 
     def visit_Return(self, node: ast.Return) -> None:
         # First of all, we should only be able to return if the statement is directly
@@ -622,7 +622,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     f"Expected non-zero number of return types in function "
                     f"'{callee}', but got 0.",
                 )
-            self.inserter.insert_op(func.Return())
+            self.inserter.insert_op(func.ReturnOp())
         else:
             # Return some type, check function signature matches as well.
             # TODO: Support multiple return values if we allow multiple assignemnts.
@@ -648,4 +648,4 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                         f" got {operands[i].type}.",
                     )
 
-            self.inserter.insert_op(func.Return(*operands))
+            self.inserter.insert_op(func.ReturnOp(*operands))

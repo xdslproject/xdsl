@@ -87,7 +87,7 @@ def test_get_consumer_of_result():
     result_number = 0
     target = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
     assert_print_op(
-        transform.GetConsumersOfResult(target=target, result_number=result_number),
+        transform.GetConsumersOfResultOp(target=target, result_number=result_number),
         """%0 = "transform.get_consumers_of_result"(%1) <{"result_number" = 0 : i64}> : (!transform.any_op) -> !transform.any_op""",
         None,
     )
@@ -114,7 +114,7 @@ def test_get_parent_op():
 def test_get_producer_of_operand():
     target = test.TestOp(result_types=[transform.AnyValueType()]).results[0]
     assert_print_op(
-        transform.GetProducerOfOperand(operand_number=0, target=target),
+        transform.GetProducerOfOperandOp(operand_number=0, target=target),
         """%0 = "transform.get_producer_of_operand"(%1) <{"operand_number" = 0 : i64}> : (!transform.any_value) -> !transform.any_op""",
         None,
     )

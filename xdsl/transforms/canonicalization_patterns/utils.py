@@ -7,7 +7,7 @@ def const_evaluate_operand(operand: SSAValue) -> int | None:
     """
     Try to constant evaluate an SSA value, returning None on failure.
     """
-    if isinstance(op := operand.owner, arith.Constant) and isinstance(
+    if isinstance(op := operand.owner, arith.ConstantOp) and isinstance(
         val := op.value, IntegerAttr
     ):
         return val.value.data

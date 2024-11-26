@@ -19,7 +19,7 @@ def test_func_too_many_inputs_failure():
     @Builder.implicit_region
     def non_empty_return():
         with ImplicitBuilder(func.FuncOp("main", (NINE_TYPES, ())).body):
-            func.Return()
+            func.ReturnOp()
 
     with pytest.raises(
         ValueError, match="Cannot lower func.func with more than 8 inputs"
@@ -32,7 +32,7 @@ def test_func_too_many_outputs_failure():
     @Builder.implicit_region
     def non_empty_return():
         with ImplicitBuilder(func.FuncOp("main", ((), THREE_TYPES)).body):
-            func.Return()
+            func.ReturnOp()
 
     with pytest.raises(
         ValueError, match="Cannot lower func.func with more than 2 outputs"
@@ -45,7 +45,7 @@ def test_return_too_many_values_failure():
     @Builder.implicit_region
     def non_empty_return():
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            func.Return(*(TestSSAValue(t) for t in THREE_TYPES))
+            func.ReturnOp(*(TestSSAValue(t) for t in THREE_TYPES))
 
     with pytest.raises(
         ValueError, match="Cannot lower func.return with more than 2 arguments"
@@ -58,8 +58,8 @@ def test_call_too_many_operands_failure():
     @Builder.implicit_region
     def non_empty_return():
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            func.Call("foo", [TestSSAValue(t) for t in NINE_TYPES], ())
-            func.Return()
+            func.CallOp("foo", [TestSSAValue(t) for t in NINE_TYPES], ())
+            func.ReturnOp()
 
     with pytest.raises(
         ValueError, match="Cannot lower func.call with more than 8 operands"
@@ -72,8 +72,8 @@ def test_call_too_many_results_failure():
     @Builder.implicit_region
     def non_empty_return():
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            func.Call("foo", [], THREE_TYPES)
-            func.Return()
+            func.CallOp("foo", [], THREE_TYPES)
+            func.ReturnOp()
 
     with pytest.raises(
         ValueError, match="Cannot lower func.call with more than 2 results"

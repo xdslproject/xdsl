@@ -43,7 +43,7 @@ class AffineIfHoistPattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: affine.If, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: affine.IfOp, rewriter: PatternRewriter):
         # Easy bail out for now
         if not (is_speculatable(op) and is_side_effect_free(op)):
             return
@@ -66,7 +66,7 @@ class SCFIfHoistPattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.If, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: scf.IfOp, rewriter: PatternRewriter):
         # Easy bail out for now
         if not (is_speculatable(op) and is_side_effect_free(op)):
             return

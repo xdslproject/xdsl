@@ -53,10 +53,10 @@ def offset_calculations(
                 # elements required to be skipped when incrementing that dimension).
                 ops.extend(
                     (
-                        stride_op := arith.Constant.from_int_and_width(
+                        stride_op := arith.ConstantOp.from_int_and_width(
                             stride, builtin.IndexType()
                         ),
-                        offset_op := arith.Muli(increment, stride_op),
+                        offset_op := arith.MuliOp(increment, stride_op),
                     )
                 )
                 stride_op.result.name_hint = "pointer_dim_stride"
@@ -70,7 +70,7 @@ def offset_calculations(
             continue
 
         # Otherwise sum up the products.
-        add_op = arith.Addi(head, increment)
+        add_op = arith.AddiOp(head, increment)
         add_op.result.name_hint = "pointer_dim_stride"
         ops.append(add_op)
         head = add_op.result
@@ -85,7 +85,7 @@ def offset_calculations(
                 result_types=[builtin.IndexType()],
                 properties={"elem_type": memref_type.element_type},
             ),
-            final_offset := arith.Muli(head, bytes_per_element_op),
+            final_offset := arith.MuliOp(head, bytes_per_element_op),
         ]
     )
 
@@ -126,7 +126,7 @@ def get_target_ptr(
 @dataclass
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
@@ -139,7 +139,7 @@ class ConvertStoreOp(RewritePattern):
 @dataclass
 class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 

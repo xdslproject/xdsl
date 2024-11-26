@@ -29,7 +29,7 @@ class GetDsdAndOffsetFolding(RewritePattern):
         # check if we can promote arith.const to property
         if (
             isinstance(offset_op.offset, OpResult)
-            and isinstance(cnst := offset_op.offset.op, arith.Constant)
+            and isinstance(cnst := offset_op.offset.op, arith.ConstantOp)
             and isattr(cnst.value, AnyIntegerAttrConstr)
         ):
             rewriter.replace_matched_op(
@@ -88,7 +88,7 @@ class GetDsdAndStrideFolding(RewritePattern):
         # check if we can promote arith.const to property
         if (
             isinstance(stride_op.stride, OpResult)
-            and isinstance(cnst := stride_op.stride.op, arith.Constant)
+            and isinstance(cnst := stride_op.stride.op, arith.ConstantOp)
             and isattr(cnst.value, AnyIntegerAttrConstr)
         ):
             rewriter.replace_matched_op(
@@ -121,7 +121,7 @@ class ChainedDsdOffsetFolding(RewritePattern):
             rewriter.replace_op(
                 next_op,
                 [
-                    new_offset := arith.Addi(op.offset, next_op.offset),
+                    new_offset := arith.AddiOp(op.offset, next_op.offset),
                     csl.IncrementDsdOffsetOp(
                         operands=[op.op, new_offset.result],
                         properties=op.properties.copy(),

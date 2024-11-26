@@ -15,28 +15,28 @@ from xdsl.traits import HasCanonicalizationPatternsTrait
 
 class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
         if op.lhs == op.rhs:
             assert isinstance(op.lhs.type, IntegerType | IndexType)
             rewriter.replace_matched_op(
                 [
-                    li_op := arith.Constant(IntegerAttr(2, op.lhs.type)),
-                    arith.Muli(op.lhs, li_op),
+                    li_op := arith.ConstantOp(IntegerAttr(2, op.lhs.type)),
+                    arith.MuliOp(op.lhs, li_op),
                 ]
             )
 
 
 class DivisionOfSameVariableToOne(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.DivUI, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: arith.DivUIOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(mul_op := op.lhs.owner, Operation)
-            and isinstance(mul_op, arith.Muli)
+            and isinstance(mul_op, arith.MuliOp)
             and (op.lhs in mul_op.results)
             # and mul_op.rhs == op.rhs
-            and isinstance(mul_op.rhs.owner, arith.Constant)
+            and isinstance(mul_op.rhs.owner, arith.ConstantOp)
             and isinstance(mul_rhs_value := mul_op.rhs.owner.value, IntegerAttr)
-            and isinstance(op.rhs.owner, arith.Constant)
+            and isinstance(op.rhs.owner, arith.ConstantOp)
             and isinstance(value := op.rhs.owner.value, IntegerAttr)
             and mul_rhs_value.value.data == value.value.data
             and value.value.data != 0
@@ -47,8 +47,8 @@ class DivisionOfSameVariableToOne(RewritePattern):
 INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS: dict[
     type[Operation], tuple[RewritePattern, ...]
 ] = {
-    arith.Addi: (AdditionOfSameVariablesToMultiplyByTwo(),),
-    arith.DivUI: (DivisionOfSameVariableToOne(),),
+    arith.AddiOp: (AdditionOfSameVariablesToMultiplyByTwo(),),
+    arith.DivUIOp: (DivisionOfSameVariableToOne(),),
 }
 """
 Dictionary where the key is an Operation and the value is a tuple of rewrite pattern(s) associated with that operation. These are rewrite patterns defined in this class.

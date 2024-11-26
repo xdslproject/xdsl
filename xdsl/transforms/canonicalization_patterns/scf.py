@@ -19,7 +19,7 @@ class RehoistConstInLoops(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
         for child_op in op.body.ops:
             if child_op.has_trait(ConstantLike):
                 # we only rehoist consts that are not embeded in another region inside the loop
@@ -35,7 +35,7 @@ class SimplifyTrivialLoops(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
         # If the upper bound is the same as the lower bound, the loop does not iterate,
         # just remove it.
         if (lb := const_evaluate_operand(op.lb)) is None:

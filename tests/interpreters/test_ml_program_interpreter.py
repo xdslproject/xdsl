@@ -19,7 +19,7 @@ def test_ml_program_global_load_constant():
     tensor_type = TensorType(i32, [4])
     module = ModuleOp([])
     with ImplicitBuilder(module.body):
-        ml_program.Global(
+        ml_program.GlobalOp(
             StringAttr("my_global"),
             tensor_type,
             None,
@@ -27,7 +27,7 @@ def test_ml_program_global_load_constant():
             StringAttr("private"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            fetch = ml_program.GlobalLoadConstant(
+            fetch = ml_program.GlobalLoadConstantOp(
                 SymbolRefAttr("my_global"), tensor_type
             )
 
@@ -42,7 +42,7 @@ def test_ml_program_global_load_constant_ex2():
     tensor_type = TensorType(i64, [2])
     module = ModuleOp([])
     with ImplicitBuilder(module.body):
-        ml_program.Global(
+        ml_program.GlobalOp(
             StringAttr("my_global"),
             tensor_type,
             None,
@@ -50,7 +50,7 @@ def test_ml_program_global_load_constant_ex2():
             StringAttr("private"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            fetch = ml_program.GlobalLoadConstant(
+            fetch = ml_program.GlobalLoadConstantOp(
                 SymbolRefAttr("my_global"), tensor_type
             )
 

@@ -34,8 +34,8 @@ def test_update_program_args():
     )
     assert len(m_op.program_module.block.args) == 4
     with ImplicitBuilder(m_op.layout_module.block):
-        zero_const = arith.Constant(IntegerAttr(0, 16))
-        seven_const = arith.Constant(IntegerAttr(7, 32))
+        zero_const = arith.ConstantOp(IntegerAttr(0, 16))
+        seven_const = arith.ConstantOp(IntegerAttr(7, 32))
         csl_wrapper.YieldOp.from_field_name_mapping(
             {
                 "zero_param": zero_const,

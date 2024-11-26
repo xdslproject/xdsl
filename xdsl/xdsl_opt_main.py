@@ -213,11 +213,11 @@ class xDSLOptMain(CommandLineTool):
             print_assembly(prog, output)
 
         def _output_wat(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.wasm import WasmModule
+            from xdsl.dialects.wasm import WasmModuleOp
             from xdsl.dialects.wasm.wat import WatPrinter
 
             for op in prog.walk():
-                if isinstance(op, WasmModule):
+                if isinstance(op, WasmModuleOp):
                     printer = WatPrinter(output)
                     op.print_wat(printer)
                     print("", file=output)

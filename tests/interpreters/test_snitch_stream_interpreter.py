@@ -89,7 +89,7 @@ def test_snitch_stream_interpreter():
             c_reg = riscv.FAddDOp(a_reg, b_reg, rd=riscv.Registers.FT2).rd
             riscv_snitch.WriteOp(c_reg, c_stream)
 
-        riscv_snitch.FrepOuter(count_reg, frep_body)
+        riscv_snitch.FrepOuterOp(count_reg, frep_body)
 
     assert (
         interpreter.run_op(

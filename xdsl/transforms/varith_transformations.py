@@ -21,10 +21,10 @@ ARITH_TO_VARITH_TYPE_MAP: dict[
     type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
     type[varith.VarithOp],
 ] = {
-    arith.Addi: varith.VarithAddOp,
-    arith.Addf: varith.VarithAddOp,
-    arith.Muli: varith.VarithMulOp,
-    arith.Mulf: varith.VarithMulOp,
+    arith.AddiOp: varith.VarithAddOp,
+    arith.AddfOp: varith.VarithAddOp,
+    arith.MuliOp: varith.VarithMulOp,
+    arith.MulfOp: varith.VarithMulOp,
 }
 
 
@@ -36,7 +36,7 @@ class ArithToVarithPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        op: arith.Addi | arith.Addf | arith.Muli | arith.Mulf,
+        op: arith.AddiOp | arith.AddfOp | arith.MuliOp | arith.MulfOp,
         rewriter: PatternRewriter,
         /,
     ):
@@ -99,10 +99,10 @@ ARITH_TYPES: dict[
     tuple[Literal["float", "int"], Literal["add", "mul"]],
     type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
 ] = {
-    ("int", "add"): arith.Addi,
-    ("int", "mul"): arith.Muli,
-    ("float", "add"): arith.Addf,
-    ("float", "mul"): arith.Mulf,
+    ("int", "add"): arith.AddiOp,
+    ("int", "mul"): arith.MuliOp,
+    ("float", "add"): arith.AddfOp,
+    ("float", "mul"): arith.MulfOp,
 }
 
 
@@ -203,7 +203,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
             elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
         )
 
-        consts: list[arith.Constant] = []
+        consts: list[arith.ConstantOp] = []
         fusions: list[Operation] = []
         new_args: list[Operation | SSAValue] = []
         for arg, count in collections.Counter(op.args).items():
@@ -225,11 +225,11 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
         t: builtin.IntegerType | builtin.IndexType | builtin.AnyFloat,
     ):
         if isinstance(t, builtin.IntegerType | builtin.IndexType):
-            c = arith.Constant(builtin.IntegerAttr(count, t))
-            f = arith.Muli
+            c = arith.ConstantOp(builtin.IntegerAttr(count, t))
+            f = arith.MuliOp
         else:
-            c = arith.Constant(builtin.FloatAttr(count, t))
-            f = arith.Mulf
+            c = arith.ConstantOp(builtin.FloatAttr(count, t))
+            f = arith.MulfOp
         return c, f(c, arg)
 
 

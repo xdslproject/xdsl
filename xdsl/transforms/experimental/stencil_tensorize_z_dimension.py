@@ -5,12 +5,12 @@ from typing import TypeGuard, cast
 from xdsl.context import MLContext
 from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
-    Addf,
-    Constant,
-    Divf,
+    AddfOp,
+    ConstantOp,
+    DivfOp,
     FloatingPointLikeBinaryOperation,
-    Mulf,
-    Subf,
+    MulfOp,
+    SubfOp,
 )
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -159,7 +159,7 @@ class ArithOpTensorize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
+        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
     ):
         type_constructor = type(op)
         if is_tensor(op.result.type):
@@ -195,8 +195,8 @@ class ArithOpTensorize(RewritePattern):
         If it is a constant, create a corresponding tensor constant.
         If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
         """
-        if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, Constant):
-            tens_const = Constant(
+        if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, ConstantOp):
+            tens_const = ConstantOp(
                 DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
@@ -383,7 +383,7 @@ def arithBinaryOpUpdateShape(
 class ArithOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
+        self, op: AddfOp | SubfOp | MulfOp | DivfOp, rewriter: PatternRewriter, /
     ):
         arithBinaryOpUpdateShape(op, rewriter)
 
@@ -419,13 +419,13 @@ class FillOpUpdateShape(RewritePattern):
 
 class ConstOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter, /):
         if is_tensor(op.result.type):
             if typ := get_required_result_type(op):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
                     rewriter.replace_matched_op(
-                        Constant(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                        ConstantOp(DenseIntOrFPElementsAttr([typ, op.value.data]))
                     )
 
 

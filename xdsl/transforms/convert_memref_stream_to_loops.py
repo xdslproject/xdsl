@@ -32,7 +32,7 @@ def _insert_load(
         indices = indices_for_map(
             rewriter, insertion_point, affine_map_attr.data, ind_vars
         )
-        op = memref.Load.get(source, indices)
+        op = memref.LoadOp.get(source, indices)
     elif isinstance(source.type, stream.ReadableStreamType):
         op = memref_stream.ReadOp(source)
     else:
@@ -50,7 +50,7 @@ class LowerGenericOpPattern(RewritePattern):
             interleave_factor = op.bounds.data[-1].value.data
             rewriter.insert_op_before_matched_op(
                 interleaved_index_ops := tuple(
-                    arith.Constant(IntegerAttr.from_index_int_value(i))
+                    arith.ConstantOp(IntegerAttr.from_index_int_value(i))
                     for i in range(interleave_factor)
                 )
             )
@@ -161,7 +161,7 @@ class LowerGenericOpPattern(RewritePattern):
                     affine_map,
                     tuple(ind_vars) + extra_dim(source_index),
                 )
-                store_op = memref.Store.get(value, destination, indices)
+                store_op = memref.StoreOp.get(value, destination, indices)
             else:
                 store_op = memref_stream.WriteOp(value, destination)
             rewriter.insert_op(store_op, insertion_point)

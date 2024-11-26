@@ -189,7 +189,7 @@ class ToMemrefOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MaterializeInDestination(IRDLOperation):
+class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
     T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
@@ -209,7 +209,7 @@ Bufferization = Dialect(
         AllocTensorOp,
         ToTensorOp,
         ToMemrefOp,
-        MaterializeInDestination,
+        MaterializeInDestinationOp,
     ],
     [],
 )

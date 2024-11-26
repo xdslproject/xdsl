@@ -74,7 +74,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
 
 
 lower_arith_addf = LowerBinaryFloatVectorOp(
-    arith.Addf, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
+    arith.AddfOp, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
 )
 
 

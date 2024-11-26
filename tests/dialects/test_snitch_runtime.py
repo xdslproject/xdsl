@@ -7,7 +7,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 def test_ssr_loop_op():
     data_mover = TestSSAValue(builtin.i32)
-    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
     bounds1d = [ten]
     bounds2d = [ten, ten]
     bounds3d = [ten, ten, ten]

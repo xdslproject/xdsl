@@ -170,7 +170,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # replace func.return by unblock_cmd_stream and csl.return
         func_return = main_func.body.block.last_op
-        assert isinstance(func_return, func.Return)
+        assert isinstance(func_return, func.ReturnOp)
         assert (
             len(func_return.arguments) == 0
         ), "Non-empty returns currently not supported"
@@ -226,7 +226,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     if isa(arg.type, stencil.FieldType[TensorType[Attribute]])
                     else arg.type
                 )
-                arg_ops.append(alloc := memref.Alloc([], [], arg_t))
+                arg_ops.append(alloc := memref.AllocOp([], [], arg_t))
                 ptr_converts.append(
                     address := csl.AddressOfOp(
                         alloc,
@@ -249,7 +249,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             elif isinstance(arg.type, llvm.LLVMPointerType) and all(
                 isinstance(u.operation, llvm.StoreOp)
                 and isinstance(u.operation.value, OpResult)
-                and isinstance(u.operation.value.op, func.Call)
+                and isinstance(u.operation.value.op, func.CallOp)
                 and u.operation.value.op.callee.string_value() == TIMER_END
                 for u in arg.uses
             ):
@@ -257,7 +257,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 arg_t = memref.MemRefType(
                     IntegerType(16, Signedness.UNSIGNED), (2 * start_end_size,)
                 )
-                arg_ops.append(alloc := memref.Alloc([], [], arg_t))
+                arg_ops.append(alloc := memref.AllocOp([], [], arg_t))
                 ptr_converts.append(
                     address := csl.AddressOfOp(
                         alloc,
@@ -296,7 +296,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # fill layout module wrapper block with ops
         with ImplicitBuilder(module_op.layout_module.block):
             # set up LAUNCH
-            zero = arith.Constant(IntegerAttr(0, 16))
+            zero = arith.ConstantOp(IntegerAttr(0, 16))
             launch = csl.GetColorOp(zero)
 
             # import memcpy/get_params and routes
@@ -341,19 +341,21 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             )
 
             # set up program param `is_border_region_pe`
-            one = arith.Constant(IntegerAttr(1, 16))
-            pattern_minus_one = arith.Subi(param_pattern, one)
-            width_minus_x = arith.Subi(param_width, param_x)
-            height_minus_y = arith.Subi(param_height, param_y)
-            x_lt_pattern_minus_one = arith.Cmpi(param_x, pattern_minus_one, "slt")
-            y_lt_pattern_minus_one = arith.Cmpi(param_y, pattern_minus_one, "slt")
-            width_minus_one_lt_pattern = arith.Cmpi(width_minus_x, param_pattern, "slt")
-            height_minus_one_lt_pattern = arith.Cmpi(
+            one = arith.ConstantOp(IntegerAttr(1, 16))
+            pattern_minus_one = arith.SubiOp(param_pattern, one)
+            width_minus_x = arith.SubiOp(param_width, param_x)
+            height_minus_y = arith.SubiOp(param_height, param_y)
+            x_lt_pattern_minus_one = arith.CmpiOp(param_x, pattern_minus_one, "slt")
+            y_lt_pattern_minus_one = arith.CmpiOp(param_y, pattern_minus_one, "slt")
+            width_minus_one_lt_pattern = arith.CmpiOp(
+                width_minus_x, param_pattern, "slt"
+            )
+            height_minus_one_lt_pattern = arith.CmpiOp(
                 height_minus_y, param_pattern, "slt"
             )
-            or1_op = arith.OrI(x_lt_pattern_minus_one, y_lt_pattern_minus_one)
-            or2_op = arith.OrI(or1_op, width_minus_one_lt_pattern)
-            is_border_region_pe = arith.OrI(or2_op, height_minus_one_lt_pattern)
+            or1_op = arith.OrIOp(x_lt_pattern_minus_one, y_lt_pattern_minus_one)
+            or2_op = arith.OrIOp(or1_op, width_minus_one_lt_pattern)
+            is_border_region_pe = arith.OrIOp(or2_op, height_minus_one_lt_pattern)
 
             # yield things as named params to the program module
             csl_wrapper.YieldOp.from_field_name_mapping(
@@ -393,9 +395,9 @@ class LowerTimerFuncCall(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.StoreOp, rewriter: PatternRewriter, /):
         if (
-            not isinstance(end_call := op.value.owner, func.Call)
+            not isinstance(end_call := op.value.owner, func.CallOp)
             or not end_call.callee.string_value() == TIMER_END
-            or not (isinstance(start_call := end_call.arguments[0].owner, func.Call))
+            or not (isinstance(start_call := end_call.arguments[0].owner, func.CallOp))
             or not start_call.callee.string_value() == TIMER_START
             or not (wrapper := _get_module_wrapper(op))
             or not isa(op.ptr.type, AnyMemRefType)
@@ -414,8 +416,8 @@ class LowerTimerFuncCall(RewritePattern):
 
         rewriter.insert_op(
             [
-                three := arith.Constant.from_int_and_width(3, IndexType()),
-                load_three := memref.Load.get(op.ptr, [three]),
+                three := arith.ConstantOp.from_int_and_width(3, IndexType()),
+                load_three := memref.LoadOp.get(op.ptr, [three]),
                 addr_of := csl.AddressOfOp(
                     load_three,
                     csl.PtrType.get(
