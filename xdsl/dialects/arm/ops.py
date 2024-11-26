@@ -8,7 +8,9 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     result_def,
+    traits_def,
 )
+from xdsl.traits import IsTerminator
 
 from .assembly import AssemblyInstructionArg, assembly_arg_str, assembly_line
 from .register import IntRegisterType
@@ -154,3 +156,38 @@ class DSSMulOp(ARMInstruction):
 
     def assembly_line_args(self):
         return (self.d, self.s1, self.s2)
+
+
+@irdl_op_definition
+class RetOp(ARMInstruction):
+    """
+    Return from subroutine.
+
+    Equivalent to `bx lr`
+    """
+
+    name = "arm.return"
+
+    assembly_format = "attr-dict"
+
+    traits = traits_def(IsTerminator())
+
+    def __init__(
+        self,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self):
+        return ()
+
+    def assembly_instruction_name(self) -> str:
+        return "bx lr"

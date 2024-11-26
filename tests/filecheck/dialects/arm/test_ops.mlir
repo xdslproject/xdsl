@@ -17,6 +17,11 @@
 // CHECK-ASM: mul x3, x1, x2 # multiply s1 by s2
 %dss_mul = arm.dss.mul %x1, %x2 {"comment" = "multiply s1 by s2"} : (!arm.reg<x1>, !arm.reg<x2>) -> !arm.reg<x3>
 
+// CHECK: arm.return {"comment" = "this is a return instruction"}
+// CHECK-ASM: bx lr # this is a return instruction
+arm.return {"comment" = "this is a return instruction"}
+
 // CHECK-GENERIC: %x1 = "arm.get_register"() : () -> !arm.reg<x1>
 // CHECK-GENERIC: %ds_mov = "arm.ds.mov"(%x1) {"comment" = "move contents of s to d"} : (!arm.reg<x1>) -> !arm.reg<x2>
 // CHECK-GENERIC: %dss_mul = "arm.dss.mul"(%x1, %x2) {"comment" = "multiply s1 by s2"} : (!arm.reg<x1>, !arm.reg<x2>) -> !arm.reg<x3>
+// CHECK-GENERIC: "arm.return"() {"comment" = "this is a return instruction"} : () -> ()

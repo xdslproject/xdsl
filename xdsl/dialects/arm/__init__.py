@@ -8,7 +8,7 @@ from typing import IO
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Dialect
 
-from .ops import ARMOperation, DSMovOp, DSSMulOp, GetRegisterOp
+from .ops import ARMOperation, DSMovOp, DSSMulOp, GetRegisterOp, RetOp
 from .register import IntRegisterType
 
 
@@ -26,6 +26,7 @@ ARM = Dialect(
         GetRegisterOp,
         DSMovOp,
         DSSMulOp,
+        RetOp,
     ],
     [
         IntRegisterType,
