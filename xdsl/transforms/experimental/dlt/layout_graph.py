@@ -1,4 +1,5 @@
 import math
+import typing
 from dataclasses import dataclass
 from typing import Iterable, Self, cast
 
@@ -45,7 +46,7 @@ class LayoutGraph:
         extent_constraints: Iterable[ExtentConstraint] = None,
     ):
         self.ident_count = {} if identifier_uses is None else identifier_uses
-        self.edges = set() if edges is None else set(edges)
+        self.edges = typing.cast(set[Edge], set()) if edges is None else set(edges)
         self.extent_constraints = (
             set() if extent_constraints is None else set(extent_constraints)
         )
@@ -207,19 +208,59 @@ class LayoutGraph:
                         changed = True
         return idents
 
+    def get_subgraph_for(self, ident: PtrIdent) -> set[PtrIdent]:
+        idents = {ident}
+        changed = True
+        while changed:
+            changed = False
+            for edge in self.edges:
+                if edge.start in idents:
+                    if edge.end not in idents:
+                        idents.add(edge.end)
+                        changed = True
+                if edge.end in idents:
+                    if edge.start not in idents:
+                        idents.add(edge.start)
+                        changed = True
+        return idents
+
+    def get_subgraphs(self) -> dict[PtrIdent, int]:
+        seen_idents = set()
+        mapping = {}
+        graph_count = 0
+        for ident in self.get_idents():
+            if ident in seen_idents:
+                continue
+            subgraph = self.get_subgraph_for(ident)
+            seen_idents.update(subgraph)
+            for i in subgraph:
+                mapping[i] = graph_count
+            graph_count += 1
+        return mapping
+
     def get_transitive_uses(self, ident: PtrIdent) -> set[Use]:
         idents = self.get_transitive_closure(ident)
         return {u for id in idents for u in self.get_uses(id)}
 
-    def get_base_idents(self, ident: PtrIdent) -> set[tuple[PtrIdent, frozenset[dlt.MemberAttr], frozenset[dlt.DimensionAttr]]]:
+    def get_base_idents(self, ident: PtrIdent, seen: set[PtrIdent] = None) -> set[tuple[PtrIdent, frozenset[dlt.MemberAttr], frozenset[dlt.DimensionAttr]]]:
+        root = False
+        if seen is None:
+            seen = set()
+            root = True
+        elif ident in seen:
+            return set()
+        seen.add(ident)
         edges = [e for e in self.edges if e.end == ident]
         if len(edges) == 0:
             return {(ident, frozenset(), frozenset())}
         base_idents = set()
         for edge in edges:
-            child_bases = self.get_base_idents(edge.start)
+            child_bases = self.get_base_idents(edge.start, seen=seen)
             for base, ms, ds in child_bases:
                 base_idents.add((base, ms|edge.members, ds|edge.dimensions))
+        if root and len(base_idents) == 0:
+            base_idents = {(i, frozenset(), frozenset()) for i in seen}
+        assert not root or len(base_idents)>0
         return base_idents
 
     def check_consistency(
