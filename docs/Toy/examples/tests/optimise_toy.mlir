@@ -11,7 +11,8 @@
   }) {"sym_name" = "redundant_transpose", "function_type" = () -> tensor<2x3xf64>} : () -> ()
 
 // CHECK-NEXT:  "toy.func"() ({
-// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : ()
+// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" =
+// CHECK-SAME{LITERAL}: dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : ()
 // CHECK-NEXT:    "toy.return"(%{{.*}}) : (tensor<2x3xf64>) -> ()
 // CHECK-NEXT:  }) {"sym_name" = "redundant_transpose", "function_type" = () -> tensor<2x3xf64>} : () -> ()
 
@@ -26,7 +27,8 @@
   }) {"sym_name" = "redundant_reshape", "function_type" = () -> tensor<2x3xf64>} : () -> ()
 
 // CHECK-NEXT:  "toy.func"() ({
-// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" =
+// CHECK-SAME{LITERAL}: dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
 // CHECK-NEXT:    "toy.return"(%{{.*}}) : (tensor<2x3xf64>) -> ()
 // CHECK-NEXT:  }) {"sym_name" = "redundant_reshape", "function_type" = () -> tensor<2x3xf64>} : () -> ()
 
@@ -38,7 +40,8 @@
   }) {"sym_name" = "constant_reshape", "function_type" = () -> tensor<2x3xf64>} : () -> ()
 
 // CHECK-NEXT:  "toy.func"() ({
-// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" =
+// CHECK-SAME{LITERAL}: dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
 // CHECK-NEXT:    "toy.return"(%{{.*}}) : (tensor<2x3xf64>) -> ()
 // CHECK-NEXT:  }) {"sym_name" = "constant_reshape", "function_type" = () -> tensor<2x3xf64>} : () -> ()
 

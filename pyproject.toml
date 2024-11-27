@@ -7,14 +7,37 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.1.1",
-    "typing-extensions>=4.7,<5",
+    "immutabledict<4.2.2",
+    "typing-extensions>=4.7,<4.13",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.13.2", "textual==0.47.1", "pyclip==0.7"]
+dev = [
+    "pip<25.0",
+    "toml<0.11",
+    "pytest-cov",
+    "coverage<8.0.0",
+    "ipykernel",
+    "pytest<8.4",
+    "nbval<0.12",
+    "filecheck==1.0.1",
+    "lit<19.0.0",
+    "marimo==0.9.26",
+    "pre-commit==4.0.1",
+    "ruff==0.8.0",
+    "asv<0.7",
+    "nbconvert>=7.7.2,<8.0.0",
+    "textual-dev==1.7.0",
+    "pytest-asyncio==0.24.0",
+    "pyright==1.1.389",
+]
+gui = ["textual==0.87.1", "pyclip==0.7"]
+jax = ["jax==0.4.35", "numpy==2.1.3"]
+onnx = ["onnx==1.17.0", "numpy==2.1.3"]
+riscv = ["riscemu==2.2.7"]
+wgpu = ["wgpu==0.19.2"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -26,11 +49,15 @@ xdsl-opt = "xdsl.tools.xdsl_opt:main"
 irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
 xdsl-run = "xdsl.tools.xdsl_run:main"
 xdsl-gui = "xdsl.interactive.app:main"
+xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
+xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
-package-data = { "xdsl" = ["py.typed"] }
+
+[tool.setuptools.package-data]
+xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
@@ -38,16 +65,22 @@ build-backend = "setuptools.build_meta"
 
 [tool.pyright]
 reportImportCycles = false
+reportMissingModuleSource = false
 enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
+    "tests/dialects/test_memref.py",
+    "tests/frontend/onnx/test_build_ir.py",
+    "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "tests/dialects/test_memref.py",
-    "xdsl/interpreters/experimental/wgpu.py",
+    "xdsl/frontend/onnx/ir_builder.py",
+    "xdsl/frontend/onnx/type.py",
+    "xdsl/interpreters/wgpu.py",
 ]
 "ignore" = [
+    "docs/marimo",
     "tests/filecheck/frontend/dialects/builtin.py",
     "tests/filecheck/frontend/dialects/invalid.py",
     "tests/filecheck/frontend/dialects/arith.py",
@@ -56,51 +89,63 @@ typeCheckingMode = "strict"
     "xdsl/_version.py",
 ]
 
-[tool.isort]
-profile = "black"
-
 [tool.ruff]
+target-version = "py310"
+extend-include = ["*.ipynb", "*.pyi"]
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
 ignore = [
     "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
-    "PT007", # https://beta.ruff.rs/docs/rules/pytest-parametrize-values-wrong-type/
     "PT011", # https://beta.ruff.rs/docs/rules/pytest-raises-too-broad/
     "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
-    "PT015", # https://beta.ruff.rs/docs/rules/pytest-assert-always-false/
 ]
-line-length = 300
-target-version = "py310"
 
-[tool.ruff.flake8-tidy-imports.banned-api]
-"xdsl.parser.core".msg = "Use xdsl.parser instead."
-"xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
-"xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
-"xdsl.ir.core".msg = "Use xdsl.ir instead."
-"xdsl.irdl.irdl".msg = "Use xdsl.irdl instead"
+[tool.ruff.lint.pycodestyle]
+# TODO: remove this setting and go to default line length of 88
+# Removing this line length results in a large number of errors for doc strings, ideally
+# these should be ignored separately.
+max-line-length = 300
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
+"xdsl.dialects.utils.format".msg = "Use xdsl.dialects.utils instead"
 "xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"
 "xdsl.ir.affine.affine_map".msg = "Use xdsl.ir.affine instead"
 "xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"
+"xdsl.ir.core".msg = "Use xdsl.ir instead."
+"xdsl.irdl.attributes".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.common".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.constraints".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
+"xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
+"xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
+"xdsl.parser.core".msg = "Use xdsl.parser instead."
 
 
-[tool.ruff.per-file-ignores]
-"__init__.py" = ["F403"]
+[tool.ruff.lint.per-file-ignores]
+"versioneer.py" = ["ALL"]
+"tests/test_declarative_assembly_format.py" = ["F811"]
 "tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
 "tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
-"tests/test_declarative_assembly_format.py" = ["F811"]
-"versioneer.py" = ["ALL"]
+"docs/xdsl-introduction.ipynb" = ["ALL"]
+"docs/tutorial.ipynb" = ["ALL"]
+"docs/Toy/Toy_Ch3.ipynb" = ["E402"]
+"docs/Toy/Toy_Ch2.ipynb" = ["E402"]
+"docs/Toy/Toy_Ch1.ipynb" = ["E402"]
+"docs/mlir_interoperation.ipynb" = ["E402"]
+"docs/irdl.ipynb" = ["ALL"]
+"docs/database_example.ipynb" = ["ALL"]
+"**/{docs/marimo}/*" = ["E501", "I001"]
 "_version.py" = ["ALL"]
+"__init__.py" = ["F403"]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.black]
-# When updating this list, please update `.pre-commit-config.yaml`
-exclude = """
-/(__pycache__|.asv|venv|build|tests/filecheck)/
-|versioneer.py$
-|xdsl/_version.py$
-"""
+[tool.ruff.format]
+exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]

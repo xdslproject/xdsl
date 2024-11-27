@@ -2,21 +2,16 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
     -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: mixed-line-ending
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.278
+    rev: v0.6.3
     hooks:
     -   id: ruff
-        types_or: [
-            python,
-            pyi,
-            # jupyter, # https://github.com/xdslproject/xdsl/issues/1273
-            ]
+        types_or: [ python, pyi, jupyter ]
         args: [ --fix, --exit-non-zero-on-fix ]
--   repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 23.3.0
-    hooks:
-    -   id: black
-        exclude: "/(__pycache__|.asv|venv|build|tests/filecheck)/|versioneer.py$|xdsl/_version.py$"
+    -   id: ruff-format
+        types_or: [ python, pyi, jupyter ]

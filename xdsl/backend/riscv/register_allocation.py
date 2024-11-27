@@ -1,18 +1,25 @@
 import abc
+import json
+from collections.abc import Iterable, Sequence
 from itertools import chain
+from typing import cast
 
 from ordered_set import OrderedSet
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
-from xdsl.dialects import riscv_func, riscv_scf, riscv_snitch
+from xdsl.dialects import riscv, riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
-    RISCVOp,
+    Registers,
+    RISCVAsmOperation,
     RISCVRegisterType,
 )
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir import Attribute, Block, Operation, SSAValue
+from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
+from xdsl.utils.exceptions import DiagnosticException
 
 
 def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
@@ -21,8 +28,17 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
     allocated: set[RISCVRegisterType] = set()
 
     for op in func.walk():
-        if not isinstance(op, RISCVOp):
+        if not isinstance(op, RISCVAsmOperation):
             continue
+
+        if isinstance(op, riscv_func.CallOp):
+            # These registers are not guaranteed to hold the same values when the callee
+            # returns, according to the RISC-V calling convention.
+            # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
+            allocated.update(riscv.Registers.A)
+            allocated.update(riscv.Registers.T)
+            allocated.update(riscv.Registers.FA)
+            allocated.update(riscv.Registers.FT)
 
         for param in chain(op.operands, op.results):
             if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
@@ -48,6 +64,22 @@ class RegisterAllocator(abc.ABC):
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         raise NotImplementedError()
+
+
+def reg_types(regs: Iterable[Attribute]) -> tuple[set[str], set[str]]:
+    """
+    Returns a tuple containing the sets of IntRegister and FloatRegister in the iterable.
+    """
+    int_regs: set[str] = set()
+    float_regs: set[str] = set()
+
+    for reg in regs:
+        if isinstance(reg, IntRegisterType):
+            int_regs.add(reg.spelling.data)
+        elif isinstance(reg, FloatRegisterType):
+            float_regs.add(reg.spelling.data)
+
+    return int_regs, float_regs
 
 
 class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
@@ -84,8 +116,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     exclude_preallocated: bool = True
     exclude_snitch_reserved: bool = True
 
-    def __init__(self) -> None:
-        self.available_registers = RegisterQueue()
+    def __init__(self, available_registers: RegisterQueue | None = None) -> None:
+        if available_registers is None:
+            available_registers = RegisterQueue()
+        self.available_registers = available_registers
         self.live_ins_per_block = {}
 
     def allocate(self, reg: SSAValue) -> bool:
@@ -96,10 +130,68 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
             and not reg.type.is_allocated
         ):
-            reg.type = self.available_registers.pop(type(reg.type))
+            if (val := get_constant_value(reg)) is not None and val.value.data == 0:
+                reg.type = Registers.ZERO
+            else:
+                reg.type = self.available_registers.pop(type(reg.type))
             return True
 
         return False
+
+    def allocate_same(self, vals: Sequence[SSAValue]) -> bool:
+        """
+        Allocates the values passed in to the same register.
+        If some of the values are already allocated, they must be allocated to the same
+        register, and unallocated values are then allocated to this register.
+        If the values passed in are already allocated to differing registers, a
+        `DiagnosticException` is raised.
+        """
+        reg_types = set(val.type for val in vals)
+        assert all(isinstance(reg_type, RISCVRegisterType) for reg_type in reg_types)
+        reg_types = cast(set[IntRegisterType | FloatRegisterType], reg_types)
+
+        match len(reg_types):
+            case 0:
+                # No inputs, nothing to do
+                return False
+            case 1:
+                # Single input, may already be allocated
+                reg_type = next(iter(reg_types))
+                if reg_type.is_allocated:
+                    return False
+                else:
+                    reg_type = self.available_registers.pop(type(reg_type))
+            case 2:
+                # Two inputs, either one is allocated or two
+                reg_type_0, reg_type_1 = reg_types
+                if reg_type_0.is_allocated:
+                    if reg_type_1.is_allocated:
+                        reg_names = [f"{reg_type}" for reg_type in reg_types]
+                        reg_names.sort()
+                        raise DiagnosticException(
+                            f"Cannot allocate registers to the same register {reg_names}"
+                        )
+                    else:
+                        reg_type = reg_type_0
+                else:
+                    reg_type = reg_type_1
+            case _:
+                # More than one input is allocated, meaning we can't allocate them to be
+                # the same, error.
+                reg_names = [f"{reg_type}" for reg_type in reg_types]
+                reg_names.sort()
+                raise DiagnosticException(
+                    f"Cannot allocate registers to the same register {reg_names}"
+                )
+
+        did_allocate = False
+
+        for val in vals:
+            if val.type != reg_type:
+                val.type = reg_type
+                did_allocate = True
+
+        return did_allocate
 
     def _free(self, reg: SSAValue) -> None:
         if (
@@ -117,18 +209,24 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 self.allocate_for_loop(op)
             case riscv_snitch.FRepOperation():
                 self.allocate_frep_loop(op)
-            case RISCVOp():
+            case RISCVAsmOperation():
                 self.process_riscv_op(op)
             case _:
                 # Ignore non-riscv operations
                 return
 
-    def process_riscv_op(self, op: RISCVOp) -> None:
+    def process_riscv_op(self, op: RISCVAsmOperation) -> None:
         """
         Allocate registers for RISC-V Instruction.
         """
+        ins, outs, inouts = op.get_register_constraints()
 
-        for result in op.results:
+        # Allocate registers to inout operand groups since they are defined further up
+        # in the use-def SSA chain
+        for operand_group in inouts:
+            self.allocate_same(operand_group)
+
+        for result in outs:
             # Allocate registers to result if not already allocated
             self.allocate(result)
             # Free the register since the SSA value is created here
@@ -136,7 +234,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         # Allocate registers to operands since they are defined further up
         # in the use-def SSA chain
-        for operand in op.operands:
+        for operand in ins:
             self.allocate(operand)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
@@ -161,44 +259,28 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         for block_arg, operand, yield_operand, op_result in zip(
             block_args[1:], loop.iter_args, yield_op.operands, loop.results
         ):
-            # If some allocated then assign all to that type, otherwise get new reg
-            assert isinstance(block_arg.type, RISCVRegisterType)
-            assert isinstance(operand.type, RISCVRegisterType)
-            assert isinstance(yield_operand.type, RISCVRegisterType)
-            assert isinstance(op_result.type, RISCVRegisterType)
-
-            # Because we are walking backwards, the result of the operation may have been
-            # allocated already. If it isn't it's because it's not used below.
-            if not op_result.type.is_allocated:
-                # We only need to check one of the four since they're constrained to be
-                # the same
-                self.allocate(op_result)
-
-            shared_type = op_result.type
-            block_arg.type = shared_type
-            yield_operand.type = shared_type
-            operand.type = shared_type
+            self.allocate_same((block_arg, operand, yield_operand, op_result))
 
         # Induction variable
         assert isinstance(block_args[0].type, IntRegisterType)
         self.allocate(block_args[0])
 
-        # Operands
-        for operand in loop.operands:
-            self.allocate(operand)
+        # Step and ub are used throughout loop
+        self.allocate(loop.ub)
+        self.allocate(loop.step)
 
         # Reserve the loop carried variables for allocation within the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.reserve_register(iter_arg.type)
+        regs = loop.iter_args.types
+        assert all(isinstance(reg, IntRegisterType | FloatRegisterType) for reg in regs)
+        regs = cast(tuple[IntRegisterType | FloatRegisterType], regs)
+        with self.available_registers.reserve_registers(regs):
+            for op in reversed(loop.body.block.ops):
+                self.process_operation(op)
 
-        for op in loop.body.block.ops_reverse:
-            self.process_operation(op)
-
-        # Unreserve the loop carried variables for allocation outside of the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.unreserve_register(iter_arg.type)
+        # lb is only used as an input to the loop, so free induction variable before
+        # allocating lb to it in case it's not yet allocated
+        self._free(block_args[0])
+        self.allocate(loop.lb)
 
     def allocate_frep_loop(self, loop: riscv_snitch.FRepOperation) -> None:
         """
@@ -223,42 +305,28 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         for block_arg, operand, yield_operand, op_result in zip(
             block_args, loop.iter_args, yield_op.operands, loop.results
         ):
-            # If some allocated then assign all to that type, otherwise get new reg
-            assert isinstance(block_arg.type, RISCVRegisterType)
-            assert isinstance(operand.type, RISCVRegisterType)
-            assert isinstance(yield_operand.type, RISCVRegisterType)
-            assert isinstance(op_result.type, RISCVRegisterType)
+            self.allocate_same((block_arg, operand, yield_operand, op_result))
 
-            # Because we are walking backwards, the result of the operation may have been
-            # allocated already. If it isn't it's because it's not used below.
-            if not op_result.type.is_allocated:
-                # We only need to check one of the four since they're constrained to be
-                # the same
-                self.allocate(op_result)
-
-            shared_type = op_result.type
-            block_arg.type = shared_type
-            yield_operand.type = shared_type
-            operand.type = shared_type
-
-        # Operands
-        for operand in loop.operands:
-            self.allocate(operand)
+        self.allocate(loop.max_rep)
 
         # Reserve the loop carried variables for allocation within the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.reserve_register(iter_arg.type)
+        regs = loop.iter_args.types
+        assert all(isinstance(reg, IntRegisterType | FloatRegisterType) for reg in regs)
+        regs = cast(tuple[IntRegisterType | FloatRegisterType], regs)
+        with self.available_registers.reserve_registers(regs):
+            for op in reversed(loop.body.block.ops):
+                self.process_operation(op)
 
-        for op in loop.body.block.ops_reverse:
-            self.process_operation(op)
-
-        # Unreserve the loop carried variables for allocation outside of the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.unreserve_register(iter_arg.type)
-
-    def allocate_func(self, func: riscv_func.FuncOp) -> None:
+    def allocate_func(
+        self, func: riscv_func.FuncOp, *, add_regalloc_stats: bool = False
+    ) -> None:
+        """
+        Allocates values in function passed in to registers.
+        The whole function must have been lowered to the relevant riscv dialects
+        and it must contain no unrealized casts.
+        If `add_regalloc_stats` is set to `True`, then a comment op will be inserted
+        before the function op passed in with a json containing the relevant data.
+        """
         if not func.body.blocks:
             # External function declaration
             return
@@ -289,8 +357,31 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         self.live_ins_per_block = live_ins_per_block(block)
         assert not self.live_ins_per_block[block]
-        for op in block.ops_reverse:
+        for op in reversed(block.ops):
             self.process_operation(op)
+
+        if add_regalloc_stats:
+            preallocated_int, preallocated_float = reg_types(preallocated)
+            allocated_int, allocated_float = reg_types(
+                val.type
+                for op in block.walk()
+                for vals in (op.results, op.operands)
+                for val in vals
+            )
+
+            stats = {
+                "preallocated_float": sorted(preallocated_float),
+                "preallocated_int": sorted(preallocated_int),
+                "allocated_float": sorted(allocated_float),
+                "allocated_int": sorted(allocated_int),
+            }
+
+            stats_str = json.dumps(stats)
+
+            Rewriter.insert_op(
+                riscv.CommentOp(f"Regalloc stats: {stats_str}"),
+                InsertPoint.before(func),
+            )
 
 
 def _live_ins_per_block(
@@ -298,7 +389,7 @@ def _live_ins_per_block(
 ) -> OrderedSet[SSAValue]:
     res = OrderedSet[SSAValue]([])
 
-    for op in block.ops_reverse:
+    for op in reversed(block.ops):
         # Remove values defined in the block
         # We are traversing backwards, so cannot use the value removed here again
         res.difference_update(op.results)

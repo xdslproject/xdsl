@@ -14,22 +14,32 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
-.PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
+.PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests
+.PHONY: rerun-notebooks precommit-install precommit pyright tests-marimo
+.PHONY: coverage coverage-tests coverage-filecheck-tests
+.PHONY: coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
-venv: requirements.txt
+${VENV_DIR}/: requirements.txt
 	python3 -m venv ${VENV_DIR}
 	. ${VENV_DIR}/bin/activate
 	python3 -m pip --require-virtualenv install -r requirements.txt
 
+# make sure `make venv` always works no matter what $VENV_DIR is
+venv: ${VENV_DIR}/
+
+# remove all caches
+clean-caches:
+	rm -rf .pytest_cache *.egg-info .coverage.*
+	find . -type f -name "*.cover" -delete
+
 # remove all caches and the venv
-clean:
-	rm -rf ${VENV_DIR} .pytest_cache *.egg-info .coverage.*
+clean: clean-caches
+	rm -rf ${VENV_DIR}
 
 # run filecheck tests
 filecheck:
-	lit -vv tests/filecheck --order=smart
+	lit -vv tests/filecheck --order=smart --timeout=20
 
 # run pytest tests
 pytest:
@@ -37,7 +47,10 @@ pytest:
 
 # run pytest on notebooks
 pytest-nb:
-	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --nbval-current-env
+	pytest -W error --nbval -vv docs \
+		--ignore=docs/mlir_interoperation.ipynb \
+		--ignore=docs/Toy \
+		--nbval-current-env
 
 # run tests for Toy tutorial
 filecheck-toy:
@@ -46,15 +59,63 @@ filecheck-toy:
 pytest-toy:
 	pytest docs/Toy/toy/tests
 
-tests-toy: filecheck-toy pytest-toy
+.PHONY: pytest-toy-nb
+pytest-toy-nb:
+	@if python -c "import riscemu" > /dev/null 2>&1; then \
+		pytest -W error --nbval -vv docs/Toy --nbval-current-env; \
+	else \
+		echo "riscemu is not installed, skipping tests."; \
+	fi
+
+tests-toy: filecheck-toy pytest-toy pytest-toy-nb
+
+tests-marimo:
+	@for file in docs/marimo/*.py; do \
+		echo "Running $$file"; \
+		error_message=$$(python3 "$$file" 2>&1) || { \
+			echo "Error running $$file"; \
+			echo "$$error_message"; \
+			exit 1; \
+		}; \
+	done
+	@echo "All marimo tests passed successfully."
+
+.PHONY: tests-marimo-onnx
+tests-marimo-onnx:
+	@if python -c "import onnx" > /dev/null 2>&1; then \
+		echo "onnx is installed, running tests."; \
+		if ! command -v mlir-opt > /dev/null 2>&1; then \
+			echo "MLIR is not installed, skipping tests."; \
+			exit 0; \
+		fi; \
+		for file in docs/marimo/onnx/*.py; do \
+			echo "Running $$file"; \
+			error_message=$$(python3 "$$file" 2>&1) || { \
+				echo "Error running $$file"; \
+				echo "$$error_message"; \
+				exit 1; \
+			}; \
+		done; \
+		echo "All marimo onnx tests passed successfully."; \
+	else \
+		echo "onnx is not installed, skipping tests."; \
+	fi
 
 # run all tests
-tests: pytest tests-toy filecheck pytest-nb pyright
+tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx
+	@echo All functional tests done.
+
+# run all tests
+tests: tests-functional pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory
 rerun-notebooks:
-	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb docs/Toy/*.ipynb
+	jupyter nbconvert \
+		--ClearMetadataPreprocessor.enabled=True \
+		--inplace \
+		--to notebook \
+		--execute docs/*.ipynb docs/Toy/*.ipynb
 
 # set up all precommit hooks
 precommit-install:
@@ -66,13 +127,9 @@ precommit:
 
 # run pyright on all files in the current git commit
 pyright:
+    # We make sure to generate the python typing stubs before running pyright
+	xdsl-stubgen
 	pyright $(shell git diff --staged --name-only  -- '*.py')
-
-# run black on all files currently staged
-black:
-	staged_files="$(shell git diff --staged --name-only)"
-	# run black on all of xdsl if no staged files exist
-	black $${staged_files:-xdsl}
 
 # run coverage over all tests and combine data files
 coverage: coverage-tests coverage-filecheck-tests

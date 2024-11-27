@@ -7,11 +7,11 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal, overload
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
-    MLContext,
     Operation,
     Region,
     SSAValue,
@@ -22,7 +22,7 @@ from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
 
-@dataclass
+@dataclass(eq=False)
 class ForwardDeclaredValue(SSAValue):
     """
     An SSA value that is used before it is defined.
@@ -31,13 +31,7 @@ class ForwardDeclaredValue(SSAValue):
 
     @property
     def owner(self) -> Operation | Block:
-        assert False, "Forward declared values do not have an owner"
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
+        raise ValueError("Forward declared values do not have an owner")
 
 
 @dataclass
@@ -206,7 +200,7 @@ class Parser(AttrParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
-            self._parse_optional_location()
+            self.parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
             block_arg = block.insert_arg(arg_type, len(block.args))
@@ -439,20 +433,17 @@ class Parser(AttrParser):
     @overload
     def parse_optional_argument(
         self, expect_type: Literal[True] = True
-    ) -> Argument | None:
-        ...
+    ) -> Argument | None: ...
 
     @overload
     def parse_optional_argument(
         self, expect_type: Literal[False]
-    ) -> UnresolvedArgument | None:
-        ...
+    ) -> UnresolvedArgument | None: ...
 
     @overload
     def parse_optional_argument(
         self, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument | None:
-        ...
+    ) -> UnresolvedArgument | Argument | None: ...
 
     def parse_optional_argument(
         self, expect_type: bool = True
@@ -477,18 +468,15 @@ class Parser(AttrParser):
             return self.UnresolvedArgument(name_token.span)
 
     @overload
-    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument:
-        ...
+    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument: ...
 
     @overload
-    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument:
-        ...
+    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument: ...
 
     @overload
     def parse_argument(
         self, *, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument:
-        ...
+    ) -> UnresolvedArgument | Argument: ...
 
     def parse_argument(
         self, *, expect_type: bool = True
@@ -878,16 +866,14 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self._parse_optional_location()
+        self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
         # Properties retrocompatibility : if no properties dictionary was present at all,
         # We extract them from the attribute dictionary by name.
         if issubclass(op_type, IRDLOperation) and not properties:
-            for property_name in op_type.get_irdl_definition().properties.keys():
-                if property_name in attrs:
-                    properties[property_name] = attrs.pop(property_name)
+            properties = op_type.get_irdl_definition().split_properties(attrs)
 
         return op_type.create(
             operands=operands,

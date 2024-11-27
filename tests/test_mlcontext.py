@@ -1,7 +1,8 @@
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
-from xdsl.ir import Dialect, MLContext, ParametrizedAttribute, TypeAttribute
+from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition
 
 

@@ -113,6 +113,10 @@
   // CHECK-NEXT: %minf = arith.minnumf %lhsf32, %rhsf32 : f32
   // CHECK-NEXT: %minf_vector = arith.minnumf %lhsvec, %rhsvec : vector<4xf32>
 
+  %addi = arith.addi %lhsi32, %rhsi32 {"hello" = "world"} : i32
+
+  // CHECK-NEXT: %addi = arith.addi %lhsi32, %rhsi32 {"hello" = "world"} : i32
+
   %addf = arith.addf %lhsf32, %rhsf32 : f32
   %addf_vector = arith.addf %lhsvec, %rhsvec : vector<4xf32>
 
@@ -167,6 +171,10 @@
 
   // CHECK-NEXT: %cmpf = arith.cmpf ogt, %lhsf32, %rhsf32 : f32
 
+  %cmpf_fm = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i64, "fastmath" = #arith.fastmath<fast>} : (f32, f32) -> i1
+
+  // CHECK-NEXT: %cmpf_fm = arith.cmpf ogt, %lhsf32, %rhsf32 fastmath<fast> : f32
+
   %selecti = "arith.select"(%lhsi1, %lhsi32, %rhsi32) : (i1, i32, i32) -> i32
   %selectf = "arith.select"(%lhsi1, %lhsf32, %rhsf32) : (i1, f32, f32) -> f32
 
@@ -178,4 +186,24 @@
 
   // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i32, i1
   // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i64, i1
+
+  %low_ui, %high_ui = arith.mului_extended %lhsi32, %rhsi32 : i32
+  %low_ui_index, %high_ui_index = arith.mului_extended %lhsindex, %rhsindex : index
+
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mului_extended %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mului_extended %{{.*}}, %{{.*}} : index
+
+  %low_si, %high_si = arith.mulsi_extended %lhsi32, %rhsi32 : i32
+  %low_si_index, %high_si_index = arith.mulsi_extended %lhsindex, %rhsindex : index
+
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mulsi_extended %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mulsi_extended %{{.*}}, %{{.*}} : index
+
+  %index = arith.index_cast %lhsi32 : i32 to index
+  // CHECK-NEXT: %index = arith.index_cast %lhsi32 : i32 to index
+
+  %t_const = arith.constant dense<1.234500e-01> : tensor<16xf32>
+  %m_const = arith.constant dense<1.678900e-01> : memref<64xf32>
+  // CHECK-NEXT: %t_const = arith.constant dense<1.234500e-01> : tensor<16xf32>
+  // CHECK-NEXT: %m_const = arith.constant dense<1.678900e-01> : memref<64xf32>
 }) : () -> ()

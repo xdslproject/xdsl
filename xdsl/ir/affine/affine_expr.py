@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from abc import abstractmethod
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from xdsl.ir.affine import AffineMap
 
 
-@dataclass()
+@dataclass(frozen=True)
 class AffineExpr:
     """
     An AffineExpr models an affine expression, which is a linear combination of
@@ -179,6 +180,13 @@ class AffineExpr:
         if isinstance(self, AffineBinaryOpExpr) and self.kind == AffineBinaryOpKind.Mul:
             if fold := self.rhs._try_fold_constant(other, AffineBinaryOpKind.Mul):
                 return self.lhs * fold
+        # Fold (expr + expr) * constant.
+        if (
+            isinstance(self, AffineBinaryOpExpr)
+            and self.kind == AffineBinaryOpKind.Add
+            and isinstance(other, AffineConstantExpr)
+        ):
+            return self.lhs * other + self.rhs * other
         return None
 
     def __mul__(self, other: AffineExpr | int) -> AffineExpr:
@@ -200,7 +208,7 @@ class AffineExpr:
     def __rmul__(self, other: AffineExpr | int) -> AffineExpr:
         return self.__mul__(other)
 
-    def floor_div(self, other: AffineExpr | int) -> AffineExpr:
+    def __floordiv__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
 
@@ -251,6 +259,18 @@ class AffineExpr:
         # TODO (#1086): Simplify modulo here before returning.
         return AffineBinaryOpExpr(AffineBinaryOpKind.Mod, self, other)
 
+    @abstractmethod
+    def dfs(self) -> Iterator[AffineExpr]:
+        """
+        Iterates nodes in depth-first order.
+
+        https://en.wikipedia.org/wiki/Depth-first_search
+        """
+        yield self
+
+    def used_dims(self) -> set[int]:
+        return {expr.position for expr in self.dfs() if isinstance(expr, AffineDimExpr)}
+
 
 class AffineBinaryOpKind(Enum):
     """Enum for the kind of storage node used in AffineExpr."""
@@ -275,7 +295,7 @@ class AffineBinaryOpKind(Enum):
                 return "ceildiv"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AffineBinaryOpExpr(AffineExpr):
     """An affine expression storage node representing a binary operation."""
 
@@ -286,8 +306,13 @@ class AffineBinaryOpExpr(AffineExpr):
     def __str__(self) -> str:
         return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
 
+    def dfs(self) -> Iterator[AffineExpr]:
+        yield self
+        yield from self.lhs.dfs()
+        yield from self.rhs.dfs()
 
-@dataclass
+
+@dataclass(frozen=True)
 class AffineDimExpr(AffineExpr):
     """An affine expression storage node representing a dimension."""
 
@@ -297,7 +322,7 @@ class AffineDimExpr(AffineExpr):
         return f"d{self.position}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AffineSymExpr(AffineExpr):
     """An affine expression storage node representing a symbol."""
 
@@ -307,7 +332,7 @@ class AffineSymExpr(AffineExpr):
         return f"s{self.position}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AffineConstantExpr(AffineExpr):
     """An affine expression storage node representing a constant."""
 

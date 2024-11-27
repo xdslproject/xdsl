@@ -1,4 +1,5 @@
-from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.dialects import get_all_dialects
+from xdsl.transforms import get_all_passes
 
 
 def test_get_all_passes_names():

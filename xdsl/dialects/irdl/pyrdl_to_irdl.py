@@ -8,13 +8,24 @@ from xdsl.dialects.irdl.irdl import (
     ParametersOp,
     ResultsOp,
 )
-from xdsl.ir import Block, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import AttrConstraint, IRDLOperation
+from xdsl.ir import Attribute, Block, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.irdl import AttrConstraint, GenericRangeConstraint, IRDLOperation
 
 
 def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue:
     """
     Convert an attribute constraint to IRDL.
+    This will create new operations at the provided builder location.
+    """
+    any_op = builder.insert(AnyOp())
+    return any_op.output
+
+
+def range_to_irdl(
+    builder: Builder, constraint: GenericRangeConstraint[Attribute]
+) -> SSAValue:
+    """
+    Convert a range constraint to IRDL.
     This will create new operations at the provided builder location.
     """
     any_op = builder.insert(AnyOp())
@@ -31,18 +42,18 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     # Operands
     operand_values: list[SSAValue] = []
     for operand in op_def.operands:
-        operand_values.append(constraint_to_irdl(builder, operand[1].constr))
+        operand_values.append(range_to_irdl(builder, operand[1].constr))
     if operand_values:
         builder.insert(OperandsOp(operand_values))
 
     # Results
     result_values: list[SSAValue] = []
     for result in op_def.results:
-        result_values.append(constraint_to_irdl(builder, result[1].constr))
+        result_values.append(range_to_irdl(builder, result[1].constr))
     if result_values:
         builder.insert(ResultsOp(result_values))
 
-    return OperationOp(op_def.name, Region([block]))
+    return OperationOp(Dialect.split_name(op_def.name)[1], Region([block]))
 
 
 def attr_def_to_irdl(
@@ -60,7 +71,7 @@ def attr_def_to_irdl(
         param_values.append(constraint_to_irdl(builder, param[1]))
     builder.insert(ParametersOp(param_values))
 
-    return AttributeOp(attr_def.name, Region([block]))
+    return AttributeOp(Dialect.split_name(attr_def.name)[1], Region([block]))
 
 
 def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:

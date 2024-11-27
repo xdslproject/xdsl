@@ -1,7 +1,7 @@
 # This workflow check the format all files in the repository
 # * It checks that all nonempty files have a newline at the end
 # * It checks that there are no whitespaces at the end of lines
-# * It checks that Python files are formatted with black
+# * It checks that Python files are formatted with ruff
 
 name: Code Formatting
 
@@ -19,12 +19,16 @@ jobs:
         python-version: ['3.10']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip' # caching pip dependencies
+        cache-dependency-path: |
+          setup.py
+          requirements.txt
 
     - name: Upgrade pip
       run: |

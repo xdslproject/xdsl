@@ -4,18 +4,18 @@ from itertools import product
 from math import prod
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
+    DynAccessOp,
     IndexAttr,
+    IndexOp,
     ReturnOp,
     TempType,
 )
-from xdsl.ir import (
-    Attribute,
-    MLContext,
-)
+from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -36,25 +36,32 @@ def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
     offseted = region.clone().detach_block(0)
 
     for op in offseted.ops:
-        if not isinstance(op, AccessOp):
-            continue
-        if op.offset_mapping is None:
-            offset_mapping = list(range(0, len(op.offset)))
-        else:
-            offset_mapping = [o.data for o in op.offset_mapping]
+        match op:
+            case AccessOp():
+                if op.offset_mapping is None:
+                    offset_mapping = list(range(0, len(op.offset)))
+                else:
+                    offset_mapping = op.offset_mapping
 
-        new_offset = [o for o in op.offset]
-        for i in offset_mapping:
-            new_offset[i] += unroll_offset[i]
+                new_offset = [o for o in op.offset]
+                for i in offset_mapping:
+                    new_offset[i] += unroll_offset[i]
 
-        op.offset = IndexAttr.get(*new_offset)
+                op.offset = IndexAttr.get(*new_offset)
+            case DynAccessOp():
+                op.lb += IndexAttr.get(*unroll_offset)
+                op.ub += IndexAttr.get(*unroll_offset)
+            case IndexOp():
+                op.offset += IndexAttr.get(*unroll_offset)
+            case _:
+                continue
 
     return offseted
 
 
 @dataclass
 class StencilUnrollPattern(RewritePattern):
-    unroll_factor: list[int]
+    unroll_factor: tuple[int, ...]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -71,15 +78,15 @@ class StencilUnrollPattern(RewritePattern):
             return
 
         # Enforced by verification
-        res_types = [r.type for r in op.results]
-        assert isa(res_types, list[TempType[Attribute]])
+        res_types = op.result_types
+        assert isa(res_types, Sequence[TempType[Attribute]])
         dim = res_types[0].get_num_dims()
 
         # If unroll factors list is shorter than the dim, fill with ones from the front
         unroll = self.unroll_factor
         if len(unroll) < dim:
             # If unroll factors list is shorter than the dim, fill with ones from the front
-            unroll = [1] * (dim - len(unroll)) + unroll
+            unroll = (1,) * (dim - len(unroll)) + unroll
         elif len(unroll) > dim:
             # If unroll factors list is longer than the dim, pop from the front to keep
             # similar semantics
@@ -114,11 +121,11 @@ class StencilUnrollPattern(RewritePattern):
         rewriter.replace_matched_op(new_apply)
 
 
-@dataclass
+@dataclass(frozen=True)
 class StencilUnrollPass(ModulePass):
     name = "stencil-unroll"
 
-    unroll_factor: list[int]
+    unroll_factor: tuple[int, ...]
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(

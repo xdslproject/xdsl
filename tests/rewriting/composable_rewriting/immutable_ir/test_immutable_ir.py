@@ -1,11 +1,12 @@
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.dialects.test import Test
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (  # noqa
     get_immutable_copy,

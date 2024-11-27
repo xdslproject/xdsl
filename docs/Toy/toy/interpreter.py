@@ -10,10 +10,12 @@ from xdsl.interpreter import (
     ReturnedValues,
     TerminatorValue,
     impl,
+    impl_callable,
     impl_terminator,
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 
 from .dialects import toy as toy
 
@@ -34,7 +36,7 @@ class ToyFunctions(InterpreterFunctions):
         assert not len(args)
         data = op.get_data()
         shape = op.get_shape()
-        result = ShapedArray(data, shape)
+        result = ShapedArray(TypedPtr.new_float64(data), shape)
         return (result,)
 
     @impl(toy.ReshapeOp)
@@ -48,7 +50,7 @@ class ToyFunctions(InterpreterFunctions):
         assert isinstance(result_type, VectorType | TensorType)
         new_shape = list(result_type.get_shape())
 
-        return (ShapedArray(arg.data, new_shape),)
+        return (ShapedArray(arg.data_ptr, new_shape),)
 
     @impl(toy.AddOp)
     def run_add(
@@ -61,7 +63,12 @@ class ToyFunctions(InterpreterFunctions):
         rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
 
-        return (ShapedArray([l + r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
+        return (
+            ShapedArray(
+                TypedPtr.new_float64([l + r for l, r in zip(lhs.data, rhs.data)]),
+                lhs.shape,
+            ),
+        )
 
     @impl(toy.MulOp)
     def run_mul(
@@ -74,7 +81,12 @@ class ToyFunctions(InterpreterFunctions):
         rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
 
-        return (ShapedArray([l * r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
+        return (
+            ShapedArray(
+                TypedPtr.new_float64([l * r for l, r in zip(lhs.data, rhs.data)]),
+                lhs.shape,
+            ),
+        )
 
     @impl_terminator(toy.ReturnOp)
     def run_return(
@@ -98,13 +110,7 @@ class ToyFunctions(InterpreterFunctions):
         arg = cast(ShapedArray[float], arg)
         assert len(arg.shape) == 2
 
-        new_data: list[float] = []
-
-        for col in range(arg.shape[1]):
-            for row in range(arg.shape[0]):
-                new_data.append(arg.load((row, col)))
-
-        result = ShapedArray(new_data, arg.shape[::-1])
+        result = arg.transposed(0, 1)
 
         return (result,)
 
@@ -113,3 +119,9 @@ class ToyFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: toy.CastOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         return args
+
+    @impl_callable(toy.FuncOp)
+    def call_func(
+        self, interpreter: Interpreter, op: toy.FuncOp, args: tuple[Any, ...]
+    ):
+        return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)

@@ -6,20 +6,76 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Sequence, Set
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from itertools import pairwise
+from typing import cast
 
-from xdsl.irdl import OpDef
+from xdsl.dialects.builtin import Builtin, UnitAttr
+from xdsl.ir import Attribute, TypedAttribute
+from xdsl.irdl import (
+    AttrOrPropDef,
+    AttrSizedOperandSegments,
+    AttrSizedSegments,
+    ConstraintVariableType,
+    InferenceContext,
+    OpDef,
+    OptionalDef,
+    OptOperandDef,
+    OptRegionDef,
+    OptResultDef,
+    OptSingleBlockRegionDef,
+    OptSuccessorDef,
+    ParamAttrConstraint,
+    ParsePropInAttrDict,
+    VarExtractor,
+    VariadicDef,
+    VarOperandDef,
+    VarRegionDef,
+    VarResultDef,
+    VarSingleBlockRegionDef,
+    VarSuccessorDef,
+    merge_extractor_dicts,
+)
 from xdsl.irdl.declarative_assembly_format import (
+    AnchorableDirective,
+    AnyTypeableDirective,
     AttrDictDirective,
+    AttributeVariable,
+    DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
     KeywordDirective,
-    OperandTypeDirective,
+    OperandOrResult,
     OperandVariable,
+    OptionalAttributeVariable,
+    OptionalGroupDirective,
+    OptionallyParsableDirective,
+    OptionalOperandVariable,
+    OptionalRegionVariable,
+    OptionalResultVariable,
+    OptionalSuccessorVariable,
+    OptionalTypeableDirective,
+    OptionalTypeDirective,
+    OptionalUnitAttrVariable,
+    ParsingState,
     PunctuationDirective,
-    ResultTypeDirective,
+    RegionDirective,
+    RegionVariable,
     ResultVariable,
+    SuccessorVariable,
+    TypeDirective,
+    VariadicLikeFormatDirective,
+    VariadicLikeTypeDirective,
+    VariadicOperandDirective,
+    VariadicOperandVariable,
+    VariadicRegionDirective,
+    VariadicRegionVariable,
+    VariadicResultVariable,
+    VariadicSuccessorDirective,
+    VariadicSuccessorVariable,
+    VariadicTypeableDirective,
+    VariadicTypeDirective,
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -49,20 +105,13 @@ class FormatLexer(Lexer):
 
         # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
-        if current_char in ("`", "$", "\\"):
+        if current_char in ("`", "$", "\\", "^"):
             self._consume_chars()
             return self._form_token(Token.Kind.BARE_IDENT, start_pos)
         return super().lex()
 
     # Authorize `-` in bare identifier
     bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
-
-
-class ParsingContext(Enum):
-    """Indicates if the parser is nested in a particular directive."""
-
-    TopLevel = auto()
-    TypeDirective = auto()
 
 
 @dataclass(init=False)
@@ -82,10 +131,21 @@ class FormatParser(BaseParser):
     """The operand types that are already parsed."""
     seen_result_types: list[bool]
     """The result types that are already parsed."""
+    seen_attributes: set[str]
+    """The attributes that are already parsed."""
+    seen_properties: set[str]
+    """The properties that are already parsed."""
+    seen_regions: list[bool]
+    """The region variables that are already parsed."""
+    seen_successors: list[bool]
+    """The successor variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
-    context: ParsingContext = field(default=ParsingContext.TopLevel)
-    """Indicates if the parser is nested in a particular directive."""
+    type_resolutions: dict[
+        tuple[OperandOrResult, int],
+        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
+    ]
+    """Map a variable to a way to infer its type"""
 
     def __init__(self, input: str, op_def: OpDef):
         super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
@@ -93,6 +153,11 @@ class FormatParser(BaseParser):
         self.seen_operands = [False] * len(op_def.operands)
         self.seen_operand_types = [False] * len(op_def.operands)
         self.seen_result_types = [False] * len(op_def.results)
+        self.seen_attributes = set[str]()
+        self.seen_properties = set[str]()
+        self.seen_regions = [False] * len(op_def.regions)
+        self.seen_successors = [False] * len(op_def.successors)
+        self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
         """
@@ -103,45 +168,177 @@ class FormatParser(BaseParser):
         """
         elements: list[FormatDirective] = []
         while self._current_token.kind != Token.Kind.EOF:
-            elements.append(self.parse_directive())
+            elements.append(self.parse_format_directive())
 
+        self.add_reserved_attrs_to_directive(elements)
+        extractors = self.extractors_by_name()
+        self.verify_directives(elements)
         self.verify_attr_dict()
-        self.verify_operands()
-        self.verify_results()
-        return FormatProgram(elements)
+        self.verify_properties()
+        self.verify_operands(extractors.keys())
+        self.verify_results(extractors.keys())
+        self.verify_regions()
+        self.verify_successors()
+        return FormatProgram(tuple(elements), extractors)
 
-    def verify_operands(self):
+    def verify_directives(self, elements: list[FormatDirective]):
         """
-        Check that all operands and operand types are refered at least once.
+        Check correctness of the declarative format; e.g, chaining variadiclike operand
+        directives leads to ambiguous parsing, and should raise an error here.
         """
-        for operand, operand_type, (operand_name, _) in zip(
-            self.seen_operands, self.seen_operand_types, self.op_def.operands
+        for a, b in pairwise(elements):
+            match a, b:
+                case VariadicLikeFormatDirective(), PunctuationDirective(","):
+                    self.raise_error(
+                        "A variadic directive cannot be followed by a comma literal."
+                    )
+                case VariadicLikeTypeDirective(), VariadicLikeTypeDirective():
+                    self.raise_error(
+                        "A variadic type directive cannot be followed by another variadic type directive."
+                    )
+                case VariadicOperandDirective(), VariadicOperandDirective():
+                    self.raise_error(
+                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                    )
+                case VariadicRegionDirective(), VariadicRegionDirective():
+                    self.raise_error(
+                        "A variadic region variable cannot be followed by another variadic region variable."
+                    )
+                case VariadicSuccessorDirective(), VariadicSuccessorDirective():
+                    self.raise_error(
+                        "A variadic successor variable cannot be followed by another variadic successor variable."
+                    )
+                case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
+                    self.raise_error(
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
+                    )
+                case _:
+                    pass
+
+    def add_reserved_attrs_to_directive(self, elements: list[FormatDirective]):
+        """
+        Add reserved attributes to the attr-dict directive.
+        These are the attributes that are printed/parsed in other places in the format,
+        and thus should not be printed in the attr-dict directive.
+        """
+        for idx, element in enumerate(elements):
+            if isinstance(element, AttrDictDirective):
+                elements[idx] = AttrDictDirective(
+                    with_keyword=element.with_keyword,
+                    reserved_attr_names=self.seen_attributes,
+                    print_properties=element.print_properties,
+                )
+                return
+
+    @dataclass(frozen=True)
+    class _OperandResultExtractor(VarExtractor[ParsingState]):
+        idx: int
+        is_operand: bool
+        inner: VarExtractor[Sequence[Attribute]]
+
+        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
+            if self.is_operand:
+                types = a.operand_types[self.idx]
+            else:
+                types = a.result_types[self.idx]
+            assert types is not None
+            if isinstance(types, Attribute):
+                types = (types,)
+            return self.inner.extract_var(types)
+
+    @dataclass(frozen=True)
+    class _AttrExtractor(VarExtractor[ParsingState]):
+        name: str
+        is_prop: bool
+        inner: VarExtractor[Attribute]
+
+        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
+            if self.is_prop:
+                attr = a.properties[self.name]
+            else:
+                attr = a.attributes[self.name]
+            return self.inner.extract_var(attr)
+
+    def extractors_by_name(self) -> dict[str, VarExtractor[ParsingState]]:
+        """
+        Find out which constraint variables can be inferred from the parsed attributes.
+        """
+        extractor_dicts: list[dict[str, VarExtractor[ParsingState]]] = []
+        for i, (_, operand_def) in enumerate(self.op_def.operands):
+            if self.seen_operand_types[i]:
+                extractor_dicts.append(
+                    {
+                        v: self._OperandResultExtractor(i, True, r)
+                        for v, r in operand_def.constr.get_variable_extractors().items()
+                    }
+                )
+        for i, (_, result_def) in enumerate(self.op_def.results):
+            if self.seen_result_types[i]:
+                extractor_dicts.append(
+                    {
+                        v: self._OperandResultExtractor(i, False, r)
+                        for v, r in result_def.constr.get_variable_extractors().items()
+                    }
+                )
+        for prop_name, prop_def in self.op_def.properties.items():
+            extractor_dicts.append(
+                {
+                    v: self._AttrExtractor(prop_name, True, r)
+                    for v, r in prop_def.constr.get_variable_extractors().items()
+                }
+            )
+        for attr_name, attr_def in self.op_def.attributes.items():
+            extractor_dicts.append(
+                {
+                    v: self._AttrExtractor(attr_name, False, r)
+                    for v, r in attr_def.constr.get_variable_extractors().items()
+                }
+            )
+        return merge_extractor_dicts(*extractor_dicts)
+
+    def verify_operands(self, var_constraint_names: Set[str]):
+        """
+        Check that all operands and operand types are refered at least once, or inferred
+        from another construct.
+        """
+        for (
+            seen_operand,
+            seen_operand_type,
+            (operand_name, operand_def),
+        ) in zip(
+            self.seen_operands,
+            self.seen_operand_types,
+            self.op_def.operands,
+            strict=True,
         ):
-            if not operand:
+            if not seen_operand:
                 self.raise_error(
                     f"operand '{operand_name}' "
                     f"not found, consider adding a '${operand_name}' "
                     "directive to the custom assembly format"
                 )
-            if not operand_type:
-                self.raise_error(
-                    f"type of operand '{operand_name}' not found, consider "
-                    f"adding a 'type(${operand_name})' directive to the custom "
-                    "assembly format"
-                )
+            if not seen_operand_type:
+                if not operand_def.constr.can_infer(var_constraint_names):
+                    self.raise_error(
+                        f"type of operand '{operand_name}' cannot be inferred, "
+                        f"consider adding a 'type(${operand_name})' directive to the "
+                        "custom assembly format"
+                    )
 
-    def verify_results(self):
-        """Check that all result types are refered at least once."""
+    def verify_results(self, var_constraint_names: Set[str]):
+        """Check that all result types are refered at least once, or inferred
+        from another construct."""
 
-        for result_type, (result_name, _) in zip(
-            self.seen_result_types, self.op_def.results
+        for result_type, (result_name, result_def) in zip(
+            self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
-                self.raise_error(
-                    f"type of result '{result_name}' not found, consider "
-                    f"adding a 'type(${result_name})' directive to the custom "
-                    "assembly format"
-                )
+                if not result_def.constr.can_infer(var_constraint_names):
+                    self.raise_error(
+                        f"type of result '{result_name}' cannot be inferred, "
+                        f"consider adding a 'type(${result_name})' directive to the "
+                        "custom assembly format"
+                    )
 
     def verify_attr_dict(self):
         """
@@ -150,12 +347,103 @@ class FormatParser(BaseParser):
         if not self.has_attr_dict:
             self.raise_error("'attr-dict' directive not found")
 
-    def parse_optional_variable(self) -> OperandVariable | ResultVariable | None:
+    def verify_properties(self):
+        """
+        Check that all properties are present, unless `ParsePropInAttrDict` option is
+        used.
+        """
+        # This is used for compatibility with MLIR
+        if any(
+            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
+        ):
+            if self.seen_properties:
+                self.raise_error(
+                    "properties cannot be specified in the declarative format "
+                    "when 'ParsePropInAttrDict' IRDL option is used. They are instead "
+                    "parsed from the attribute dictionary."
+                )
+            return
+
+        missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
+
+        for option in self.op_def.options:
+            if isinstance(option, AttrSizedSegments) and option.as_property:
+                missing_properties.remove(option.attribute_name)
+
+        if missing_properties:
+            self.raise_error(
+                f"{', '.join(missing_properties)} properties are missing from "
+                "the declarative format. If this is intentional, consider using "
+                "'ParsePropInAttrDict' IRDL option."
+            )
+
+    def verify_regions(self):
+        """
+        Check that all regions are present.
+        """
+        for (
+            seen_region,
+            (region_name, _),
+        ) in zip(
+            self.seen_regions,
+            self.op_def.regions,
+            strict=True,
+        ):
+            if not seen_region:
+                self.raise_error(
+                    f"region '{region_name}' "
+                    f"not found, consider adding a '${region_name}' "
+                    "directive to the custom assembly format."
+                )
+
+    def verify_successors(self):
+        """
+        Check that all successors are present.
+        """
+        for (
+            seen_successor,
+            (successor_name, _),
+        ) in zip(
+            self.seen_successors,
+            self.op_def.successors,
+            strict=True,
+        ):
+            if not seen_successor:
+                self.raise_error(
+                    f"successor '{successor_name}' "
+                    f"not found, consider adding a '${successor_name}' "
+                    "directive to the custom assembly format."
+                )
+
+    def _parse_optional_operand(
+        self, variable_name: str, top_level: bool
+    ) -> OptionalOperandVariable | VariadicOperandVariable | OperandVariable | None:
+        for idx, (operand_name, operand_def) in enumerate(self.op_def.operands):
+            if variable_name != operand_name:
+                continue
+            if top_level:
+                if self.seen_operands[idx]:
+                    self.raise_error(f"operand '{variable_name}' is already bound")
+                self.seen_operands[idx] = True
+                if isinstance(operand_def, VariadicDef | OptionalDef):
+                    self.seen_attributes.add(AttrSizedOperandSegments.attribute_name)
+            else:
+                if self.seen_operand_types[idx]:
+                    self.raise_error(f"type of '{variable_name}' is already bound")
+                self.seen_operand_types[idx] = True
+            match operand_def:
+                case OptOperandDef():
+                    return OptionalOperandVariable(variable_name, idx)
+                case VarOperandDef():
+                    return VariadicOperandVariable(variable_name, idx)
+                case _:
+                    return OperandVariable(variable_name, idx)
+
+    def parse_optional_typeable_variable(self) -> AnyTypeableDirective | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
-        The variable should refer to an operand, attribute, region, result,
-        or successor.
+        The variable should refer to an operand or result.
         """
         if self._current_token.text[0] != "$":
             return None
@@ -163,69 +451,220 @@ class FormatParser(BaseParser):
         variable_name = self.parse_identifier(" after '$'")
 
         # Check if the variable is an operand
-        for idx, (operand_name, _) in enumerate(self.op_def.operands):
-            if variable_name != operand_name:
-                continue
-            if self.context == ParsingContext.TopLevel:
-                if self.seen_operands[idx]:
-                    self.raise_error(f"operand '{variable_name}' is already bound")
-                self.seen_operands[idx] = True
-            return OperandVariable(variable_name, idx)
+        if (variable := self._parse_optional_operand(variable_name, False)) is not None:
+            return variable
 
         # Check if the variable is a result
-        for idx, (result_name, _) in enumerate(self.op_def.results):
+        for idx, (result_name, result_def) in enumerate(self.op_def.results):
             if variable_name != result_name:
                 continue
-            if self.context == ParsingContext.TopLevel:
-                self.raise_error(
-                    "result variable cannot be in a toplevel directive. "
-                    f"Consider using 'type({variable_name})' instead."
+            if self.seen_result_types[idx]:
+                self.raise_error(f"type of '{variable_name}' is already bound")
+            self.seen_result_types[idx] = True
+            match result_def:
+                case OptResultDef():
+                    return OptionalResultVariable(variable_name, idx)
+                case VarResultDef():
+                    return VariadicResultVariable(variable_name, idx)
+                case _:
+                    return ResultVariable(variable_name, idx)
+
+        self.raise_error("expected typeable variable to refer to an operand or result")
+
+    def parse_optional_variable(
+        self,
+    ) -> FormatDirective | None:
+        """
+        Parse a variable, if present, with the following format:
+          variable ::= `$` bare-ident
+        The variable should refer to an operand, attribute, region, or successor.
+        """
+        if self._current_token.text[0] != "$":
+            return None
+        self._consume_token()
+        variable_name = self.parse_identifier(" after '$'")
+
+        # Check if the variable is an operand
+        if (variable := self._parse_optional_operand(variable_name, True)) is not None:
+            return variable
+
+        # Check if the variable is a region
+        for idx, (region_name, region_def) in enumerate(self.op_def.regions):
+            if variable_name != region_name:
+                continue
+            self.seen_regions[idx] = True
+            match region_def:
+                case OptRegionDef() | OptSingleBlockRegionDef():
+                    return OptionalRegionVariable(variable_name, idx)
+                case VarRegionDef() | VarSingleBlockRegionDef():
+                    return VariadicRegionVariable(variable_name, idx)
+                case _:
+                    return RegionVariable(variable_name, idx)
+
+        # Check if the variable is a successor
+        for idx, (successor_name, successor_def) in enumerate(self.op_def.successors):
+            if variable_name != successor_name:
+                continue
+            self.seen_successors[idx] = True
+            match successor_def:
+                case OptSuccessorDef():
+                    return OptionalSuccessorVariable(variable_name, idx)
+                case VarSuccessorDef():
+                    return VariadicSuccessorVariable(variable_name, idx)
+                case _:
+                    return SuccessorVariable(variable_name, idx)
+
+        attr_or_prop_by_name = {
+            attr_name: attr_or_prop
+            for attr_name, attr_or_prop in self.op_def.accessor_names.values()
+        }
+
+        # Check if the variable is an attribute
+        if variable_name in attr_or_prop_by_name:
+            attr_name = variable_name
+            attr_or_prop = attr_or_prop_by_name[attr_name]
+            is_property = attr_or_prop == "property"
+            if is_property:
+                if attr_name in self.seen_properties:
+                    self.raise_error(f"property '{variable_name}' is already bound")
+                self.seen_properties.add(attr_name)
+            else:
+                if attr_name in self.seen_attributes:
+                    self.raise_error(f"attribute '{variable_name}' is already bound")
+                self.seen_attributes.add(attr_name)
+
+            attr_def = (
+                self.op_def.properties.get(attr_name)
+                if is_property
+                else self.op_def.attributes.get(attr_name)
+            )
+            if isinstance(attr_def, AttrOrPropDef):
+                unique_base = attr_def.constr.get_unique_base()
+                if unique_base == UnitAttr:
+                    return OptionalUnitAttrVariable(
+                        variable_name, is_property, None, None
+                    )
+
+                # Always qualify builtin attributes
+                # This is technically an approximation, but appears to be good enough
+                # for xDSL right now.
+                unique_type = None
+                if unique_base is not None and issubclass(unique_base, TypedAttribute):
+                    constr = attr_def.constr
+                    # TODO: generalize.
+                    # https://github.com/xdslproject/xdsl/issues/2499
+                    if isinstance(constr, ParamAttrConstraint):
+                        type_constraint = constr.param_constrs[
+                            unique_base.get_type_index()
+                        ]
+                        if type_constraint.can_infer(set()):
+                            unique_type = type_constraint.infer(InferenceContext())
+                if (
+                    unique_base is not None
+                    and unique_base in Builtin.attributes
+                    and unique_type is None
+                ):
+                    unique_base = None
+
+                # Chill pyright with TypedAttribute without parameter
+                unique_base = cast(type[Attribute] | None, unique_base)
+
+                if attr_def.default_value is not None:
+                    return DefaultValuedAttributeVariable(
+                        variable_name,
+                        is_property,
+                        unique_base,
+                        unique_type,
+                        attr_def.default_value,
+                    )
+
+                variable_type = (
+                    OptionalAttributeVariable
+                    if isinstance(attr_def, OptionalDef)
+                    else AttributeVariable
                 )
-            return ResultVariable(variable_name, idx)
+                return variable_type(
+                    variable_name, is_property, unique_base, unique_type
+                )
 
         self.raise_error(
             "expected variable to refer to an operand, "
-            "attribute, region, result, or successor"
+            "attribute, region, or successor"
         )
 
     def parse_type_directive(self) -> FormatDirective:
         """
         Parse a type directive with the following format:
-          type-directive ::= `type` `(` variable `)`
+          type-directive ::= `type` `(` typeable-directive `)`
         `type` is expected to have already been parsed
         """
         self.parse_punctuation("(")
-
-        # Update the current context, since we are now in a type directive
-        previous_context = self.context
-        self.context = ParsingContext.TypeDirective
-
-        variable = self.parse_optional_variable()
-        match variable:
-            case None:
-                self.raise_error("'type' directive expects a variable argument")
-            case OperandVariable():
-                if self.seen_operand_types[variable.index]:
-                    self.raise_error(f"type of '{variable.name}' is already bound")
-                self.seen_operand_types[variable.index] = True
-                res = OperandTypeDirective(variable.name, variable.index)
-            case ResultVariable():
-                if self.seen_result_types[variable.index]:
-                    self.raise_error(f"type of '{variable.name}' is already bound")
-                self.seen_result_types[variable.index] = True
-                res = ResultTypeDirective(variable.name, variable.index)
-
+        inner = self.parse_typeable_directive()
         self.parse_punctuation(")")
-        self.context = previous_context
-        return res
+        if isinstance(inner, VariadicTypeableDirective):
+            return VariadicTypeDirective(inner)
+        if isinstance(inner, OptionalTypeableDirective):
+            return OptionalTypeDirective(inner)
+        return TypeDirective(inner)
+
+    def parse_optional_group(self) -> FormatDirective:
+        """
+        Parse an optional group, with the following format:
+          group ::= `(` then-elements `)` `?`
+        """
+        then_elements = tuple[FormatDirective, ...]()
+        anchor: FormatDirective | None = None
+
+        while not self.parse_optional_punctuation(")"):
+            then_elements += (self.parse_format_directive(),)
+            if self.parse_optional_keyword("^"):
+                if anchor is not None:
+                    self.raise_error("An optional group can only have one anchor.")
+                anchor = then_elements[-1]
+        self.parse_punctuation("?")
+
+        # Pull whitespace element of front, as they are not parsed
+        first_non_whitespace_index = None
+        for i, x in enumerate(then_elements):
+            if not isinstance(x, WhitespaceDirective):
+                first_non_whitespace_index = i
+                break
+
+        if first_non_whitespace_index is None:
+            self.raise_error("An optional group must have a non-whitespace directive")
+        if anchor is None:
+            self.raise_error("Every optional group must have an anchor.")
+        # TODO: allow attribute and region variables when implemented.
+        if not isinstance(
+            then_elements[first_non_whitespace_index], OptionallyParsableDirective
+        ):
+            self.raise_error(
+                "First element of an optional group must be optionally parsable."
+            )
+        if not isinstance(anchor, AnchorableDirective):
+            self.raise_error(
+                "An optional group's anchor must be an anchorable directive."
+            )
+
+        return OptionalGroupDirective(
+            anchor,
+            cast(
+                tuple[WhitespaceDirective, ...],
+                then_elements[:first_non_whitespace_index],
+            ),
+            cast(
+                OptionallyParsableDirective, then_elements[first_non_whitespace_index]
+            ),
+            then_elements[first_non_whitespace_index + 1 :],
+        )
 
     def parse_keyword_or_punctuation(self) -> FormatDirective:
         """
         Parse a keyword or a punctuation directive, with the following format:
           keyword-or-punctuation-directive ::= `\\`` (bare-ident | punctuation) `\\``
         """
-        self.parse_characters("`")
         start_token = self._current_token
+        self.parse_characters("`")
 
         # New line case
         if self.parse_optional_keyword("\\"):
@@ -234,16 +673,16 @@ class FormatParser(BaseParser):
             return WhitespaceDirective("\n")
 
         # Space case
+        end_token = self._current_token
         if self.parse_optional_characters("`"):
-            end_token = self._current_token
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
             ]
-            if whitespace != " ":
+            if whitespace != " " and whitespace != "":
                 self.raise_error(
-                    "unexpected whitespace in directive, only ` ` whitespace is allowed"
+                    "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"
                 )
-            return WhitespaceDirective(" ")
+            return WhitespaceDirective(whitespace)
 
         # Punctuation case
         if self._current_token.kind.is_punctuation():
@@ -260,7 +699,16 @@ class FormatParser(BaseParser):
         self.parse_characters("`")
         return KeywordDirective(ident)
 
-    def parse_directive(self) -> FormatDirective:
+    def parse_typeable_directive(self) -> AnyTypeableDirective:
+        """
+        Parse a typeable directive, with the following format:
+          directive ::= variable
+        """
+        if variable := self.parse_optional_typeable_variable():
+            return variable
+        self.raise_error(f"unexpected token '{self._current_token.text}'")
+
+    def parse_format_directive(self) -> FormatDirective:
         """
         Parse a format directive, with the following format:
           directive ::= `attr-dict`
@@ -277,6 +725,8 @@ class FormatParser(BaseParser):
             return self.parse_type_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
+        if self.parse_optional_punctuation("("):
+            return self.parse_optional_group()
         if variable := self.parse_optional_variable():
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
@@ -289,4 +739,13 @@ class FormatParser(BaseParser):
                 "in the assembly format description"
             )
         self.has_attr_dict = True
-        return AttrDictDirective(with_keyword=with_keyword)
+        print_properties = any(
+            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
+        )
+        # reserved_attr_names is populated once the format is parsed, as some attributes
+        # might appear after the attr-dict directive
+        return AttrDictDirective(
+            with_keyword=with_keyword,
+            reserved_attr_names=set(),
+            print_properties=print_properties,
+        )

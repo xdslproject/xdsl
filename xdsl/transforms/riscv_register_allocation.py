@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
+from xdsl.context import MLContext
 from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 
 
-@dataclass
+@dataclass(frozen=True)
 class RISCVRegisterAllocation(ModulePass):
     """
     Allocates unallocated registers in the module.
@@ -29,6 +29,11 @@ class RISCVRegisterAllocation(ModulePass):
 
     exclude_snitch_reserved: bool = True
     """Excludes floating-point registers that are used by the Snitch ISA extensions."""
+
+    add_regalloc_stats: bool = False
+    """
+    Inserts a comment with register allocation info in the IR.
+    """
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
@@ -54,4 +59,6 @@ class RISCVRegisterAllocation(ModulePass):
                     allocator.available_registers.limit_registers(self.limit_registers)
                 allocator.exclude_preallocated = self.exclude_preallocated
                 allocator.exclude_snitch_reserved = self.exclude_snitch_reserved
-                allocator.allocate_func(inner_op)
+                allocator.allocate_func(
+                    inner_op, add_regalloc_stats=self.add_regalloc_stats
+                )

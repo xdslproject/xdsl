@@ -2,9 +2,8 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects.arith import (
-    Addf,
-)
+from xdsl.dialects import builtin, func
+from xdsl.dialects.arith import AddfOp
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -12,6 +11,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     bf16,
     f16,
@@ -25,12 +25,12 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.func import (
     FuncOp,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     BufferOp,
     CastOp,
+    DynAccessOp,
     ExternalLoadOp,
     ExternalStoreOp,
     FieldType,
@@ -198,7 +198,7 @@ def test_stencil_apply_no_results():
 
 @pytest.mark.parametrize(
     "indices",
-    (
+    [
         ([1]),
         ([1, 2]),
         ([1, 2, 3]),
@@ -209,7 +209,7 @@ def test_stencil_apply_no_results():
                 IntAttr(3),
             ]
         ),
-    ),
+    ],
 )
 def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -233,24 +233,8 @@ def test_create_index_attr_from_list_edge_case2():
 
 
 @pytest.mark.parametrize(
-    "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
-)
-def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr.get(*indices1)
-    stencil_index_attr2 = IndexAttr.get(*indices2)
-
-    size_from_bounds = IndexAttr.size_from_bounds(
-        stencil_index_attr1, stencil_index_attr2
-    )
-    expected_list = [abs(idx1 - idx2) for idx1, idx2 in zip(indices1, indices2)]
-
-    assert size_from_bounds == expected_list
-
-
-@pytest.mark.parametrize(
     "indices",
-    (([1]), ([1, 2]), ([1, 2, 3])),
+    [([1]), ([1, 2]), ([1, 2, 3])],
 )
 def test_index_attr_neg(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -262,7 +246,7 @@ def test_index_attr_neg(indices: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_add(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -278,7 +262,7 @@ def test_index_attr_add(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_sub(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -294,7 +278,7 @@ def test_index_attr_sub(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_min(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -310,7 +294,7 @@ def test_index_attr_min(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices1, indices2",
-    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+    [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_max(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
@@ -326,7 +310,7 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices",
-    (((1,)), ((1, 2)), ((1, 2, 3))),
+    [((1,)), ((1, 2)), ((1, 2, 3))],
 )
 def test_index_attr_iter(indices: tuple[int, ...]):
     stencil_index_attr = IndexAttr.get(*indices)
@@ -334,7 +318,7 @@ def test_index_attr_iter(indices: tuple[int, ...]):
     assert tuple(stencil_index_attr) == indices
 
 
-@pytest.mark.parametrize("indices", (([1]), ([1, 2]), ([1, 2, 3])))
+@pytest.mark.parametrize("indices", [([1]), ([1, 2]), ([1, 2, 3])])
 def test_index_attr_indices_length(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     stencil_index_attr_iter = iter(stencil_index_attr)
@@ -345,13 +329,13 @@ def test_index_attr_indices_length(indices: list[int]):
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, ((0, 64), (0, 64))),
         (
             i64,
             ((0, 32), (0, 32), (0, 32)),
         ),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor_with_ArrayAttr(
     attr: IntegerType, bounds: tuple[tuple[int, int], ...]
@@ -368,11 +352,11 @@ def test_stencil_fieldtype_constructor_with_ArrayAttr(
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, ((0, 1), (0, 2))),
         (i32, ((0, 1), (0, 1), (0, 3))),
         (i64, ((0, 1), (0, 1), (0, 3))),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor(
     attr: IntegerType, bounds: tuple[tuple[int, int], ...]
@@ -389,10 +373,10 @@ def test_stencil_fieldtype_constructor(
 
 @pytest.mark.parametrize(
     "attr, bounds",
-    (
+    [
         (i32, []),
         (i64, []),
-    ),
+    ],
 )
 def test_stencil_fieldtype_constructor_empty_list(
     attr: IntegerType, bounds: list[tuple[int, int]]
@@ -438,13 +422,13 @@ def test_stencil_load_bounds():
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, ((0, 64), (0, 64))),
         (
             i64,
             ((0, 32), (0, 32), (0, 32)),
         ),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor_with_ArrayAttr(
     attr: IntegerType, dims: tuple[tuple[int, int], ...]
@@ -460,11 +444,11 @@ def test_stencil_temptype_constructor_with_ArrayAttr(
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, ((0, 1), (0, 2))),
         (i32, ((0, 1), (0, 1), (0, 3))),
         (i64, ((0, 1), (0, 1), (0, 3))),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor(
     attr: IntegerType, dims: tuple[tuple[int, int], ...]
@@ -480,10 +464,10 @@ def test_stencil_temptype_constructor(
 
 @pytest.mark.parametrize(
     "attr, dims",
-    (
+    [
         (i32, []),
         (i64, []),
-    ),
+    ],
 )
 def test_stencil_temptype_constructor_empty_list(
     attr: IntegerType, dims: list[tuple[int, int]]
@@ -495,7 +479,7 @@ def test_stencil_temptype_constructor_empty_list(
 
 @pytest.mark.parametrize(
     "float_type",
-    ((bf16), (f16), (f32), (f64), (f80), (f128)),
+    [(bf16), (f16), (f32), (f64), (f80), (f128)],
 )
 def test_stencil_resulttype(float_type: AnyFloat):
     stencil_resulttype = ResultType(float_type)
@@ -513,8 +497,9 @@ def test_stencil_store():
 
     lb = IndexAttr.get(1, 1)
     ub = IndexAttr.get(64, 64)
+    bounds = StencilBoundsAttr.new((lb, ub))
 
-    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
+    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, bounds)
 
     assert isinstance(store, StoreOp)
     assert isinstance(store_field_type := store.field.type, FieldType)
@@ -523,28 +508,7 @@ def test_stencil_store():
     assert store_temp_type == temp_type
     assert len(store_field_type.get_shape()) == 2
     assert len(store_temp_type.get_shape()) == 2
-    assert store.lb is lb
-    assert store.ub is ub
-
-
-def test_stencil_store_load_overlap():
-    temp_type = TempType([(0, 5), (0, 5)], f32)
-    temp_type_ssa_val = TestSSAValue(temp_type)
-
-    field_type = FieldType([(0, 2), (0, 2)], f32)
-    field_type_ssa_val = TestSSAValue(field_type)
-
-    lb = IndexAttr.get(1, 1)
-    ub = IndexAttr.get(64, 64)
-
-    load = LoadOp.get(field_type_ssa_val, lb, ub)
-    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        load.verify()
-
-    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
-        store.verify()
+    assert store.bounds is bounds
 
 
 def test_stencil_index():
@@ -578,6 +542,22 @@ def test_stencil_access():
     assert access.temp.type == temp_type
 
 
+def test_stencil_dyn_access():
+    temp_type = TempType([(0, 5), (0, 5)], f32)
+    temp_type_ssa_val = TestSSAValue(temp_type)
+
+    lb = IndexAttr.get(0, 0)
+    ub = IndexAttr.get(1, 1)
+    offset = (TestSSAValue(builtin.IndexType()), TestSSAValue(builtin.IndexType()))
+
+    dyn_access = DynAccessOp(temp_type_ssa_val, offset, lb, ub)
+
+    assert dyn_access.offset == offset
+    assert dyn_access.temp is temp_type_ssa_val
+    assert dyn_access.lb is lb
+    assert dyn_access.ub is ub
+
+
 def test_stencil_access_offset_mapping():
     temp_type = TempType([(0, 5), (0, 5)], f32)
     temp_type_ssa_val = TestSSAValue(temp_type)
@@ -585,8 +565,8 @@ def test_stencil_access_offset_mapping():
     offset = [1, 1]
     offset_index_attr = IndexAttr.get(*offset)
 
-    offset_mapping = [1, 0]
-    offset_mapping_attr = ArrayAttr(IntAttr(value) for value in offset_mapping)
+    offset_mapping = [0, 1]
+    offset_mapping_attr = IndexAttr.get(*offset_mapping)
 
     access = AccessOp.get(temp_type_ssa_val, offset, offset_mapping)
 
@@ -607,7 +587,7 @@ def test_store_result():
     )
 
     assert isinstance(store_result, StoreResultOp)
-    assert store_result.args[0] == elem_ssa_val
+    assert store_result.arg == elem_ssa_val
     assert store_result.res.type == result_type
 
 
@@ -670,6 +650,8 @@ def test_access_patterns():
     assert t1_acc.is_diagonal
 
     assert len(tuple(t1_acc.get_diagonals())) == 2
+    assert t0_acc.max_distance() == 1
+    assert t1_acc.max_distance() == 1
 
 
 # TODO: Move to a notebook at some point with proper documentation
@@ -713,29 +695,30 @@ def test_1d3pt_stencil_construct():
                 stencil_acs_l = AccessOp.get(temp_in, (-1,))
                 stencil_acs_c = AccessOp.get(temp_in, (0,))
                 stencil_acs_r = AccessOp.get(temp_in, (1,))
-                stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
-                stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
+                stencil_comp0 = AddfOp(stencil_acs_l, stencil_acs_c)
+                stencil_comp1 = AddfOp(stencil_comp0, stencil_acs_r)
                 # Define the return operation
                 ReturnOp.get([stencil_comp1])
 
             # Apply the computation to the loaded values
             # Store the computed values to the output field
-            StoreOp.get(apply.results[0], field_out, IndexAttr.get(0), IndexAttr.get(6))
+            StoreOp.get(apply.results[0], field_out, StencilBoundsAttr(((0, 6),)))
+            func.ReturnOp()
 
     expected = """
 builtin.module {
   func.func @kernel(%0 : !stencil.field<[-1,7]xf32>, %1 : !stencil.field<[-1,7]xf32>) {
-    %2 = "stencil.load"(%0) : (!stencil.field<[-1,7]xf32>) -> !stencil.temp<?xf32>
-    %3 = "stencil.apply"(%2) ({
-    ^0(%4 : !stencil.temp<?xf32>):
-      %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf32>) -> f32
-      %6 = "stencil.access"(%4) {"offset" = #stencil.index<0>} : (!stencil.temp<?xf32>) -> f32
-      %7 = "stencil.access"(%4) {"offset" = #stencil.index<1>} : (!stencil.temp<?xf32>) -> f32
+    %2 = stencil.load %0 : !stencil.field<[-1,7]xf32> -> !stencil.temp<?xf32>
+    %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf32>) -> (!stencil.temp<?xf32>) {
+      %5 = stencil.access %4[-1] : !stencil.temp<?xf32>
+      %6 = stencil.access %4[0] : !stencil.temp<?xf32>
+      %7 = stencil.access %4[1] : !stencil.temp<?xf32>
       %8 = arith.addf %5, %6 : f32
       %9 = arith.addf %8, %7 : f32
-      "stencil.return"(%9) : (f32) -> ()
-    }) : (!stencil.temp<?xf32>) -> !stencil.temp<?xf32>
-    "stencil.store"(%3, %1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<6>} : (!stencil.temp<?xf32>, !stencil.field<[-1,7]xf32>) -> ()
+      stencil.return %9 : f32
+    }
+    stencil.store %3 to %1(<[0], [6]>) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
+    func.return
   }
 }
 """  # noqa

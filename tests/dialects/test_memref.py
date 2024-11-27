@@ -3,32 +3,36 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     FloatAttr,
     IndexType,
     IntAttr,
     IntegerType,
+    MemRefType,
+    NoneAttr,
     StridedLayoutAttr,
+    UnrankedMemrefType,
     i32,
     i64,
 )
 from xdsl.dialects.memref import (
-    Alloc,
-    Alloca,
-    Cast,
+    AllocaOp,
+    AllocOp,
+    CastOp,
     CopyOp,
-    Dealloc,
+    DeallocOp,
     DmaStartOp,
     DmaWaitOp,
     ExtractAlignedPointerAsIndexOp,
-    Load,
-    MemorySpaceCast,
-    MemRefType,
-    Store,
-    Subview,
-    UnrankedMemrefType,
+    ExtractStridedMetaDataOp,
+    LoadOp,
+    MemorySpaceCastOp,
+    StoreOp,
+    SubviewOp,
 )
 from xdsl.ir import Attribute, BlockArgument, OpResult
+from xdsl.ir.affine import AffineMap
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -51,7 +55,7 @@ def test_memreftype():
 def test_memref_load_i32():
     i32_memref_type = MemRefType(i32, [1])
     memref_ssa_value = TestSSAValue(i32_memref_type)
-    load = Load.get(memref_ssa_value, [])
+    load = LoadOp.get(memref_ssa_value, [])
 
     assert load.memref is memref_ssa_value
     assert load.indices == ()
@@ -63,7 +67,7 @@ def test_memref_load_i32_with_dimensions():
     memref_ssa_value = TestSSAValue(i32_memref_type)
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
-    load = Load.get(memref_ssa_value, [index1, index2])
+    load = LoadOp.get(memref_ssa_value, [index1, index2])
 
     assert load.memref is memref_ssa_value
     assert load.indices[0] is index1
@@ -75,7 +79,7 @@ def test_memref_store_i32():
     i32_memref_type = MemRefType(i32, [1])
     memref_ssa_value = TestSSAValue(i32_memref_type)
     i32_ssa_value = TestSSAValue(i32)
-    store = Store.get(i32_ssa_value, memref_ssa_value, [])
+    store = StoreOp.get(i32_ssa_value, memref_ssa_value, [])
 
     assert store.memref is memref_ssa_value
     assert store.indices == ()
@@ -88,7 +92,7 @@ def test_memref_store_i32_with_dimensions():
     i32_ssa_value = TestSSAValue(i32)
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
-    store = Store.get(i32_ssa_value, memref_ssa_value, [index1, index2])
+    store = StoreOp.get(i32_ssa_value, memref_ssa_value, [index1, index2])
 
     assert store.memref is memref_ssa_value
     assert store.indices[0] is index1
@@ -100,9 +104,9 @@ def test_memref_alloc():
     my_i32 = IntegerType(32)
     my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
     my_memspace = builtin.IntegerAttr(0, i32)
-    alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
-    alloc1 = Alloc.get(my_i32, 64)
-    alloc2 = Alloc.get(
+    alloc0 = AllocOp.get(my_i32, 64, [3, 1, 2])
+    alloc1 = AllocOp.get(my_i32, 64)
+    alloc2 = AllocOp.get(
         my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
     )
 
@@ -122,9 +126,9 @@ def test_memref_alloc():
     dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
     dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
 
-    alloc4 = Alloc.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
-    alloc5 = Alloc.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
-    alloc6 = Alloc.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc4 = AllocOp.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc5 = AllocOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
+    alloc6 = AllocOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
 
     assert list(alloc4.operands) == dynamic_sizes_1
     assert list(alloc5.operands) == dynamic_sizes_3
@@ -144,9 +148,9 @@ def test_memref_alloca():
     my_i32 = IntegerType(32)
     my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
     my_memspace = builtin.IntegerAttr(0, i32)
-    alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
-    alloc1 = Alloca.get(my_i32, 64)
-    alloc2 = Alloca.get(
+    alloc0 = AllocaOp.get(my_i32, 64, [3, 1, 2])
+    alloc1 = AllocaOp.get(my_i32, 64)
+    alloc2 = AllocaOp.get(
         my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
     )
 
@@ -165,9 +169,9 @@ def test_memref_alloca():
     dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
     dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
 
-    alloc4 = Alloca.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
-    alloc5 = Alloca.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
-    alloc6 = Alloca.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc4 = AllocaOp.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc5 = AllocaOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
+    alloc6 = AllocaOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
 
     assert list(alloc4.operands) == dynamic_sizes_1
     assert list(alloc5.operands) == dynamic_sizes_3
@@ -185,16 +189,16 @@ def test_memref_alloca():
 
 def test_memref_dealloc():
     my_i32 = IntegerType(32)
-    alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
-    dealloc0 = Dealloc.get(alloc0)
+    alloc0 = AllocOp.get(my_i32, 64, [3, 1, 2])
+    dealloc0 = DeallocOp.get(alloc0)
 
     assert type(dealloc0.memref) is OpResult
 
 
 def test_memref_dim():
-    idx = arith.Constant.from_int_and_width(1, IndexType())
-    alloc0 = Alloc.get(i32, 64, [3, 1, 2])
-    dim_1 = memref.Dim.from_source_and_index(alloc0, idx)
+    idx = arith.ConstantOp.from_int_and_width(1, IndexType())
+    alloc0 = AllocOp.get(i32, 64, [3, 1, 2])
+    dim_1 = memref.DimOp.from_source_and_index(alloc0, idx)
 
     assert dim_1.source is alloc0.memref
     assert dim_1.index is idx.result
@@ -202,15 +206,15 @@ def test_memref_dim():
 
 
 def test_memref_rank():
-    alloc0 = Alloc.get(i32, 64, [3, 1, 2])
-    dim_1 = memref.Rank.from_memref(alloc0)
+    alloc0 = AllocOp.get(i32, 64, [3, 1, 2])
+    dim_1 = memref.RankOp.from_memref(alloc0)
 
     assert dim_1.source is alloc0.memref
     assert isinstance(dim_1.rank.type, IndexType)
 
 
 def test_memref_ExtractAlignedPointerAsIndexOp():
-    ref = Alloc.get(i32, 64, [64, 64, 64])
+    ref = AllocOp.get(i32, 64, [64, 64, 64])
     ptr = ExtractAlignedPointerAsIndexOp.get(ref)
 
     assert ptr.aligned_pointer.type == IndexType()
@@ -227,15 +231,15 @@ def test_memref_matmul_verify():
         def matmul(args: tuple[BlockArgument, ...]) -> None:
             a, b = args
 
-            lit0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
-            lit1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
-            dim_a0 = memref.Dim.from_source_and_index(a, lit0)
-            dim_a1 = memref.Dim.from_source_and_index(a, lit1)
-            dim_b0 = memref.Dim.from_source_and_index(b, lit0)
-            dim_b1 = memref.Dim.from_source_and_index(b, lit1)
-            out = memref.Alloca.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1])
+            lit0 = arith.ConstantOp.from_int_and_width(0, builtin.IndexType())
+            lit1 = arith.ConstantOp.from_int_and_width(1, builtin.IndexType())
+            dim_a0 = memref.DimOp.from_source_and_index(a, lit0)
+            dim_a1 = memref.DimOp.from_source_and_index(a, lit1)
+            dim_b0 = memref.DimOp.from_source_and_index(b, lit0)
+            dim_b1 = memref.DimOp.from_source_and_index(b, lit1)
+            out = memref.AllocaOp.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1])
             # TODO: assert dim_a0 == dim_b1
-            lit0_f = arith.Constant(FloatAttr(0.0, builtin.f64))
+            lit0_f = arith.ConstantOp(FloatAttr(0.0, builtin.f64))
 
             @Builder.implicit_region((builtin.IndexType(),))
             def outer_loop(args: tuple[BlockArgument, ...]):
@@ -247,29 +251,29 @@ def test_memref_matmul_verify():
                 def mid_loop(args: tuple[BlockArgument, ...]):
                     (j,) = args
                     # mid loop start, loop_var = j
-                    memref.Store.get(lit0_f, out, [i, j])
+                    memref.StoreOp.get(lit0_f, out, [i, j])
 
                     @Builder.implicit_region((builtin.IndexType(),))
                     def inner_loop(args: tuple[BlockArgument, ...]):
                         (k,) = args
                         # inner loop, loop_var = k
-                        elem_a_i_k = memref.Load.get(a, [i, k])
-                        elem_b_k_j = memref.Load.get(b, [k, j])
-                        mul = arith.Mulf(elem_a_i_k, elem_b_k_j)
-                        out_i_j = memref.Load.get(out, [i, j])
-                        new_out_val = arith.Addf(out_i_j, mul)
-                        memref.Store.get(new_out_val, out, [i, j])
-                        scf.Yield()
+                        elem_a_i_k = memref.LoadOp.get(a, [i, k])
+                        elem_b_k_j = memref.LoadOp.get(b, [k, j])
+                        mul = arith.MulfOp(elem_a_i_k, elem_b_k_j)
+                        out_i_j = memref.LoadOp.get(out, [i, j])
+                        new_out_val = arith.AddfOp(out_i_j, mul)
+                        memref.StoreOp.get(new_out_val, out, [i, j])
+                        scf.YieldOp()
 
-                    scf.For(lit0, dim_a1, lit1, [], inner_loop)
-                    scf.Yield()
+                    scf.ForOp(lit0, dim_a1, lit1, [], inner_loop)
+                    scf.YieldOp()
 
-                scf.For(lit0, dim_b0, lit1, [], mid_loop)
-                scf.Yield()
+                scf.ForOp(lit0, dim_b0, lit1, [], mid_loop)
+                scf.YieldOp()
 
-            scf.For(lit0, dim_a0, lit1, [], outer_loop)
+            scf.ForOp(lit0, dim_a0, lit1, [], outer_loop)
 
-            func.Return(out)
+            func.ReturnOp(out)
 
         func.FuncOp(
             "matmul",
@@ -281,15 +285,35 @@ def test_memref_matmul_verify():
     module.verify()
 
 
-def test_memref_subview_constant_parameters():
-    alloc = Alloc.get(i32, 8, [10, 10, 10])
+def test_memref_extract_strided_metadata():
+    # input type
+    el_type = i32
+    alignment = 8
+    shape = [10, 10, 10]
+    strides = [1, 2, 2]
+    offset = None  # Dynamic offset
+    layout = StridedLayoutAttr(strides, offset)
+    memory_space = IntAttr(1)
+    alloc = AllocOp.get(
+        el_type, alignment, shape, layout=layout, memory_space=memory_space
+    )
     assert isa(alloc.memref.type, MemRefType[Attribute])
 
-    subview = Subview.from_static_parameters(
+    extract_op = ExtractStridedMetaDataOp(alloc)
+    # output type is expected to have no layout information, and no shape
+    expected_type = MemRefType(el_type, [], NoneAttr(), memory_space=memory_space)
+    assert extract_op.results[0].type == expected_type
+
+
+def test_memref_subview_constant_parameters():
+    alloc = AllocOp.get(i32, 8, [10, 10, 10])
+    assert isa(alloc.memref.type, MemRefType[Attribute])
+
+    subview = SubviewOp.from_static_parameters(
         alloc, alloc.memref.type, [2, 2, 2], [2, 2, 2], [3, 3, 3]
     )
 
-    assert isinstance(subview, Subview)
+    assert isinstance(subview, SubviewOp)
     assert isinstance(subview.result.type, MemRefType)
     assert isinstance(subview.result.type.layout, StridedLayoutAttr)
     assert isa(subview.result.type.layout.strides, ArrayAttr[IntAttr])
@@ -305,7 +329,7 @@ def test_memref_cast():
 
     res_type = UnrankedMemrefType.from_type(i32)
 
-    cast = Cast.get(memref_ssa_value, res_type)
+    cast = CastOp.get(memref_ssa_value, res_type)
 
     assert cast.source is memref_ssa_value
     assert cast.dest.type is res_type
@@ -323,7 +347,7 @@ def test_memref_memory_space_cast():
         i32, [10, 4], memory_space=builtin.IntegerAttr(2, i32)
     )
 
-    memory_space_cast = MemorySpaceCast(memref_ssa_value, res_type)
+    memory_space_cast = MemorySpaceCastOp(memref_ssa_value, res_type)
 
     assert memory_space_cast.source is memref_ssa_value
     assert memory_space_cast.dest.type is res_type
@@ -332,16 +356,16 @@ def test_memref_memory_space_cast():
         VerifyException,
         match="Expected source and destination to have the same element type.",
     ):
-        MemorySpaceCast(memref_ssa_value, res_type_wrong_type).verify()
+        MemorySpaceCastOp(memref_ssa_value, res_type_wrong_type).verify()
 
     with pytest.raises(
         VerifyException, match="Expected source and destination to have the same shape."
     ):
-        MemorySpaceCast(memref_ssa_value, res_type_wrong_shape).verify()
+        MemorySpaceCastOp(memref_ssa_value, res_type_wrong_shape).verify()
 
     # Test helper function
     dest_memory_space = builtin.IntegerAttr(2, i32)
-    memory_space_cast = MemorySpaceCast.from_type_and_target_space(
+    memory_space_cast = MemorySpaceCastOp.from_type_and_target_space(
         memref_ssa_value, i32_memref_type, dest_memory_space
     )
 
@@ -464,3 +488,19 @@ def test_memref_copy():
         match="Expected source and destination to have the same element type.",
     ):
         copy.verify()
+
+
+def test_get_strides():
+    strided = StridedLayoutAttr((24, 4, 1), 5)
+    affine = AffineMapAttr(AffineMap.identity(3))
+
+    assert tuple(strided.get_strides()) == (24, 4, 1)
+    assert affine.get_strides() is None
+
+    t_none = MemRefType(i32, (2, 3, 4))
+    assert (strides := t_none.get_strides())
+    assert tuple(strides) == (12, 4, 1)
+
+    t_id = MemRefType(i32, (2, 3, 4), strided)
+    assert (strides := t_id.get_strides())
+    assert tuple(strides) == (24, 4, 1)

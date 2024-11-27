@@ -3,33 +3,24 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
-from xdsl.dialects.builtin import IntegerType, UnitAttr, i32
+from xdsl.dialects.builtin import UnitAttr, i32
 from xdsl.ir import Attribute
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 @pytest.mark.parametrize(
     "op_type, attributes",
     [
-        (llvm.AddOp, {}),
-        (llvm.AddOp, {"attr1": UnitAttr()}),
-        (llvm.SubOp, {}),
-        (llvm.MulOp, {}),
-        (llvm.UDivOp, {}),
-        (llvm.SDivOp, {}),
         (llvm.URemOp, {}),
         (llvm.SRemOp, {}),
         (llvm.AndOp, {}),
-        (llvm.OrOp, {}),
         (llvm.XOrOp, {}),
-        (llvm.ShlOp, {}),
-        (llvm.LShrOp, {}),
-        (llvm.AShrOp, {}),
     ],
 )
 def test_llvm_arithmetic_ops(
-    op_type: type[llvm.ArithmeticBinOpBase[IntegerType]],
+    op_type: type[llvm.ArithmeticBinOperation],
     attributes: dict[str, Attribute],
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
@@ -40,10 +31,69 @@ def test_llvm_arithmetic_ops(
     )
 
 
+@pytest.mark.parametrize(
+    "op_type, attributes, overflow",
+    [
+        (llvm.AddOp, {}, llvm.OverflowAttr(None)),
+        (llvm.AddOp, {"attr1": UnitAttr()}, llvm.OverflowAttr(None)),
+        (llvm.SubOp, {}, llvm.OverflowAttr(None)),
+        (llvm.MulOp, {}, llvm.OverflowAttr(None)),
+        (llvm.ShlOp, {}, llvm.OverflowAttr(None)),
+    ],
+)
+def test_llvm_overflow_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOpOverflow],
+    attributes: dict[str, Attribute],
+    overflow: llvm.OverflowAttr,
+):
+    op1, op2 = test.TestOp(result_types=[i32, i32]).results
+    assert op_type(op1, op2, attributes).is_structurally_equivalent(
+        op_type(lhs=op1, rhs=op2, attributes=attributes, overflow=overflow)
+    )
+
+
+@pytest.mark.parametrize(
+    "op_type, attributes, exact",
+    [
+        (llvm.UDivOp, {}, llvm.UnitAttr()),
+        (llvm.SDivOp, {}, llvm.UnitAttr()),
+        (llvm.LShrOp, {}, llvm.UnitAttr()),
+        (llvm.AShrOp, {}, llvm.UnitAttr()),
+    ],
+)
+def test_llvm_exact_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOpExact],
+    attributes: dict[str, Attribute],
+    exact: llvm.UnitAttr,
+):
+    op1, op2 = test.TestOp(result_types=[i32, i32]).results
+    assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(
+        op_type(lhs=op1, rhs=op2, attributes=attributes, is_exact=exact)
+    )
+
+
+@pytest.mark.parametrize(
+    "op_type, attributes, disjoint",
+    [
+        (llvm.OrOp, {}, llvm.UnitAttr()),
+        (llvm.OrOp, {}, None),
+    ],
+)
+def test_llvm_disjoint_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOpDisjoint],
+    attributes: dict[str, Attribute],
+    disjoint: llvm.UnitAttr | None,
+):
+    op1, op2 = test.TestOp(result_types=[i32, i32]).results
+    assert op_type(op1, op2, attributes, disjoint).is_structurally_equivalent(
+        op_type(lhs=op1, rhs=op2, attributes=attributes, is_disjoint=disjoint)
+    )
+
+
 def test_llvm_pointer_ops():
     module = builtin.ModuleOp(
         [
-            idx := arith.Constant.from_int_and_width(0, 64),
+            idx := arith.ConstantOp.from_int_and_width(0, 64),
             ptr := llvm.AllocaOp(idx, builtin.i32, as_untyped_ptr=False),
             val := llvm.LoadOp(ptr),
             nullptr := llvm.NullOp(),
@@ -76,7 +126,7 @@ def test_llvm_pointer_ops():
 
 
 def test_llvm_ptr_to_int_to_ptr():
-    idx = arith.Constant.from_int_and_width(0, 64)
+    idx = arith.ConstantOp.from_int_and_width(0, 64)
     ptr = llvm.IntToPtrOp(idx, ptr_type=builtin.i32)
     int_val = llvm.PtrToIntOp(ptr)
 
@@ -101,7 +151,7 @@ def test_llvm_pointer_type():
 
 
 def test_llvm_getelementptr_op_invalid_construction():
-    size = arith.Constant.from_int_and_width(1, 32)
+    size = arith.ConstantOp.from_int_and_width(1, 32)
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that passing an opaque pointer to GEP without a pointee type fails
@@ -122,7 +172,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 
 
 def test_llvm_getelementptr_op():
-    size = arith.Constant.from_int_and_width(1, 32)
+    size = arith.ConstantOp.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=False)
     ptr_type = llvm.LLVMPointerType.typed(ptr.res.type)
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
@@ -151,6 +201,7 @@ def test_llvm_getelementptr_op():
     )
 
     assert "elem_type" in gep2.properties
+    assert gep2.elem_type == builtin.i32
     assert "inbounds" not in gep2.properties
     assert gep2.result.type == ptr_type
     assert len(gep1.rawConstantIndices.data) == 1
@@ -242,3 +293,45 @@ def test_variadic_func():
     p = Printer(stream=io)
     p.print_attribute(func_type)
     assert io.getvalue() == """!llvm.func<void (...)>"""
+
+
+def test_inline_assembly_op():
+    a, b, c = (
+        TestSSAValue(builtin.i32),
+        TestSSAValue(builtin.i32),
+        TestSSAValue(builtin.i32),
+    )
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        [builtin.i32],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        [],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [],
+        has_side_effects=True,
+    )
+    op.verify()

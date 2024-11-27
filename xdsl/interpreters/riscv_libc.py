@@ -7,7 +7,7 @@ from xdsl.interpreter import (
     impl_external,
     register_impls,
 )
-from xdsl.interpreters.riscv import RawPtr
+from xdsl.interpreters.utils import ptr
 from xdsl.ir import Operation
 
 
@@ -25,7 +25,7 @@ class RiscvLibcFunctions(InterpreterFunctions):
             size = ceil(size / 4) * 4
 
         # set values to 1 to signify uninitialized memory
-        return (RawPtr.zeros(size),)
+        return (ptr.RawPtr.zeros(size),)
 
     @impl_external("calloc")
     def calloc(
@@ -43,16 +43,14 @@ class RiscvLibcFunctions(InterpreterFunctions):
             # malloc a bit too much if not word-aligned
             num_bytes = ceil(num_bytes / 4) * 4
 
-        return (RawPtr.zeros(size),)
+        return (ptr.RawPtr.zeros(size),)
 
     @impl_external("free")
     def free(
         self, interpreter: Interpreter, op: Operation, args: PythonValues
     ) -> PythonValues:
         assert len(args) == 1
-        assert isinstance(args[0], RawPtr)
-        buff: RawPtr = args[0]
-        buff.deallocate()
+        assert isinstance(args[0], ptr.RawPtr)
         return ()
 
     @impl_external("putchar")

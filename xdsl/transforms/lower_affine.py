@@ -1,5 +1,8 @@
+from collections.abc import Sequence
+
+from xdsl.context import MLContext
 from xdsl.dialects import affine, arith, builtin, memref, scf
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
     AffineBinaryOpKind,
@@ -19,46 +22,47 @@ from xdsl.pattern_rewriter import (
 
 def affine_expr_ops(
     expr: affine.AffineExpr,
-    dims: list[SSAValue],
-    symbols: list[SSAValue],
+    dims: Sequence[SSAValue],
+    symbols: Sequence[SSAValue],
 ) -> tuple[list[Operation], SSAValue]:
     """
     Returns the operations that evaluate the affine expression when given input SSA
     values, along with the SSAValue representing the result.
     """
-    if isinstance(expr, AffineConstantExpr):
-        constant = arith.Constant(builtin.IntegerAttr.from_index_int_value(expr.value))
-        return [constant], constant.result
+    match expr:
+        case AffineConstantExpr():
+            constant = arith.ConstantOp(
+                builtin.IntegerAttr.from_index_int_value(expr.value)
+            )
+            return [constant], constant.result
+        case AffineDimExpr():
+            return [], dims[expr.position]
+        case AffineSymExpr():
+            return [], symbols[expr.position]
+        case AffineBinaryOpExpr():
+            lhs_ops, lhs_val = affine_expr_ops(expr.lhs, dims, symbols)
+            rhs_ops, rhs_val = affine_expr_ops(expr.rhs, dims, symbols)
 
-    if isinstance(expr, AffineDimExpr):
-        return [], dims[expr.position]
-    if isinstance(expr, AffineSymExpr):
-        return [], symbols[expr.position]
+            match expr.kind:
+                case AffineBinaryOpKind.Add:
+                    op = arith.AddiOp(lhs_val, rhs_val)
+                case AffineBinaryOpKind.Mul:
+                    op = arith.MuliOp(lhs_val, rhs_val)
+                case AffineBinaryOpKind.Mod:
+                    op = arith.RemSIOp(lhs_val, rhs_val)
+                case AffineBinaryOpKind.FloorDiv:
+                    op = arith.FloorDivSIOp(lhs_val, rhs_val)
+                case AffineBinaryOpKind.CeilDiv:
+                    op = arith.CeilDivSIOp(lhs_val, rhs_val)
 
-    if isinstance(expr, AffineBinaryOpExpr):
-        lhs_ops, lhs_val = affine_expr_ops(expr.lhs, dims, symbols)
-        rhs_ops, rhs_val = affine_expr_ops(expr.rhs, dims, symbols)
-
-        match expr.kind:
-            case AffineBinaryOpKind.Add:
-                op = arith.Addi(lhs_val, rhs_val)
-            case AffineBinaryOpKind.Mul:
-                op = arith.Muli(lhs_val, rhs_val)
-            case AffineBinaryOpKind.Mod:
-                op = arith.RemSI(lhs_val, rhs_val)
-            case AffineBinaryOpKind.FloorDiv:
-                op = arith.FloorDivSI(lhs_val, rhs_val)
-            case AffineBinaryOpKind.CeilDiv:
-                op = arith.CeilDivSI(lhs_val, rhs_val)
-
-        return [*lhs_ops, *rhs_ops, op], op.result
-
-    assert False, "Unreachable"
+            return [*lhs_ops, *rhs_ops, op], op.result
+        case _:
+            raise ValueError(f"Unexpected affine expr: {expr}")
 
 
 def insert_affine_map_ops(
     map: affine.AffineMapAttr | None,
-    dims: list[SSAValue],
+    dims: Sequence[SSAValue],
     symbols: list[SSAValue],
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
@@ -67,7 +71,7 @@ def insert_affine_map_ops(
     """
     ops: list[Operation] = []
     if map is None:
-        indices = dims
+        indices = list(dims)
     else:
         indices: list[SSAValue] = []
         for expr in map.data.results:
@@ -80,29 +84,29 @@ def insert_affine_map_ops(
 
 class LowerAffineStore(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: affine.Store, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: affine.StoreOp, rewriter: PatternRewriter):
         ops, indices = insert_affine_map_ops(op.map, op.indices, [])
         rewriter.insert_op_before_matched_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
-        rewriter.replace_matched_op(memref.Store.get(op.value, op.memref, indices))
+        rewriter.replace_matched_op(memref.StoreOp.get(op.value, op.memref, indices))
 
 
 class LowerAffineLoad(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: affine.Load, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: affine.LoadOp, rewriter: PatternRewriter):
         ops, indices = insert_affine_map_ops(op.map, op.indices, [])
         rewriter.insert_op_before_matched_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
-        rewriter.replace_matched_op(memref.Load.get(op.memref, indices))
+        rewriter.replace_matched_op(memref.LoadOp.get(op.memref, indices))
 
 
 class LowerAffineFor(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: affine.For, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: affine.ForOp, rewriter: PatternRewriter):
         lb_map = op.lowerBoundMap.data
         ub_map = op.upperBoundMap.data
         assert len(lb_map.results) == 1, "Affine for lower_bound must have one result"
@@ -111,10 +115,10 @@ class LowerAffineFor(RewritePattern):
         rewriter.insert_op_before_matched_op(lb_ops)
         ub_ops, ub_val = affine_expr_ops(ub_map.results[0], [], [])
         rewriter.insert_op_before_matched_op(ub_ops)
-        step_op = arith.Constant(op.step)
+        step_op = arith.ConstantOp(op.step)
         rewriter.insert_op_before_matched_op(step_op)
         rewriter.replace_matched_op(
-            scf.For(
+            scf.ForOp(
                 lb_val,
                 ub_val,
                 step_op.result,
@@ -126,8 +130,29 @@ class LowerAffineFor(RewritePattern):
 
 class LowerAffineYield(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: affine.Yield, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(scf.Yield(*op.arguments))
+    def match_and_rewrite(self, op: affine.YieldOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(scf.YieldOp(*op.arguments))
+
+
+class LowerAffineApply(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: affine.ApplyOp, rewriter: PatternRewriter, /):
+        affine_map = op.map.data
+        assert len(affine_map.results) == 1
+
+        operands = op.mapOperands
+        assert affine_map.num_dims + affine_map.num_symbols == len(operands)
+
+        dims = operands[: affine_map.num_dims]
+        symbols = operands[affine_map.num_dims :]
+
+        new_ops: list[Operation] = []
+        new_results: list[SSAValue] = []
+
+        ops, val = affine_expr_ops(affine_map.results[0], dims, symbols)
+        new_ops.extend(ops)
+        new_results.append(val)
+        rewriter.replace_matched_op(new_ops, new_results)
 
 
 class LowerAffinePass(ModulePass):
@@ -141,6 +166,7 @@ class LowerAffinePass(ModulePass):
                     LowerAffineLoad(),
                     LowerAffineFor(),
                     LowerAffineYield(),
+                    LowerAffineApply(),
                 ]
             )
         ).rewrite_module(op)

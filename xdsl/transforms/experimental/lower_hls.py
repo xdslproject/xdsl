@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, func, llvm
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, f64, i32
 from xdsl.dialects.experimental.hls import (
     HLSExtractStencilValue,
@@ -16,7 +17,7 @@ from xdsl.dialects.experimental.hls import (
     PragmaPipeline,
     PragmaUnroll,
 )
-from xdsl.dialects.func import Call, FuncOp, Return
+from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.llvm import (
     AllocaOp,
     GEPOp,
@@ -25,8 +26,8 @@ from xdsl.dialects.llvm import (
     LoadOp,
     StoreOp,
 )
-from xdsl.dialects.scf import For, ParallelOp, Yield
-from xdsl.ir import Block, MLContext, Operation, OpResult, Region, Use
+from xdsl.dialects.scf import ForOp, ParallelOp, YieldOp
+from xdsl.ir import Block, Operation, OpResult, Region, Use
 from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -63,7 +64,7 @@ class LowerHLSStreamWrite(RewritePattern):
                 self.push_duplicate_declaration = True
 
             gep = GEPOp(op.stream, [0, 0], result_type=p_elem_type)
-            push_call = func.Call("llvm.fpga.fifo.push.duplicate", [elem, gep], [])
+            push_call = func.CallOp("llvm.fpga.fifo.push.duplicate", [elem, gep], [])
 
         else:
             if not self.push_stencil_declaration:
@@ -75,7 +76,7 @@ class LowerHLSStreamWrite(RewritePattern):
                 self.push_stencil_declaration = True
 
             gep = GEPOp(op.stream, [0, 0], result_type=p_elem_type)
-            push_call = func.Call("llvm.fpga.fifo.push.stencil", [elem, gep], [])
+            push_call = func.CallOp("llvm.fpga.fifo.push.stencil", [elem, gep], [])
 
         rewriter.replace_matched_op([gep, push_call])
 
@@ -110,13 +111,15 @@ class LowerHLSStreamRead(RewritePattern):
                 self.module.body.block.add_op(pop_func)
 
                 self.pop_write_data_declaration = True
-            size = Constant.from_int_and_width(1, i32)
+            size = ConstantOp.from_int_and_width(1, i32)
 
             alloca = AllocaOp(size, hls_elem_type)
 
             gep = GEPOp(op.stream, [0, 0], result_type=p_hls_elem_type)
 
-            pop_call = func.Call("llvm.fpga.fifo.pop.write_data", [gep], [op.res.type])
+            pop_call = func.CallOp(
+                "llvm.fpga.fifo.pop.write_data", [gep], [op.res.type]
+            )
 
         else:
             if not self.pop_stencil_declaration:
@@ -129,13 +132,13 @@ class LowerHLSStreamRead(RewritePattern):
                 self.module.body.block.add_op(pop_func)
 
                 self.pop_stencil_declaration = True
-            size = Constant.from_int_and_width(1, i32)
+            size = ConstantOp.from_int_and_width(1, i32)
 
             alloca = AllocaOp(size, hls_elem_type)
 
             gep = GEPOp(op.stream, [0, 0], result_type=p_hls_elem_type)
 
-            pop_call = func.Call("llvm.fpga.fifo.pop.stencil", [gep], [op.res.type])
+            pop_call = func.CallOp("llvm.fpga.fifo.pop.stencil", [gep], [op.res.type])
 
         current_parent = op.parent_op()
         while not isinstance(current_parent, FuncOp):
@@ -189,16 +192,16 @@ class LowerHLSStreamToAlloca(RewritePattern):
             self.set_stream_depth_declaration = True
 
         # As can be seen on the compiled synthetic stream benchmark of the FPL paper
-        size = Constant.from_int_and_width(1, i32)
+        size = ConstantOp.from_int_and_width(1, i32)
         alloca = AllocaOp(size, LLVMStructType.from_type_list([hls_elem_type]))
         gep = GEPOp(alloca, [0, 0], result_type=LLVMPointerType.typed(hls_elem_type))
-        depth = Constant.from_int_and_width(0, i32)
+        depth = ConstantOp.from_int_and_width(0, i32)
         depth_call = llvm.CallOp("llvm.fpga.set.stream.depth", gep, depth)
 
-        stream_size = Constant.from_int_and_width(32, i32)
+        stream_size = ConstantOp.from_int_and_width(32, i32)
 
         if hls_elem_type == f64:
-            stream_size_call = Call(
+            stream_size_call = CallOp(
                 "stream_size_qualifier_double", [op, stream_size], []
             )
             if not self.set_stream_size_qualifier_double_declaration:
@@ -208,7 +211,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
                 self.module.body.block.add_op(stream_size_qualifier_double)
                 self.set_stream_size_qualifier_double_declaration = True
         else:
-            stream_size_call = Call(
+            stream_size_call = CallOp(
                 "stream_size_qualifier_stencil", [op, stream_size], []
             )
             if not self.set_stream_size_qualifier_stencil_declaration:
@@ -218,8 +221,8 @@ class LowerHLSStreamToAlloca(RewritePattern):
                 self.module.body.block.add_op(stream_size_qualifier_double)
                 self.set_stream_size_qualifier_stencil_declaration = True
 
-        start_df_call = Call("_start_df_call", [], [i32])
-        end_df_call = Call("_end_df_call", [], [])
+        start_df_call = CallOp("_start_df_call", [], [i32])
+        end_df_call = CallOp("_end_df_call", [], [])
 
         rewriter.insert_op_after_matched_op(
             [
@@ -255,7 +258,7 @@ class PragmaPipelineToFunc(RewritePattern):
         # ii : i32 = op.ii.owner.value.value.data
         ii = cast(Any, op.ii.owner).value.value.data
 
-        ret1 = Return()
+        ret1 = ReturnOp()
         block1 = Block(arg_types=[])
         block1.add_ops([ret1])
         Region(block1)
@@ -263,7 +266,7 @@ class PragmaPipelineToFunc(RewritePattern):
         pipeline_func_name = f"_pipeline_{ii}_"
         func1 = FuncOp.external(pipeline_func_name, [], [])
 
-        call1 = Call(func1.sym_name.data, [], [])
+        call1 = CallOp(func1.sym_name.data, [], [])
 
         if pipeline_func_name not in self.declared_pipeline_names:
             self.module.body.block.add_op(func1)
@@ -282,13 +285,13 @@ class PragmaUnrollToFunc(RewritePattern):
         # TODO: can we retrieve data directly without having to go through IntegerAttr -> IntAttr?
         factor = cast(Any, op.factor.owner).value.value.data
 
-        ret1 = Return()
+        ret1 = ReturnOp()
         block1 = Block(arg_types=[])
         block1.add_ops([ret1])
         region1 = Region(block1)
         func1 = FuncOp.from_region(f"_unroll_{factor}_", [], [], region1)
 
-        call1 = Call(func1.sym_name.data, [], [])
+        call1 = CallOp(func1.sym_name.data, [], [])
 
         self.module.body.block.add_op(func1)
 
@@ -320,7 +323,7 @@ class PragmaUnrollToFunc(RewritePattern):
 class SCFParallelToHLSPipelinedFor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ParallelOp, rewriter: PatternRewriter, /):
-        ii = Constant.from_int_and_width(1, i32)
+        ii = ConstantOp.from_int_and_width(1, i32)
         hls_pipeline_op: Operation = PragmaPipeline(ii)
 
         lb: VarOperand = op.lowerBound
@@ -338,10 +341,10 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         # wrapping in for loops until we have exhausted the induction variables
         parallel_block = op.body.detach_block(0)
 
-        if res != []:
+        if res:
             parallel_block.insert_arg(res[0].type, 1)
             cast(Operation, parallel_block.last_op).detach()
-            yieldop = Yield(res[0].op)
+            yieldop = YieldOp(res[0].op)
             parallel_block.add_op(yieldop)
 
         for_region = Region([parallel_block])
@@ -349,10 +352,10 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         for i in range(len(lb) - 1):
             for_region.block.erase_arg(for_region.block.args[i])
 
-        if res != []:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
+        if res:
+            for_op = ForOp(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
         else:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [], for_region)
+            for_op = ForOp(lb[-1], ub[-1], step[-1], [], for_region)
 
         for i in range(len(lb) - 2, -1, -1):
             for_region = Region(Block([for_op]))
@@ -368,9 +371,9 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             for_region.block.insert_op_after(
                 cast(OpResult, step[i + 1]).op, cast(OpResult, ub[i + 1]).op
             )
-            yieldop = Yield()
+            yieldop = YieldOp()
             for_region.block.add_op(yieldop)
-            for_op = For.get(lb[i], ub[i], step[i], [], for_region)
+            for_op = ForOp(lb[i], ub[i], step[i], [], for_region)
 
         for_region.block.insert_op_before(
             hls_pipeline_op, cast(Operation, for_region.block.first_op)
@@ -407,8 +410,8 @@ class LowerDataflow(RewritePattern):
 
             self.declared_df_functions = True
 
-        start_df_call = Call("_start_df_call", [], [i32])
-        end_df_call = Call("_end_df_call", [], [])
+        start_df_call = CallOp("_start_df_call", [], [i32])
+        end_df_call = CallOp("_end_df_call", [], [])
 
         rewriter.insert_op_before_matched_op(start_df_call)
         rewriter.insert_op_after_matched_op(end_df_call)
@@ -484,7 +487,7 @@ class GetHLSStreamInDataflow(RewritePattern):
         dataflow.body.blocks[0].insert_op_before(op, hls_yield)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerHLSPass(ModulePass):
     name = "lower-hls"
 

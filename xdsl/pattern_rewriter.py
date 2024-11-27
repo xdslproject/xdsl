@@ -6,27 +6,26 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import (
-    TypeVar,
-    Union,
-    final,
-    get_args,
-    get_origin,
-)
+from typing import TypeVar, Union, final, get_args, get_origin
+
+from typing_extensions import deprecated
 
 from xdsl.builder import BuilderListener
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
+    ErasedSSAValue,
     Operation,
     ParametrizedAttribute,
     Region,
     SSAValue,
 )
-from xdsl.rewriter import Rewriter
+from xdsl.irdl import GenericAttrConstraint, base
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @dataclass(eq=False)
@@ -39,8 +38,7 @@ class PatternRewriterListener(BuilderListener):
     """Callbacks that are called when an operation is removed."""
 
     operation_modification_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list,
-        kw_only=True,
+        default_factory=list, kw_only=True
     )
     """Callbacks that are called when an operation is modified."""
 
@@ -90,149 +88,53 @@ class PatternRewriter(PatternRewriterListener):
     current_operation: Operation
     """The matched operation."""
 
-    has_erased_matched_operation: bool = field(default=False, init=False)
-    """Was the matched operation erased."""
-
-    added_operations_before: list[Operation] = field(default_factory=list, init=False)
-    """The operations added directly before the matched operation."""
-
-    added_operations_after: list[Operation] = field(default_factory=list, init=False)
-    """The operations added directly after the matched operation."""
-
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def _can_modify_op(self, op: Operation) -> bool:
-        """Check if the operation and its children can be modified by this rewriter."""
-        if op == self.current_operation:
-            return True
-        if op.parent is None:
-            return self.current_operation.get_toplevel_object() is not op
-        return self._can_modify_op_in_block(op.parent)
+    def insert_op(
+        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
+    ):
+        """Insert operations at a certain location in a block."""
+        self.has_done_action = True
+        op = (op,) if isinstance(op, Operation) else op
+        if not op:
+            return
+        Rewriter.insert_op(op, insertion_point)
 
-    def _can_modify_block(self, block: Block) -> bool:
-        """Check if the block can be modified by this rewriter."""
-        if block is self.current_operation.parent:
-            return True
-        return self._can_modify_op_in_block(block)
+        for op_ in op:
+            self.handle_operation_insertion(op_)
 
-    def _can_modify_op_in_block(self, block: Block) -> bool:
-        """Check if the block and its children can be modified by this rewriter."""
-        if block.parent is None:
-            return True  # Toplevel operation of current_operation is always a ModuleOp
-        return self._can_modify_region(block.parent)
-
-    def _can_modify_region(self, region: Region) -> bool:
-        """Check if the region and its children can be modified by this rewriter."""
-        if region.parent is None:
-            return True  # Toplevel operation of current_operation is always a ModuleOp
-        if region is self.current_operation.parent_region():
-            return True
-        return self._can_modify_op(region.parent)
-
-    def _assert_can_modify_op(self, op: Operation) -> None:
-        """Asssert the operation and its children can be modified by this rewriter."""
-        if not self._can_modify_op(op):
-            raise Exception("Cannot modify the operation or its children")
-
-    def _assert_can_modify_block(self, block: Block) -> None:
-        """Assert the block can be modified by this rewriter."""
-        if not self._can_modify_block(block):
-            raise Exception("Cannot modify the block")
-
-    def _assert_can_modify_op_in_block(self, block: Block) -> None:
-        """Assert the block and its children can be modified by this rewriter."""
-        if not self._can_modify_op_in_block(block):
-            raise Exception("Cannot modify the block or its children")
-
-    def _assert_can_modify_region(self, region: Region) -> None:
-        """Assert the region and its children can be modified by this rewriter."""
-        if not self._can_modify_region(region):
-            raise Exception("Cannot modify the region or its children")
-
-    def insert_op_before_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""
-        if self.current_operation.parent is None:
-            raise Exception("Cannot insert an operation before a toplevel operation.")
-        self.has_done_action = True
-        block = self.current_operation.parent
-        op = [op] if isinstance(op, Operation) else op
-        if len(op) == 0:
-            return
-        block.insert_ops_before(op, self.current_operation)
-        self.added_operations_before.extend(op)
-        for op_ in op:
-            self.handle_operation_insertion(op_)
+        self.insert_op(op, InsertPoint.before(self.current_operation))
 
-    def insert_op_after_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations after the matched operation."""
-        if self.current_operation.parent is None:
-            raise Exception("Cannot insert an operation after a toplevel operation.")
-        self.has_done_action = True
-        block = self.current_operation.parent
-        op = [op] if isinstance(op, Operation) else op
-        if len(op) == 0:
-            return
-        block.insert_ops_after(op, self.current_operation)
-        self.added_operations_after.extend(op)
-        for op_ in op:
-            self.handle_operation_insertion(op_)
+        self.insert_op(op, InsertPoint.after(self.current_operation))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
-        """Insert operations in a block contained in the matched operation."""
-        self._assert_can_modify_block(block)
-        self.has_done_action = True
-        op = [op] if isinstance(op, Operation) else op
-        if len(op) == 0:
-            return
-        block.add_ops(op)
-        for op_ in op:
-            self.handle_operation_insertion(op_)
+        """Insert operations at the end of a block."""
+        self.insert_op(op, InsertPoint.at_end(block))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
-        """Insert operations in a block contained in the matched operation."""
-        self._assert_can_modify_block(block)
-        first_op = block.first_op
-        if first_op is None:
-            self.insert_op_at_end(op, block)
-        else:
-            self.insert_op_before(op, first_op)
+        """Insert operations at the start of a block."""
+        self.insert_op(op, InsertPoint.at_start(block))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_before(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
-        """Insert operations before an operation contained in the matched operation."""
-        if target_op.parent is None:
-            raise Exception("Cannot insert operations before toplevel operation.")
-        target_block = target_op.parent
-        self._assert_can_modify_block(target_block)
-        self.has_done_action = True
-        op = [op] if isinstance(op, Operation) else op
-        if len(op) == 0:
-            return
-        target_block.insert_ops_before(op, target_op)
-        for op_ in op:
-            self.handle_operation_insertion(op_)
-        if target_op is self.current_operation:
-            self.added_operations_before.extend(op)
+        """Insert operations before an operation."""
+        self.insert_op(op, InsertPoint.before(target_op))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_after(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
-        """Insert operations after an operation contained in the matched operation."""
-        if target_op.parent is None:
-            raise Exception("Cannot insert operations after toplevel operation.")
-        target_block = target_op.parent
-        self._assert_can_modify_block(target_block)
-        self.has_done_action = True
-        ops = [op] if isinstance(op, Operation) else op
-        if len(ops) == 0:
-            return
-        target_block.insert_ops_after(ops, target_op)
-        for op_ in ops:
-            self.handle_operation_insertion(op_)
-        if target_op is self.current_operation:
-            self.added_operations_after.extend(ops)
+        """Insert operations after an operation."""
+        self.insert_op(op, InsertPoint.after(target_op))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -240,21 +142,15 @@ class PatternRewriter(PatternRewriterListener):
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
-        self.has_done_action = True
-        self.has_erased_matched_operation = True
-        self.handle_operation_removal(self.current_operation)
-        Rewriter.erase_op(self.current_operation, safe_erase=safe_erase)
+        self.erase_op(self.current_operation, safe_erase=safe_erase)
 
     def erase_op(self, op: Operation, safe_erase: bool = True):
         """
-        Erase an operation contained in the matched operation children.
+        Erase an operation.
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
         self.has_done_action = True
-        if op == self.current_operation:
-            return self.erase_matched_op(safe_erase)
-        self._assert_can_modify_op(op)
         self.handle_operation_removal(op)
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
@@ -294,23 +190,20 @@ class PatternRewriter(PatternRewriterListener):
     ):
         """
         Replace an operation with new operations.
-        The operation should be a child of the matched operation.
         Also, optionally specify SSA values to replace the operation results.
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
         self.has_done_action = True
-        self._assert_can_modify_op(op)
+
         if isinstance(new_ops, Operation):
-            new_ops = [new_ops]
+            new_ops = (new_ops,)
 
         # First, insert the new operations before the matched operation
-        self.insert_op_before(new_ops, op)
+        self.insert_op(new_ops, InsertPoint.before(op))
 
-        if isinstance(new_ops, Operation):
-            new_ops = [new_ops]
         if new_results is None:
-            new_results = [] if len(new_ops) == 0 else new_ops[-1].results
+            new_results = new_ops[-1].results if new_ops else []
 
         if len(op.results) != len(new_results):
             raise ValueError(
@@ -320,176 +213,158 @@ class PatternRewriter(PatternRewriterListener):
         # Then, replace the results with new ones
         self.handle_operation_replacement(op, new_results)
         for old_result, new_result in zip(op.results, new_results):
-            self._replace_all_uses_with(old_result, new_result)
+            self._replace_all_uses_with(old_result, new_result, safe_erase=safe_erase)
 
-        if op.results:
+            # Preserve name hints for ops with multiple results
+            if new_result is not None and not new_result.name_hint:
+                new_result.name_hint = old_result.name_hint
+
+        # Add name hints for existing ops, only if there is a single new result
+        if (
+            len(new_results) == 1
+            and (only_result := new_results[0]) is not None
+            and (name_hint := only_result.name_hint) is not None
+        ):
             for new_op in new_ops:
                 for res in new_op.results:
-                    res.name_hint = op.results[0].name_hint
+                    if not res.name_hint:
+                        res.name_hint = name_hint
 
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)
 
-    def modify_block_argument_type(self, arg: BlockArgument, new_type: Attribute):
-        """
-        Modify the type of a block argument.
-        The block should be contained in the matched operation.
-        """
-        self._assert_can_modify_block(arg.block)
+    def modify_value_type(self, arg: SSAValue, new_type: Attribute):
+        """Modify the type of a value."""
         self.has_done_action = True
         arg.type = new_type
 
+        owner = arg.owner
+        if isinstance(owner, Block):
+            owner = owner.parent_op()
+        if owner is not None:
+            self.handle_operation_modification(owner)
         for use in arg.uses:
             self.handle_operation_modification(use.operation)
 
     def insert_block_argument(
         self, block: Block, index: int, arg_type: Attribute
     ) -> BlockArgument:
-        """
-        Insert a new block argument.
-        The block should be contained in the matched operation.
-        """
-        self._assert_can_modify_block(block)
+        """Insert a new block argument."""
         self.has_done_action = True
         return block.insert_arg(arg_type, index)
 
     def erase_block_argument(self, arg: BlockArgument, safe_erase: bool = True) -> None:
         """
         Erase a new block argument.
-        The block should be contained in the matched operation.
         If safe_erase is true, then raise an exception if the block argument has still
         uses, otherwise, replace it with an ErasedSSAValue.
         """
-        self._assert_can_modify_block(arg.block)
         self.has_done_action = True
         self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
-    def inline_block_at_end(self, block: Block, target_block: Block):
+    def inline_block(
+        self,
+        block: Block,
+        insertion_point: InsertPoint,
+        arg_values: Sequence[SSAValue] = (),
+    ):
+        """
+        Move the block operations to the specified insertion point.
+        """
+        self.has_done_action = True
+        Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
+
+    @deprecated("Please use `inline_block` instead")
+    def inline_block_at_end(
+        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         """
-        self.has_done_action = True
-        self._assert_can_modify_block(target_block)
-        self._assert_can_modify_block(block)
-        Rewriter.inline_block_at_end(block, target_block)
+        self.inline_block(
+            block, InsertPoint.at_end(target_block), arg_values=arg_values
+        )
 
-    def inline_block_at_start(self, block: Block, target_block: Block):
+    @deprecated("Please use `inline_block` instead")
+    def inline_block_at_start(
+        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations to the start of another block.
         This block should not be a parent of the block to move to.
         """
-        self.has_done_action = True
-        self._assert_can_modify_block(target_block)
-        self._assert_can_modify_block(block)
-        Rewriter.inline_block_at_start(block, target_block)
+        self.inline_block(
+            block, InsertPoint.at_start(target_block), arg_values=arg_values
+        )
 
-    def inline_block_before_matched_op(self, block: Block):
+    def inline_block_before_matched_op(
+        self, block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations before the matched operation.
-        The block should not be a parent of the operation, and should be a child of the
-        matched operation.
+        The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        self._assert_can_modify_block(block)
-        self.added_operations_before.extend(block.ops)
-        Rewriter.inline_block_before(block, self.current_operation)
+        self.inline_block(
+            block, InsertPoint.before(self.current_operation), arg_values=arg_values
+        )
 
-    def inline_block_before(self, block: Block, op: Operation):
+    @deprecated("Please use `inline_block` instead")
+    def inline_block_before(
+        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations before the given operation.
-        The block should not be a parent of the operation, and should be a child of the
-        matched operation.
-        The operation should also be a child of the matched operation.
+        The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        if op is self.current_operation:
-            return self.inline_block_before_matched_op(block)
-        self._assert_can_modify_block(block)
-        self._assert_can_modify_op(op)
-        Rewriter.inline_block_before(block, op)
+        self.inline_block(block, InsertPoint.before(op), arg_values=arg_values)
 
-    def inline_block_after_matched_op(self, block: Block):
+    def inline_block_after_matched_op(
+        self, block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations after the matched operation.
-        The block should not be a parent of the operation, and should be a child of the
-        matched operation.
+        The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        self._assert_can_modify_block(block)
-        self.added_operations_after.extend(block.ops)
-        Rewriter.inline_block_after(block, self.current_operation)
+        self.inline_block(
+            block, InsertPoint.after(self.current_operation), arg_values=arg_values
+        )
 
-    def inline_block_after(self, block: Block, op: Operation):
+    @deprecated("Please use `inline_block` instead")
+    def inline_block_after(
+        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations after the given operation.
-        The block should not be a parent of the operation, and should be a child of the
-        matched operation.
-        The operation should also be a child of the matched operation.
+        The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        if op is self.current_operation:
-            return self.inline_block_after_matched_op(block)
-        self._assert_can_modify_block(block)
-        if op.parent is not None:
-            self._assert_can_modify_block(op.parent)
-        Rewriter.inline_block_after(block, op)
+        self.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
-        """
-        Move the region blocks to a new region.
-        The region should be a child of the matched operation.
-        """
+        """Move the region blocks to a new region."""
         self.has_done_action = True
-        self._assert_can_modify_region(region)
         return Rewriter.move_region_contents_to_new_regions(region)
 
     def inline_region_before(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
         self.has_done_action = True
-        self._assert_can_modify_region(region)
-        self._assert_can_modify_block(target)
         Rewriter.inline_region_before(region, target)
 
     def inline_region_after(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
         self.has_done_action = True
-        self._assert_can_modify_region(region)
-        self._assert_can_modify_block(target)
         Rewriter.inline_region_after(region, target)
 
     def inline_region_at_start(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
         self.has_done_action = True
-        self._assert_can_modify_region(region)
-        self._assert_can_modify_region(target)
         Rewriter.inline_region_at_start(region, target)
 
     def inline_region_at_end(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
         self.has_done_action = True
-        self._assert_can_modify_region(region)
-        self._assert_can_modify_region(target)
         Rewriter.inline_region_at_end(region, target)
-
-    def iter_affected_ops(self) -> Iterable[Operation]:
-        """
-        Iterate newly added operations, in the order that they are in the module.
-        """
-        yield from self.added_operations_before
-        if not self.has_erased_matched_operation:
-            yield self.current_operation
-        yield from self.added_operations_after
-
-    def iter_affected_ops_reversed(self) -> Iterable[Operation]:
-        """
-        Iterate newly added operations, in reverse order from that in the module.
-        """
-        yield from reversed(self.added_operations_after)
-        if not self.has_erased_matched_operation:
-            yield self.current_operation
-        yield from reversed(self.added_operations_before)
 
 
 class RewritePattern(ABC):
@@ -513,7 +388,7 @@ _OperationT = TypeVar("_OperationT", bound=Operation)
 
 
 def op_type_rewrite_pattern(
-    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
+    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None],
 ) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
     """
     This function is intended to be used as a decorator on a RewritePatter
@@ -618,6 +493,9 @@ class TypeConversionPattern(RewritePattern):
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
                 inp = type(typ).new(parameters)
+            if isa(typ, DictionaryAttr):
+                parameters = {k: self._convert_type_rec(v) for k, v in typ.data.items()}
+                inp = type(typ).new(parameters)
         converted = self.convert_type(inp)
         return converted if converted is not None else inp
 
@@ -650,9 +528,9 @@ class TypeConversionPattern(RewritePattern):
         for region in op.regions:
             for block in region.blocks:
                 for arg in block.args:
-                    converted = self.convert_type(arg.type)
+                    converted = self._convert_type_rec(arg.type)
                     if converted is not None and converted != arg.type:
-                        rewriter.modify_block_argument_type(arg, converted)
+                        rewriter.modify_value_type(arg, converted)
         if changed:
             regions = [op.detach_region(r) for r in op.regions]
             new_op = type(op).create(
@@ -675,8 +553,34 @@ _AttributeT = TypeVar("_AttributeT", bound=Attribute)
 _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
+def attr_constr_rewrite_pattern(
+    constr: GenericAttrConstraint[_AttributeT],
+) -> Callable[
+    [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
+    Callable[[_TypeConversionPatternT, Attribute], Attribute | None],
+]:
+    """
+    This function is intended to be used as a decorator on a TypeConversionPattern
+    method. It uses the passed constraint to match on a specific attribute type before
+    calling the decorated function.
+    """
+
+    def wrapper(
+        func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
+    ):
+        @wraps(func)
+        def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
+            if isattr(typ, constr):
+                return func(self, typ)
+            return None
+
+        return impl
+
+    return wrapper
+
+
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
+    func: Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None],
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern
@@ -685,14 +589,8 @@ def attr_type_rewrite_pattern(
     """
     params = list(inspect.signature(func).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
-
-    @wraps(func)
-    def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-        if isa(typ, expected_type):
-            return func(self, typ)
-        return None
-
-    return impl
+    constr = base(expected_type)
+    return attr_constr_rewrite_pattern(constr)(func)
 
 
 @dataclass(eq=False, repr=False)
@@ -792,71 +690,158 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
+    post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
+        default=None
+    )
+    """
+    Function to call between each walk of the IR.
+    """
+
     listener: PatternRewriterListener = field(default_factory=PatternRewriterListener)
     """The listener that will be called when an operation or block is modified."""
 
-    def rewrite_module(self, op: ModuleOp):
-        """Rewrite an entire module operation."""
-        self._rewrite_op(op)
+    _worklist: Worklist = field(default_factory=Worklist, init=False)
+    """The worklist of operations to walk over."""
 
-    def _rewrite_op(self, op: Operation) -> Operation | None:
+    def _add_operands_to_worklist(self, operands: Iterable[SSAValue]) -> None:
         """
-        Rewrite an operation, along with its regions.
-        Returns the next operation to iterate over.
+        Add defining operations of SSA values to the worklist if they have only
+        one use. This is a heuristic based on the fact that single-use operations
+        have more canonicalization opportunities.
         """
-        # First, we rewrite the regions if needed
-        if self.walk_regions_first:
-            self._rewrite_op_regions(op)
+        for operand in operands:
+            if (
+                len(operand.uses) == 1
+                and not isinstance(operand, ErasedSSAValue)
+                and isinstance((op := operand.owner), Operation)
+            ):
+                self._worklist.push(op)
 
-        prev_op = op.prev_op
-        next_op = op.next_op
+    def _handle_operation_insertion(self, op: Operation) -> None:
+        """Handle insertion of an operation."""
+        if self.apply_recursively:
+            self._worklist.push(op)
 
-        # We then match for a pattern in the current operation
+    def _handle_operation_removal(self, op: Operation) -> None:
+        """Handle removal of an operation."""
+        if self.apply_recursively:
+            self._add_operands_to_worklist(op.operands)
+        self._worklist.remove(op)
+
+    def _handle_operation_modification(self, op: Operation) -> None:
+        """Handle modification of an operation."""
+        if self.apply_recursively:
+            self._worklist.push(op)
+
+    def _handle_operation_replacement(
+        self, op: Operation, new_results: Sequence[SSAValue | None]
+    ) -> None:
+        """Handle replacement of an operation."""
+        if self.apply_recursively:
+            for result in op.results:
+                for user in result.uses:
+                    self._worklist.push(user.operation)
+
+    def _get_rewriter_listener(self) -> PatternRewriterListener:
+        """
+        Get the listener that will be passed to the rewriter.
+        It will take care of adding operations to the worklist, and calling the
+        listener passed as configuration to the walker.
+        """
+        return PatternRewriterListener(
+            operation_insertion_handler=[
+                *self.listener.operation_insertion_handler,
+                self._handle_operation_insertion,
+            ],
+            operation_removal_handler=[
+                *self.listener.operation_removal_handler,
+                self._handle_operation_removal,
+            ],
+            operation_modification_handler=[
+                *self.listener.operation_modification_handler,
+                self._handle_operation_modification,
+            ],
+            operation_replacement_handler=[
+                *self.listener.operation_replacement_handler,
+                self._handle_operation_replacement,
+            ],
+            block_creation_handler=self.listener.block_creation_handler,
+        )
+
+    def rewrite_module(self, module: ModuleOp) -> bool:
+        """
+        Rewrite operations nested in the given operation by repeatedly applying the
+        pattern. Returns `True` if the IR was mutated.
+        """
+        return self.rewrite_region(module.body)
+
+    def rewrite_region(self, region: Region) -> bool:
+        """
+        Rewrite operations nested in the given operation by repeatedly applying the
+        pattern. Returns `True` if the IR was mutated.
+        """
+        pattern_listener = self._get_rewriter_listener()
+
+        self._populate_worklist(region)
+        op_was_modified = self._process_worklist(pattern_listener)
+        if self.post_walk_func is not None:
+            op_was_modified |= self.post_walk_func(region, pattern_listener)
+
+        if not self.apply_recursively:
+            return op_was_modified
+
+        result = op_was_modified
+
+        while op_was_modified:
+            self._populate_worklist(region)
+            op_was_modified = self._process_worklist(pattern_listener)
+            if self.post_walk_func is not None:
+                op_was_modified |= self.post_walk_func(region, pattern_listener)
+
+        return result
+
+    def _populate_worklist(self, op: Operation | Region | Block) -> None:
+        """Populate the worklist with all nested operations."""
+        # We walk in reverse order since we use a stack for our worklist.
+        for sub_op in op.walk(
+            reverse=not self.walk_reverse, region_first=not self.walk_regions_first
+        ):
+            self._worklist.push(sub_op)
+
+    def _process_worklist(self, listener: PatternRewriterListener) -> bool:
+        """
+        Process the worklist until it is empty.
+        Returns true if any modification was done.
+        """
+        rewriter_has_done_action = False
+
+        # Handle empty worklist
+        op = self._worklist.pop()
+        if op is None:
+            return rewriter_has_done_action
+
+        # Create a rewriter on the first operation
         rewriter = PatternRewriter(op)
-        rewriter.extend_from_listener(self.listener)
-        self.pattern.match_and_rewrite(op, rewriter)
+        rewriter.extend_from_listener(listener)
 
-        if rewriter.has_done_action:
-            # If we produce new operations, we rewrite them recursively if requested
-            if self.apply_recursively:
-                if self.walk_reverse:
-                    for op in rewriter.iter_affected_ops_reversed():
-                        # return last affected op
-                        return op
-                    else:
-                        return prev_op
-                else:
-                    for op in rewriter.iter_affected_ops():
-                        # return first affected op
-                        return op
-                    else:
-                        return next_op
+        # do/while loop
+        while True:
+            # Reset the rewriter on `op`
+            rewriter.has_done_action = False
+            rewriter.current_operation = op
 
-            # Else, we rewrite only their regions if they are supposed to be
-            # rewritten after
-            else:
-                if not self.walk_regions_first:
-                    for new_op in rewriter.added_operations_before:
-                        self._rewrite_op_regions(new_op)
-                    if not rewriter.has_erased_matched_operation:
-                        self._rewrite_op_regions(op)
-                    for new_op in rewriter.added_operations_after:
-                        self._rewrite_op_regions(new_op)
-                return prev_op if self.walk_reverse else next_op
+            # Apply the pattern on the operation
+            try:
+                self.pattern.match_and_rewrite(op, rewriter)
+            except Exception as err:
+                op.emit_error(
+                    f"Error while applying pattern: {str(err)}",
+                    exception_type=type(err),
+                    underlying_error=err,
+                )
+            rewriter_has_done_action |= rewriter.has_done_action
 
-        # Otherwise, we only rewrite the regions of the operation if needed
-        if not self.walk_regions_first:
-            self._rewrite_op_regions(op)
-        return prev_op if self.walk_reverse else next_op
-
-    def _rewrite_op_regions(self, op: Operation):
-        """
-        Rewrite the regions of an operation, and update the operation with the
-        new regions.
-        """
-        for region in op.regions:
-            blocks = reversed(region.blocks) if self.walk_reverse else region.blocks
-            for block in blocks:
-                iter_op = block.last_op if self.walk_reverse else block.first_op
-                while iter_op is not None:
-                    iter_op = self._rewrite_op(iter_op)
+            # If the worklist is empty, we are done
+            op = self._worklist.pop()
+            if op is None:
+                return rewriter_has_done_action

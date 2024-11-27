@@ -1,20 +1,31 @@
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
 
-from xdsl.dialects import builtin, func
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
+from xdsl.dialects import builtin, func, test
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    TensorType,
+    f32,
+    i32,
+)
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
+    impl,
+    impl_attr,
     impl_cast,
     impl_external,
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
-from xdsl.ir import Operation
+from xdsl.ir import Attribute, Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
 
@@ -105,21 +116,22 @@ def test_external_func():
             self.a = args[0]
             return tuple()
 
-    i = Interpreter(ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]))
+    i = Interpreter(
+        ModuleOp([func_op := func.FuncOp.external("testfunc", [builtin.i32], [])]),
+        index_bitwidth=32,
+    )
     funcs = TestFunc(0)
 
     i.register_implementations(funcs)
-    i.call_op("testfunc", (100,))
+    i.call_external("testfunc", func_op, (100,))
 
     assert funcs.a == 100
 
 
 def test_interpreter_data():
-    class Funcs0(InterpreterFunctions):
-        ...
+    class Funcs0(InterpreterFunctions): ...
 
-    class Funcs1(InterpreterFunctions):
-        ...
+    class Funcs1(InterpreterFunctions): ...
 
     interpreter = Interpreter(ModuleOp([]))
 
@@ -133,3 +145,101 @@ def test_interpreter_data():
     assert interpreter.get_data(Funcs0, "d", lambda: {"b": 2}) == {"b": 2}
 
     assert interpreter.get_data(Funcs1, "a", lambda: {"b": 2}) == {"b": 2}
+
+    # No existing value for key
+    interpreter.set_data(Funcs0, "c", 3)
+
+    assert interpreter.get_data(Funcs0, "c", lambda: {"b": 2}) == 3
+
+    # Update value for key
+    interpreter.set_data(Funcs0, "c", 4)
+
+    assert interpreter.get_data(Funcs0, "c", lambda: {"b": 2}) == 4
+
+
+def test_run_op_interpreter_args():
+    @dataclass
+    @register_impls
+    class TestFunctions(InterpreterFunctions):
+        @impl(test.TestOp)
+        def run_test(
+            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
+        ) -> PythonValues:
+            return (1,)
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(TestFunctions())
+    test_op = test.TestOp(
+        (),
+        (
+            TensorType(f32, [4]),
+            TensorType(f32, [4]),
+        ),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Number of operation results (2) doesn't match the number of implementation results (1)"
+        ),
+    ):
+        interpreter.run_op(test_op, ())
+
+    op = test.TestOp(
+        (TestSSAValue(TensorType(f32, [4])),),
+        (
+            TensorType(f32, [4]),
+            TensorType(f32, [4]),
+        ),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Number of operands (1) doesn't match the number of inputs (0)."
+        ),
+    ):
+        interpreter.run_op(op, ())
+
+    test_op_2 = test.TestOp(
+        (),
+        (TensorType(f32, [4]),),
+    )
+    assert interpreter.run_op(test_op_2, ()) == (1,)
+
+    op_2 = test.TestOp(
+        (TestSSAValue(TensorType(f32, [4])),),
+        (TensorType(f32, [4]),),
+    )
+    assert interpreter.run_op(op_2, (1,)) == (1,)
+
+
+def test_mixed_values():
+    @dataclass
+    @register_impls
+    class TestFuncA(InterpreterFunctions):
+        @impl_attr(IndexType)
+        def index_value(
+            self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
+        ) -> int:
+            return 1
+
+    @dataclass
+    @register_impls
+    class TestFuncB(InterpreterFunctions):
+        @impl_attr(IntegerType)
+        def index_value(
+            self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
+        ) -> int:
+            return 1
+
+    i = Interpreter(
+        ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]),
+        index_bitwidth=32,
+    )
+
+    i.register_implementations(TestFuncA())
+    i.register_implementations(TestFuncB())
+
+    index = IndexType()
+
+    assert i.value_for_attribute(IntegerAttr(1, i32), i32) == 1
+    assert i.value_for_attribute(IntegerAttr(1, i32), index) == 1

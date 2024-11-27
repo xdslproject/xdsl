@@ -16,16 +16,17 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: 98e674c9f16d677d95c67bc130e267fae331e43c
+      MLIR-Version: d401987fe349a87c53fe25829215b080b70c0c1a
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         path: xdsl
-        
+        fetch-depth: 2
+
     - name: Install native dependencies
       uses: awalsh128/cache-apt-pkgs-action@latest
       with:
@@ -33,9 +34,13 @@ jobs:
         version: 1.0
 
     - name: Python Setup
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip' # caching pip dependencies
+        cache-dependency-path: |
+          setup.py
+          requirements.txt
 
     - name: Upgrade pip
       run: |
@@ -49,7 +54,7 @@ jobs:
 
     - name: Cache binaries
       id: cache-binary
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: llvm-project/build
         key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
@@ -57,7 +62,7 @@ jobs:
 
     - name: Checkout MLIR
       if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: llvm/llvm-project.git
         path: llvm-project
@@ -111,6 +116,13 @@ jobs:
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
+    - name: Test ONNX-dependent marimo notebooks
+      run: |
+        cd xdsl
+        # Add mlir-opt to the path
+        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
+        make tests-marimo-onnx
+
     - name: Combine coverage data
       run: |
         cd xdsl
@@ -122,12 +134,12 @@ jobs:
       if: matrix.python-version == '3.10'
       uses: Wandalen/wretry.action@v1
       with:
-        action: codecov/codecov-action@v3
+        action: codecov/codecov-action@v4
         attempt_delay: 10000
         attempt_limit: 10
         with: |
           fail_ci_if_error: true
           verbose: true
-          directory: ${GITHUB_WORKSPACE}/../
+          root_dir: xdsl
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}

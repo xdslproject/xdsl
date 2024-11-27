@@ -16,27 +16,27 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     env:
       PYRIGHT_VERSION: 1.0
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Upgrade pip
-        run: |
-          pip install --upgrade pip
+          cache: 'pip' # caching pip dependencies
+          cache-dependency-path: |
+            setup.py
+            requirements.txt
       - name: Install the package locally
-        run: pip install -r requirements.txt
-      - name: retrieve pyright version
-        run: | # get pyright version from requirements optional file:
-          VER=$(sed -n 's/^.*pyright==\s*\(\S*\).*$/\1/p' requirements.txt)
-          echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
+        run:
+          pip install -r requirements.txt
+      - name: Generate IRDL stubs
+        run: xdsl-stubgen
       - name: Pyright
-        uses: jakebailey/pyright-action@v1
+        uses: jakebailey/pyright-action@v2
         with:
-          version: ${{env.PYRIGHT_VERSION}}
+          version: PATH

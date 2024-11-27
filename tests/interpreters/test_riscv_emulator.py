@@ -1,11 +1,13 @@
+from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.dialects import riscv, riscv_func
+from xdsl.context import MLContext
+from xdsl.dialects import riscv, riscv_debug, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import BlockArgument, MLContext
+from xdsl.ir import BlockArgument
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
@@ -29,9 +31,7 @@ def test_simple():
             forty_two = riscv.MulOp(
                 six, seven, rd=riscv.IntRegisterType.unallocated()
             ).rd
-            riscv.CustomAssemblyInstructionOp(
-                "print", inputs=[forty_two], result_types=[]
-            )
+            riscv_debug.PrintfOp("{}", (forty_two,))
             riscv.ReturnOp()
 
         riscv_func.FuncOp("main", body, ((), ()))
@@ -40,15 +40,14 @@ def test_simple():
 
     code = riscv.riscv_code(module)
 
-    stream = StringIO()
-    RV_Debug.stream = stream
-    run_riscv(
-        code,
-        extensions=[RV_Debug],
-        unlimited_regs=True,
-        verbosity=1,
-    )
-    assert stream.getvalue() == "42\n"
+    with StringIO() as stream, redirect_stdout(stream):
+        run_riscv(
+            code,
+            extensions=[RV_Debug],
+            unlimited_regs=True,
+            verbosity=0,
+        )
+        assert stream.getvalue() == "42\n"
 
 
 def test_multiply_add():
@@ -65,7 +64,7 @@ def test_multiply_add():
 
             riscv.JalOp("muladd")
             res = riscv.GetRegisterOp(riscv.Registers.A0).res
-            riscv.CustomAssemblyInstructionOp("print", [res], [])
+            riscv_debug.PrintfOp("{}", (res,))
 
             riscv.LiOp(93, rd=riscv.Registers.A7)
             riscv.EcallOp()
@@ -159,13 +158,11 @@ def test_multiply_add():
     RISCVRegisterAllocation().apply(ctx, module)
 
     code = riscv.riscv_code(module)
-
-    stream = StringIO()
-    RV_Debug.stream = stream
-    run_riscv(
-        code,
-        extensions=[RV_Debug],
-        unlimited_regs=True,
-        verbosity=1,
-    )
-    assert stream.getvalue() == "7\n"
+    with StringIO() as stream, redirect_stdout(stream):
+        run_riscv(
+            code,
+            extensions=[RV_Debug],
+            unlimited_regs=True,
+            verbosity=0,
+        )
+        assert stream.getvalue() == "7\n"

@@ -1,4 +1,3 @@
-from enum import Enum
 from math import prod
 from typing import Any, cast
 
@@ -10,50 +9,39 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Attribute
 from xdsl.traits import SymbolTable
-from xdsl.utils.exceptions import InterpretationError
-
-
-class MemrefValue(Enum):
-    Uninitialized = 1
-    """
-    A value marking areas of a memref that are uninitialized.
-    """
-    Deallocated = 2
-    """
-    Marks a memref as deallocated (freed).
-    """
 
 
 @register_impls
 class MemrefFunctions(InterpreterFunctions):
-    @impl(memref.Alloc)
+    @impl(memref.AllocOp)
     def run_alloc(
-        self, interpreter: Interpreter, op: memref.Alloc, args: PythonValues
+        self, interpreter: Interpreter, op: memref.AllocOp, args: PythonValues
     ) -> PythonValues:
         memref_type = cast(memref.MemRefType[Attribute], op.memref.type)
 
         shape = memref_type.get_shape()
         size = prod(shape)
-        data = [MemrefValue.Uninitialized] * size
+        xtype = xtype_for_el_type(
+            memref_type.get_element_type(), interpreter.index_bitwidth
+        )
 
-        shaped_array = ShapedArray(data, list(shape))
+        shaped_array = ShapedArray(TypedPtr[Any].zeros(size, xtype=xtype), list(shape))
         return (shaped_array,)
 
-    @impl(memref.Dealloc)
+    @impl(memref.DeallocOp)
     def run_dealloc(
-        self, interpreter: Interpreter, op: memref.Dealloc, args: PythonValues
+        self, interpreter: Interpreter, op: memref.DeallocOp, args: PythonValues
     ) -> PythonValues:
-        (shaped_array,) = args
-        for i in range(len(shaped_array.data)):
-            shaped_array.data[i] = MemrefValue.Deallocated
         return ()
 
-    @impl(memref.Store)
+    @impl(memref.StoreOp)
     def run_store(
-        self, interpreter: Interpreter, op: memref.Store, args: PythonValues
+        self, interpreter: Interpreter, op: memref.StoreOp, args: PythonValues
     ) -> PythonValues:
         value, memref, *indices = args
 
@@ -64,9 +52,9 @@ class MemrefFunctions(InterpreterFunctions):
 
         return ()
 
-    @impl(memref.Load)
+    @impl(memref.LoadOp)
     def run_load(
-        self, interpreter: Interpreter, op: memref.Load, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: memref.LoadOp, args: tuple[Any, ...]
     ):
         shaped_array, *indices = args
 
@@ -75,22 +63,14 @@ class MemrefFunctions(InterpreterFunctions):
         indices = tuple(indices)
         value = shaped_array.load(indices)
 
-        if isinstance(value, MemrefValue):
-            state = (
-                "uninitialized" if value == MemrefValue.Uninitialized else "deallocated"
-            )
-            raise InterpretationError(
-                f"Cannot load {state} value from memref {shaped_array}"
-            )
-
         return (value,)
 
-    @impl(memref.GetGlobal)
+    @impl(memref.GetGlobalOp)
     def run_get_global(
-        self, interpreter: Interpreter, op: memref.GetGlobal, args: PythonValues
+        self, interpreter: Interpreter, op: memref.GetGlobalOp, args: PythonValues
     ) -> PythonValues:
         mem = SymbolTable.lookup_symbol(op, op.name_)
-        assert isinstance(mem, memref.Global)
+        assert isinstance(mem, memref.GlobalOp)
         initial_value = mem.initial_value
         if not isinstance(initial_value, builtin.DenseIntOrFPElementsAttr):
             raise NotImplementedError(
@@ -99,5 +79,8 @@ class MemrefFunctions(InterpreterFunctions):
         data = [el.value.data for el in initial_value.data]
         shape = initial_value.get_shape()
         assert shape is not None
-        shaped_array = ShapedArray(data, list(shape))
+        xtype = xtype_for_el_type(
+            initial_value.get_element_type(), interpreter.index_bitwidth
+        )
+        shaped_array = ShapedArray(TypedPtr[Any].new(data, xtype=xtype), list(shape))
         return (shaped_array,)

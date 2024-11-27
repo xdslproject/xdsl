@@ -12,6 +12,7 @@ INDENT = 2
 @dataclass
 class VarType:
     "A variable type with shape information."
+
     shape: list[int]
 
 
@@ -80,6 +81,7 @@ class ExprAST:
 @dataclass
 class VarDeclExprAST(ExprAST):
     "Expression class for defining a variable."
+
     name: str
     varType: VarType
     expr: ExprAST
@@ -98,6 +100,7 @@ class VarDeclExprAST(ExprAST):
 @dataclass
 class ReturnExprAST(ExprAST):
     "Expression class for a return operator."
+
     expr: ExprAST | None
 
     @property
@@ -114,6 +117,7 @@ class ReturnExprAST(ExprAST):
 @dataclass
 class NumberExprAST(ExprAST):
     'Expression class for numeric literals like "1.0".'
+
     val: float
 
     @property
@@ -127,6 +131,7 @@ class NumberExprAST(ExprAST):
 @dataclass
 class LiteralExprAST(ExprAST):
     "Expression class for a literal value."
+
     values: list[LiteralExprAST | NumberExprAST]
     dims: list[int]
 
@@ -159,6 +164,7 @@ class LiteralExprAST(ExprAST):
 @dataclass
 class VariableExprAST(ExprAST):
     'Expression class for referencing a variable, like "a".'
+
     name: str
 
     @property
@@ -172,6 +178,7 @@ class VariableExprAST(ExprAST):
 @dataclass
 class BinaryExprAST(ExprAST):
     "Expression class for a binary operator."
+
     op: str
     lhs: ExprAST
     rhs: ExprAST
@@ -190,6 +197,7 @@ class BinaryExprAST(ExprAST):
 @dataclass
 class CallExprAST(ExprAST):
     "Expression class for function calls."
+
     callee: str
     args: list[ExprAST]
 
@@ -210,6 +218,7 @@ class CallExprAST(ExprAST):
 @dataclass
 class PrintExprAST(ExprAST):
     "Expression class for builtin print calls."
+
     arg: ExprAST
 
     @property
@@ -247,6 +256,7 @@ class PrototypeAST:
 @dataclass
 class FunctionAST:
     "This class represents a function definition itself."
+
     loc: Location
     proto: PrototypeAST
     body: tuple[ExprAST, ...]
@@ -272,6 +282,7 @@ class FunctionAST:
 @dataclass
 class ModuleAST:
     "This class represents a list of functions to be processed together"
+
     funcs: tuple[FunctionAST, ...]
 
     def dump(self):

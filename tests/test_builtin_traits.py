@@ -11,9 +11,8 @@ from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AttrSizedRegionSegments,
     IRDLOperation,
-    OptRegion,
-    OptSuccessor,
     irdl_op_definition,
+    lazy_traits_def,
     opt_region_def,
     opt_successor_def,
     region_def,
@@ -34,18 +33,18 @@ from xdsl.utils.exceptions import VerifyException
 class ParentOp(IRDLOperation):
     name = "test.parent"
 
-    region: Region = region_def()
+    region = region_def()
 
-    traits = frozenset([NoTerminator()])
+    traits = traits_def(NoTerminator())
 
 
 @irdl_op_definition
 class Parent2Op(IRDLOperation):
     name = "test.parent2"
 
-    region: Region = region_def()
+    region = region_def()
 
-    traits = frozenset([NoTerminator()])
+    traits = traits_def(NoTerminator())
 
 
 @irdl_op_definition
@@ -56,7 +55,7 @@ class HasParentOp(IRDLOperation):
 
     name = "test.has_parent"
 
-    traits = frozenset([HasParent(ParentOp)])
+    traits = traits_def(HasParent(ParentOp))
 
 
 @irdl_op_definition
@@ -67,27 +66,21 @@ class HasMultipleParentOp(IRDLOperation):
 
     name = "test.has_multiple_parent"
 
-    traits = frozenset([HasParent(ParentOp, Parent2Op)])
+    traits = traits_def(HasParent(ParentOp, Parent2Op))
 
 
 def test_has_parent_no_parent():
     """
-    Test that an operation with an HasParentOp trait
-    fails with no parents.
+    A detached op with a HasParent trait should be verifyable when detached
     """
-    has_parent_op = HasParentOp()
-    with pytest.raises(
-        VerifyException, match="'test.has_parent' expects parent op 'test.parent'"
-    ):
-        has_parent_op.verify()
 
-    has_multiple_parent_op = HasMultipleParentOp()
-    message = (
-        "'test.has_multiple_parent' expects parent op to "
-        "be one of 'test.parent', 'test.parent2'"
-    )
-    with pytest.raises(VerifyException, match=message):
-        has_multiple_parent_op.verify()
+    single_parent = HasParentOp()
+
+    single_parent.verify()
+
+    multiple_parent = HasMultipleParentOp()
+
+    multiple_parent.verify()
 
 
 def test_has_parent_wrong_parent():
@@ -134,9 +127,9 @@ class HasNoTerminatorOp(IRDLOperation):
 
     name = "test.has_no_terminator"
 
-    region: Region = region_def()
+    region = region_def()
 
-    traits = frozenset([NoTerminator()])
+    traits = traits_def(NoTerminator())
 
 
 def test_has_no_terminator_empty_block_with_single_block_region_requires_no_terminator():
@@ -173,9 +166,9 @@ class IsTerminatorOp(IRDLOperation):
 
     name = "test.is_terminator"
 
-    successor: OptSuccessor = opt_successor_def()
+    successor = opt_successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_is_terminator_without_successors_multi_block_parent_region_verify():
@@ -273,10 +266,8 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.is_single_block_implicit_terminator"
 
-    traits = traits_def(
-        lambda: frozenset(
-            [IsTerminator(), HasParent(HasSingleBlockImplicitTerminatorOp)]
-        )
+    traits = lazy_traits_def(
+        lambda: (IsTerminator(), HasParent(HasSingleBlockImplicitTerminatorOp))
     )
 
 
@@ -291,11 +282,11 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region = region_def()
-    opt_region: OptRegion = opt_region_def()
+    region = region_def()
+    opt_region = opt_region_def()
 
-    traits = frozenset(
-        [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
     )
 
     def __post_init__(self):
@@ -315,16 +306,16 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region = region_def()
-    opt_region: OptRegion = opt_region_def()
+    region = region_def()
+    opt_region = opt_region_def()
 
-    traits = frozenset(
-        [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
     )
 
 
 @irdl_op_definition
-class HasSingleBlockImplicitTerminatorWrongCreationOp2(IRDLOperation):
+class HasSingleBlockImplicitTerminatorWrongCreation2Op(IRDLOperation):
     """
     An operation that expects a single-block region and an implicit terminator trait for
     that block, but ensure_terminator() has not been called during construction.
@@ -338,14 +329,12 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp2(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region = region_def()
-    opt_region: OptRegion = opt_region_def()
+    region = region_def()
+    opt_region = opt_region_def()
 
-    traits = frozenset(
-        [
-            NoTerminator(),
-            SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp),
-        ]
+    traits = traits_def(
+        NoTerminator(),
+        SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp),
     )
 
 
@@ -353,39 +342,39 @@ def test_single_block_implicit_terminator_verify():
     # test empty single-region op
     op0 = HasSingleBlockImplicitTerminatorOp(regions=[Region(), []])
     op0.verify()
-    assert len(op0.region.blocks[0].ops) == 1
+    assert len(op0.region.block.ops) == 1
 
     # test empty multi-region op
     op1 = HasSingleBlockImplicitTerminatorOp(regions=[Region(), Region()])
     op1.verify()
-    assert len(op1.region.blocks[0].ops) == 1
+    assert len(op1.region.block.ops) == 1
     assert op1.opt_region is not None
-    assert len(op1.opt_region.blocks[0].ops) == 1
+    assert len(op1.opt_region.block.ops) == 1
 
     # test non-empty multi-region op
     op2 = HasSingleBlockImplicitTerminatorOp(regions=[Region(Block()), Region()])
     op2.verify()
-    assert len(op2.region.blocks[0].ops) == 1
+    assert len(op2.region.block.ops) == 1
     assert op2.opt_region is not None
-    assert len(op2.opt_region.blocks[0].ops) == 1
+    assert len(op2.opt_region.block.ops) == 1
 
     # test non-empty multi-region op with non-terminator operation
     op3 = HasSingleBlockImplicitTerminatorOp(
         regions=[Region(Block([TestOp.create()])), Region()]
     )
     op3.verify()
-    assert len(op3.region.blocks[0].ops) == 2
+    assert len(op3.region.block.ops) == 2
     assert op3.opt_region is not None
-    assert len(op3.opt_region.blocks[0].ops) == 1
+    assert len(op3.opt_region.block.ops) == 1
 
     # test non-empty multi-region op with correct terminator already there
     op4 = HasSingleBlockImplicitTerminatorOp(
         regions=[Region(Block([IsSingleBlockImplicitTerminatorOp.create()])), Region()]
     )
     op4.verify()
-    assert len(op4.region.blocks[0].ops) == 1
+    assert len(op4.region.block.ops) == 1
     assert op4.opt_region is not None
-    assert len(op4.opt_region.blocks[0].ops) == 1
+    assert len(op4.opt_region.block.ops) == 1
 
 
 def test_single_block_implicit_terminator_with_correct_construction_fail():
@@ -431,7 +420,7 @@ def test_single_block_implicit_terminator_with_wrong_construction_fail():
     ):
         op1.verify()
 
-    op2 = HasSingleBlockImplicitTerminatorWrongCreationOp2(
+    op2 = HasSingleBlockImplicitTerminatorWrongCreation2Op(
         regions=[Region(Block()), Region()]
     )
     # test single-block region op with wrong terminator
@@ -450,9 +439,9 @@ class IsolatedFromAboveOp(IRDLOperation):
 
     name = "test.isolated_from_above"
 
-    region: Region = region_def()
+    region = region_def()
 
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = traits_def(IsolatedFromAbove(), NoTerminator())
 
 
 def test_isolated_from_above():
@@ -461,28 +450,28 @@ def test_isolated_from_above():
     op.verify()
 
     block = Block(arg_types=[builtin.i32])
-    block.add_op(arith.Addi(block.args[0], block.args[0]))
+    block.add_op(arith.AddiOp(block.args[0], block.args[0]))
 
     # Test a simple, properly Isolated
     op = IsolatedFromAboveOp(regions=[Region([block])])
     op.verify()
 
     # Check a simple isolation violation
-    out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
+    out_cst = arith.ConstantOp.from_int_and_width(0, builtin.i32)
     out_block = Block(
         [
             out_cst,
             IsolatedFromAboveOp(
-                regions=[Region(Block([arith.Addi(out_cst, out_cst)]))]
+                regions=[Region(Block([arith.AddiOp(out_cst, out_cst)]))]
             ),
         ]
     )
-    message = "Operation using value defined out of its IsolatedFromAbove parent!"
+    message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
     with pytest.raises(VerifyException, match=message):
         out_block.verify()
 
     # Check a nested isolation violation
-    out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
+    out_cst = arith.ConstantOp.from_int_and_width(0, builtin.i32)
     out_block = Block(
         [
             # This one is fine
@@ -495,7 +484,7 @@ def test_isolated_from_above():
                                 # This one is not!
                                 in_isolated := IsolatedFromAboveOp(
                                     regions=[
-                                        Region(Block([arith.Addi(out_cst, out_cst)]))
+                                        Region(Block([arith.AddiOp(out_cst, out_cst)]))
                                     ]
                                 ),
                             ],
@@ -506,7 +495,7 @@ def test_isolated_from_above():
         ]
     )
     # Check that the IR as a whole is wrong
-    message = "Operation using value defined out of its IsolatedFromAbove parent!"
+    message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
     with pytest.raises(VerifyException, match=message):
         out_block.verify()
     # Check that the outer one in itself is fine

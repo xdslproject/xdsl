@@ -10,15 +10,24 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Dialect, EnumAttribute, OpaqueSyntaxAttribute, StrEnum
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    SpacedOpaqueSyntaxAttribute,
+    StrEnum,
+)
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    SameVariadicOperandSize,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     opt_operand_def,
     opt_prop_def,
     region_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import IsTerminator
@@ -42,27 +51,39 @@ class OrderKind(StrEnum):
 
 
 @irdl_attr_definition
-class ScheduleKindAttr(EnumAttribute[ScheduleKind], OpaqueSyntaxAttribute):
+class ScheduleKindAttr(EnumAttribute[ScheduleKind], SpacedOpaqueSyntaxAttribute):
     name = "omp.schedulekind"
 
 
 @irdl_attr_definition
-class ScheduleModifierAttr(EnumAttribute[ScheduleModifier], OpaqueSyntaxAttribute):
+class ScheduleModifierAttr(
+    EnumAttribute[ScheduleModifier], SpacedOpaqueSyntaxAttribute
+):
     name = "omp.sched_mod"
 
 
 @irdl_attr_definition
-class OrderKindAttr(EnumAttribute[OrderKind], OpaqueSyntaxAttribute):
+class OrderKindAttr(EnumAttribute[OrderKind], SpacedOpaqueSyntaxAttribute):
     name = "omp.orderkind"
+
+
+@irdl_op_definition
+class LoopNestOp(IRDLOperation):
+    name = "omp.loop_nest"
+
+    lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
+    upperBound = var_operand_def(base(IntegerType) | base(IndexType))
+    step = var_operand_def(base(IntegerType) | base(IndexType))
+
+    body = region_def("single_block")
+
+    irdl_options = [SameVariadicOperandSize()]
 
 
 @irdl_op_definition
 class WsLoopOp(IRDLOperation):
     name = "omp.wsloop"
 
-    lowerBound = var_operand_def(IntegerType | IndexType)
-    upperBound = var_operand_def(IntegerType | IndexType)
-    step = var_operand_def(IntegerType | IndexType)
     linear_vars = var_operand_def()
     linear_step_vars = var_operand_def(i32)
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
@@ -79,7 +100,7 @@ class WsLoopOp(IRDLOperation):
     order_val = opt_prop_def(OrderKindAttr)
     inclusive = opt_prop_def(UnitAttr)
 
-    body = region_def()
+    body = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -91,7 +112,7 @@ class ProcBindKindEnum(StrEnum):
     Spread = auto()
 
 
-class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], OpaqueSyntaxAttribute):
+class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttribute):
     name = "omp.procbindkind"
 
 
@@ -100,17 +121,19 @@ class ParallelOp(IRDLOperation):
     name = "omp.parallel"
 
     if_expr_var = opt_operand_def(IntegerType(1))
-    num_threads_var = opt_operand_def(IntegerType | IndexType)
+    num_threads_var = opt_operand_def(base(IntegerType) | base(IndexType))
     allocate_vars = var_operand_def()
     allocators_vars = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
     reduction_vars = var_operand_def()
+    private_vars = var_operand_def()
 
     region = region_def()
 
     reductions = opt_prop_def(ArrayAttr[SymbolRefAttr])
     proc_bind_val = opt_prop_def(ProcBindKindAttr)
+    privatizers = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -119,14 +142,14 @@ class ParallelOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     name = "omp.terminator"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 OMP = Dialect(
@@ -135,6 +158,7 @@ OMP = Dialect(
         ParallelOp,
         TerminatorOp,
         WsLoopOp,
+        LoopNestOp,
         YieldOp,
     ],
     [

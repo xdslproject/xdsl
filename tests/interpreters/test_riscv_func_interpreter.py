@@ -13,13 +13,13 @@ index = IndexType()
 @ModuleOp
 @Builder.implicit_region
 def my_module():
-    register = riscv.IntRegisterType.unallocated()
+    a0 = riscv.Registers.A0
 
-    @Builder.implicit_region((register,))
+    @Builder.implicit_region((a0,))
     def body(args: tuple[BlockArgument, ...]) -> None:
         riscv_func.ReturnOp(*args)
 
-    riscv_func.FuncOp("id", body, ((register,), (register,)))
+    riscv_func.FuncOp("id", body, ((a0,), (a0,)))
 
 
 def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
@@ -30,6 +30,6 @@ def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     return result
 
 
-@pytest.mark.parametrize("n,res", ((0, 0), (1, 1)))
+@pytest.mark.parametrize("n,res", [(0, 0), (1, 1)])
 def test_sum_to(n: int, res: int):
     assert res == scf_interp(my_module, "id", n)

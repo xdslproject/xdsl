@@ -1,7 +1,7 @@
 import pytest
 
-from xdsl.dialects.affine import For
-from xdsl.dialects.arith import Addi, Constant
+from xdsl.dialects.affine import ForOp
+from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import i32
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
@@ -17,7 +17,7 @@ def test_raises_exception_on_empty_stack():
 
 def test_raises_exception_on_op_with_no_regions():
     inserter = OpInserter(Block())
-    op_with_no_region = Constant.from_int_and_width(1, i32)
+    op_with_no_region = ConstantOp.from_int_and_width(1, i32)
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_op(op_with_no_region)
     assert err.value.msg == (
@@ -28,7 +28,7 @@ def test_raises_exception_on_op_with_no_regions():
 
 def test_raises_exception_on_op_with_no_blocks():
     inserter = OpInserter(Block())
-    op_with_no_region = For.from_region([], [], [], [], 0, 10, Region())
+    op_with_no_region = ForOp.from_region([], [], [], [], 0, 10, Region())
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_op(op_with_no_region)
     assert err.value.msg == (
@@ -48,11 +48,10 @@ def test_raises_exception_on_op_with_no_blocks_II():
 
 
 def test_inserts_ops():
-    region = Region([Block(), Block()])
-    inserter = OpInserter(region.blocks[0])
+    inserter = OpInserter(Block())
 
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
 
     inserter.insert_op(a)
     inserter.insert_op(b)
@@ -60,7 +59,7 @@ def test_inserts_ops():
     b = inserter.get_operand()
     a = inserter.get_operand()
 
-    c = Addi(a, b)
+    c = AddiOp(a, b)
     inserter.insert_op(c)
 
     assert len(inserter.stack) == 1

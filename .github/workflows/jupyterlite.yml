@@ -11,18 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout xDSL
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: xdsl
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip' # caching pip dependencies
+          cache-dependency-path: |
+            setup.py
+            requirements.txt
 
       - name: Install dependencies
         run: |
-          python -m pip install jupyterlite-core==0.1.2 jupyterlite-pyodide-kernel==0.1.0 libarchive-c build pyodide-build==0.23.4 jupyter-server
+          python -m pip install jupyterlite-core==0.2.3 jupyterlite-pyodide-kernel==0.2.1 libarchive-c build pyodide-build==0.24.1 jupyter-server
 
       - name: Build xDSL source distribution
         run: |
@@ -34,7 +38,7 @@ jobs:
 
       - name: Restore cached Pyodide tree
         id: cache-pyodide
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: pyodide
           key: pyodide
@@ -50,7 +54,7 @@ jobs:
 
           cd pyodide
           git fetch --all
-          git checkout 0.23.4
+          git checkout 0.24.1
           python -m pip install -U -r requirements.txt
           sudo apt update && sudo apt install f2c
 
@@ -58,7 +62,7 @@ jobs:
 
           ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
 
-          PYODIDE_PACKAGES="xdsl" make
+          PYODIDE_PACKAGES="xdsl,typing-extensions" make
 
       - name: Build the JupyterLite site
         run: |

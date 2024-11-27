@@ -1,10 +1,7 @@
+
 # ListView
-#passes_list_view{
-    border: heavy $accent-darken-1;
-    border-title-color: $error-darken-3;
-    border-title-style: bold;
-    border-title-align: center;
-    height: 100%;
+#selected_passes_list_view{
+    height: auto;
 }
 
 # Button
@@ -19,12 +16,9 @@
     overflow: hidden;
 }
 
-# ScrollableContainer(Label)
-#selected_passes {
-    border: heavy $accent-darken-1;
-    border-title-color: $error-darken-3;
-    border-title-style: bold;
-    border-title-align: center;
+# Vertical(ListView, Tree)
+#veritcal_tree_selected_passes_list_view{
+    height: auto;
 }
 
 # Horizontal(Button, Button)

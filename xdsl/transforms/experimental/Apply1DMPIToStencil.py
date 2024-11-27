@@ -1,5 +1,6 @@
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
-from xdsl.ir import MLContext, Operation, TypeAttribute
+from xdsl.ir import Operation, TypeAttribute
 from xdsl.irdl import Operand
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -25,19 +26,19 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations: list[Operation] = []
 
         # Rank and size
-        comm_size_op = mpi.CommSize()
-        comm_rank_op = mpi.CommRank()
+        comm_size_op = mpi.CommSizeOp()
+        comm_rank_op = mpi.CommRankOp()
         mpi_operations += [comm_size_op, comm_rank_op]
 
         # Constants we need to use
-        zero = arith.Constant.from_int_and_width(0, 32)
-        one = arith.Constant.from_int_and_width(1, 32)
-        one_i64 = arith.Constant.from_int_and_width(1, 64)
-        two = arith.Constant.from_int_and_width(2, 32)
-        two_i64 = arith.Constant.from_int_and_width(2, 64)
-        three = arith.Constant.from_int_and_width(3, 32)
-        four = arith.Constant.from_int_and_width(4, 32)
-        eight_i64 = arith.Constant.from_int_and_width(8, 64)
+        zero = arith.ConstantOp.from_int_and_width(0, 32)
+        one = arith.ConstantOp.from_int_and_width(1, 32)
+        one_i64 = arith.ConstantOp.from_int_and_width(1, 64)
+        two = arith.ConstantOp.from_int_and_width(2, 32)
+        two_i64 = arith.ConstantOp.from_int_and_width(2, 64)
+        three = arith.ConstantOp.from_int_and_width(3, 32)
+        four = arith.ConstantOp.from_int_and_width(4, 32)
+        eight_i64 = arith.ConstantOp.from_int_and_width(8, 64)
         mpi_operations += [zero, one, one_i64, two, two_i64, three, four, eight_i64]
 
         # The underlying datatype we use in communications and size in dimension zero
@@ -46,8 +47,8 @@ class ApplyMPIToExternalLoad(RewritePattern):
         int_attr: builtin.IntegerAttr[builtin.IndexType] = builtin.IntegerAttr(
             0, builtin.IndexType()
         )
-        dim_zero_const = arith.Constant(int_attr, builtin.IndexType())
-        dim_zero_size_op = memref.Dim.from_source_and_index(op.field, dim_zero_const)
+        dim_zero_const = arith.ConstantOp(int_attr, builtin.IndexType())
+        dim_zero_size_op = memref.DimOp.from_source_and_index(op.field, dim_zero_const)
         dim_zero_i32_op = arith.IndexCastOp(dim_zero_size_op, builtin.i32)
         dim_zero_i64_op = arith.IndexCastOp(dim_zero_size_op, builtin.i64)
 
@@ -69,9 +70,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations += [alloc_request_op]
 
         # Comparison for top and bottom ranks
-        compare_top_op = arith.Cmpi(comm_rank_op, zero, "sgt")
-        size_minus_one = arith.Subi(comm_size_op, one)
-        compare_bottom_op = arith.Cmpi(comm_rank_op, size_minus_one, "slt")
+        compare_top_op = arith.CmpiOp(comm_rank_op, zero, "sgt")
+        size_minus_one = arith.SubiOp(comm_size_op, one)
+        compare_bottom_op = arith.CmpiOp(comm_rank_op, size_minus_one, "slt")
         mpi_operations += [compare_top_op, size_minus_one, compare_bottom_op]
 
         # MPI Request look ups (we need these regardless)
@@ -79,7 +80,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         alloc_lookup_op_one = mpi.VectorGetOp(alloc_request_op, one)
         alloc_lookup_op_two = mpi.VectorGetOp(alloc_request_op, two)
         alloc_lookup_op_three = mpi.VectorGetOp(alloc_request_op, three)
-        mpi_request_null = arith.Constant.from_int_and_width(0x2C000000, builtin.i32)
+        mpi_request_null = arith.ConstantOp.from_int_and_width(0x2C000000, builtin.i32)
         mpi_operations += [
             alloc_lookup_op_zero,
             alloc_lookup_op_one,
@@ -89,13 +90,13 @@ class ApplyMPIToExternalLoad(RewritePattern):
         ]
 
         # Send and recv my first row of data to rank -1
-        rank_m1_op = arith.Subi(comm_rank_op, one)
+        rank_m1_op = arith.SubiOp(comm_rank_op, one)
 
-        add_offset = arith.Muli(dim_zero_i64_op, eight_i64)
-        added_ptr = arith.Addi(index_memref_i64, add_offset)
+        add_offset = arith.MuliOp(dim_zero_i64_op, eight_i64)
+        added_ptr = arith.AddiOp(index_memref_i64, add_offset)
         send_ptr = llvm.IntToPtrOp(added_ptr)
 
-        mpi_send_top_op = mpi.Isend(
+        mpi_send_top_op = mpi.IsendOp(
             send_ptr,
             dim_zero_i32_op,
             datatype_op,
@@ -105,7 +106,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
 
         recv_ptr = llvm.IntToPtrOp(index_memref_i64)
-        mpi_recv_top_op = mpi.Irecv(
+        mpi_recv_top_op = mpi.IrecvOp(
             recv_ptr,
             dim_zero_i32_op,
             datatype_op,
@@ -124,7 +125,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
         null_req_one = llvm.StoreOp(mpi_request_null, one_conv)
 
-        top_halo_exhange = scf.If(
+        top_halo_exhange = scf.IfOp(
             compare_top_op,
             [],
             [
@@ -135,23 +136,23 @@ class ApplyMPIToExternalLoad(RewritePattern):
                 mpi_send_top_op,
                 recv_ptr,
                 mpi_recv_top_op,
-                scf.Yield(),
+                scf.YieldOp(),
             ],
-            [zero_conv, null_req_zero, one_conv, null_req_one, scf.Yield()],
+            [zero_conv, null_req_zero, one_conv, null_req_one, scf.YieldOp()],
         )
         mpi_operations += [top_halo_exhange]
 
         # Send and recv my last row of data to rank +1
-        rank_p1_op = arith.Addi(comm_rank_op, one)
+        rank_p1_op = arith.AddiOp(comm_rank_op, one)
 
         # Need to multiple row by column -2 (for data row)
-        col_row_b_send = arith.Subi(dim_zero_i64_op, two_i64)
-        element_b_send = arith.Muli(col_row_b_send, dim_zero_i64_op)
-        add_offset_b_send = arith.Muli(element_b_send, eight_i64)
-        added_ptr_b_send = arith.Addi(index_memref_i64, add_offset_b_send)
+        col_row_b_send = arith.SubiOp(dim_zero_i64_op, two_i64)
+        element_b_send = arith.MuliOp(col_row_b_send, dim_zero_i64_op)
+        add_offset_b_send = arith.MuliOp(element_b_send, eight_i64)
+        added_ptr_b_send = arith.AddiOp(index_memref_i64, add_offset_b_send)
         ptr_b_send = llvm.IntToPtrOp(added_ptr_b_send)
 
-        mpi_send_bottom_op = mpi.Isend(
+        mpi_send_bottom_op = mpi.IsendOp(
             ptr_b_send,
             dim_zero_i32_op,
             datatype_op,
@@ -162,13 +163,13 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # Now do the recv
 
-        col_row_b_recv = arith.Subi(dim_zero_i64_op, one_i64)
-        element_b_recv = arith.Muli(col_row_b_recv, dim_zero_i64_op)
-        add_offset_b_recv = arith.Muli(element_b_recv, eight_i64)
-        added_ptr_b_recv = arith.Addi(index_memref_i64, add_offset_b_recv)
+        col_row_b_recv = arith.SubiOp(dim_zero_i64_op, one_i64)
+        element_b_recv = arith.MuliOp(col_row_b_recv, dim_zero_i64_op)
+        add_offset_b_recv = arith.MuliOp(element_b_recv, eight_i64)
+        added_ptr_b_recv = arith.AddiOp(index_memref_i64, add_offset_b_recv)
         ptr_b_recv = llvm.IntToPtrOp(added_ptr_b_recv)
 
-        mpi_recv_bottom_op = mpi.Irecv(
+        mpi_recv_bottom_op = mpi.IrecvOp(
             ptr_b_recv,
             dim_zero_i32_op,
             datatype_op,
@@ -187,7 +188,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
         null_req_three = llvm.StoreOp(mpi_request_null, three_conv)
 
-        bottom_halo_exhange = scf.If(
+        bottom_halo_exhange = scf.IfOp(
             compare_bottom_op,
             [],
             [
@@ -204,15 +205,15 @@ class ApplyMPIToExternalLoad(RewritePattern):
                 added_ptr_b_recv,
                 ptr_b_recv,
                 mpi_recv_bottom_op,
-                scf.Yield(),
+                scf.YieldOp(),
             ],
-            [two_conv, null_req_two, three_conv, null_req_three, scf.Yield()],
+            [two_conv, null_req_two, three_conv, null_req_three, scf.YieldOp()],
         )
 
         mpi_operations += [bottom_halo_exhange]
         req_ops: Operand = alloc_request_op.results[0]
 
-        wait_op = mpi.Waitall.get(req_ops, four.results[0])
+        wait_op = mpi.WaitallOp(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
         rewriter.insert_op_after_matched_op(mpi_operations)

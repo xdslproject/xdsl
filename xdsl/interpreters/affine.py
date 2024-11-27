@@ -14,9 +14,9 @@ from xdsl.interpreters.shaped_array import ShapedArray
 
 @register_impls
 class AffineFunctions(InterpreterFunctions):
-    @impl(affine.Store)
+    @impl(affine.StoreOp)
     def run_store(
-        self, interpreter: Interpreter, op: affine.Store, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: affine.StoreOp, args: tuple[Any, ...]
     ):
         value, memref, *affine_dims = args
 
@@ -31,9 +31,9 @@ class AffineFunctions(InterpreterFunctions):
 
         return ()
 
-    @impl(affine.Load)
+    @impl(affine.LoadOp)
     def run_load(
-        self, interpreter: Interpreter, op: affine.Load, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: affine.LoadOp, args: tuple[Any, ...]
     ):
         memref, *affine_dims = args
 
@@ -47,8 +47,10 @@ class AffineFunctions(InterpreterFunctions):
 
         return (value,)
 
-    @impl(affine.For)
-    def run_for(self, interpreter: Interpreter, op: affine.For, args: tuple[Any, ...]):
+    @impl(affine.ForOp)
+    def run_for(
+        self, interpreter: Interpreter, op: affine.ForOp, args: tuple[Any, ...]
+    ):
         assert not args, "Arguments not supported yet"
         assert not op.results, "Results not supported yet"
 
@@ -68,8 +70,14 @@ class AffineFunctions(InterpreterFunctions):
 
         return ()
 
-    @impl_terminator(affine.Yield)
+    @impl(affine.ApplyOp)
+    def run_apply(
+        self, interpreter: Interpreter, op: affine.ApplyOp, args: tuple[Any, ...]
+    ):
+        return op.map.data.eval(args, ())
+
+    @impl_terminator(affine.YieldOp)
     def run_yield(
-        self, interpreter: Interpreter, op: affine.Yield, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: affine.YieldOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()

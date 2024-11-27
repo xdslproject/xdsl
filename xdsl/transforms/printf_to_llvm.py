@@ -2,8 +2,9 @@ import hashlib
 import re
 from collections.abc import Iterable
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, llvm, printf
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -148,6 +149,9 @@ class PrintfToLLVM(ModulePass):
         add_printf_call = PrintlnOpToPrintfCall()
 
         PatternRewriteWalker(add_printf_call).rewrite_module(op)
+
+        if not add_printf_call.collected_global_symbs:
+            return
 
         op.body.block.add_ops(
             [

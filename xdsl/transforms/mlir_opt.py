@@ -3,8 +3,8 @@ import subprocess
 from dataclasses import dataclass, field
 from io import StringIO
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
@@ -12,7 +12,7 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import DiagnosticException
 
 
-@dataclass
+@dataclass(frozen=True)
 class MLIROptPass(ModulePass):
     """
     A pass for calling the `mlir-opt` tool with specified parameters. Will fail if
@@ -21,22 +21,24 @@ class MLIROptPass(ModulePass):
 
     name = "mlir-opt"
 
-    arguments: list[str] = field(default_factory=list)
+    executable: str = field(default="mlir-opt")
+    generic: bool = field(default=True)
+    arguments: tuple[str, ...] = field(default=())
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        if not shutil.which("mlir-opt"):
-            raise ValueError("mlir-opt is not available")
+        if not shutil.which(self.executable):
+            raise ValueError(f"{self.executable} is not available")
 
         stream = StringIO()
-        printer = Printer(print_generic_format=True, stream=stream)
+        printer = Printer(print_generic_format=self.generic, stream=stream)
         printer.print(op)
 
         my_string = stream.getvalue()
 
         completed_process = subprocess.run(
-            ["mlir-opt", *self.arguments],
+            [self.executable, *self.arguments],
             input=my_string,
-            stdout=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
 
@@ -53,5 +55,8 @@ class MLIROptPass(ModulePass):
             rewriter = PatternRewriter(op)
             op.detach_region(op.body)
             op.add_region(rewriter.move_region_contents_to_new_regions(new_module.body))
+            op.attributes = new_module.attributes
         except Exception as e:
-            raise DiagnosticException("Error executing mlir-opt pass") from e
+            raise DiagnosticException(
+                "Error executing mlir-opt pass:", completed_process.stderr
+            ) from e

@@ -1,8 +1,11 @@
 import pytest
 
 import xdsl.dialects.pdl as pdl
+from xdsl.builder import Builder
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
 from xdsl.ir import Block
+from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -26,17 +29,17 @@ type_val, attr_val, val_val, op_val = block.args
 def test_build_anc():
     anc = pdl.ApplyNativeConstraintOp("anc", [type_val])
 
-    assert anc.attributes["name"] == StringAttr("anc")
+    assert anc.constraint_name == StringAttr("anc")
     assert anc.args == (type_val,)
 
 
 def test_build_anr():
     anr = pdl.ApplyNativeRewriteOp("anr", [type_val], [attribute_type])
 
-    assert anr.attributes["name"] == StringAttr("anr")
+    assert anr.constraint_name == StringAttr("anr")
     assert anr.args == (type_val,)
     assert len(anr.results) == 1
-    assert [r.type for r in anr.results] == [attribute_type]
+    assert anr.result_types == (attribute_type,)
 
 
 def test_build_rewrite():
@@ -44,7 +47,7 @@ def test_build_rewrite():
         name="r", root=None, external_args=[type_val, attr_val], body=None
     )
 
-    assert r.attributes["name"] == StringAttr("r")
+    assert r.name_ == StringAttr("r")
     assert r.external_args == (type_val, attr_val)
     assert len(r.results) == 0
     assert r.body is None
@@ -92,6 +95,47 @@ def test_build_operation_replace():
             op_value=op_val, repl_operation=operation.results[0], repl_values=[val_val]
         )
         replace.verify()
+
+
+def test_build_pattern():
+    @Builder.implicit_region
+    def body() -> None:
+        root = pdl.OperationOp("test.op")
+        pdl.RewriteOp(root.results[0])
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+
+    assert pattern.benefit == IntegerAttr.from_int_and_width(1, 16)
+    assert pattern.sym_name == StringAttr("pattern")
+    assert pattern.body is body
+
+    @irdl_op_definition
+    class DummyTerminatorOp(IRDLOperation):
+        name = "dummy.terminator"
+        traits = traits_def(HasParent(pdl.PatternOp), IsTerminator())
+
+    with pytest.raises(
+        VerifyException, match="expected body to terminate with a `pdl.rewrite`"
+    ):
+
+        @Builder.implicit_region
+        def body() -> None:
+            DummyTerminatorOp()
+
+        pattern = pdl.PatternOp(1, "pattern", body)
+        pattern.verify()
+
+    with pytest.raises(
+        VerifyException, match="the pattern must contain at least one `pdl.operation`"
+    ):
+        root = pdl.OperationOp("test.op")
+
+        @Builder.implicit_region
+        def body() -> None:
+            pdl.RewriteOp(root.results[0])
+
+        pattern = pdl.PatternOp(1, "pattern", body)
+        pattern.verify()
 
 
 def test_build_result():

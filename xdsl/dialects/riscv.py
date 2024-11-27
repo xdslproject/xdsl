@@ -3,10 +3,16 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
+from itertools import chain
+from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterConstraints,
+)
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
@@ -16,31 +22,30 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
     UnitAttr,
+    i32,
 )
+from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
 from xdsl.ir import (
     Attribute,
     Block,
     Data,
     Dialect,
     Operation,
-    OpResult,
     Region,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     OptSingleBlockRegion,
-    VarOperand,
-    VarOpResult,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -48,8 +53,13 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    ConstantLike,
+    EffectInstance,
+    HasCanonicalizationPatternsTrait,
+    IsolatedFromAbove,
     IsTerminator,
+    MemoryEffect,
+    MemoryEffectKind,
     NoTerminator,
     Pure,
 )
@@ -57,47 +67,38 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
-class RISCVRegisterType(Data[str], TypeAttribute, ABC):
+@irdl_attr_definition
+class FastMathFlagsAttr(FastMathAttrBase):
+    """
+    riscv.fastmath is a mirror of LLVMs fastmath flags.
+    """
+
+    name = "riscv.fastmath"
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        # irdl_attr_definition defines an __init__ if none is defined, so we need to
+        # explicitely define one here.
+        super().__init__(flags)
+
+
+class RISCVRegisterType(RegisterType):
     """
     A RISC-V register type.
     """
 
-    _unallocated: ClassVar[Self | None] = None
-
     @classmethod
-    def unallocated(cls) -> Self:
-        if cls._unallocated is None:
-            cls._unallocated = cls("")
-        return cls._unallocated
-
-    @property
-    def register_name(self) -> str:
-        """Returns name if allocated, raises ValueError if not"""
-        if not self.is_allocated:
-            raise ValueError("Cannot get name for unallocated register")
-        return self.data
-
-    @property
-    def is_allocated(self) -> bool:
-        """Returns true if a RISCV register is allocated, otherwise false"""
-        return bool(self.data)
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        with parser.in_angle_brackets():
-            name = parser.parse_optional_identifier()
-            if name is None:
-                return ""
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        if parser.parse_optional_punctuation("<") is not None:
+            name = parser.parse_identifier()
+            parser.parse_punctuation(">")
             if not name.startswith("j"):
                 assert name in cls.abi_index_by_name(), f"{name}"
-            return name
-
-    def print_parameter(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string(self.data)
+        else:
+            name = ""
+        return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
-        name = self.data
+        name = self.spelling.data
         if not self.is_allocated or name.startswith("j"):
             return
         if name not in type(self).abi_index_by_name():
@@ -105,18 +106,45 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
 
     @classmethod
     @abstractmethod
-    def instruction_set_name(cls) -> str:
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
     def a_register(cls, index: int) -> Self:
         raise NotImplementedError()
+
+
+RV32I_INDEX_BY_NAME = {
+    "zero": 0,
+    "ra": 1,
+    "sp": 2,
+    "gp": 3,
+    "tp": 4,
+    "t0": 5,
+    "t1": 6,
+    "t2": 7,
+    "fp": 8,
+    "s0": 8,
+    "s1": 9,
+    "a0": 10,
+    "a1": 11,
+    "a2": 12,
+    "a3": 13,
+    "a4": 14,
+    "a5": 15,
+    "a6": 16,
+    "a7": 17,
+    "s2": 18,
+    "s3": 19,
+    "s4": 20,
+    "s5": 21,
+    "s6": 22,
+    "s7": 23,
+    "s8": 24,
+    "s9": 25,
+    "s10": 26,
+    "s11": 27,
+    "t3": 28,
+    "t4": 29,
+    "t5": 30,
+    "t6": 31,
+}
 
 
 @irdl_attr_definition
@@ -128,52 +156,56 @@ class IntRegisterType(RISCVRegisterType):
     name = "riscv.reg"
 
     @classmethod
+    def unallocated(cls) -> IntRegisterType:
+        return Registers.UNALLOCATED_INT
+
+    @classmethod
     def instruction_set_name(cls) -> str:
         return "RV32I"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return IntRegisterType.RV32I_INDEX_BY_NAME
+        return RV32I_INDEX_BY_NAME
 
     @classmethod
     def a_register(cls, index: int) -> IntRegisterType:
         return Registers.A[index]
 
-    RV32I_INDEX_BY_NAME = {
-        "zero": 0,
-        "ra": 1,
-        "sp": 2,
-        "gp": 3,
-        "tp": 4,
-        "t0": 5,
-        "t1": 6,
-        "t2": 7,
-        "fp": 8,
-        "s0": 8,
-        "s1": 9,
-        "a0": 10,
-        "a1": 11,
-        "a2": 12,
-        "a3": 13,
-        "a4": 14,
-        "a5": 15,
-        "a6": 16,
-        "a7": 17,
-        "s2": 18,
-        "s3": 19,
-        "s4": 20,
-        "s5": 21,
-        "s6": 22,
-        "s7": 23,
-        "s8": 24,
-        "s9": 25,
-        "s10": 26,
-        "s11": 27,
-        "t3": 28,
-        "t4": 29,
-        "t5": 30,
-        "t6": 31,
-    }
+
+RV32F_INDEX_BY_NAME = {
+    "ft0": 0,
+    "ft1": 1,
+    "ft2": 2,
+    "ft3": 3,
+    "ft4": 4,
+    "ft5": 5,
+    "ft6": 6,
+    "ft7": 7,
+    "fs0": 8,
+    "fs1": 9,
+    "fa0": 10,
+    "fa1": 11,
+    "fa2": 12,
+    "fa3": 13,
+    "fa4": 14,
+    "fa5": 15,
+    "fa6": 16,
+    "fa7": 17,
+    "fs2": 18,
+    "fs3": 19,
+    "fs4": 20,
+    "fs5": 21,
+    "fs6": 22,
+    "fs7": 23,
+    "fs8": 24,
+    "fs9": 25,
+    "fs10": 26,
+    "fs11": 27,
+    "ft8": 28,
+    "ft9": 29,
+    "ft10": 30,
+    "ft11": 31,
+}
 
 
 @irdl_attr_definition
@@ -185,51 +217,20 @@ class FloatRegisterType(RISCVRegisterType):
     name = "riscv.freg"
 
     @classmethod
+    def unallocated(cls) -> FloatRegisterType:
+        return Registers.UNALLOCATED_FLOAT
+
+    @classmethod
     def instruction_set_name(cls) -> str:
         return "RV32F"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return FloatRegisterType.RV32F_INDEX_BY_NAME
+        return RV32F_INDEX_BY_NAME
 
     @classmethod
     def a_register(cls, index: int) -> FloatRegisterType:
         return Registers.FA[index]
-
-    RV32F_INDEX_BY_NAME = {
-        "ft0": 0,
-        "ft1": 1,
-        "ft2": 2,
-        "ft3": 3,
-        "ft4": 4,
-        "ft5": 5,
-        "ft6": 6,
-        "ft7": 7,
-        "fs0": 8,
-        "fs1": 9,
-        "fa0": 10,
-        "fa1": 11,
-        "fa2": 12,
-        "fa3": 13,
-        "fa4": 14,
-        "fa5": 15,
-        "fa6": 16,
-        "fa7": 17,
-        "fs2": 18,
-        "fs3": 19,
-        "fs4": 20,
-        "fs5": 21,
-        "fs6": 22,
-        "fs7": 23,
-        "fs8": 24,
-        "fs9": 25,
-        "fs10": 26,
-        "fs11": 27,
-        "ft8": 28,
-        "ft9": 29,
-        "ft10": 30,
-        "ft11": 31,
-    }
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
@@ -241,6 +242,7 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
+    UNALLOCATED_INT = IntRegisterType("")
     ZERO = IntRegisterType("zero")
     RA = IntRegisterType("ra")
     SP = IntRegisterType("sp")
@@ -275,6 +277,7 @@ class Registers(ABC):
     T5 = IntRegisterType("t5")
     T6 = IntRegisterType("t6")
 
+    UNALLOCATED_FLOAT = FloatRegisterType("")
     FT0 = FloatRegisterType("ft0")
     FT1 = FloatRegisterType("ft1")
     FT2 = FloatRegisterType("ft2")
@@ -319,34 +322,17 @@ class Registers(ABC):
     FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
 
 
-@irdl_attr_definition
-class SImm12Attr(IntegerAttr[IntegerType]):
-    """
-    A 12-bit immediate signed value.
-    """
-
-    name = "riscv.simm12"
-
-    def __init__(self, value: int) -> None:
-        super().__init__(value, IntegerType(12, Signedness.SIGNED))
-
-    def verify(self) -> None:
-        """
-        All I- and S-type instructions with 12-bit signed immediates --- e.g., addi but not slli ---
-        accept their immediate argument as an integer in the interval [-2048, 2047]. Integers in the subinterval [-2048, -1]
-        can also be passed by their (unsigned) associates in the interval [0xfffff800, 0xffffffff] on RV32I,
-        and in [0xfffffffffffff800, 0xffffffffffffffff] on both RV32I and RV64I.
-
-        https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-        """
-
-        if 0xFFFFFFFFFFFFF800 <= self.value.data <= 0xFFFFFFFFFFFFFFFF:
-            return
-
-        if 0xFFFFF800 <= self.value.data <= 0xFFFFFFFF:
-            return
-
-        super().verify()
+ui5 = IntegerType(5, Signedness.UNSIGNED)
+si20 = IntegerType(20, Signedness.SIGNED)
+si12 = IntegerType(12, Signedness.SIGNED)
+i12 = IntegerType(12, Signedness.SIGNLESS)
+i20 = IntegerType(20, Signedness.SIGNLESS)
+UImm5Attr = IntegerAttr[Annotated[IntegerType, ui5]]
+SImm12Attr = IntegerAttr[Annotated[IntegerType, si12]]
+SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
+Imm12Attr = IntegerAttr[Annotated[IntegerType, i12]]
+Imm20Attr = IntegerAttr[Annotated[IntegerType, i20]]
+Imm32Attr = IntegerAttr[Annotated[IntegerType, i32]]
 
 
 @irdl_attr_definition
@@ -363,14 +349,23 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVOp(Operation, ABC):
+class RISCVAsmOperation(HasRegisterConstraints, IRDLOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
 
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(self.operands, self.results, ())
+
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
+
+
+class RISCVCustomFormatOperation(IRDLOperation, ABC):
+    """
+    Base class for RISC-V operations that specialize their custom format.
+    """
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -452,7 +447,7 @@ AssemblyInstructionArg: TypeAlias = (
 )
 
 
-class RISCVInstruction(RISCVOp):
+class RISCVInstruction(RISCVAsmOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing. Must
     represent an instruction in the RISC-V instruction set, and have the following format:
@@ -462,7 +457,7 @@ class RISCVInstruction(RISCVOp):
     The name of the operation will be used as the RISC-V assembly instruction name.
     """
 
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -480,7 +475,7 @@ class RISCVInstruction(RISCVOp):
         By default, the name of the instruction is the same as the name of the operation.
         """
 
-        return self.name.split(".", 1)[-1]
+        return Dialect.split_name(self.name)[1]
 
     def assembly_line(self) -> str | None:
         # default assembly code generator
@@ -526,8 +521,8 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
             reg = arg.type.register_name
             return reg
         else:
-            assert False, f"{arg.type}"
-    assert False, f"{arg}"
+            raise ValueError(f"Unexpected register type {arg.type}")
+    assert_never(arg)
 
 
 def _assembly_line(
@@ -546,7 +541,7 @@ def _assembly_line(
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     for op in module.body.walk():
-        assert isinstance(op, RISCVOp), f"{op}"
+        assert isinstance(op, RISCVAsmOperation), f"{op}"
         asm = op.assembly_line()
         if asm is not None:
             print(asm, file=output)
@@ -564,7 +559,7 @@ def riscv_code(module: ModuleOp) -> str:
 
 
 class RdRsRsOperation(
-    Generic[RDInvT, RS1InvT, RS2InvT], IRDLOperation, RISCVInstruction, ABC
+    Generic[RDInvT, RS1InvT, RS2InvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
 ):
     """
     A base class for RISC-V operations that have one destination register, and two source
@@ -573,9 +568,9 @@ class RdRsRsOperation(
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(RDInvT)
-    rs1: Operand = operand_def(RS1InvT)
-    rs2: Operand = operand_def(RS2InvT)
+    rd = result_def(RDInvT)
+    rs1 = operand_def(RS1InvT)
+    rs2 = operand_def(RS2InvT)
 
     def __init__(
         self,
@@ -600,14 +595,69 @@ class RdRsRsOperation(
         return self.rd, self.rs1, self.rs2
 
 
-class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsRsFloatOperationWithFastMath(
+    RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
+    """
+    A base class for RISC-V operations that have one destination floating-point register,
+    and two source floating-point registers and can be annotated with fastmath flags.
+
+    This is called R-Type in the RISC-V specification.
+    """
+
+    rd = result_def(FloatRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    fastmath = opt_attr_def(FastMathFlagsAttr)
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: FloatRegisterType,
+        fastmath: FastMathFlagsAttr | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs1, rs2],
+            attributes={
+                "fastmath": fastmath,
+                "comment": comment,
+            },
+            result_types=[rd],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.rs2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        flags = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        attributes["fastmath"] = flags
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        return {"fastmath"}
+
+
+class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(base(Imm20Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -617,7 +667,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.UNSIGNED))
+            immediate = IntegerAttr(immediate, i20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
@@ -641,18 +691,16 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(20, Signedness.UNSIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, i20)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
-class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     In the RISC-V spec, this is the same as `RdImmOperation`. For jumps, the `rd` register
     is neither an operand, because the stored value is overwritten, nor a result value,
@@ -660,22 +708,22 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rd: IntRegisterType | None = opt_attr_def(IntRegisterType)
+    rd = opt_attr_def(IntRegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate = attr_def(base(SImm20Attr) | base(LabelAttr))
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm20Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, si20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(rd, str):
@@ -696,16 +744,14 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(20, Signedness.SIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, si20)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -721,7 +767,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return (), ()
 
 
-class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -729,20 +775,20 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called I-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(base(SImm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -767,18 +813,16 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
-class RdRsImmShiftOperation(RdRsImmIntegerOperation):
+class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -792,29 +836,54 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
     """
 
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | UImm5Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(5, Signedness.UNSIGNED))
+            immediate = IntegerAttr(immediate, ui5)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
 
-        super().__init__(rs1, immediate, rd=rd, comment=comment)
+        if rd is None:
+            rd = IntRegisterType.unallocated()
+        elif isinstance(rd, str):
+            rd = IntRegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[rs1],
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(5, Signedness.UNSIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, ui5)
         return attributes
 
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
-class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
+
+class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -827,24 +896,24 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rd: IntRegisterType | None = opt_attr_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    rd = opt_attr_def(IntRegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate = attr_def(base(SImm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(12, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -869,30 +938,30 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, si12)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
         return {"immediate", "rd"}
 
 
-class RdRsOperation(Generic[RDInvT, RSInvT], IRDLOperation, RISCVInstruction, ABC):
+class RdRsOperation(
+    Generic[RDInvT, RSInvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
     source register.
     """
 
-    rd: OpResult = result_def(RDInvT)
-    rs: Operand = operand_def(RSInvT)
+    rd = result_def(RDInvT)
+    rs = operand_def(RSInvT)
 
     def __init__(
         self,
@@ -913,7 +982,7 @@ class RdRsOperation(Generic[RDInvT, RSInvT], IRDLOperation, RISCVInstruction, AB
         return self.rd, self.rs
 
 
-class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
     register, and an offset.
@@ -921,20 +990,20 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called B-Type in the RISC-V specification.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(IntRegisterType)
-    offset: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(IntRegisterType)
+    offset = attr_def(base(SImm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        offset: int | AnyIntegerAttr | LabelAttr,
+        offset: int | SImm12Attr | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(offset, int):
-            offset = IntegerAttr(offset, 12)
+            offset = IntegerAttr(offset, si12)
         if isinstance(offset, str):
             offset = LabelAttr(offset)
         if isinstance(comment, str):
@@ -954,16 +1023,16 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = _parse_immediate_value(parser, IntegerType(12))
+        attributes["offset"] = parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
-class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -971,20 +1040,20 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called S-Type in the RISC-V specification.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(IntRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(IntRegisterType)
+    immediate = attr_def(SImm12Attr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | Imm12Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -1004,36 +1073,44 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
-class RsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RsRsIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source
     registers.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(IntRegisterType)
 
-    def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             operands=[rs1, rs2],
+            attributes={
+                "comment": comment,
+            },
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2
 
 
-class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
+class NullaryOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
     """
@@ -1069,7 +1146,7 @@ class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
         return (), ()
 
 
-class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
+class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a swap to/from a CSR.
 
@@ -1080,10 +1157,10 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    writeonly = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -1115,10 +1192,10 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, IntRegisterType):
             return
-        if self.rd.type.is_allocated and self.rd.type.data != "zero":
+        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.data}'"
+                f"not '{self.rd.type.spelling.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1145,7 +1222,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         return {"csr", "writeonly"}
 
 
-class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
+class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value.
@@ -1158,10 +1235,10 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
       to writing to a CSR takes place even if the mask in rs has no actual bits set.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    readonly: UnitAttr | None = opt_attr_def(UnitAttr)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    readonly = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -1193,10 +1270,10 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rs1.type, IntRegisterType):
             return
-        if self.rs1.type.is_allocated and self.rs1.type.data != "zero":
+        if self.rs1.type.is_allocated and self.rs1.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.type.data}'"
+                f"not '{self.rs1.type.spelling.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1223,7 +1300,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         return {"csr", "readonly"}
 
 
-class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
+class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a write immediate to/read from a CSR.
 
@@ -1234,10 +1311,10 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
+    rd = result_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    writeonly = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -1269,10 +1346,10 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, IntRegisterType):
             return
-        if self.rd.type.is_allocated and self.rd.type.data != "zero":
+        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.data}'"
+                f"not '{self.rd.type.spelling.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -1286,7 +1363,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
             IntegerType(32),
         )
         parser.parse_punctuation(",")
-        attributes["immediate"] = _parse_immediate_value(parser, IntegerType(32))
+        attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
         if parser.parse_optional_punctuation(",") is not None:
             if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
                 parser.raise_error(f"Expected 'w' flag, got '{flag}'")
@@ -1297,13 +1374,13 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
             printer.print(', "w"')
         return {"csr", "immediate", "writeonly"}
 
 
-class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
+class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value. The bitmask is specified in the 'immediate'
@@ -1316,9 +1393,9 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
       place.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    rd = result_def(IntRegisterType)
+    csr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1354,14 +1431,14 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
             IntegerType(32),
         )
         parser.parse_punctuation(",")
-        attributes["immediate"] = _parse_immediate_value(parser, IntegerType(32))
+        attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
 
 
@@ -1372,7 +1449,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
 ## Integer Register-Immediate Instructions
 
 
-class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -1399,7 +1476,7 @@ class AddiOp(RdRsImmIntegerOperation):
 
     name = "riscv.addi"
 
-    traits = frozenset((Pure(), AddiOpHasCanonicalizationPatternsTrait()))
+    traits = traits_def(Pure(), AddiOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1472,7 +1549,7 @@ class XoriOp(RdRsImmIntegerOperation):
     name = "riscv.xori"
 
 
-class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import ShiftLeftImmediate
@@ -1493,7 +1570,7 @@ class SlliOp(RdRsImmShiftOperation):
 
     name = "riscv.slli"
 
-    traits = frozenset((SlliOpHasCanonicalizationPatternsTrait(),))
+    traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1553,10 +1630,12 @@ class AuipcOp(RdImmIntegerOperation):
     name = "riscv.auipc"
 
 
-class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class MVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantMv
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            RemoveRedundantMv,
+        )
 
         return (RemoveRedundantMv(),)
 
@@ -1571,15 +1650,13 @@ class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.mv"
 
-    traits = frozenset(
-        (
-            Pure(),
-            MVHasCanonicalizationPatternsTrait(),
-        )
+    traits = traits_def(
+        Pure(),
+        MVHasCanonicalizationPatternsTrait(),
     )
 
 
-class FMVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class FMVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMv
@@ -1601,18 +1678,16 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.fmv.s"
 
-    traits = frozenset(
-        (
-            Pure(),
-            FMVHasCanonicalizationPatternsTrait(),
-        )
+    traits = traits_def(
+        Pure(),
+        FMVHasCanonicalizationPatternsTrait(),
     )
 
 
 ## Integer Register-Register Operations
 
 
-class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class AddOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -1636,11 +1711,9 @@ class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.add"
 
-    traits = frozenset(
-        (
-            Pure(),
-            AddOpHasCanonicalizationPatternsTrait(),
-        )
+    traits = traits_def(
+        Pure(),
+        AddOpHasCanonicalizationPatternsTrait(),
     )
 
 
@@ -1672,7 +1745,7 @@ class SltuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
     name = "riscv.sltu"
 
 
-class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import BitwiseAndByZero
@@ -1692,7 +1765,15 @@ class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.and"
 
-    traits = frozenset((BitwiseAndHasCanonicalizationPatternsTrait(),))
+    traits = traits_def(BitwiseAndHasCanonicalizationPatternsTrait())
+
+
+class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseOrByZero
+
+        return (BitwiseOrByZero(),)
 
 
 @irdl_op_definition
@@ -1707,6 +1788,19 @@ class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.or"
 
+    traits = traits_def(BitwiseOrHasCanonicalizationPatternsTrait())
+
+
+class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseXorByZero,
+            XorBySelf,
+        )
+
+        return (XorBySelf(), BitwiseXorByZero())
+
 
 @irdl_op_definition
 class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
@@ -1719,6 +1813,8 @@ class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.xor"
+
+    traits = traits_def(BitwiseXorHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1749,7 +1845,7 @@ class SrlOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     name = "riscv.srl"
 
 
-class SubOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -1773,7 +1869,7 @@ class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.sub"
 
-    traits = frozenset((SubOpHasCanonicalizationPatternsTrait(),))
+    traits = traits_def(SubOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1834,7 +1930,7 @@ class JOp(RdImmJumpOperation):
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm20Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1872,7 +1968,7 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 # Conditional Branches
@@ -2017,7 +2113,7 @@ class LhuOp(RdRsImmIntegerOperation):
     name = "riscv.lhu"
 
 
-class LwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -2040,7 +2136,7 @@ class LwOp(RdRsImmIntegerOperation):
 
     name = "riscv.lw"
 
-    traits = frozenset((LwOpHasCanonicalizationPatternTrait(),))
+    traits = traits_def(LwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2079,7 +2175,7 @@ class ShOp(RsRsImmIntegerOperation):
     name = "riscv.sh"
 
 
-class SwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class SwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -2101,7 +2197,7 @@ class SwOp(RsRsImmIntegerOperation):
 
     name = "riscv.sw"
 
-    traits = frozenset((SwOpHasCanonicalizationPatternTrait(),))
+    traits = traits_def(SwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2256,7 +2352,7 @@ class CsrrciOp(CsrBitwiseImmOperation):
 ## Multiplication Operations
 
 
-class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -2279,7 +2375,7 @@ class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.mul"
 
-    traits = frozenset((MulOpHasCanonicalizationPatternsTrait(),))
+    traits = traits_def(MulOpHasCanonicalizationPatternsTrait(), Pure())
 
 
 @irdl_op_definition
@@ -2378,10 +2474,20 @@ class RemuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 # https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
 
+class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadImmediate0,
+        )
+
+        return (LoadImmediate0(),)
+
+
 @irdl_op_definition
-class LiOp(RdImmIntegerOperation):
+class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
-    Loads an immediate into rd.
+    Loads a 32-bit immediate into rd.
 
     This is an assembler pseudo-instruction.
 
@@ -2390,27 +2496,62 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
-    traits = frozenset((Pure(),))
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(base(Imm32Attr) | base(LabelAttr))
+
+    traits = traits_def(Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait())
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | Imm32Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(32, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, i32)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if rd is None:
+            rd = IntRegisterType.unallocated()
+        elif isinstance(rd, str):
+            rd = IntRegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
 
-        super().__init__(immediate, rd=rd, comment=comment)
+        super().__init__(
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(32, Signedness.SIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, i32)
         return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate", "fastmath"}
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_attribute(self.rd.type)
 
 
 @irdl_op_definition
@@ -2429,7 +2570,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(IRDLOperation, RISCVOp):
+class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -2438,8 +2579,8 @@ class LabelOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.label"
-    label: LabelAttr = attr_def(LabelAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    label = attr_def(LabelAttr)
+    comment = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2484,7 +2625,7 @@ class LabelOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class DirectiveOp(IRDLOperation, RISCVOp):
+class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -2494,8 +2635,8 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.directive"
-    directive: StringAttr = attr_def(StringAttr)
-    value: StringAttr | None = opt_attr_def(StringAttr)
+    directive = attr_def(StringAttr)
+    value = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2551,7 +2692,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class AssemblySectionOp(IRDLOperation, RISCVOp):
+class AssemblySectionOp(RISCVAsmOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
     with the scope of a section.
@@ -2564,10 +2705,10 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.assembly_section"
-    directive: StringAttr = attr_def(StringAttr)
-    data: Region = region_def("single_block")
+    directive = attr_def(StringAttr)
+    data = region_def("single_block")
 
-    traits = frozenset([NoTerminator()])
+    traits = traits_def(NoTerminator(), IsolatedFromAbove())
 
     def __init__(
         self,
@@ -2615,7 +2756,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
+class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     """
     An instruction with unspecified semantics, that can be printed during assembly
     emission.
@@ -2634,10 +2775,10 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     """
 
     name = "riscv.custom_assembly_instruction"
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOpResult = var_result_def()
-    instruction_name: StringAttr = attr_def(StringAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    inputs = var_operand_def()
+    outputs = var_result_def()
+    instruction_name = attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -2669,9 +2810,9 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(IRDLOperation, RISCVOp):
+class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     name = "riscv.comment"
-    comment: StringAttr = attr_def(StringAttr)
+    comment = attr_def(StringAttr)
 
     def __init__(self, comment: str | StringAttr):
         if isinstance(comment, str):
@@ -2717,7 +2858,31 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
-class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
+class RegisterAllocatedMemoryEffect(MemoryEffect):
+    """
+    An assembly operation that only has side-effect if some registers are allocated to
+    it.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        effects = set[EffectInstance]()
+        if any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in chain(op.results)
+        ):
+            effects.add(EffectInstance(MemoryEffectKind.WRITE))
+        if any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in chain(op.operands)
+        ):
+            effects.add(EffectInstance(MemoryEffectKind.READ))
+        return effects
+
+
+class GetAnyRegisterOperation(
+    Generic[RDInvT], RISCVCustomFormatOperation, RISCVAsmOperation, ABC
+):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
     is useful for bridging the RISC-V convention that stores the result of function calls
@@ -2739,7 +2904,9 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
     ```
     """
 
-    res: OpResult = result_def(RDInvT)
+    res = result_def(RDInvT)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -2750,6 +2917,18 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
     def assembly_line(self) -> str | None:
         # Don't print assembly for creating a SSA value representing register
         return None
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_attribute(self.res.type)
 
 
 @irdl_op_definition
@@ -2767,17 +2946,19 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
 
-class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RV32F operations that take three
     floating-point input registers and a destination register,
     e.g: fused-multiply-add (FMA) instructions.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
-    rs3: Operand = operand_def(FloatRegisterType)
+    rd = result_def(FloatRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    rs3 = operand_def(FloatRegisterType)
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,
@@ -2807,15 +2988,17 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
-class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsRsFloatFloatIntegerOperation(
+    RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
     A base class for RV32F operations that take
     two floating-point input registers and an integer destination register.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
 
     def __init__(
         self,
@@ -2844,26 +3027,85 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2
 
 
-class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsRsFloatFloatIntegerOperationWithFastMath(
+    RISCVCustomFormatOperation, RISCVInstruction, ABC
+):
     """
-    A base class for RV32F operations that have two source registers
-    (one integer and one floating-point) and an immediate.
+    A base class for RISC-V operations that have two source floating-point
+    registers with an integer destination register, and can be annotated with fastmath flags.
+
+    This is called R-Type in the RISC-V specification.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    fastmath = attr_def(FastMathFlagsAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: IntRegisterType | str | None = None,
+        fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
+        comment: str | StringAttr | None = None,
+    ):
+        if rd is None:
+            rd = IntRegisterType.unallocated()
+        elif isinstance(rd, str):
+            rd = IntRegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs1, rs2],
+            attributes={
+                "comment": comment,
+                "fastmath": fastmath,
+            },
+            result_types=[rd],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.rs2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        fast = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            fast = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        attributes["fastmath"] = fast
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        return {"fastmath"}
+
+
+class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that have two source registers
+    (one integer and one floating-point) and an immediate.
+    """
+
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    immediate = attr_def(Imm12Attr)
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        immediate: int | Imm12Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -2883,38 +3125,36 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
-class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RV32Foperations that have one floating-point
     destination register, one source register and
     one immediate operand.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    rd = result_def(FloatRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(base(Imm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | Imm12Attr | str | LabelAttr,
         *,
         rd: FloatRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -2939,14 +3179,12 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -3003,7 +3241,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FAddSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point addition.
 
@@ -3014,11 +3252,11 @@ class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fadd.s"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FSubSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point substraction.
 
@@ -3031,7 +3269,7 @@ class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMulSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point multiplication.
 
@@ -3044,7 +3282,7 @@ class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FDivSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FDivSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point division.
 
@@ -3119,7 +3357,7 @@ class FSgnJXSOp(
 
 
 @irdl_op_definition
-class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of single precision data in rs1 and rs2 to rd.
 
@@ -3132,7 +3370,7 @@ class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMaxSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
@@ -3184,7 +3422,7 @@ class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FeqSOP(RdRsRsFloatFloatIntegerOperation):
+class FeqSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -3199,7 +3437,7 @@ class FeqSOP(RdRsRsFloatFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FltSOP(RdRsRsFloatFloatIntegerOperation):
+class FltSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet less comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -3214,7 +3452,7 @@ class FltSOP(RdRsRsFloatFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FleSOP(RdRsRsFloatFloatIntegerOperation):
+class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet less or equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -3284,7 +3522,7 @@ class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     name = "riscv.fmv.w.x"
 
 
-class FLwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class FLwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -3306,7 +3544,7 @@ class FLwOp(RdRsImmFloatOperation):
 
     name = "riscv.flw"
 
-    traits = frozenset((FLwOpHasCanonicalizationPatternTrait(),))
+    traits = traits_def(FLwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3318,7 +3556,7 @@ class FLwOp(RdRsImmFloatOperation):
         )
 
 
-class FSwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class FSwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -3340,7 +3578,7 @@ class FSwOp(RsRsImmFloatOperation):
 
     name = "riscv.fsw"
 
-    traits = frozenset((FSwOpHasCanonicalizationPatternTrait(),))
+    traits = traits_def(FSwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3369,7 +3607,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmadd.d"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -3384,11 +3622,21 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmsub.d"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
+
+
+class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            FuseMultiplyAddD,
+        )
+
+        return (FuseMultiplyAddD(),)
 
 
 @irdl_op_definition
-class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FAddDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point addition.
 
@@ -3399,11 +3647,14 @@ class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fadd.d"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(
+        Pure(),
+        FuseMultiplyAddDCanonicalizationPatternTrait(),
+    )
 
 
 @irdl_op_definition
-class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FSubDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point substraction.
 
@@ -3414,9 +3665,11 @@ class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fsub.d"
 
+    traits = traits_def(Pure())
+
 
 @irdl_op_definition
-class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMulDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point multiplication.
 
@@ -3427,11 +3680,11 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fmul.d"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FDivDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point division.
 
@@ -3443,7 +3696,7 @@ class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     name = "riscv.fdiv.d"
 
 
-class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class FLdOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -3454,7 +3707,7 @@ class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of double precision data in rs1 and rs2 to rd.
 
@@ -3465,11 +3718,11 @@ class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fmin.d"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
@@ -3480,7 +3733,7 @@ class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fmax.d"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -3495,7 +3748,7 @@ class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
     name = "riscv.fcvt.d.w"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -3510,7 +3763,7 @@ class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
     name = "riscv.fcvt.d.wu"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -3525,7 +3778,7 @@ class FLdOp(RdRsImmFloatOperation):
 
     name = "riscv.fld"
 
-    traits = frozenset((FLdOpHasCanonicalizationPatternTrait(),))
+    traits = traits_def(FLdOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3542,7 +3795,7 @@ class FLdOp(RdRsImmFloatOperation):
             )
 
 
-class FSdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class FSdOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -3564,7 +3817,7 @@ class FSdOp(RsRsImmFloatOperation):
 
     name = "riscv.fsd"
 
-    traits = frozenset((FSdOpHasCanonicalizationPatternTrait(),))
+    traits = traits_def(FSdOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3576,7 +3829,7 @@ class FSdOp(RsRsImmFloatOperation):
         )
 
 
-class FMvDHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class FMvDHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMvD
@@ -3594,11 +3847,9 @@ class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.fmv.d"
 
-    traits = frozenset(
-        (
-            Pure(),
-            FMvDHasCanonicalizationPatternsTrait(),
-        )
+    traits = traits_def(
+        Pure(),
+        FMvDHasCanonicalizationPatternsTrait(),
     )
 
 
@@ -3628,7 +3879,7 @@ class VFAddSOp(
 
     name = "riscv.vfadd.s"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -3644,7 +3895,7 @@ class VFMulSOp(
 
     name = "riscv.vfmul.s"
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
 
 # endregion
@@ -3656,13 +3907,17 @@ def _parse_optional_immediate_value(
     """
     Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
     """
+    pos = parser.pos
     if (immediate := parser.parse_optional_integer()) is not None:
-        return IntegerAttr(immediate, integer_type)
+        try:
+            return IntegerAttr(immediate, integer_type)
+        except VerifyException as e:
+            parser.raise_error(e.args[0], pos)
     if (immediate := parser.parse_optional_str_literal()) is not None:
         return LabelAttr(immediate)
 
 
-def _parse_immediate_value(
+def parse_immediate_value(
     parser: Parser, integer_type: IntegerType | IndexType
 ) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
     return parser.expect(
@@ -3671,7 +3926,7 @@ def _parse_immediate_value(
     )
 
 
-def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
+def print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
             printer.print(immediate.value.data)
@@ -3767,9 +4022,9 @@ RISCV = Dialect(
         FCvtWSOp,
         FCvtWuSOp,
         FMvXWOp,
-        FeqSOP,
-        FltSOP,
-        FleSOP,
+        FeqSOp,
+        FltSOp,
+        FleSOp,
         FClassSOp,
         FCvtSWOp,
         FCvtSWuOp,
@@ -3796,5 +4051,6 @@ RISCV = Dialect(
         IntRegisterType,
         FloatRegisterType,
         LabelAttr,
+        FastMathFlagsAttr,
     ],
 )

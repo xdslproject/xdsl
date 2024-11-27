@@ -1,6 +1,7 @@
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.dialects.stencil import ApplyOp, BufferOp, StoreOp
-from xdsl.ir import MLContext, OpResult, SSAValue
+from xdsl.dialects.stencil import ApplyOp, BufferOp, CombineOp, StoreOp
+from xdsl.ir import OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,19 +29,21 @@ class ApplyOpMaterialization(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: ApplyOp | CombineOp, rewriter: PatternRewriter, /):
         clone = op.clone()
         new_res: list[OpResult] = []
         buffers: list[BufferOp] = []
-        for i, out in enumerate(op.res):
+        for i, out in enumerate(op.results):
             if should_materialize(out):
-                buffer = BufferOp(clone.res[i])
+                buffer = BufferOp(clone.results[i])
                 buffers.append(buffer)
                 new_res.append(buffer.res)
             else:
                 new_res.append(out)
         if buffers:
             rewriter.replace_matched_op([clone, *buffers], new_res)
+        else:
+            clone.erase()
 
 
 class StencilStorageMaterializationPass(ModulePass):

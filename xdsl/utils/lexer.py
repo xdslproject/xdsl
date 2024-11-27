@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import ast
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
 from string import hexdigits
-from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast, overload
+from typing import Literal, TypeAlias, TypeGuard, cast, overload
 
 from xdsl.utils.exceptions import ParseError
 
@@ -36,7 +35,7 @@ class Input:
     def get_lines_containing(self, span: Span) -> tuple[list[str], int, int] | None:
         # A pointer to the start of the first line
         start = 0
-        line_no = 0
+        line_no = span.line_offset
         source = self.content
         while True:
             next_start = source.find("\n", start)
@@ -87,6 +86,11 @@ class Span:
     input: Input
     """
     The input being operated on
+    """
+
+    line_offset: int = 0
+    """
+    A line offset, to just add to ht file number in input when printed.
     """
 
     def __len__(self):
@@ -152,13 +156,11 @@ class StringLiteral(Span):
 
     @overload
     @classmethod
-    def from_span(cls, span: Span) -> StringLiteral:
-        ...
+    def from_span(cls, span: Span) -> StringLiteral: ...
 
     @overload
     @classmethod
-    def from_span(cls, span: None) -> None:
-        ...
+    def from_span(cls, span: None) -> None: ...
 
     @classmethod
     def from_span(cls, span: Span | None) -> StringLiteral | None:
@@ -173,8 +175,55 @@ class StringLiteral(Span):
 
     @property
     def string_contents(self):
-        # TODO: is this a hack-job?
-        return ast.literal_eval(self.text)
+        return self.bytes_contents.decode()
+
+    @property
+    def bytes_contents(self) -> bytes:
+        bytes_contents = bytearray()
+        iter_string = iter(self.text[1:-1])
+        for c0 in iter_string:
+            if c0 != "\\":
+                bytes_contents += c0.encode()
+            else:
+                c0 = next(iter_string)
+                match c0:
+                    case "n":
+                        bytes_contents += b"\n"
+                    case "t":
+                        bytes_contents += b"\t"
+                    case "\\":
+                        bytes_contents += b"\\"
+                    case '"':
+                        bytes_contents += b'"'
+                    case _:
+                        c1 = next(iter_string)
+                        bytes_contents += int(c0 + c1, 16).to_bytes(1, "big")
+
+        return bytes(bytes_contents)
+
+
+PunctuationSpelling: TypeAlias = Literal[
+    "->",
+    ":",
+    ",",
+    "...",
+    "=",
+    ">",
+    "{",
+    "(",
+    "[",
+    "<",
+    "-",
+    "+",
+    "?",
+    "}",
+    ")",
+    "]",
+    "*",
+    "|",
+    "{-#",
+    "#-}",
+]
 
 
 @dataclass
@@ -201,6 +250,7 @@ class Token:
         FLOAT_LIT = object()  # 1.0
         INTEGER_LIT = object()  # 1
         STRING_LIT = object()  # "foo"
+        BYTES_LIT = object()  # "foo\00\00"
 
         # Punctuation
         ARROW = "->"
@@ -256,42 +306,19 @@ class Token:
         @staticmethod
         def is_spelling_of_punctuation(
             spelling: str,
-        ) -> TypeGuard[Token.PunctuationSpelling]:
+        ) -> TypeGuard[PunctuationSpelling]:
             punctuation_dict = Token.Kind.get_punctuation_spelling_to_kind_dict()
             return spelling in punctuation_dict.keys()
 
         @staticmethod
         def get_punctuation_kind_from_spelling(
-            spelling: Token.PunctuationSpelling,
+            spelling: PunctuationSpelling,
         ) -> Token.Kind:
             assert Token.Kind.is_spelling_of_punctuation(spelling), (
                 "Kind.get_punctuation_kind_from_spelling: spelling is not a "
                 "valid punctuation spelling!"
             )
             return Token.Kind.get_punctuation_spelling_to_kind_dict()[spelling]
-
-    PunctuationSpelling: ClassVar[TypeAlias] = Literal[
-        "->",
-        ":",
-        ",",
-        "...",
-        "=",
-        ">",
-        "{",
-        "(",
-        "[",
-        "<",
-        "-",
-        "+",
-        "?",
-        "}",
-        ")",
-        "]",
-        "*",
-        "|",
-        "{-#",
-        "#-}",
-    ]
 
     kind: Kind
 
@@ -485,7 +512,9 @@ class Lexer:
             f"Unexpected character: {current_char}",
         )
 
-    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
+    IDENTIFIER_SUFFIX = r"[a-zA-Z0-9_$.]*"
+    bare_identifier_regex = re.compile(r"[a-zA-Z_]" + IDENTIFIER_SUFFIX)
+    bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX)
 
     def _lex_bare_identifier(self, start_pos: Position) -> Token:
         """
@@ -579,13 +608,17 @@ class Lexer:
         The first character `"` is expected to have already been parsed.
         """
 
+        bytes_token = False
         while self._is_in_bounds():
             self._consume_regex(self._unescaped_characters_regex)
             current_char = self._get_chars()
 
             # end of string literal
             if current_char == '"':
-                return self._form_token(Token.Kind.STRING_LIT, start_pos)
+                if bytes_token:
+                    return self._form_token(Token.Kind.BYTES_LIT, start_pos)
+                else:
+                    return self._form_token(Token.Kind.STRING_LIT, start_pos)
 
             # newline character in string literal (not allowed)
             if current_char in ["\n", "\v", "\f"]:
@@ -599,10 +632,20 @@ class Lexer:
             if current_char == "\\":
                 escaped_char = self._get_chars()
                 if escaped_char not in ['"', "\\", "n", "t"]:
-                    raise ParseError(
-                        StringLiteral(self.pos - 1, self.pos, self.input),
-                        "Unknown escape in string literal.",
-                    )
+                    bytes_token = True
+                    next_char = self._get_chars()
+                    if escaped_char is None or next_char is None:
+                        raise ParseError(
+                            Span(start_pos, self.pos, self.input),
+                            "Unknown escape in string literal.",
+                        )
+                    try:
+                        int(escaped_char + next_char, 16)
+                    except Exception:
+                        raise ParseError(
+                            Span(start_pos, self.pos, self.input),
+                            "Unknown escape in string literal.",
+                        )
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),

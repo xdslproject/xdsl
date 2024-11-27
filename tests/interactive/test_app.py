@@ -1,39 +1,42 @@
-from typing import cast
+from typing import Any, cast
 
 import pytest
+from textual.screen import Screen
+from textual.widgets import Tree
 
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith, func, riscv, riscv_func
+from xdsl.dialects import arith, func, get_all_dialects, riscv, riscv_func
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
+from xdsl.interactive import _pasteboard
+from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
+from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
-    mlir_opt,
-    printf_to_llvm,
-    scf_parallel_loop_tiling,
-    stencil_unroll,
-)
-from xdsl.transforms.experimental import (
-    hls_convert_stencil_to_ll_mlir,
+    get_all_passes,
+    individual_rewrite,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.parse_pipeline import PipelinePassSpec
+from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_inputs():
     """Test different inputs produce desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -44,7 +47,7 @@ async def test_inputs():
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
 
-        # Test inccorect input
+        # Test incorrect input
         app.input_text_area.insert("dkjfd")
         await pilot.pause()
         assert (
@@ -88,18 +91,21 @@ async def test_inputs():
         with ImplicitBuilder(expected_module.body):
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
-                two = arith.Constant(IntegerAttr(2, index)).result
-                res = arith.Muli(n, two)
-                func.Return(res)
+                two = arith.ConstantOp(IntegerAttr(2, index)).result
+                res = arith.MuliOp(n, two)
+                func.ReturnOp(res)
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_buttons():
     """Test pressing keys has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -183,22 +189,31 @@ async def test_buttons():
     riscv.directive ".globl" "hello"
     riscv.directive ".p2align" "2"
     riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg<>
-      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg<> to index
-      %two = riscv.li 2 : () -> !riscv.reg<>
-      %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg<> to index
-      %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg<>
-      %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg<>
-      %res_2 = riscv.mul %res, %res_1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-      %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg<> to index
-      %1 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg<>
-      %2 = riscv.mv %1 : (!riscv.reg<>) -> !riscv.reg<a0>
+      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
+      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
+      %two = riscv.li 2 : !riscv.reg
+      %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
+      %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg
+      %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
+      %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+      %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
+      %1 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
+      %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
       riscv_func.return %2 : !riscv.reg<a0>
     }
   }
 }
 """
         )
+
+        # Test that the current pipeline command is correctly copied
+        def callback(x: str):
+            assert (
+                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
+            )
+
+        _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
+        await pilot.click("#copy_query_button")
 
         current_pipeline = app.pass_pipeline
         # press "Remove Last Pass" button
@@ -214,12 +229,12 @@ async def test_buttons():
     riscv.directive ".globl" "hello"
     riscv.directive ".p2align" "2"
     riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg<>
-      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg<> to index
+      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
+      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
       %two = arith.constant 2 : index
       %res = arith.muli %n_1, %two : index
-      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg<>
-      %2 = riscv.mv %1 : (!riscv.reg<>) -> !riscv.reg<a0>
+      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+      %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
       riscv_func.return %2 : !riscv.reg<a0>
     }
   }
@@ -251,9 +266,10 @@ async def test_buttons():
         with ImplicitBuilder(expected_module.body):
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
-                two = arith.Constant(IntegerAttr(2, index)).result
-                res = arith.Muli(n, two)
-                func.Return(res)
+                n.name_hint = "n"
+                two = arith.ConstantOp(IntegerAttr(2, index)).result
+                res = arith.MuliOp(n, two)
+                func.ReturnOp(res)
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
@@ -264,23 +280,12 @@ async def test_buttons():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        condensed_list = tuple(
-            (
-                convert_arith_to_riscv.ConvertArithToRiscvPass,
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                stencil_global_to_local.DistributeStencilPass,
-                hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
-                mlir_opt.MLIROptPass,
-                printf_to_llvm.PrintfToLLVM,
-                scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
-                stencil_unroll.StencilUnrollPass,
-            )
-        )
-
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.available_pass_list == condensed_list
+        assert app.available_pass_list == get_condensed_pass_list(
+            expected_module, app.all_passes
+        )
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
@@ -290,10 +295,85 @@ async def test_buttons():
         assert app.condense_mode is False
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
+async def test_rewrites():
+    """Test rewrite application has the desired result."""
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
+        # Testing a pass
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : i32) -> i32 {
+  %two = arith.constant 0 : i32
+  %res = arith.addi %two, %n : i32
+  func.return %res : i32
+}
+        """
+        )
+
+        # press "Condense" button
+        await pilot.click("#condense_button")
+
+        addi_pass = AvailablePass(
+            display_name="AddiOp(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
+            module_pass=individual_rewrite.ApplyIndividualRewritePass,
+            pass_spec=list(
+                parse_pipeline(
+                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                )
+            )[0],
+        )
+
+        await pilot.pause()
+        # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
+        assert app.condense_mode is True
+        assert isinstance(app.current_module, ModuleOp)
+        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
+            addi_pass,
+        )
+        assert app.available_pass_list == condensed_list
+
+        # Select a rewrite
+        app.pass_pipeline = (
+            *app.pass_pipeline,
+            (
+                individual_rewrite.ApplyIndividualRewritePass,
+                list(
+                    parse_pipeline(
+                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                    )
+                )[0],
+            ),
+        )
+
+        # assert that pass selection affected Output Text Area
+        await pilot.pause()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : i32) -> i32 {
+    %two = arith.constant 0 : i32
+    func.return %n : i32
+  }
+}
+"""
+        )
+
+
+@pytest.mark.asyncio
 async def test_passes():
     """Test pass application has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -341,12 +421,12 @@ async def test_passes():
     riscv.directive ".globl" "hello"
     riscv.directive ".p2align" "2"
     riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg<>
-      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg<> to index
+      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
+      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
       %two = arith.constant 2 : index
       %res = arith.muli %n_1, %two : index
-      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg<>
-      %2 = riscv.mv %1 : (!riscv.reg<>) -> !riscv.reg<a0>
+      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+      %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
       riscv_func.return %2 : !riscv.reg<a0>
     }
   }
@@ -369,8 +449,8 @@ async def test_passes():
                 with ImplicitBuilder(function.body) as (n,):
                     zero = riscv.MVOp(n, rd=riscv.IntRegisterType(""))
                     n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
-                    two = arith.Constant(IntegerAttr(2, index)).result
-                    res = arith.Muli(n_one, two)
+                    two = arith.ConstantOp(IntegerAttr(2, index)).result
+                    res = arith.MuliOp(n_one, two)
                     one = UnrealizedConversionCastOp.get(
                         [res.result], [riscv.IntRegisterType("")]
                     )
@@ -380,3 +460,50 @@ async def test_passes():
         assert isinstance(app.current_module, ModuleOp)
         # Assert that the current module has been changed accordingly
         assert app.current_module.is_structurally_equivalent(expected_module)
+
+
+@pytest.mark.asyncio
+async def test_argument_pass_screen():
+    """Test that clicking on a pass that requires passes opens a screen to specify them."""
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
+        # Testing a pass
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : i32) -> i32 {
+  %two = arith.constant 0 : i32
+  %res = arith.addi %two, %n : i32
+  func.return %res : i32
+}
+        """
+        )
+        app.passes_tree.root.expand
+        await pilot.pause()
+
+        root_children = app.passes_tree.root.children
+        distribute_stencil_node = None
+
+        for node in root_children:
+            assert node.data is not None
+            pass_val, _ = node.data
+            if pass_val.name == stencil_global_to_local.DistributeStencilPass.name:
+                distribute_stencil_node = node
+
+        assert distribute_stencil_node is not None
+
+        # Ideally, we would like to trigger the event like this:
+        # `app.passes_tree.select_node(distribute_stencil_node)`
+        # When running in a test, node selection does not send the expected event
+        # For now, trigger the expected method directly
+        app.update_pass_pipeline(Tree.NodeSelected(distribute_stencil_node))
+        await pilot.pause()
+
+        arg_screen_str: type[Screen[Any]] = AddArguments
+        assert isinstance(app.screen, arg_screen_str)

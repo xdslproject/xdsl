@@ -1,4 +1,4 @@
-// RUN: xdsl-run --wgpu %s | filecheck %s
+// RUN: xdsl-run --wgpu --index-bitwidth=32 %s | filecheck %s
 
 builtin.module attributes {gpu.container_module} {
   "gpu.module"() ({
@@ -40,9 +40,9 @@ builtin.module attributes {gpu.container_module} {
     %hmemref = "memref.alloc"() {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<4x4xindex>
     "gpu.memcpy"(%hmemref, %memref) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<4x4xindex>, memref<4x4xindex>) -> ()
     printf.print_format "Result : {}", %hmemref : memref<4x4xindex>
-    %zero  = "arith.constant"() {"value" = 0} : () -> (index)
+    %zero  = "arith.constant"() {"value" = 0 : index} : () -> (index)
     "func.return"(%zero) : (index) -> ()
   }
 }
 
-// CHECK-NEXT: Result : [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]
+// CHECK-NEXT{LITERAL}: Result : [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]

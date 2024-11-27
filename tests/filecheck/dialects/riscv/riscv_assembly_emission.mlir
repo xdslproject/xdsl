@@ -2,9 +2,9 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.li 6 : () -> !riscv.reg<zero>
+    %0 = riscv.li 6 : !riscv.reg<zero>
     // CHECK:      li zero, 6
-    %1 = riscv.li 5 : () -> !riscv.reg<j1>
+    %1 = riscv.li 5 : !riscv.reg<j1>
     // CHECK-NEXT: li j1, 5
     %2 = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
     // CHECK-NEXT: add j2, zero, j1
@@ -84,7 +84,7 @@
 
     riscv.ret
     // CHECK-NEXT: ret
-  ^0(%b00 : !riscv.reg<>, %b01 : !riscv.reg<>):
+  ^0(%b00 : !riscv.reg, %b01 : !riscv.reg):
 
 
     // Conditional Branch Instructions
@@ -147,7 +147,7 @@
     // CHECK-NEXT: csrrwi zero, 1024, 8
 
     // Assembler pseudo-instructions
-    %li = riscv.li 1: () -> !riscv.reg<j0>
+    %li = riscv.li 1: !riscv.reg<j0>
     // CHECK-NEXT: li j0, 1
     // Environment Call and Breakpoints
     riscv.ecall
@@ -156,14 +156,16 @@
     // CHECK-NEXT: ebreak
     riscv.ret
     // CHECK-NEXT: ret
-  ^1(%b10 : !riscv.reg<>, %b11 : !riscv.reg<>):
+  ^1(%b10 : !riscv.reg, %b11 : !riscv.reg):
 
     riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
-      %nested_addi = riscv.addi %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
+      %inner = riscv.li 5 : !riscv.reg<j1>
+      %nested_addi = riscv.addi %inner, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
     }
     // CHECK-NEXT:  .text
+    // CHECK-NEXT:  li j1, 5
     // CHECK-NEXT:  addi j1, j1, 1
     riscv.label "label0"
     // CHECK-NEXT: label0:
@@ -293,4 +295,7 @@
     riscv_func.return
     // CHECK-NEXT: ret
   }
+// External
+riscv_func.func @external()
+// CHECK-NOT: external
 }) : () -> ()

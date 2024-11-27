@@ -2,6 +2,7 @@
 
 This module contains all custom exceptions used by xDSL.
 """
+
 from __future__ import annotations
 
 import typing

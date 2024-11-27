@@ -72,7 +72,7 @@ class AffineParser(BaseParser):
             case "ceildiv":
                 return lhs.ceil_div(rhs)
             case "floordiv":
-                return lhs.floor_div(rhs)
+                return lhs // rhs
             case "mod":
                 return lhs % rhs
             case _:

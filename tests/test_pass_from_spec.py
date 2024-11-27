@@ -4,19 +4,19 @@ from typing import Literal
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
-@dataclass
+@dataclass(frozen=True)
 class CustomPass(ModulePass):
     name = "custom-pass"
 
     number: int | float
 
-    int_list: list[int]
+    int_list: tuple[int, ...]
 
     non_init_thing: int = field(init=False)
 
@@ -32,7 +32,7 @@ class CustomPass(ModulePass):
         pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class EmptyPass(ModulePass):
     name = "empty"
 
@@ -40,7 +40,7 @@ class EmptyPass(ModulePass):
         pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class SimplePass(ModulePass):
     name = "simple"
 
@@ -56,17 +56,17 @@ def test_pass_instantiation():
         PipelinePassSpec(
             name="custom-pass",
             args={
-                "number": [2],
-                "int-list": [1, 2, 3],
-                "str-thing": ["hello world"],
-                "literal": ["maybe"]
+                "number": (2,),
+                "int-list": (1, 2, 3),
+                "str-thing": ("hello world",),
+                "literal": ("maybe",),
                 # "optional" was left out here, as it is optional
             },
         )
     )
 
     assert p.number == 2
-    assert p.int_list == [1, 2, 3]
+    assert p.int_list == (1, 2, 3)
     assert p.str_thing == "hello world"
     assert p.nullable_str is None
     assert p.literal == "maybe"
@@ -78,20 +78,20 @@ def test_pass_instantiation():
 
 @pytest.mark.parametrize(
     "spec, error_msg",
-    (
-        (PipelinePassSpec("wrong", {"a": [1]}), "Cannot create Pass simple"),
+    [
+        (PipelinePassSpec("wrong", {"a": (1,)}), "Cannot create Pass simple"),
         (PipelinePassSpec("simple", {}), 'requires argument "a"'),
         (
-            PipelinePassSpec("simple", {"a": [1], "no": []}),
+            PipelinePassSpec("simple", {"a": (1,), "no": ()}),
             'Provided arguments ["no"] not found in expected pass arguments ["a", "b"]',
         ),
-        (PipelinePassSpec("simple", {"a": []}), "Argument must contain a value"),
-        (PipelinePassSpec("simple", {"a": ["test"]}), "Incompatible types"),
+        (PipelinePassSpec("simple", {"a": ()}), "Argument must contain a value"),
+        (PipelinePassSpec("simple", {"a": ("test",)}), "Incompatible types"),
         (
-            PipelinePassSpec("simple", {"a": ["test"], "literal": ["definitely"]}),
+            PipelinePassSpec("simple", {"a": ("test",), "literal": ("definitely",)}),
             "Incompatible types",
         ),
-    ),
+    ],
 )
 def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
     """
@@ -99,3 +99,14 @@ def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
     """
     with pytest.raises(Exception, match=re.escape(error_msg)):
         SimplePass.from_pass_spec(spec)
+
+
+def test_required_fields():
+    assert CustomPass.required_fields() == {
+        "int_list",
+        "non_init_thing",
+        "number",
+        "str_thing",
+    }
+    assert not EmptyPass.required_fields()
+    assert SimplePass.required_fields() == {"a"}

@@ -52,12 +52,10 @@ class IList(list[_T]):
         return super().clear()
 
     @overload
-    def __setitem__(self, __index: SupportsIndex, __object: _T) -> None:
-        ...
+    def __setitem__(self, __index: SupportsIndex, __object: _T) -> None: ...
 
     @overload
-    def __setitem__(self, __index: slice, __object: Iterable[_T]) -> None:
-        ...
+    def __setitem__(self, __index: slice, __object: Iterable[_T]) -> None: ...
 
     def __setitem__(
         self, __index: SupportsIndex | slice, __object: _T | Iterable[_T]

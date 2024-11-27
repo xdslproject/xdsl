@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
 
 "builtin.module"() ({
-    "gpu.module"() ({
+    "gpu.module"() <{"sym_name" = "gpu"}> ({
         "func.func"() ({
             %n = "arith.constant"() {"value" = 13 : index} : () -> index
             %one = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
@@ -10,6 +10,8 @@
             %unranked = "memref.cast"(%memref) : (memref<10x10xi32>) -> memref<*xi32>
             "gpu.host_register"(%unranked) : (memref<*xi32>) -> ()
             "gpu.host_unregister"(%unranked) : (memref<*xi32>) -> ()
+
+            %wait_token = "gpu.wait"() : () -> !gpu.async.token
 
             %threadidx = "gpu.thread_id"() {"dimension" = #gpu<dim x>} : () -> index
             %threadidy = "gpu.thread_id"() {"dimension" = #gpu<dim y>} : () -> index
@@ -65,7 +67,7 @@
                 }) {"op" = #gpu<all_reduce_op add>} : (i32) -> i32
                 %final = "arith.muli"(%sum, %dev) : (i32, i32) -> i32
                 "gpu.terminator"() : () -> ()
-            }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+            }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>} : (index, index, index, index, index, index) -> ()
             "gpu.launch_func"(%n, %n, %n, %n, %n, %n, %one, %one, %one, %dev, %n) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>, "kernel" = @gpu::@foo} : (index, index, index, index, index, index, index, index, index, i32, index) -> ()
 
             "func.return"() : () -> ()
@@ -75,11 +77,11 @@
             "gpu.return"() : () -> ()
         }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> (), "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>} : () -> ()
         "gpu.module_end"() : () -> ()
-    }) {"sym_name" = "gpu"} : () -> ()
+    }) : () -> ()
 }) {"gpu.container_module"} : () -> ()
 
 // CHECK:      "builtin.module"() ({
-// CHECK-NEXT:     "gpu.module"() ({
+// CHECK-NEXT:     "gpu.module"() <{"sym_name" = "gpu"}> ({
 // CHECK-NEXT:         "func.func"() <{"function_type" = () -> (), "sym_name" = "kernel"}> ({
 // CHECK-NEXT:             %{{.*}} = "arith.constant"() <{"value" = 13 : index}> : () -> index
 // CHECK-NEXT:             %{{.*}} = "arith.constant"() <{"value" = 1 : index}> {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} : () -> index
@@ -87,6 +89,8 @@
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>
 // CHECK-NEXT:             "gpu.host_register"(%{{.*}}) : (memref<*xi32>) -> ()
 // CHECK-NEXT:             "gpu.host_unregister"(%{{.*}}) : (memref<*xi32>) -> ()
+
+ // CHECK-NEXT:            %{{.*}} = "gpu.wait"() : () -> !gpu.async.token
 
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{"dimension" = #gpu<dim x>}> : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{"dimension" = #gpu<dim y>}> : () -> index
@@ -129,18 +133,18 @@
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
 // CHECK-NEXT:             ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32):
-// CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
+// CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-NEXT:             }) : (i32) -> i32
 
-// CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>}> ({
-// CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+// CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:             ^{{\S+}}(%{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:             }) : (i32) -> i32
-// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
+// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kernel" = @gpu::@foo, "operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>}> : (index, index, index, index, index, index, index, index, index, i32, index) -> ()
@@ -152,6 +156,6 @@
 // CHECK-NEXT:             "gpu.return"() : () -> ()
 // CHECK-NEXT:         }) {"gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>, "sym_name" = "foo"} : () -> ()
 // CHECK-NEXT:          "gpu.module_end"() : () -> ()
-// CHECK-NEXT:     }) {"sym_name" = "gpu"} : () -> ()
+// CHECK-NEXT:     }) : () -> ()
 
 // CHECK-NEXT: }) {"gpu.container_module"} : () -> ()

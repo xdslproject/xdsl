@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
@@ -43,9 +44,12 @@ class AffineMap:
         return AffineMap(0, 0, tuple(AffineExpr.constant(value) for value in values))
 
     @staticmethod
-    def identity(rank: int) -> AffineMap:
+    def identity(rank: int, symbolic_rank: int = 0) -> AffineMap:
         return AffineMap(
-            rank, 0, tuple(AffineExpr.dimension(dim) for dim in range(rank))
+            rank,
+            symbolic_rank,
+            tuple(AffineExpr.dimension(dim) for dim in range(rank))
+            + tuple(AffineExpr.symbol(dim) for dim in range(symbolic_rank)),
         )
 
     @staticmethod
@@ -128,9 +132,9 @@ class AffineMap:
         """
         Returns the `AffineMap` resulting from composing `self` with `other`.
 
-        The resulting `AffineMap` has as many `AffineDimExpr` as `other` and as many `AffineSymbolExpr` as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
+        The resulting `AffineMap` has as many dimensions as `other` and as many symbols as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
 
-        Prerequisites: The maps are composable, i.e. that the number of `AffineDimExpr` of `self` matches the number of results of `map`.
+        Prerequisites: The maps are composable, i.e. that the number of dimensions of `self` matches the number of results of `other`.
 
         Example:
         ```
@@ -190,25 +194,56 @@ class AffineMap:
         for i, expr in enumerate(self.results):
             match expr:
                 case AffineDimExpr():
-                    found_dims[expr.position] = i
+                    if found_dims[expr.position] == -1:
+                        found_dims[expr.position] = i
                 case _:
                     continue
 
         if -1 in found_dims:
             return None
 
-        results = tuple(self.results[i] for i in found_dims)
+        results = tuple(AffineExpr.dimension(i) for i in found_dims)
         return AffineMap(
             num_dims=len(self.results),
             num_symbols=0,
             results=results,
         )
 
-    def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> list[int]:
+    def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> tuple[int, ...]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims
         assert len(symbols) == self.num_symbols
-        return [expr.eval(dims, symbols) for expr in self.results]
+        return tuple(expr.eval(dims, symbols) for expr in self.results)
+
+    def compress_dims(self, selectors: Sequence[bool]) -> AffineMap:
+        """
+        Given a sequence of `selectors` indicating the input dimensions to keep, return a
+        new map only with the new dimensions. The results of `self` must be a subset of
+        the dimensions in `selectors`. The remaining dimensions are remapped to the
+        remaining number.
+
+        Examples:
+        ```
+        (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
+        (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
+        ```
+        """
+        if len(selectors) != self.num_dims:
+            raise ValueError(
+                f"Invalid `selectors`, expected {self.num_dims} `bool` values, got "
+                f"{len(selectors)}"
+            )
+
+        result_num_dims = sum(selectors)
+        new_dims = tuple(
+            AffineExpr.dimension(dim)
+            for dim in itertools.accumulate(selectors, initial=0)
+        )
+        new_symbols = tuple(AffineExpr.symbol(s) for s in range(self.num_symbols))
+
+        return self.replace_dims_and_symbols(
+            new_dims, new_symbols, result_num_dims, self.num_symbols
+        )
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

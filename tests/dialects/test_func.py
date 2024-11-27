@@ -2,10 +2,11 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects.arith import Addi, Constant
+from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
-from xdsl.dialects.func import Call, FuncOp, Return
+from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.ir import Block, Region
+from xdsl.traits import CallableOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -14,10 +15,10 @@ def test_func():
     # represent the same code and checks their structure
     # Create two constants and add them, add them in a region and
     # create a function
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi(a, b)
+    c = AddiOp(a, b)
 
     # Create a region to include a, b, c
     @Builder.region
@@ -32,9 +33,9 @@ def test_func():
     # Alternative generation of func0
     @Builder.implicit_region
     def region1():
-        a = Constant.from_int_and_width(1, i32)
-        b = Constant.from_int_and_width(2, i32)
-        Addi(a, b)
+        a = ConstantOp.from_int_and_width(1, i32)
+        b = ConstantOp.from_int_and_width(2, i32)
+        AddiOp(a, b)
 
     func1 = FuncOp.from_region("func1", [], [], region1)
 
@@ -43,24 +44,24 @@ def test_func():
 
     assert len(ops0) == 3
     assert len(ops1) == 3
-    assert type(ops0[0]) is Constant
-    assert type(ops1[0]) is Constant
-    assert type(ops0[1]) is Constant
-    assert type(ops1[1]) is Constant
-    assert type(ops0[2]) is Addi
+    assert type(ops0[0]) is ConstantOp
+    assert type(ops1[0]) is ConstantOp
+    assert type(ops0[1]) is ConstantOp
+    assert type(ops1[1]) is ConstantOp
+    assert type(ops0[2]) is AddiOp
 
 
 def test_func_II():
     # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = Constant(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = Constant(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = Constant(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+    b = ConstantOp(IntegerAttr.from_int_and_width(2, 32), i32)
+    c = ConstantOp(IntegerAttr.from_int_and_width(3, 32), i32)
+    d = ConstantOp(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
-    e = Addi(a, b)
-    f = Addi(c, d)
+    e = AddiOp(a, b)
+    f = AddiOp(c, d)
 
     # Create Blocks and Regions
     block0 = Block([a, b, e])
@@ -75,19 +76,19 @@ def test_func_II():
 
     assert len(ops0) == 3
     assert len(ops1) == 3
-    assert type(ops0[0]) is Constant
-    assert type(ops0[1]) is Constant
-    assert type(ops0[2]) is Addi
-    assert type(ops1[0]) is Constant
-    assert type(ops1[1]) is Constant
-    assert type(ops1[2]) is Addi
+    assert type(ops0[0]) is ConstantOp
+    assert type(ops0[1]) is ConstantOp
+    assert type(ops0[2]) is AddiOp
+    assert type(ops1[0]) is ConstantOp
+    assert type(ops1[1]) is ConstantOp
+    assert type(ops1[2]) is AddiOp
 
 
 def test_wrong_blockarg_types():
     b = Block(arg_types=(i32,))
     with ImplicitBuilder(b) as (arg0,):
-        Addi(arg0, arg0)
-        Return()
+        AddiOp(arg0, arg0)
+        ReturnOp()
     r = Region(b)
     f = FuncOp.from_region("f", [i32, i32], [], r)
 
@@ -106,7 +107,7 @@ def test_func_rewriting_helpers():
     """
     func = FuncOp("test", ((i32, i32, i32), ()))
     with ImplicitBuilder(func.body):
-        Return()
+        ReturnOp()
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
@@ -138,7 +139,7 @@ def test_func_rewriting_helpers():
 def test_func_get_return_op():
     func_w_ret = FuncOp("test", ((i32, i32, i32), ()))
     with ImplicitBuilder(func_w_ret.body) as (a, _, _):
-        Return(a)
+        ReturnOp(a)
 
     func = FuncOp("test", ((i32, i32, i32), ()))
 
@@ -153,20 +154,33 @@ def test_callable_constructor():
     assert not f.body.block.ops
 
 
+def test_callable_interface():
+    region = Region()
+    func = FuncOp("callable", ((i32, i64), (i64, i32)), region)
+
+    trait = func.get_trait(CallableOpInterface)
+
+    assert trait is not None
+
+    assert trait.get_callable_region(func) is region
+    assert trait.get_argument_types(func) == (i32, i64)
+    assert trait.get_result_types(func) == (i64, i32)
+
+
 def test_call():
     """
     Pass two integers to a function and return their sum
     """
     # Create two constants and add them, then return
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
 
     # Create a block using the types of a, b
     block0 = Block(arg_types=[a.result.type, b.result.type])
     # Create a Addi operation to use the args of the block
-    c = Addi(block0.args[0], block0.args[1])
+    c = AddiOp(block0.args[0], block0.args[1])
     # Create a return operation and add it in the block
-    ret0 = Return(c)
+    ret0 = ReturnOp(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
@@ -179,7 +193,7 @@ def test_call():
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call(func0.sym_name.data, [a, b], [ret0.arguments[0].type])
+    call0 = CallOp(func0.sym_name.data, [a, b], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, b, call0])
@@ -188,12 +202,12 @@ def test_call():
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "func0", "function_type" = (i32, i32) -> i32}> ({
   ^0(%0 : i32, %1 : i32):
-    %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+    %2 = "arith.addi"(%0, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) : () -> ()
-  %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %4 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %5 = "func.call"(%3, %4) <{"callee" = @func0}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
+  %2 = "func.call"(%0, %1) <{"callee" = @func0}> : (i32, i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 2
@@ -207,14 +221,14 @@ def test_call_II():
     Pass an integer a to a function and return a + a
     """
     # Create two constants and add them, then return
-    a = Constant.from_int_and_width(1, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
 
     # Create a block using the type of a
     block0 = Block(arg_types=[a.result.type])
     # Create a Addi operation to use the args of the block
-    c = Addi(block0.args[0], block0.args[0])
+    c = AddiOp(block0.args[0], block0.args[0])
     # Create a return operation and add it in the block
-    ret0 = Return(c)
+    ret0 = ReturnOp(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
@@ -225,7 +239,7 @@ def test_call_II():
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call(func0.sym_name.data, [a], [ret0.arguments[0].type])
+    call0 = CallOp(func0.sym_name.data, [a], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, call0])
@@ -234,11 +248,11 @@ def test_call_II():
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "func1", "function_type" = (i32) -> i32}> ({
   ^0(%0 : i32):
-    %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+    %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
   }) : () -> ()
-  %2 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %3 = "func.call"(%2) <{"callee" = @func1}> : (i32) -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "func.call"(%0) <{"callee" = @func1}> : (i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 1
@@ -249,12 +263,12 @@ def test_call_II():
 
 def test_return():
     # Create two constants and add them, then return
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
-    c = Constant.from_int_and_width(3, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
+    c = ConstantOp.from_int_and_width(3, i32)
 
     # Use these operations to create a Return operation
-    ret0 = Return(a, b, c)
+    ret0 = ReturnOp(a, b, c)
     assert len(ret0.operands) == 3
 
 

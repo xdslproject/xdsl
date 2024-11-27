@@ -4,20 +4,28 @@ compiler IR for combinational logic. It is designed to be easy to analyze and
 transform, and be a flexible and extensible substrate that may be extended with
 higher level dialects mixed into it.
 
+Up to date as of CIRCT commit `2e23cda6c2cbedb118b92fab755f1e36d80b13f5`.
+
 [1] https://circt.llvm.org/docs/Dialects/Comb/
 """
+
 from abc import ABC
 from collections.abc import Sequence
-from typing import Annotated
+from typing import ClassVar
 
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, UnitAttr, i32, i64
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    IntegerAttr,
+    IntegerType,
+    UnitAttr,
+)
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
-    ConstraintVar,
     IRDLOperation,
-    Operand,
-    VarOperand,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -48,17 +56,17 @@ class BinCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    lhs: Operand = operand_def(T)
-    rhs: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
     """
     "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
     used for operations which have extended truth table for non-2-state logic for various target
     languages. The two_state variable describes if we are using 2-state (binary) logic or not."
     """
-    two_state: UnitAttr | None = opt_attr_def(UnitAttr)
+    two_state = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -95,16 +103,16 @@ class VariadicCombOperation(IRDLOperation, ABC):
     result, all of the same integer type.
     """
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    inputs: VarOperand = var_operand_def(T)
-    result: OpResult = result_def(T)
+    inputs = var_operand_def(T)
+    result = result_def(T)
     """
     "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
     used for operations which have extended truth table for non-2-state logic for various target
     languages. The two_state variable describes if we are using 2-state (binary) logic or not."
     """
-    two_state: UnitAttr | None = opt_attr_def(UnitAttr)
+    two_state = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -112,8 +120,14 @@ class VariadicCombOperation(IRDLOperation, ABC):
         result_type: Attribute | None = None,
     ):
         if result_type is None:
+            if len(input_list) == 0:
+                raise ValueError("cannot infer type from zero inputs")
             result_type = SSAValue.get(input_list[0]).type
-        super().__init__(operands=input_list, result_types=[result_type])
+        super().__init__(operands=[input_list], result_types=[result_type])
+
+    def verify_(self) -> None:
+        if len(self.inputs) == 0:
+            raise VerifyException("op expected 1 or more operands, but found 0")
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -246,16 +260,14 @@ class ICmpOp(IRDLOperation, ABC):
 
     name = "comb.icmp"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    predicate: IntegerAttr[IntegerType] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i64]]
-    )
-    lhs: Operand = operand_def(T)
-    rhs: Operand = operand_def(T)
-    result: OpResult = result_def(IntegerType(1))
+    predicate = attr_def(IntegerAttr[I64])
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(IntegerType(1))
 
-    two_state: UnitAttr = attr_def(UnitAttr)
+    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
     @staticmethod
     def _get_comparison_predicate(
@@ -271,6 +283,7 @@ class ICmpOp(IRDLOperation, ABC):
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
         arg: int | str | IntegerAttr[IntegerType],
+        has_two_state_semantics: bool = False,
     ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
@@ -291,16 +304,21 @@ class ICmpOp(IRDLOperation, ABC):
             arg = ICmpOp._get_comparison_predicate(arg, cmpi_comparison_operations)
         if not isinstance(arg, IntegerAttr):
             arg = IntegerAttr.from_int_and_width(arg, 64)
+
+        attrs: dict[str, Attribute] = {"predicate": arg}
+        if has_two_state_semantics:
+            attrs["twoState"] = UnitAttr()
+
         return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            attributes={"predicate": arg},
+            attributes=attrs,
         )
 
     @classmethod
     def parse(cls, parser: Parser):
+        has_two_state_semantics = parser.parse_optional_keyword("bin") is not None
         arg = parser.parse_identifier()
-        parser.parse_punctuation(",")
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         operand2 = parser.parse_unresolved_operand()
@@ -310,12 +328,14 @@ class ICmpOp(IRDLOperation, ABC):
             [operand1, operand2], 2 * [input_type], parser.pos
         )
 
-        return cls(operand1, operand2, arg)
+        return cls(operand1, operand2, arg, has_two_state_semantics)
 
     def print(self, printer: Printer):
         printer.print(" ")
+        if self.two_state is not None:
+            printer.print("bin ")
         printer.print_string(ICMP_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print(" ")
         printer.print_operand(self.lhs)
         printer.print(", ")
         printer.print_operand(self.rhs)
@@ -329,31 +349,36 @@ class ParityOp(IRDLOperation):
 
     name = "comb.parity"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType(1))
+    input = operand_def(IntegerType)
+    result = result_def(IntegerType(1))
 
-    two_state: UnitAttr | None = opt_attr_def(UnitAttr)
+    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
     def __init__(
         self, operand: Operation | SSAValue, two_state: UnitAttr | None = None
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
-            attributes={"two_state": two_state},
+            attributes={"twoState": two_state},
             operands=[operand],
             result_types=[operand.type],
         )
 
     @classmethod
     def parse(cls, parser: Parser):
+        two_state = None
+        if parser.parse_optional_keyword("bin") is not None:
+            two_state = UnitAttr()
         op = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         op = parser.resolve_operand(op, result_type)
-        return cls(op)
+        return cls(op, two_state)
 
     def print(self, printer: Printer):
         printer.print(" ")
+        if self.two_state is not None:
+            printer.print("bin ")
         printer.print_ssa_value(self.input)
         printer.print(" : ")
         printer.print(self.result.type)
@@ -363,26 +388,46 @@ class ParityOp(IRDLOperation):
 class ExtractOp(IRDLOperation):
     """
     Extract a range of bits into a smaller value, low_bit
-    specifies the lowest bit included.
+    specifies the lowest bit included. Result is the size
+    of the value to extract.
+
+    |-----------------|   input
+           l              low bit
+           <-------->     result
     """
 
     name = "comb.extract"
 
-    input: Operand = operand_def(IntegerType)
-    low_bit: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i32]]
-    )
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(IntegerType)
+    low_bit = attr_def(IntegerAttr[I32], attr_name="lowBit")
+    result = result_def(IntegerType)
 
     def __init__(
-        self, operand: Operation | SSAValue, low_bit: IntegerAttr[IntegerType]
+        self,
+        operand: Operation | SSAValue,
+        low_bit: IntegerAttr[IntegerType],
+        result_type: IntegerType,
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
-            attributes={"low_bit": low_bit},
+            attributes={"lowBit": low_bit},
             operands=[operand],
-            result_types=[operand.type],
+            result_types=[result_type],
         )
+
+    def verify_(self) -> None:
+        assert isinstance(self.input.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
+        if (
+            self.low_bit.value.data + self.result.type.width.data
+            > self.input.type.width.data + 1
+        ):
+            raise VerifyException(
+                f"output width {self.result.type.width.data} is "
+                f"too large for input of width "
+                f"{self.input.type.width.data} (included low bit "
+                f"is at {self.low_bit.value.data})"
+            )
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -391,14 +436,35 @@ class ExtractOp(IRDLOperation):
         bit = parser.parse_integer()
         parser.parse_punctuation(":")
         result_type = parser.parse_function_type()
+        if len(result_type.inputs.data) != 1 or len(result_type.outputs.data) != 1:
+            parser.raise_error(
+                "expected exactly one input and exactly one output types"
+            )
+        if not isinstance(result_type.outputs.data[0], IntegerType):
+            parser.raise_error(
+                f"expected output to be an integer type, got '{result_type.outputs.data[0]}'"
+            )
         (op,) = parser.resolve_operands([op], result_type.inputs.data, parser.pos)
-        return cls(op, IntegerAttr(bit, 32))
+        return cls(op, IntegerAttr(bit, 32), result_type.outputs.data[0])
 
     def print(self, printer: Printer):
         printer.print(" ")
         printer.print_ssa_value(self.input)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print(f" from {self.low_bit.value.data} : ")
+        printer.print_function_type([self.input.type], [self.result.type])
+
+
+def _get_sum_of_int_width(int_types: Sequence[Attribute]) -> int | None:
+    """
+    Gets the sum of the width of the provided integer types. Returns None
+    if one of the provided attributes is not an integer type.
+    """
+    sum_of_width = 0
+    for typ in int_types:
+        if not isinstance(typ, IntegerType):
+            return None
+        sum_of_width += typ.width.data
+    return sum_of_width
 
 
 @irdl_op_definition
@@ -409,11 +475,33 @@ class ConcatOp(IRDLOperation):
 
     name = "comb.concat"
 
-    inputs: VarOperand = var_operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    inputs = var_operand_def(IntegerType)
+    result = result_def(IntegerType)
 
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return super().__init__(operands=[op], result_types=[target_type])
+    def __init__(self, ops: Sequence[SSAValue | Operation], target_type: IntegerType):
+        return super().__init__(operands=[ops], result_types=[target_type])
+
+    @staticmethod
+    def from_int_values(inputs: Sequence[SSAValue]) -> "ConcatOp | None":
+        """
+        Concatenates the provided values, in order. Returns None if the provided
+        values are not integers.
+        """
+        sum_of_width = _get_sum_of_int_width([inp.type for inp in inputs])
+        if sum_of_width is None:
+            return None
+        return ConcatOp(inputs, IntegerType(sum_of_width))
+
+    def verify_(self) -> None:
+        sum_of_width = _get_sum_of_int_width(self.inputs.types)
+        assert sum_of_width is not None
+        assert isinstance(self.result.type, IntegerType)
+        if sum_of_width != self.result.type.width.data:
+            raise VerifyException(
+                f"Sum of integer width ({sum_of_width}) "
+                f"is different from result "
+                f"width ({self.result.type.width.data})"
+            )
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -421,17 +509,20 @@ class ConcatOp(IRDLOperation):
             parser.Delimiter.NONE, parser.parse_unresolved_operand
         )
         parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        inputs = parser.resolve_operands(
-            inputs, len(inputs) * [result_type], parser.pos
+        input_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_type
         )
-        return cls.create(operands=inputs, result_types=[result_type])
+        sum_of_width = _get_sum_of_int_width(input_types)
+        if sum_of_width is None:
+            parser.raise_error("expected only integer types as input")
+        inputs = parser.resolve_operands(inputs, input_types, parser.pos)
+        return cls.create(operands=inputs, result_types=[IntegerType(sum_of_width)])
 
     def print(self, printer: Printer):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
         printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_list(self.inputs.types, printer.print_attribute)
 
 
 @irdl_op_definition
@@ -442,8 +533,8 @@ class ReplicateOp(IRDLOperation):
 
     name = "comb.replicate"
 
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    input = operand_def(IntegerType)
+    result = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -452,15 +543,15 @@ class ReplicateOp(IRDLOperation):
     def parse(cls, parser: Parser):
         op = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        result_type = parser.parse_function_type()
-        (op,) = parser.resolve_operands([op], [result_type.inputs.data[0]], parser.pos)
-        return cls.create(operands=[op], result_types=result_type.outputs.data)
+        fun_type = parser.parse_function_type()
+        operands = parser.resolve_operands([op], fun_type.inputs.data, parser.pos)
+        return cls.create(operands=operands, result_types=fun_type.outputs.data)
 
     def print(self, printer: Printer):
         printer.print(" ")
         printer.print_ssa_value(self.input)
         printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_function_type((self.input.type,), (self.result.type,))
 
 
 @irdl_op_definition
@@ -471,12 +562,12 @@ class MuxOp(IRDLOperation):
 
     name = "comb.mux"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", base(TypeAttribute))
 
-    cond: Operand = operand_def(IntegerType(1))
-    true_value: Operand = operand_def(T)
-    false_value: Operand = operand_def(T)
-    result: OpResult = result_def(T)
+    cond = operand_def(IntegerType(1))
+    true_value = operand_def(T)
+    false_value = operand_def(T)
+    result = result_def(T)
 
     def __init__(
         self,

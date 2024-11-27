@@ -27,5 +27,6 @@ with open(xdsl_sdist, "rb") as sdist:
 
 # Make it build the local xDSL, not the PyPi release. The pyodide build still requires the SHA256 sum.
 yaml_doc["source"] = {"url": f"file://{xdsl_sdist}", "sha256": sha256_hash.hexdigest()}
+yaml_doc["requirements"] = {"run": ["typing-extensions"]}
 with open(meta_yaml_path, "w") as f:
     yaml.dump(yaml_doc, f)

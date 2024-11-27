@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable
+import platform
+from collections import Counter
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import (
     IO,
     Any,
+    ClassVar,
+    Literal,
     NamedTuple,
     ParamSpec,
     TypeAlias,
@@ -12,9 +16,30 @@ from typing import (
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute, Block, Operation, OperationInvT, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    AttributeInvT,
+    Block,
+    Operation,
+    OperationInvT,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.scoped_dict import ScopedDict
+
+_IMPL_OP_TYPE = "__impl_op_type"
+_CAST_IMPL_TYPES = "__cast_impl_types"
+_ATTR_IMPL_TYPES = "__attr_impl_types"
+_EXT_FUNC_NAME = "__external_func_name"
+_CALLABLE_OP_TYPE = "__callable_op_type"
+_IMPL_DICT = "__impl_dict"
+_CAST_IMPL_DICT = "__cast_impl_dict"
+_ATTR_IMPL_DICT = "__attr_impl_dict"
+_EXT_FUNC_DICT = "__external_func_dict"
+_CALLABLE_IMPL_DICT = "__callable_impl_dict"
 
 
 @dataclass
@@ -99,6 +124,21 @@ class InterpreterFunctions:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
     @classmethod
+    def _attr_impls(
+        cls,
+    ) -> Iterable[
+        tuple[
+            type[Attribute],
+            AttrImpl[InterpreterFunctions, Attribute],
+        ]
+    ]:
+        try:
+            impl_dict = getattr(cls, _ATTR_IMPL_DICT)
+            return impl_dict.items()
+        except AttributeError as e:
+            raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
+
+    @classmethod
     def _ext_impls(
         cls,
     ) -> Iterable[tuple[str, ExtFuncImpl[InterpreterFunctions]]]:
@@ -108,15 +148,18 @@ class InterpreterFunctions:
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
+    @classmethod
+    def _callable_impls(
+        cls,
+    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions, Operation]]]:
+        try:
+            impl_dict = getattr(cls, _CALLABLE_IMPL_DICT)
+            return impl_dict.items()
+        except AttributeError as e:
+            raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
+
 
 _FT = TypeVar("_FT", bound=InterpreterFunctions)
-
-_IMPL_OP_TYPE = "__impl_op_type"
-_CAST_IMPL_TYPES = "__cast_impl_types"
-_EXT_FUNC_NAME = "__external_func_name"
-_IMPL_DICT = "__impl_dict"
-_CAST_IMPL_DICT = "__cast_impl_dict"
-_EXT_FUNC_DICT = "__external_func_dict"
 
 P = ParamSpec("P")
 
@@ -140,7 +183,7 @@ def impl(
         )
 
     def annot(
-        func: NonTerminatorOpImpl[_FT, OperationInvT]
+        func: NonTerminatorOpImpl[_FT, OperationInvT],
     ) -> OpImpl[_FT, OperationInvT]:
         def impl(
             ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
@@ -200,9 +243,30 @@ def impl_cast(
     """
 
     def annot(
-        func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]
+        func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1],
     ) -> CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]:
         setattr(func, _CAST_IMPL_TYPES, (input_type, output_type))
+        return func
+
+    return annot
+
+
+def impl_attr(
+    input_type: type[AttributeInvT],
+) -> Callable[
+    [AttrImpl[_FT, AttributeInvT]],
+    AttrImpl[_FT, AttributeInvT],
+]:
+    """
+    Marks the conversion from an attribute to a Python value. The
+    `value_for_attribute` method on `Interpreter` will call into this implementation for
+    matching input and output types.
+
+    See `InterpreterFunctions` for more documentation.
+    """
+
+    def annot(func: AttrImpl[_FT, AttributeInvT]) -> AttrImpl[_FT, AttributeInvT]:
+        setattr(func, _ATTR_IMPL_TYPES, input_type)
         return func
 
     return annot
@@ -222,6 +286,27 @@ def impl_external(
     return annot
 
 
+def impl_callable(
+    op_type: type[OperationInvT],
+) -> Callable[
+    [NonTerminatorOpImpl[_FT, OperationInvT]], NonTerminatorOpImpl[_FT, OperationInvT]
+]:
+    """
+    Marks the Python implementation of a callable operation.
+    """
+
+    if not op_type.has_trait(CallableOpInterface):
+        raise ValueError("Operations that are not callable must use `impl` annotation")
+
+    def annot(
+        impl: NonTerminatorOpImpl[_FT, OperationInvT],
+    ) -> NonTerminatorOpImpl[_FT, OperationInvT]:
+        setattr(impl, _CALLABLE_OP_TYPE, op_type)
+        return impl
+
+    return annot
+
+
 def register_impls(ft: type[_FT]) -> type[_FT]:
     """
     Enumerates the methods on a given class, and registers the ones marked with
@@ -234,6 +319,8 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
     impl_dict: _ImplDict = {}
     cast_impl_dict: _CastImplDict = {}
     external_func_dict: _ExtFuncImplDict = {}
+    attr_impl_dict: _AttrImplDict = {}
+    callable_impl_dict: _CallableImplDict = {}
 
     for cls in ft.mro():
         # Iterate from subclass through superclasses
@@ -258,10 +345,23 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
                 if sym_name not in external_func_dict:
                     # subclass overrides superclass definition
                     external_func_dict[sym_name] = val
+            elif _ATTR_IMPL_TYPES in val.__dir__():
+                # This is an attribute value implementation
+                types = getattr(val, _ATTR_IMPL_TYPES)
+                if types not in attr_impl_dict:
+                    # subclass overrides superclass definition
+                    attr_impl_dict[types] = val
+            elif _CALLABLE_OP_TYPE in val.__dir__():
+                op_type = getattr(val, _CALLABLE_OP_TYPE)
+                if op_type not in callable_impl_dict:
+                    # subclass overrides superclass definition
+                    callable_impl_dict[op_type] = val
 
     setattr(ft, _IMPL_DICT, impl_dict)
     setattr(ft, _CAST_IMPL_DICT, cast_impl_dict)
+    setattr(ft, _ATTR_IMPL_DICT, attr_impl_dict)
     setattr(ft, _EXT_FUNC_DICT, external_func_dict)
+    setattr(ft, _CALLABLE_IMPL_DICT, callable_impl_dict)
 
     return ft
 
@@ -284,8 +384,18 @@ class _InterpreterFunctionImpls:
             InterpreterFunctions, CastImpl[InterpreterFunctions, Attribute, Attribute]
         ],
     ] = field(default_factory=dict)
+    _attr_impl_dict: dict[
+        type[Attribute],
+        tuple[InterpreterFunctions, AttrImpl[InterpreterFunctions, Attribute]],
+    ] = field(default_factory=dict)
     _external_funcs_dict: dict[
         str, tuple[InterpreterFunctions, ExtFuncImpl[InterpreterFunctions]]
+    ] = field(default_factory=dict)
+    _callable_impl_dict: dict[
+        type[Operation],
+        tuple[
+            InterpreterFunctions, NonTerminatorOpImpl[InterpreterFunctions, Operation]
+        ],
     ] = field(default_factory=dict)
 
     def register_from(self, ft: InterpreterFunctions, /, override: bool):
@@ -309,6 +419,16 @@ class _InterpreterFunctionImpls:
 
             self._cast_impl_dict[types] = (ft, cast_impl)
 
+        cast_impls = ft._attr_impls()  # pyright: ignore[reportPrivateUsage]
+        for types, cast_impl in cast_impls:
+            if types in self._attr_impl_dict and not override:
+                raise ValueError(
+                    "Attempting to register implementation for cast with types "
+                    f"{types}, but types already registered"
+                )
+
+            self._attr_impl_dict[types] = (ft, cast_impl)
+
         ext_impls = ft._ext_impls()  # pyright: ignore[reportPrivateUsage]
         for sym_name, ext_impl in ext_impls:
             if sym_name in self._external_funcs_dict and not override:
@@ -318,6 +438,16 @@ class _InterpreterFunctionImpls:
                 )
 
             self._external_funcs_dict[sym_name] = (ft, ext_impl)
+
+        callable_impls = ft._callable_impls()  # pyright: ignore[reportPrivateUsage]
+        for op_type, impl in callable_impls:
+            if op_type in self._callable_impl_dict and not override:
+                raise ValueError(
+                    "Attempting to register implementation for op of type "
+                    f"{op_type}, but type already registered"
+                )
+
+            self._callable_impl_dict[op_type] = (ft, impl)
 
     def run(
         self, interpreter: Interpreter, op: Operation, args: tuple[Any, ...]
@@ -343,6 +473,17 @@ class _InterpreterFunctionImpls:
         ft, impl = self._cast_impl_dict[types]
         return impl(ft, input_type, output_type, value)
 
+    def attr_value(
+        self, interpreter: Interpreter, attr: Attribute, type_attr: Attribute
+    ) -> Any:
+        attr_type = type(type_attr)
+        if attr_type not in self._attr_impl_dict:
+            raise InterpretationError(
+                f"Could not find Python value implementation for types {attr_type}"
+            )
+        ft, impl = self._attr_impl_dict[attr_type]
+        return impl(ft, interpreter, attr, type_attr)
+
     def call_external(
         self, interpreter: Interpreter, sym_name: str, op: Operation, args: PythonValues
     ) -> PythonValues:
@@ -355,52 +496,22 @@ class _InterpreterFunctionImpls:
 
         return ext_func(ft, interpreter, op, args)
 
+    def call(
+        self, interpreter: Interpreter, op: Operation, args: PythonValues
+    ) -> PythonValues:
+        ft, ext_func = self._callable_impl_dict[type(op)]
 
-@dataclass
-class InterpreterContext:
-    """
-    Class holding the Python values associated with SSAValues during an
-    interpretation context. An environment is a stack of scopes, values are
-    assigned to the current scope, but can be fetched from a parent scope.
-    """
+        return ext_func(ft, interpreter, op, args)
 
-    name: str = field(default="unknown")
-    parent: InterpreterContext | None = None
-    env: dict[SSAValue, Any] = field(default_factory=dict)
 
-    def __getitem__(self, key: SSAValue) -> Any:
-        """
-        Fetch key from environment. Attempts to first fetch from current scope,
-        then from parent scopes. Raises Interpretation error if not found.
-        """
-        if key in self.env:
-            return self.env[key]
-        if self.parent is not None:
-            return self.parent[key]
-        raise InterpretationError(f"Could not find value for {key} in {self}")
-
-    def __setitem__(self, key: SSAValue, value: Any):
-        """
-        Assign key to current scope. Raises InterpretationError if key already
-        assigned to.
-        """
-        if key in self.env:
-            raise InterpretationError(
-                f"Attempting to register SSAValue {value} for name {key}"
-                f", but value with that name already exists in {self}"
-            )
-        self.env[key] = value
-
-    def stack(self) -> Generator[InterpreterContext, None, None]:
-        """
-        Iterates through scopes starting with the root scope.
-        """
-        if self.parent is not None:
-            yield from self.parent.stack()
-        yield self
-
-    def __format__(self, __format_spec: str) -> str:
-        return "/".join(c.name for c in self.stack())
+def _get_system_bitwidth() -> Literal[32, 64] | None:
+    match platform.architecture()[0]:
+        case "64bit":
+            return 64
+        case "32bit":
+            return 32
+        case _:
+            return None
 
 
 @dataclass
@@ -413,11 +524,34 @@ class Interpreter:
     the `register_functions` method.
     """
 
-    module: ModuleOp
-    _impls: _InterpreterFunctionImpls = field(default_factory=_InterpreterFunctionImpls)
-    _ctx: InterpreterContext = field(
-        default_factory=lambda: InterpreterContext(name="root")
+    class Listener:
+        """
+        Base class for observing the operations that are interpreted during a run.
+        """
+
+        def will_interpret_op(self, op: Operation, args: PythonValues) -> None: ...
+
+        def did_interpret_op(self, op: Operation, results: PythonValues) -> None: ...
+
+    SYSTEM_BITWIDTH: ClassVar[Literal[32, 64] | None] = _get_system_bitwidth()
+    DEFAULT_BITWIDTH: ClassVar[Literal[32, 64]] = (
+        32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
     )
+
+    module: ModuleOp
+    index_bitwidth: Literal[32, 64] = field(default=DEFAULT_BITWIDTH)
+    """
+    Number of bits in the binary representation of the index
+    """
+    _impls: _InterpreterFunctionImpls = field(default_factory=_InterpreterFunctionImpls)
+    _ctx: ScopedDict[SSAValue, Any] = field(
+        default_factory=lambda: ScopedDict(name="root")
+    )
+    """
+    Object holding the Python values associated with SSAValues during an
+    interpretation context. An environment is a stack of scopes, values are
+    assigned to the current scope, but can be fetched from a parent scope.
+    """
     file: IO[str] | None = field(default=None)
     _symbol_table: dict[str, Operation] | None = None
     _impl_data: dict[type[InterpreterFunctions], dict[str, Any]] = field(
@@ -426,6 +560,7 @@ class Interpreter:
     """
     Runtime data associated with an interpreter functions implementation.
     """
+    listener: Listener = field(default=Listener())
 
     @property
     def symbol_table(self) -> dict[str, Operation]:
@@ -454,11 +589,11 @@ class Interpreter:
         for ssa_value, result_value in pairs:
             self._ctx[ssa_value] = result_value
 
-    def push_scope(self, name: str = "unknown") -> None:
+    def push_scope(self, name: str | None = None) -> None:
         """
         Create new scope in current environment, with optional custom `name`.
         """
-        self._ctx = InterpreterContext(name, self._ctx)
+        self._ctx = ScopedDict(name=name, parent=self._ctx)
 
     def pop_scope(self) -> None:
         """
@@ -482,43 +617,44 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
-    def run_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
-        """
-        Calls the implementation for the given operation.
-        """
-        if isinstance(op, str):
-            op = self.get_op_for_symbol(op)
-
+    def _run_op(self, op: Operation, inputs: PythonValues) -> OpImplResult:
+        if (operands_count := len(op.operands)) != (inputs_count := len(inputs)):
+            raise InterpretationError(
+                f"Number of operands ({operands_count}) doesn't match the number of inputs ({inputs_count})."
+            )
+        self.listener.will_interpret_op(op, inputs)
         result = self._impls.run(self, op, inputs)
-        return result.values
+        if (results_count := len(op.results)) != (
+            actual_result_count := len(result.values)
+        ):
+            raise InterpretationError(
+                f"Number of operation results ({results_count}) doesn't match the number of implementation results ({actual_result_count})."
+            )
+        self.listener.did_interpret_op(op, result.values)
+        return result
 
-    def call_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
+    def run_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """
         if isinstance(op, str):
-            name = op
             op = self.get_op_for_symbol(op)
-        else:
-            name = "unknown"
 
-        interface = op.get_trait(CallableOpInterface)
+        return self._run_op(op, inputs).values
 
-        self.interpreter_assert(
-            interface is not None,
-            f"Operation {op.name} does not have trait CallableOpInterface",
-        )
-        assert interface is not None
-
-        body = interface.get_callable_region(op)
-
-        # TODO: make this an interface that exposes `is_external_decl` or similar
-        if not body.blocks or not body.blocks[0].ops:
-            results = self._impls.call_external(self, name, op, inputs)
-        else:
-            results = self.run_ssacfg_region(body, inputs, name)
-        assert results is not None
+    def call_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
+        """
+        Calls the implementation for the given operation.
+        """
+        if isinstance(op, str):
+            op = self.get_op_for_symbol(op)
+        results = self._impls.call(self, op, inputs)
         return results
+
+    def call_external(
+        self, sym_name: str, op: Operation, inputs: PythonValues = ()
+    ) -> PythonValues:
+        return self._impls.call_external(self, sym_name, op, inputs)
 
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
@@ -533,7 +669,7 @@ class Interpreter:
             return results
 
         scope_count = 0
-        block = region.blocks[0]
+        block = region.blocks.first
 
         while block is not None:
             self.push_scope(name)
@@ -545,7 +681,7 @@ class Interpreter:
 
             while op is not None:
                 inputs = self.get_values(op.operands)
-                result = self._impls.run(self, op, inputs)
+                result = self._run_op(op, inputs)
                 self.interpreter_assert(
                     len(op.results) == len(result.values),
                     f"Incorrect number of results for op {op.name}, expected {len(op.results)} but got {len(result.values)}",
@@ -581,6 +717,9 @@ class Interpreter:
 
         return self._impls.cast(o, r, value)
 
+    def value_for_attribute(self, attr: Attribute, type_attr: Attribute) -> Any:
+        return self._impls.attr_value(self, attr, type_attr)
+
     def get_op_for_symbol(self, symbol: str) -> Operation:
         if symbol in self.symbol_table:
             return self.symbol_table[symbol]
@@ -612,6 +751,19 @@ class Interpreter:
 
         return data
 
+    def set_data(
+        self,
+        functions: type[InterpreterFunctions],
+        key: str,
+        value: Any,
+    ):
+        if functions not in self._impl_data:
+            functions_data: dict[str, Any] = {}
+            self._impl_data[functions] = functions_data
+        else:
+            functions_data = self._impl_data[functions]
+        functions_data[key] = value
+
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""
         print(*args, **kwargs, file=self.file)
@@ -619,7 +771,30 @@ class Interpreter:
     def interpreter_assert(self, condition: bool, message: str | None = None):
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
-            raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
+            self.raise_error(message)
+
+    def scope_names(self):
+        ctx = self._ctx
+
+        while ctx is not None:
+            yield ctx.name or "unknown"
+            ctx = ctx.parent
+
+    def raise_error(self, message: str | None = None):
+        scope_description = "/".join(self.scope_names())
+        raise InterpretationError(f"AssertionError: ({scope_description})({message})")
+
+
+@dataclass
+class OpCounter(Interpreter.Listener):
+    """
+    Counts the number of times that an op has been run by the interpreter.
+    """
+
+    ops: Counter[str] = field(default_factory=Counter)
+
+    def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
+        self.ops[op.name] += 1
 
 
 PythonValues: TypeAlias = tuple[Any, ...]
@@ -666,12 +841,20 @@ CastImpl: TypeAlias = Callable[
     [_FT, _AttributeInvT0, _AttributeInvT1, Any],
     Any,
 ]
+AttrImpl: TypeAlias = Callable[
+    [_FT, Interpreter, Attribute, AttributeInvT],
+    Any,
+]
 
 _ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctions, Operation]]
 
 _CastImplDict: TypeAlias = dict[
     tuple[type[Attribute], type[Attribute]],
     CastImpl[InterpreterFunctions, Attribute, Attribute],
+]
+_AttrImplDict: TypeAlias = dict[
+    type[Attribute],
+    AttrImpl[InterpreterFunctions, TypeAttribute],
 ]
 
 ExtFuncImpl: TypeAlias = Callable[
@@ -682,4 +865,8 @@ ExtFuncImpl: TypeAlias = Callable[
 _ExtFuncImplDict: TypeAlias = dict[
     str,
     ExtFuncImpl[InterpreterFunctions],
+]
+
+_CallableImplDict: TypeAlias = dict[
+    type[Operation], NonTerminatorOpImpl[InterpreterFunctions, Operation]
 ]
