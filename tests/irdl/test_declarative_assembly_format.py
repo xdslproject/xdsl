@@ -803,7 +803,7 @@ def test_operands(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand  ",
+            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand",
             '%0 = "test.op"() : () -> i32\n' '"test.variadic_operand"() : () -> ()',
         ),
         (
@@ -851,7 +851,7 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.optional_operand  ",
+            '%0 = "test.op"() : () -> i32\n' "test.optional_operand",
             '%0 = "test.op"() : () -> i32\n' '"test.optional_operand"() : () -> ()',
         ),
         (
@@ -942,7 +942,7 @@ def test_multiple_variadic_operands(
     "program, generic_program",
     [
         (
-            "test.optional_operands(: ) [: ]",
+            "test.optional_operands(:) [:]",
             '"test.optional_operands"() {operandSegmentSizes = array<i32:0,0>} : () -> ()',
         ),
         (
@@ -1083,7 +1083,7 @@ def test_results(format: str, program: str, generic_program: str):
     [
         (
             "`:` type($res) attr-dict",
-            "test.variadic_result : ",
+            "test.variadic_result :",
             '"test.variadic_result"() : () -> ()',
         ),
         (
@@ -1126,7 +1126,7 @@ def test_variadic_result(format: str, program: str, generic_program: str):
     [
         (
             "`:` type($res) attr-dict",
-            "test.optional_result : ",
+            "test.optional_result :",
             '"test.optional_result"() : () -> ()',
         ),
         (
@@ -1263,7 +1263,7 @@ def test_regions(format: str, program: str, generic_program: str):
     [
         (
             "attr-dict-with-keyword $region",
-            "test.variadic_region ",
+            "test.variadic_region",
             '"test.variadic_region"() : () -> ()',
         ),
         (
@@ -1306,7 +1306,7 @@ def test_variadic_region(format: str, program: str, generic_program: str):
     [
         (
             "attr-dict-with-keyword $region",
-            "test.optional_region ",
+            "test.optional_region",
             '"test.optional_region"() : () -> ()',
         ),
         (
@@ -1453,7 +1453,7 @@ def test_successors():
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.var_successor \n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.var_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
@@ -1523,7 +1523,7 @@ def test_variadic_successor(program: str, generic_program: str):
     "program, generic_program",
     [
         (
-            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.opt_successor \n}) : () -> ()',
+            '"test.op"() ({\n  "test.op"() [^0] : () -> ()\n^0:\n  test.opt_successor\n}) : () -> ()',
             textwrap.dedent(
                 """\
                 "test.op"() ({
