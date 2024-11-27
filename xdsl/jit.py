@@ -4,10 +4,16 @@ import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar, cast
+from typing import TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import func, memref
-from xdsl.dialects.builtin import Float32Type, Float64Type, IntegerType, ModuleOp
+from xdsl.dialects.builtin import (
+    Float32Type,
+    Float64Type,
+    IntegerType,
+    MemRefType,
+    ModuleOp,
+)
 from xdsl.ir import Attribute
 from xdsl.traits import SymbolTable
 
@@ -18,7 +24,12 @@ def _filename(text: str) -> str:
     return m.hexdigest()
 
 
-def c_type_for_xdsl_type(attr: Attribute) -> type:
+ScalarType = (
+    ctypes.c_int16 | ctypes.c_int32 | ctypes.c_int64 | ctypes.c_double | ctypes.c_float
+)
+
+
+def c_type_for_xdsl_scalar_type(attr: Attribute) -> type[ScalarType]:
     match attr:
         case IntegerType():
             match attr.width.data:
@@ -38,13 +49,23 @@ def c_type_for_xdsl_type(attr: Attribute) -> type:
             return ctypes.c_double
         case Float32Type():
             return ctypes.c_float
-        case memref.MemRefType():
-            attr = cast(memref.MemRefType[Attribute], attr)
-            # TODO: check that shape is fully known
-            c_type = c_type_for_xdsl_type(attr.element_type)
-            return ctypes.POINTER(c_type)
         case _:
             raise ValueError(f"Unknown attr type {attr} for jit conversion")
+
+
+if TYPE_CHECKING:
+    Pointer: TypeAlias = ctypes._Pointer[ScalarType]  # pyright: ignore[reportPrivateUsage]
+
+
+def c_type_for_xdsl_type(attr: Attribute) -> "type[ScalarType] | type[Pointer]":
+    if isinstance(attr, MemRefType):
+        attr = cast(memref.MemRefType[Attribute], attr)
+        # TODO: check that shape is fully known
+        c_type = c_type_for_xdsl_scalar_type(attr.element_type)
+        res = ctypes.POINTER(c_type)
+        return res
+    else:
+        return c_type_for_xdsl_scalar_type(attr)
 
 
 def _compile_module(module_str: str, directory: Path, filename: str):
@@ -99,16 +120,16 @@ def _compile_module(module_str: str, directory: Path, filename: str):
     # - (not sure what that does)
     # -shared (we don't need an entry point, this lets us just call the functions)
 
-    mlir_translate_cmd = subprocess.run(
+    clang_cmd = subprocess.run(
         [
             "clang",
-            "-ffast-math",
             "-O3",
             "-x",
             "ir",
             "-w",
             "-",
             "-shared",
+            "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib",
             "-o",
             (directory / f"{filename}.so").as_posix(),
         ],
@@ -116,7 +137,7 @@ def _compile_module(module_str: str, directory: Path, filename: str):
         text=True,
     )
 
-    mlir_translate_cmd.check_returncode()
+    clang_cmd.check_returncode()
 
 
 T0 = TypeVar("T0")
