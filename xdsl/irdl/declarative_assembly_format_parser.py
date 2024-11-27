@@ -60,6 +60,7 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
+    ResultsDirective,
     ResultVariable,
     SuccessorVariable,
     TypeableDirective,
@@ -702,6 +703,8 @@ class FormatParser(BaseParser):
         """
         if self.parse_optional_keyword("operands"):
             return self.create_operands_directive(False)
+        if self.parse_optional_keyword("results"):
+            return self.create_results_directive()
         if variable := self.parse_optional_typeable_variable():
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
@@ -773,3 +776,22 @@ class FormatParser(BaseParser):
         if not variadics:
             return OperandsDirective(None)
         return OperandsDirective(variadics[0])
+
+    def create_results_directive(self) -> ResultsDirective:
+        if not self.op_def.results:
+            self.raise_error("'results' should not be used when there are no results")
+        if any(self.seen_result_types):
+            self.raise_error(
+                "'results' cannot be used in a type directive with other result type directives"
+            )
+        variadics = tuple(
+            (isinstance(o, OptResultDef), i)
+            for i, (_, o) in enumerate(self.op_def.results)
+            if isinstance(o, VarResultDef)
+        )
+        if len(variadics) > 1:
+            self.raise_error("'results' is ambiguous with multiple variadic results")
+        self.seen_result_types = [True] * len(self.seen_result_types)
+        if not variadics:
+            return ResultsDirective(None)
+        return ResultsDirective(variadics[0])
