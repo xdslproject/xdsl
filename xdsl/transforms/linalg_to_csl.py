@@ -45,9 +45,10 @@ def get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
         isinstance(op, OpResult)
         and isinstance(op.op, arith.Constant)
         and isa(val := op.op.value, DenseIntOrFPElementsAttr)
-        and val.data.data.count(val.data.data[0]) == len(val.data.data)
+        and val.unpack_values().count(val.unpack_values()[0])
+        == len(val.unpack_values())
     ):
-        return val.data.data[0]
+        return val.unpack_attrs()[0]
 
 
 class ConvertBinaryLinalgOp(RewritePattern):

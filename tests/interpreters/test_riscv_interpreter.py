@@ -375,8 +375,6 @@ def test_values():
     assert interpreter.value_for_attribute(IntegerAttr(1, i32), riscv.Registers.A0) == 1
 
     assert interpreter.value_for_attribute(
-        DenseIntOrFPElementsAttr.create_dense_int(
-            TensorType(i32, [2, 3]), list(range(6))
-        ),
+        DenseIntOrFPElementsAttr.from_list(TensorType(i32, [2, 3]), list(range(6))),
         riscv.Registers.A0,
     ) == TypedPtr.new_int32(list(range(6)))

@@ -578,7 +578,8 @@ class PromoteCoefficients(RewritePattern):
         if (
             not isinstance(cnst := coeff.owner, arith.Constant)
             or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
-            or dense.data.data.count(val := dense.data.data[0]) != len(dense.data.data)
+            or dense.unpack_attrs().count(val := dense.unpack_attrs()[0])
+            != len(dense.unpack_attrs())
         ):
             return
 

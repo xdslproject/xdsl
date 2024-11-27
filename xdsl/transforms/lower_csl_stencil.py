@@ -276,7 +276,11 @@ class GenerateCoeffAPICalls(RewritePattern):
         ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
         cnsts = {
-            d: arith.Constant(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
+            d: arith.Constant(
+                DenseIntOrFPElementsAttr.from_list(
+                    memref_t, [el.value.data for el in v]
+                )
+            )
             for d, v in cmap.items()
         }
         addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}

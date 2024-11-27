@@ -17,8 +17,12 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
+    IndexType,
     IntAttr,
+    IntegerType,
     ModuleOp,
+    RankedStructure,
     ShapedType,
     TensorType,
 )
@@ -59,6 +63,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
@@ -186,7 +191,7 @@ class ArithOpTensorize(RewritePattern):
     @staticmethod
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
-        dest_typ: TensorType[Attribute],
+        dest_typ: TensorType[AnyFloat],
         op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
@@ -196,8 +201,10 @@ class ArithOpTensorize(RewritePattern):
         If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
         """
         if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, Constant):
+            assert isattr(float_attr := scalar_op.op.value, FloatAttr)
+            scalar_value = float_attr.value.data
             tens_const = Constant(
-                DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
+                DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result
@@ -424,8 +431,15 @@ class ConstOpUpdateShape(RewritePattern):
             if typ := get_required_result_type(op):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
+                    dense_type = cast(
+                        RankedStructure[IntegerType | IndexType | AnyFloat], typ
+                    )
                     rewriter.replace_matched_op(
-                        Constant(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                        Constant(
+                            DenseIntOrFPElementsAttr.from_list(
+                                dense_type, [op.value.unpack_values()[0]]
+                            )
+                        )
                     )
 
 

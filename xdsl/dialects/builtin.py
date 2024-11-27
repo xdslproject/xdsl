@@ -6,6 +6,7 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
+from struct import pack, unpack
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -1725,132 +1726,61 @@ AnyDenseElement: TypeAlias = IntegerType | IndexType | AnyFloat
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     name = "dense"
-    type: ParameterDef[
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-    ]
-    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+    type: ParameterDef[RankedStructure[IntegerType | IndexType | AnyFloat]]
+    data: ParameterDef[BytesAttr]
+
+    @staticmethod
+    def get_format_str(
+        type: RankedStructure[IntegerType | IndexType | AnyFloat],
+    ) -> str:
+        data_len = prod(type.get_shape())
+        element_type = type.element_type
+
+        if isinstance(element_type, IndexType):
+            # store IndexType as long long in bytes object
+            format_str = "{}q"
+        elif isinstance(element_type, IntegerType):
+            if element_type.size == 1:
+                # 1 byte signed char
+                format_str = "{}b"
+            elif element_type.size == 2:
+                # 2 byte short
+                format_str = "{}h"
+            elif element_type.size <= 4:
+                # 4 byte int
+                format_str = "{}i"
+            else:
+                # 8 byte long long
+                format_str = "{}q"
+        else:  # float
+            assert isinstance(element_type, FixedBitwidthType)
+            if element_type.size <= 4:
+                # still store as double floating point to avoid precision issues
+                format_str = "{}d"
+                # format_str = "{}f"
+            else:
+                format_str = "{}d"
+
+        return format_str.format(data_len)
 
     # The type stores the shape data
-    def get_shape(self) -> tuple[int, ...] | None:
-        if isinstance(self.type, UnrankedTensorType):
-            return None
+    def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
 
     def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
         return self.type.get_element_type()
 
-    @property
-    def shape_is_complete(self) -> bool:
-        shape = self.get_shape()
-        if shape is None or not len(shape):
-            return False
-
-        n = 1
-        for dim in shape:
-            if dim < 1:
-                # Dimensions need to be greater or equal to one
-                return False
-            n *= dim
-
-        # Product of dimensions needs to equal length
-        return n == len(self.data.data)
-
-    @staticmethod
-    def create_dense_index(
-        type: RankedStructure[IndexType],
-        data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
-    ) -> DenseIntOrFPElementsAttr:
-        if len(data) and isinstance(data[0], int):
-            attr_list = [
-                IntegerAttr.from_index_int_value(d) for d in cast(Sequence[int], data)
-            ]
-        else:
-            attr_list = cast(Sequence[IntegerAttr[IndexType]], data)
-
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
-
-    @staticmethod
-    def create_dense_int(
-        type: RankedStructure[IntegerType],
-        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-    ) -> DenseIntOrFPElementsAttr:
-        if len(data) and isinstance(data[0], int):
-            attr_list = [
-                IntegerAttr[IntegerType](d, type.element_type)
-                for d in cast(Sequence[int], data)
-            ]
-        else:
-            attr_list = cast(Sequence[IntegerAttr[IntegerType]], data)
-
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
-
-    @staticmethod
-    def create_dense_float(
-        type: RankedStructure[AnyFloat],
-        data: Sequence[int | float] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
-        if len(data) and isinstance(data[0], int | float):
-            attr_list = [
-                FloatAttr(float(d), type.element_type)
-                for d in cast(Sequence[int | float], data)
-            ]
-        else:
-            attr_list = cast(Sequence[AnyFloatAttr], data)
-
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
-
-    @overload
     @staticmethod
     def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: (
-            Sequence[int]
-            | Sequence[IntegerAttr[IndexType]]
-            | Sequence[IntegerAttr[IntegerType]]
-        ),
-    ) -> DenseIntOrFPElementsAttr: ...
-
-    @overload
-    @staticmethod
-    def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: Sequence[int | float] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr: ...
-
-    @staticmethod
-    def from_list(
-        type: (
-            RankedStructure[AnyFloat | IntegerType | IndexType]
-            | RankedStructure[AnyFloat]
-            | RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-        ),
-        data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
+        type: RankedStructure[IntegerType | IndexType | AnyFloat],
+        data: Sequence[int] | Sequence[float],
     ) -> DenseIntOrFPElementsAttr:
-        if isinstance(type.element_type, AnyFloat):
-            new_type = cast(RankedStructure[AnyFloat], type)
-            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
-            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        elif isinstance(type.element_type, IntegerType):
-            new_type = cast(RankedStructure[IntegerType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
-        else:
-            new_type = cast(RankedStructure[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+        if len(data) == 1:
+            data = [data[0] for _ in range(prod(type.get_shape()))]
+        bytes_data = BytesAttr(
+            pack(DenseIntOrFPElementsAttr.get_format_str(type), *data)
+        )
+        return DenseIntOrFPElementsAttr([type, bytes_data])
 
     @staticmethod
     def vector_from_list(
@@ -1862,13 +1792,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
 
     @staticmethod
     def tensor_from_list(
-        data: (
-            Sequence[int]
-            | Sequence[float]
-            | Sequence[IntegerAttr[IndexType]]
-            | Sequence[IntegerAttr[IntegerType]]
-            | Sequence[AnyFloatAttr]
-        ),
+        data: (Sequence[int] | Sequence[float]),
         data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
@@ -1876,26 +1800,31 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
-    def parse_with_type(parser: AttrParser, type: Attribute) -> TypedAttribute:
+    def memref_from_list(
+        data: (Sequence[int] | Sequence[float]),
+        data_type: IntegerType | IndexType | AnyFloat,
+        shape: Sequence[int],
+    ) -> DenseIntOrFPElementsAttr:
+        t = MemRefType(data_type, shape)
+        return DenseIntOrFPElementsAttr.from_list(t, data)
+
+    @staticmethod
+    def parse_with_type(
+        parser: AttrParser, type: Attribute
+    ) -> DenseIntOrFPElementsAttr:
         assert isa(type, RankedStructure[AnyDenseElement])
         return parser.parse_dense_int_or_fp_elements_attr(type)
 
     @staticmethod
-    def _print_one_elem(val: Attribute, printer: Printer):
-        if isinstance(val, IntegerAttr):
-            printer.print_string(f"{val.value.data}")
-        elif isinstance(val, FloatAttr):
-            printer.print_float(cast(AnyFloatAttr, val))
+    def _print_one_elem(val: int | float, printer: Printer) -> None:
+        if isinstance(val, int):
+            printer.print_string(str(val))
         else:
-            raise Exception(
-                "unexpected attribute type "
-                "in DenseIntOrFPElementsAttr: "
-                f"{type(val)}"
-            )
+            printer.print_float(FloatAttr(val, 32))
 
     @staticmethod
     def _print_dense_list(
-        array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
+        array: Sequence[int] | Sequence[float],
         shape: Sequence[int],
         printer: Printer,
     ):
@@ -1915,10 +1844,37 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             )
         printer.print_string("]")
 
+    def unpack_values(self) -> tuple[int, ...] | tuple[float, ...]:
+        format_str = DenseIntOrFPElementsAttr.get_format_str(self.type)
+        return unpack(format_str, self.data.data)
+
+    def unpack_attrs(
+        self,
+    ) -> (
+        tuple[IntegerAttr[IntegerType], ...]
+        | tuple[IntegerAttr[IndexType], ...]
+        | tuple[AnyFloatAttr, ...]
+    ):
+        if isinstance(self.type.element_type, AnyFloat):
+            return tuple(
+                FloatAttr(value, self.type.element_type)
+                for value in cast(tuple[float, ...], self.unpack_values())
+            )
+        elif isinstance(self.type.element_type, IntegerType):
+            return tuple(
+                IntegerAttr(value, self.type.element_type)
+                for value in cast(tuple[int, ...], self.unpack_values())
+            )
+        else:  # index or int
+            return tuple(
+                IntegerAttr(value, self.type.element_type)
+                for value in cast(tuple[int, ...], self.unpack_values())
+            )
+
     def print_without_type(self, printer: Printer):
         printer.print_string("dense<")
-        data = self.data.data
-        shape = self.get_shape() if self.shape_is_complete else (len(data),)
+        shape = self.get_shape()
+        data = self.unpack_values()
         assert shape is not None, "If shape is complete, then it cannot be None"
         if len(data) == 0:
             pass

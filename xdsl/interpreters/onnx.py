@@ -138,14 +138,14 @@ class OnnxFunctions(InterpreterFunctions):
         if op.value is None:
             raise NotImplementedError("Only dense constant values implemented")
         shape = op.value.get_shape()
-        data = [el.value.data for el in op.value.data]
+        data = op.value.unpack_values()
         data_ptr = ptr.TypedPtr[Any].new(
             data,
             xtype=xtype_for_el_type(
                 op.value.get_element_type(), interpreter.index_bitwidth
             ),
         )
-        return (ShapedArray(data_ptr, list(shape) if shape is not None else []),)
+        return (ShapedArray(data_ptr, list(shape)),)
 
     @impl(onnx.Reshape)
     def run_reshape(

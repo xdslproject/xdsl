@@ -248,11 +248,13 @@ class CslPrintContext:
             case UnitAttr():
                 return ""
             case DenseIntOrFPElementsAttr():
-                data = init.data.data
+                data = init.unpack_values()
                 assert (
                     len(data) == 1
                 ), f"Memref global initialiser has to have 1 value, got {len(data)}"
-                return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
+                el = f"{data[0]:.6}" if isinstance(data[0], float) else f"{data[0]}"
+                # return f"{self.mlir_type_to_csl_type(type)} {{ {el} }}"
+                return f" = @constants({type}, { el })"
             case other:
                 return f"<unknown memref.global init type {other}>"
 
@@ -449,8 +451,12 @@ class CslPrintContext:
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
-            case DenseIntOrFPElementsAttr(data=ArrayAttr(data=data), type=typ):
-                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(d) for d in data)} }}"
+            case _ if isinstance(attr, DenseIntOrFPElementsAttr):
+                els = [
+                    f"{d:.6}" if isinstance(d, float) else str(d)
+                    for d in attr.unpack_values()
+                ]
+                return f"{self.mlir_type_to_csl_type(attr.type)} {{ {', '.join(els)} }}"
             case _:
                 return f"<!unknown value {attr}>"
 

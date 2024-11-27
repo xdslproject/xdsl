@@ -3,7 +3,6 @@ from typing import cast
 
 from xdsl.dialects import arith, cf
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     BoolAttr,
     DenseIntOrFPElementsAttr,
     IntegerAttr,
@@ -284,7 +283,7 @@ class SimplifySwitchWithOnlyDefault(RewritePattern):
 def drop_case_helper(
     rewriter: PatternRewriter,
     op: cf.Switch,
-    predicate: Callable[[AnyIntegerAttr, Block, Sequence[Operation | SSAValue]], bool],
+    predicate: Callable[[int, Block, Sequence[Operation | SSAValue]], bool],
 ):
     case_values = op.case_values
     if case_values is None:
@@ -294,18 +293,18 @@ def drop_case_helper(
     new_case_values: list[int] = []
     new_case_blocks: list[Block] = []
     new_case_operands: list[Sequence[Operation | SSAValue]] = []
+    int_case_values = cast(tuple[int, ...], case_values.unpack_values())
 
     for switch_case, block, operands in zip(
-        case_values.data.data,
+        int_case_values,
         op.case_blocks,
         op.case_operand,
         strict=True,
     ):
-        int_switch_case = cast(AnyIntegerAttr, switch_case)
-        if predicate(int_switch_case, block, operands):
+        if predicate(switch_case, block, operands):
             requires_change = True
             continue
-        new_case_values.append(cast(AnyIntegerAttr, switch_case).value.data)
+        new_case_values.append(switch_case)
         new_case_blocks.append(block)
         new_case_operands.append(operands)
 
@@ -341,7 +340,7 @@ class DropSwitchCasesThatMatchDefault(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
         def predicate(
-            switch_case: AnyIntegerAttr,
+            switch_case: int,
             block: Block,
             operands: Sequence[Operation | SSAValue],
         ) -> bool:
@@ -360,7 +359,9 @@ def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
     ]
     -> br ^bb2
     """
-    case_values = () if switch.case_values is None else switch.case_values.data.data
+    case_values = (
+        () if switch.case_values is None else switch.case_values.unpack_values()
+    )
 
     new_block, new_operands = next(
         (
@@ -368,7 +369,7 @@ def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
             for (c, block, operand) in zip(
                 case_values, switch.case_blocks, switch.case_operand, strict=True
             )
-            if flag == c.value.data
+            if flag == c
         ),
         (switch.default_block, switch.default_operands),
     )
@@ -529,15 +530,15 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
             fold_switch(
                 op,
                 rewriter,
-                cast(int, case_values.data.data[pred.index - 1].value.data),
+                cast(int, case_values.unpack_values()[pred.index - 1]),
             )
         else:
 
             def predicate(
-                switch_case: AnyIntegerAttr,
+                switch_case: int,
                 block: Block,
                 operands: Sequence[Operation | SSAValue],
             ) -> bool:
-                return switch_case in case_values.data.data
+                return switch_case in case_values.unpack_values()
 
             drop_case_helper(rewriter, op, predicate)

@@ -606,7 +606,7 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
-                data = [el.value.data for el in attr.data]
+                data = attr.unpack_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
                     xtype=xtype_for_el_type(

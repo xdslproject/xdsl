@@ -4,7 +4,6 @@ import pytest
 
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
-    AnyTensorType,
     ArrayAttr,
     BFloat16Type,
     ComplexType,
@@ -48,37 +47,17 @@ def test_FloatType_bitwidths():
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
-    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [])
+    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [2])
 
-    value1 = check1.data.data[0].value.data
-    value2 = check1.data.data[1].value.data
+    values = check1.unpack_values()
+    value1 = values[0]
+    value2 = values[1]
 
     # Ensure type conversion happened properly during attribute construction.
     assert isinstance(value1, float)
     assert value1 == 4.0
     assert isinstance(value2, float)
     assert value2 == 5.0
-
-    t1 = FloatAttr(4.0, f32)
-    t2 = FloatAttr(5.0, f32)
-
-    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [])
-
-    value3 = check2.data.data[0].value.data
-    value4 = check2.data.data[1].value.data
-
-    # Ensure type conversion happened properly during attribute construction.
-    assert isinstance(value3, float)
-    assert value3 == 4.0
-    assert isinstance(value4, float)
-    assert value4 == 5.0
-
-
-def test_DenseIntOrFPElementsAttr_from_list():
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
-
-    assert attr.data == ArrayAttr([FloatAttr(5.5, f32)])
-    assert attr.type == AnyTensorType(f32, [])
 
 
 def test_DenseArrayBase_verifier_failure():

@@ -106,11 +106,7 @@ def test_onnx_constant():
     interpreter.register_implementations(OnnxFunctions())
     interpreter.register_implementations(BuiltinFunctions())
     op = onnx.Constant(
-        (
-            DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i64, [4]), [5, 5, 16, 2]
-            )
-        ),
+        (DenseIntOrFPElementsAttr.from_list(TensorType(i64, [4]), [5, 5, 16, 2])),
         None,
         None,
         None,
