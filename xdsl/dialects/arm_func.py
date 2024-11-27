@@ -1,5 +1,6 @@
 from xdsl.dialects import arm
 from xdsl.dialects.builtin import StringAttr
+from xdsl.ir import Dialect
 from xdsl.irdl import (
     irdl_op_definition,
     traits_def,
@@ -40,3 +41,11 @@ class RetOp(arm.ops.ARMInstruction):
 
     def assembly_instruction_name(self) -> str:
         return "bx lr"
+
+
+ARM_FUNC = Dialect(
+    "arm_func",
+    [
+        RetOp,
+    ],
+)
