@@ -1656,6 +1656,7 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         extent_resolver: ExtentResolver,
         input_ptr: SSAValue,
     ) -> list[Operation]:
+        assert set_val.type == starting_layout.base_type
         return [llvm.StoreOp(set_val, input_ptr)]
 
     @staticmethod
@@ -1703,6 +1704,7 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         )
         ops.extend(initialiser_ops)
         if initial_found is not False:
+            assert initial_value.type == layout.base_type
             ssa_ops, initial_found = _make_bool_ssa(initial_found)
             ops.extend(ssa_ops)
             if_op = scf.If(
@@ -4547,13 +4549,21 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             is_last_element: bool | SSAValue,
             iter_args: list[SSAValue],
         ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+            if not isinstance(base_type, dlt.IndexRangeType):
+                return [], iter_args, False
             # This callback keeps track of a running total of non-zeros, and sets the index value to that running total
             # as we go
             running_total = iter_args[0]
             ops: list[Operation] = []
 
             # first store the current running total as the index
-            store_idx_op = llvm.StoreOp(running_total, ptr)
+            idx_type = base_type
+            if idx_type == dlt.IndexRangeType():
+                idx_type = i64 # dlt.indexRange is [i64,i64]
+            assert isinstance(idx_type, IntegerType)
+            convert_running_total_ops, running_total_i = index_convert(running_total, idx_type)
+            ops.extend(convert_running_total_ops)
+            store_idx_op = llvm.StoreOp(running_total_i, ptr)
             # store_idx_op.attributes["debug"] = builtin.StringAttr(
             #     "                 Debug Sparse index writting Callback"
             # )
@@ -4603,10 +4613,13 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             new_running_total = iter_op.res[0]
             if_has_extra_space_true = []
             extra_ptr_ops, extra_ptr = (
-                _get_accepted_type_size(IndexType()).keep(1).add_to_llvm_pointer(ptr)
+                _get_accepted_type_size(base_type).keep(1).add_to_llvm_pointer(ptr)
             )
             if_has_extra_space_true.extend(extra_ptr_ops)
-            store_idx_op = llvm.StoreOp(new_running_total, extra_ptr)
+            convert_extra_running_total_ops, new_running_total_i = index_convert(new_running_total, idx_type)
+            # if there is extra space, this can only be because
+            ops.extend(convert_extra_running_total_ops)
+            store_idx_op = llvm.StoreOp(new_running_total_i, extra_ptr)
             # store_idx_op.attributes["debug"] = builtin.StringAttr(
             #     "                 Debug Sparse index writing Callback for extra space"
             # )
@@ -4703,7 +4716,7 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
                 terminal_layout, dlt.IndexRangeType(), set(), {}, extent_resolver, ptr
             )
             ops.extend(getter_ops)
-            extract_ops, start, end = _extract_indices_from_index_range(index_range)
+            extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
             ops.extend(extract_ops)
             ops.append(one_op := arith.Constant(IntegerAttr(1, IndexType())))
 
@@ -4773,10 +4786,10 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
                 return [], iter_args, False
             ops = []
             zero_op = arith.Constant(IntegerAttr(0, IndexType()))
-            one_op = arith.Constant(IntegerAttr(1, IndexType()))
+            one_i64_op = arith.Constant(IntegerAttr(1, i64))
             false_op = arith.Constant(IntegerAttr(0, IntegerType(1)))
             true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
-            ops.extend([zero_op, one_op, false_op, true_op])
+            ops.extend([zero_op, one_i64_op, false_op, true_op])
 
             if is_last_element is True:
                 is_last_element = true_op.result
@@ -4790,9 +4803,9 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             # If index_found:
             if_found_true = []
             # then increment the stored index by 1
-            load_op = llvm.LoadOp(ptr, IndexType())
+            load_op = llvm.LoadOp(ptr, i64)
             if_found_true.append(load_op)
-            add_op = arith.Addi(load_op.dereferenced_value, one_op.result)
+            add_op = arith.Addi(load_op.dereferenced_value, one_i64_op.result)
             if_found_true.append(add_op)
             store_op = llvm.StoreOp(add_op.result, ptr)
             if_found_true.append(store_op)
@@ -4821,9 +4834,11 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
 
             # If element_found then we need to return the right iter_args
             if_element_found_true = []  # yield (found_index)
-            load_op = llvm.LoadOp(ptr, IndexType())
+            load_op = llvm.LoadOp(ptr, i64)
             if_element_found_true.append(load_op)
-            if_element_found_true.append(scf.Yield(load_op.dereferenced_value))
+            convert_new_found_index_ops, new_found_index = index_convert(load_op.dereferenced_value, IndexType())
+            if_element_found_true.extend(convert_new_found_index_ops)
+            if_element_found_true.append(scf.Yield(new_found_index))
             if_element_found_op = scf.If(
                 element_found,
                 [IndexType()],
@@ -4842,17 +4857,19 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
             ops.append(increment_extra_op)
             if_increment_extra_true = []
             ptr_ops, extra_ptr = (
-                _get_accepted_type_size(IndexType()).keep(1).add_to_llvm_pointer(ptr)
+                _get_accepted_type_size(base_type).keep(1).add_to_llvm_pointer(ptr)
             )
             if_increment_extra_true.extend(ptr_ops)
-            extra_load_op = llvm.LoadOp(extra_ptr, IndexType())
+            extra_load_op = llvm.LoadOp(extra_ptr, i64)
             if_increment_extra_true.append(extra_load_op)
-            extra_add_op = arith.Addi(extra_load_op.dereferenced_value, one_op.result)
+            extra_add_op = arith.Addi(extra_load_op.dereferenced_value, one_i64_op.result)
             if_increment_extra_true.append(extra_add_op)
             extra_store_op = llvm.StoreOp(extra_add_op.result, extra_ptr)
             if_increment_extra_true.append(extra_store_op)
+            convert_last_idx_ops, new_last_index = index_convert(extra_add_op.result, IndexType())
+            if_increment_extra_true.extend(convert_last_idx_ops)
             last_index_op = arith.Select(
-                is_last_element, extra_add_op.result, zero_op.result
+                is_last_element, new_last_index, zero_op.result
             )
             if_increment_extra_true.append(last_index_op)
             if_increment_extra_true.append(scf.Yield(last_index_op.result))
@@ -4884,13 +4901,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
     ) -> NumericResult2:
         # [index_buffer, data_buffer]
         if layout.is_buffered():
-            return _get_accepted_type_size(IndexType()) * NumericResult.from_mixed(
-                [], 3
-            )
+            return ((_get_ptr_size().sum() * 2) + _get_accepted_type_size(i64).sum()).extend(0)
         else:
-            return _get_accepted_type_size(IndexType()) * NumericResult.from_mixed(
-                [], 2
-            )
+            return ((_get_ptr_size().sum() * 2)).extend(0)
 
     def get_getter_for(
         self,
@@ -4905,7 +4918,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
     ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
         ops = []
 
-        extract_ops, start, end = _extract_indices_from_index_range(index_range)
+        extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
         ops.extend(extract_ops)
 
         idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
@@ -4922,7 +4935,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         # If index is found we can use it, else we return an appropriate zero element
         if_found_true = []
 
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
+        ptr_size = _get_ptr_size().sum()
         data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
             input_ptr
         )
@@ -5031,7 +5044,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         true_index_range = if_index_range_found_op.output[0]
 
         # 4) with the index-range, we must look for the matching element in the sparse index buffer
-        extract_ops, start, end = _extract_indices_from_index_range(true_index_range)
+        extract_ops, start, end = _extract_indices_from_index_range(true_index_range, as_index=True)
         if_must_start_set_ops.extend(extract_ops)
 
         idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
@@ -5056,7 +5069,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         if_must_do_set_ops = []
 
         # 5) Now get the data buffer ptr
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
+        ptr_size = _get_ptr_size().sum()
         data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
             input_ptr
         )
@@ -5121,14 +5134,16 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         # This is not actually required and should be removed
 
         if starting_layout.is_buffered():
-            ptr_size = _get_accepted_type_size(IndexType()).sum()
+            ptr_size = _get_ptr_size().sum()
             buffer_size_ptr_ops, buffer_size_ptr = ptr_size.add_to_llvm_pointer(
                 data_buffer_ptr_ptr
             )
             if_found_false.extend(buffer_size_ptr_ops)
-            buffer_size_op = llvm.LoadOp(buffer_size_ptr, IndexType())
+            buffer_size_op = llvm.LoadOp(buffer_size_ptr, i64)
             if_found_false.append(buffer_size_op)
-            buffer_size = buffer_size_op.dereferenced_value
+            buffer_size_i64 = buffer_size_op.dereferenced_value
+            convert_buffer_size_ops, buffer_size = index_convert(buffer_size_i64, IndexType())
+            if_found_false.extend(convert_buffer_size_ops)
 
             # if_found_false.append(printf.PrintFormatOp("last_index {}   buffer_size {}", last_index, buffer_size))
 
@@ -5195,7 +5210,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             if_needs_new_buffers.append(
                 llvm.StoreOp(new_data_buffer_ptr, data_buffer_ptr_ptr)
             )
-            if_needs_new_buffers.append(llvm.StoreOp(new_size, buffer_size_ptr))
+            convert_new_size_ops, new_size_i64 = index_convert(new_size, i64)
+            if_needs_new_buffers.extend(convert_new_size_ops)
+            if_needs_new_buffers.append(llvm.StoreOp(new_size_i64, buffer_size_ptr))
             if_needs_new_buffers.append(scf.Yield())
 
             # alternatively we don't need new buffers - just need to move the data in the buffers we have
@@ -5325,7 +5342,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
     ) -> tuple[list[Operation], SSAValue]:
 
         ops = []
-        extract_ops, start, end = _extract_indices_from_index_range(index_range)
+        extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
         ops.extend(extract_ops)
 
         idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
@@ -5342,7 +5359,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops.append(while_op)
 
         # now get the data buffer ptr
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
+        ptr_size = _get_ptr_size().sum()
         data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
             input_ptr
         )
@@ -5426,14 +5443,16 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         # found_index will be the index of the element we care about
 
         if layout.is_buffered():
-            ptr_size = _get_accepted_type_size(IndexType()).sum()
+            ptr_size = _get_ptr_size().sum()
             buffer_size_ptr_ops, buffer_size_ptr = ptr_size.add_to_llvm_pointer(
                 data_buffer_ptr_ptr
             )
             if_found_false.extend(buffer_size_ptr_ops)
-            buffer_size_op = llvm.LoadOp(buffer_size_ptr, IndexType())
+            buffer_size_op = llvm.LoadOp(buffer_size_ptr, i64)
             if_found_false.append(buffer_size_op)
-            buffer_size = buffer_size_op.dereferenced_value
+            buffer_size_i64 = buffer_size_op.dereferenced_value
+            convert_buffer_size_ops, buffer_size = index_convert(buffer_size_i64, IndexType())
+            if_found_false.extend(convert_buffer_size_ops)
 
             cmp_buffer_size_op = arith.Cmpi(last_index, buffer_size, "ugt")
             need_bigger_buffers = cmp_buffer_size_op.result
@@ -5506,7 +5525,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             # if_needs_new_buffers.append(
             #     printf.PrintFormatOp("4912 new size {}", new_size))
-            if_needs_new_buffers.append(llvm.StoreOp(new_size, buffer_size_ptr))
+            convert_new_size_ops, new_size_i64 = index_convert(new_size, i64)
+            if_needs_new_buffers.extend(convert_new_size_ops)
+            if_needs_new_buffers.append(llvm.StoreOp(new_size_i64, buffer_size_ptr))
             if_needs_new_buffers.append(scf.Yield(child_fill_value))
 
             # alternatively we don't need new buffers - just need to move the data in the buffers we have
@@ -5659,16 +5680,18 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
         idx_buffer_ptr_ptr = input_ptr
         ops.append(llvm.StoreOp(idx_buffer_ptr, idx_buffer_ptr_ptr))
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
+        ptr_size = _get_ptr_size().sum()
         ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(input_ptr)
         ops.extend(ptr_ops)
         ops.append(llvm.StoreOp(data_buffer_ptr, data_buffer_ptr_ptr))
 
         if layout.is_buffered():
-            ptr_size = _get_accepted_type_size(IndexType()).sum()
+            ptr_size = _get_ptr_size().sum()
             ptr_ops, buffer_size_ptr = ptr_size.add_to_llvm_pointer(data_buffer_ptr_ptr)
             ops.extend(ptr_ops)
-            ops.append(llvm.StoreOp(total_size, buffer_size_ptr))
+            convert_total_size_ops, total_size_i64 = index_convert(total_size, i64)
+            ops.extend(convert_total_size_ops)
+            ops.append(llvm.StoreOp(total_size_i64, buffer_size_ptr))
 
         data_element_size_ops, (data_element_size,) = (
             self.semantics.get_size(layout.child, extent_resolver).keep(1).output()
@@ -5711,7 +5734,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         idx_buffer_ptr = idx_buffer_op.dereferenced_value
         ops.append(idx_buffer_op)
         data_buffer_ptr_ptr_ops, data_buffer_ptr_ptr = (
-            _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
+            _get_ptr_size().sum().add_to_llvm_pointer(input_ptr)
         )
         ops.extend(data_buffer_ptr_ptr_ops)
         data_buffer_ptr_op = llvm.LoadOp(
@@ -5759,7 +5782,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         idx_buffer_ptr = idx_buffer_op.dereferenced_value
         ops.append(idx_buffer_op)
         data_buffer_ops, data_buffer_ptr_ptr = (
-            _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
+            _get_ptr_size().sum().add_to_llvm_pointer(input_ptr)
         )
         ops.extend(data_buffer_ops)
         data_buffer_op = llvm.LoadOp(data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque())
@@ -5805,7 +5828,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         idx_buffer_ptr = idx_buffer_op.dereferenced_value
         ops.append(idx_buffer_op)
         data_buffer_ops, data_buffer_ptr_ptr = (
-            _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
+            _get_ptr_size().sum().add_to_llvm_pointer(input_ptr)
         )
         ops.extend(data_buffer_ops)
         data_buffer_op = llvm.LoadOp(data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque())
@@ -5874,8 +5897,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         running_is_over = false_op.result
         running_is_found = true_op.result
         index_offset_ops, (index_offset,) = (
-            _get_accepted_type_size(IndexType()).sum()
-            * NumericResult.from_const(num_dims)
+            _get_accepted_type_size(i64).sum()
+            * num_dims
             * NumericResult.from_ssa(before_index)
         ).output()
         if_in_range_true.extend(index_offset_ops)
@@ -5885,21 +5908,23 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
                 NumericResult.from_ssa(index_offset)
                 + (
                     NumericResult.from_const(i)
-                    * (_get_accepted_type_size(IndexType()).sum())
+                    * (_get_accepted_type_size(i64).sum())
                 )
             ).add_to_llvm_pointer(index_buffer_ptr)
             if_in_range_true.extend(stored_idx_ptr_ops)
-            inner_load_stored_index = llvm.LoadOp(stored_idx_ptr, IndexType())
+            inner_load_stored_index = llvm.LoadOp(stored_idx_ptr, i64)
             if_in_range_true.append(inner_load_stored_index)
+            convert_inner_load_index_ops, inner_loaded_index = index_convert(inner_load_stored_index.dereferenced_value, IndexType())
+            if_in_range_true.extend(convert_inner_load_index_ops)
             get_index_ops, (get_index,) = dim_mapping[dim].get().output()
             if_in_range_true.extend(get_index_ops)
 
             inner_is_over_cmp = arith.Cmpi(
-                inner_load_stored_index.dereferenced_value, get_index, "ugt"
+                inner_loaded_index, get_index, "ugt"
             )
             if_in_range_true.append(inner_is_over_cmp)
             inner_is_found_cmp = arith.Cmpi(
-                inner_load_stored_index.dereferenced_value, get_index, "eq"
+                inner_loaded_index, get_index, "eq"
             )
             if_in_range_true.append(inner_is_found_cmp)
 
@@ -5966,19 +5991,21 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops = []
         # Malloc the Unpacked COO index Buffer:
         alloc_idx_buffer_bytes_numeric = (
-            _get_accepted_type_size(IndexType()).sum()
-            * NumericResult.from_mixed([], len(upcoo_layout.dimensions))
-            * NumericResult.from_mixed([], num_non_zero)
+            _get_accepted_type_size(i64).sum()
+            * len(upcoo_layout.dimensions)
+            * NumericResult.from_ssa( num_non_zero)
         )
         alloc_idx_buffer_bytes_ops, (alloc_idx_buffer_bytes,) = (
             alloc_idx_buffer_bytes_numeric.output()
         )
         ops.extend(alloc_idx_buffer_bytes_ops)
+        convert_idx_bytes_ops, alloc_idx_buffer_bytes_i64 = index_convert(alloc_idx_buffer_bytes, i64)
+        ops.extend(convert_idx_bytes_ops)
 
         if old_buffers is None:
             malloc_idx_buffer = llvm.CallOp(
                 "malloc",
-                alloc_idx_buffer_bytes,
+                alloc_idx_buffer_bytes_i64,
                 return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(malloc_idx_buffer)
@@ -5989,7 +6016,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             realloc_idx_buffer = llvm.CallOp(
                 "realloc",
                 old_buffers[0],
-                alloc_idx_buffer_bytes,
+                alloc_idx_buffer_bytes_i64,
                 return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(realloc_idx_buffer)
@@ -6007,10 +6034,13 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             alloc_data_buffer_bytes_numeric.output()
         )
         ops.extend(alloc_data_buffer_ops)
+        convert_data_bytes_ops,  alloc_data_buffer_bytes_i64 = index_convert(alloc_data_buffer_bytes, i64)
+        ops.extend(convert_data_bytes_ops)
+
         if old_buffers is None:
             malloc_data_buffer = llvm.CallOp(
                 "malloc",
-                alloc_data_buffer_bytes,
+                alloc_data_buffer_bytes_i64,
                 return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(malloc_data_buffer)
@@ -6020,7 +6050,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             realloc_data_buffer = llvm.CallOp(
                 "realloc",
                 old_buffers[1],
-                alloc_data_buffer_bytes,
+                alloc_data_buffer_bytes_i64,
                 return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(realloc_data_buffer)
@@ -6060,11 +6090,13 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         if not shuffle_instead:
             # Copy the data before the new element
             # ops.append(printf.PrintFormatOp("# Call memcpy (before elem) dst: {}  src: {}  size: {}", new_buffer_ptr, old_buffer_ptr, pre_elem_buffer_size))
+            convert_pre_elem_buffer_size_ops, pre_elem_buffer_size_i64 = index_convert(pre_elem_buffer_size, i64)
+            ops.extend(convert_pre_elem_buffer_size_ops)
             pre_elem_idx_copy_op = llvm.CallOp(
                 "memcpy",
                 new_buffer_ptr,
                 old_buffer_ptr,
-                pre_elem_buffer_size,
+                pre_elem_buffer_size_i64,
                 return_type=None,
             )
             ops.append(pre_elem_idx_copy_op)
@@ -6101,6 +6133,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops.append(cmp_op)
         # ops.append(printf.PrintFormatOp("# Post elem copy size: {}, !=0?: {}", post_elem_buffer_size, cmp_op.result))
         if_needs_post_copy = []
+        convert_post_elem_buffer_size_ops, post_elem_buffer_size_i64 = index_convert(post_elem_buffer_size, i64)
+        if_needs_post_copy.extend(convert_post_elem_buffer_size_ops)
+
         if shuffle_instead:
             # Copy the elements after the new element - but expect an overlap
             # if_needs_post_copy.append(printf.PrintFormatOp("# Call memmove (after elem) dst: {}  src: {}  size: {}", new_post_elem_buffer_ptr,
@@ -6109,7 +6144,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
                 "memmove",
                 new_post_elem_buffer_ptr,
                 post_elem_buffer_ptr,
-                post_elem_buffer_size,
+                post_elem_buffer_size_i64,
                 return_type=None,
             )
             if_needs_post_copy.append(pre_elem_idx_copy_op)
@@ -6121,7 +6156,7 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
                 "memcpy",
                 new_post_elem_buffer_ptr,
                 post_elem_buffer_ptr,
-                post_elem_buffer_size,
+                post_elem_buffer_size_i64,
                 return_type=None,
             )
             if_needs_post_copy.append(pre_elem_idx_copy_op)
@@ -6267,10 +6302,12 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             current_block_running_idx_buffer_ptr = block_running_idx_buffer_ptr
             for idx_arg in iter_op.get_block_args_for_extent_args():
+                convert_idx_arg_ops, idx_arg_i64 = index_convert(idx_arg, i64)
+                true_ops.extend(convert_idx_arg_ops)
                 true_ops.append(
-                    llvm.StoreOp(idx_arg, current_block_running_idx_buffer_ptr)
+                    llvm.StoreOp(idx_arg_i64, current_block_running_idx_buffer_ptr)
                 )
-                idx_size = _get_accepted_type_size(IndexType()).sum()
+                idx_size = _get_accepted_type_size(i64).sum()
                 new_idx_ptr_ops, current_block_running_idx_buffer_ptr = (
                     idx_size.add_to_llvm_pointer(current_block_running_idx_buffer_ptr)
                 )
@@ -6400,17 +6437,17 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
                 terminal_layout, dlt.IndexRangeType(), set(), {}, extent_resolver, ptr
             )
             ops.extend(getter_ops)
-            extract_ops, start, end = _extract_indices_from_index_range(index_range)
+            extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
             ops.extend(extract_ops)
             ops.append(one_op := arith.Constant(IntegerAttr(1, IndexType())))
 
             idxs_step_ops, (idxs_step,) = (
-                _get_accepted_type_size(IndexType()).sum()
-                * NumericResult.from_mixed([], len(self.unpack_coo_layout.dimensions))
+                _get_accepted_type_size(i64).sum()
+                * len(self.unpack_coo_layout.dimensions)
             ).output()
             ops.extend(idxs_step_ops)
             idx_step_ops, (idx_step,) = (
-                _get_accepted_type_size(IndexType()).sum().output()
+                _get_accepted_type_size(i64).sum().output()
             )
             ops.extend(idx_step_ops)
 
@@ -6473,9 +6510,12 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             sparse_dims = {}
             for dim in self.unpack_coo_layout.dimensions:
-                sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, IndexType())
+                sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, i64)
                 block.add_op(sparse_index_load)
-                sparse_dims[dim] = sparse_index_load.dereferenced_value
+                convert_sparse_index_ops, sparse_index = index_convert(
+                    sparse_index_load.dereferenced_value, IndexType())
+                block.add_ops(convert_sparse_index_ops)
+                sparse_dims[dim] = sparse_index
                 increment_idx_ops, current_idx_buffer_ptr = NumericResult.from_mixed(
                     [], idx_step
                 ).add_to_llvm_pointer(current_idx_buffer_ptr)
@@ -6606,16 +6646,16 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
                 terminal_layout, dlt.IndexRangeType(), set(), {}, extent_resolver, ptr
             )
             ops.extend(getter_ops)
-            extract_ops, start, end = _extract_indices_from_index_range(index_range)
+            extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
             ops.extend(extract_ops)
 
             idxs_step_ops, (idxs_step,) = (
-                _get_accepted_type_size(IndexType()).sum()
+                _get_accepted_type_size(i64).sum()
                 * NumericResult.from_mixed([], len(self.unpack_coo_layout.dimensions))
             ).output()
             ops.extend(idxs_step_ops)
             idx_step_ops, (idx_step,) = (
-                _get_accepted_type_size(IndexType()).sum().output()
+                _get_accepted_type_size(i64).sum().output()
             )
             ops.extend(idx_step_ops)
 
@@ -6642,12 +6682,14 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             checked_sparse_dims = {}
             checked = true_const.result
             for dim in self.unpack_coo_layout.dimensions:
-                sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, IndexType())
+                sparse_index_load = llvm.LoadOp(current_idx_buffer_ptr, i64)
                 block.add_op(sparse_index_load)
+                convert_sparse_index_ops, sparse_index = index_convert(sparse_index_load.dereferenced_value, IndexType())
+                block.add_ops(convert_sparse_index_ops)
                 if dim in self.dims_to_loop:
-                    looped_sparse_dims[dim] = sparse_index_load.dereferenced_value
+                    looped_sparse_dims[dim] = sparse_index
                 elif dim in self.dim_mapping:
-                    checked_sparse_dims[dim] = sparse_index_load.dereferenced_value
+                    checked_sparse_dims[dim] = sparse_index
                     val_wanted_ops, (val_wanted,) = self.dim_mapping[dim].get().output()
                     block.add_ops(val_wanted_ops)
                     cmp_op = arith.Cmpi(checked_sparse_dims[dim], val_wanted, "eq")
@@ -6721,8 +6763,10 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         for dim in starting_layout.dimensions:
             idx_arg_ops, (idx_arg,) = dim_mapping[dim].get().output()
             ops.extend(idx_arg_ops)
-            ops.append(llvm.StoreOp(idx_arg, running_idx_buffer_ptr))
-            idx_size = _get_accepted_type_size(IndexType()).sum()
+            convert_idx_arg_ops, idx_arg_i64 = index_convert(idx_arg, i64)
+            ops.extend(convert_idx_arg_ops)
+            ops.append(llvm.StoreOp(idx_arg_i64, running_idx_buffer_ptr))
+            idx_size = _get_accepted_type_size(i64).sum()
             new_idx_ptr_ops, running_idx_buffer_ptr = idx_size.add_to_llvm_pointer(
                 running_idx_buffer_ptr
             )
@@ -6771,8 +6815,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         # Set up for lots of memory copies to move the sparse index tuples and child data into their new larger buffers
         # Starting with Index tuples
         index_tuple_size_ops, (index_tuple_size,) = (
-            _get_accepted_type_size(IndexType()).keep(1)
-            * NumericResult.from_const(len(starting_layout.dimensions))
+            _get_accepted_type_size(i64).keep(1)
+            * len(starting_layout.dimensions)
         ).output()
         ops.extend(index_tuple_size_ops)
 
@@ -6834,8 +6878,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         # Set up for lots of memory copies to move the sparse index tuples and child data into their new larger buffers
         # Starting with Index tuples
         index_tuple_size_ops, (index_tuple_size,) = (
-            _get_accepted_type_size(IndexType()).keep(1)
-            * NumericResult.from_const(len(starting_layout.dimensions))
+            _get_accepted_type_size(i64).keep(1)
+            * len(starting_layout.dimensions)
         ).output()
         ops.extend(index_tuple_size_ops)
 
@@ -6889,7 +6933,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
             ops.append(idx_buffer_ptr_op)
             idxs.append(idx_buffer_ptr_op.dereferenced_value)
-            ptr_size = _get_accepted_type_size(IndexType()).sum()
+            ptr_size = _get_ptr_size().sum()
             ptr_inc_ops, input_ptr = ptr_size.add_to_llvm_pointer(input_ptr)
             ops.extend(ptr_inc_ops)
 
@@ -6902,12 +6946,14 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         if not layout.is_buffered():
             return ops, (tuple(idxs), data_buffer_ptr, None)
 
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
+        ptr_size = _get_ptr_size().sum()
         ptr_inc_ops, capacity_ptr = ptr_size.add_to_llvm_pointer(input_ptr)
         ops.extend(ptr_inc_ops)
-        capacity_op = llvm.LoadOp(capacity_ptr, IndexType())
-        capacity = capacity_op.dereferenced_value
+        capacity_op = llvm.LoadOp(capacity_ptr, i64)
+        capacity_i64 = capacity_op.dereferenced_value
         ops.append(capacity_op)
+        convert_capacity_ops, capacity = index_convert(capacity_i64, IndexType())
+        ops.extend(convert_capacity_ops)
         return ops, (tuple(idxs), data_buffer_ptr, capacity)
 
     def _set_buffer_ptrs(
@@ -6919,23 +6965,32 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         capacity: SSAValue = None,
     ) -> list[Operation]:
         ops = []
-        for idx_buffer_ptr in new_idx_buffer_ptrs:
-            idx_buffer_ptr_op = llvm.StoreOp(idx_buffer_ptr, input_ptr)
+        if layout.is_buffered():
+            llvm_type = llvm.LLVMStructType.from_type_list(
+                ([llvm.LLVMPointerType.opaque()] * (len(layout.dimensions) + 1))+[i64])
+        else:
+            llvm_type = llvm.LLVMStructType.from_type_list(
+                [llvm.LLVMPointerType.opaque()]*(len(layout.dimensions)+1))
+        for i, idx_buffer_ptr in enumerate(new_idx_buffer_ptrs):
+            gep_op = llvm.GEPOp(input_ptr, [0,i], pointee_type=llvm_type)
+            ops.append(gep_op)
+            idx_buffer_ptr_op = llvm.StoreOp(idx_buffer_ptr, gep_op.result)
             ops.append(idx_buffer_ptr_op)
-            ptr_size = _get_accepted_type_size(IndexType()).sum()
-            ptr_inc_ops, input_ptr = ptr_size.add_to_llvm_pointer(input_ptr)
-            ops.extend(ptr_inc_ops)
 
-        data_buffer_ptr_op = llvm.StoreOp(new_data_buffer_ptr, input_ptr)
+        gep_op = llvm.GEPOp(input_ptr, [0,len(layout.dimensions) + 0], pointee_type=llvm_type)
+        ops.append(gep_op)
+        data_buffer_ptr_op = llvm.StoreOp(new_data_buffer_ptr, gep_op.result)
         ops.append(data_buffer_ptr_op)
 
         if capacity is None:
+            assert not layout.is_buffered()
             return ops
-
-        ptr_size = _get_accepted_type_size(IndexType()).sum()
-        ptr_inc_ops, capacity_ptr = ptr_size.add_to_llvm_pointer(input_ptr)
-        ops.extend(ptr_inc_ops)
-        capacity_op = llvm.StoreOp(capacity, capacity_ptr)
+        assert layout.is_buffered()
+        gep_op = llvm.GEPOp(input_ptr, [0, len(layout.dimensions) + 1], pointee_type=llvm_type)
+        ops.append(gep_op)
+        convert_capacity_ops, capacity_i64 = index_convert(capacity, i64)
+        ops.extend(convert_capacity_ops)
+        capacity_op = llvm.StoreOp(capacity_i64, gep_op.result)
         ops.append(capacity_op)
         return ops
 
@@ -6944,9 +6999,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
     ) -> NumericResult2:
         # [*index_buffer per dimension, data_buffer]
         if layout.is_buffered():
-            return _get_accepted_type_size(IndexType()) * (len(layout.dimensions) + 2)
+            return ((_get_ptr_size().sum() * (len(layout.dimensions)+1)) + _get_accepted_type_size(i64).sum()).extend(0)
         else:
-            return _get_accepted_type_size(IndexType()) * (len(layout.dimensions) + 1)
+            return (_get_ptr_size().sum() * (len(layout.dimensions)+1)).extend(0)
 
     def get_getter_for(
         self,
@@ -6961,7 +7016,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
     ) -> tuple[list[Operation], SSAValue, bool | SSAValue]:
         ops = []
 
-        extract_ops, start, end = _extract_indices_from_index_range(index_range)
+        extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
         ops.extend(extract_ops)
 
         extract_ptr_ops, (idx_buffers, data_buffer_ptr) = self._get_buffer_ptrs(
@@ -7079,7 +7134,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         true_index_range = if_index_range_found_op.output[0]
 
         # 4) with the index-range, we must look for the matching element in the sparse index buffer
-        extract_ops, start, end = _extract_indices_from_index_range(true_index_range)
+        extract_ops, start, end = _extract_indices_from_index_range(true_index_range, as_index=True)
         if_must_start_set_ops.extend(extract_ops)
 
         extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr, buffer_size) = (
@@ -7351,7 +7406,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
     ) -> tuple[list[Operation], SSAValue]:
 
         ops = []
-        extract_ops, start, end = _extract_indices_from_index_range(index_range)
+        extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
         ops.extend(extract_ops)
 
         extract_ptr_ops, (idx_buffer_ptrs, data_buffer_ptr, buffer_size) = (
@@ -8549,11 +8604,13 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 * NumericResult.from_ssa(num_non_zero)
             ).output()
             ops.extend(alloc_idx_buffer_bytes_ops)
+            convert_idx_bytes_ops, alloc_idx_buffer_bytes_i64 = index_convert(alloc_idx_buffer_bytes, i64)
+            ops.extend(convert_idx_bytes_ops)
 
             if old_buffers is None:
                 malloc_idx_buffer = llvm.CallOp(
                     "malloc",
-                    alloc_idx_buffer_bytes,
+                    alloc_idx_buffer_bytes_i64,
                     return_type=llvm.LLVMPointerType.opaque(),
                 )
                 ops.append(malloc_idx_buffer)
@@ -8565,7 +8622,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 realloc_idx_buffer = llvm.CallOp(
                     "realloc",
                     old_buffers[0][i],
-                    alloc_idx_buffer_bytes,
+                    alloc_idx_buffer_bytes_i64,
                     return_type=llvm.LLVMPointerType.opaque(),
                 )
                 ops.append(realloc_idx_buffer)
@@ -8585,10 +8642,13 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             alloc_data_buffer_bytes_numeric.output()
         )
         ops.extend(alloc_data_buffer_ops)
+        convert_data_bytes_ops,  alloc_data_buffer_bytes_i64 = index_convert(alloc_data_buffer_bytes, i64)
+        ops.extend(convert_data_bytes_ops)
+
         if old_buffers is None:
             malloc_data_buffer = llvm.CallOp(
                 "malloc",
-                alloc_data_buffer_bytes,
+                alloc_data_buffer_bytes_i64,
                 return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(malloc_data_buffer)
@@ -8600,7 +8660,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             realloc_data_buffer = llvm.CallOp(
                 "realloc",
                 old_buffers[1],
-                alloc_data_buffer_bytes,
+                alloc_data_buffer_bytes_i64,
                 return_type=llvm.LLVMPointerType.opaque(),
             )
             ops.append(realloc_data_buffer)
@@ -8640,11 +8700,13 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         if not shuffle_instead:
             # Copy the data before the new element
             # ops.append(printf.PrintFormatOp("# Call memcpy (before elem) dst: {}  src: {}  size: {}", new_buffer_ptr, old_buffer_ptr, pre_elem_buffer_size))
+            convert_pre_elem_buffer_size_ops, pre_elem_buffer_size_i64 = index_convert(pre_elem_buffer_size, i64)
+            ops.extend(convert_pre_elem_buffer_size_ops)
             pre_elem_idx_copy_op = llvm.CallOp(
                 "memcpy",
                 new_buffer_ptr,
                 old_buffer_ptr,
-                pre_elem_buffer_size,
+                pre_elem_buffer_size_i64,
                 return_type=None,
             )
             ops.append(pre_elem_idx_copy_op)
@@ -8681,6 +8743,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
         ops.append(cmp_op)
         # ops.append(printf.PrintFormatOp("# Post elem copy size: {}, !=0?: {}", post_elem_buffer_size, cmp_op.result))
         if_needs_post_copy = []
+        convert_post_elem_buffer_size_ops, post_elem_buffer_size_i64 = index_convert(post_elem_buffer_size, i64)
+        if_needs_post_copy.extend(convert_post_elem_buffer_size_ops)
         if shuffle_instead:
             # Copy the elements after the new element - but expect an overlap
             # if_needs_post_copy.append(printf.PrintFormatOp("# Call memmove (after elem) dst: {}  src: {}  size: {}", new_post_elem_buffer_ptr,
@@ -8689,7 +8753,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 "memmove",
                 new_post_elem_buffer_ptr,
                 post_elem_buffer_ptr,
-                post_elem_buffer_size,
+                post_elem_buffer_size_i64,
                 return_type=None,
             )
             if_needs_post_copy.append(pre_elem_idx_copy_op)
@@ -8701,7 +8765,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 "memcpy",
                 new_post_elem_buffer_ptr,
                 post_elem_buffer_ptr,
-                post_elem_buffer_size,
+                post_elem_buffer_size_i64,
                 return_type=None,
             )
             if_needs_post_copy.append(pre_elem_idx_copy_op)
@@ -8999,7 +9063,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 terminal_layout, dlt.IndexRangeType(), set(), {}, extent_resolver, ptr
             )
             ops.extend(getter_ops)
-            extract_ops, start, end = _extract_indices_from_index_range(index_range)
+            extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
             ops.extend(extract_ops)
             ops.append(one_op := arith.Constant(IntegerAttr(1, IndexType())))
 
@@ -9215,7 +9279,7 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 terminal_layout, dlt.IndexRangeType(), set(), {}, extent_resolver, ptr
             )
             ops.extend(getter_ops)
-            extract_ops, start, end = _extract_indices_from_index_range(index_range)
+            extract_ops, start, end = _extract_indices_from_index_range(index_range, as_index=True)
             ops.extend(extract_ops)
 
             start_idx, end_idx, step = start, end, one_op.result
@@ -9768,7 +9832,7 @@ class GetFirstValueCallback(Callback):
         iter_args: list[SSAValue],
     ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
         if base_type == self.target_type:
-            getter_ops, index_range, index_range_found = self.semantics.get_getter_for(
+            getter_ops, value, value_found = self.semantics.get_getter_for(
                 terminal_layout,
                 base_type,
                 set(),
@@ -9776,7 +9840,7 @@ class GetFirstValueCallback(Callback):
                 extent_resolver,
                 ptr,
             )
-            return getter_ops, [index_range], index_range_found
+            return getter_ops, [value], value_found
         else:
             return [], iter_args, False
 
@@ -9790,12 +9854,16 @@ def _get_accepted_type_size(t: dlt.AcceptedTypes) -> NumericResult2:
         bit_width = t.width.data
     elif isinstance(t, AnyFloat):
         bit_width = t.get_bitwidth
-    elif isinstance(t, IndexType):
-        bit_width = i64.width.data
     else:
         raise ValueError(f"Cannot get size of base element: {t}")
     num_bytes = -(bit_width // -8)
     return NumericResult.from_mixed([], num_bytes, 0)
+
+def _get_ptr_size() -> NumericResult2:
+    bit_width = i64.width.data
+    num_bytes = -(bit_width // -8)
+    return NumericResult2.from_const(num_bytes,0)
+    # here it is assumed this is a 64bit pointer system. overcoming this appears too complex for now.
 
 
 def _get_unpacked_zero_for_accepted_type(
@@ -9805,10 +9873,8 @@ def _get_unpacked_zero_for_accepted_type(
         return [op := arith.Constant(IntegerAttr(0, t))], op.result, None
     elif isinstance(t, AnyFloat):
         return [op := arith.Constant(FloatAttr(0.0, t))], op.result, None
-    elif isinstance(t, IndexType):
-        return [op := arith.Constant(IntegerAttr(0, t))], op.result, None
     elif isinstance(t, dlt.IndexRangeType):
-        return [op := arith.Constant(IntegerAttr(0, IndexType()))], op.result, op.result
+        return [op := arith.Constant(IntegerAttr(0, i64))], op.result, op.result
     else:
         raise ValueError(f"Cannot get zero for base element: {t}")
 
@@ -9820,10 +9886,8 @@ def _get_packed_zero_for_accepted_type(
         return [op := arith.Constant(IntegerAttr(0, t))], op.result
     elif isinstance(t, AnyFloat):
         return [op := arith.Constant(FloatAttr(0.0, t))], op.result
-    elif isinstance(t, IndexType):
-        return [op := arith.Constant(IntegerAttr(0, t))], op.result
     elif isinstance(t, dlt.IndexRangeType):
-        op = arith.Constant(IntegerAttr(0, IndexType()))
+        op = arith.Constant(IntegerAttr(0, i64))
         pack_ops, zero = _pack_indices_in_index_range(op.result, op.result)
         return [op] + pack_ops, zero
     else:
@@ -9891,22 +9955,27 @@ def _make_iterate(
 
 def _extract_indices_from_index_range(
     val: SSAValue,
+    as_index: bool = False,
 ) -> tuple[list[Operation], SSAValue, SSAValue]:
     ops: list[Operation] = []
     cast = builtin.UnrealizedConversionCastOp.get(
-        [val], [llvm.LLVMStructType.from_type_list([IndexType(), IndexType()])]
+        [val], [llvm.LLVMStructType.from_type_list([i64, i64])]
     )
     ops.append(cast)
     extract_start = llvm.ExtractValueOp(
-        DenseArrayBase.from_list(i64, [0]), cast.outputs[0], IndexType()
+        DenseArrayBase.from_list(i64, [0]), cast.outputs[0], i64
     )
     ops.append(extract_start)
     extract_end = llvm.ExtractValueOp(
-        DenseArrayBase.from_list(i64, [1]), cast.outputs[0], IndexType()
+        DenseArrayBase.from_list(i64, [1]), cast.outputs[0], i64
     )
     ops.append(extract_end)
-    return ops, extract_start.res, extract_end.res
+    if not as_index:
+        return ops, extract_start.res, extract_end.res
 
+    convert_start_ops, start = index_convert(extract_start.res, IndexType())
+    convert_end_ops, end = index_convert(extract_end.res, IndexType())
+    return ops + convert_start_ops + convert_end_ops, start, end
 
 def _pack_indices_in_index_range(
     start: SSAValue,
@@ -9914,7 +9983,7 @@ def _pack_indices_in_index_range(
 ) -> tuple[list[Operation], SSAValue]:
     ops: list[Operation] = []
     undef_op = llvm.UndefOp(
-        llvm.LLVMStructType.from_type_list([IndexType(), IndexType()])
+        llvm.LLVMStructType.from_type_list([i64, i64])
     )
     ops.append(undef_op)
     insert_1_op = llvm.InsertValueOp(

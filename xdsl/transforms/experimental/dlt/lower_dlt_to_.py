@@ -1124,7 +1124,7 @@ class DLTIndexTypeRewriter(TypeConversionPattern):
 class DLTIndexRangeTypeRewriter(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: dlt.IndexRangeType, /) -> Attribute | None:
-        return llvm.LLVMStructType.from_type_list([IndexType(), IndexType()])
+        return llvm.LLVMStructType.from_type_list([i64, i64])
 
 
 # def add_to_llvm_pointer(

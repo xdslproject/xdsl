@@ -182,7 +182,7 @@ class IndexRangeType(
         return (bytes, bytes)
 
 
-AcceptedTypes: TypeAlias = IntegerType | AnyFloat | IndexType | IndexRangeType
+AcceptedTypes: TypeAlias = IntegerType | AnyFloat | IndexRangeType
 
 
 @irdl_attr_definition
