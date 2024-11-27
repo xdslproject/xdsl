@@ -1029,7 +1029,7 @@ class ObjectFIFOSubviewAccessOp(IRDLOperation):
 
 
 @irdl_op_definition
-class createObjectFifo(IRDLOperation):
+class ObjectFifoOp(IRDLOperation):
     name = "aie.objectfifo"
 
     elemNumber = attr_def(IntegerAttr[IntegerType])
@@ -1076,7 +1076,7 @@ class createObjectFifo(IRDLOperation):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> createObjectFifo:
+    def parse(cls, parser: Parser) -> ObjectFifoOp:
         name = parser.parse_symbol_name().data
         parser.parse_characters("(")
         producerTile = parser.parse_operand()
@@ -1103,7 +1103,7 @@ class createObjectFifo(IRDLOperation):
         shape = objectfifo_type.shape
         referenced_type = objectfifo_type.element_type
 
-        object_fifo = createObjectFifo(
+        object_fifo = ObjectFifoOp(
             elemNumber, producerTile, consumerTiles, referenced_type, shape, name
         )
 
@@ -1327,7 +1327,7 @@ class PacketSourceOp(IRDLOperation):
 
 
 @irdl_op_definition
-class PutCascade(IRDLOperation):
+class PutCascadeOp(IRDLOperation):
     name = "aie.putCascade"
 
     cascadeValue = operand_def(IntegerType(CASCADE_SIZE))
@@ -1339,7 +1339,7 @@ class PutCascade(IRDLOperation):
 
 
 @irdl_op_definition
-class PutStream(IRDLOperation):
+class PutStreamOp(IRDLOperation):
     name = "aie.putStream"
 
     channel = operand_def(i32)
@@ -1492,7 +1492,7 @@ AIE = Dialect(
         ObjectFifoAcquireOp,
         ObjectFifoRegisterExternalBuffersOp,
         ObjectFIFOSubviewAccessOp,
-        createObjectFifo,
+        ObjectFifoOp,
         ObjectFIFOReleaseOp,
         PLIOOp,
         PacketDestOp,
@@ -1500,8 +1500,8 @@ AIE = Dialect(
         PacketRuleOp,
         PacketRulesOp,
         PacketSourceOp,
-        PutCascade,
-        PutStream,
+        PutCascadeOp,
+        PutStreamOp,
         ShimDMAOp,
         ShimMuxOp,
         ShimSwitchBoxOp,
