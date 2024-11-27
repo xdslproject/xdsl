@@ -1,7 +1,7 @@
 from xdsl.dialects import get_all_dialects
 
 
-def test_op_names():
+def test_op_class_names():
     """
     Make sure that all operation class names match our convention of having an "Op"
     suffix.
