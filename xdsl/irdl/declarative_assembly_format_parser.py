@@ -8,7 +8,6 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Sequence, Set
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from itertools import pairwise
 from typing import cast
 
@@ -113,13 +112,6 @@ class FormatLexer(Lexer):
 
     # Authorize `-` in bare identifier
     bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
-
-
-class ParsingContext(Enum):
-    """Indicates if the parser is nested in a particular directive."""
-
-    TopLevel = auto()
-    TypeDirective = auto()
 
 
 @dataclass(init=False)
