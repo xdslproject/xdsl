@@ -147,7 +147,7 @@ def __(
         b.name_hint = "B"
         c.name_hint = "C"
         body = Region(Block(arg_types = (f64, f64, f64)))
-        linalg.Generic(
+        linalg.GenericOp(
             inputs=(a, b),
             outputs=(c,),
             body=body,
@@ -163,8 +163,8 @@ def __(
             )
         )
         with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
-            prod_val = arith.Mulf(a_val, b_val).result
-            acc_new_val = arith.Addf(acc_old_val, prod_val).result
+            prod_val = arith.MulfOp(a_val, b_val).result
+            acc_new_val = arith.AddfOp(acc_old_val, prod_val).result
             linalg.YieldOp(acc_new_val)
             # Add more name hints to make it easier to track how values are lowered
             a_val.name_hint = "a"
@@ -172,7 +172,7 @@ def __(
             acc_old_val.name_hint = "acc_old"
             prod_val.name_hint = "prod"
             acc_new_val.name_hint = "acc_new"
-        func.Return()
+        func.ReturnOp()
 
     linalg_module = ModuleOp((kernel_op,))
 

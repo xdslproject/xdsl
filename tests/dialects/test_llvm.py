@@ -93,7 +93,7 @@ def test_llvm_disjoint_arithmetic_ops(
 def test_llvm_pointer_ops():
     module = builtin.ModuleOp(
         [
-            idx := arith.Constant.from_int_and_width(0, 64),
+            idx := arith.ConstantOp.from_int_and_width(0, 64),
             ptr := llvm.AllocaOp(idx, builtin.i32, as_untyped_ptr=False),
             val := llvm.LoadOp(ptr),
             nullptr := llvm.NullOp(),
@@ -126,7 +126,7 @@ def test_llvm_pointer_ops():
 
 
 def test_llvm_ptr_to_int_to_ptr():
-    idx = arith.Constant.from_int_and_width(0, 64)
+    idx = arith.ConstantOp.from_int_and_width(0, 64)
     ptr = llvm.IntToPtrOp(idx, ptr_type=builtin.i32)
     int_val = llvm.PtrToIntOp(ptr)
 
@@ -151,7 +151,7 @@ def test_llvm_pointer_type():
 
 
 def test_llvm_getelementptr_op_invalid_construction():
-    size = arith.Constant.from_int_and_width(1, 32)
+    size = arith.ConstantOp.from_int_and_width(1, 32)
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that passing an opaque pointer to GEP without a pointee type fails
@@ -172,7 +172,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 
 
 def test_llvm_getelementptr_op():
-    size = arith.Constant.from_int_and_width(1, 32)
+    size = arith.ConstantOp.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=False)
     ptr_type = llvm.LLVMPointerType.typed(ptr.res.type)
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)

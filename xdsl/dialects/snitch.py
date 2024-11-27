@@ -215,7 +215,7 @@ class SsrSetStreamRepetitionOp(SsrSetStreamConfigOperation):
 
 
 @irdl_op_definition
-class SsrEnable(IRDLOperation):
+class SsrEnableOp(IRDLOperation):
     """
     Enable stream semantics.
     """
@@ -229,7 +229,7 @@ class SsrEnable(IRDLOperation):
 
 
 @irdl_op_definition
-class SsrDisable(IRDLOperation):
+class SsrDisableOp(IRDLOperation):
     """
     Disable stream semantics.
     """
@@ -248,8 +248,8 @@ Snitch = Dialect(
         SsrSetDimensionSourceOp,
         SsrSetDimensionDestinationOp,
         SsrSetStreamRepetitionOp,
-        SsrEnable,
-        SsrDisable,
+        SsrEnableOp,
+        SsrDisableOp,
     ],
     [
         ReadableStreamType,

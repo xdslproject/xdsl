@@ -19,7 +19,7 @@ def insert_eclass_ops(block: Block):
         results = op.results
 
         # Skip special ops such as return ops
-        if isinstance(op, func.Return):
+        if isinstance(op, func.ReturnOp):
             continue
 
         if len(results) != 1:

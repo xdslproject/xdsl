@@ -2,7 +2,7 @@ import onnx
 import pytest
 
 from xdsl.dialects.builtin import TensorType, f32
-from xdsl.dialects.onnx import Add, MatMul, Sub, Transpose
+from xdsl.dialects.onnx import AddOp, MatMulOp, SubOp, TransposeOp
 from xdsl.ir import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
@@ -106,7 +106,7 @@ def test_visit_node_add():
     # visit node
     op = visit_node(add_node, ctx)
 
-    assert isinstance(op, Add)
+    assert isinstance(op, AddOp)
     assert op.lhs is lhs
     assert op.rhs is rhs
     assert op.res is ctx.value_by_name["output"]
@@ -135,7 +135,7 @@ def test_visit_node_sub():
 
     op = visit_node(sub_node, ctx)
 
-    assert isinstance(op, Sub)
+    assert isinstance(op, SubOp)
     assert op.lhs is lhs
     assert op.rhs is rhs
     assert op.res is ctx.value_by_name["output"]
@@ -167,7 +167,7 @@ def test_visit_node_matmul():
     op = visit_node(matmul_node, ctx)
     op.verify()
 
-    assert isinstance(op, MatMul)
+    assert isinstance(op, MatMulOp)
     assert op.matrix_A is lhs
     assert op.matrix_B is rhs
     assert op.matrix_Y is ctx.value_by_name["output"]
@@ -195,7 +195,7 @@ def test_visit_node_transpose():
     op = visit_node(transpose_node, ctx)
     op.verify()
 
-    assert isinstance(op, Transpose)
+    assert isinstance(op, TransposeOp)
     assert op.tensor_input is in_value
     assert op.tensor_output is ctx.value_by_name["output"]
     assert not op.attributes

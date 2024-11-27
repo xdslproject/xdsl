@@ -74,13 +74,13 @@ def get_dir_and_distance(
 
 def get_dir_and_distance_ops(
     op: csl_stencil.AccessOp,
-) -> tuple[csl.DirectionOp, arith.Constant]:
+) -> tuple[csl.DirectionOp, arith.ConstantOp]:
     """
     Given an access op, return the distance and direction ops, assuming as access
     to a neighbour (not self) in a star-shape pattern
     """
     d, max_distance = get_dir_and_distance(op.offset)
-    return csl.DirectionOp(d), arith.Constant(IntegerAttr(max_distance, 16))
+    return csl.DirectionOp(d), arith.ConstantOp(IntegerAttr(max_distance, 16))
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -201,7 +201,7 @@ class LowerApplyOp(RewritePattern):
         # ensure we send only core data
         assert isa(op.accumulator.type, memref.MemRefType[Attribute])
         assert isa(op.field.type, memref.MemRefType[Attribute])
-        send_buf = memref.Subview.get(
+        send_buf = memref.SubviewOp.get(
             op.field,
             [
                 (d - s) // 2  # symmetric offset
@@ -215,7 +215,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # add api call
-        num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
+        num_chunks = arith.ConstantOp(IntegerAttr(op.num_chunks.value, i16))
         chunk_ref = csl.AddressOfFnOp(chunk_fn)
         done_ref = csl.AddressOfFnOp(done_fn)
         # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
@@ -278,7 +278,9 @@ class GenerateCoeffAPICalls(RewritePattern):
         ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
         cnsts = {
-            d: arith.Constant(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
+            d: arith.ConstantOp(
+                DenseIntOrFPElementsAttr.create_dense_float(memref_t, v)
+            )
             for d, v in cmap.items()
         }
         addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
@@ -294,7 +296,7 @@ class GenerateCoeffAPICalls(RewritePattern):
                 west := addrs[csl.Direction.WEST],
                 south := addrs[csl.Direction.SOUTH],
                 north := addrs[csl.Direction.NORTH],
-                flse := arith.Constant(IntegerAttr.from_bool(False)),
+                flse := arith.ConstantOp(IntegerAttr.from_bool(False)),
                 csl.MemberCallOp(
                     "setCoeffs",
                     None,
@@ -443,14 +445,14 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         if (
             not isattr(accumulator.type, AnyMemRefType)
             or not isinstance(op.accumulator, OpResult)
-            or not isinstance(alloc := op.accumulator.op, memref.Alloc)
+            or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
         ):
             raise ValueError("Pass needs to be run on memref types")
 
         # Set up new accumulator GetMemDsd, with 0-stride in `direction` and `distance` dimensions.
         # Effectively, this activates only the z-value dimension.
         dsd_t = csl.DsdType(csl.DsdKind.mem4d_dsd)
-        direction_count = arith.Constant.from_int_and_width(4, 16)
+        direction_count = arith.ConstantOp.from_int_and_width(4, 16)
         pattern = wrapper.get_program_param("pattern")
         chunk_size = wrapper.get_program_param("chunk_size")
         acc_dsd = csl.GetMemDsdOp.build(
@@ -464,7 +466,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         new_ops: list[Operation] = [direction_count, acc_dsd]
         if (
             isinstance(accumulator, OpResult)
-            and isinstance(subview := accumulator.op, memref.Subview)
+            and isinstance(subview := accumulator.op, memref.SubviewOp)
             and subview.source == op.receive_chunk.block.args[2]
         ):
             assert isa(subview.source.type, memref.MemRefType[Attribute])
@@ -500,7 +502,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             Float16Type(),
             Float32Type(),
         ]
-        zero = arith.Constant(FloatAttr(0.0, elem_t))
+        zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
         mov_op = csl.FmovsOp if elem_t == Float32Type() else csl.FmovhOp
         rewriter.insert_op(
             [zero, mov_op(operands=[[op.accumulator, zero]])], InsertPoint.before(op)

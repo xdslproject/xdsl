@@ -10,14 +10,14 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.vector import (
-    FMA,
-    Broadcast,
-    Createmask,
-    Load,
-    Maskedload,
-    Maskedstore,
-    Print,
-    Store,
+    BroadcastOp,
+    CreatemaskOp,
+    FMAOp,
+    LoadOp,
+    MaskedloadOp,
+    MaskedstoreOp,
+    PrintOp,
+    StoreOp,
 )
 from xdsl.ir import Attribute, OpResult
 from xdsl.utils.test_value import TestSSAValue
@@ -55,7 +55,7 @@ def test_vectorType_with_dimensions():
 
 def test_vector_load_i32():
     memref_ssa_value = get_MemRef_SSAVal(i32, [1])
-    load = Load.get(memref_ssa_value, [])
+    load = LoadOp.get(memref_ssa_value, [])
 
     assert type(load.results[0]) is OpResult
     assert type(load.results[0].type) is VectorType
@@ -66,7 +66,7 @@ def test_vector_load_i32_with_dimensions():
     memref_ssa_value = get_MemRef_SSAVal(i32, [2, 3])
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
-    load = Load.get(memref_ssa_value, [index1, index2])
+    load = LoadOp.get(memref_ssa_value, [index1, index2])
 
     assert type(load.results[0]) is OpResult
     assert type(load.results[0].type) is VectorType
@@ -79,7 +79,7 @@ def test_vector_load_verify_type_matching():
 
     memref_ssa_value = get_MemRef_SSAVal(i32, [4, 5])
 
-    load = Load.build(operands=[memref_ssa_value, []], result_types=[res_vector_type])
+    load = LoadOp.build(operands=[memref_ssa_value, []], result_types=[res_vector_type])
 
     with pytest.raises(
         Exception, match="MemRef element type should match the Vector element type."
@@ -90,7 +90,7 @@ def test_vector_load_verify_type_matching():
 def test_vector_load_verify_indexing_exception():
     memref_ssa_value = get_MemRef_SSAVal(i32, [2, 3])
 
-    load = Load.get(memref_ssa_value, [])
+    load = LoadOp.get(memref_ssa_value, [])
 
     with pytest.raises(Exception, match="Expected an index for each dimension."):
         load.verify()
@@ -100,7 +100,7 @@ def test_vector_store_i32():
     vector_ssa_value = get_Vector_SSAVal(i32, [1])
     memref_ssa_value = get_MemRef_SSAVal(i32, [1])
 
-    store = Store.get(vector_ssa_value, memref_ssa_value, [])
+    store = StoreOp.get(vector_ssa_value, memref_ssa_value, [])
 
     assert store.memref is memref_ssa_value
     assert store.vector is vector_ssa_value
@@ -113,7 +113,7 @@ def test_vector_store_i32_with_dimensions():
 
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
-    store = Store.get(vector_ssa_value, memref_ssa_value, [index1, index2])
+    store = StoreOp.get(vector_ssa_value, memref_ssa_value, [index1, index2])
 
     assert store.memref is memref_ssa_value
     assert store.vector is vector_ssa_value
@@ -125,7 +125,7 @@ def test_vector_store_verify_type_matching():
     vector_ssa_value = get_Vector_SSAVal(i64, [2, 3])
     memref_ssa_value = get_MemRef_SSAVal(i32, [4, 5])
 
-    store = Store.get(vector_ssa_value, memref_ssa_value, [])
+    store = StoreOp.get(vector_ssa_value, memref_ssa_value, [])
 
     with pytest.raises(
         Exception, match="MemRef element type should match the Vector element type."
@@ -137,7 +137,7 @@ def test_vector_store_verify_indexing_exception():
     vector_ssa_value = get_Vector_SSAVal(i32, [2, 3])
     memref_ssa_value = get_MemRef_SSAVal(i32, [4, 5])
 
-    store = Store.get(vector_ssa_value, memref_ssa_value, [])
+    store = StoreOp.get(vector_ssa_value, memref_ssa_value, [])
 
     with pytest.raises(Exception, match="Expected an index for each dimension."):
         store.verify()
@@ -145,7 +145,7 @@ def test_vector_store_verify_indexing_exception():
 
 def test_vector_broadcast():
     index1 = TestSSAValue(IndexType())
-    broadcast = Broadcast.get(index1)
+    broadcast = BroadcastOp.get(index1)
 
     assert type(broadcast.results[0]) is OpResult
     assert type(broadcast.results[0].type) is VectorType
@@ -156,7 +156,7 @@ def test_vector_broadcast_verify_type_matching():
     index1 = TestSSAValue(IndexType())
     res_vector_type = VectorType(i64, [1])
 
-    broadcast = Broadcast.build(operands=[index1], result_types=[res_vector_type])
+    broadcast = BroadcastOp.build(operands=[index1], result_types=[res_vector_type])
 
     with pytest.raises(
         Exception,
@@ -172,7 +172,7 @@ def test_vector_fma():
     rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
     acc_vector_ssa_value = TestSSAValue(i32_vector_type)
 
-    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
+    fma = FMAOp.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].type) is VectorType
@@ -188,7 +188,7 @@ def test_vector_fma_with_dimensions():
     rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
     acc_vector_ssa_value = TestSSAValue(i32_vector_type)
 
-    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
+    fma = FMAOp.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].type) is VectorType
@@ -203,7 +203,7 @@ def test_vector_fma_verify_res_lhs_type_matching():
     i32_vector_ssa_value = get_Vector_SSAVal(i32, [1])
     i64_vector_ssa_value = get_Vector_SSAVal(i64, [1])
 
-    fma = FMA.build(
+    fma = FMAOp.build(
         operands=[i32_vector_ssa_value, i64_vector_ssa_value, i64_vector_ssa_value],
         result_types=[i64_vector_type],
     )
@@ -222,7 +222,7 @@ def test_vector_fma_verify_res_rhs_type_matching():
     i32_vector_ssa_value = get_Vector_SSAVal(i32, [1])
     i64_vector_ssa_value = get_Vector_SSAVal(i64, [1])
 
-    fma = FMA.build(
+    fma = FMAOp.build(
         operands=[i64_vector_ssa_value, i32_vector_ssa_value, i64_vector_ssa_value],
         result_types=[i64_vector_type],
     )
@@ -242,7 +242,7 @@ def test_vector_fma_verify_res_acc_type_matching():
     i32_vector_ssa_value = get_Vector_SSAVal(i32, [1])
     i64_vector_ssa_value = get_Vector_SSAVal(i64, [1])
 
-    fma = FMA.build(
+    fma = FMAOp.build(
         operands=[i64_vector_ssa_value, i64_vector_ssa_value, i32_vector_ssa_value],
         result_types=[i64_vector_type],
     )
@@ -262,7 +262,7 @@ def test_vector_fma_verify_res_lhs_shape_matching():
     vector_ssa_value1 = get_Vector_SSAVal(i32, [2, 3])
     vector_ssa_value2 = get_Vector_SSAVal(i32, [4, 5])
 
-    fma = FMA.build(
+    fma = FMAOp.build(
         operands=[vector_ssa_value1, vector_ssa_value2, vector_ssa_value2],
         result_types=[i32_vector_type2],
     )
@@ -281,7 +281,7 @@ def test_vector_fma_verify_res_rhs_shape_matching():
     vector_ssa_value1 = get_Vector_SSAVal(i32, [2, 3])
     vector_ssa_value2 = get_Vector_SSAVal(i32, [4, 5])
 
-    fma = FMA.build(
+    fma = FMAOp.build(
         operands=[vector_ssa_value2, vector_ssa_value1, vector_ssa_value2],
         result_types=[i32_vector_type2],
     )
@@ -300,7 +300,7 @@ def test_vector_fma_verify_res_acc_shape_matching():
     vector_ssa_value1 = get_Vector_SSAVal(i32, [2, 3])
     vector_ssa_value2 = get_Vector_SSAVal(i32, [4, 5])
 
-    fma = FMA.build(
+    fma = FMAOp.build(
         operands=[vector_ssa_value2, vector_ssa_value2, vector_ssa_value1],
         result_types=[i32_vector_type2],
     )
@@ -318,7 +318,7 @@ def test_vector_masked_load():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedload = Maskedload.get(
+    maskedload = MaskedloadOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
     )
 
@@ -335,7 +335,7 @@ def test_vector_masked_load_with_dimensions():
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    maskedload = Maskedload.get(
+    maskedload = MaskedloadOp.get(
         memref_ssa_value,
         [index1, index2],
         mask_vector_ssa_value,
@@ -355,7 +355,7 @@ def test_vector_masked_load_verify_memref_res_type_matching():
 
     i64_res_vector_type = VectorType(i64, [1])
 
-    maskedload = Maskedload.build(
+    maskedload = MaskedloadOp.build(
         operands=[
             memref_ssa_value,
             [],
@@ -380,7 +380,7 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
 
     i64_res_vector_type = VectorType(i32, [1])
 
-    maskedload = Maskedload.build(
+    maskedload = MaskedloadOp.build(
         operands=[
             memref_ssa_value,
             [],
@@ -404,7 +404,7 @@ def test_vector_masked_load_verify_indexing_exception():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [2])
     passthrough_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedload = Maskedload.get(
+    maskedload = MaskedloadOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
     )
 
@@ -417,7 +417,7 @@ def test_vector_masked_store():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedstore = Maskedstore.get(
+    maskedstore = MaskedstoreOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
@@ -435,7 +435,7 @@ def test_vector_masked_store_with_dimensions():
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    maskedstore = Maskedstore.get(
+    maskedstore = MaskedstoreOp.get(
         memref_ssa_value,
         [index1, index2],
         mask_vector_ssa_value,
@@ -454,7 +454,7 @@ def test_vector_masked_store_verify_memref_value_to_store_type_matching():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i64, [1])
 
-    maskedstore = Maskedstore.get(
+    maskedstore = MaskedstoreOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
@@ -471,7 +471,7 @@ def test_vector_masked_store_verify_indexing_exception():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [2])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedstore = Maskedstore.get(
+    maskedstore = MaskedstoreOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
@@ -482,13 +482,13 @@ def test_vector_masked_store_verify_indexing_exception():
 def test_vector_print():
     vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    print = Print.get(vector_ssa_value)
+    print = PrintOp.get(vector_ssa_value)
 
     assert print.source is vector_ssa_value
 
 
 def test_vector_create_mask():
-    create_mask = Createmask.get([])
+    create_mask = CreatemaskOp.get([])
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].type) is VectorType
@@ -499,7 +499,7 @@ def test_vector_create_mask_with_dimensions():
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    create_mask = Createmask.get([index1, index2])
+    create_mask = CreatemaskOp.get([index1, index2])
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].type) is VectorType
@@ -510,7 +510,7 @@ def test_vector_create_mask_with_dimensions():
 def test_vector_create_mask_verify_indexing_exception():
     mask_vector_type = VectorType(i1, [2, 3])
 
-    create_mask = Createmask.build(operands=[[]], result_types=[mask_vector_type])
+    create_mask = CreatemaskOp.build(operands=[[]], result_types=[mask_vector_type])
 
     with pytest.raises(
         Exception,

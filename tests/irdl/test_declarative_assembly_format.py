@@ -281,7 +281,7 @@ def test_attr_dict_prop_fallack(program: str, generic_program: str):
 
 
 @irdl_op_definition
-class OpWithAttr(IRDLOperation):
+class OpWithAttrOp(IRDLOperation):
     name = "test.one_attr"
 
     attr = attr_def(Attribute)
@@ -300,7 +300,7 @@ class OpWithAttr(IRDLOperation):
 )
 def test_standard_attr_directive(program: str, generic_program: str):
     ctx = MLContext()
-    ctx.load_op(OpWithAttr)
+    ctx.load_op(OpWithAttrOp)
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)
@@ -308,7 +308,7 @@ def test_standard_attr_directive(program: str, generic_program: str):
 
 def test_attr_variable_shadowed():
     ctx = MLContext()
-    ctx.load_op(OpWithAttr)
+    ctx.load_op(OpWithAttrOp)
 
     parser = Parser(ctx, "test.one_attr i32 {attr = i64}")
     with pytest.raises(
@@ -330,14 +330,14 @@ def test_attr_variable_shadowed():
 )
 def test_attr_name(program: str, generic_program: str):
     @irdl_op_definition
-    class OpWithRenamedAttr(IRDLOperation):
+    class RenamedAttrOp(IRDLOperation):
         name = "test.one_attr"
 
         python = attr_def(Attribute, attr_name="irdl")
         assembly_format = "$irdl attr-dict"
 
     ctx = MLContext()
-    ctx.load_op(OpWithRenamedAttr)
+    ctx.load_op(RenamedAttrOp)
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)
@@ -367,7 +367,7 @@ def test_unqualified_attr(program: str, generic_program: str):
         p: ParameterDef[Attribute]
 
     @irdl_op_definition
-    class OpWithUnqualifiedAttr(IRDLOperation):
+    class UnqualifiedAttrOp(IRDLOperation):
         name = "test.one_attr"
 
         attr = attr_def(ParamOne)
@@ -375,14 +375,14 @@ def test_unqualified_attr(program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_attr(ParamOne)
-    ctx.load_op(OpWithUnqualifiedAttr)
+    ctx.load_op(UnqualifiedAttrOp)
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)
 
 
 def test_missing_property_error():
-    class OpWithMissingProp(IRDLOperation):
+    class MissingPropOp(IRDLOperation):
         name = "test.missing_prop"
 
         prop1 = prop_def(Attribute)
@@ -393,7 +393,7 @@ def test_missing_property_error():
         PyRDLOpDefinitionError,
         match="prop2 properties are missing",
     ):
-        irdl_op_definition(OpWithMissingProp)
+        irdl_op_definition(MissingPropOp)
 
 
 @pytest.mark.parametrize(
@@ -408,14 +408,14 @@ def test_missing_property_error():
 )
 def test_standard_prop_directive(program: str, generic_program: str):
     @irdl_op_definition
-    class OpWithProp(IRDLOperation):
+    class PropOp(IRDLOperation):
         name = "test.one_prop"
 
         prop = prop_def(Attribute)
         assembly_format = "$prop attr-dict"
 
     ctx = MLContext()
-    ctx.load_op(OpWithProp)
+    ctx.load_op(PropOp)
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)
@@ -433,14 +433,14 @@ def test_standard_prop_directive(program: str, generic_program: str):
 )
 def test_prop_name(program: str, generic_program: str):
     @irdl_op_definition
-    class OpWithRenamedProp(IRDLOperation):
+    class RenamedPropOp(IRDLOperation):
         name = "test.one_prop"
 
         python = prop_def(Attribute, prop_name="irdl")
         assembly_format = "$irdl attr-dict"
 
     ctx = MLContext()
-    ctx.load_op(OpWithRenamedProp)
+    ctx.load_op(RenamedPropOp)
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)
@@ -1621,7 +1621,7 @@ def test_eq_attr_inference():
         name = "test.unit"
 
     @irdl_op_definition
-    class OneOperandEqType(IRDLOperation):
+    class OneOperandEqTypeOp(IRDLOperation):
         name = "test.one_operand_eq_type"
         index = operand_def(UnitType())
         res = result_def(UnitType())
@@ -1630,7 +1630,7 @@ def test_eq_attr_inference():
 
     ctx = MLContext()
     ctx.load_attr(UnitType)
-    ctx.load_op(OneOperandEqType)
+    ctx.load_op(OneOperandEqTypeOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\
@@ -1649,7 +1649,7 @@ def test_all_of_attr_inference():
         name = "test.unit"
 
     @irdl_op_definition
-    class OneOperandEqTypeAllOfNested(IRDLOperation):
+    class OneOperandEqTypeAllOfNestedOp(IRDLOperation):
         name = "test.one_operand_eq_type_all_of_nested"
         index = operand_def(AllOf((AnyAttr(), EqAttrConstraint(UnitType()))))
 
@@ -1657,7 +1657,7 @@ def test_all_of_attr_inference():
 
     ctx = MLContext()
     ctx.load_attr(UnitType)
-    ctx.load_op(OneOperandEqTypeAllOfNested)
+    ctx.load_op(OneOperandEqTypeAllOfNestedOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
         """\

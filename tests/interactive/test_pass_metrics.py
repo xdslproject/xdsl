@@ -21,12 +21,12 @@ def test_operation_counter():
     with ImplicitBuilder(module.body):
         function = func.FuncOp("hello", ((index,), (index,)))
         with ImplicitBuilder(function.body) as (n,):
-            two = arith.Constant(IntegerAttr(2, index)).result
-            three = arith.Constant(IntegerAttr(2, index)).result
-            res_1 = arith.Muli(n, two)
-            res_2 = arith.Muli(n, three)
-            res = arith.Muli(res_1, res_2)
-            func.Return(res)
+            two = arith.ConstantOp(IntegerAttr(2, index)).result
+            three = arith.ConstantOp(IntegerAttr(2, index)).result
+            res_1 = arith.MuliOp(n, two)
+            res_2 = arith.MuliOp(n, three)
+            res = arith.MuliOp(res_1, res_2)
+            func.ReturnOp(res)
 
     expected_res = {
         "func.func": 1,

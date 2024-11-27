@@ -275,7 +275,7 @@ def split_ops(
     for op in ops:
         if isinstance(op, csl_stencil.AccessOp):
             (b, a)[op.op == buf].append(op)
-        elif isinstance(op, arith.Constant):
+        elif isinstance(op, arith.ConstantOp):
             a.append(op)
         else:
             rem.append(op)
@@ -311,7 +311,7 @@ def split_ops(
                         rem.remove(use.operation)
 
     # find constants in `a` needed outside of `a`
-    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.Constant)]
+    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp)]
 
     # `a` exports one value plus any number of constants - duplicate exported constants and return op split
     if len(a_exports) == 1 + len(cnst_exports):
@@ -569,14 +569,14 @@ class PromoteCoefficients(RewritePattern):
             not isinstance(apply := op.get_apply(), csl_stencil.ApplyOp)
             or not op.op == apply.receive_chunk.block.args[0]
             or len(op.result.uses) != 1
-            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.Mulf)
+            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.MulfOp)
         ):
             return
 
         coeff = mulf.lhs if op.result == mulf.rhs else mulf.rhs
 
         if (
-            not isinstance(cnst := coeff.owner, arith.Constant)
+            not isinstance(cnst := coeff.owner, arith.ConstantOp)
             or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
             or dense.data.data.count(val := dense.data.data[0]) != len(dense.data.data)
         ):

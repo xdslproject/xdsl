@@ -111,7 +111,7 @@ class ApplyOp(IRDLOperation):
 
 
 @irdl_op_definition
-class For(IRDLOperation):
+class ForOp(IRDLOperation):
     name = "affine.for"
 
     lowerBoundOperands = var_operand_def(IndexType)
@@ -169,7 +169,7 @@ class For(IRDLOperation):
         upper_bound: int | AffineMapAttr,
         region: Region,
         step: int | AnyIntegerAttr = 1,
-    ) -> For:
+    ) -> ForOp:
         if isinstance(lower_bound, int):
             lower_bound = AffineMapAttr(
                 AffineMap(0, 0, (AffineExpr.constant(lower_bound),))
@@ -185,7 +185,7 @@ class For(IRDLOperation):
             "upperBoundMap": upper_bound,
             "step": step,
         }
-        return For.build(
+        return ForOp.build(
             operands=[lowerBoundOperands, upperBoundOperands, inits],
             result_types=[result_types],
             properties=properties,
@@ -194,7 +194,7 @@ class For(IRDLOperation):
 
 
 @irdl_op_definition
-class If(IRDLOperation):
+class IfOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
     """
@@ -257,7 +257,7 @@ class ParallelOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Store(IRDLOperation):
+class StoreOp(IRDLOperation):
     name = "affine.store"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
@@ -290,7 +290,7 @@ class Store(IRDLOperation):
 
 
 @irdl_op_definition
-class Load(IRDLOperation):
+class LoadOp(IRDLOperation):
     name = "affine.load"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
@@ -352,28 +352,28 @@ class MinOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Yield(IRDLOperation):
+class YieldOp(IRDLOperation):
     name = "affine.yield"
     arguments = var_operand_def()
 
     traits = traits_def(IsTerminator(), Pure())
 
     @staticmethod
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
+    def get(*operands: SSAValue | Operation) -> YieldOp:
+        return YieldOp.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 Affine = Dialect(
     "affine",
     [
         ApplyOp,
-        For,
+        ForOp,
         ParallelOp,
-        If,
-        Store,
-        Load,
+        IfOp,
+        StoreOp,
+        LoadOp,
         MinOp,
-        Yield,
+        YieldOp,
     ],
     [],
 )

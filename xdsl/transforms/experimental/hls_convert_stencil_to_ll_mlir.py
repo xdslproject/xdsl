@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from xdsl.builder import Builder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, llvm, memref, scf, stencil
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
@@ -24,7 +24,7 @@ from xdsl.dialects.experimental.hls import (
     PragmaDataflow,
     PragmaPipeline,
 )
-from xdsl.dialects.func import Call, FuncOp
+from xdsl.dialects.func import CallOp, FuncOp
 from xdsl.dialects.llvm import (
     AllocaOp,
     InsertValueOp,
@@ -90,7 +90,7 @@ OUT = 1
 def gen_duplicate_loop(
     input_stream: HLSStream, duplicate_stream_lst: list[HLSStream], n: arith.IndexCastOp
 ):
-    ii = Constant.from_int_and_width(1, i32)
+    ii = ConstantOp.from_int_and_width(1, i32)
 
     @Builder.region([IndexType()])
     def for_body(builder: Builder, args: tuple[BlockArgument, ...]):
@@ -105,14 +105,14 @@ def gen_duplicate_loop(
             hls_write.attributes["duplicate"] = IntAttr(1)
             builder.insert(hls_write)
 
-        yield_op = scf.Yield()
+        yield_op = scf.YieldOp()
         builder.insert(yield_op)
 
-    lb = Constant.from_int_and_width(0, IndexType())
+    lb = ConstantOp.from_int_and_width(0, IndexType())
     ub = n
-    step = Constant.from_int_and_width(1, IndexType())
+    step = ConstantOp.from_int_and_width(1, IndexType())
 
-    for_duplicate = scf.For(lb, ub, step, [], for_body)
+    for_duplicate = scf.ForOp(lb, ub, step, [], for_body)
 
     return [ii, lb, ub, step, for_duplicate]
 
@@ -174,16 +174,16 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         if len(shape) < 3:
             return
 
-        shape_x = Constant.from_int_and_width(shape[0], i32)
-        shape_y = Constant.from_int_and_width(shape[1], i32)
-        shape_z = Constant.from_int_and_width(shape[2], i32)
+        shape_x = ConstantOp.from_int_and_width(shape[0], i32)
+        shape_y = ConstantOp.from_int_and_width(shape[1], i32)
+        shape_z = ConstantOp.from_int_and_width(shape[2], i32)
 
         qualify_apply_op_with_shapes(
             typing.cast(FuncOp, op.parent_op()), shape_x, shape_y, shape_z
         )
 
-        two_int = Constant.from_int_and_width(2, i32)
-        shift_shape_x = arith.Subi(shape_x, two_int)
+        two_int = ConstantOp.from_int_and_width(2, i32)
+        shift_shape_x = arith.SubiOp(shape_x, two_int)
         # TODO: generalise this
         data_stream = HLSStream.get(f64)
         stencil_stream = HLSStream.get(stencil_type)
@@ -202,13 +202,13 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         copy_stencil_stream = HLSStream.get(stencil_type)
 
-        one_int = Constant.from_int_and_width(1, i32)
-        four_int = Constant.from_int_and_width(4, i32)
-        copy_shift_x = arith.Subi(shape_x, four_int)
-        copy_shift_y = arith.Subi(shape_y, four_int)
-        copy_shift_z = arith.Subi(shape_z, one_int)
-        prod_x_y = arith.Muli(copy_shift_x, copy_shift_y)
-        copy_n = arith.Muli(prod_x_y, copy_shift_z)
+        one_int = ConstantOp.from_int_and_width(1, i32)
+        four_int = ConstantOp.from_int_and_width(4, i32)
+        copy_shift_x = arith.SubiOp(shape_x, four_int)
+        copy_shift_y = arith.SubiOp(shape_y, four_int)
+        copy_shift_z = arith.SubiOp(shape_z, one_int)
+        prod_x_y = arith.MuliOp(copy_shift_x, copy_shift_y)
+        copy_n = arith.MuliOp(prod_x_y, copy_shift_z)
 
         inout = op.attributes["inout"].data
 
@@ -223,7 +223,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         for _ in range(n_components):
             copy_stencil_stream_lst.append(copy_stencil_stream)
 
-        threedload_call = Call(
+        threedload_call = CallOp(
             "dummy_load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
         )
 
@@ -235,7 +235,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         load_data_dataflow = PragmaDataflow(load_data_region)
 
-        shift_buffer_call = Call(
+        shift_buffer_call = CallOp(
             "shift_buffer",
             [data_stream, stencil_stream, shift_shape_x, shape_y, shape_z],
             [],
@@ -324,9 +324,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
 def qualify_apply_op_with_shapes(
     stencil_func: FuncOp,
-    shape_x: arith.Constant,
-    shape_y: arith.Constant,
-    shape_z: arith.Constant,
+    shape_x: arith.ConstantOp,
+    shape_y: arith.ConstantOp,
+    shape_z: arith.ConstantOp,
 ):
     block = stencil_func.body.block
 
@@ -348,7 +348,7 @@ def add_read_write_ops(
     return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
     stencil_return_vals: list[SSAValue] = [val for val in return_op.arg]
 
-    Constant.from_int_and_width(1, i32)
+    ConstantOp.from_int_and_width(1, i32)
 
     stencil_idx = 0
     for arg_index_write in indices_stream_to_write:
@@ -376,35 +376,35 @@ def transform_apply_into_loop(
     assert isinstance(op.attributes["shape_x"], builtin.IntegerAttr)
     assert isinstance(op.attributes["shape_y"], builtin.IntegerAttr)
     assert isinstance(op.attributes["shape_z"], builtin.IntegerAttr)
-    size_x = Constant.from_int_and_width(
+    size_x = ConstantOp.from_int_and_width(
         op.attributes["shape_x"].value.data, builtin.IndexType()
     )
-    size_y = Constant.from_int_and_width(
+    size_y = ConstantOp.from_int_and_width(
         op.attributes["shape_y"].value.data, builtin.IndexType()
     )
-    Constant.from_int_and_width(
+    ConstantOp.from_int_and_width(
         op.attributes["shape_z"].value.data, builtin.IndexType()
     )
-    one_int = Constant.from_int_and_width(1, i32)
-    two = Constant.from_int_and_width(2, builtin.IndexType())
-    zero = Constant.from_int_and_width(0, builtin.IndexType())
-    one = Constant.from_int_and_width(1, builtin.IndexType())
+    one_int = ConstantOp.from_int_and_width(1, i32)
+    two = ConstantOp.from_int_and_width(2, builtin.IndexType())
+    zero = ConstantOp.from_int_and_width(0, builtin.IndexType())
+    one = ConstantOp.from_int_and_width(1, builtin.IndexType())
 
-    size_x_2 = arith.Subi(size_x, two)
-    size_y_1 = arith.Subi(size_y, one)
+    size_x_2 = arith.SubiOp(size_x, two)
+    size_y_1 = arith.SubiOp(size_y, one)
 
-    lower_x = Constant.from_int_and_width(2, builtin.IndexType())
-    lower_y = Constant.from_int_and_width(1, builtin.IndexType())
-    lower_z = Constant.from_int_and_width(1, builtin.IndexType())
+    lower_x = ConstantOp.from_int_and_width(2, builtin.IndexType())
+    lower_y = ConstantOp.from_int_and_width(1, builtin.IndexType())
+    lower_z = ConstantOp.from_int_and_width(1, builtin.IndexType())
     upper_x = size_x_2
     upper_y = size_y_1
-    upper_z = Constant.from_int_and_width(
+    upper_z = ConstantOp.from_int_and_width(
         op.attributes["shape_z"].value.data, builtin.IndexType()
     )
 
     p_remainder = AllocaOp(one_int, i32)
 
-    call_get_number_chunks = Call(
+    call_get_number_chunks = CallOp(
         "get_number_chunks", [size_y, p_remainder], [builtin.IndexType()]
     )
 
@@ -417,17 +417,17 @@ def transform_apply_into_loop(
     # The for loop for the y index receives its trip variable from the get_chunk_size function, since the chunking
     # is happening in the y axis. TODO: this is currently intended for the 3D case. It should be extended to the
     # 1D and 2D cases as well.
-    y_for_op: scf.For
+    y_for_op: scf.ForOp
 
     # Pipeline the loop
-    ii = Constant.from_int_and_width(1, i32)
+    ii = ConstantOp.from_int_and_width(1, i32)
     hls_pipeline_op = PragmaPipeline(ii)
 
     # current_region = for_body
     current_block = body
-    for_op_lst: list[scf.For] = []
+    for_op_lst: list[scf.ForOp] = []
     for i in range(1, dim + 1):
-        for_op = scf.For(
+        for_op = scf.ForOp(
             lb=lowerBounds[-i],
             ub=upperBounds[-i],
             step=one,
@@ -436,7 +436,7 @@ def transform_apply_into_loop(
         )
         for_op_lst.append(for_op)
         current_block = Block(
-            ops=[for_op, scf.Yield()], arg_types=[builtin.IndexType()]
+            ops=[for_op, scf.YieldOp()], arg_types=[builtin.IndexType()]
         )
 
         # if i == 2:
@@ -461,11 +461,11 @@ def transform_apply_into_loop(
     chunk_num = p.body.block.args[0]
 
     MAX_Y_SIZE = 16
-    max_chunk_length = Constant.from_int_and_width(MAX_Y_SIZE, i32)
+    max_chunk_length = ConstantOp.from_int_and_width(MAX_Y_SIZE, i32)
 
     remainder = LoadOp(p_remainder)
 
-    call_get_chunk_size = Call(
+    call_get_chunk_size = CallOp(
         "get_chunk_size",
         [chunk_num, call_get_number_chunks, max_chunk_length, remainder],
         [builtin.IndexType()],
@@ -474,7 +474,7 @@ def transform_apply_into_loop(
     p.body.block.insert_op_before(
         call_get_chunk_size, typing.cast(Operation, p.body.block.first_op)
     )
-    chunk_size_y_1 = arith.Subi(call_get_chunk_size, one)
+    chunk_size_y_1 = arith.SubiOp(call_get_chunk_size, one)
     p.body.block.insert_op_after(chunk_size_y_1, call_get_chunk_size)
 
     old_operands_lst = [old_operand for old_operand in y_for_op.operands]
@@ -776,11 +776,11 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
             op_field_type = op.field.type
             assert isinstance(op_field_type, MemRefType)
             shape = op_field_type.shape
-            shape_x = Constant.from_int_and_width(shape.data[0].data, i32)
-            shape_y = Constant.from_int_and_width(shape.data[1].data, i32)
-            shape_z = Constant.from_int_and_width(shape.data[2].data, i32)
+            shape_x = ConstantOp.from_int_and_width(shape.data[0].data, i32)
+            shape_y = ConstantOp.from_int_and_width(shape.data[1].data, i32)
+            shape_z = ConstantOp.from_int_and_width(shape.data[2].data, i32)
 
-            call_write_data = Call(
+            call_write_data = CallOp(
                 write_data_func_name,
                 [
                     *[
@@ -858,7 +858,7 @@ class StencilStoreToSubview(RewritePattern):
             assert isa(temp.type, TempType[Attribute])
             offsets = [i for i in -field.type.bounds.lb]
             sizes = [i for i in temp.type.get_shape()]
-            subview = memref.Subview.from_static_parameters(
+            subview = memref.SubviewOp.from_static_parameters(
                 field,
                 StencilToMemRefType(field.type),
                 offsets,
@@ -935,7 +935,7 @@ def get_number_input_stencils(op: FuncOp):
 @dataclass
 class GroupLoadsUnderSameDataflow(RewritePattern):
     module: builtin.ModuleOp
-    first_load: Call | None = None
+    first_load: CallOp | None = None
     # sizes: IntegerType | None = None
     sizes: list[OpResult | SSAValue] = field(default_factory=list)
     in_module_load_all_data_func: FuncOp | None = None
@@ -946,7 +946,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
     data_streams: list[OpResult] = field(default_factory=list)
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Call, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: CallOp, rewriter: PatternRewriter, /):
         if op.callee.root_reference.data == "dummy_load_data":
             self.n_input = get_number_input_stencils(
                 typing.cast(
@@ -975,7 +975,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 parent_dataflow.erase()
 
             if self.n_current_load == self.n_input:
-                assert isinstance(self.first_load, Call)
+                assert isinstance(self.first_load, CallOp)
                 assert isinstance(self.first_load.arguments[1].type, HLSStreamType)
                 load_data_func_name = f"load_data_{self.n_input}"
                 hls_stream_type = LLVMPointerType.typed(
@@ -999,7 +999,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 load_all_data_args = self.data_arrays + self.data_streams + self.sizes
                 assert isa(load_all_data_args, list[SSAValue])
 
-                call_load_all_data = Call(
+                call_load_all_data = CallOp(
                     load_data_func_name,
                     load_all_data_args,
                     [],
@@ -1119,13 +1119,13 @@ class PackDataInStencilField(RewritePattern):
 # We create copies for all the coefficients. We create more than one copy where necesssary
 @dataclass
 class GetRepeatedCoefficients(RewritePattern):
-    original_memref_lst: list[memref.Cast]
-    clone_memref_lst: list[memref.Alloca]
+    original_memref_lst: list[memref.CastOp]
+    clone_memref_lst: list[memref.AllocaOp]
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
         assert isinstance(op.source, OpResult)
-        assert isinstance(op.source.op, memref.Cast)
+        assert isinstance(op.source.op, memref.CastOp)
         cast = op.source.op  # original memref
         cast_dest_type = cast.dest.type
         assert isinstance(cast_dest_type, memref.MemRefType)
@@ -1136,8 +1136,8 @@ class GetRepeatedCoefficients(RewritePattern):
         if dim == 1:
             uses_copy = set(op.results[0].uses)
             for use in uses_copy:
-                if isinstance(use.operation, memref.Load):
-                    memref_copy = memref.Alloca.get(
+                if isinstance(use.operation, memref.LoadOp):
+                    memref_copy = memref.AllocaOp.get(
                         return_type=f64, shape=cast_dest_type.shape
                     )
                     use.operation.operands[0] = memref_copy.results[0]
@@ -1153,8 +1153,8 @@ class GetRepeatedCoefficients(RewritePattern):
 
 @dataclass
 class MakeLocaCopiesOfCoefficients(RewritePattern):
-    original_memref_lst: list[memref.Cast]
-    clone_memref_lst: list[memref.Alloca]
+    original_memref_lst: list[memref.CastOp]
+    clone_memref_lst: list[memref.AllocaOp]
     inserted_already = False
 
     @op_type_rewrite_pattern
@@ -1169,28 +1169,28 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             assert isinstance(original_memref_lst_dest_type, memref.MemRefType)
             dim = original_memref_lst_dest_type.shape.data[0].data
 
-            lb = Constant.from_int_and_width(0, IndexType())
-            ub = Constant.from_int_and_width(dim, IndexType())
-            step = Constant.from_int_and_width(1, IndexType())
+            lb = ConstantOp.from_int_and_width(0, IndexType())
+            ub = ConstantOp.from_int_and_width(dim, IndexType())
+            step = ConstantOp.from_int_and_width(1, IndexType())
 
-            ii = Constant.from_int_and_width(1, i32)
+            ii = ConstantOp.from_int_and_width(1, i32)
 
             @Builder.region([IndexType()])
             def for_body(builder: Builder, args: tuple[BlockArgument, ...]):
                 hls_pipeline_op = PragmaPipeline(ii)
                 builder.insert(hls_pipeline_op)
                 for i in range(len(self.original_memref_lst)):
-                    load_op = memref.Load.get(self.original_memref_lst[i], [args[0]])
-                    store_op = memref.Store.get(
+                    load_op = memref.LoadOp.get(self.original_memref_lst[i], [args[0]])
+                    store_op = memref.StoreOp.get(
                         load_op, self.clone_memref_lst[i], [args[0]]
                     )
                     builder.insert(load_op)
                     builder.insert(store_op)
 
-                yield_op = scf.Yield()
+                yield_op = scf.YieldOp()
                 builder.insert(yield_op)
 
-            for_local_copies = scf.For(lb, ub, step, [], for_body)
+            for_local_copies = scf.ForOp(lb, ub, step, [], for_body)
             rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])
 
             self.inserted_already = True
@@ -1229,7 +1229,7 @@ class QualifyInterfacesPass(RewritePattern):
                     )
                     self.module.body.block.add_op(interface_func)
 
-                    call_interface_func = func.Call(
+                    call_interface_func = func.CallOp(
                         interface_func_name, [op.body.blocks[0].args[arg_idx]], []
                     )
                     rewriter.insert_op(
@@ -1367,8 +1367,8 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         )
         clean_apply_pass.rewrite_module(op)
 
-        original_memref_lst: list[memref.Cast] = []
-        clone_memref_lst: list[memref.Alloca] = []
+        original_memref_lst: list[memref.CastOp] = []
+        clone_memref_lst: list[memref.AllocaOp] = []
 
         get_repeated = PatternRewriteWalker(
             GreedyRewritePatternApplier(

@@ -30,7 +30,7 @@ from .wat import WatPrintable, WatPrinter
 
 
 @irdl_op_definition
-class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
+class WasmModuleOp(IRDLOperation, WasmBinaryEncodable, WatPrintable):
     """
     wasm> WebAssembly programs are organized into modules, which are the unit of
     deployment, loading, and compilation. A module collects definitions for

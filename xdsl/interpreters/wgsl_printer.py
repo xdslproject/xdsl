@@ -43,7 +43,7 @@ class WGSLPrinter:
             auth = "read"
             arg_type = ""
             for use in arg.uses:
-                if isinstance(use.operation, memref.Store):
+                if isinstance(use.operation, memref.StoreOp):
                     auth = "read_write"
             if arg.type == builtin.f32:
                 arg_type = "f32"
@@ -129,7 +129,7 @@ class WGSLPrinter:
         )
 
     @print.register
-    def _(self, op: memref.Load, out_stream: IO[str]):
+    def _(self, op: memref.LoadOp, out_stream: IO[str]):
         load_ref = self.wgsl_name(op.memref)
         name_hint = self.wgsl_name(op.res)
         indices = [self.wgsl_name(i) for i in op.indices]
@@ -140,7 +140,7 @@ class WGSLPrinter:
         )
 
     @print.register
-    def _(self, op: memref.Store, out_stream: IO[str]):
+    def _(self, op: memref.StoreOp, out_stream: IO[str]):
         value = self.wgsl_name(op.value)
         store_ref = self.wgsl_name(op.memref)
         indices = [self.wgsl_name(i) for i in op.indices]
@@ -150,7 +150,7 @@ class WGSLPrinter:
         {store_ref}[{index_value}] = {value};"""
         )
 
-    def calculate_index(self, op: memref.Store | memref.Load, indices: list[str]):
+    def calculate_index(self, op: memref.StoreOp | memref.LoadOp, indices: list[str]):
         """
         It is used for linearizing known sizes memref accesses.
         """
@@ -176,7 +176,7 @@ class WGSLPrinter:
         pass
 
     @print.register
-    def _(self, op: arith.Constant, out_stream: IO[str]):
+    def _(self, op: arith.ConstantOp, out_stream: IO[str]):
         value = int(str(op.value).split()[0])
         cons_type = op.result.type
         if isinstance(op.result.type, builtin.IndexType):
@@ -196,7 +196,7 @@ class WGSLPrinter:
             )
 
     @print.register
-    def _(self, op: arith.Addi, out_stream: IO[str]):
+    def _(self, op: arith.AddiOp, out_stream: IO[str]):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
@@ -206,7 +206,7 @@ class WGSLPrinter:
         )
 
     @print.register
-    def _(self, op: arith.Muli, out_stream: IO[str]):
+    def _(self, op: arith.MuliOp, out_stream: IO[str]):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
@@ -216,7 +216,7 @@ class WGSLPrinter:
         )
 
     @print.register
-    def _(self, op: arith.Subi, out_stream: IO[str]):
+    def _(self, op: arith.SubiOp, out_stream: IO[str]):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
@@ -226,7 +226,7 @@ class WGSLPrinter:
         )
 
     @print.register
-    def _(self, op: arith.Mulf, out_stream: IO[str]):
+    def _(self, op: arith.MulfOp, out_stream: IO[str]):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
@@ -236,7 +236,7 @@ class WGSLPrinter:
         )
 
     @print.register
-    def _(self, op: arith.Addf, out_stream: IO[str]):
+    def _(self, op: arith.AddfOp, out_stream: IO[str]):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
@@ -246,7 +246,7 @@ class WGSLPrinter:
         )
 
     @print.register
-    def _(self, op: arith.Subf, out_stream: IO[str]):
+    def _(self, op: arith.SubfOp, out_stream: IO[str]):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)

@@ -76,8 +76,8 @@ def test_frep_carried_vars():
                 res = riscv.FAddDOp(acc, acc, rd=acc_reg_type)
                 riscv_snitch.FrepYieldOp(res)
 
-            result = riscv_snitch.FrepOuter(count, for_loop_region, (initial,)).res
-            func.Return(*result)
+            result = riscv_snitch.FrepOuterOp(count, for_loop_region, (initial,)).res
+            func.ReturnOp(*result)
 
     interpreter = Interpreter(sum_to_for_op)
     interpreter.register_implementations(RiscvSnitchFunctions())

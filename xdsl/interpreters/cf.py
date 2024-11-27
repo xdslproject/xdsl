@@ -12,13 +12,16 @@ from xdsl.interpreter import (
 
 @register_impls
 class CfFunctions(InterpreterFunctions):
-    @impl_terminator(cf.Branch)
-    def run_br(self, interpreter: Interpreter, op: cf.Branch, args: tuple[Any, ...]):
+    @impl_terminator(cf.BranchOp)
+    def run_br(self, interpreter: Interpreter, op: cf.BranchOp, args: tuple[Any, ...]):
         return Successor(op.successor, args), ()
 
-    @impl_terminator(cf.ConditionalBranch)
+    @impl_terminator(cf.ConditionalBranchOp)
     def run_cond_br(
-        self, interpreter: Interpreter, op: cf.ConditionalBranch, args: tuple[Any, ...]
+        self,
+        interpreter: Interpreter,
+        op: cf.ConditionalBranchOp,
+        args: tuple[Any, ...],
     ):
         cond: int = args[0]
         if cond:

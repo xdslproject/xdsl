@@ -18,9 +18,9 @@ from xdsl.traits import SymbolTable
 
 @register_impls
 class MemrefFunctions(InterpreterFunctions):
-    @impl(memref.Alloc)
+    @impl(memref.AllocOp)
     def run_alloc(
-        self, interpreter: Interpreter, op: memref.Alloc, args: PythonValues
+        self, interpreter: Interpreter, op: memref.AllocOp, args: PythonValues
     ) -> PythonValues:
         memref_type = cast(memref.MemRefType[Attribute], op.memref.type)
 
@@ -33,15 +33,15 @@ class MemrefFunctions(InterpreterFunctions):
         shaped_array = ShapedArray(TypedPtr[Any].zeros(size, xtype=xtype), list(shape))
         return (shaped_array,)
 
-    @impl(memref.Dealloc)
+    @impl(memref.DeallocOp)
     def run_dealloc(
-        self, interpreter: Interpreter, op: memref.Dealloc, args: PythonValues
+        self, interpreter: Interpreter, op: memref.DeallocOp, args: PythonValues
     ) -> PythonValues:
         return ()
 
-    @impl(memref.Store)
+    @impl(memref.StoreOp)
     def run_store(
-        self, interpreter: Interpreter, op: memref.Store, args: PythonValues
+        self, interpreter: Interpreter, op: memref.StoreOp, args: PythonValues
     ) -> PythonValues:
         value, memref, *indices = args
 
@@ -52,9 +52,9 @@ class MemrefFunctions(InterpreterFunctions):
 
         return ()
 
-    @impl(memref.Load)
+    @impl(memref.LoadOp)
     def run_load(
-        self, interpreter: Interpreter, op: memref.Load, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: memref.LoadOp, args: tuple[Any, ...]
     ):
         shaped_array, *indices = args
 
@@ -65,12 +65,12 @@ class MemrefFunctions(InterpreterFunctions):
 
         return (value,)
 
-    @impl(memref.GetGlobal)
+    @impl(memref.GetGlobalOp)
     def run_get_global(
-        self, interpreter: Interpreter, op: memref.GetGlobal, args: PythonValues
+        self, interpreter: Interpreter, op: memref.GetGlobalOp, args: PythonValues
     ) -> PythonValues:
         mem = SymbolTable.lookup_symbol(op, op.name_)
-        assert isinstance(mem, memref.Global)
+        assert isinstance(mem, memref.GlobalOp)
         initial_value = mem.initial_value
         if not isinstance(initial_value, builtin.DenseIntOrFPElementsAttr):
             raise NotImplementedError(

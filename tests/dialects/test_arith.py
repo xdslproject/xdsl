@@ -3,50 +3,50 @@ from typing import TypeVar
 import pytest
 
 from xdsl.dialects.arith import (
-    Addf,
-    Addi,
-    AddUIExtended,
-    AndI,
-    CeilDivSI,
-    CeilDivUI,
-    Cmpf,
-    Cmpi,
-    Constant,
-    Divf,
-    DivSI,
-    DivUI,
+    AddfOp,
+    AddiOp,
+    AddUIExtendedOp,
+    AndIOp,
+    CeilDivSIOp,
+    CeilDivUIOp,
+    CmpfOp,
+    CmpiOp,
+    ConstantOp,
+    DivfOp,
+    DivSIOp,
+    DivUIOp,
     ExtFOp,
     ExtSIOp,
     ExtUIOp,
     FastMathFlagsAttr,
     FloatingPointLikeBinaryOperation,
-    FloorDivSI,
+    FloorDivSIOp,
     FPToSIOp,
     IndexCastOp,
-    Maximumf,
-    MaxSI,
-    MaxUI,
-    Minimumf,
-    MinSI,
-    MinUI,
-    Mulf,
-    MulSIExtended,
-    MulUIExtended,
-    Negf,
-    OrI,
-    RemSI,
-    RemUI,
-    Select,
-    ShLI,
-    ShRSI,
-    ShRUI,
+    MaximumfOp,
+    MaxSIOp,
+    MaxUIOp,
+    MinimumfOp,
+    MinSIOp,
+    MinUIOp,
+    MulfOp,
+    MulSIExtendedOp,
+    MulUIExtendedOp,
+    NegfOp,
+    OrIOp,
+    RemSIOp,
+    RemUIOp,
+    SelectOp,
+    ShLIOp,
+    ShRSIOp,
+    ShRUIOp,
     SignlessIntegerBinaryOperation,
     SIToFPOp,
-    Subf,
-    Subi,
+    SubfOp,
+    SubiOp,
     TruncFOp,
     TruncIOp,
-    XOrI,
+    XOrIOp,
 )
 from xdsl.dialects.builtin import (
     AnyTensorType,
@@ -73,31 +73,31 @@ _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
 class Test_integer_arith_construction:
     operand_type = i32
-    a = Constant.from_int_and_width(1, operand_type)
-    b = Constant.from_int_and_width(1, operand_type)
+    a = ConstantOp.from_int_and_width(1, operand_type)
+    b = ConstantOp.from_int_and_width(1, operand_type)
 
     @pytest.mark.parametrize(
         "OpClass",
         [
-            Addi,
-            Subi,
-            DivUI,
-            DivSI,
-            FloorDivSI,
-            CeilDivSI,
-            CeilDivUI,
-            RemUI,
-            RemSI,
-            MinUI,
-            MinSI,
-            MaxUI,
-            MaxSI,
-            AndI,
-            OrI,
-            XOrI,
-            ShLI,
-            ShRUI,
-            ShRSI,
+            AddiOp,
+            SubiOp,
+            DivUIOp,
+            DivSIOp,
+            FloorDivSIOp,
+            CeilDivSIOp,
+            CeilDivUIOp,
+            RemUIOp,
+            RemSIOp,
+            MinUIOp,
+            MinSIOp,
+            MaxUIOp,
+            MaxSIOp,
+            AndIOp,
+            OrIOp,
+            XOrIOp,
+            ShLIOp,
+            ShRUIOp,
+            ShRSIOp,
         ],
     )
     @pytest.mark.parametrize("return_type", [None, operand_type])
@@ -114,14 +114,14 @@ class Test_integer_arith_construction:
         assert op.result.type == self.operand_type
 
     def test_Cmpi(self):
-        _ = Cmpi(self.a, self.b, 2)
+        _ = CmpiOp(self.a, self.b, 2)
 
     @pytest.mark.parametrize(
         "input",
         ["eq", "ne", "slt", "sle", "ult", "ule", "ugt", "uge"],
     )
     def test_Cmpi_from_mnemonic(self, input: str):
-        _ = Cmpi(self.a, self.b, input)
+        _ = CmpiOp(self.a, self.b, input)
 
 
 @pytest.mark.parametrize(
@@ -157,14 +157,14 @@ def test_addui_extend(
     attributes = {"foo": i32}
 
     if is_correct:
-        op = AddUIExtended(lhs, rhs, attributes, sum_type)
+        op = AddUIExtendedOp(lhs, rhs, attributes, sum_type)
         op.verify()
         assert op.lhs == lhs
         assert op.rhs == rhs
         assert op.attributes == attributes
         if sum_type:
             assert op.sum.type == sum_type
-        assert op.overflow.type == AddUIExtended.infer_overflow_type(lhs_type)
+        assert op.overflow.type == AddUIExtendedOp.infer_overflow_type(lhs_type)
         if isattr(
             container_type := op.overflow.type,
             base(AnyVectorType) | base(AnyTensorType),
@@ -174,12 +174,12 @@ def test_addui_extend(
             assert op.overflow.type == i1
     else:
         with pytest.raises((VerifyException, ValueError)):
-            op = AddUIExtended(lhs, rhs, attributes, sum_type)
+            op = AddUIExtendedOp(lhs, rhs, attributes, sum_type)
             op.verify()
 
 
-@pytest.mark.parametrize("op_type", [MulSIExtended, MulUIExtended])
-def test_mul_extended(op_type: type[MulSIExtended | MulUIExtended]):
+@pytest.mark.parametrize("op_type", [MulSIExtendedOp, MulUIExtendedOp])
+def test_mul_extended(op_type: type[MulSIExtendedOp | MulUIExtendedOp]):
     lhs = TestSSAValue(i32)
     rhs = TestSSAValue(i32)
 
@@ -199,12 +199,12 @@ def test_mul_extended(op_type: type[MulSIExtended | MulUIExtended]):
 
 
 class Test_float_arith_construction:
-    a = Constant(FloatAttr(1.1, f32))
-    b = Constant(FloatAttr(2.2, f32))
+    a = ConstantOp(FloatAttr(1.1, f32))
+    b = ConstantOp(FloatAttr(2.2, f32))
 
     @pytest.mark.parametrize(
         "func",
-        [Addf, Subf, Mulf, Divf, Maximumf, Minimumf],
+        [AddfOp, SubfOp, MulfOp, DivfOp, MaximumfOp, MinimumfOp],
     )
     @pytest.mark.parametrize(
         "flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None]
@@ -221,10 +221,10 @@ class Test_float_arith_construction:
 
 
 def test_select_op():
-    t = Constant.from_int_and_width(1, IntegerType(1))
-    f = Constant.from_int_and_width(0, IntegerType(1))
-    select_t_op = Select(t, t, f)
-    select_f_op = Select(f, t, f)
+    t = ConstantOp.from_int_and_width(1, IntegerType(1))
+    f = ConstantOp.from_int_and_width(0, IntegerType(1))
+    select_t_op = SelectOp(t, t, f)
+    select_f_op = SelectOp(f, t, f)
     select_t_op.verify_()
     select_f_op.verify_()
 
@@ -234,7 +234,7 @@ def test_select_op():
 
 
 def test_index_cast_op():
-    a = Constant.from_int_and_width(0, 32)
+    a = ConstantOp.from_int_and_width(0, 32)
     cast = IndexCastOp(a, IndexType())
 
     assert cast.result.type == IndexType()
@@ -243,7 +243,7 @@ def test_index_cast_op():
 
 
 def test_cast_fp_and_si_ops():
-    a = Constant.from_int_and_width(0, 32)
+    a = ConstantOp.from_int_and_width(0, 32)
     fp = SIToFPOp(a, f32)
     si = FPToSIOp(fp, i32)
 
@@ -254,19 +254,19 @@ def test_cast_fp_and_si_ops():
 
 
 def test_negf_op():
-    a = Constant(FloatAttr(1.0, f32))
-    neg_a = Negf(a)
+    a = ConstantOp(FloatAttr(1.0, f32))
+    neg_a = NegfOp(a)
 
-    b = Constant(FloatAttr(1.0, f64))
-    neg_b = Negf(b)
+    b = ConstantOp(FloatAttr(1.0, f64))
+    neg_b = NegfOp(b)
 
     assert neg_a.result.type == f32
     assert neg_b.result.type == f64
 
 
 def test_extend_truncate_fpops():
-    a = Constant(FloatAttr(1.0, f32))
-    b = Constant(FloatAttr(2.0, f64))
+    a = ConstantOp(FloatAttr(1.0, f32))
+    b = ConstantOp(FloatAttr(2.0, f64))
     ext_op = ExtFOp(a, f64)
     trunc_op = TruncFOp(b, f32)
 
@@ -277,8 +277,8 @@ def test_extend_truncate_fpops():
 
 
 def test_cmpf_from_mnemonic():
-    a = Constant(FloatAttr(1.0, f64))
-    b = Constant(FloatAttr(2.0, f64))
+    a = ConstantOp(FloatAttr(1.0, f64))
+    b = ConstantOp(FloatAttr(2.0, f64))
     operations = [
         "false",
         "oeq",
@@ -297,7 +297,7 @@ def test_cmpf_from_mnemonic():
         "uno",
         "true",
     ]
-    cmpf_ops = [Cmpf(a, b, operations[i]) for i in range(len(operations))]
+    cmpf_ops = [CmpfOp(a, b, operations[i]) for i in range(len(operations))]
 
     for index, op in enumerate(cmpf_ops):
         assert op.lhs.type == f64
@@ -306,10 +306,10 @@ def test_cmpf_from_mnemonic():
 
 
 def test_cmpf_get():
-    a = Constant(FloatAttr(1.0, f32))
-    b = Constant(FloatAttr(2.0, f32))
+    a = ConstantOp(FloatAttr(1.0, f32))
+    b = ConstantOp(FloatAttr(2.0, f32))
 
-    cmpf_op = Cmpf(a, b, 1)
+    cmpf_op = CmpfOp(a, b, 1)
 
     assert cmpf_op.lhs.type == f32
     assert cmpf_op.rhs.type == f32
@@ -317,11 +317,11 @@ def test_cmpf_get():
 
 
 def test_cmpf_missmatch_type():
-    a = Constant(FloatAttr(1.0, f32))
-    b = Constant(FloatAttr(2.0, f64))
+    a = ConstantOp(FloatAttr(1.0, f32))
+    b = ConstantOp(FloatAttr(2.0, f64))
 
     with pytest.raises(TypeError) as e:
-        _cmpf_op = Cmpf(a, b, 1)
+        _cmpf_op = CmpfOp(a, b, 1)
     assert (
         e.value.args[0]
         == "Comparison operands must have same type, but provided f32 and f64"
@@ -329,11 +329,11 @@ def test_cmpf_missmatch_type():
 
 
 def test_cmpi_mismatch_type():
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i64)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i64)
 
     with pytest.raises(TypeError) as e:
-        _cmpi_op = Cmpi(a, b, 1)
+        _cmpi_op = CmpiOp(a, b, 1)
     assert (
         e.value.args[0]
         == "Comparison operands must have same type, but provided i32 and i64"
@@ -341,34 +341,34 @@ def test_cmpi_mismatch_type():
 
 
 def test_cmpf_incorrect_comparison():
-    a = Constant(FloatAttr(1.0, f32))
-    b = Constant(FloatAttr(2.0, f32))
+    a = ConstantOp(FloatAttr(1.0, f32))
+    b = ConstantOp(FloatAttr(2.0, f32))
 
     with pytest.raises(VerifyException) as e:
         # 'eq' is a comparison op for cmpi but not cmpf
-        _cmpf_op = Cmpf(a, b, "eq")
+        _cmpf_op = CmpfOp(a, b, "eq")
     assert e.value.args[0] == "Unknown comparison mnemonic: eq"
 
 
 def test_cmpi_incorrect_comparison():
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
 
     with pytest.raises(VerifyException) as e:
         # 'oeq' is a comparison op for cmpf but not cmpi
-        _cmpi_op = Cmpi(a, b, "oeq")
+        _cmpi_op = CmpiOp(a, b, "oeq")
     assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
 
 
 def test_cmpi_index_type():
-    a = Constant.from_int_and_width(1, IndexType())
-    b = Constant.from_int_and_width(2, IndexType())
-    Cmpi(a, b, "eq").verify()
+    a = ConstantOp.from_int_and_width(1, IndexType())
+    b = ConstantOp.from_int_and_width(2, IndexType())
+    CmpiOp(a, b, "eq").verify()
 
 
 def test_extend_truncate_iops():
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(2, i64)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i64)
     exts_op = ExtSIOp(a, i64)
     extu_op = ExtUIOp(a, i64)
     trunc_op = TruncIOp(b, i32)
@@ -385,14 +385,14 @@ def test_extend_truncate_iops():
 
 
 def test_trunci_incorrect_bitwidth():
-    a = Constant.from_int_and_width(1, 16)
+    a = ConstantOp.from_int_and_width(1, 16)
     # bitwidth of b has to be smaller than the one of a
     with pytest.raises(VerifyException):
         _trunci_op = TruncIOp(a, i32).verify()
 
 
 def test_extui_incorrect_bitwidth():
-    a = Constant.from_int_and_width(1, 64)
+    a = ConstantOp.from_int_and_width(1, 64)
     # bitwidth of b has to be larger than the one of a
     with pytest.raises(VerifyException):
         _extui_op = ExtUIOp(a, i32).verify()

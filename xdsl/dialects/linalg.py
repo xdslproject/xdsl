@@ -95,7 +95,7 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
 
 
 @irdl_op_definition
-class Generic(IRDLOperation):
+class GenericOp(IRDLOperation):
     name = "linalg.generic"
 
     inputs = var_operand_def()
@@ -573,7 +573,7 @@ class AddOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        add = arith.Addf if isinstance(arg_types[-1], AnyFloat) else arith.Addi
+        add = arith.AddfOp if isinstance(arg_types[-1], AnyFloat) else arith.AddiOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -612,7 +612,7 @@ class SubOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        sub = arith.Subf if isinstance(arg_types[-1], AnyFloat) else arith.Subi
+        sub = arith.SubfOp if isinstance(arg_types[-1], AnyFloat) else arith.SubiOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -703,7 +703,7 @@ class MulOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        mul = arith.Mulf if isinstance(arg_types[-1], AnyFloat) else arith.Muli
+        mul = arith.MulfOp if isinstance(arg_types[-1], AnyFloat) else arith.MuliOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -854,9 +854,9 @@ class MatmulOp(NamedOpBase):
 
         arg_types = self.body_arg_types((*inputs, *outputs))
         add, mul = (
-            (arith.Addf, arith.Mulf)
+            (arith.AddfOp, arith.MulfOp)
             if isinstance(arg_types[-1], AnyFloat)
-            else (arith.Addi, arith.Mulf)
+            else (arith.AddiOp, arith.MulfOp)
         )
 
         @Builder.implicit_region(arg_types)
@@ -920,11 +920,11 @@ class QuantizedMatmulOp(NamedOpBase):
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
             o1 = arith.ExtSIOp(args[0], IntegerType(32))
-            o2 = arith.Subi(o1, args[2])
+            o2 = arith.SubiOp(o1, args[2])
             o3 = arith.ExtSIOp(args[1], IntegerType(32))
-            o4 = arith.Subi(o3, args[3])
-            o5 = arith.Muli(o2, o4)
-            o6 = arith.Addi(args[4], o5)
+            o4 = arith.SubiOp(o3, args[3])
+            o5 = arith.MuliOp(o2, o4)
+            o6 = arith.AddiOp(args[4], o5)
             YieldOp(o6)
 
         # add linalg.memoized_indexing_maps attribute
@@ -1162,7 +1162,7 @@ class BroadcastOp(IRDLOperation):
 Linalg = Dialect(
     "linalg",
     [
-        Generic,
+        GenericOp,
         YieldOp,
         AddOp,
         SubOp,

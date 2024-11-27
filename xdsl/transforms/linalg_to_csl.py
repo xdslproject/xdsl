@@ -43,7 +43,7 @@ def get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
     """Returns the value of a scalar arith.constant, or None if not a constant or not scalar)."""
     if (
         isinstance(op, OpResult)
-        and isinstance(op.op, arith.Constant)
+        and isinstance(op.op, arith.ConstantOp)
         and isa(val := op.op.value, DenseIntOrFPElementsAttr)
         and val.data.data.count(val.data.data[0]) == len(val.data.data)
     ):
@@ -74,12 +74,12 @@ class ConvertBinaryLinalgOp(RewritePattern):
         # may need revisiting if more functions are translated
         if scalar_const := get_scalar_const(lhs):
             rewriter.insert_op(
-                const_op := arith.Constant(scalar_const), InsertPoint.before(op)
+                const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
             )
             lhs = const_op.result
         elif scalar_const := get_scalar_const(rhs):
             rewriter.insert_op(
-                const_op := arith.Constant(scalar_const), InsertPoint.before(op)
+                const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
             )
             rhs = const_op.result
 
@@ -90,19 +90,19 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
     """Lowers `linalg.generic` fused multiply-adds to csl builtin ops."""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.Generic, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.GenericOp, rewriter: PatternRewriter, /):
         if not self.is_fma(op) or not isa(op.outputs.types[0], AnyMemRefType):
             return
 
         # one of the factors must be a scalar const, which the csl function signatures require
         if scalar_const := get_scalar_const(op.inputs[0]):
             rewriter.insert_op(
-                a := arith.Constant(scalar_const), InsertPoint.before(op)
+                a := arith.ConstantOp(scalar_const), InsertPoint.before(op)
             )
             x = op.inputs[1]
         elif scalar_const := get_scalar_const(op.inputs[1]):
             rewriter.insert_op(
-                a := arith.Constant(scalar_const), InsertPoint.before(op)
+                a := arith.ConstantOp(scalar_const), InsertPoint.before(op)
             )
             x = op.inputs[0]
         else:
@@ -121,17 +121,17 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
         rewriter.replace_matched_op(csl_op(operands=[[r, y, x, a]]))
 
     @staticmethod
-    def is_fma(op: linalg.Generic) -> bool:
+    def is_fma(op: linalg.GenericOp) -> bool:
         """Returns if a given `generic` op is a fused multiply-add"""
         return (
             len(op.inputs) == 3
             and len(op.outputs) == 1
             and len((block := op.body.block).args) == 4
             and len(block.ops) == 3
-            and isinstance(mul := block.first_op, arith.Mulf)
+            and isinstance(mul := block.first_op, arith.MulfOp)
             and mul.lhs == block.args[0]
             and mul.rhs == block.args[1]
-            and isinstance(add := mul.next_op, arith.Addf)
+            and isinstance(add := mul.next_op, arith.AddfOp)
             and add.lhs == mul.result
             and add.rhs == block.args[2]
             and isinstance(yld := add.next_op, linalg.YieldOp)

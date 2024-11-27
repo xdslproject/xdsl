@@ -23,7 +23,7 @@ def test_interpreter_functions():
 
     c0 = TestSSAValue(i32)
     c1 = TestSSAValue(i32)
-    add = arith.Addi(c0, c1)
+    add = arith.AddiOp(c0, c1)
     add_res = add.result
 
     assert interpreter.run_op(

@@ -10,9 +10,9 @@ from xdsl.utils.hints import isa
 
 class MemrefSubviewOfSubviewFolding(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
         source_subview = op.source.owner
-        if not isinstance(source_subview, memref.Subview):
+        if not isinstance(source_subview, memref.SubviewOp):
             return
 
         if not all(stride.data == 1 for stride in op.static_strides.data):
@@ -54,7 +54,7 @@ class MemrefSubviewOfSubviewFolding(RewritePattern):
         assert isa(current_sizes, list[int])
         assert isa(current_strides, list[int])
 
-        new_op = memref.Subview.from_static_parameters(
+        new_op = memref.SubviewOp.from_static_parameters(
             source_subview.source,
             source_subview.source.type,
             new_offsets,
@@ -71,9 +71,9 @@ class MemrefSubviewOfSubviewFolding(RewritePattern):
 
 class ElideUnusedAlloc(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         if len(op.memref.uses) == 1 and isinstance(
-            only_use := tuple(op.memref.uses)[0].operation, memref.Dealloc
+            only_use := tuple(op.memref.uses)[0].operation, memref.DeallocOp
         ):
             rewriter.erase_op(only_use)
             rewriter.erase_matched_op()

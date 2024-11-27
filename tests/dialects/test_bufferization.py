@@ -50,7 +50,7 @@ def test_tensor_from_memref_inference():
 
 
 @irdl_op_definition
-class TensorFromMemref(IRDLOperation):
+class TensorFromMemrefOp(IRDLOperation):
     name = "test.tensor_from_memref"
     T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
 
@@ -72,7 +72,7 @@ def test_tensor_from_memref_constraint():
             TensorType(IndexType(), [10, 20, 30]),
         ]
     ).res
-    op1 = TensorFromMemref(operands=(v_tensor, v_memref, v_tensor))
+    op1 = TensorFromMemrefOp(operands=(v_tensor, v_memref, v_tensor))
     op1.verify()
 
     [v_unranked_memref, v_unranked_tensor] = TestOp(
@@ -81,7 +81,7 @@ def test_tensor_from_memref_constraint():
             UnrankedTensorType(IndexType()),
         ]
     ).res
-    op2 = TensorFromMemref(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
+    op2 = TensorFromMemrefOp(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
     op2.verify()
 
 
@@ -131,7 +131,7 @@ def test_tensor_from_memref_constraint_failure(
         ]
     ).res
 
-    op1 = TensorFromMemref(operands=(v1, v2, v3))
+    op1 = TensorFromMemrefOp(operands=(v1, v2, v3))
     with pytest.raises(VerifyException, match=error):
         op1.verify()
 

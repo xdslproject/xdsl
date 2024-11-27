@@ -49,7 +49,7 @@ def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
 
 def insert_alloc_and_dealloc(
     type: MemrefTypeF64, op: Operation, rewriter: PatternRewriter
-) -> memref.Alloc:
+) -> memref.AllocOp:
     """
     Insert an allocation and deallocation for the given MemRefType.
     """
@@ -59,12 +59,12 @@ def insert_alloc_and_dealloc(
     assert block.last_op is not None
 
     # Make sure to allocate at the beginning of the block.
-    alloc = memref.Alloc.get(type.element_type, None, type.shape)
+    alloc = memref.AllocOp.get(type.element_type, None, type.shape)
     rewriter.insert_op(alloc, InsertPoint.at_start(block))
 
     # Make sure to deallocate this alloc at the end of the block. This is fine as toy
     # functions have no control flow.
-    dealloc = memref.Dealloc.get(alloc)
+    dealloc = memref.DeallocOp.get(alloc)
     rewriter.insert_op(dealloc, InsertPoint.before(block.last_op))
 
     return alloc
@@ -83,7 +83,7 @@ def build_affine_for(
     step: int,
     iter_args: _ValueRange,
     body_builder_fn: _AffineForOpBodyBuilderFn,
-) -> affine.For:
+) -> affine.ForOp:
     """
     `body_builder_fn` is used to build the body of affine.for.
     """
@@ -103,7 +103,7 @@ def build_affine_for(
     induction_var, *rest = block.args
     region = Region(block)
 
-    op = affine.For.from_region(
+    op = affine.ForOp.from_region(
         lb_operands,
         ub_operands,
         iter_args,
@@ -125,7 +125,7 @@ def build_affine_for_const(
     step: int,
     iter_args: _ValueRange,
     body_builder_fn: _AffineForOpBodyBuilderFn,
-) -> affine.For:
+) -> affine.ForOp:
     return build_affine_for(
         builder,
         (),
@@ -153,7 +153,7 @@ _BoundT = TypeVar("_BoundT")
 _BodyBuilderFn: TypeAlias = Callable[[Builder, _ValueRange], None]
 _LoopCreatorFn: TypeAlias = Callable[
     [Builder, _BoundT, _BoundT, int, _AffineForOpBodyBuilderFn],
-    affine.For,
+    affine.ForOp,
 ]
 
 
@@ -193,7 +193,7 @@ def build_affine_loop_nest_impl(
             if i == e - 1:
                 body_builder_fn(nested_builder, ivs)
 
-            nested_builder.insert(affine.Yield.get())
+            nested_builder.insert(affine.YieldOp.get())
 
         # Delegate actual loop creation to the callback in order to dispatch
         # between constant- and variable-bound loops.
@@ -208,7 +208,7 @@ def build_affine_loop_from_constants(
     ub: int,
     step: int,
     body_builder_fn: _AffineForOpBodyBuilderFn,
-) -> affine.For:
+) -> affine.ForOp:
     """
     Creates an affine loop from the bounds known to be constants.
     """
@@ -221,7 +221,7 @@ def build_affine_loop_from_values(
     ub: SSAValue,
     step: int,
     body_builder_fn: _AffineForOpBodyBuilderFn,
-) -> affine.For:
+) -> affine.ForOp:
     """
     Creates an affine loop from the bounds that may or may not be constants.
     """
@@ -229,9 +229,9 @@ def build_affine_loop_from_values(
     ub_const = ub.owner
 
     if (
-        isinstance(lb_const, arith.Constant)
+        isinstance(lb_const, arith.ConstantOp)
         and isinstance(lb_const_value := lb_const.value, IntegerAttr)
-        and isinstance(ub_const, arith.Constant)
+        and isinstance(ub_const, arith.ConstantOp)
         and isinstance(ub_const_value := ub_const.value, IntegerAttr)
     ):
         lb_val = lb_const_value.value.data
@@ -301,7 +301,7 @@ def lower_op_to_loops(
         # loop induction variables. This function will return the value to store at the
         # current index.
         value_to_store = process_iteration(nested_builder, operands, ivs)
-        store_op = affine.Store(value_to_store, alloc.memref, ivs)
+        store_op = affine.StoreOp(value_to_store, alloc.memref, ivs)
         nested_builder.insert(store_op)
 
     builder = Builder.before(op)
@@ -326,9 +326,9 @@ class AddOpLowering(RewritePattern):
             builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
-            loaded_lhs = builder.insert(affine.Load(op.lhs, loop_ivs))
-            loaded_rhs = builder.insert(affine.Load(op.rhs, loop_ivs))
-            new_binop = builder.insert(arith.Addf(loaded_lhs, loaded_rhs))
+            loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
+            loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
+            new_binop = builder.insert(arith.AddfOp(loaded_lhs, loaded_rhs))
             return new_binop.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)
@@ -341,9 +341,9 @@ class MulOpLowering(RewritePattern):
             builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
-            loaded_lhs = builder.insert(affine.Load(op.lhs, loop_ivs))
-            loaded_rhs = builder.insert(affine.Load(op.rhs, loop_ivs))
-            new_binop = builder.insert(arith.Mulf(loaded_lhs, loaded_rhs))
+            loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
+            loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
+            new_binop = builder.insert(arith.MulfOp(loaded_lhs, loaded_rhs))
             return new_binop.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)
@@ -364,8 +364,8 @@ class ConstantOpLowering(RewritePattern):
         value_shape = memref_type.get_shape()
 
         # Scalar constant values for elements of the tensor
-        constants: list[arith.Constant] = [
-            arith.Constant(FloatAttr(i.value.data, f64)) for i in constant_value.data
+        constants: list[arith.ConstantOp] = [
+            arith.ConstantOp(FloatAttr(i.value.data, f64)) for i in constant_value.data
         ]
 
         # n-d indices of elements
@@ -373,7 +373,7 @@ class ConstantOpLowering(RewritePattern):
 
         # For each n-d index into the tensor, store the corresponding scalar
         stores = [
-            affine.Store(
+            affine.StoreOp(
                 constants[offset].result,
                 alloc.memref,
                 (),
@@ -427,7 +427,7 @@ class PrintOpLowering(RewritePattern):
 
         for indices in product(*(range(dim) for dim in shape)):
             rewriter.insert_op_before_matched_op(
-                load := affine.Load(
+                load := affine.LoadOp(
                     op.input,
                     (),
                     AffineMapAttr(AffineMap.from_callable(lambda: indices)),
@@ -445,7 +445,7 @@ class ReturnOpLowering(RewritePattern):
             op.input is None
         ), "During this lowering, we expect that all function calls have been inlined."
 
-        rewriter.replace_matched_op(func.Return())
+        rewriter.replace_matched_op(func.ReturnOp())
 
 
 class TransposeOpLowering(RewritePattern):
@@ -455,7 +455,7 @@ class TransposeOpLowering(RewritePattern):
             builder: Builder, mem_ref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Transpose the elements by generating a load from the reverse indices.
-            load_op = affine.Load(op.arg, tuple(reversed(loop_ivs)))
+            load_op = affine.LoadOp(op.arg, tuple(reversed(loop_ivs)))
             builder.insert(load_op)
             return load_op.result
 

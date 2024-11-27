@@ -34,7 +34,7 @@ class LowerAllocOpPass(RewritePattern):
     """Lowers `memref.alloc` to `csl.zeros`."""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         assert isattr(
             memref_type := op.memref.type,
             MemRefType.constr(element_type=csl.ZerosOpAttrConstr),
@@ -52,7 +52,7 @@ class LowerAllocOpPass(RewritePattern):
         ):
             offsets = ArrayAttr([IntegerAttr(memref_type.layout.offset, 16)])
 
-        shape = [arith.Constant(IntegerAttr(d, 16)) for d in memref_type.shape]
+        shape = [arith.ConstantOp(IntegerAttr(d, 16)) for d in memref_type.shape]
         dsd_op = csl.GetMemDsdOp.build(
             operands=[zeros_op, shape],
             result_types=[dsd_t],
@@ -101,13 +101,13 @@ class FixMemrefLoadOnGetDsd(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         if isinstance(op.memref.type, csl.DsdType):
             if isinstance(op.memref, OpResult) and isinstance(
                 op.memref.op, csl.GetMemDsdOp
             ):
                 rewriter.replace_matched_op(
-                    memref.Load.get(op.memref.op.base_addr, op.indices)
+                    memref.LoadOp.get(op.memref.op.base_addr, op.indices)
                 )
             else:
                 raise ValueError("Failed to resolve memref.load called on dsd type")
@@ -117,7 +117,7 @@ class LowerSubviewOpPass(RewritePattern):
     """Lowers memref.subview to dsd ops"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
         assert isa(op.source.type, MemRefType[Attribute])
         assert len(op.static_sizes.data) == 1, "not implemented"
         assert len(op.static_offsets.data) == 1, "not implemented"
@@ -136,12 +136,12 @@ class LowerSubviewOpPass(RewritePattern):
 
     @staticmethod
     def _update_sizes(
-        subview: memref.Subview, curr_op: SSAValue | Operation
+        subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
         assert isa(subview.source.type, MemRefType[Attribute])
         ops = list[Operation]()
 
-        if subview.static_sizes.data.data[0].data == memref.Subview.DYNAMIC_INDEX:
+        if subview.static_sizes.data.data[0].data == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], csl.u16_value))
             ops.append(
                 curr_op := csl.SetDsdLengthOp.build(
@@ -151,7 +151,7 @@ class LowerSubviewOpPass(RewritePattern):
         elif subview.static_sizes.as_tuple() != subview.source.type.get_shape():
             # update sizes only if they differ from op.source.type
             ops.append(
-                len_op := arith.Constant(
+                len_op := arith.ConstantOp(
                     IntegerAttr(
                         cast(ArrayAttr[IntAttr], subview.static_sizes.data).data[0],
                         csl.u16_value,
@@ -167,12 +167,12 @@ class LowerSubviewOpPass(RewritePattern):
 
     @staticmethod
     def _update_strides(
-        subview: memref.Subview, curr_op: SSAValue | Operation
+        subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
         assert isa(subview.source.type, MemRefType[Attribute])
         ops = list[Operation]()
 
-        if subview.static_strides.data.data[0].data == memref.Subview.DYNAMIC_INDEX:
+        if subview.static_strides.data.data[0].data == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(
                 cast_op := arith.IndexCastOp(
                     subview.strides[0], IntegerType(8, Signedness.SIGNED)
@@ -186,7 +186,7 @@ class LowerSubviewOpPass(RewritePattern):
         elif subview.static_strides.as_tuple() != subview.source.type.get_strides():
             # update strides only if they differ from op.source.type
             ops.append(
-                stride_op := arith.Constant(
+                stride_op := arith.ConstantOp(
                     IntegerAttr(
                         cast(ArrayAttr[IntAttr], subview.static_strides.data).data[0],
                         IntegerType(8, Signedness.SIGNED),
@@ -202,12 +202,12 @@ class LowerSubviewOpPass(RewritePattern):
 
     @staticmethod
     def _update_offsets(
-        subview: memref.Subview, curr_op: SSAValue | Operation
+        subview: memref.SubviewOp, curr_op: SSAValue | Operation
     ) -> list[Operation]:
         assert isa(subview.source.type, MemRefType[Attribute])
         ops = list[Operation]()
 
-        if subview.static_offsets.data.data[0].data == memref.Subview.DYNAMIC_INDEX:
+        if subview.static_offsets.data.data[0].data == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value))
             ops.append(
                 csl.IncrementDsdOffsetOp.build(
@@ -225,7 +225,7 @@ class LowerSubviewOpPass(RewritePattern):
         ):
             # update offsets only if they differ from op.source.type
             ops.append(
-                offset_op := arith.Constant(
+                offset_op := arith.ConstantOp(
                     IntegerAttr(
                         cast(ArrayAttr[IntAttr], subview.static_offsets.data).data[0],
                         csl.i16_value,

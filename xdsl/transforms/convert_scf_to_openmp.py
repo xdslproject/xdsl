@@ -48,7 +48,9 @@ class ConvertParallel(RewritePattern):
                 chunk_op = []
             else:
                 self.schedule = "static"
-                chunk_op = [arith.Constant.from_int_and_width(self.chunk, IndexType())]
+                chunk_op = [
+                    arith.ConstantOp.from_int_and_width(self.chunk, IndexType())
+                ]
             wsloop = omp.WsLoopOp(
                 operands=[
                     [],

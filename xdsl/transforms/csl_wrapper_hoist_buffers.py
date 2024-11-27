@@ -21,7 +21,7 @@ class HoistBuffers(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         # always attempt to set name hints
         if op.memref.name_hint is None:
             self._set_name_hint(op)
@@ -43,7 +43,7 @@ class HoistBuffers(RewritePattern):
         rewriter.replace_matched_op([], new_results=[alloc.memref])
 
     @staticmethod
-    def _set_name_hint(op: memref.Alloc):
+    def _set_name_hint(op: memref.AllocOp):
         """
         Attempts to find a chain of:
           %0 = memref.alloc
