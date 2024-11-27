@@ -1,6 +1,7 @@
 from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 
 from xdsl.dialects import onnx
 from xdsl.dialects.builtin import TensorType
@@ -11,9 +12,9 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils import ptr
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -34,7 +35,7 @@ def to_dtype(
 
 
 def from_dtype(
-    dtype: type[np.float32] | type[np.float64] | type[np.int32] | type[np.int64],
+    dtype: npt.DTypeLike,
 ) -> ptr.XType[float] | ptr.XType[int]:
     if dtype == np.float32:
         return ptr.float32
@@ -50,7 +51,7 @@ def from_dtype(
 
 def to_ndarray(
     shaped_array: ShapedArray[int] | ShapedArray[float],
-) -> np.ndarray[Any, np.dtype[np.float64 | np.float32 | np.int64 | np.int32]]:
+) -> npt.NDArray[np.float32 | np.float64 | np.int32 | np.int64]:
     dtype = to_dtype(shaped_array.data_ptr.xtype)
     flat = np.frombuffer(shaped_array.data_ptr.raw.memory, dtype)
     shaped = flat.reshape(shaped_array.shape)
@@ -58,18 +59,12 @@ def to_ndarray(
 
 
 def from_ndarray(
-    ndarray: np.ndarray[
-        Any,
-        np.dtype[np.float32]
-        | np.dtype[np.float64]
-        | np.dtype[np.int32]
-        | np.dtype[np.int64],
-    ]
+    ndarray: npt.NDArray[np.number[Any]],
 ) -> ShapedArray[float] | ShapedArray[int]:
     return ShapedArray(
         ptr.TypedPtr(
             ptr.RawPtr(bytearray(ndarray.data)),
-            xtype=from_dtype(ndarray.dtype.type),
+            xtype=from_dtype(np.dtype(ndarray.dtype)),
         ),
         list(ndarray.shape),
     )
@@ -77,9 +72,9 @@ def from_ndarray(
 
 @register_impls
 class OnnxFunctions(InterpreterFunctions):
-    @impl(onnx.Add)
+    @impl(onnx.AddOp)
     def run_add(
-        self, interpreter: Interpreter, op: onnx.Add, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
@@ -89,9 +84,9 @@ class OnnxFunctions(InterpreterFunctions):
         result = to_ndarray(lhs) + to_ndarray(rhs)
         return (from_ndarray(result),)
 
-    @impl(onnx.Sub)
+    @impl(onnx.SubOp)
     def run_sub(
-        self, interpreter: Interpreter, op: onnx.Sub, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.SubOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
@@ -101,9 +96,9 @@ class OnnxFunctions(InterpreterFunctions):
         result = to_ndarray(lhs) - to_ndarray(rhs)
         return (from_ndarray(result),)
 
-    @impl(onnx.Mul)
+    @impl(onnx.MulOp)
     def run_mul(
-        self, interpreter: Interpreter, op: onnx.Mul, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.MulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
@@ -113,9 +108,9 @@ class OnnxFunctions(InterpreterFunctions):
         result = to_ndarray(lhs) * to_ndarray(rhs)
         return (from_ndarray(result),)
 
-    @impl(onnx.Div)
+    @impl(onnx.DivOp)
     def run_div(
-        self, interpreter: Interpreter, op: onnx.Div, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.DivOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
@@ -125,9 +120,9 @@ class OnnxFunctions(InterpreterFunctions):
         result = to_ndarray(lhs) / to_ndarray(rhs)
         return (from_ndarray(result),)
 
-    @impl(onnx.Relu)
+    @impl(onnx.ReluOp)
     def run_relu(
-        self, interpreter: Interpreter, op: onnx.Relu, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.ReluOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         operand = args[0]
         assert isinstance(operand, ShapedArray)
@@ -136,15 +131,15 @@ class OnnxFunctions(InterpreterFunctions):
         result = operand_data * (operand_data > 0)
         return (from_ndarray(result),)
 
-    @impl(onnx.Constant)
+    @impl(onnx.ConstantOp)
     def run_constant(
-        self, interpreter: Interpreter, op: onnx.Constant, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.ConstantOp, args: tuple[Any, ...]
     ):
         if op.value is None:
             raise NotImplementedError("Only dense constant values implemented")
         shape = op.value.get_shape()
         data = [el.value.data for el in op.value.data]
-        data_ptr = ptr.TypedPtr.new(
+        data_ptr = ptr.TypedPtr[Any].new(
             data,
             xtype=xtype_for_el_type(
                 op.value.get_element_type(), interpreter.index_bitwidth
@@ -152,9 +147,9 @@ class OnnxFunctions(InterpreterFunctions):
         )
         return (ShapedArray(data_ptr, list(shape) if shape is not None else []),)
 
-    @impl(onnx.Reshape)
+    @impl(onnx.ReshapeOp)
     def run_reshape(
-        self, interpreter: Interpreter, op: onnx.Reshape, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.ReshapeOp, args: tuple[Any, ...]
     ):
         if op.allow_zero is not None and op.allow_zero.value.data == 1:
             raise NotImplementedError(
@@ -173,8 +168,10 @@ class OnnxFunctions(InterpreterFunctions):
             raise InterpretationError("Mismatch between static shape and new shape")
         return (input.with_shape(new_shape.data),)
 
-    @impl(onnx.Gemm)
-    def run_gemm(self, interpreter: Interpreter, op: onnx.Gemm, args: tuple[Any, ...]):
+    @impl(onnx.GemmOp)
+    def run_gemm(
+        self, interpreter: Interpreter, op: onnx.GemmOp, args: tuple[Any, ...]
+    ):
         a, b, c = args[0], args[1], args[2]
 
         alpha = op.alpha.value.data if op.alpha is not None else 1.0
@@ -202,9 +199,10 @@ class OnnxFunctions(InterpreterFunctions):
 
         return (from_ndarray(result),)
 
-    @impl(onnx.Conv)
-    def run_conv(self, interpreter: Interpreter, op: onnx.Conv, args: tuple[Any, ...]):
-
+    @impl(onnx.ConvOp)
+    def run_conv(
+        self, interpreter: Interpreter, op: onnx.ConvOp, args: tuple[Any, ...]
+    ):
         # initialise the attributes used
         auto_pad = op.auto_pad.data
         strides: list[int] = [value.value.data for value in op.strides]
@@ -309,9 +307,12 @@ class OnnxFunctions(InterpreterFunctions):
         )
         return (from_ndarray(result),)
 
-    @impl(onnx.MaxPoolSingleOut)
+    @impl(onnx.MaxPoolSingleOutOp)
     def run_max_pool_single_out(
-        self, interpreter: Interpreter, op: onnx.MaxPoolSingleOut, args: tuple[Any, ...]
+        self,
+        interpreter: Interpreter,
+        op: onnx.MaxPoolSingleOutOp,
+        args: tuple[Any, ...],
     ):
         kernel_shape = tuple(value.value.data for value in op.kernel_shape)
 
@@ -410,8 +411,8 @@ class OnnxFunctions(InterpreterFunctions):
         output: Any = result
         return (from_ndarray(output),)
 
-    @impl(onnx.EntryPoint)
+    @impl(onnx.EntryPointOp)
     def run_entry_point(
-        self, interpreter: Interpreter, op: onnx.EntryPoint, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: onnx.EntryPointOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()

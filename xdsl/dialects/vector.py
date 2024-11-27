@@ -11,27 +11,26 @@ from xdsl.dialects.builtin import (
     VectorType,
     i1,
 )
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
-    Operand,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
+from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
 
 
 @irdl_op_definition
-class Load(IRDLOperation):
+class LoadOp(IRDLOperation):
     name = "vector.load"
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
-    res: OpResult = result_def(VectorType)
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
+    res = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.memref.type, MemRefType[Attribute])
@@ -46,22 +45,24 @@ class Load(IRDLOperation):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
-    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
+    def get(
+        ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
+    ) -> LoadOp:
         ref = SSAValue.get(ref)
         assert assert_isa(ref.type, MemRefType[Attribute])
 
-        return Load.build(
+        return LoadOp.build(
             operands=[ref, indices],
             result_types=[VectorType(ref.type.element_type, [1])],
         )
 
 
 @irdl_op_definition
-class Store(IRDLOperation):
+class StoreOp(IRDLOperation):
     name = "vector.store"
-    vector: Operand = operand_def(VectorType)
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
+    vector = operand_def(VectorType)
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
 
     def verify_(self):
         assert isa(self.memref.type, MemRefType[Attribute])
@@ -80,15 +81,16 @@ class Store(IRDLOperation):
         vector: Operation | SSAValue,
         ref: Operation | SSAValue,
         indices: Sequence[Operation | SSAValue],
-    ) -> Store:
-        return Store.build(operands=[vector, ref, indices])
+    ) -> StoreOp:
+        return StoreOp.build(operands=[vector, ref, indices])
 
 
 @irdl_op_definition
-class Broadcast(IRDLOperation):
+class BroadcastOp(IRDLOperation):
     name = "vector.broadcast"
-    source: Operand = operand_def(AnyAttr())
-    vector: OpResult = result_def(VectorType)
+    source = operand_def()
+    vector = result_def(VectorType)
+    traits = traits_def(Pure())
 
     def verify_(self):
         assert isa(self.vector.type, VectorType[Attribute])
@@ -99,20 +101,21 @@ class Broadcast(IRDLOperation):
             )
 
     @staticmethod
-    def get(source: Operation | SSAValue) -> Broadcast:
-        return Broadcast.build(
+    def get(source: Operation | SSAValue) -> BroadcastOp:
+        return BroadcastOp.build(
             operands=[source],
             result_types=[VectorType(SSAValue.get(source).type, [1])],
         )
 
 
 @irdl_op_definition
-class FMA(IRDLOperation):
+class FMAOp(IRDLOperation):
     name = "vector.fma"
-    lhs: Operand = operand_def(VectorType)
-    rhs: Operand = operand_def(VectorType)
-    acc: Operand = operand_def(VectorType)
-    res: OpResult = result_def(VectorType)
+    lhs = operand_def(VectorType)
+    rhs = operand_def(VectorType)
+    acc = operand_def(VectorType)
+    res = result_def(VectorType)
+    traits = traits_def(Pure())
 
     def verify_(self):
         assert isa(self.lhs.type, VectorType[Attribute])
@@ -154,24 +157,24 @@ class FMA(IRDLOperation):
     @staticmethod
     def get(
         lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
-    ) -> FMA:
+    ) -> FMAOp:
         lhs = SSAValue.get(lhs)
         assert assert_isa(lhs.type, VectorType[Attribute])
 
-        return FMA.build(
+        return FMAOp.build(
             operands=[lhs, rhs, acc],
             result_types=[VectorType(lhs.type.element_type, [1])],
         )
 
 
 @irdl_op_definition
-class Maskedload(IRDLOperation):
+class MaskedloadOp(IRDLOperation):
     name = "vector.maskedload"
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
-    mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
-    passthrough: Operand = operand_def(VectorType)
-    res: OpResult = result_def(VectorRankConstraint(1))
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
+    mask = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
+    passthrough = operand_def(VectorType)
+    res = result_def(VectorRankConstraint(1))
 
     def verify_(self):
         memref_type = self.memref.type
@@ -206,23 +209,23 @@ class Maskedload(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         passthrough: SSAValue | Operation,
-    ) -> Maskedload:
+    ) -> MaskedloadOp:
         memref = SSAValue.get(memref)
         assert assert_isa(memref.type, MemRefType[Attribute])
 
-        return Maskedload.build(
+        return MaskedloadOp.build(
             operands=[memref, indices, mask, passthrough],
             result_types=[VectorType(memref.type.element_type, [1])],
         )
 
 
 @irdl_op_definition
-class Maskedstore(IRDLOperation):
+class MaskedstoreOp(IRDLOperation):
     name = "vector.maskedstore"
-    memref: Operand = operand_def(MemRefType)
-    indices: VarOperand = var_operand_def(IndexType)
-    mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
-    value_to_store: Operand = operand_def(VectorRankConstraint(1))
+    memref = operand_def(MemRefType)
+    indices = var_operand_def(IndexType)
+    mask = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
+    value_to_store = operand_def(VectorRankConstraint(1))
 
     def verify_(self):
         memref_type = self.memref.type
@@ -254,25 +257,25 @@ class Maskedstore(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         value_to_store: SSAValue | Operation,
-    ) -> Maskedstore:
-        return Maskedstore.build(operands=[memref, indices, mask, value_to_store])
+    ) -> MaskedstoreOp:
+        return MaskedstoreOp.build(operands=[memref, indices, mask, value_to_store])
 
 
 @irdl_op_definition
-class Print(IRDLOperation):
+class PrintOp(IRDLOperation):
     name = "vector.print"
-    source: Operand = operand_def(AnyAttr())
+    source = operand_def()
 
     @staticmethod
-    def get(source: Operation | SSAValue) -> Print:
-        return Print.build(operands=[source])
+    def get(source: Operation | SSAValue) -> PrintOp:
+        return PrintOp.build(operands=[source])
 
 
 @irdl_op_definition
-class Createmask(IRDLOperation):
+class CreatemaskOp(IRDLOperation):
     name = "vector.create_mask"
-    mask_operands: VarOperand = var_operand_def(IndexType)
-    mask_vector: OpResult = result_def(VectorBaseTypeConstraint(i1))
+    mask_operands = var_operand_def(IndexType)
+    mask_vector = result_def(VectorBaseTypeConstraint(i1))
 
     def verify_(self):
         assert isa(self.mask_vector.type, VectorType[Attribute])
@@ -282,8 +285,8 @@ class Createmask(IRDLOperation):
             )
 
     @staticmethod
-    def get(mask_operands: list[Operation | SSAValue]) -> Createmask:
-        return Createmask.build(
+    def get(mask_operands: list[Operation | SSAValue]) -> CreatemaskOp:
+        return CreatemaskOp.build(
             operands=[mask_operands],
             result_types=[VectorType(i1, [1])],
         )
@@ -291,6 +294,15 @@ class Createmask(IRDLOperation):
 
 Vector = Dialect(
     "vector",
-    [Load, Store, Broadcast, FMA, Maskedload, Maskedstore, Print, Createmask],
+    [
+        LoadOp,
+        StoreOp,
+        BroadcastOp,
+        FMAOp,
+        MaskedloadOp,
+        MaskedstoreOp,
+        PrintOp,
+        CreatemaskOp,
+    ],
     [],
 )

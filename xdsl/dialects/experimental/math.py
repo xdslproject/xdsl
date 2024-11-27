@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import AnyFloat, IntegerType
-from xdsl.ir import Dialect, Operation, OpResult, SSAValue
+from xdsl.dialects.builtin import AnyFloatConstr, IntegerType
+from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
     result_def,
+    traits_def,
 )
+from xdsl.traits import Pure
 
 
 @irdl_op_definition
@@ -27,9 +28,11 @@ class AbsFOp(IRDLOperation):
     """
 
     name = "math.absf"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -56,8 +59,10 @@ class AbsIOp(IRDLOperation):
     """
 
     name = "math.absi"
-    operand: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    operand = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -88,10 +93,12 @@ class Atan2Op(IRDLOperation):
     """
 
     name = "math.atan2"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
-    rhs: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    lhs = operand_def(AnyFloatConstr)
+    rhs = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -124,9 +131,11 @@ class AtanOp(IRDLOperation):
     """
 
     name = "math.atan"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -155,9 +164,11 @@ class CbrtOp(IRDLOperation):
     """
 
     name = "math.cbrt"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -187,9 +198,11 @@ class CeilOp(IRDLOperation):
     """
 
     name = "math.ceil"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -220,10 +233,12 @@ class CopySignOp(IRDLOperation):
     """
 
     name = "math.copysign"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
-    rhs: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    lhs = operand_def(AnyFloatConstr)
+    rhs = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -257,9 +272,11 @@ class CosOp(IRDLOperation):
     """
 
     name = "math.cos"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -285,8 +302,10 @@ class CountLeadingZerosOp(IRDLOperation):
     """
 
     name = "math.ctlz"
-    operand: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    operand = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -306,8 +325,10 @@ class CountTrailingZerosOp(IRDLOperation):
     """
 
     name = "math.cttz"
-    operand: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    operand = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -327,8 +348,10 @@ class CtPopOp(IRDLOperation):
     """
 
     name = "math.ctpop"
-    operand: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    operand = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    traits = traits_def(Pure())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -352,9 +375,11 @@ class ErfOp(IRDLOperation):
     """
 
     name = "math.erf"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -384,9 +409,11 @@ class Exp2Op(IRDLOperation):
     """
 
     name = "math.exp2"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -418,9 +445,11 @@ class ExpM1Op(IRDLOperation):
     """
 
     name = "math.expm1"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -450,9 +479,11 @@ class ExpOp(IRDLOperation):
     """
 
     name = "math.exp"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -490,10 +521,12 @@ class FPowIOp(IRDLOperation):
     """
 
     name = "math.fpowi"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
-    rhs: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    lhs = operand_def(AnyFloatConstr)
+    rhs = operand_def(IntegerType)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -527,9 +560,11 @@ class FloorOp(IRDLOperation):
     """
 
     name = "math.floor"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -564,11 +599,13 @@ class FmaOp(IRDLOperation):
     """
 
     name = "math.fma"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    a: Operand = operand_def(AnyFloat)
-    b: Operand = operand_def(AnyFloat)
-    c: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    a = operand_def(AnyFloatConstr)
+    b = operand_def(AnyFloatConstr)
+    c = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -602,9 +639,11 @@ class IPowIOp(IRDLOperation):
     """
 
     name = "math.ipowi"
-    lhs: Operand = operand_def(IntegerType)
-    rhs: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
+    lhs = operand_def(IntegerType)
+    rhs = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    traits = traits_def(Pure())
 
     def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
         lhs = SSAValue.get(lhs)
@@ -626,9 +665,11 @@ class Log10Op(IRDLOperation):
     """
 
     name = "math.log10"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -657,9 +698,11 @@ class Log1pOp(IRDLOperation):
     """
 
     name = "math.log1p"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -686,9 +729,11 @@ class Log2Op(IRDLOperation):
     """
 
     name = "math.log2"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -715,9 +760,11 @@ class LogOp(IRDLOperation):
     """
 
     name = "math.log"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -747,10 +794,12 @@ class PowFOp(IRDLOperation):
     """
 
     name = "math.powf"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    lhs: Operand = operand_def(AnyFloat)
-    rhs: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    lhs = operand_def(AnyFloatConstr)
+    rhs = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -787,9 +836,11 @@ class RoundEvenOp(IRDLOperation):
     """
 
     name = "math.roundeven"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -822,9 +873,11 @@ class RoundOp(IRDLOperation):
     """
 
     name = "math.round"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -850,9 +903,11 @@ class RsqrtOp(IRDLOperation):
     """
 
     name = "math.rsqrt"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -882,9 +937,11 @@ class SinOp(IRDLOperation):
     """
 
     name = "math.sin"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -910,9 +967,11 @@ class SqrtOp(IRDLOperation):
     """
 
     name = "math.sqrt"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -939,9 +998,11 @@ class TanOp(IRDLOperation):
     """
 
     name = "math.tan"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -968,9 +1029,11 @@ class TanhOp(IRDLOperation):
     """
 
     name = "math.tanh"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1002,9 +1065,11 @@ class TruncOp(IRDLOperation):
     """
 
     name = "math.trunc"
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    operand: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    operand = operand_def(AnyFloatConstr)
+    result = result_def(AnyFloatConstr)
+
+    traits = traits_def(Pure())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None

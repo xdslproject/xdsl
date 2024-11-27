@@ -10,11 +10,12 @@ from xdsl.interpreter import (
     ReturnedValues,
     TerminatorValue,
     impl,
+    impl_callable,
     impl_terminator,
     register_impls,
 )
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 
 from .dialects import toy as toy
 
@@ -118,3 +119,9 @@ class ToyFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: toy.CastOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         return args
+
+    @impl_callable(toy.FuncOp)
+    def call_func(
+        self, interpreter: Interpreter, op: toy.FuncOp, args: tuple[Any, ...]
+    ):
+        return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)

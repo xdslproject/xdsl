@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from itertools import product
+from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
@@ -44,9 +45,10 @@ from xdsl.irdl import (
     irdl_op_definition,
     prop_def,
     region_def,
+    traits_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -73,13 +75,18 @@ class StridePattern(ParametrizedAttribute):
 
     ub: ParameterDef[ArrayAttr[IntAttr]]
     strides: ParameterDef[ArrayAttr[IntAttr]]
+    repeat: ParameterDef[IntAttr]
+    """
+    Number of times an element will be repeated when loaded, default is 1.
+    """
 
     def __init__(
         self,
-        ub: ParameterDef[ArrayAttr[IntAttr]],
-        strides: ParameterDef[ArrayAttr[IntAttr]],
+        ub: ArrayAttr[IntAttr],
+        strides: ArrayAttr[IntAttr],
+        repeat: IntAttr = IntAttr(1),
     ):
-        super().__init__((ub, strides))
+        super().__init__((ub, strides, repeat))
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -101,7 +108,13 @@ class StridePattern(ParametrizedAttribute):
                     parser.Delimiter.SQUARE, parser.parse_integer
                 )
             )
-            return (ub, strides)
+            if parser.parse_optional_punctuation(","):
+                parser.parse_identifier("repeat")
+                parser.parse_punctuation("=")
+                repeat = parser.parse_integer(allow_boolean=False, allow_negative=False)
+            else:
+                repeat = 1
+            return (ub, strides, IntAttr(repeat))
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -110,14 +123,17 @@ class StridePattern(ParametrizedAttribute):
             printer.print_string("], strides = [")
             printer.print_list(self.strides, lambda attr: printer.print(attr.data))
             printer.print_string("]")
+            if self.repeat.data != 1:
+                printer.print_string(f", repeat = {self.repeat.data}")
 
     @staticmethod
     def from_bounds_and_strides(
-        ub: Sequence[int], strides: Sequence[int]
+        ub: Sequence[int], strides: Sequence[int], repeat: int = 1
     ) -> StridePattern:
         return StridePattern(
             ArrayAttr(IntAttr(i) for i in ub),
             ArrayAttr(IntAttr(i) for i in strides),
+            IntAttr(repeat),
         )
 
     def rank(self):
@@ -132,10 +148,12 @@ class StridePattern(ParametrizedAttribute):
     def offset_iter(self) -> Iterator[int]:
         for indices in product(*(range(bound.data) for bound in self.ub.data)):
             indices: tuple[int, ...] = indices
-            yield sum(
+            offset = sum(
                 index * stride.data
                 for (index, stride) in zip(indices, self.strides.data)
             )
+            for _ in range(self.repeat.data):
+                yield offset
 
     def offsets(self) -> tuple[int, ...]:
         return tuple(self.offset_iter())
@@ -163,6 +181,12 @@ class StridePattern(ParametrizedAttribute):
             if bound.data != 1
         )
 
+        if not tuples:
+            # All bounds are 1
+            return StridePattern.from_bounds_and_strides(
+                (1,), (self.strides.data[-1].data,)
+            )
+
         # Outermost bound and stride
         ub0, s0 = tuples[0]
 
@@ -187,7 +211,14 @@ class StridePattern(ParametrizedAttribute):
         ub = (ub0, *(bound for bound, _ in tuples[second_outermost_dim:]))
         s = (s0, *(stride for _, stride in tuples[second_outermost_dim:]))
 
-        return StridePattern.from_bounds_and_strides(ub, s)
+        if s[-1] == 0:
+            repeat = ub[-1] * self.repeat.data
+            ub = ub[:-1]
+            s = s[:-1]
+        else:
+            repeat = self.repeat.data
+
+        return StridePattern.from_bounds_and_strides(ub, s, repeat)
 
 
 @irdl_op_definition
@@ -225,7 +256,7 @@ class StreamingRegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((NoTerminator(),))
+    traits = traits_def(NoTerminator())
 
     def __init__(
         self,
@@ -241,6 +272,110 @@ class StreamingRegionOp(IRDLOperation):
                 "stride_patterns": stride_patterns,
             },
         )
+
+    def print(self, printer: Printer):
+        with printer.indented():
+            printer.print_string(" {")
+            if self.stride_patterns.data:
+                printer.print_string("\npatterns = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.stride_patterns.data,
+                        lambda attr: printer.print("\n", attr),
+                        delimiter=",",
+                    )
+                printer.print_string("\n]")
+            else:
+                printer.print_string("\npatterns = []")
+        printer.print_string("\n}")
+
+        if self.inputs:
+            printer.print_string(" ins(")
+            printer.print_list(self.inputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list(self.inputs.types, printer.print_attribute)
+            printer.print_string(")")
+
+        if self.outputs:
+            printer.print_string(" outs(")
+            printer.print_list(self.outputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list(self.outputs.types, printer.print_attribute)
+            printer.print_string(")")
+
+        if self.attributes:
+            printer.print(" attributes = ")
+            printer.print_op_attributes(self.attributes)
+
+        printer.print_string(" ")
+        printer.print_region(self.body)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> StreamingRegionOp:
+        parser.parse_punctuation("{")
+        parser.parse_identifier("stride_patterns")
+        parser.parse_punctuation("=")
+
+        patterns = parser.parse_attribute()
+        if not isinstance(patterns, ArrayAttr):
+            parser.raise_error(f"Expected ArrayAttr {patterns}")
+        patterns = cast(ArrayAttr[Attribute], patterns)
+        for pattern in patterns:
+            if not isinstance(pattern, StridePattern):
+                parser.raise_error(f"Expected StridePattern {pattern}")
+        patterns = cast(ArrayAttr[StridePattern], patterns)
+
+        parser.parse_punctuation("}")
+
+        pos = parser.pos
+        if parser.parse_optional_characters("ins"):
+            parser.parse_punctuation("(")
+            unresolved_ins = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            ins_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
+        else:
+            ins = ()
+
+        pos = parser.pos
+        if parser.parse_optional_characters("outs"):
+            parser.parse_punctuation("(")
+            unresolved_outs = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            outs_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
+        else:
+            outs = ()
+
+        if parser.parse_optional_keyword("attributes"):
+            parser.parse_punctuation("=")
+            extra_attrs = parser.expect(
+                parser.parse_optional_attr_dict, "expect extra attributes"
+            )
+        else:
+            extra_attrs = {}
+
+        body = parser.parse_region()
+
+        generic = cls(
+            ins,
+            outs,
+            patterns,
+            body,
+        )
+        generic.attributes |= extra_attrs
+
+        return generic
 
 
 SnitchStream = Dialect(

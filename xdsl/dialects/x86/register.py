@@ -18,14 +18,14 @@ class X86RegisterType(RegisterType):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        with parser.in_angle_brackets():
-            name = parser.parse_optional_identifier()
-            if name is not None:
-                if not name.startswith("e") and not name.startswith("r"):
-                    assert name in cls.abi_index_by_name(), f"{name}"
-            else:
-                name = ""
-            return cls._parameters_from_spelling(name)
+        if parser.parse_optional_punctuation("<") is not None:
+            name = parser.parse_identifier()
+            parser.parse_punctuation(">")
+            if not name.startswith("e") and not name.startswith("r"):
+                assert name in cls.abi_index_by_name(), f"{name}"
+        else:
+            name = ""
+        return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
         name = self.spelling.data
@@ -122,3 +122,94 @@ class RFLAGSRegisterType(X86RegisterType):
 
 UNALLOCATED_RFLAGS = RFLAGSRegisterType("")
 RFLAGS = RFLAGSRegisterType("rflags")
+
+X86AVX_INDEX_BY_NAME = {
+    "zmm0": 0,
+    "zmm1": 1,
+    "zmm2": 2,
+    "zmm3": 3,
+    "zmm4": 4,
+    "zmm5": 5,
+    "zmm6": 6,
+    "zmm7": 7,
+    "zmm8": 8,
+    "zmm9": 9,
+    "zmm10": 10,
+    "zmm11": 11,
+    "zmm12": 12,
+    "zmm13": 13,
+    "zmm14": 14,
+    "zmm15": 15,
+    "zmm16": 16,
+    "zmm17": 17,
+    "zmm18": 18,
+    "zmm19": 19,
+    "zmm20": 20,
+    "zmm21": 21,
+    "zmm22": 22,
+    "zmm23": 23,
+    "zmm24": 24,
+    "zmm25": 25,
+    "zmm26": 26,
+    "zmm27": 27,
+    "zmm28": 28,
+    "zmm29": 29,
+    "zmm30": 30,
+    "zmm31": 31,
+}
+
+
+@irdl_attr_definition
+class AVXRegisterType(X86RegisterType):
+    """
+    An x86 register type for AVX512 instructions.
+    """
+
+    name = "x86.avxreg"
+
+    @classmethod
+    def unallocated(cls) -> AVXRegisterType:
+        return UNALLOCATED_AVX
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "x86AVX"
+
+    @classmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        return X86AVX_INDEX_BY_NAME
+
+
+UNALLOCATED_AVX = AVXRegisterType("")
+ZMM0 = AVXRegisterType("zmm0")
+ZMM1 = AVXRegisterType("zmm1")
+ZMM2 = AVXRegisterType("zmm2")
+ZMM3 = AVXRegisterType("zmm3")
+ZMM4 = AVXRegisterType("zmm4")
+ZMM5 = AVXRegisterType("zmm5")
+ZMM6 = AVXRegisterType("zmm6")
+ZMM7 = AVXRegisterType("zmm7")
+ZMM8 = AVXRegisterType("zmm8")
+ZMM9 = AVXRegisterType("zmm9")
+ZMM10 = AVXRegisterType("zmm10")
+ZMM11 = AVXRegisterType("zmm11")
+ZMM12 = AVXRegisterType("zmm12")
+ZMM13 = AVXRegisterType("zmm13")
+ZMM14 = AVXRegisterType("zmm14")
+ZMM15 = AVXRegisterType("zmm15")
+ZMM16 = AVXRegisterType("zmm16")
+ZMM17 = AVXRegisterType("zmm17")
+ZMM18 = AVXRegisterType("zmm18")
+ZMM19 = AVXRegisterType("zmm19")
+ZMM20 = AVXRegisterType("zmm20")
+ZMM21 = AVXRegisterType("zmm21")
+ZMM22 = AVXRegisterType("zmm22")
+ZMM23 = AVXRegisterType("zmm23")
+ZMM24 = AVXRegisterType("zmm24")
+ZMM25 = AVXRegisterType("zmm25")
+ZMM26 = AVXRegisterType("zmm26")
+ZMM27 = AVXRegisterType("zmm27")
+ZMM28 = AVXRegisterType("zmm28")
+ZMM29 = AVXRegisterType("zmm29")
+ZMM30 = AVXRegisterType("zmm30")
+ZMM31 = AVXRegisterType("zmm31")

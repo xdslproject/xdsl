@@ -4,6 +4,7 @@ from itertools import product
 from math import prod
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -14,10 +15,7 @@ from xdsl.dialects.stencil import (
     ReturnOp,
     TempType,
 )
-from xdsl.ir import (
-    Attribute,
-    MLContext,
-)
+from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -80,8 +78,8 @@ class StencilUnrollPattern(RewritePattern):
             return
 
         # Enforced by verification
-        res_types = [r.type for r in op.results]
-        assert isa(res_types, list[TempType[Attribute]])
+        res_types = op.result_types
+        assert isa(res_types, Sequence[TempType[Attribute]])
         dim = res_types[0].get_num_dims()
 
         # If unroll factors list is shorter than the dim, fill with ones from the front

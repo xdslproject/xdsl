@@ -1,5 +1,5 @@
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, riscv, riscv_cf, riscv_scf
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -7,6 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 class LowerRiscvScfForPattern(RewritePattern):
@@ -77,15 +78,13 @@ class LowerRiscvScfForPattern(RewritePattern):
         init_block = op.parent_block()
         assert init_block is not None
 
-        body_args = op.body.blocks[0].args
+        body = op.body.blocks[0]
 
         # TODO: add method to rewriter
-        end_block = init_block.split_before(
-            op, arg_types=(arg.type for arg in body_args)
-        )
+        end_block = init_block.split_before(op, arg_types=body.arg_types)
 
         # The first argument of the loop body block is the loop counter by SCF invariant.
-        loop_var_reg = body_args[0].type
+        loop_var_reg = body.args[0].type
         assert isinstance(loop_var_reg, riscv.IntRegisterType)
 
         # Use the first block of the loop body as the condition block since it is the
@@ -124,7 +123,7 @@ class LowerRiscvScfForPattern(RewritePattern):
 
         # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
-        rewriter.insert_op_at_end(
+        rewriter.insert_op(
             (
                 mv_op := riscv.MVOp(op.lb, rd=iv_reg),
                 riscv_cf.BgeOp(
@@ -136,12 +135,12 @@ class LowerRiscvScfForPattern(RewritePattern):
                     first_body_block,
                 ),
             ),
-            init_block,
+            InsertPoint.at_end(init_block),
         )
 
         # Insert label at the start of the first body block.
-        rewriter.insert_op_at_start(
-            riscv.LabelOp(f"scf_body_{suffix}"), first_body_block
+        rewriter.insert_op(
+            riscv.LabelOp(f"scf_body_{suffix}"), InsertPoint.at_start(first_body_block)
         )
 
         # Replace operation by arguments to the newly end block.

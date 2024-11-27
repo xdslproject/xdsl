@@ -1,14 +1,12 @@
+from collections.abc import Callable
 from typing import NamedTuple
 
-from xdsl.dialects import builtin
-from xdsl.ir import MLContext
+from xdsl.context import MLContext
+from xdsl.dialects import builtin, get_all_dialects
+from xdsl.ir import Dialect
 from xdsl.passes import ModulePass, PipelinePass
-from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
-
-ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
-"""Contains the list of xDSL passes."""
 
 
 class AvailablePass(NamedTuple):
@@ -22,12 +20,14 @@ class AvailablePass(NamedTuple):
     pass_spec: PipelinePassSpec | None
 
 
-def get_new_registered_context() -> MLContext:
+def get_new_registered_context(
+    all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
+) -> MLContext:
     """
     Generates a new MLContext, registers it and returns it.
     """
     ctx = MLContext(True)
-    for dialect_name, dialect_factory in get_all_dialects().items():
+    for dialect_name, dialect_factory in all_dialects:
         ctx.register_dialect(dialect_name, dialect_factory)
     return ctx
 
@@ -50,14 +50,17 @@ def apply_passes_to_module(
     return module
 
 
-def iter_condensed_passes(input: builtin.ModuleOp):
+def iter_condensed_passes(
+    input: builtin.ModuleOp,
+    all_passes: tuple[tuple[str, type[ModulePass]], ...],
+):
     ctx = MLContext(True)
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
     selections: list[AvailablePass] = []
-    for _, value in ALL_PASSES:
+    for _, value in all_passes:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
             selections.append(AvailablePass(value.name, value, None))
@@ -73,9 +76,12 @@ def iter_condensed_passes(input: builtin.ModuleOp):
             pass
 
 
-def get_condensed_pass_list(input: builtin.ModuleOp) -> tuple[AvailablePass, ...]:
+def get_condensed_pass_list(
+    input: builtin.ModuleOp,
+    all_passes: tuple[tuple[str, type[ModulePass]], ...],
+) -> tuple[AvailablePass, ...]:
     """
     Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
     change the ModuleOp.
     """
-    return tuple(ap for ap, _ in iter_condensed_passes(input))
+    return tuple(ap for ap, _ in iter_condensed_passes(input, all_passes))

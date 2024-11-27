@@ -1,13 +1,13 @@
 import pytest
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
+from xdsl.dialects import riscv, riscv_snitch, snitch, snitch_stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.utils.test_value import TestSSAValue
 
@@ -33,10 +33,16 @@ def test_stride_pattern_offsets(
 @pytest.mark.parametrize(
     "inputs, outputs",
     [
+        (((1, 1), (1, 1)), ((1,), (1,))),
+        (
+            ((1, 1), (2, 3)),
+            ((1,), (3,)),
+        ),  # Technically any number could be in the second position, since the bound is 1
         (((24,), (1,)), ((24,), (1,))),
         (((2, 3, 4), (12, 4, 1)), ((24,), (1,))),
         (((3, 2), (16, 8)), ((6,), (8,))),
-        (((3, 2), (8, 0)), ((3, 2), (8, 0))),
+        (((3, 2), (8, 0)), ((3,), (8,), 2)),
+        (((3, 2), (8, 0), 5), ((3,), (8,), 10)),
         (((3, 2), (0, 8)), ((3, 2), (0, 8))),
         (((1, 1, 6, 1, 3, 3), (6, 5, 4, 3, 2, 1)), ((6, 3, 3), (4, 2, 1))),
     ],
@@ -65,9 +71,9 @@ def test_snitch_stream_interpreter():
     streaming_region_body = Region(
         Block(
             arg_types=(
-                stream.ReadableStreamType(riscv.Registers.FT0),
-                stream.ReadableStreamType(riscv.Registers.FT1),
-                stream.WritableStreamType(riscv.Registers.FT2),
+                snitch.ReadableStreamType(riscv.Registers.FT0),
+                snitch.ReadableStreamType(riscv.Registers.FT1),
+                snitch.WritableStreamType(riscv.Registers.FT2),
             )
         )
     )
@@ -83,7 +89,7 @@ def test_snitch_stream_interpreter():
             c_reg = riscv.FAddDOp(a_reg, b_reg, rd=riscv.Registers.FT2).rd
             riscv_snitch.WriteOp(c_reg, c_stream)
 
-        riscv_snitch.FrepOuter(count_reg, frep_body)
+        riscv_snitch.FrepOuterOp(count_reg, frep_body)
 
     assert (
         interpreter.run_op(

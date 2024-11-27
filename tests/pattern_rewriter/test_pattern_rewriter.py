@@ -4,8 +4,9 @@ from collections.abc import Sequence
 import pytest
 from conftest import assert_print_op
 
+from xdsl.context import MLContext
 from xdsl.dialects import test
-from xdsl.dialects.arith import Addi, Arith, Constant, Muli
+from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
 from xdsl.dialects.builtin import (
     Builtin,
     IndexType,
@@ -16,7 +17,8 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Block, MLContext, Operation, SSAValue
+from xdsl.ir import Block, Operation, SSAValue
+from xdsl.irdl import BaseAttr
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -25,9 +27,11 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
+    attr_constr_rewrite_pattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -102,18 +106,18 @@ def test_non_recursive_rewrite():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class RewriteConst(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            if isinstance(op, Constant):
-                new_constant = Constant.from_int_and_width(43, i32)
+            if isinstance(op, ConstantOp):
+                new_constant = ConstantOp.from_int_and_width(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
@@ -132,18 +136,18 @@ def test_non_recursive_rewrite_reversed():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class RewriteConst(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            if isinstance(op, Constant):
-                new_constant = Constant.from_int_and_width(43, i32)
+            if isinstance(op, ConstantOp):
+                new_constant = ConstantOp.from_int_and_width(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
@@ -164,18 +168,18 @@ def test_op_type_rewrite_pattern_method_decorator():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class RewriteConst(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: Constant, rewriter: PatternRewriter):
-            rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
+        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
+            rewriter.replace_matched_op(ConstantOp.from_int_and_width(43, i32))
 
     rewrite_and_compare(
         prog,
@@ -193,7 +197,7 @@ def test_op_type_rewrite_pattern_union_type():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %2 = "test"(%0, %1) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -205,8 +209,10 @@ def test_op_type_rewrite_pattern_union_type():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: Constant | Addi, rewriter: PatternRewriter):
-            rewriter.replace_matched_op(Constant.from_int_and_width(42, i32))
+        def match_and_rewrite(
+            self, __op__: ConstantOp | AddiOp, rewriter: PatternRewriter
+        ):
+            rewriter.replace_matched_op(ConstantOp.from_int_and_width(42, i32))
 
     rewrite_and_compare(
         prog,
@@ -229,26 +235,26 @@ def test_recursive_rewriter():
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %1 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %2 = "arith.addi"(%0, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %4 = "arith.addi"(%2, %3) : (i32, i32) -> i32
+  %4 = "arith.addi"(%2, %3) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %5 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %6 = "arith.addi"(%4, %5) : (i32, i32) -> i32
+  %6 = "arith.addi"(%4, %5) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %7 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
+  %8 = "arith.addi"(%6, %7) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
             if not isa(op_val := op.value, IntegerAttr):
                 return
             val = op_val.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = Constant(IntegerAttr.from_int_and_width(val - 1, 32), i32)
-            constant_one = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
-            add_op = Addi(constant_op, constant_one)
+            constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
+            constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+            add_op = AddiOp(constant_op, constant_one)
             rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
@@ -272,26 +278,26 @@ def test_recursive_rewriter_reversed():
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %1 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %2 = "arith.addi"(%0, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %4 = "arith.addi"(%2, %3) : (i32, i32) -> i32
+  %4 = "arith.addi"(%2, %3) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %5 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %6 = "arith.addi"(%4, %5) : (i32, i32) -> i32
+  %6 = "arith.addi"(%4, %5) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   %7 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
+  %8 = "arith.addi"(%6, %7) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
             if not isa(op_val := op.value, IntegerAttr):
                 return
             val = op_val.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = Constant(IntegerAttr.from_int_and_width(val - 1, 32), i32)
-            constant_one = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
-            add_op = Addi(constant_op, constant_one)
+            constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
+            constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+            add_op = AddiOp(constant_op, constant_one)
             rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
@@ -310,23 +316,23 @@ def test_greedy_rewrite_pattern_applier():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.muli"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.muli"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class ConstantRewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: Constant, rewriter: PatternRewriter):
-            rewriter.replace_matched_op([Constant.from_int_and_width(43, i32)])
+        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
+            rewriter.replace_matched_op([ConstantOp.from_int_and_width(43, i32)])
 
     class AddiRewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: Addi, rewriter: PatternRewriter):
-            rewriter.replace_matched_op([Muli(op.lhs, op.rhs)])
+        def match_and_rewrite(self, op: AddiOp, rewriter: PatternRewriter):
+            rewriter.replace_matched_op([MuliOp(op.lhs, op.rhs)])
 
     rewrite_and_compare(
         prog,
@@ -356,8 +362,8 @@ def test_insert_op_before_matched_op():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __cst__: Constant, rewriter: PatternRewriter):
-            new_cst = Constant.from_int_and_width(42, i32)
+        def match_and_rewrite(self, __cst__: ConstantOp, rewriter: PatternRewriter):
+            new_cst = ConstantOp.from_int_and_width(42, i32)
 
             rewriter.insert_op_before_matched_op(new_cst)
 
@@ -373,20 +379,24 @@ def test_insert_op_at_start():
     """Test rewrites where operations are inserted with a given position."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+    %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
-            new_cst = Constant.from_int_and_width(42, i32)
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
+            rewriter.insert_op(new_cst, InsertPoint.at_start(op.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -400,22 +410,26 @@ def test_insert_op_before():
     """Test rewrites where operations are inserted before a given operation."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+    %1 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
-            new_cst = Constant.from_int_and_width(42, i32)
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            first_op = mod.ops.first
+            first_op = op.regions[0].block.ops.first
             assert first_op is not None
-            rewriter.insert_op_before(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -429,22 +443,26 @@ def test_insert_op_after():
     """Test rewrites where operations are inserted after a given operation."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
-            new_cst = Constant.from_int_and_width(42, i32)
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            first_op = mod.ops.first
+            first_op = op.regions[0].block.ops.first
             assert first_op is not None
-            rewriter.insert_op_after(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -468,8 +486,8 @@ def test_insert_op_after_matched_op():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __cst__: Constant, rewriter: PatternRewriter):
-            new_cst = Constant.from_int_and_width(42, i32)
+        def match_and_rewrite(self, __cst__: ConstantOp, rewriter: PatternRewriter):
+            new_cst = ConstantOp.from_int_and_width(42, i32)
 
             rewriter.insert_op_after_matched_op(new_cst)
 
@@ -495,8 +513,8 @@ def test_insert_op_after_matched_op_reversed():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __cst__: Constant, rewriter: PatternRewriter):
-            new_cst = Constant.from_int_and_width(42, i32)
+        def match_and_rewrite(self, __cst__: ConstantOp, rewriter: PatternRewriter):
+            new_cst = ConstantOp.from_int_and_width(42, i32)
 
             rewriter.insert_op_after_matched_op(new_cst)
 
@@ -521,7 +539,7 @@ def test_operation_deletion():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: Constant, rewriter: PatternRewriter):
+        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
             rewriter.erase_matched_op()
 
     rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()), op_removed=1)
@@ -535,7 +553,7 @@ def test_operation_deletion_reversed():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
@@ -564,12 +582,12 @@ def test_operation_deletion_failure():
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: Constant, rewriter: PatternRewriter):
+        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
             rewriter.erase_matched_op()
 
     parser = Parser(ctx, prog)
@@ -588,17 +606,21 @@ def test_delete_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-^0:
+  "test.op"() ({
+  ^0:
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
-            first_op = op.ops.first
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
 
             assert first_op is not None
             rewriter.erase_op(first_op)
@@ -615,20 +637,24 @@ def test_replace_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
     prog = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  "test.op"() ({
+    %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  }) : () -> ()
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
-            first_op = op.ops.first
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
 
             assert first_op is not None
-            rewriter.replace_op(first_op, [Constant.from_int_and_width(42, i32)])
+            rewriter.replace_op(first_op, [ConstantOp.from_int_and_width(42, i32)])
 
     rewrite_and_compare(
         prog,
@@ -665,14 +691,13 @@ def test_block_argument_type_change():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.modify_block_argument_type(
-                    matched_op.regs[0].blocks[0].args[0], i64
-                )
+                rewriter.modify_value_type(matched_op.regs[0].blocks[0].args[0], i64)
 
     rewrite_and_compare(
         prog,
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_modified=1,
     )
 
 
@@ -830,7 +855,7 @@ def test_inline_block_before():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(inner_block, first_op)
+                    rewriter.inline_block(inner_block, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -869,7 +894,9 @@ def test_inline_block_at_before_when_op_is_matched_op():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.inline_block_before(matched_op.regs[0].blocks[0], matched_op)
+                rewriter.inline_block(
+                    matched_op.regs[0].blocks[0], InsertPoint.before(matched_op)
+                )
 
     rewrite_and_compare(
         prog,
@@ -923,8 +950,8 @@ def test_inline_block_before_with_args():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(
-                        inner_block, first_op, outer_block.args
+                    rewriter.inline_block(
+                        inner_block, InsertPoint.before(first_op), outer_block.args
                     )
 
     rewrite_and_compare(
@@ -976,7 +1003,7 @@ def test_inline_block_after():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, first_op)
+                        rewriter.inline_block(inner_block, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -1027,7 +1054,9 @@ def test_inline_block_after_matched():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, matched_op)
+                        rewriter.inline_block(
+                            inner_block, InsertPoint.after(matched_op)
+                        )
 
     rewrite_and_compare(
         prog,
@@ -1041,37 +1070,44 @@ def test_move_region_contents_to_new_regions():
 
     prog = """\
 "builtin.module"() ({
-  %0 = "test.op"() : () -> !test.type<"int">
-  %1 = "test.op"() ({
-  ^0:
-    %2 = "test.op"() : () -> !test.type<"int">
-  }) : () -> !test.type<"int">
+  "test.op"() ({
+    %0 = "test.op"() : () -> !test.type<"int">
+    %1 = "test.op"() ({
+    ^0:
+      %2 = "test.op"() : () -> !test.type<"int">
+    }) : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "test.op"() : () -> !test.type<"int">
-  %1 = "test.op"() ({
-  }) : () -> !test.type<"int">
-  %2 = "test.op"() ({
-    %3 = "test.op"() : () -> !test.type<"int">
-  }) : () -> !test.type<"int">
+  "test.op"() ({
+    %0 = "test.op"() : () -> !test.type<"int">
+    %1 = "test.op"() ({
+    }) : () -> !test.type<"int">
+    %2 = "test.op"() ({
+      %3 = "test.op"() : () -> !test.type<"int">
+    }) : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
-            ops_iter = iter(op.ops)
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            # Match the toplevel test.op
+            if not isinstance(op.parent_op(), ModuleOp):
+                return
+            ops_iter = iter(op.regions[0].block.ops)
 
             _ = next(ops_iter)  # skip first op
             old_op = next(ops_iter)
             assert isinstance(old_op, test.TestOp)
             new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
-            res_types = [r.type for r in old_op.results]
+            res_types = old_op.result_types
             new_op = test.TestOp.create(result_types=res_types, regions=[new_region])
-            rewriter.insert_op_after(new_op, old_op)
+            rewriter.insert_op(new_op, InsertPoint.after(old_op))
 
     rewrite_and_compare(
         prog,
@@ -1137,9 +1173,9 @@ def test_insert_same_block():
             )
 
             # Allocate before first use
-            rewriter.insert_op_at_start(alloc, block)
+            rewriter.insert_op(alloc, InsertPoint.at_start(block))
             # Deallocate after last use
-            rewriter.insert_op_before(dealloc, last_op)
+            rewriter.insert_op(dealloc, InsertPoint.before(last_op))
             # Init instead of creating, and replace result with allocated value
             rewriter.replace_matched_op(init, alloc.res)
 
@@ -1386,7 +1422,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi32>}> : () -> f32
   %3 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
-  %4 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1400,7 +1436,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xindex>}> : () -> f32
   %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
-  %4 = "arith.addi"(%0, %0) : (index, index) -> index
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1417,7 +1453,7 @@ def test_type_conversion():
         op_inserted=5,
         op_removed=5,
         op_replaced=5,
-        op_modified=4,
+        op_modified=5,
     )
     rewrite_and_compare(
         prog,
@@ -1426,7 +1462,7 @@ def test_type_conversion():
         op_inserted=5,
         op_removed=5,
         op_replaced=5,
-        op_modified=4,
+        op_modified=5,
     )
     rewrite_and_compare(
         prog,
@@ -1437,7 +1473,7 @@ def test_type_conversion():
         op_inserted=5,
         op_removed=5,
         op_replaced=5,
-        op_modified=4,
+        op_modified=5,
     )
 
     non_rec_expected = """\
@@ -1449,7 +1485,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi32>}> : () -> f32
   %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
-  %4 = "arith.addi"(%0, %0) : (index, index) -> index
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1461,7 +1497,7 @@ def test_type_conversion():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=3,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
@@ -1470,7 +1506,7 @@ def test_type_conversion():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=3,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
@@ -1479,7 +1515,7 @@ def test_type_conversion():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=3,
+        op_modified=4,
     )
 
     expected = """\
@@ -1491,7 +1527,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xindex>}> : () -> f32
   %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
-  %4 = "arith.addi"(%0, %0) : (index, index) -> i32
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (index, index) -> i32
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1546,7 +1582,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> i32
   %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xi32>
-  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i6, i6) -> i6
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1560,7 +1596,7 @@ def test_type_conversion():
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> index
   %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xindex>
-  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  %4 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i6, i6) -> i6
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1604,6 +1640,40 @@ def test_type_conversion():
     )
 
 
+def test_recursive_type_conversion_in_regions():
+    prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xui16>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^bb0(%arg0 : memref<2x4xui16>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+    expected_prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xindex>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^0(%arg0 : memref<2x4xindex>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class IndexConversion(TypeConversionPattern):
+        @attr_type_rewrite_pattern
+        def convert_type(self, typ: IntegerType) -> IndexType:
+            return IndexType()
+
+    rewrite_and_compare(
+        prog,
+        expected_prog,
+        PatternRewriteWalker(IndexConversion(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+        op_modified=1,
+    )
+
+
 def test_no_change():
     """Test that doing nothing successfully does not report doing something."""
 
@@ -1631,7 +1701,6 @@ def test_no_change():
 
 
 def test_error():
-
     prog = """\
 builtin.module {
   "test.op"() {"erroneous" = false} : () -> ()
@@ -1675,3 +1744,37 @@ Error while applying pattern: Expected operation to not be erroneous!
     walker = PatternRewriteWalker(Rewrite())
     with pytest.raises(ValueError, match=re.escape(expected)):
         walker.rewrite_module(module)
+
+
+def test_attr_constr_rewrite_pattern():
+    prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xui16>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^bb0(%arg0 : memref<2x4xui16>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+    expected_prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xindex>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^0(%arg0 : memref<2x4xindex>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class IndexConversion(TypeConversionPattern):
+        @attr_constr_rewrite_pattern(BaseAttr(IntegerType))
+        def convert_type(self, typ: IntegerType) -> IndexType:
+            return IndexType()
+
+    rewrite_and_compare(
+        prog,
+        expected_prog,
+        PatternRewriteWalker(IndexConversion(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+        op_modified=1,
+    )

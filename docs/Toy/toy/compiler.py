@@ -13,6 +13,7 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
     ConvertRiscvScfToRiscvCfPass,
 )
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
+from xdsl.context import MLContext
 from xdsl.dialects import (
     affine,
     arith,
@@ -24,7 +25,6 @@ from xdsl.dialects import (
     scf,
 )
 from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.ir import MLContext
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_affine import LowerAffinePass
@@ -37,9 +37,7 @@ from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
-from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_toy_affine import LowerToAffinePass
-from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
 
 
@@ -100,9 +98,7 @@ def transform(
     if target == "scf":
         return
 
-    SetupRiscvPass().apply(ctx, module_op)
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
-    LowerMemrefToRiscv().apply(ctx, module_op)
     ConvertMemrefToRiscvPass().apply(ctx, module_op)
     ConvertPrintFormatToRiscvDebugPass().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
@@ -166,6 +162,4 @@ def compile(program: str) -> str:
 def emulate_riscv(program: str):
     from xdsl.interpreters.riscv_emulator import run_riscv
 
-    from .emulator.toy_accelerator_instructions import ToyAccelerator
-
-    run_riscv(program, extensions=[ToyAccelerator], unlimited_regs=True, verbosity=0)
+    run_riscv(program, unlimited_regs=True, verbosity=0)

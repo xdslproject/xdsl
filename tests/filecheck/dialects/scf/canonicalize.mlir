@@ -8,10 +8,6 @@
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %v0, %v1 = "test.op"() : () -> (index, index)
-// CHECK-NEXT:    %c0 = arith.constant 0 : index
-// CHECK-NEXT:    %c1 = arith.constant 1 : index
-// CHECK-NEXT:    %c2 = arith.constant 2 : index
-// CHECK-NEXT:    %c3 = arith.constant 3 : index
 
 %r00, %r01 = scf.for %i0 = %v0 to %v1 step %v0 iter_args(%arg00 = %v0, %arg01 = %v1) -> (index, index) {
     "test.op"() {"not constant"} : () -> ()
@@ -49,4 +45,29 @@
 
 // CHECK-NEXT:    "test.op"() {"exactly once"} : () -> ()
 // CHECK-NEXT:    "test.op"(%v0, %v1) : (index, index) -> ()
+
+// CHECK:       %const = arith.constant 0 : i32
+// CHECK-NEXT:  scf.for %i = %v0 to %v1 step %v0 {
+// CHECK-NEXT:    "test.op"(%const) : (i32) -> ()
 // CHECK-NEXT:  }
+
+scf.for %i = %v0 to %v1 step %v0 {
+    %const = arith.constant 0: i32
+    "test.op"(%const) : (i32) -> ()
+}
+
+// CHECK:       %inner_step = arith.constant 10 : index
+// CHECK-NEXT:  %const_1 = arith.constant 0 : i32
+// CHECK-NEXT:  scf.for %i_1 = %v0 to %v1 step %v0 {
+// CHECK-NEXT:    scf.for %j = %i_1 to %v1 step %inner_step {
+// CHECK-NEXT:      "test.op"(%const_1) : (i32) -> ()
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+scf.for %i = %v0 to %v1 step %v0 {
+    %inner_step = arith.constant 10: index
+    scf.for %j = %i to %v1 step %inner_step {
+        %const = arith.constant 0: i32
+        "test.op"(%const) : (i32) -> ()
+    } 
+}

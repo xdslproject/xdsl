@@ -1,5 +1,6 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith, func
+from xdsl.context import MLContext
+from xdsl.dialects import arith, func, get_all_dialects
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
@@ -9,9 +10,8 @@ from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
 )
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, Region
 from xdsl.parser import Parser
-from xdsl.tools.command_line_tool import get_all_dialects
 
 
 def test_operation_counter():
@@ -21,12 +21,12 @@ def test_operation_counter():
     with ImplicitBuilder(module.body):
         function = func.FuncOp("hello", ((index,), (index,)))
         with ImplicitBuilder(function.body) as (n,):
-            two = arith.Constant(IntegerAttr(2, index)).result
-            three = arith.Constant(IntegerAttr(2, index)).result
-            res_1 = arith.Muli(n, two)
-            res_2 = arith.Muli(n, three)
-            res = arith.Muli(res_1, res_2)
-            func.Return(res)
+            two = arith.ConstantOp(IntegerAttr(2, index)).result
+            three = arith.ConstantOp(IntegerAttr(2, index)).result
+            res_1 = arith.MuliOp(n, two)
+            res_2 = arith.MuliOp(n, three)
+            res = arith.MuliOp(res_1, res_2)
+            func.ReturnOp(res)
 
     expected_res = {
         "func.func": 1,
@@ -88,12 +88,12 @@ def test_get_diff_operation_count():
     # get output module
     output_text = """builtin.module {
   func.func @hello(%n : index) -> index {
-    %two = riscv.li 2 : () -> !riscv.reg<>
-    %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg<> to index
-    %res = builtin.unrealized_conversion_cast %n : index to !riscv.reg<>
-    %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg<>
-    %res_2 = riscv.mul %res, %res_1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg<> to index
+    %two = riscv.li 2 : !riscv.reg
+    %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
+    %res = builtin.unrealized_conversion_cast %n : index to !riscv.reg
+    %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
+    %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
     func.return %res_3 : index
   }
 }

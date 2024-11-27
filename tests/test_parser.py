@@ -3,7 +3,10 @@ from typing import cast
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
+    AnyIntegerAttr,
     ArrayAttr,
     Builtin,
     DictionaryAttr,
@@ -16,7 +19,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, Region
+from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -27,7 +30,8 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError, VerifyException
-from xdsl.utils.lexer import Token
+from xdsl.utils.lexer import PunctuationSpelling, Token
+from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
 
@@ -396,8 +400,8 @@ def test_parse_region_with_args_fail(text: str):
 @irdl_op_definition
 class MultiRegionOp(IRDLOperation):
     name = "test.multi_region"
-    r1: Region = region_def()
-    r2: Region = region_def()
+    r1 = region_def()
+    r2 = region_def()
 
 
 def test_parse_multi_region_mlir():
@@ -424,7 +428,7 @@ def test_parse_block_name():
 
     ctx = MLContext()
     parser = Parser(ctx, block_str)
-    block = parser._parse_block()  # pyright: ignore[reportPrivateUsage]
+    block = parser._parse_block()
 
     assert block.args[0].name_hint == "name"
     assert block.args[1].name_hint is None
@@ -597,7 +601,7 @@ def test_is_punctuation_false(punctuation: Token.Kind):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().values())
 )
 def test_is_spelling_of_punctuation_true(punctuation: Token.Kind):
-    value = cast(Token.PunctuationSpelling, punctuation.value)
+    value = cast(PunctuationSpelling, punctuation.value)
     assert Token.Kind.is_spelling_of_punctuation(value)
 
 
@@ -610,14 +614,14 @@ def test_is_spelling_of_punctuation_false(punctuation: str):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().values())
 )
 def test_get_punctuation_kind(punctuation: Token.Kind):
-    value = cast(Token.PunctuationSpelling, punctuation.value)
+    value = cast(PunctuationSpelling, punctuation.value)
     assert punctuation.get_punctuation_kind_from_spelling(value) == punctuation
 
 
 @pytest.mark.parametrize(
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
-def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
+def test_parse_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
 
     res = parser.parse_punctuation(punctuation)
@@ -628,7 +632,7 @@ def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
 @pytest.mark.parametrize(
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
-def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
+def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), "e +")
     with pytest.raises(ParseError) as e:
         parser.parse_punctuation(punctuation, " in test")
@@ -639,7 +643,7 @@ def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
 @pytest.mark.parametrize(
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
-def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
+def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
@@ -649,7 +653,7 @@ def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
 @pytest.mark.parametrize(
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
-def test_parse_optional_punctuation_fail(punctuation: Token.PunctuationSpelling):
+def test_parse_optional_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), "e +")
     assert parser.parse_optional_punctuation(punctuation) is None
 
@@ -794,6 +798,38 @@ def test_parse_number(
 
 
 @pytest.mark.parametrize(
+    "text, expected_value",
+    [
+        ("3: i16", IntegerAttr(3, 16)),
+        ("24: i32", IntegerAttr(24, 32)),
+        ("0: index", IntegerAttr.from_index_int_value(0)),
+        ("-64: i64", IntegerAttr(-64, 64)),
+        ("-64.4: f64", AnyFloatAttr(-64.4, 64)),
+        ("32.4: f32", AnyFloatAttr(32.4, 32)),
+        ("0x7e00 : f16", AnyFloatAttr(float("nan"), 16)),
+        ("0x7c00 : f16", AnyFloatAttr(float("inf"), 16)),
+        ("0xfc00 : f16", AnyFloatAttr(float("-inf"), 16)),
+        ("0x7fc00000 : f32", AnyFloatAttr(float("nan"), 32)),
+        ("0x7f800000 : f32", AnyFloatAttr(float("inf"), 32)),
+        ("0xff800000 : f32", AnyFloatAttr(float("-inf"), 32)),
+        ("0x7ff8000000000000 : f64", AnyFloatAttr(float("nan"), 64)),
+        ("0x7ff0000000000000 : f64", AnyFloatAttr(float("inf"), 64)),
+        ("0xfff0000000000000 : f64", AnyFloatAttr(float("-inf"), 64)),
+        # ("3 : f64", None),  # todo this fails in mlir-opt but not in xdsl
+    ],
+)
+def test_parse_optional_builtin_int_or_float_attr(
+    text: str, expected_value: AnyIntegerAttr | AnyFloatAttr | None
+):
+    parser = Parser(MLContext(), text)
+    if expected_value is None:
+        with pytest.raises(ValueError):
+            parser.parse_optional_builtin_int_or_float_attr()
+    else:
+        assert parser.parse_optional_builtin_int_or_float_attr() == expected_value
+
+
+@pytest.mark.parametrize(
     "text, allow_boolean",
     [
         ("-false", False),
@@ -882,3 +918,39 @@ def test_parse_visibility(keyword: str, expected: StringAttr | None):
             parser.parse_visibility_keyword()
     else:
         assert parser.parse_visibility_keyword() == expected
+
+
+class MyEnum(StrEnum):
+    A = "a"
+    B = "b"
+    C = "c"
+
+
+@pytest.mark.parametrize(
+    "keyword, expected",
+    [
+        ("a", MyEnum.A),
+        ("b", MyEnum.B),
+        ("c", MyEnum.C),
+        ("cc", None),
+    ],
+)
+def test_parse_str_enum(keyword: str, expected: MyEnum | None):
+    assert Parser(MLContext(), keyword).parse_optional_str_enum(MyEnum) == expected
+
+    parser = Parser(MLContext(), keyword)
+    if expected is None:
+        with pytest.raises(ParseError, match="Expected `a`, `b`, or `c`"):
+            parser.parse_str_enum(MyEnum)
+    else:
+        assert parser.parse_str_enum(MyEnum) == expected
+
+
+class MySingletonEnum(StrEnum):
+    A = "a"
+
+
+def test_parse_singleton_enum_fail():
+    parser = Parser(MLContext(), "b")
+    with pytest.raises(ParseError, match="Expected `a`"):
+        parser.parse_str_enum(MySingletonEnum)

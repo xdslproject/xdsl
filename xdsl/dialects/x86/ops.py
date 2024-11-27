@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Annotated, Generic, TypeVar
+from typing import IO, Generic, TypeVar
 
 from typing_extensions import Self
 
@@ -18,21 +18,21 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.func import FuncOp
 from xdsl.ir import (
     Attribute,
+    Dialect,
     Operation,
     SSAValue,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     Successor,
-    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     result_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -53,10 +53,16 @@ from .assembly import (
     print_type_pair,
 )
 from .attributes import LabelAttr
-from .register import GeneralRegisterType, RFLAGSRegisterType, X86RegisterType
+from .register import (
+    AVXRegisterType,
+    GeneralRegisterType,
+    RFLAGSRegisterType,
+    X86RegisterType,
+)
 
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
+R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 
 
 class X86Op(Operation, ABC):
@@ -149,7 +155,7 @@ class X86Instruction(X86Op):
     The name of the operation will be used as the x86 assembly instruction name.
     """
 
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -167,7 +173,7 @@ class X86Instruction(X86Op):
         By default, the name of the instruction is the same as the name of the operation.
         """
 
-        return self.name.split(".", 1)[-1]
+        return Dialect.split_name(self.name)[1]
 
     def assembly_line(self) -> str | None:
         # default assembly code generator
@@ -367,7 +373,6 @@ class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     A base class for x86 operations that have one register acting as both source and destination.
     """
 
-    T = Annotated[GeneralRegisterType, ConstraintVar("T")]
     source = operand_def(R1InvT)
     destination = result_def(R1InvT)
 
@@ -525,7 +530,7 @@ class R_RM_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(R1InvT)
 
@@ -668,7 +673,7 @@ class R_RI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
 
     r1 = operand_def(R1InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     result = result_def(R1InvT)
 
@@ -788,7 +793,7 @@ class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -905,8 +910,8 @@ class M_MI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
 
     r1 = operand_def(R1InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1034,7 +1039,7 @@ class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
     """
 
     r2 = operand_def(R2InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     r1 = result_def(R1InvT)
 
@@ -1079,7 +1084,7 @@ class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
 
 
 @irdl_op_definition
-class RRI_ImulOP(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the source register and stores the result in the destination register.
     x[r1] = x[r2] * immediate
@@ -1095,8 +1100,8 @@ class R_RMI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
     """
 
     r2 = operand_def(R2InvT)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     r1 = result_def(R1InvT)
 
@@ -1178,7 +1183,7 @@ class M_PushOp(IRDLOperation, X86Instruction):
 
     rsp_input = operand_def(GeneralRegisterType("rsp"))
     source = operand_def(R1InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1240,7 +1245,7 @@ class M_PopOp(IRDLOperation, X86Instruction):
     destination = operand_def(
         GeneralRegisterType
     )  # the destination is a pointer to the memory location and the register itself is not modified
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1292,7 +1297,7 @@ class M_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
 
     source = operand_def(R1InvT)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1392,7 +1397,7 @@ class M_IDivOp(IRDLOperation, X86Instruction):
     r1 = operand_def(R1InvT)
     rdx_input = operand_def(GeneralRegisterType("rdx"))
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1455,7 +1460,7 @@ class M_ImulOp(IRDLOperation, X86Instruction):
 
     r1 = operand_def(GeneralRegisterType)
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1513,8 +1518,8 @@ class LabelOp(IRDLOperation, X86Op):
     """
 
     name = "x86.label"
-    label: LabelAttr = attr_def(LabelAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    label = attr_def(LabelAttr)
+    comment = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -1566,8 +1571,8 @@ class DirectiveOp(IRDLOperation, X86Op):
 
     name = "x86.directive"
 
-    directive: StringAttr = attr_def(StringAttr)
-    value: StringAttr | None = opt_attr_def(StringAttr)
+    directive = attr_def(StringAttr)
+    value = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -1631,11 +1636,11 @@ class S_JmpOp(IRDLOperation, X86Instruction):
 
     name = "x86.s.jmp"
 
-    block_values: VarOperand = var_operand_def(X86RegisterType)
+    block_values = var_operand_def(X86RegisterType)
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -1745,7 +1750,7 @@ class RM_CmpOp(IRDLOperation, X86Instruction):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1803,7 +1808,7 @@ class RI_CmpOp(IRDLOperation, X86Instruction):
     name = "x86.ri.cmp"
 
     r1 = operand_def(GeneralRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1856,7 +1861,7 @@ class MR_CmpOp(IRDLOperation, X86Instruction):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1914,8 +1919,8 @@ class MI_CmpOp(IRDLOperation, X86Instruction):
     name = "x86.mi.cmp"
 
     r1 = operand_def(GeneralRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    immediate = attr_def(AnyIntegerAttr)
+    offset = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1990,7 +1995,7 @@ class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -2045,10 +2050,7 @@ class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
         if parent_region is None:
             return
 
-        this_index = parent_region.blocks.index(parent_block)
-        else_index = parent_region.blocks.index(self.else_block)
-
-        if this_index + 1 != else_index:
+        if parent_block.next_block is not self.else_block:
             raise VerifyException("else block must be immediately after op")
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -2395,7 +2397,84 @@ class S_JzOp(ConditionalJumpOperation):
     name = "x86.s.jz"
 
 
-class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
+class RRROperation(Generic[R1InvT, R2InvT, R3InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have three registers.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    r3 = operand_def(R3InvT)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        r3: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2, r3],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2, self.r3
+
+
+@irdl_op_definition
+class RRR_Vfmadd231pdOp(
+    RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]
+):
+    """
+    Multiply packed double-precision floating-point elements in r2 and r3, add the intermediate result to r1, and store the final result in r1.
+    https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
+    """
+
+    name = "x86.rrr.vfmadd231pd"
+
+
+@irdl_op_definition
+class RR_VmovapdOp(R_RR_Operation[AVXRegisterType, AVXRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from zmm1 to zmm2 using writemask k1
+    https://www.felixcloutier.com/x86/movapd
+    """
+
+    name = "x86.rr.vmovapd"
+
+
+@irdl_op_definition
+class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, AVXRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
+    https://www.felixcloutier.com/x86/movapd
+    """
+
+    name = "x86.mr.vmovapd"
+
+
+@irdl_op_definition
+class RM_VbroadcastsdOp(R_RM_Operation[AVXRegisterType, GeneralRegisterType]):
+    """
+    Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
+    https://www.felixcloutier.com/x86/vbroadcast
+    """
+
+    name = "x86.rm.vbroadcastsd"
+
+
+class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op, ABC):
     """
     This instruction allows us to create an SSAValue for a given register name.
     """
@@ -2415,6 +2494,11 @@ class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
 @irdl_op_definition
 class GetRegisterOp(GetAnyRegisterOperation[GeneralRegisterType]):
     name = "x86.get_register"
+
+
+@irdl_op_definition
+class GetAVXRegisterOp(GetAnyRegisterOperation[AVXRegisterType]):
+    name = "x86.get_avx_register"
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:

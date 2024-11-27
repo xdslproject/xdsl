@@ -7,13 +7,12 @@ from io import StringIO
 from itertools import accumulate
 from typing import IO
 
-from xdsl.backend.csl.print_csl import print_to_csl
-from xdsl.dialects import riscv, x86
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
+from xdsl.tools.command_line_tool import CommandLineTool
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
@@ -193,6 +192,11 @@ class xDSLOptMain(CommandLineTool):
         Add other/additional targets by overloading this function.
         """
 
+        def _output_arm_asm(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.arm import print_assembly
+
+            print_assembly(prog, output)
+
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
                 stream=output,
@@ -204,10 +208,24 @@ class xDSLOptMain(CommandLineTool):
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            riscv.print_assembly(prog, output)
+            from xdsl.dialects.riscv import print_assembly
+
+            print_assembly(prog, output)
 
         def _output_x86_asm(prog: ModuleOp, output: IO[str]):
-            x86.ops.print_assembly(prog, output)
+            from xdsl.dialects.x86.ops import print_assembly
+
+            print_assembly(prog, output)
+
+        def _output_wat(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.wasm import WasmModuleOp
+            from xdsl.dialects.wasm.wat import WatPrinter
+
+            for op in prog.walk():
+                if isinstance(op, WasmModuleOp):
+                    printer = WatPrinter(output)
+                    op.print_wat(printer)
+                    print("", file=output)
 
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
@@ -217,15 +235,24 @@ class xDSLOptMain(CommandLineTool):
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
-            code = riscv.riscv_code(prog)
+            from xdsl.dialects.riscv import riscv_code
+
+            code = riscv_code(prog)
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 
+        def _print_to_csl(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.csl.print_csl import print_to_csl
+
+            print_to_csl(prog, output)
+
+        self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
-        self.available_targets["csl"] = print_to_csl
+        self.available_targets["wat"] = _output_wat
+        self.available_targets["csl"] = _print_to_csl
 
     def setup_pipeline(self):
         """

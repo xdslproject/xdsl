@@ -3,12 +3,12 @@ from io import StringIO
 
 import pytest
 
-from xdsl.dialects import builtin
-from xdsl.ir import MLContext
+from xdsl.context import MLContext
+from xdsl.dialects import builtin, get_all_dialects
 from xdsl.passes import ModulePass
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
-from xdsl.xdsl_opt_main import get_all_passes, xDSLOptMain
+from xdsl.xdsl_opt_main import xDSLOptMain
 
 
 def test_dialects_and_passes():
@@ -135,7 +135,7 @@ def test_operation_deletion():
 
 def test_print_between_passes():
     filename_in = "tests/xdsl_opt/empty_program.mlir"
-    passes = ["stencil-shape-inference", "dce", "frontend-desymrefy"]
+    passes = ["shape-inference", "dce", "frontend-desymrefy"]
     flags = ["--print-between-passes", "-p", ",".join(passes)]
 
     f = StringIO("")

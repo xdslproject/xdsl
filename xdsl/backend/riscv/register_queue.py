@@ -1,4 +1,6 @@
 from collections import defaultdict
+from collections.abc import Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import overload
 
@@ -48,7 +50,7 @@ class RegisterQueue:
         """
         Return a register to be made available for allocation.
         """
-        if self.reserved_registers[reg]:
+        if reg in self.reserved_registers:
             return
         if not reg.is_allocated:
             raise ValueError("Cannot push an unallocated register")
@@ -79,11 +81,28 @@ class RegisterQueue:
         else:
             reg = reg_type(f"j{self._idx}")
             self._idx += 1
+        assert (
+            reg not in self.reserved_registers
+        ), f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
         return reg
+
+    @contextmanager
+    def reserve_registers(self, regs: Sequence[IntRegisterType | FloatRegisterType]):
+        for reg in regs:
+            self.reserve_register(reg)
+
+        yield
+
+        for reg in regs:
+            self.unreserve_register(reg)
 
     def reserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
         """
         Increase the reservation count for a register.
+        If the reservation count is greater than 0, a register cannot be pushed back onto
+        the queue.
+        It is invalid to reserve a register that is available, and popping it before
+        unreserving a register will result in an AssertionError.
         """
         self.reserved_registers[reg] += 1
 
@@ -97,7 +116,6 @@ class RegisterQueue:
         self.reserved_registers[reg] -= 1
         if not self.reserved_registers[reg]:
             del self.reserved_registers[reg]
-            self.push(reg)
 
     def limit_registers(self, limit: int) -> None:
         """

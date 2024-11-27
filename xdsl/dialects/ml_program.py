@@ -19,6 +19,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_attr_def,
     result_def,
+    traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -27,7 +28,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class Global(IRDLOperation):
+class GlobalOp(IRDLOperation):
     """
     Module level declaration of a global variable
 
@@ -42,7 +43,7 @@ class Global(IRDLOperation):
     value = opt_attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(
         self,
@@ -111,7 +112,7 @@ class Global(IRDLOperation):
 
 
 @irdl_op_definition
-class GlobalLoadConstant(IRDLOperation):
+class GlobalLoadConstantOp(IRDLOperation):
     """
     Direct load a constant value from a global
 
@@ -159,7 +160,7 @@ class GlobalLoadConstant(IRDLOperation):
 MLProgram = Dialect(
     "ml_program",
     [
-        Global,
-        GlobalLoadConstant,
+        GlobalOp,
+        GlobalLoadConstantOp,
     ],
 )

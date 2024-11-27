@@ -11,9 +11,10 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
-def find_same_target_store(load: memref.Load):
+def find_same_target_store(load: memref.LoadOp):
     """
     Find the corresponding store operation (same memeref target) for a load when there
     is only a single one within a block.
@@ -28,7 +29,7 @@ def find_same_target_store(load: memref.Load):
 
     for op in parent_block.ops:
         if (
-            isinstance(op, memref.Store)
+            isinstance(op, memref.StoreOp)
             and op.memref == load.memref
             and op.indices == load.indices
         ):
@@ -40,7 +41,7 @@ def find_same_target_store(load: memref.Load):
     return found_op
 
 
-def is_loop_dependent(val: SSAValue, loop: scf.For):
+def is_loop_dependent(val: SSAValue, loop: scf.ForOp):
     """
     Returns true if the SSA value is dependent by the induction varialbe of the loop.
 
@@ -89,7 +90,7 @@ class LoopHoistMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        for_op: scf.For,
+        for_op: scf.ForOp,
         rewriter: PatternRewriter,
     ) -> None:
         if for_op.parent_block() is None:
@@ -97,7 +98,7 @@ class LoopHoistMemref(RewritePattern):
 
         parent_block = for_op.body.block
 
-        loads = [op for op in parent_block.ops if isinstance(op, memref.Load)]
+        loads = [op for op in parent_block.ops if isinstance(op, memref.LoadOp)]
 
         if not loads:
             return
@@ -107,7 +108,7 @@ class LoopHoistMemref(RewritePattern):
         dup_load_locs = [loc for loc in set(load_locs) if load_locs.count(loc) > 1]
         loads = [load for load in loads if load.memref not in dup_load_locs]
 
-        load_store_pairs: dict[memref.Load, memref.Store] = {}
+        load_store_pairs: dict[memref.LoadOp, memref.StoreOp] = {}
 
         for load in loads:
             if (
@@ -132,7 +133,7 @@ class LoopHoistMemref(RewritePattern):
 
         # hoist new loads before the current loop
         new_loads = [load.clone() for load in load_store_pairs.keys()]
-        rewriter.insert_op_before(new_loads, for_op)
+        rewriter.insert_op(new_loads, InsertPoint.before(for_op))
 
         new_body = Region()
         block_map: dict[Block, Block] = {}
@@ -141,12 +142,13 @@ class LoopHoistMemref(RewritePattern):
         load_map = {
             load: new_load
             for load, new_load in zip(for_op.body.block.ops, new_body.block.ops)
-            if isinstance(load, memref.Load) and isinstance(new_load, memref.Load)
+            if isinstance(load, memref.LoadOp) and isinstance(new_load, memref.LoadOp)
         }
         store_map = {
             store: new_store
             for store, new_store in zip(for_op.body.block.ops, new_body.block.ops)
-            if isinstance(store, memref.Store) and isinstance(new_store, memref.Store)
+            if isinstance(store, memref.StoreOp)
+            and isinstance(new_store, memref.StoreOp)
         }
 
         new_block_args = [
@@ -172,18 +174,18 @@ class LoopHoistMemref(RewritePattern):
 
         # yield the value that was used in the old store
         assert new_body.block.last_op is not None
-        rewriter.replace_op(new_body.block.last_op, scf.Yield(*new_yield_vals))
+        rewriter.replace_op(new_body.block.last_op, scf.YieldOp(*new_yield_vals))
 
-        new_for_op = scf.For(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
+        new_for_op = scf.ForOp(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
 
         # use yielded results of new loop in stores after the loop
         new_stores = [
-            memref.Store.get(new_for_op.res[idx], store.memref, store.indices)
+            memref.StoreOp.get(new_for_op.res[idx], store.memref, store.indices)
             for idx, store in enumerate(load_store_pairs.values())
         ]
-        rewriter.insert_op_after(new_stores, for_op)
+        rewriter.insert_op(new_stores, InsertPoint.after(for_op))
 
-        rewriter.insert_op_before(new_for_op, for_op)
+        rewriter.insert_op(new_for_op, InsertPoint.before(for_op))
         rewriter.erase_op(for_op)
 
 

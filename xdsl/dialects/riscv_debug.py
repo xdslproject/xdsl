@@ -3,13 +3,13 @@ from collections.abc import Sequence, Set
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Attribute, Dialect, SSAValue
-from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, var_operand_def
+from xdsl.irdl import attr_def, irdl_op_definition, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 
 @irdl_op_definition
-class PrintfOp(IRDLOperation, riscv.RISCVInstruction):
+class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
     """
     An instruction to print the contents of registers when emulating riscv code.
 

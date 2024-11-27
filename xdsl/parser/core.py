@@ -7,11 +7,11 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal, overload
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
-    MLContext,
     Operation,
     Region,
     SSAValue,
@@ -31,7 +31,7 @@ class ForwardDeclaredValue(SSAValue):
 
     @property
     def owner(self) -> Operation | Block:
-        assert False, "Forward declared values do not have an owner"
+        raise ValueError("Forward declared values do not have an owner")
 
 
 @dataclass

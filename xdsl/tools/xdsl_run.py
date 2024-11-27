@@ -4,13 +4,14 @@ import argparse
 import sys
 from collections.abc import Sequence
 
+from xdsl.context import MLContext
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
     register_implementations,
 )
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import CommandLineTool
+from xdsl.traits import CallableOpInterface
 
 
 class xDSLRunMain(CommandLineTool):
@@ -61,6 +62,8 @@ class xDSLRunMain(CommandLineTool):
         arg_parser.add_argument(
             "--index-bitwidth",
             choices=(32, 64),
+            # Otherwise default is None, overriding interpreter default mechanism
+            default=Interpreter.DEFAULT_BITWIDTH,
             type=int,
             nargs="?",
             help="Bitwidth of the index type representation.",
@@ -97,12 +100,19 @@ class xDSLRunMain(CommandLineTool):
                 runner_args = parser.parse_optional_undelimited_comma_separated_list(
                     parser.parse_optional_attribute, parser.parse_attribute
                 )
-                args = (
-                    tuple(interpreter.value_for_attribute(attr) for attr in runner_args)
-                    if runner_args is not None
-                    else ()
+                if runner_args is None:
+                    runner_args = ()
+                op = interpreter.get_op_for_symbol(symbol)
+                trait = op.get_trait(CallableOpInterface)
+                assert trait is not None
+
+                args = tuple(
+                    interpreter.value_for_attribute(attr, attr_type)
+                    for attr, attr_type in zip(
+                        runner_args, trait.get_argument_types(op)
+                    )
                 )
-                result = interpreter.call_op(symbol, args)
+                result = interpreter.call_op(op, args)
                 if self.args.verbose:
                     if result:
                         if len(result) == 1:

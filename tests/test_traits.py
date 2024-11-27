@@ -5,6 +5,7 @@ Test the definition and usage of traits and interfaces.
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pytest
@@ -20,14 +21,14 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Operation, OpResult, OpTrait
+from xdsl.ir import Operation, OpTrait, OpTraits
 from xdsl.irdl import (
     Block,
     IRDLOperation,
-    Operand,
     Region,
     attr_def,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_attr_def,
     opt_region_def,
@@ -37,11 +38,15 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import (
+    AlwaysSpeculatable,
+    ConditionallySpeculatable,
     HasAncestor,
     HasParent,
     OptionalSymbolOpInterface,
+    RecursivelySpeculatable,
     SymbolOpInterface,
     SymbolTable,
+    is_speculatable,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
@@ -106,10 +111,10 @@ class BitwidthSumLessThanTrait(OpTrait):
 @irdl_op_definition
 class TestOp(IRDLOperation):
     name = "test.test"
-    traits = frozenset([LargerOperandTrait(), BitwidthSumLessThanTrait(64)])
+    traits = traits_def(LargerOperandTrait(), BitwidthSumLessThanTrait(64))
 
-    ops: Operand = operand_def(IntegerType)
-    res: OpResult = result_def(IntegerType)
+    ops = operand_def(IntegerType)
+    res = result_def(IntegerType)
 
 
 def test_has_trait_object():
@@ -118,8 +123,8 @@ def test_has_trait_object():
     """
     assert TestOp.has_trait(LargerOperandTrait)
     assert not TestOp.has_trait(LargerResultTrait)
-    assert not TestOp.has_trait(BitwidthSumLessThanTrait, 0)
-    assert TestOp.has_trait(BitwidthSumLessThanTrait, 64)
+    assert not TestOp.has_trait(BitwidthSumLessThanTrait(0))
+    assert TestOp.has_trait(BitwidthSumLessThanTrait(64))
 
 
 def test_get_traits_of_type():
@@ -169,22 +174,22 @@ def test_verifier_order():
 
 
 class LargerOperandOp(IRDLOperation, ABC):
-    traits = frozenset([LargerOperandTrait()])
+    traits = traits_def(LargerOperandTrait())
 
 
 @irdl_op_definition
 class TestCopyOp(LargerOperandOp):
     name = "test.test_copy"
 
-    traits = LargerOperandOp.traits.union([BitwidthSumLessThanTrait(64)])
+    traits = OpTraits(LargerOperandOp.traits.traits | {BitwidthSumLessThanTrait(64)})
 
 
 def test_trait_inheritance():
     """
     Check that traits are correctly inherited from parent classes.
     """
-    assert TestCopyOp.traits == frozenset(
-        [LargerOperandTrait(), BitwidthSumLessThanTrait(64)]
+    assert TestCopyOp.traits == traits_def(
+        LargerOperandTrait(), BitwidthSumLessThanTrait(64)
     )
 
 
@@ -195,13 +200,13 @@ class NoTraitsOp(IRDLOperation):
 
 def test_traits_undefined():
     """Check that traits are defaulted to the empty set."""
-    assert NoTraitsOp.traits == frozenset()
+    assert NoTraitsOp.traits == traits_def()
 
 
 class WrongTraitsType(IRDLOperation):
     name = "test.no_traits"
 
-    traits = 1  # pyright: ignore[reportGeneralTypeIssues]
+    traits = 1  # pyright: ignore[reportAssignmentType]
 
 
 def test_traits_wrong_type():
@@ -234,19 +239,20 @@ class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
         return 1
 
 
-class OpWithInterface(IRDLOperation):
+@irdl_op_definition
+class HasInterfaceOp(IRDLOperation):
     name = "test.op_with_interface"
-    traits = frozenset([GetNumResultsTraitForOpWithOneResult()])
+    traits = traits_def(GetNumResultsTraitForOpWithOneResult())
 
-    res: OpResult = result_def(IntegerType)
+    res = result_def(IntegerType)
 
 
 def test_interface():
     """
     Test the features of a trait with methods (An MLIR interface).
     """
-    op = OpWithInterface.create(result_types=(i32,))
-    trait = OpWithInterface.get_trait(GetNumResultsTrait)
+    op = HasInterfaceOp.create(result_types=(i32,))
+    trait = HasInterfaceOp.get_trait(GetNumResultsTrait)
     assert trait is not None
     assert 1 == trait.get_num_results(op)
 
@@ -256,13 +262,13 @@ def test_get_trait_specialized():
     Test get_trait and has_trait in the case where the trait is a child class of the
     trait we want.
     """
-    assert OpWithInterface.has_trait(GetNumResultsTrait)
-    assert OpWithInterface.has_trait(GetNumResultsTraitForOpWithOneResult)
+    assert HasInterfaceOp.has_trait(GetNumResultsTrait)
+    assert HasInterfaceOp.has_trait(GetNumResultsTraitForOpWithOneResult)
     assert (
-        OpWithInterface.get_trait(GetNumResultsTrait)
+        HasInterfaceOp.get_trait(GetNumResultsTrait)
         == GetNumResultsTraitForOpWithOneResult()
     )
-    assert OpWithInterface.get_traits_of_type(GetNumResultsTrait) == [
+    assert HasInterfaceOp.get_traits_of_type(GetNumResultsTrait) == [
         GetNumResultsTraitForOpWithOneResult()
     ]
 
@@ -275,7 +281,7 @@ def test_symbol_op_interface():
     @irdl_op_definition
     class NoSymNameOp(IRDLOperation):
         name = "no_sym_name"
-        traits = frozenset((SymbolOpInterface(),))
+        traits = traits_def(SymbolOpInterface())
 
     op0 = NoSymNameOp()
 
@@ -288,8 +294,8 @@ def test_symbol_op_interface():
     class SymNameWrongTypeOp(IRDLOperation):
         name = "wrong_sym_name_type"
 
-        sym_name: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-        traits = frozenset((SymbolOpInterface(),))
+        sym_name = attr_def(AnyIntegerAttr)
+        traits = traits_def(SymbolOpInterface())
 
     op1 = SymNameWrongTypeOp(
         attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
@@ -306,7 +312,7 @@ def test_symbol_op_interface():
         name = "sym_name"
 
         sym_name = attr_def(StringAttr)
-        traits = frozenset((SymbolOpInterface(),))
+        traits = traits_def(SymbolOpInterface())
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
     op2.verify()
@@ -323,7 +329,7 @@ def test_optional_symbol_op_interface():
 
         sym_name = opt_attr_def(StringAttr)
 
-        traits = frozenset((OptionalSymbolOpInterface(),))
+        traits = traits_def(OptionalSymbolOpInterface())
 
     no_symbol = OptionalSymNameOp()
     interface = no_symbol.get_trait(SymbolOpInterface)
@@ -346,7 +352,7 @@ class SymbolOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(self, name: str):
         return super().__init__(attributes={"sym_name": StringAttr(name)})
@@ -358,13 +364,13 @@ class PropSymbolOp(IRDLOperation):
 
     sym_name = prop_def(StringAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(self, name: str):
         return super().__init__(properties={"sym_name": StringAttr(name)})
 
 
-@pytest.mark.parametrize("SymbolOp", (SymbolOp, PropSymbolOp))
+@pytest.mark.parametrize("SymbolOp", [SymbolOp, PropSymbolOp])
 def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
     # Some helper classes
     @irdl_op_definition
@@ -376,7 +382,7 @@ def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
         one = region_def()
         two = opt_region_def()
 
-        traits = frozenset([SymbolTable(), OptionalSymbolOpInterface()])
+        traits = traits_def(SymbolTable(), OptionalSymbolOpInterface())
 
     # Check that having a single region is verified
     op = SymbolTableOp(regions=[Region(), Region()])
@@ -438,30 +444,30 @@ class HasLazyParentOp(IRDLOperation):
 
     name = "test.has_lazy_parent"
 
-    traits = traits_def(lambda: frozenset([HasParent(TestOp)]))
+    traits = lazy_traits_def(lambda: (HasParent(TestOp),))
 
 
 def test_lazy_parent():
     """Test the trait infrastructure for an operation that defines a trait "lazily"."""
     op = HasLazyParentOp.create()
     assert len(op.get_traits_of_type(HasParent)) != 0
-    assert op.get_traits_of_type(HasParent)[0].parameters == (TestOp,)
-    assert op.has_trait(HasParent, (TestOp,))
-    assert op.traits == frozenset([HasParent(TestOp)])
+    assert op.get_traits_of_type(HasParent)[0].op_types == (TestOp,)
+    assert op.has_trait(HasParent(TestOp))
+    assert op.traits == traits_def(HasParent(TestOp))
 
 
 @irdl_op_definition
 class AncestorOp(IRDLOperation):
     name = "test.ancestor"
 
-    traits = frozenset((HasAncestor(TestOp),))
+    traits = traits_def(HasAncestor(TestOp))
 
 
 def test_has_ancestor():
     op = AncestorOp()
 
     assert op.get_traits_of_type(HasAncestor) == [HasAncestor(TestOp)]
-    assert op.has_trait(HasAncestor, (TestOp,))
+    assert op.has_trait(HasAncestor(TestOp))
 
     with pytest.raises(
         VerifyException, match="'test.ancestor' expects ancestor op 'test.test'"
@@ -476,7 +482,7 @@ def test_insert_or_update():
 
         reg = region_def()
 
-        traits = frozenset([SymbolTable()])
+        traits = traits_def(SymbolTable())
 
     # Check a flat happy case, with symbol lookup
     symbol = SymbolOp("name")
@@ -495,3 +501,70 @@ def test_insert_or_update():
     assert trait.insert_or_update(op, symbol2) is None
     assert len(op.reg.ops) == 3
     assert symbol2 in list(op.reg.ops)
+
+
+def nonpure():
+    return TestOp.create()
+
+
+def pure():
+    return test.TestPureOp.create()
+
+
+@pytest.mark.parametrize(
+    ("trait", "speculatability", "nested_ops"),
+    [
+        ([], False, []),
+        ([], False, [nonpure()]),
+        ([], False, [pure()]),
+        ([AlwaysSpeculatable()], True, []),
+        ([AlwaysSpeculatable()], True, [nonpure()]),
+        ([AlwaysSpeculatable()], True, [pure()]),
+        ([RecursivelySpeculatable()], True, []),
+        ([RecursivelySpeculatable()], False, [nonpure()]),
+        ([RecursivelySpeculatable()], True, [pure()]),
+    ],
+)
+def test_speculability(
+    trait: tuple[ConditionallySpeculatable] | tuple[()],
+    speculatability: bool,
+    nested_ops: Sequence[Operation],
+):
+    @irdl_op_definition
+    class SupeculatabilityTestOp(IRDLOperation):
+        name = "test.speculatability"
+        region = region_def()
+
+        traits = traits_def(*trait)
+
+    op = SupeculatabilityTestOp(regions=[Region(Block(nested_ops))])
+    optrait = op.get_trait(ConditionallySpeculatable)
+
+    if trait:
+        assert optrait is not None
+        assert optrait.is_speculatable(op) is speculatability
+    else:
+        assert optrait is None
+
+    assert is_speculatable(op) is speculatability
+
+
+@irdl_op_definition
+class TestModifyTraitsOp(IRDLOperation):
+    name = "test.test_modify_traits"
+
+
+class AlwaysFailsTrait(OpTrait):
+    def verify(self, op: Operation) -> None:
+        raise VerifyException("Nope")
+
+
+def test_modify_traits():
+    op = TestModifyTraitsOp()
+
+    op.verify()
+
+    TestModifyTraitsOp.traits.add_trait(AlwaysFailsTrait())
+
+    with pytest.raises(VerifyException, match="Nope"):
+        op.verify()

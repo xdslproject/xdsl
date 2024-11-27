@@ -7,7 +7,7 @@
       %6 = arith.addf %4, %5 : f64
       stencil.return %6 : f64
     }
-    stencil.store %3 to %2 ([1, 2, 3] : [65, 66, 63]) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
+    stencil.store %3 to %2(<[1, 2, 3], [65, 66, 63]>) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
     func.return
   }
 
@@ -30,9 +30,9 @@
 // CHECK-NEXT:        %18 = arith.addf %4, %17 : f64
 // CHECK-NEXT:        %19 = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:        %20 = arith.addf %4, %19 : f64
-// CHECK-NEXT:        stencil.return %6, %8, %10, %12, %14, %16, %18, %20 unroll [1, 8, 1] : f64, f64, f64, f64, f64, f64, f64, f64
+// CHECK-NEXT:        stencil.return %6, %8, %10, %12, %14, %16, %18, %20 unroll <[1, 8, 1]> : f64, f64, f64, f64, f64, f64, f64, f64
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %3 to %2 ([1, 2, 3] : [65, 66, 63]) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
+// CHECK-NEXT:      stencil.store %3 to %2(<[1, 2, 3], [65, 66, 63]>) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -44,19 +44,19 @@
       %12 = stencil.access %11[-1] : !stencil.temp<[-1,68]xf64>
       stencil.return %12 : f64
     }
-    stencil.store %10 to %outc ([0] : [68]) : !stencil.temp<[0,68]xf64> to !stencil.field<[0,1024]xf64>
+    stencil.store %10 to %outc(<[0], [68]>) : !stencil.temp<[0,68]xf64> to !stencil.field<[0,1024]xf64>
     func.return
   }
 
-// CHECK:         func.func @copy_1d(%21 : !stencil.field<?xf64>, %out : !stencil.field<?xf64>) {
-// CHECK-NEXT:      %22 = stencil.cast %21 : !stencil.field<?xf64> -> !stencil.field<[-4,68]xf64>
+// CHECK:         func.func @copy_1d(%0 : !stencil.field<?xf64>, %out : !stencil.field<?xf64>) {
+// CHECK-NEXT:      %1 = stencil.cast %0 : !stencil.field<?xf64> -> !stencil.field<[-4,68]xf64>
 // CHECK-NEXT:      %outc = stencil.cast %out : !stencil.field<?xf64> -> !stencil.field<[0,1024]xf64>
-// CHECK-NEXT:      %23 = stencil.load %22 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,68]xf64>
-// CHECK-NEXT:      %24 = stencil.apply(%25 = %23 : !stencil.temp<[-1,68]xf64>) -> (!stencil.temp<[0,68]xf64>) {
-// CHECK-NEXT:        %26 = stencil.access %25[-1] : !stencil.temp<[-1,68]xf64>
-// CHECK-NEXT:        stencil.return %26 : f64
+// CHECK-NEXT:      %2 = stencil.load %1 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,68]xf64>
+// CHECK-NEXT:      %3 = stencil.apply(%4 = %2 : !stencil.temp<[-1,68]xf64>) -> (!stencil.temp<[0,68]xf64>) {
+// CHECK-NEXT:        %5 = stencil.access %4[-1] : !stencil.temp<[-1,68]xf64>
+// CHECK-NEXT:        stencil.return %5 : f64
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %24 to %outc ([0] : [68]) : !stencil.temp<[0,68]xf64> to !stencil.field<[0,1024]xf64>
+// CHECK-NEXT:      stencil.store %3 to %outc(<[0], [68]>) : !stencil.temp<[0,68]xf64> to !stencil.field<[0,1024]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -79,107 +79,107 @@
       %32 = arith.addf %31, %30 : f64
       stencil.return %32, %31 : f64, f64
     }
-    stencil.store %20 to %17 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    stencil.store %20 to %17(<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     func.return
   }
 
-// CHECK:         func.func @offsets(%27 : !stencil.field<?x?x?xf64>, %28 : !stencil.field<?x?x?xf64>, %29 : !stencil.field<?x?x?xf64>) {
-// CHECK-NEXT:      %30 = stencil.cast %27 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-// CHECK-NEXT:      %31 = stencil.cast %28 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-// CHECK-NEXT:      %32 = stencil.cast %29 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-// CHECK-NEXT:      %33 = stencil.load %30 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:      %34, %35 = stencil.apply(%36 = %33 : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.temp<[0,64]x[0,64]x[0,64]xf64>) {
-// CHECK-NEXT:        %37 = stencil.access %36[-1, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %38 = stencil.access %36[1, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %39 = stencil.access %36[0, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %40 = stencil.access %36[0, -1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %41 = stencil.access %36[0, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %42 = arith.addf %37, %38 : f64
-// CHECK-NEXT:        %43 = arith.addf %39, %40 : f64
-// CHECK-NEXT:        %44 = arith.addf %42, %43 : f64
-// CHECK-NEXT:        %45 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %46 = arith.mulf %41, %45 : f64
-// CHECK-NEXT:        %47 = arith.addf %46, %44 : f64
-// CHECK-NEXT:        %48 = stencil.access %36[-1, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %49 = stencil.access %36[1, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %50 = stencil.access %36[0, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %51 = stencil.access %36[0, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %52 = stencil.access %36[0, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %53 = arith.addf %48, %49 : f64
-// CHECK-NEXT:        %54 = arith.addf %50, %51 : f64
-// CHECK-NEXT:        %55 = arith.addf %53, %54 : f64
-// CHECK-NEXT:        %56 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %57 = arith.mulf %52, %56 : f64
-// CHECK-NEXT:        %58 = arith.addf %57, %55 : f64
-// CHECK-NEXT:        %59 = stencil.access %36[-1, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %60 = stencil.access %36[1, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %61 = stencil.access %36[0, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %62 = stencil.access %36[0, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %63 = stencil.access %36[0, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %64 = arith.addf %59, %60 : f64
-// CHECK-NEXT:        %65 = arith.addf %61, %62 : f64
-// CHECK-NEXT:        %66 = arith.addf %64, %65 : f64
-// CHECK-NEXT:        %67 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %68 = arith.mulf %63, %67 : f64
-// CHECK-NEXT:        %69 = arith.addf %68, %66 : f64
-// CHECK-NEXT:        %70 = stencil.access %36[-1, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %71 = stencil.access %36[1, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %72 = stencil.access %36[0, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %73 = stencil.access %36[0, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %74 = stencil.access %36[0, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK:         func.func @offsets(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>, %2 : !stencil.field<?x?x?xf64>) {
+// CHECK-NEXT:      %3 = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:      %4 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:      %5 = stencil.cast %2 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:      %6 = stencil.load %3 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:      %7, %8 = stencil.apply(%9 = %6 : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.temp<[0,64]x[0,64]x[0,64]xf64>) {
+// CHECK-NEXT:        %10 = stencil.access %9[-1, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %11 = stencil.access %9[1, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %12 = stencil.access %9[0, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %13 = stencil.access %9[0, -1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %14 = stencil.access %9[0, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %15 = arith.addf %10, %11 : f64
+// CHECK-NEXT:        %16 = arith.addf %12, %13 : f64
+// CHECK-NEXT:        %17 = arith.addf %15, %16 : f64
+// CHECK-NEXT:        %cst = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %18 = arith.mulf %14, %cst : f64
+// CHECK-NEXT:        %19 = arith.addf %18, %17 : f64
+// CHECK-NEXT:        %20 = stencil.access %9[-1, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %21 = stencil.access %9[1, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %22 = stencil.access %9[0, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %23 = stencil.access %9[0, 0, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %24 = stencil.access %9[0, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %25 = arith.addf %20, %21 : f64
+// CHECK-NEXT:        %26 = arith.addf %22, %23 : f64
+// CHECK-NEXT:        %27 = arith.addf %25, %26 : f64
+// CHECK-NEXT:        %cst_1 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %28 = arith.mulf %24, %cst_1 : f64
+// CHECK-NEXT:        %29 = arith.addf %28, %27 : f64
+// CHECK-NEXT:        %30 = stencil.access %9[-1, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %31 = stencil.access %9[1, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %32 = stencil.access %9[0, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %33 = stencil.access %9[0, 1, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %34 = stencil.access %9[0, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %35 = arith.addf %30, %31 : f64
+// CHECK-NEXT:        %36 = arith.addf %32, %33 : f64
+// CHECK-NEXT:        %37 = arith.addf %35, %36 : f64
+// CHECK-NEXT:        %cst_2 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %38 = arith.mulf %34, %cst_2 : f64
+// CHECK-NEXT:        %39 = arith.addf %38, %37 : f64
+// CHECK-NEXT:        %40 = stencil.access %9[-1, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %41 = stencil.access %9[1, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %42 = stencil.access %9[0, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %43 = stencil.access %9[0, 2, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %44 = stencil.access %9[0, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %45 = arith.addf %40, %41 : f64
+// CHECK-NEXT:        %46 = arith.addf %42, %43 : f64
+// CHECK-NEXT:        %47 = arith.addf %45, %46 : f64
+// CHECK-NEXT:        %cst_3 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %48 = arith.mulf %44, %cst_3 : f64
+// CHECK-NEXT:        %49 = arith.addf %48, %47 : f64
+// CHECK-NEXT:        %50 = stencil.access %9[-1, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %51 = stencil.access %9[1, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %52 = stencil.access %9[0, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %53 = stencil.access %9[0, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %54 = stencil.access %9[0, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %55 = arith.addf %50, %51 : f64
+// CHECK-NEXT:        %56 = arith.addf %52, %53 : f64
+// CHECK-NEXT:        %57 = arith.addf %55, %56 : f64
+// CHECK-NEXT:        %cst_4 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %58 = arith.mulf %54, %cst_4 : f64
+// CHECK-NEXT:        %59 = arith.addf %58, %57 : f64
+// CHECK-NEXT:        %60 = stencil.access %9[-1, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %61 = stencil.access %9[1, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %62 = stencil.access %9[0, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %63 = stencil.access %9[0, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %64 = stencil.access %9[0, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %65 = arith.addf %60, %61 : f64
+// CHECK-NEXT:        %66 = arith.addf %62, %63 : f64
+// CHECK-NEXT:        %67 = arith.addf %65, %66 : f64
+// CHECK-NEXT:        %cst_5 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %68 = arith.mulf %64, %cst_5 : f64
+// CHECK-NEXT:        %69 = arith.addf %68, %67 : f64
+// CHECK-NEXT:        %70 = stencil.access %9[-1, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %71 = stencil.access %9[1, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %72 = stencil.access %9[0, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %73 = stencil.access %9[0, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %74 = stencil.access %9[0, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
 // CHECK-NEXT:        %75 = arith.addf %70, %71 : f64
 // CHECK-NEXT:        %76 = arith.addf %72, %73 : f64
 // CHECK-NEXT:        %77 = arith.addf %75, %76 : f64
-// CHECK-NEXT:        %78 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %79 = arith.mulf %74, %78 : f64
-// CHECK-NEXT:        %80 = arith.addf %79, %77 : f64
-// CHECK-NEXT:        %81 = stencil.access %36[-1, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %82 = stencil.access %36[1, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %83 = stencil.access %36[0, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %84 = stencil.access %36[0, 3, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %85 = stencil.access %36[0, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %86 = arith.addf %81, %82 : f64
-// CHECK-NEXT:        %87 = arith.addf %83, %84 : f64
-// CHECK-NEXT:        %88 = arith.addf %86, %87 : f64
-// CHECK-NEXT:        %89 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %90 = arith.mulf %85, %89 : f64
-// CHECK-NEXT:        %91 = arith.addf %90, %88 : f64
-// CHECK-NEXT:        %92 = stencil.access %36[-1, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %93 = stencil.access %36[1, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %94 = stencil.access %36[0, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %95 = stencil.access %36[0, 4, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %96 = stencil.access %36[0, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %97 = arith.addf %92, %93 : f64
-// CHECK-NEXT:        %98 = arith.addf %94, %95 : f64
-// CHECK-NEXT:        %99 = arith.addf %97, %98 : f64
-// CHECK-NEXT:        %100 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %101 = arith.mulf %96, %100 : f64
-// CHECK-NEXT:        %102 = arith.addf %101, %99 : f64
-// CHECK-NEXT:        %103 = stencil.access %36[-1, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %104 = stencil.access %36[1, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %105 = stencil.access %36[0, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %106 = stencil.access %36[0, 5, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %107 = stencil.access %36[0, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %108 = arith.addf %103, %104 : f64
-// CHECK-NEXT:        %109 = arith.addf %105, %106 : f64
-// CHECK-NEXT:        %110 = arith.addf %108, %109 : f64
-// CHECK-NEXT:        %111 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %112 = arith.mulf %107, %111 : f64
-// CHECK-NEXT:        %113 = arith.addf %112, %110 : f64
-// CHECK-NEXT:        %114 = stencil.access %36[-1, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %115 = stencil.access %36[1, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %116 = stencil.access %36[0, 8, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %117 = stencil.access %36[0, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %118 = stencil.access %36[0, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:        %119 = arith.addf %114, %115 : f64
-// CHECK-NEXT:        %120 = arith.addf %116, %117 : f64
-// CHECK-NEXT:        %121 = arith.addf %119, %120 : f64
-// CHECK-NEXT:        %122 = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %123 = arith.mulf %118, %122 : f64
-// CHECK-NEXT:        %124 = arith.addf %123, %121 : f64
-// CHECK-NEXT:        stencil.return %47, %46, %58, %57, %69, %68, %80, %79, %91, %90, %102, %101, %113, %112, %124, %123 unroll [1, 8, 1] : f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64
+// CHECK-NEXT:        %cst_6 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %78 = arith.mulf %74, %cst_6 : f64
+// CHECK-NEXT:        %79 = arith.addf %78, %77 : f64
+// CHECK-NEXT:        %80 = stencil.access %9[-1, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %81 = stencil.access %9[1, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %82 = stencil.access %9[0, 8, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %83 = stencil.access %9[0, 6, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %84 = stencil.access %9[0, 7, 0] : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:        %85 = arith.addf %80, %81 : f64
+// CHECK-NEXT:        %86 = arith.addf %82, %83 : f64
+// CHECK-NEXT:        %87 = arith.addf %85, %86 : f64
+// CHECK-NEXT:        %cst_7 = arith.constant -4.000000e+00 : f64
+// CHECK-NEXT:        %88 = arith.mulf %84, %cst_7 : f64
+// CHECK-NEXT:        %89 = arith.addf %88, %87 : f64
+// CHECK-NEXT:        stencil.return %19, %18, %29, %28, %39, %38, %49, %48, %59, %58, %69, %68, %79, %78, %89, %88 unroll <[1, 8, 1]> : f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %34 to %31 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:      stencil.store %7 to %4(<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -187,65 +187,65 @@ func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<
     %33 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %34 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %35 = stencil.load %33 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-    %36 = stencil.apply(%arg2 = %35 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>)  attributes {"lb" = #stencil.index[0, 0, 0], "ub" = [64 : i64, 64 : i64, 60 : i64]}{
-      %37 = stencil.index 0 [0, 0, 0]
-      %38 = stencil.index 1 [0, 0, 0]
-      %39 = stencil.index 2 [0, 0, 0]
-      %40 = stencil.dyn_access %arg2[%37, %38, %39] in [0, 0, 0] : [0, 0, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+    %36 = stencil.apply(%arg2 = %35 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>)  attributes {"lb" = #stencil.index<[0, 0, 0]>, "ub" = [64 : i64, 64 : i64, 60 : i64]}{
+      %37 = stencil.index 0 <[0, 0, 0]>
+      %38 = stencil.index 1 <[0, 0, 0]>
+      %39 = stencil.index 2 <[0, 0, 0]>
+      %40 = stencil.dyn_access %arg2[%37, %38, %39] in <[0, 0, 0]> : <[0, 0, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
       %41 = stencil.store_result %40 : !stencil.result<f64>
       stencil.return %41 : !stencil.result<f64>
     }
-    stencil.store %36 to %34 ([0, 0, 0] : [64, 64, 60]) : !stencil.temp<[0,64]x[0,64]x[0,60]xf64> to !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+    stencil.store %36 to %34(<[0, 0, 0], [64, 64, 60]>) : !stencil.temp<[0,64]x[0,64]x[0,60]xf64> to !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     func.return
   }
 
-// CHECK:         func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>)  attributes {"stencil.program"}{
-// CHECK-NEXT:      %125 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
-// CHECK-NEXT:      %126 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
-// CHECK-NEXT:      %127 = stencil.load %125 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:      %128 = stencil.apply(%129 = %127 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) {
-// CHECK-NEXT:        %130 = stencil.index 0 [0, 0, 0]
-// CHECK-NEXT:        %131 = stencil.index 1 [0, 0, 0]
-// CHECK-NEXT:        %132 = stencil.index 2 [0, 0, 0]
-// CHECK-NEXT:        %133 = stencil.dyn_access %129[%130, %131, %132] in [0, 0, 0] : [0, 0, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %134 = stencil.store_result %133 : !stencil.result<f64>
-// CHECK-NEXT:        %135 = stencil.index 0 [0, 1, 0]
-// CHECK-NEXT:        %136 = stencil.index 1 [0, 1, 0]
-// CHECK-NEXT:        %137 = stencil.index 2 [0, 1, 0]
-// CHECK-NEXT:        %138 = stencil.dyn_access %129[%135, %136, %137] in [0, 1, 0] : [0, 1, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %139 = stencil.store_result %138 : !stencil.result<f64>
-// CHECK-NEXT:        %140 = stencil.index 0 [0, 2, 0]
-// CHECK-NEXT:        %141 = stencil.index 1 [0, 2, 0]
-// CHECK-NEXT:        %142 = stencil.index 2 [0, 2, 0]
-// CHECK-NEXT:        %143 = stencil.dyn_access %129[%140, %141, %142] in [0, 2, 0] : [0, 2, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %144 = stencil.store_result %143 : !stencil.result<f64>
-// CHECK-NEXT:        %145 = stencil.index 0 [0, 3, 0]
-// CHECK-NEXT:        %146 = stencil.index 1 [0, 3, 0]
-// CHECK-NEXT:        %147 = stencil.index 2 [0, 3, 0]
-// CHECK-NEXT:        %148 = stencil.dyn_access %129[%145, %146, %147] in [0, 3, 0] : [0, 3, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %149 = stencil.store_result %148 : !stencil.result<f64>
-// CHECK-NEXT:        %150 = stencil.index 0 [0, 4, 0]
-// CHECK-NEXT:        %151 = stencil.index 1 [0, 4, 0]
-// CHECK-NEXT:        %152 = stencil.index 2 [0, 4, 0]
-// CHECK-NEXT:        %153 = stencil.dyn_access %129[%150, %151, %152] in [0, 4, 0] : [0, 4, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %154 = stencil.store_result %153 : !stencil.result<f64>
-// CHECK-NEXT:        %155 = stencil.index 0 [0, 5, 0]
-// CHECK-NEXT:        %156 = stencil.index 1 [0, 5, 0]
-// CHECK-NEXT:        %157 = stencil.index 2 [0, 5, 0]
-// CHECK-NEXT:        %158 = stencil.dyn_access %129[%155, %156, %157] in [0, 5, 0] : [0, 5, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %159 = stencil.store_result %158 : !stencil.result<f64>
-// CHECK-NEXT:        %160 = stencil.index 0 [0, 6, 0]
-// CHECK-NEXT:        %161 = stencil.index 1 [0, 6, 0]
-// CHECK-NEXT:        %162 = stencil.index 2 [0, 6, 0]
-// CHECK-NEXT:        %163 = stencil.dyn_access %129[%160, %161, %162] in [0, 6, 0] : [0, 6, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %164 = stencil.store_result %163 : !stencil.result<f64>
-// CHECK-NEXT:        %165 = stencil.index 0 [0, 7, 0]
-// CHECK-NEXT:        %166 = stencil.index 1 [0, 7, 0]
-// CHECK-NEXT:        %167 = stencil.index 2 [0, 7, 0]
-// CHECK-NEXT:        %168 = stencil.dyn_access %129[%165, %166, %167] in [0, 7, 0] : [0, 7, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %169 = stencil.store_result %168 : !stencil.result<f64>
-// CHECK-NEXT:        stencil.return %134, %139, %144, %149, %154, %159, %164, %169 unroll [1, 8, 1] : !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>
+// CHECK-NEXT:    func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>)  attributes {"stencil.program"}{
+// CHECK-NEXT:      %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+// CHECK-NEXT:      %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+// CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %3 = stencil.apply(%arg2 = %2 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) {
+// CHECK-NEXT:        %4 = stencil.index 0 <[0, 0, 0]>
+// CHECK-NEXT:        %5 = stencil.index 1 <[0, 0, 0]>
+// CHECK-NEXT:        %6 = stencil.index 2 <[0, 0, 0]>
+// CHECK-NEXT:        %7 = stencil.dyn_access %arg2[%4, %5, %6] in <[0, 0, 0]> : <[0, 0, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %8 = stencil.store_result %7 : !stencil.result<f64>
+// CHECK-NEXT:        %9 = stencil.index 0 <[0, 1, 0]>
+// CHECK-NEXT:        %10 = stencil.index 1 <[0, 1, 0]>
+// CHECK-NEXT:        %11 = stencil.index 2 <[0, 1, 0]>
+// CHECK-NEXT:        %12 = stencil.dyn_access %arg2[%9, %10, %11] in <[0, 1, 0]> : <[0, 1, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %13 = stencil.store_result %12 : !stencil.result<f64>
+// CHECK-NEXT:        %14 = stencil.index 0 <[0, 2, 0]>
+// CHECK-NEXT:        %15 = stencil.index 1 <[0, 2, 0]>
+// CHECK-NEXT:        %16 = stencil.index 2 <[0, 2, 0]>
+// CHECK-NEXT:        %17 = stencil.dyn_access %arg2[%14, %15, %16] in <[0, 2, 0]> : <[0, 2, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %18 = stencil.store_result %17 : !stencil.result<f64>
+// CHECK-NEXT:        %19 = stencil.index 0 <[0, 3, 0]>
+// CHECK-NEXT:        %20 = stencil.index 1 <[0, 3, 0]>
+// CHECK-NEXT:        %21 = stencil.index 2 <[0, 3, 0]>
+// CHECK-NEXT:        %22 = stencil.dyn_access %arg2[%19, %20, %21] in <[0, 3, 0]> : <[0, 3, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %23 = stencil.store_result %22 : !stencil.result<f64>
+// CHECK-NEXT:        %24 = stencil.index 0 <[0, 4, 0]>
+// CHECK-NEXT:        %25 = stencil.index 1 <[0, 4, 0]>
+// CHECK-NEXT:        %26 = stencil.index 2 <[0, 4, 0]>
+// CHECK-NEXT:        %27 = stencil.dyn_access %arg2[%24, %25, %26] in <[0, 4, 0]> : <[0, 4, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %28 = stencil.store_result %27 : !stencil.result<f64>
+// CHECK-NEXT:        %29 = stencil.index 0 <[0, 5, 0]>
+// CHECK-NEXT:        %30 = stencil.index 1 <[0, 5, 0]>
+// CHECK-NEXT:        %31 = stencil.index 2 <[0, 5, 0]>
+// CHECK-NEXT:        %32 = stencil.dyn_access %arg2[%29, %30, %31] in <[0, 5, 0]> : <[0, 5, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %33 = stencil.store_result %32 : !stencil.result<f64>
+// CHECK-NEXT:        %34 = stencil.index 0 <[0, 6, 0]>
+// CHECK-NEXT:        %35 = stencil.index 1 <[0, 6, 0]>
+// CHECK-NEXT:        %36 = stencil.index 2 <[0, 6, 0]>
+// CHECK-NEXT:        %37 = stencil.dyn_access %arg2[%34, %35, %36] in <[0, 6, 0]> : <[0, 6, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %38 = stencil.store_result %37 : !stencil.result<f64>
+// CHECK-NEXT:        %39 = stencil.index 0 <[0, 7, 0]>
+// CHECK-NEXT:        %40 = stencil.index 1 <[0, 7, 0]>
+// CHECK-NEXT:        %41 = stencil.index 2 <[0, 7, 0]>
+// CHECK-NEXT:        %42 = stencil.dyn_access %arg2[%39, %40, %41] in <[0, 7, 0]> : <[0, 7, 0]> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:        %43 = stencil.store_result %42 : !stencil.result<f64>
+// CHECK-NEXT:        stencil.return %8, %13, %18, %23, %28, %33, %38, %43 unroll <[1, 8, 1]> : !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %128 to %126 ([0, 0, 0] : [64, 64, 60]) : !stencil.temp<[0,64]x[0,64]x[0,60]xf64> to !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+// CHECK-NEXT:      stencil.store %3 to %1(<[0, 0, 0], [64, 64, 60]>) : !stencil.temp<[0,64]x[0,64]x[0,60]xf64> to !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }

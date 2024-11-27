@@ -1,9 +1,9 @@
 from io import StringIO
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, gpu, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
-from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
-from xdsl.ir import MLContext
+from xdsl.interpreters.wgsl_printer import WGSLPrinter
 from xdsl.parser import Parser
 from xdsl.utils.test_value import TestSSAValue
 
@@ -58,7 +58,7 @@ def test_gpu_grid_dim():
 def test_arith_constant_unsigned():
     file = StringIO("")
 
-    cst = arith.Constant(IntegerAttr(42, IndexType()))
+    cst = arith.ConstantOp(IntegerAttr(42, IndexType()))
 
     printer = WGSLPrinter()
     printer.print(cst, file)
@@ -69,7 +69,7 @@ def test_arith_constant_unsigned():
 def test_arith_constant_unsigned_neg():
     file = StringIO("")
 
-    cst = arith.Constant(IntegerAttr(-1, IndexType()))
+    cst = arith.ConstantOp(IntegerAttr(-1, IndexType()))
     cst.result.name_hint = "temp"
 
     printer = WGSLPrinter()
@@ -81,7 +81,7 @@ def test_arith_constant_unsigned_neg():
 def test_arith_constant_signed():
     file = StringIO("")
 
-    cst = arith.Constant(IntegerAttr(42, IntegerType(32)))
+    cst = arith.ConstantOp(IntegerAttr(42, IntegerType(32)))
     cst.result.name_hint = "temp"
 
     printer = WGSLPrinter()
@@ -93,7 +93,7 @@ def test_arith_constant_signed():
 def test_arith_addi():
     file = StringIO("")
 
-    addi = arith.Addi(lhs_op, rhs_op)
+    addi = arith.AddiOp(lhs_op, rhs_op)
 
     printer = WGSLPrinter()
     printer.print(addi, file)
@@ -104,7 +104,7 @@ def test_arith_addi():
 def test_arith_subi():
     file = StringIO("")
 
-    subi = arith.Subi(lhs_op, rhs_op)
+    subi = arith.SubiOp(lhs_op, rhs_op)
 
     printer = WGSLPrinter()
     printer.print(subi, file)
@@ -115,7 +115,7 @@ def test_arith_subi():
 def test_arith_muli():
     file = StringIO("")
 
-    muli = arith.Muli(lhs_op, rhs_op)
+    muli = arith.MuliOp(lhs_op, rhs_op)
 
     printer = WGSLPrinter()
     printer.print(muli, file)
@@ -126,7 +126,7 @@ def test_arith_muli():
 def test_arith_addf():
     file = StringIO("")
 
-    addf = arith.Addf(lhs_op, rhs_op)
+    addf = arith.AddfOp(lhs_op, rhs_op)
 
     printer = WGSLPrinter()
     printer.print(addf, file)
@@ -137,7 +137,7 @@ def test_arith_addf():
 def test_arith_subf():
     file = StringIO("")
 
-    subf = arith.Subf(lhs_op, rhs_op)
+    subf = arith.SubfOp(lhs_op, rhs_op)
 
     printer = WGSLPrinter()
     printer.print(subf, file)
@@ -148,7 +148,7 @@ def test_arith_subf():
 def test_arith_mulf():
     file = StringIO("")
 
-    mulf = arith.Mulf(lhs_op, rhs_op)
+    mulf = arith.MulfOp(lhs_op, rhs_op)
 
     printer = WGSLPrinter()
     printer.print(mulf, file)
@@ -163,7 +163,7 @@ def test_memref_load():
 
     memref_val = TestSSAValue(memref_type)
 
-    load = memref.Load.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
+    load = memref.LoadOp.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
 
     printer = WGSLPrinter()
     printer.print(load, file)
@@ -178,9 +178,9 @@ def test_memref_store():
 
     memref_val = TestSSAValue(memref_type)
 
-    load = memref.Load.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
+    load = memref.LoadOp.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
 
-    store = memref.Store.get(load.res, memref_val, [lhs_op.res[0], rhs_op.res[0]])
+    store = memref.StoreOp.get(load.res, memref_val, [lhs_op.res[0], rhs_op.res[0]])
 
     printer = WGSLPrinter()
     printer.print(store, file)

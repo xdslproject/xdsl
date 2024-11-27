@@ -369,7 +369,7 @@ builtin.module {
   %t0 = "test.op"(): () ->  (f32)
 
   // CHECK: operand at position 0 does not verify:
-  // CHECK: Unexpected attribute f32
+  // CHECK: Expected tensor or memref type, got f32
   %res_max_pool_single_out =  "onnx.MaxPoolSingleOut"(%t0) {onnx_node_name = "/MaxPoolSingleOut"} : (f32) -> tensor<5x5x32x32xf32>
 }
 
@@ -379,7 +379,7 @@ builtin.module {
     %t0= "test.op"(): () ->  (tensor<5x5x32x32xf32>)
 
   // CHECK: result at position 0 does not verify:
-  // CHECK: Unexpected attribute tensor<5x5x32x32xi32>
+  // CHECK: attribute f32 expected from variable 'T', but got i32
   %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t0) {"onnx_node_name" = "/MaxPoolSingleOut"} : (tensor<5x5x32x32xf32>) -> tensor<5x5x32x32xi32>
 
 }
@@ -559,4 +559,13 @@ builtin.module {
 
   // CHECK: Operation does not verify: axes to squeeze must be between 0 and 2, axes: 3
   %res_squeeze =  "onnx.Squeeze"(%t0) {onnx_node_name = "/Squeeze", "axes" = 3 : i64} : (tensor<1x2x4xf32>) -> tensor<2x4xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+
+  // CHECK: Operation does not verify: tensor input shape (3, 4) is not equal to tensor output shape (7, 3)
+  %res_sigmoid =  "onnx.Sigmoid"(%t0) {onnx_node_name = "/Sigmoid"} : (tensor<3x4xf32>) -> tensor<7x3xf32>
 }

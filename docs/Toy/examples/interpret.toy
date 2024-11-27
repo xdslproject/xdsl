@@ -22,7 +22,7 @@ def main() {
   print(d);
 }
 
-# CHECK:       [[1.0, 16.0], [4.0, 25.0], [9.0, 36.0]]
+# CHECK{LITERAL}:       [[1.0, 16.0], [4.0, 25.0], [9.0, 36.0]]
 
 # REGALLOC: riscv.reg<{{.+}}>
 # REGALLOC-NOT: riscv.reg<>

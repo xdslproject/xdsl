@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import (
+    Callable,
+    Hashable,
+    Iterable,
+    Iterator,
+    Mapping,
+    Reversible,
+    Sequence,
+)
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -20,11 +28,10 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -62,214 +69,14 @@ class Dialect:
     def name(self) -> str:
         return self._name
 
-
-@dataclass
-class MLContext:
-    """Contains structures for operations/attributes registration."""
-
-    allow_unregistered: bool = field(default=False)
-
-    _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
-    _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
-    _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
-    _registered_dialects: dict[str, Callable[[], Dialect]] = field(default_factory=dict)
-    """
-    A dictionary of all registered dialects that are not yet loaded. This is used to
-    only load the respective Python files when the dialect is actually used.
-    """
-
-    def clone(self) -> MLContext:
-        return MLContext(
-            self.allow_unregistered,
-            self._loaded_dialects.copy(),
-            self._loaded_ops.copy(),
-            self._loaded_attrs.copy(),
-            self._registered_dialects.copy(),
-        )
-
-    @property
-    def loaded_ops(self) -> Iterable[type[Operation]]:
-        """
-        Returns all the loaded operations. Not valid across mutations of this object.
-        """
-        return self._loaded_ops.values()
-
-    @property
-    def loaded_attrs(self) -> Iterable[type[Attribute]]:
-        """
-        Returns all the loaded attributes. Not valid across mutations of this object.
-        """
-        return self._loaded_attrs.values()
-
-    @property
-    def loaded_dialects(self) -> Iterable[Dialect]:
-        """
-        Returns all the loaded attributes. Not valid across mutations of this object.
-        """
-        return self._loaded_dialects.values()
-
-    @property
-    def registered_dialect_names(self) -> Iterable[str]:
-        """
-        Returns the names of all registered dialects. Not valid across mutations of this object.
-        """
-        return self._registered_dialects.keys()
-
-    def register_dialect(
-        self, name: str, dialect_factory: Callable[[], Dialect]
-    ) -> None:
-        """
-        Register a dialect without loading it. The dialect is only loaded in the context
-        when an operation or attribute of that dialect is parsed, or when explicitely
-        requested with `load_registered_dialect`.
-        """
-        if name in self._registered_dialects:
-            raise ValueError(f"'{name}' dialect is already registered")
-        self._registered_dialects[name] = dialect_factory
-
-    def load_registered_dialect(self, name: str) -> None:
-        """Load a dialect that is already registered in the context."""
-        if name not in self._registered_dialects:
-            raise ValueError(f"'{name}' dialect is not registered")
-        dialect = self._registered_dialects[name]()
-        self._loaded_dialects[dialect.name] = dialect
-
-        for op in dialect.operations:
-            self.load_op(op)
-
-        for attr in dialect.attributes:
-            self.load_attr(attr)
-
-    def load_dialect(self, dialect: Dialect):
-        """
-        Load a dialect. Operation and Attribute names should be unique.
-        If the dialect is already registered in the context, use
-        `load_registered_dialect` instead.
-        """
-        if dialect.name in self._registered_dialects:
-            raise ValueError(
-                f"'{dialect.name}' dialect is already registered, use 'load_registered_dialect' instead"
-            )
-        self.register_dialect(dialect.name, lambda: dialect)
-        self.load_registered_dialect(dialect.name)
-
-    def load_op(self, op: type[Operation]) -> None:
-        """Load an operation definition. Operation names should be unique."""
-        if op.name in self._loaded_ops:
-            raise Exception(f"Operation {op.name} has already been loaded")
-        self._loaded_ops[op.name] = op
-
-    def load_attr(self, attr: type[Attribute]) -> None:
-        """Load an attribute definition. Attribute names should be unique."""
-        if attr.name in self._loaded_attrs:
-            raise Exception(f"Attribute {attr.name} has already been loaded")
-        self._loaded_attrs[attr.name] = attr
-
-    def get_optional_op(self, name: str) -> type[Operation] | None:
-        """
-        Get an operation class from its name if it exists.
-        If the operation is not registered, return None unless unregistered operations
-        are allowed in the context, in which case return an UnregisteredOp.
-        """
-        # If the operation is already loaded, returns it.
-        if name in self._loaded_ops:
-            return self._loaded_ops[name]
-
-        # Otherwise, check if the operation dialect is registered.
-        if "." in name:
-            dialect_name, _ = name.split(".", 1)
-            if (
-                dialect_name in self._registered_dialects
-                and dialect_name not in self._loaded_dialects
-            ):
-                self.load_registered_dialect(dialect_name)
-                return self.get_optional_op(name)
-
-        # If the dialect is unregistered, but the context allows unregistered
-        # operations, return an UnregisteredOp.
-        if self.allow_unregistered:
-            from xdsl.dialects.builtin import UnregisteredOp
-
-            op_type = UnregisteredOp.with_name(name)
-            self._loaded_ops[name] = op_type
-            return op_type
-        return None
-
-    def get_op(self, name: str) -> type[Operation]:
-        """
-        Get an operation class from its name.
-        If the operation is not registered, raise an exception unless unregistered
-        operations are allowed in the context, in which case return an UnregisteredOp.
-        """
-        if op_type := self.get_optional_op(name):
-            return op_type
-        raise Exception(f"Operation {name} is not registered")
-
-    def get_optional_attr(
-        self,
-        name: str,
-        create_unregistered_as_type: bool = False,
-    ) -> type[Attribute] | None:
-        """
-        Get an attribute class from its name if it exists.
-        If the attribute is not registered, return None unless unregistered attributes
-        are allowed in the context, in which case return an UnregisteredAttr.
-        Since UnregisteredAttr may be a type (for MLIR compatibility), an
-        additional flag is required to create an UnregisterAttr that is
-        also a type.
-        """
-        # If the attribute is already loaded, returns it.
-        if name in self._loaded_attrs:
-            return self._loaded_attrs[name]
-
-        # Otherwise, check if the attribute dialect is registered.
-        dialect_name, _ = name.split(".", 1)
-        if (
-            dialect_name in self._registered_dialects
-            and dialect_name not in self._loaded_dialects
-        ):
-            self.load_registered_dialect(dialect_name)
-            return self.get_optional_attr(name)
-
-        # If the dialect is unregistered, but the context allows unregistered
-        # attributes, return an UnregisteredOp.
-        if self.allow_unregistered:
-            from xdsl.dialects.builtin import UnregisteredAttr
-
-            attr_type = UnregisteredAttr.with_name_and_type(
-                name, create_unregistered_as_type
-            )
-            self._loaded_attrs[name] = attr_type
-            return attr_type
-
-        return None
-
-    def get_attr(
-        self,
-        name: str,
-        create_unregistered_as_type: bool = False,
-    ) -> type[Attribute]:
-        """
-        Get an attribute class from its name.
-        If the attribute is not registered, raise an exception unless unregistered
-        attributes are allowed in the context, in which case return an UnregisteredAttr.
-        Since UnregisteredAttr may be a type (for MLIR compatibility), an
-        additional flag is required to create an UnregisterAttr that is
-        also a type.
-        """
-        if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
-            return attr_type
-        raise Exception(f"Attribute {name} is not registered")
-
-    def get_dialect(self, name: str) -> Dialect:
-        if (dialect := self.get_optional_dialect(name)) is None:
-            raise Exception(f"Dialect {name} is not registered")
-        return dialect
-
-    def get_optional_dialect(self, name: str) -> Dialect | None:
-        if name in self._loaded_dialects:
-            return self._loaded_dialects[name]
-        return None
+    @staticmethod
+    def split_name(name: str) -> tuple[str, str]:
+        try:
+            names = name.split(".", 1)
+            first, second = names
+            return (first, second)
+        except ValueError as e:
+            raise ValueError(f"Invalid operation or attribute name {name}.") from e
 
 
 @dataclass(frozen=True)
@@ -284,7 +91,24 @@ class Use:
 
 
 @dataclass(eq=False)
-class SSAValue(ABC):
+class IRWithUses(ABC):
+    """IRNode which stores a list of its uses."""
+
+    uses: set[Use] = field(init=False, default_factory=set, repr=False)
+    """All uses of the value."""
+
+    def add_use(self, use: Use):
+        """Add a new use of the value."""
+        self.uses.add(use)
+
+    def remove_use(self, use: Use):
+        """Remove a use of the value."""
+        assert use in self.uses, "use to be removed was not in use list"
+        self.uses.remove(use)
+
+
+@dataclass(eq=False)
+class SSAValue(IRWithUses, ABC):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -292,9 +116,6 @@ class SSAValue(ABC):
 
     type: Attribute
     """Each SSA variable is associated to a type."""
-
-    uses: set[Use] = field(init=False, default_factory=set, repr=False)
-    """All uses of the value."""
 
     _name: str | None = field(init=False, default=None)
 
@@ -346,15 +167,6 @@ class SSAValue(ABC):
                     "SSAValue.build: expected operation with a single result."
                 )
 
-    def add_use(self, use: Use):
-        """Add a new use of the value."""
-        self.uses.add(use)
-
-    def remove_use(self, use: Use):
-        """Remove a use of the value."""
-        assert use in self.uses, "use to be removed was not in use list"
-        self.uses.remove(use)
-
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
@@ -362,7 +174,19 @@ class SSAValue(ABC):
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
-        assert len(self.uses) == 0, "unexpected error in xdsl"
+        assert not self.uses, "unexpected error in xdsl"
+
+    def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
+        """
+        Replace the value by another value in all its uses that pass the given test
+        function.
+        """
+        for use in self.uses.copy():
+            if test(use):
+                use.operation.operands[use.index] = value
+        # carry over name if possible
+        if value.name_hint is None:
+            value.name_hint = self.name_hint
 
     def erase(self, safe_erase: bool = True) -> None:
         """
@@ -506,7 +330,7 @@ class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     pass
 
 
-DataElement = TypeVar("DataElement", covariant=True)
+DataElement = TypeVar("DataElement", covariant=True, bound=Hashable)
 
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
@@ -551,6 +375,43 @@ class Data(Generic[DataElement], Attribute, ABC):
 EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
+def _check_enum_constraints(
+    enum_class: type[EnumAttribute[EnumType] | BitEnumAttribute[EnumType]],
+) -> None:
+    """
+    This hook first checks two constraints, enforced to keep the implementation
+    reasonable, until more complex use cases appear. It then stores the Enum type
+    used by the subclass to use in parsing/printing.
+
+    The constraints are:
+
+    - Only direct, specialized inheritance is allowed. That is, using a subclass
+    of EnumAttribute as a base class is *not supported*.
+      This simplifies type-hacking code and I don't see it being too restrictive
+      anytime soon.
+    - The StrEnum values must all be parsable as identifiers. This is to keep the
+    parsing code simple and efficient. This restriction is easier to lift, but I
+    haven't yet met an example use case where it matters, so I'm keeping it simple.
+    """
+    orig_bases = getattr(enum_class, "__orig_bases__")
+    enumattr = next(
+        b
+        for b in orig_bases
+        if get_origin(b) is EnumAttribute or get_origin(b) is BitEnumAttribute
+    )
+    enum_type = get_args(enumattr)[0]
+    if isinstance(enum_type, TypeVar):
+        raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+
+    for v in enum_type:
+        if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
+            raise ValueError(
+                "All StrEnum values of an EnumAttribute must be parsable as an identifer."
+            )
+
+    enum_class.enum_type = enum_type
+
+
 class EnumAttribute(Data[EnumType]):
     """
     Core helper for Enum Attributes. Takes a StrEnum type parameter, and defines
@@ -574,51 +435,125 @@ class EnumAttribute(Data[EnumType]):
     enum_type: ClassVar[type[StrEnum]]
 
     def __init_subclass__(cls) -> None:
-        """
-        This hook first checks two constraints, enforced to keep the implementation
-        reasonable, until more complex use cases appear. It then stores the Enum type
-        used by the subclass to use in parsing/printing.
-
-        The constraints are:
-
-        - Only direct, specialized inheritance is allowed. That is, using a subclass
-        of EnumAttribute as a base class is *not supported*.
-          This simplifies type-hacking code and I don't see it being too restrictive
-          anytime soon.
-        - The StrEnum values must all be parsable as identifiers. This is to keep the
-        parsing code simple and efficient. This restriction is easier to lift, but I
-        haven't yet met an example use case where it matters, so I'm keeping it simple.
-        """
-        orig_bases = getattr(cls, "__orig_bases__")
-        enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
-        enum_type = get_args(enumattr)[0]
-        if isinstance(enum_type, TypeVar):
-            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-        for v in enum_type:
-            if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
-                raise ValueError(
-                    "All StrEnum values of an EnumAttribute must be parsable as an identifer."
-                )
-
-        cls.enum_type = enum_type
+        _check_enum_constraints(cls)
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print(self.data.value)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
-        enum_type = cls.enum_type
+        return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
-        val = parser.parse_identifier()
-        if val not in enum_type.__members__.values():
-            enum_values = list(enum_type)
-            if len(enum_values) == 1:
-                parser.raise_error(f"Expected `{enum_values[0]}`.")
-            parser.raise_error(
-                f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`."
+
+class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
+    """
+    Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
+    defines parsing/printing automatically from its values.
+
+    Additionally, two values can be given to designate all/none bits being set.
+
+    example:
+    ```python
+    class MyBitEnum(StrEnum):
+        First = auto()
+        Second = auto()
+
+    class MyBitEnumAttribute(BitEnumAttribute[MyBitEnum]):
+        name = "example.my_bit_enum"
+        none_value = "none"
+        all_value = "all"
+
+    """
+
+    enum_type: ClassVar[type[StrEnum]]
+    none_value: ClassVar[str | None] = None
+    all_value: ClassVar[str | None] = None
+
+    def __init__(self, flags: None | Sequence[EnumType] | str) -> None:
+        flags_: set[EnumType]
+        match flags:
+            case self.none_value | None:
+                flags_ = set()
+            case self.all_value:
+                flags_ = cast(set[EnumType], set(self.enum_type))
+            case other if isinstance(other, str):
+                raise TypeError(
+                    f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}"
+                )
+            case other:
+                assert not isinstance(other, str)
+                flags_ = set(other)
+
+        super().__init__(tuple(flags_))
+
+    def __init_subclass__(cls) -> None:
+        _check_enum_constraints(cls)
+
+    @property
+    def flags(self) -> set[EnumType]:
+        return set(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[EnumType, ...]:
+        def parse_optional_element() -> set[EnumType] | None:
+            if (
+                cls.none_value is not None
+                and parser.parse_optional_keyword(cls.none_value) is not None
+            ):
+                return set()
+            if (
+                cls.all_value is not None
+                and parser.parse_optional_keyword(cls.all_value) is not None
+            ):
+                return set(cast(Iterable[EnumType], cls.enum_type))
+            value = parser.parse_optional_str_enum(cls.enum_type)
+            if value is None:
+                return None
+
+            return {cast(type[EnumType], cls.enum_type)(value)}
+
+        def parse_element() -> set[EnumType]:
+            if (
+                cls.none_value is not None
+                and parser.parse_optional_keyword(cls.none_value) is not None
+            ):
+                return set()
+            if (
+                cls.all_value is not None
+                and parser.parse_optional_keyword(cls.all_value) is not None
+            ):
+                return set(cast(Iterable[EnumType], cls.enum_type))
+            value = parser.parse_str_enum(cls.enum_type)
+            return {cast(type[EnumType], cls.enum_type)(value)}
+
+        with parser.in_angle_brackets():
+            flags: list[set[EnumType]] | None = (
+                parser.parse_optional_undelimited_comma_separated_list(
+                    parse_optional_element, parse_element
+                )
             )
-        return cast(EnumType, enum_type(val))
+            if flags is None:
+                return tuple()
+
+            res = set[EnumType]()
+
+            for flag_set in flags:
+                res |= flag_set
+
+            return tuple(res)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            if len(flags) == 0 and self.none_value is not None:
+                printer.print(self.none_value)
+            elif len(flags) == len(self.enum_type) and self.all_value is not None:
+                printer.print(self.all_value)
+            else:
+                # make sure we emit flags in a consistent order
+                printer.print(
+                    ",".join(flag.value for flag in self.enum_type if flag in flags)
+                )
 
 
 @dataclass(frozen=True, init=False)
@@ -671,20 +606,22 @@ class ParametrizedAttribute(Attribute):
         super()._verify()
 
 
-class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
+class TypedAttribute(ParametrizedAttribute, ABC):
     """
     An attribute with a type.
     """
 
-    @staticmethod
-    def get_type_index() -> int: ...
-
     @classmethod
+    def get_type_index(cls) -> int: ...
+
+    def get_type(self) -> Attribute:
+        return self.parameters[self.get_type_index()]
+
+    @staticmethod
     def parse_with_type(
-        cls: type[TypedAttribute[AttributeCovT]],
         parser: AttrParser,
         type: Attribute,
-    ) -> TypedAttribute[AttributeCovT]:
+    ) -> TypedAttribute:
         """
         Parse the attribute with the given type.
         """
@@ -761,6 +698,51 @@ class OpOperands(Sequence[SSAValue]):
     def __len__(self) -> int:
         return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
+    def __eq__(self, other: object):
+        if not isinstance(other, OpOperands):
+            return False
+        return (
+            self._op._operands  # pyright: ignore[reportPrivateUsage]
+            == other._op._operands  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def __hash__(self):
+        return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+
+class OpTraits(Iterable[OpTrait]):
+    """
+    An operation's traits.
+    Some operations have mutually recursive traits, such as one is always the parent
+    operation of the other.
+    For this case, the operation's traits can be declared lazily, and resolved only
+    at the first use.
+    """
+
+    _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+
+    def __init__(
+        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+    ) -> None:
+        self._traits = traits
+
+    @property
+    def traits(self) -> frozenset[OpTrait]:
+        """Returns a copy of this instance's traits."""
+        if not isinstance(self._traits, frozenset):
+            self._traits = frozenset(self._traits())
+        return self._traits
+
+    def add_trait(self, trait: OpTrait):
+        """Adds a trait to the class."""
+        self._traits = self.traits.union((trait,))
+
+    def __iter__(self) -> Iterator[OpTrait]:
+        return iter(self.traits)
+
+    def __eq__(self, value: object, /) -> bool:
+        return isinstance(value, OpTraits) and self._traits == value._traits
+
 
 @dataclass
 class Operation(IRNode):
@@ -772,10 +754,10 @@ class Operation(IRNode):
     _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
-    results: list[OpResult] = field(default_factory=list)
+    results: tuple[OpResult, ...] = field(default=())
     """The results created by the operation."""
 
-    successors: list[Block] = field(default_factory=list)
+    _successors: tuple[Block, ...] = field(default=())
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
@@ -791,7 +773,7 @@ class Operation(IRNode):
     attributes: dict[str, Attribute] = field(default_factory=dict)
     """The attributes attached to the operation."""
 
-    regions: list[Region] = field(default_factory=list)
+    regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
     parent: Block | None = field(default=None, repr=False)
@@ -803,7 +785,7 @@ class Operation(IRNode):
     _prev_op: Operation | None = field(default=None, repr=False)
     """Previous operation in block containing this operation."""
 
-    traits: ClassVar[frozenset[OpTrait]]
+    traits: ClassVar[OpTraits]
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set
@@ -813,6 +795,14 @@ class Operation(IRNode):
     @property
     def parent_node(self) -> IRNode | None:
         return self.parent
+
+    @property
+    def result_types(self) -> Sequence[Attribute]:
+        return tuple(r.type for r in self.results)
+
+    @property
+    def operand_types(self) -> Sequence[Attribute]:
+        return tuple(operand.type for operand in self.operands)
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -886,6 +876,19 @@ class Operation(IRNode):
             operand.add_use(Use(self, idx))
         self._operands = new
 
+    @property
+    def successors(self) -> OpSuccessors:
+        return OpSuccessors(self)
+
+    @successors.setter
+    def successors(self, new: Sequence[Block]):
+        new = tuple(new)
+        for idx, successor in enumerate(self._successors):
+            successor.remove_use(Use(self, idx))
+        for idx, successor in enumerate(new):
+            successor.add_use(Use(self, idx))
+        self._successors = new
+
     def __post_init__(self):
         assert self.name != ""
         assert isinstance(self.name, str)
@@ -905,14 +908,14 @@ class Operation(IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = [
+        self.results = tuple(
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
-        ]
+        )
         self.properties = dict(properties)
         self.attributes = dict(attributes)
         self.successors = list(successors)
-        self.regions = []
+        self.regions = ()
         for region in regions:
             self.add_region(region)
 
@@ -947,19 +950,16 @@ class Operation(IRNode):
             raise Exception(
                 "Cannot add region that is already attached on an operation."
             )
-        self.regions.append(region)
+        self.regions += (region,)
         region.parent = self
 
     def get_region_index(self, region: Region) -> int:
         """Get the region position in the operation."""
         if region.parent is not self:
             raise Exception("Region is not attached to the operation.")
-        for idx, curr_region in enumerate(self.regions):
-            if curr_region is region:
-                return idx
-        assert (
-            False
-        ), "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
+        return next(
+            idx for idx, curr_region in enumerate(self.regions) if curr_region is region
+        )
 
     def detach_region(self, region: int | Region) -> Region:
         """
@@ -1001,15 +1001,6 @@ class Operation(IRNode):
             yield from region.walk(reverse=reverse, region_first=region_first)
         if region_first:
             yield self
-
-    @deprecated("Use walk(reverse=True, region_first=True) instead")
-    def walk_reverse(self) -> Iterator[Operation]:
-        """
-        Iterate all operations contained in the operation (including this one) in reverse order.
-        """
-        for region in reversed(self.regions):
-            yield from region.walk_reverse()
-        yield self
 
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
@@ -1093,6 +1084,8 @@ class Operation(IRNode):
         self: OpT,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
+        *,
+        clone_name_hints: bool = True,
     ) -> OpT:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
@@ -1103,7 +1096,7 @@ class Operation(IRNode):
             (value_mapper[operand] if operand in value_mapper else operand)
             for operand in self.operands
         ]
-        result_types = [res.type for res in self.results]
+        result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
         successors = [
@@ -1119,30 +1112,44 @@ class Operation(IRNode):
             successors=successors,
             regions=regions,
         )
-        for idx, result in enumerate(cloned_op.results):
-            value_mapper[self.results[idx]] = result
+        for self_result, cloned_result in zip(
+            self.results, cloned_op.results, strict=True
+        ):
+            value_mapper[self_result] = cloned_result
+            if clone_name_hints:
+                cloned_result.name_hint = self_result.name_hint
         return cloned_op
 
     def clone(
         self: OpT,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
+        *,
+        clone_name_hints: bool = True,
     ) -> OpT:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
             value_mapper = {}
         if block_mapper is None:
             block_mapper = {}
-        op = self.clone_without_regions(value_mapper, block_mapper)
+        op = self.clone_without_regions(
+            value_mapper, block_mapper, clone_name_hints=clone_name_hints
+        )
         for idx, region in enumerate(self.regions):
-            region.clone_into(op.regions[idx], 0, value_mapper, block_mapper)
+            region.clone_into(
+                op.regions[idx],
+                0,
+                value_mapper,
+                block_mapper,
+                clone_name_hints=clone_name_hints,
+            )
         return op
 
     @classmethod
     def has_trait(
         cls,
-        trait: type[OpTrait],
-        parameters: Any = None,
+        trait: type[OpTrait] | OpTrait,
+        *,
         value_if_unregistered: bool = True,
     ) -> bool:
         """
@@ -1155,18 +1162,21 @@ class Operation(IRNode):
         if issubclass(cls, UnregisteredOp):
             return value_if_unregistered
 
-        return cls.get_trait(trait, parameters) is not None
+        return cls.get_trait(trait) is not None
 
     @classmethod
-    def get_trait(
-        cls, trait: type[OpTraitInvT], parameters: Any = None
-    ) -> OpTraitInvT | None:
+    def get_trait(cls, trait: type[OpTraitInvT] | OpTraitInvT) -> OpTraitInvT | None:
         """
         Return a trait with the given type and parameters, if it exists.
         """
-        for t in cls.traits:
-            if isinstance(t, trait) and t.parameters == parameters:
-                return t
+        if isinstance(trait, type):
+            for t in cls.traits:
+                if isinstance(t, cast(type[OpTraitInvT], trait)):
+                    return t
+        else:
+            for t in cls.traits:
+                if t == trait:
+                    return cast(OpTraitInvT, t)
         return None
 
     @classmethod
@@ -1263,7 +1273,7 @@ class Operation(IRNode):
 
     @classmethod
     def dialect_name(cls) -> str:
-        return cls.name.split(".")[0]
+        return Dialect.split_name(cls.name)[0]
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -1293,7 +1303,7 @@ OperationInvT = TypeVar("OperationInvT", bound=Operation)
 
 
 @dataclass
-class _BlockOpsIterator:
+class _BlockOpsIterator(Iterator[Operation]):
     """
     Single-pass iterable of the operations in a block. Follows the next_op for
     each operation.
@@ -1313,7 +1323,7 @@ class _BlockOpsIterator:
 
 
 @dataclass
-class _BlockOpsReverseIterator:
+class _BlockOpsReverseIterator(Iterator[Operation]):
     """
     Single-pass iterable of the operations in a block. Follows the prev_op for
     each operation.
@@ -1333,7 +1343,7 @@ class _BlockOpsReverseIterator:
 
 
 @dataclass
-class BlockOps:
+class BlockOps(Reversible[Operation], Iterable[Operation]):
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
     each operation.
@@ -1354,6 +1364,9 @@ class BlockOps:
         """Returns `True` if there are operations in this block."""
         return not self.block.is_empty
 
+    def __reversed__(self):
+        return _BlockOpsReverseIterator(self.block.last_op)
+
     @property
     def first(self) -> Operation | None:
         """
@@ -1369,27 +1382,8 @@ class BlockOps:
         return self.block.last_op
 
 
-@dataclass
-class BlockReverseOps:
-    """
-    Multi-pass iterable of the operations in a block. Follows the prev_op for
-    each operation.
-    """
-
-    block: Block
-
-    def __iter__(self):
-        return _BlockOpsReverseIterator(self.block.last_op)
-
-    def __len__(self):
-        result = 0
-        for _ in self:
-            result += 1
-        return result
-
-
 @dataclass(init=False)
-class Block(IRNode):
+class Block(IRNode, IRWithUses):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
@@ -1397,6 +1391,9 @@ class Block(IRNode):
 
     _first_op: Operation | None = field(repr=False)
     _last_op: Operation | None = field(repr=False)
+
+    _next_block: Block | None = field(default=None, repr=False)
+    _prev_block: Block | None = field(default=None, repr=False)
 
     parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
@@ -1418,6 +1415,10 @@ class Block(IRNode):
         self.add_ops(ops)
 
     @property
+    def arg_types(self) -> Sequence[Attribute]:
+        return tuple(arg.type for arg in self._args)
+
+    @property
     def parent_node(self) -> IRNode | None:
         return self.parent
 
@@ -1427,9 +1428,19 @@ class Block(IRNode):
         return BlockOps(self)
 
     @property
-    def ops_reverse(self) -> BlockReverseOps:
-        """Returns a multi-pass Iterable of this block's operations."""
-        return BlockReverseOps(self)
+    def next_block(self) -> Block | None:
+        """The next block in the parent region"""
+        return self._next_block
+
+    @property
+    def prev_block(self) -> Block | None:
+        """The previous block in the parent region"""
+        return self._prev_block
+
+    def predecessors(self) -> tuple[Block, ...]:
+        return tuple(
+            p for use in self.uses if (p := use.operation.parent_block()) is not None
+        )
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1642,10 +1653,7 @@ class Block(IRNode):
         """Get the operation position in a block."""
         if op.parent is not self:
             raise Exception("Operation is not a children of the block.")
-        for idx, block_op in enumerate(self.ops):
-            if block_op is op:
-                return idx
-        assert False, "Unexpected xdsl error"
+        return next(idx for idx, block_op in enumerate(self.ops) if block_op is op)
 
     def detach_op(self, op: Operation) -> Operation:
         """
@@ -1698,14 +1706,8 @@ class Block(IRNode):
         operation. If reverse is set, then the region, block, and operation lists are
         iterated in reverse order.
         """
-        for op in self.ops_reverse if reverse else self.ops:
+        for op in reversed(self.ops) if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
-
-    @deprecated("Use walk(reverse=True) instead")
-    def walk_reverse(self) -> Iterable[Operation]:
-        """Call a function on all operations contained in the block in reverse order."""
-        for op in self.ops_reverse:
-            yield from op.walk_reverse()
 
     def verify(self) -> None:
         for operation in self.ops:
@@ -1733,6 +1735,8 @@ class Block(IRNode):
         This function is called prior to deleting a block.
         """
         self.parent = None
+        self._next_block = None
+        self._prev_block = None
         for op in self.ops:
             op.drop_all_references()
 
@@ -1787,6 +1791,152 @@ class Block(IRNode):
         return id(self)
 
 
+@dataclass
+class _RegionBlocksIterator(Iterator[Block]):
+    """
+    Single-pass iterable of the blocks in a region. Follows the next_block for
+    each operation.
+    """
+
+    next_block: Block | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        next_block = self.next_block
+        if next_block is None:
+            raise StopIteration
+        self.next_block = next_block.next_block
+        return next_block
+
+
+@dataclass
+class OpSuccessors(Sequence[Block]):
+    """
+    A view of the successor list of an operation.
+    Any modification to the view is reflected on the operation.
+    """
+
+    _op: Operation
+    """The operation owning the successors."""
+
+    @overload
+    def __getitem__(self, idx: int) -> Block: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
+
+    def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
+        return self._op._successors[idx]  # pyright: ignore[reportPrivateUsage]
+
+    def __setitem__(self, idx: int, successor: Block) -> None:
+        successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
+        successors[idx].remove_use(Use(self._op, idx))
+        successor.add_use(Use(self._op, idx))
+        new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
+        self._op._successors = new_successors  # pyright: ignore[reportPrivateUsage]
+
+    def __iter__(self) -> Iterator[Block]:
+        return iter(self._op._successors)  # pyright: ignore[reportPrivateUsage]
+
+    def __len__(self) -> int:
+        return len(self._op._successors)  # pyright: ignore[reportPrivateUsage]
+
+    def __eq__(self, other: object):
+        if not isinstance(other, OpSuccessors):
+            return False
+        return (
+            self._op._successors  # pyright: ignore[reportPrivateUsage]
+            == other._op._successors  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def __hash__(self):
+        return hash(self._op._successors)  # pyright: ignore[reportPrivateUsage]
+
+
+@dataclass
+class _RegionBlocksReverseIterator(Iterator[Block]):
+    """
+    Single-pass iterable of the blocks in a region. Follows the prev_block for
+    each block.
+    """
+
+    prev_block: Block | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        prev_block = self.prev_block
+        if prev_block is None:
+            raise StopIteration
+        self.prev_block = prev_block.prev_block
+        return prev_block
+
+
+@dataclass
+class RegionBlocks(Sequence[Block], Reversible[Block]):
+    """
+    Multi-pass iterable of the blocks in a region.
+    """
+
+    _region: Region
+
+    def __iter__(self):
+        return _RegionBlocksIterator(self._region.first_block)
+
+    @overload
+    def __getitem__(self, idx: int) -> Block: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
+
+    def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
+        if isinstance(idx, int):
+            if 0 <= idx:
+                for i, b in enumerate(self):
+                    if i == idx:
+                        return b
+                raise IndexError
+            else:
+                for i, b in enumerate(reversed(self)):
+                    if -1 == i + idx:
+                        return b
+                raise IndexError
+        else:
+            # This is possible but would require a bit of work to handle complex slices
+            raise NotImplementedError("Indexing of RegionBlocks not yet implemented")
+
+    def __len__(self):
+        i = 0
+        for _ in self:
+            i += 1
+        return i
+
+    def __bool__(self) -> bool:
+        """Returns `True` if there are blocks in this region."""
+        first_block = self._region.first_block
+        return first_block is not None
+
+    def __reversed__(self):
+        return _RegionBlocksReverseIterator(self._region.last_block)
+
+    @property
+    def first(self) -> Block | None:
+        """
+        First block in the region, None if region is empty.
+        """
+        return self._region.first_block
+
+    @property
+    def last(self) -> Block | None:
+        """
+        Last block in the region, None if region is empty.
+        """
+        return self._region.last_block
+
+
 @dataclass(init=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
@@ -1797,19 +1947,18 @@ class Region(IRNode):
         single-block region should be constructed.
         """
 
-    blocks: list[Block] = field(default_factory=list)
-    """Blocks contained in the region. The first block is the entry block."""
+    _first_block: Block | None = field(default=None, repr=False)
+    """The first block in the region. This is the entry block if it is present."""
+
+    _last_block: Block | None = field(default=None, repr=False)
+    """The last block in the region."""
 
     parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
 
     def __init__(self, blocks: Block | Iterable[Block] = ()):
         super().__init__()
-        self.blocks = []
-        if isinstance(blocks, Block):
-            blocks = (blocks,)
-        for block in blocks:
-            self.add_block(block)
+        self.add_block(blocks)
 
     @property
     def parent_node(self) -> IRNode | None:
@@ -1827,6 +1976,23 @@ class Region(IRNode):
             if self.parent is not None and self.parent.parent is not None
             else None
         )
+
+    @property
+    def blocks(self) -> RegionBlocks:
+        """
+        A multi-pass iterable of blocks.
+        """
+        return RegionBlocks(self)
+
+    @property
+    def first_block(self) -> Block | None:
+        """First block in this region. This is the entry block if present."""
+        return self._first_block
+
+    @property
+    def last_block(self) -> Block | None:
+        """Last block in this region."""
+        return self._last_block
 
     def __repr__(self) -> str:
         return f"Region(num_blocks={len(self.blocks)})"
@@ -1867,12 +2033,12 @@ class Region(IRNode):
         Get the block of a single-block region.
         Returns an exception if the region is not single-block.
         """
-        if len(self.blocks) != 1:
+        if self._first_block is None or self._first_block is not self._last_block:
             raise ValueError(
                 "'block' property of Region class is only available "
                 "for single-block regions."
             )
-        return self.blocks[0]
+        return self._first_block
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
@@ -1884,48 +2050,159 @@ class Region(IRNode):
             raise ValueError("Can't add a block to a region contained in the block.")
         block.parent = self
 
-    def add_block(self, block: Block) -> None:
-        """Add a block to the region."""
-        self._attach_block(block)
-        self.blocks.append(block)
+    def add_block(self, block: Block | Iterable[Block]) -> None:
+        """
+        Insert one or multiple blocks at the end of the region.
+        The blocks should not be attached to another region.
+        """
+        blocks_iter: Iterator[Block]
+        if isinstance(block, Block):
+            blocks_iter = iter((block,))
+        else:
+            blocks_iter = iter(block)
+        prev_block = self.last_block
 
-    def insert_block(self, blocks: Block | list[Block], index: int) -> None:
+        if prev_block is None:
+            try:
+                # First block
+                prev_block = next(blocks_iter)
+                self._attach_block(prev_block)
+                self._first_block = prev_block
+            except StopIteration:
+                # blocks_iter is empty, nothing to do
+                return
+
+        try:
+            while True:
+                next_block = next(blocks_iter)
+                self._attach_block(next_block)
+                next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                    prev_block
+                )
+                prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                    next_block
+                )
+                prev_block = next_block
+
+        except StopIteration:
+            # Repair last block
+            self._last_block = prev_block
+            return
+
+    def insert_block_before(
+        self, block: Block | Iterable[Block], target: Block
+    ) -> None:
+        """
+        Insert one or multiple blocks before a given block in the region.
+        The blocks should not be attached to another region.
+        """
+        if target.parent is not self:
+            raise ValueError(
+                "Cannot insert blocks before a block into a region that is not the target's parent"
+            )
+        blocks_iter: Iterator[Block]
+        if isinstance(block, Block):
+            blocks_iter = iter((block,))
+        else:
+            blocks_iter = iter(block)
+        prev_block = target.prev_block
+
+        if prev_block is None:
+            try:
+                # First block
+                new_first = next(blocks_iter)
+                self._attach_block(new_first)
+                self._first_block = new_first
+                new_first._next_block = target  # pyright: ignore[reportPrivateUsage]
+                prev_block = new_first
+            except StopIteration:
+                # blocks_iter is empty, nothing to do
+                return
+
+        # The invariant for the loop is that prev_block is always before target when
+        # calling `next`.
+
+        try:
+            while True:
+                next_block = next(blocks_iter)
+                self._attach_block(next_block)
+                next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                    prev_block
+                )
+                prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                    next_block
+                )
+                prev_block = next_block
+
+        except StopIteration:
+            # Repair broken link
+            prev_block._next_block = target  # pyright: ignore[reportPrivateUsage]
+            target._prev_block = prev_block  # pyright: ignore[reportPrivateUsage]
+            return
+
+    def insert_block_after(self, block: Block | Iterable[Block], target: Block) -> None:
+        """
+        Insert one or multiple blocks after a given block in the region.
+        The blocks should not be attached to another region.
+        """
+        next_block = target.next_block
+        if next_block is None:
+            self.add_block(block)
+        else:
+            self.insert_block_before(block, next_block)
+
+    @deprecated("Please use `region.blocks[index]`")
+    def block_at_index(self, index: int) -> Block:
+        """Returns the block at the index, or raises IndexError"""
+        return self.blocks[index]
+
+    def insert_block(self, blocks: Block | Iterable[Block], index: int) -> None:
         """
         Insert one or multiple blocks at a given index in the region.
         The blocks should not be attached to another region.
         """
-        if index < 0 or index > len(self.blocks):
-            raise ValueError(
-                f"Can't insert block in index {index} in a block with "
-                f"{len(self.blocks)} blocks."
-            )
-        if not isinstance(blocks, list):
-            blocks = [blocks]
-        for block in blocks:
-            self._attach_block(block)
-        self.blocks = self.blocks[:index] + blocks + self.blocks[index:]
+        i = -1
+        for i, b in enumerate(self.blocks):
+            if i == index:
+                self.insert_block_before(blocks, b)
+                return
+        if i + 1 == index:
+            # Append block
+            self.add_block(blocks)
 
     def get_block_index(self, block: Block) -> int:
         """Get the block position in a region."""
         if block.parent is not self:
             raise Exception("Block is not a child of the region.")
-        for idx, region_block in enumerate(self.blocks):
-            if region_block is block:
-                return idx
-        assert False, "Unexpected xdsl error"
+        return next(
+            idx for idx, region_block in enumerate(self.blocks) if region_block is block
+        )
 
     def detach_block(self, block: int | Block) -> Block:
         """
         Detach a block from the region.
         Returns the detached block.
         """
-        if isinstance(block, Block):
-            block_idx = self.get_block_index(block)
+        if isinstance(block, int):
+            block = self.blocks[block]
         else:
-            block_idx = block
-            block = self.blocks[block_idx]
+            if block.parent is not self:
+                raise Exception("Block is not a child of the region.")
+
         block.parent = None
-        self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1 :]
+        if (prev_block := block.prev_block) is None:
+            self._first_block = block.next_block
+        else:
+            prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                block.next_block
+            )
+        if (next_block := block.next_block) is None:
+            self._last_block = block.prev_block
+        else:
+            next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                block.prev_block
+            )
+
         return block
 
     def erase_block(self, block: int | Block, safe_erase: bool = True) -> None:
@@ -1950,6 +2227,8 @@ class Region(IRNode):
         insert_index: int | None = None,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
+        *,
+        clone_name_hints: bool = True,
     ):
         """
         Clone all block of this region into `dest` to position `insert_index`
@@ -1977,9 +2256,16 @@ class Region(IRNode):
         for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.type, idx)
-                value_mapper[block_arg] = new_block.args[idx]
+                new_arg = new_block.args[idx]
+                value_mapper[block_arg] = new_arg
+                if clone_name_hints:
+                    new_arg.name_hint = block_arg.name_hint
             for op in block.ops:
-                new_block.add_op(op.clone(value_mapper, block_mapper))
+                new_block.add_op(
+                    op.clone(
+                        value_mapper, block_mapper, clone_name_hints=clone_name_hints
+                    )
+                )
 
     def walk(
         self, *, reverse: bool = False, region_first: bool = False
@@ -1992,12 +2278,6 @@ class Region(IRNode):
         """
         for block in reversed(self.blocks) if reverse else self.blocks:
             yield from block.walk(reverse=reverse, region_first=region_first)
-
-    @deprecated("Use walk(reverse=True) instead")
-    def walk_reverse(self) -> Iterator[Operation]:
-        """Call a function on all operations contained in the region in reverse order."""
-        for block in reversed(self.blocks):
-            yield from block.walk_reverse()
 
     def verify(self) -> None:
         for block in self.blocks:
@@ -2029,10 +2309,66 @@ class Region(IRNode):
         """
         Move the blocks of this region to another region. Leave no blocks in this region.
         """
-        region.blocks = self.blocks
-        self.blocks = []
-        for block in region.blocks:
+        if region is self:
+            raise ValueError("Cannot move region into itself.")
+        self_first_block = self._first_block
+        if self_first_block is None:
+            return
+        self_last_block = self._last_block
+        assert self_last_block is not None
+        other_last_block = region.last_block
+        if other_last_block is None:
+            region._first_block = self._first_block
+        else:
+            self_first_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                other_last_block
+            )
+            other_last_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                self_first_block
+            )
+        region._last_block = self_last_block
+
+        for block in self.blocks:
             block.parent = region
+
+        self._first_block = None
+        self._last_block = None
+
+    def move_blocks_before(self, target: Block) -> None:
+        """
+        Move the blocks of this region to another region, before the target block.
+        Leave no blocks in this region.
+        """
+        region = target.parent
+        if region is self:
+            raise ValueError("Cannot move region into itself.")
+        if region is None:
+            raise ValueError("Cannot inline region before a block with no parent")
+
+        first_block = self._first_block
+        if not first_block:
+            return
+        last_block = self._last_block
+        assert last_block is not None
+
+        if target.prev_block is None:
+            region._first_block = first_block
+        else:
+            target.prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                first_block
+            )
+            first_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                target.prev_block
+            )
+
+        for block in self.blocks:
+            block.parent = region
+
+        last_block._next_block = target  # pyright: ignore[reportPrivateUsage]
+        target._prev_block = last_block  # pyright: ignore[reportPrivateUsage]
+
+        self._first_block = None
+        self._last_block = None
 
     def is_structurally_equivalent(
         self,

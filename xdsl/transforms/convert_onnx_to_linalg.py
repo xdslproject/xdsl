@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -18,7 +19,7 @@ from xdsl.dialects.builtin import (
     f64,
     i64,
 )
-from xdsl.ir import Attribute, Block, MLContext, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -41,7 +42,7 @@ def get_root_op(op: Operation | None) -> Operation | None:
 @dataclass
 class AddOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, add: onnx.Add, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, add: onnx.AddOp, rewriter: PatternRewriter, /):
         lhs_type = add.lhs.type
         rhs_type = add.rhs.type
         if isinstance(lhs_type, TensorType) and isinstance(rhs_type, TensorType):
@@ -62,7 +63,7 @@ class AddOpLowering(RewritePattern):
 @dataclass
 class SubOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, sub: onnx.Sub, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, sub: onnx.SubOp, rewriter: PatternRewriter, /):
         lhs_type = sub.lhs.type
         rhs_type = sub.rhs.type
         if isinstance(lhs_type, TensorType) and isinstance(rhs_type, TensorType):
@@ -83,7 +84,7 @@ class SubOpLowering(RewritePattern):
 @dataclass
 class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, relu: onnx.ReluOp, rewriter: PatternRewriter, /):
         operand = relu.operand.type
         assert isinstance(operand, TensorType)
         operand = cast(TensorType[Attribute], operand)
@@ -93,10 +94,10 @@ class ReluOpLowering(RewritePattern):
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
-                zero := arith.Constant(
+                zero := arith.ConstantOp(
                     FloatAttr(0.0, cast(AnyFloat, operand.element_type))
                 ),
-                linalg.Generic(
+                linalg.GenericOp(
                     (relu.operand,),
                     (empty.tensor,),
                     body,
@@ -107,7 +108,7 @@ class ReluOpLowering(RewritePattern):
             )
         )
         with ImplicitBuilder(body) as (a, _):
-            max_op = arith.Maximumf(a, zero.result)
+            max_op = arith.MaximumfOp(a, zero.result)
             linalg.YieldOp(max_op.result)
 
 
@@ -120,10 +121,12 @@ class ConstantOpLowering(RewritePattern):
         return f"onnx_constant_{self.constant_count}"
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
+    def match_and_rewrite(
+        self, constant: onnx.ConstantOp, rewriter: PatternRewriter, /
+    ):
         attr_value = list(constant.attributes.values())[1]
         constant_name = self.make_unique_name()
-        global_op = ml_program.Global(
+        global_op = ml_program.GlobalOp(
             StringAttr(constant_name),
             constant.output.type,
             None,
@@ -135,7 +138,7 @@ class ConstantOpLowering(RewritePattern):
             SymbolTable.insert_or_update(root_op, global_op)
         rewriter.replace_matched_op(
             (
-                ml_program.GlobalLoadConstant(
+                ml_program.GlobalLoadConstantOp(
                     SymbolRefAttr(global_op.sym_name),
                     global_op.type,
                 ),
@@ -146,7 +149,7 @@ class ConstantOpLowering(RewritePattern):
 @dataclass
 class ReshapeOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, reshape: onnx.Reshape, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, reshape: onnx.ReshapeOp, rewriter: PatternRewriter, /):
         # Dynamic shapes not currently supported
         source_type = reshape.data.type
         shape_type = reshape.shape.type
@@ -175,8 +178,7 @@ class ReshapeOpLowering(RewritePattern):
 @dataclass
 class GemmOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, gemm: onnx.Gemm, rewriter: PatternRewriter, /):
-
+    def match_and_rewrite(self, gemm: onnx.GemmOp, rewriter: PatternRewriter, /):
         assert isinstance(tensor_a_type := gemm.tensor_a.type, TensorType)
         assert isinstance(tensor_b_type := gemm.tensor_b.type, TensorType)
         assert isinstance(tensor_c_type := gemm.tensor_c.type, TensorType)
@@ -196,7 +198,7 @@ class GemmOpLowering(RewritePattern):
             raise NotImplementedError()
 
         perm: list[int] = [1, 0]
-        permutation = DenseArrayBase.create_dense_int_or_index(i64, perm)
+        permutation = DenseArrayBase.create_dense_int(i64, perm)
 
         # if transA is set, trans_a is changed to this op
         trans_a_res = None
@@ -243,7 +245,9 @@ class GemmOpLowering(RewritePattern):
         # alpha * A
         alpha_res = None
         if gemm.alpha is not None and gemm.alpha.value.data != 1:
-            constant = arith.Constant(FloatAttr(gemm.alpha.value.data, gemm.alpha.type))
+            constant = arith.ConstantOp(
+                FloatAttr(gemm.alpha.value.data, gemm.alpha.type)
+            )
             alpha_mul_result = linalg.MulOp(
                 (constant.result, trans_a),
                 (trans_a,),
@@ -260,7 +264,7 @@ class GemmOpLowering(RewritePattern):
         beta_mul_result = gemm.tensor_c
         beta_res = None
         if gemm.beta is not None and gemm.beta.value.data != 1:
-            constant = arith.Constant(FloatAttr(gemm.beta.value.data, gemm.beta.type))
+            constant = arith.ConstantOp(FloatAttr(gemm.beta.value.data, gemm.beta.type))
             beta_mul_result = linalg.MulOp(
                 (
                     constant.result,
@@ -305,7 +309,7 @@ class GemmOpLowering(RewritePattern):
 class MaxPoolSingleOutOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, max_pool_single_out: onnx.MaxPoolSingleOut, rewriter: PatternRewriter, /
+        self, max_pool_single_out: onnx.MaxPoolSingleOutOp, rewriter: PatternRewriter, /
     ):
         kernel: list[int] = [
             value.value.data for value in max_pool_single_out.kernel_shape.data
@@ -331,7 +335,7 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
                 init := tensor.EmptyOp((), max_pool_single_out.output.type),
                 # Since we're unable to represent +/- infinity,
                 # we currently use the maximum value by sys
-                cst := arith.Constant(FloatAttr(-1e308, f64)),
+                cst := arith.ConstantOp(FloatAttr(-1e308, f64)),
                 fill := linalg.FillOp(
                     (cst.result,),
                     (init.tensor,),
@@ -354,8 +358,7 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
 @dataclass
 class ConvOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
-
+    def match_and_rewrite(self, conv: onnx.ConvOp, rewriter: PatternRewriter, /):
         dilations = tuple(value.value.data for value in conv.dilations.data)
         strides = tuple(value.value.data for value in conv.strides.data)
 

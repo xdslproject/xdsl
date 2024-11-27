@@ -86,3 +86,6 @@
 
 %res_squeeze = "onnx.Squeeze"(%t0) {onnx_node_name = "/Squeeze", "axes" = 0}: (tensor<1x2x6xf32>) -> tensor<2x6xf32>
 // CHECK: %res_squeeze = onnx.Squeeze(%t0) {"onnx_node_name" = "/Squeeze", "axes" = 0 : i64} : (tensor<1x2x6xf32>) -> tensor<2x6xf32>
+
+%res_sigmoid = "onnx.Sigmoid"(%t8) {onnx_node_name = "/Sigmoid"}: (tensor<3x4xf32>) -> tensor<3x4xf32>
+// CHECK: %res_sigmoid = onnx.Sigmoid(%t8) {"onnx_node_name" = "/Sigmoid"} : (tensor<3x4xf32>) -> tensor<3x4xf32>

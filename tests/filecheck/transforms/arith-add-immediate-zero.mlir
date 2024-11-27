@@ -11,10 +11,6 @@ func.func @hello(%n : i32) -> i32 {
 
 //CHECK:         builtin.module {
 // CHECK-NEXT:     func.func @hello(%n : i32) -> i32 {
-// CHECK-NEXT:       %two = arith.constant 0 : i32
-// CHECK-NEXT:       %three = arith.constant 0 : i32
 // CHECK-NEXT:       func.return %n : i32
 // CHECK-NEXT:     }
 // CHECK-NEXT:  }
-
-

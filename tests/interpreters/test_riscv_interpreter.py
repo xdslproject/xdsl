@@ -4,10 +4,18 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp, f64, i1
+from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
+    IntegerAttr,
+    ModuleOp,
+    TensorType,
+    f64,
+    i1,
+    i32,
+)
 from xdsl.interpreter import Interpreter, PythonValues
-from xdsl.interpreters.ptr import RawPtr, TypedPtr
 from xdsl.interpreters.riscv import RiscvFunctions
+from xdsl.interpreters.utils.ptr import RawPtr, TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError
@@ -276,7 +284,7 @@ def test_riscv_interpreter():
     get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType.unallocated())
     with pytest.raises(
         InterpretationError,
-        match="Cannot get value for unallocated register !riscv.reg<>",
+        match="Cannot get value for unallocated register !riscv.reg",
     ):
         interpreter.run_op(get_non_zero, ())
 
@@ -356,3 +364,19 @@ def test_register_contents():
 
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.T0), ()) == (1,)
+
+
+def test_values():
+    module_op = ModuleOp([])
+
+    riscv_functions = RiscvFunctions()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(riscv_functions)
+    assert interpreter.value_for_attribute(IntegerAttr(1, i32), riscv.Registers.A0) == 1
+
+    assert interpreter.value_for_attribute(
+        DenseIntOrFPElementsAttr.create_dense_int(
+            TensorType(i32, [2, 3]), list(range(6))
+        ),
+        riscv.Registers.A0,
+    ) == TypedPtr.new_int32(list(range(6)))

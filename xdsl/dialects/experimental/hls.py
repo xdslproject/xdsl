@@ -7,13 +7,10 @@ from xdsl.dialects.builtin import (
     ParametrizedAttribute,
     StringAttr,
 )
-from xdsl.ir import Dialect, Operation, OpResult, Region, SSAValue, TypeAttribute
+from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
-    Operand,
     ParameterDef,
-    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -21,6 +18,7 @@ from xdsl.irdl import (
     opt_attr_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import IsTerminator
@@ -29,9 +27,9 @@ from xdsl.traits import IsTerminator
 @irdl_op_definition
 class HLSYield(IRDLOperation):
     name = "hls.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> HLSYield:
@@ -41,7 +39,7 @@ class HLSYield(IRDLOperation):
 @irdl_op_definition
 class PragmaPipeline(IRDLOperation):
     name = "hls.pipeline"
-    ii: Operand = operand_def(IntegerType)
+    ii = operand_def(IntegerType)
 
     def __init__(self, ii: SSAValue | Operation):
         super().__init__(operands=[ii])
@@ -50,7 +48,7 @@ class PragmaPipeline(IRDLOperation):
 @irdl_op_definition
 class PragmaUnroll(IRDLOperation):
     name = "hls.unroll"
-    factor: Operand = operand_def(IntegerType)
+    factor = operand_def(IntegerType)
 
     def __init__(self, factor: SSAValue | Operation):
         super().__init__(operands=[factor])
@@ -60,7 +58,7 @@ class PragmaUnroll(IRDLOperation):
 class PragmaDataflow(IRDLOperation):
     name = "hls.dataflow"
 
-    body: Region = region_def()
+    body = region_def()
 
     def __init__(self, region: Region):
         super().__init__(regions=[region])
@@ -69,10 +67,10 @@ class PragmaDataflow(IRDLOperation):
 @irdl_op_definition
 class PragmaArrayPartition(IRDLOperation):
     name = "hls.array_partition"
-    variable: StringAttr | None = opt_attr_def(StringAttr)
-    array_type: Attribute | None = opt_attr_def(Attribute)  # look at memref.Global
-    factor: Operand = operand_def()
-    dim: Operand = operand_def()
+    variable = opt_attr_def(StringAttr)
+    array_type = opt_attr_def(Attribute)  # look at memref.Global
+    factor = operand_def()
+    dim = operand_def()
 
     def __init__(
         self,
@@ -101,10 +99,8 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class HLSStream(IRDLOperation):
     name = "hls.stream"
-    elem_type: Attribute = attr_def(Attribute)
-    result: OpResult = result_def(
-        HLSStreamType
-    )  # This should be changed to HLSStreamType
+    elem_type = attr_def(Attribute)
+    result = result_def(HLSStreamType)  # This should be changed to HLSStreamType
 
     @staticmethod
     def get(elem_type: Attribute) -> HLSStream:
@@ -119,8 +115,8 @@ class HLSStream(IRDLOperation):
 @irdl_op_definition
 class HLSStreamWrite(IRDLOperation):
     name = "hls.write"
-    element: Operand = operand_def(AnyAttr())
-    stream: Operand = operand_def(HLSStreamType)
+    element = operand_def()
+    stream = operand_def(HLSStreamType)
 
     def __init__(self, element: SSAValue | Operation, stream: SSAValue | Operation):
         super().__init__(operands=[element, stream])
@@ -129,8 +125,8 @@ class HLSStreamWrite(IRDLOperation):
 @irdl_op_definition
 class HLSStreamRead(IRDLOperation):
     name = "hls.read"
-    stream: Operand = operand_def(HLSStreamType)
-    res: OpResult = result_def(AnyAttr())
+    stream = operand_def(HLSStreamType)
+    res = result_def()
 
     def __init__(self, stream: SSAValue):
         assert isinstance(stream.type, HLSStreamType)
@@ -142,10 +138,10 @@ class HLSStreamRead(IRDLOperation):
 class HLSExtractStencilValue(IRDLOperation):
     name = "hls.extract_stencil_value"
 
-    position: DenseArrayBase = attr_def(DenseArrayBase)
-    container: Operand = operand_def(Attribute)
+    position = attr_def(DenseArrayBase)
+    container = operand_def(Attribute)
 
-    res: OpResult = result_def(Attribute)
+    res = result_def(Attribute)
 
     def __init__(
         self,

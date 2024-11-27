@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from enum import auto
-from typing import Annotated, Generic
+from typing import Generic
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
-    AnyAttr,
+    I32,
     AnyIntegerAttr,
     ArrayAttr,
     Block,
@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemrefLayoutAttr,
     MemRefType,
     ModuleOp,
     NoneAttr,
@@ -55,6 +56,7 @@ from xdsl.irdl import (
     region_def,
     result_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
@@ -163,7 +165,7 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
         shape: Iterable[int | IntAttr],
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> ObjectFIFO[AttributeInvT]:
         return ObjectFIFO(
@@ -219,7 +221,7 @@ class AMSelOp(IRDLOperation):
     msel = attr_def(AnyIntegerAttr)
     result = result_def(IndexType())
 
-    traits = frozenset([HasParent(SwitchboxOp)])
+    traits = traits_def(HasParent(SwitchboxOp))
 
     def __init__(
         self, arbiterID: IntegerAttr[IntegerType], msel: IntegerAttr[IntegerType]
@@ -251,10 +253,10 @@ class BufferOp(IRDLOperation):
         self,
         tile: Operation | SSAValue,
         element_type: Attribute,
-        shape: ArrayAttr[AnyIntegerAttr],
+        shape: ArrayAttr[IntAttr],
         sym_name: StringAttr,
     ):
-        buffer_type = memref.MemRefType.from_element_type_and_shape(element_type, shape)
+        buffer_type = memref.MemRefType(element_type, shape)
         super().__init__(
             operands=[tile],
             attributes={"sym_name": sym_name},
@@ -312,7 +314,7 @@ class ConnectOp(IRDLOperation):
     destBundle = attr_def(WireBundleAttr)
     destChannel = attr_def(AnyIntegerAttr)
 
-    traits = frozenset([HasParent(SwitchboxOp, ShimMuxOp)])
+    traits = traits_def(HasParent(SwitchboxOp, ShimMuxOp))
 
     def __init__(
         self,
@@ -566,8 +568,8 @@ class DMAStartOp(IRDLOperation):
     dest = successor_def()
     chain = successor_def()
 
-    traits = frozenset(
-        [IsTerminator(), HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp)]
+    traits = traits_def(
+        IsTerminator(), HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp)
     )
 
     def __init__(
@@ -609,7 +611,7 @@ class DMAStartOp(IRDLOperation):
 @irdl_op_definition
 class DebugOp(IRDLOperation):
     name = "aie.debug"
-    arg = operand_def(AnyAttr())
+    arg = operand_def()
 
     def __init__(self, arg: Operation | SSAValue):
         super().__init__(operands=[arg])
@@ -622,7 +624,7 @@ class DeviceOp(IRDLOperation):
     region = opt_region_def()
 
     device = attr_def(AIEDeviceAttr)
-    traits = frozenset([SymbolTable(), NoTerminator(), HasParent(ModuleOp)])
+    traits = traits_def(SymbolTable(), NoTerminator(), HasParent(ModuleOp))
 
     def __init__(self, device: AIEDeviceAttr, region: Region):
         super().__init__(attributes={"device": device}, regions=[region])
@@ -656,14 +658,13 @@ class ExternalBufferOp(IRDLOperation):
     def __init__(
         self,
         sym_name: str,
-        shape: ArrayAttr[AnyIntegerAttr],
+        shape: ArrayAttr[IntAttr],
         element_type: Attribute,
     ):
+        memref.MemRefType(element_type, shape)
         super().__init__(
             attributes={"sym_name": StringAttr(sym_name)},
-            result_types=[
-                memref.MemRefType.from_element_type_and_shape(element_type, shape)
-            ],
+            result_types=[memref.MemRefType(element_type, shape)],
         )
 
     assembly_format = "attr-dict `:` type($buffer)"
@@ -739,7 +740,7 @@ class FlowOp(IRDLOperation):
 class GetCascadeOp(IRDLOperation):
     name = "getCascade"
 
-    traits = frozenset([HasParent(CoreOp)])
+    traits = traits_def(HasParent(CoreOp))
 
     def __init__(self):
         super().__init__(result_types=[IntegerType(CASCADE_SIZE)])
@@ -752,7 +753,7 @@ class GetStreamOp(IRDLOperation):
     channel = operand_def(i32)
     result = result_def(IntegerType)
 
-    traits = frozenset([HasParent(CoreOp)])
+    traits = traits_def(HasParent(CoreOp))
 
     def __init__(self, channel: Operation | SSAValue):
         super().__init__(
@@ -827,7 +828,7 @@ class MasterSetOp(IRDLOperation):
     destChannel = attr_def(IntegerAttr[IntegerType])
     amsels = operand_def(IndexType())
 
-    traits = frozenset([HasParent(SwitchboxOp)])
+    traits = traits_def(HasParent(SwitchboxOp))
 
     def __init__(
         self,
@@ -848,8 +849,8 @@ class NextBDOp(IRDLOperation):
 
     dest = successor_def()
 
-    traits = frozenset(
-        [HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp), IsTerminator()]
+    traits = traits_def(
+        HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp), IsTerminator()
     )
 
     def __init__(self, dest: Block):
@@ -874,7 +875,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
     size = attr_def(IntegerAttr[IntegerType])
     object_fifo = attr_def(SymbolRefAttr)
 
-    result: OpResult = result_def(ObjectFIFOSubview)
+    result = result_def(ObjectFIFOSubview)
 
     def __init__(
         self,
@@ -887,7 +888,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
         if isinstance(object_fifo, str):
             object_fifo = SymbolRefAttr(object_fifo)
 
-        result_subview = ObjectFIFOSubview.from_element_type_and_shape(
+        result_subview = ObjectFIFOSubview[Attribute].from_element_type_and_shape(
             element_type, shape
         )
         super().__init__(
@@ -932,7 +933,7 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
     externalBuffers = operand_def(memref.MemRefType)
     object_fifo = attr_def(SymbolRefAttr)
 
-    traits = frozenset([HasParent(DeviceOp)])
+    traits = traits_def(HasParent(DeviceOp))
 
     def __init__(
         self,
@@ -1037,7 +1038,7 @@ class createObjectFifo(IRDLOperation):
     sym_name = attr_def(StringAttr)
     object_fifo = attr_def(ObjectFIFO[Attribute])
 
-    traits = frozenset([SymbolOpInterface(), HasParent(DeviceOp)])
+    traits = traits_def(SymbolOpInterface(), HasParent(DeviceOp))
 
     def __init__(
         self,
@@ -1048,7 +1049,9 @@ class createObjectFifo(IRDLOperation):
         shape: Iterable[int | IntAttr],
         name: str,
     ):
-        object_fifo = ObjectFIFO.from_element_type_and_shape(referenced_type, shape)
+        object_fifo = ObjectFIFO[Attribute].from_element_type_and_shape(
+            referenced_type, shape
+        )
         super().__init__(
             attributes={
                 "elemNumber": elemNumber,
@@ -1170,7 +1173,7 @@ class EndOp(IRDLOperation):
     def __init__(self):
         super().__init__()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     assembly_format = "attr-dict"
 
@@ -1182,7 +1185,7 @@ class PacketFlowOp(IRDLOperation):
     ID = attr_def(IntegerAttr[IntegerType])
     region = region_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(EndOp)])
+    traits = traits_def(SingleBlockImplicitTerminator(EndOp))
 
     def __init__(self, ID: IntegerAttr[IntegerType], region: Region):
         super().__init__(attributes={"ID": ID}, regions=[region])
@@ -1210,7 +1213,7 @@ class PacketDestOp(IRDLOperation):
 
     tile = operand_def(IndexType())
 
-    traits = frozenset([HasParent(PacketFlowOp)])
+    traits = traits_def(HasParent(PacketFlowOp))
 
     def __init__(
         self,
@@ -1269,7 +1272,7 @@ class PacketRuleOp(IRDLOperation):
 
     amsel = operand_def(IndexType())
 
-    traits = frozenset([HasParent(PacketRulesOp)])
+    traits = traits_def(HasParent(PacketRulesOp))
 
     def __init__(
         self,
@@ -1288,7 +1291,7 @@ class PacketSourceOp(IRDLOperation):
     channel = attr_def(IntegerAttr[IntegerType])
     tile = operand_def(IndexType())
 
-    traits = frozenset([HasParent(PacketFlowOp)])
+    traits = traits_def(HasParent(PacketFlowOp))
 
     def __init__(
         self,
@@ -1329,7 +1332,7 @@ class PutCascade(IRDLOperation):
 
     cascadeValue = operand_def(IntegerType(CASCADE_SIZE))
 
-    traits = frozenset([HasParent(CoreOp)])
+    traits = traits_def(HasParent(CoreOp))
 
     def __init__(self, cascadeValue: Operation | SSAValue):
         super().__init__(operands=[cascadeValue])
@@ -1346,7 +1349,7 @@ class PutStream(IRDLOperation):
         or IntegerType(128, Signedness.SIGNLESS)
     )
 
-    traits = frozenset([HasParent(CoreOp)])
+    traits = traits_def(HasParent(CoreOp))
 
     def __init__(
         self, channel: Operation | SSAValue, streamValue: Operation | SSAValue
@@ -1359,11 +1362,11 @@ class ShimDMAAllocationOp(IRDLOperation):
     name = "aie.shimDMAAllocation"
 
     sym_name = attr_def(StringAttr)
-    channelDir = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
+    channelDir = attr_def(IntegerAttr[I32])
     channelIndex = attr_def(IntegerAttr[IntegerType])
     col = attr_def(IntegerAttr[IntegerType])
 
-    traits = frozenset([HasParent(DeviceOp)])
+    traits = traits_def(HasParent(DeviceOp))
 
     def __init__(
         self,

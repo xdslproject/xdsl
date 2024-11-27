@@ -15,8 +15,8 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.builtin import BuiltinFunctions
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
 
@@ -28,7 +28,7 @@ from xdsl.interpreters.onnx import OnnxFunctions  # noqa: E402
 def test_onnx_add():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Add(
+    op = onnx.AddOp(
         TestSSAValue(TensorType(f32, [2, 3])),
         TestSSAValue(TensorType(f32, [2, 3])),
         res_type=TensorType(f32, [2, 3]),
@@ -44,7 +44,7 @@ def test_onnx_add():
 def test_onnx_sub():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Sub(
+    op = onnx.SubOp(
         TestSSAValue(TensorType(f32, [2, 3])),
         TestSSAValue(TensorType(f32, [2, 3])),
         res_type=TensorType(f32, [2, 3]),
@@ -60,7 +60,7 @@ def test_onnx_sub():
 def test_onnx_mul():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Mul(
+    op = onnx.MulOp(
         TestSSAValue(TensorType(f32, [2, 2])),
         TestSSAValue(TensorType(f32, [2, 2])),
         res_type=TensorType(f32, [2, 2]),
@@ -76,7 +76,7 @@ def test_onnx_mul():
 def test_onnx_div():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Div(
+    op = onnx.DivOp(
         TestSSAValue(TensorType(f32, [2, 2])),
         TestSSAValue(TensorType(f32, [2, 2])),
         res_type=TensorType(f32, [2, 2]),
@@ -92,7 +92,7 @@ def test_onnx_div():
 def test_onnx_relu():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Relu(
+    op = onnx.ReluOp(
         TestSSAValue(TensorType(f32, [2, 2])),
     )
 
@@ -105,7 +105,7 @@ def test_onnx_constant():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
     interpreter.register_implementations(BuiltinFunctions())
-    op = onnx.Constant(
+    op = onnx.ConstantOp(
         (
             DenseIntOrFPElementsAttr.create_dense_int(
                 TensorType(i64, [4]), [5, 5, 16, 2]
@@ -127,7 +127,7 @@ def test_onnx_constant():
 def test_onnx_reshape():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Reshape(
+    op = onnx.ReshapeOp(
         (TestSSAValue(TensorType(f32, [1, 10]))),
         (TestSSAValue(TensorType(i64, [2]))),
         AnyIntegerAttr(0, i64),
@@ -143,7 +143,7 @@ def test_onnx_reshape():
 def test_onnx_reshape_error():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Reshape(
+    op = onnx.ReshapeOp(
         (TestSSAValue(TensorType(f32, [1, 10]))),
         (TestSSAValue(TensorType(i64, [2]))),
         AnyIntegerAttr(0, i64),
@@ -159,7 +159,7 @@ def test_onnx_reshape_error():
 def test_onnx_gemm():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Gemm(
+    op = onnx.GemmOp(
         TestSSAValue(TensorType(f32, [2, 2])),
         TestSSAValue(TensorType(f32, [2, 2])),
         TestSSAValue(TensorType(f32, [2, 2])),
@@ -179,7 +179,7 @@ def test_onnx_gemm():
 def test_onnx_gemm_transpose_b():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Gemm(
+    op = onnx.GemmOp(
         TestSSAValue(TensorType(f32, [2, 1])),
         TestSSAValue(TensorType(f32, [2, 1])),
         TestSSAValue(TensorType(f32, [2, 2])),
@@ -199,7 +199,7 @@ def test_onnx_gemm_transpose_b():
 def test_onnx_gemm_alpha():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Gemm(
+    op = onnx.GemmOp(
         TestSSAValue(TensorType(f32, [2, 1])),
         TestSSAValue(TensorType(f32, [1, 2])),
         TestSSAValue(TensorType(f32, [2, 2])),
@@ -219,7 +219,7 @@ def test_onnx_gemm_alpha():
 def test_onnx_conv_no_padding():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Conv(
+    op = onnx.ConvOp(
         TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
         TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
         TestSSAValue(NoneType()),
@@ -258,7 +258,7 @@ def test_onnx_conv_no_padding():
 def test_onnx_conv_with_padding():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Conv(
+    op = onnx.ConvOp(
         TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
         TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
         TestSSAValue(NoneType()),
@@ -326,7 +326,7 @@ def test_onnx_conv_with_padding():
 def test_onnx_conv_with_same_lower_strides():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Conv(
+    op = onnx.ConvOp(
         TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
         TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
         TestSSAValue(NoneType()),
@@ -366,7 +366,7 @@ def test_onnx_conv_with_same_lower_strides():
 def test_onnx_conv_with_strides_padding():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Conv(
+    op = onnx.ConvOp(
         TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
         TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
         TestSSAValue(NoneType()),
@@ -421,7 +421,7 @@ def test_onnx_conv_with_strides_padding():
 def test_onnx_conv_with_strides_no_padding():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Conv(
+    op = onnx.ConvOp(
         TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
         TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
         TestSSAValue(NoneType()),
@@ -460,7 +460,7 @@ def test_onnx_conv_with_strides_no_padding():
 def test_onnx_conv_with_strides_asy_padding():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Conv(
+    op = onnx.ConvOp(
         TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
         TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
         TestSSAValue(NoneType()),
@@ -500,7 +500,7 @@ def test_onnx_conv_with_strides_asy_padding():
 def test_onnx_max_pool_single_out():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.MaxPoolSingleOut(
+    op = onnx.MaxPoolSingleOutOp(
         TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
         StringAttr("NOTSET"),
         AnyIntegerAttr(0, i64),
@@ -528,7 +528,7 @@ def test_onnx_max_pool_single_out():
 def test_onnx_max_pool_single_out_strides_two():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
-    op = onnx.MaxPoolSingleOut(
+    op = onnx.MaxPoolSingleOutOp(
         TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
         StringAttr("NOTSET"),
         AnyIntegerAttr(0, i64),

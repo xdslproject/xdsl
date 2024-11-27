@@ -1,12 +1,12 @@
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
-    DenseIntOrFPElementsAttr,
-    FloatAttr,
-    IntegerAttr,
+    Float32Type,
+    Float64Type,
+    IntegerType,
     UnrealizedConversionCastOp,
 )
 from xdsl.interpreter import (
@@ -16,9 +16,10 @@ from xdsl.interpreter import (
     impl_attr,
     register_impls,
 )
-from xdsl.interpreters import ptr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute
+from xdsl.utils.hints import isa
 
 
 def xtype_for_el_type(
@@ -53,23 +54,41 @@ class BuiltinFunctions(InterpreterFunctions):
             for (o, r, arg) in zip(op.operands, op.results, args)
         )
 
-    @impl_attr(FloatAttr)
-    def float_attr_value(self, interpreter: Interpreter, attr: AnyFloatAttr) -> float:
-        return attr.value.data
-
-    @impl_attr(IntegerAttr)
-    def integer_attr_value(
-        self, interpreter: Interpreter, attr: AnyIntegerAttr
+    @impl_attr(Float64Type)
+    def float64_attr_value(
+        self, interpreter: Interpreter, attr: Attribute, attr_type: Float64Type
     ) -> float:
+        interpreter.interpreter_assert(isa(attr, AnyFloatAttr))
+        attr = cast(AnyFloatAttr, attr)
         return attr.value.data
 
-    @impl_attr(DenseIntOrFPElementsAttr)
+    @impl_attr(Float32Type)
+    def float32_attr_value(
+        self, interpreter: Interpreter, attr: Attribute, attr_type: Float32Type
+    ) -> float:
+        interpreter.interpreter_assert(isa(attr, AnyFloatAttr))
+        attr = cast(AnyFloatAttr, attr)
+        return attr.value.data
+
+    @impl_attr(IntegerType)
+    def integer_attr_value(
+        self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
+    ) -> float:
+        interpreter.interpreter_assert(isa(attr, AnyIntegerAttr))
+        attr = cast(AnyIntegerAttr, attr)
+        return attr.value.data
+
+    @impl_attr(builtin.MemRefType)
     def dense_int_or_fp_elements_value(
-        self, interpreter: Interpreter, attr: DenseIntOrFPElementsAttr
+        self,
+        interpreter: Interpreter,
+        attr: Attribute,
+        type_attr: builtin.MemRefType[Any],
     ) -> ShapedArray[Any]:
+        assert isinstance(attr, builtin.DenseIntOrFPElementsAttr)
         shape = attr.get_shape()
         data = [el.value.data for el in attr.data]
-        data_ptr = ptr.TypedPtr.new(
+        data_ptr = ptr.TypedPtr[Any].new(
             data,
             xtype=xtype_for_el_type(
                 attr.get_element_type(), interpreter.index_bitwidth

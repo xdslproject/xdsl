@@ -30,3 +30,14 @@ pdl.pattern @boundedOperation : benefit(1) {
 
 // CHECK: @boundedOperation
 // CHECK: %{{.*}} = pdl.operation "test.test" (%{{.*}}, %{{.*}} : !pdl.value, !pdl.range<value>) {"value1" = %{{.*}}, "value2" = %{{.*}}} -> (%{{.*}}, %{{.*}} : !pdl.range<type>, !pdl.type)
+
+pdl.pattern @noresultsOperation : benefit(1) {
+    %root = pdl.operation "test.op"
+    pdl.rewrite %root with "test_rewriter"(%root : !pdl.operation)
+}
+
+// CHECK:       pdl.pattern @noresultsOperation : benefit(1) {
+// CHECK-NEXT:     %root_2 = pdl.operation "test.op"
+// CHECK-NEXT:     pdl.rewrite %root_2 with "test_rewriter"(%root_2 : !pdl.operation)
+// CHECK-NEXT:  }
+// CHECK-NEXT:   

@@ -17,9 +17,9 @@ from xdsl.interpreters.shaped_array import ShapedArray
 
 @register_impls
 class LinalgFunctions(InterpreterFunctions):
-    @impl(linalg.Generic)
+    @impl(linalg.GenericOp)
     def run_generic(
-        self, interpreter: Interpreter, op: linalg.Generic, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
         if op.library_call is not None:
             raise NotImplementedError(
@@ -222,7 +222,6 @@ class LinalgFunctions(InterpreterFunctions):
         op: linalg.Conv2DNchwFchwOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-
         input, kernel_filter, res = args[0], args[1], args[2]
         assert isinstance(input, ShapedArray)
         assert isinstance(kernel_filter, ShapedArray)

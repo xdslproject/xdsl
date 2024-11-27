@@ -14,19 +14,18 @@ from xdsl.dialects.riscv import (
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    IRDLOperation,
     Successor,
-    VarOperand,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalisationPatternsTrait, IsTerminator
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import VerifyException
 
@@ -44,7 +43,7 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
-class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv_cf import (
@@ -54,7 +53,7 @@ class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPattern
         return (ElideConstantBranches(),)
 
 
-class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
+class ConditionalBranchOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
     """
@@ -70,8 +69,8 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset(
-        [IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()]
+    traits = traits_def(
+        IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()
     )
 
     def __init__(
@@ -130,10 +129,7 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
         if parent_region is None:
             return
 
-        this_index = parent_region.blocks.index(parent_block)
-        else_index = parent_region.blocks.index(self.else_block)
-
-        if this_index + 1 != else_index:
+        if parent_block.next_block is not self.else_block:
             raise VerifyException(
                 "riscv_cf branch op else block must be immediately after op"
             )
@@ -303,7 +299,7 @@ class BgeuOp(ConditionalBranchOperation):
 
 
 @irdl_op_definition
-class BranchOp(IRDLOperation, riscv.RISCVOp):
+class BranchOp(riscv.RISCVAsmOperation):
     """
     Branches to a different block, which must follow this operation's block in the parent
     region. Is not printed in assembly.
@@ -313,12 +309,12 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
 
     block_arguments = var_operand_def(RISCVRegisterType)
     successor = successor_def()
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -392,7 +388,7 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
 
 
 @irdl_op_definition
-class JOp(IRDLOperation, RISCVInstruction):
+class JOp(RISCVInstruction):
     """
     A pseudo-instruction, for unconditional jumps you don't expect to return from.
     Is equivalent to JalOp with `rd` = `x0`.
@@ -401,11 +397,11 @@ class JOp(IRDLOperation, RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    block_arguments = var_operand_def(RISCVRegisterType)
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
