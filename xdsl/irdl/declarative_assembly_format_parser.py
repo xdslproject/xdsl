@@ -256,6 +256,12 @@ class FormatParser(BaseParser):
 
     @dataclass(frozen=True)
     class _AttrExtractor(VarExtractor[ParsingState]):
+        """
+        Extracts constraint variables from the attributes/properties of an operation.
+        The attribute/property is assumed to either be non-optional, or have a
+        default value given by the default_value field.
+        """
+
         name: str
         is_prop: bool
         inner: VarExtractor[Attribute]
@@ -266,6 +272,8 @@ class FormatParser(BaseParser):
                 attr = a.properties.get(self.name, self.default_value)
             else:
                 attr = a.attributes.get(self.name, self.default_value)
+            # This assertion should only fail if the property was not given
+            # and does not have a default value.
             assert attr is not None
             return self.inner.extract_var(attr)
 
