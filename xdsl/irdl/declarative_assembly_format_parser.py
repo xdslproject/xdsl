@@ -259,12 +259,14 @@ class FormatParser(BaseParser):
         name: str
         is_prop: bool
         inner: VarExtractor[Attribute]
+        default_value: Attribute | None
 
         def extract_var(self, a: ParsingState) -> ConstraintVariableType:
             if self.is_prop:
-                attr = a.properties[self.name]
+                attr = a.properties.get(self.name, self.default_value)
             else:
-                attr = a.attributes[self.name]
+                attr = a.attributes.get(self.name, self.default_value)
+            assert attr is not None
             return self.inner.extract_var(attr)
 
     def extractors_by_name(self) -> dict[str, VarExtractor[ParsingState]]:
@@ -289,16 +291,20 @@ class FormatParser(BaseParser):
                     }
                 )
         for prop_name, prop_def in self.op_def.properties.items():
+            if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
+                continue
             extractor_dicts.append(
                 {
-                    v: self._AttrExtractor(prop_name, True, r)
+                    v: self._AttrExtractor(prop_name, True, r, prop_def.default_value)
                     for v, r in prop_def.constr.get_variable_extractors().items()
                 }
             )
         for attr_name, attr_def in self.op_def.attributes.items():
+            if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
+                continue
             extractor_dicts.append(
                 {
-                    v: self._AttrExtractor(attr_name, False, r)
+                    v: self._AttrExtractor(attr_name, False, r, attr_def.default_value)
                     for v, r in attr_def.constr.get_variable_extractors().items()
                 }
             )

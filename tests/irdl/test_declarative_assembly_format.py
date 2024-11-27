@@ -11,6 +11,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     I32,
+    AnyIntegerAttrConstr,
     BoolAttr,
     Float64Type,
     FloatAttr,
@@ -41,6 +42,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
+    TypedAttributeConstraint,
     VarConstraint,
     VarOperand,
     VarOpResult,
@@ -2219,6 +2221,73 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     printer.print_op(parsed)
 
     assert generic == stream.getvalue()
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.opt_constant : ()",
+            '"test.opt_constant"() : () -> ()',
+        ),
+        (
+            "%0 = test.opt_constant value 1 : i32 : (i32)",
+            '%0 = "test.opt_constant"() <{"value" = 1 : i32}> : () -> (i32)',
+        ),
+    ],
+)
+def test_optional_property_with_extractor(program: str, generic: str):
+    @irdl_op_definition
+    class OptConstantOp(IRDLOperation):
+        name = "test.opt_constant"
+        T: ClassVar = VarConstraint("T", AnyAttr())
+
+        value = opt_prop_def(TypedAttributeConstraint(AnyIntegerAttrConstr, T))
+
+        res = opt_result_def(T)
+
+        assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
+
+    ctx = MLContext()
+    ctx.load_op(OptConstantOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "%0 = test.default_constant",
+            '%0 = "test.default_constant"() <{"value" = true}> : () -> (i1)',
+        ),
+        (
+            "%0 = test.default_constant value 2 : i32",
+            '%0 = "test.default_constant"() <{"value" = 2 : i32}> : () -> (i32)',
+        ),
+    ],
+)
+def test_default_property_with_extractor(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultConstantOp(IRDLOperation):
+        name = "test.default_constant"
+        T: ClassVar = VarConstraint("T", AnyAttr())
+
+        value = prop_def(
+            TypedAttributeConstraint(AnyIntegerAttrConstr, T),
+            default_value=BoolAttr.from_bool(True),
+        )
+
+        res = result_def(T)
+
+        assembly_format = "(`value` $value^)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(DefaultConstantOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
 
 
 ################################################################################
