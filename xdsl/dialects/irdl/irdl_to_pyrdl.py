@@ -11,6 +11,7 @@ from xdsl.dialects.irdl import (
     ResultsOp,
     TypeOp,
 )
+from xdsl.dialects.irdl.utils import class_name_from_op
 
 
 def convert_type_or_attr(op: TypeOp | AttributeOp, dialect_name: str) -> str:
@@ -33,15 +34,11 @@ class {op.sym_name.data}(ParametrizedAttribute{type_addition}):
     return res
 
 
-def class_name_from_op_name(op: OperationOp) -> str:
-    return "".join(x.capitalize() for x in op.sym_name.data.split("_")) + "Op"
-
-
 def convert_op(op: OperationOp, dialect_name: str) -> str:
     """Convert an IRDL operation to Python code creating that operation in xDSL."""
     res = f"""\
 @irdl_op_definition
-class {class_name_from_op_name(op)}(IRDLOperation):
+class {class_name_from_op(op)}(IRDLOperation):
     name = "{dialect_name}.{op.sym_name.data}"
 """
 
@@ -68,7 +65,7 @@ def convert_dialect(dialect: DialectOp) -> str:
             attrs += [op.sym_name.data]
         if isinstance(op, OperationOp):
             res += convert_op(op, dialect.sym_name.data) + "\n\n"
-            ops += [class_name_from_op_name(op)]
+            ops += [class_name_from_op(op)]
     op_list = "[" + ", ".join(ops) + "]"
     attr_list = "[" + ", ".join(attrs) + "]"
     return (
