@@ -858,7 +858,6 @@ class AttrParser(BaseParser):
                 assert len(data_values) == 1, "Fatal error in parser"
                 data_values *= type_num_values
 
-        assert type
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
