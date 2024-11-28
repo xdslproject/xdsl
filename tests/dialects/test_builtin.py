@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
     Float128Type,
     FloatAttr,
     FloatData,
-    IndexType,
     IntAttr,
     MemRefType,
     NoneAttr,
@@ -91,15 +90,9 @@ def test_DenseArrayBase_verifier_failure():
     )
 
     with pytest.raises(VerifyException) as err:
-        DenseArrayBase([IndexType(), ArrayAttr([FloatData(0.0)])])
-    assert err.value.args[0] == (
-        "dense array of integer or index element type " "should only contain integers"
-    )
-
-    with pytest.raises(VerifyException) as err:
         DenseArrayBase([i32, ArrayAttr([FloatData(0.0)])])
     assert err.value.args[0] == (
-        "dense array of integer or index element type " "should only contain integers"
+        "dense array of integer element type " "should only contain integers"
     )
 
 

@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, deprecated
+from typing_extensions import Self
 
 from xdsl.ir import (
     Attribute,
@@ -951,32 +951,23 @@ class DenseResourceAttr(ParametrizedAttribute):
 class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | IndexType | AnyFloat]
+    elt_type: ParameterDef[IntegerType | AnyFloat]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType | IndexType):
+        if isinstance(self.elt_type, IntegerType):
             for d in self.data.data:
                 if isinstance(d, FloatData):
                     raise VerifyException(
-                        "dense array of integer or index element type "
-                        "should only contain integers"
+                        "dense array of integer element type should only contain "
+                        "integers"
                     )
         else:
             for d in self.data.data:
                 if isinstance(d, IntAttr):
                     raise VerifyException(
-                        "dense array of float element type "
-                        "should only contain floats"
+                        "dense array of float element type should only contain floats"
                     )
-
-    @deprecated("Please use `create_dense_int` instead.")
-    @staticmethod
-    def create_dense_int_or_index(
-        data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
-    ) -> DenseArrayBase:
-        assert not isinstance(data_type, IndexType), "Index type is not supported"
-        return DenseArrayBase.create_dense_int(data_type, data)
 
     @staticmethod
     def create_dense_int(
@@ -1003,7 +994,7 @@ class DenseArrayBase(ParametrizedAttribute):
     @overload
     @staticmethod
     def from_list(
-        data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+        data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase: ...
 
     @overload
