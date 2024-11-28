@@ -769,18 +769,12 @@ class AttrParser(BaseParser):
 
     def _parse_dense_literal_type(
         self,
-    ) -> (
-        RankedStructure[IntegerType]
-        | RankedStructure[IndexType]
-        | RankedStructure[AnyFloat]
-    ):
+    ) -> RankedStructure[IntegerType] | RankedStructure[AnyFloat]:
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
         if not isattr(
             type,
-            base(RankedStructure[IntegerType])
-            | base(RankedStructure[IndexType])
-            | base(RankedStructure[AnyFloat]),
+            base(RankedStructure[IntegerType]) | base(RankedStructure[AnyFloat]),
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
@@ -864,6 +858,7 @@ class AttrParser(BaseParser):
                 assert len(data_values) == 1, "Fatal error in parser"
                 data_values *= type_num_values
 
+        assert type
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:

@@ -128,7 +128,7 @@ class VarithSwitchOp(IRDLOperation):
         unresolved_flag = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         flag_type = parser.parse_type()
-        assert isinstance(flag_type, IntegerType | IndexType)
+        assert isinstance(flag_type, IntegerType)
         flag = parser.resolve_operand(unresolved_flag, flag_type)
         parser.parse_punctuation("->")
         return_type = parser.parse_type()

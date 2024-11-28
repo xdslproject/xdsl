@@ -8,7 +8,6 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
-    IndexType,
     IndexTypeConstr,
     IntegerType,
     SignlessIntegerConstraint,
@@ -364,7 +363,7 @@ class SwitchOp(IRDLOperation):
             cases = parser.parse_comma_separated_list(
                 Parser.Delimiter.NONE, lambda: cls._parse_case(parser)
             )
-            assert isinstance(flag_type, IntegerType | IndexType)
+            assert isinstance(flag_type, IntegerType)
             case_values = DenseIntOrFPElementsAttr.vector_from_list(
                 [x for (x, _, _) in cases], flag_type
             )
