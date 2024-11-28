@@ -145,7 +145,7 @@ class OnnxFunctions(InterpreterFunctions):
                 op.value.get_element_type(), interpreter.index_bitwidth
             ),
         )
-        return (ShapedArray(data_ptr, list(shape) if shape is not None else []),)
+        return (ShapedArray(data_ptr, list(shape)),)
 
     @impl(onnx.ReshapeOp)
     def run_reshape(

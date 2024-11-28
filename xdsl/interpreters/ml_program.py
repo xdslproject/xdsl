@@ -28,8 +28,6 @@ class MLProgramFunctions(InterpreterFunctions):
         global_value = global_op.value
         assert isinstance(global_value, DenseIntOrFPElementsAttr)
         shape = global_value.get_shape()
-        if shape is None:
-            raise NotImplementedError()
         xtype = xtype_for_el_type(
             global_value.get_element_type(), interpreter.index_bitwidth
         )
