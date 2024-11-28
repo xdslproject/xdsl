@@ -4,12 +4,13 @@ import itertools
 import struct
 from collections.abc import Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Generic, Literal, TypeVar, final
+from typing import Generic, Literal, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.utils.xtype import XType, float32, float64, int32, int64
+
 _T = TypeVar("_T")
-_TCov = TypeVar("_TCov", covariant=True)
 
 
 @dataclass
@@ -64,32 +65,6 @@ class RawPtr:
     @property
     def float64(self) -> TypedPtr[float]:
         return TypedPtr(self, xtype=float64)
-
-
-@final
-@dataclass(frozen=True)
-class XType(Generic[_TCov]):
-    """
-    A typed format representation, similar to numpy's dtype.
-    """
-
-    type: type[_TCov]
-    format: str
-    """
-    Format string as specified in the `struct` module.
-    https://docs.python.org/3/library/struct.html
-    """
-
-    @property
-    def size(self) -> int:
-        return struct.calcsize(self.format)
-
-
-int32 = XType(int, "<i")
-int64 = XType(int, "<q")
-float32 = XType(float, "<f")
-float64 = XType(float, "<d")
-
 
 def index(bitwidth: Literal[32, 64]) -> XType[int]:
     return int32 if bitwidth == 32 else int64
