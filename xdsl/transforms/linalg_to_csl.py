@@ -45,7 +45,7 @@ def get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
         isinstance(op, OpResult)
         and isinstance(op.op, arith.ConstantOp)
         and isa(val := op.op.value, DenseIntOrFPElementsAttr)
-        and val.is_scalar()
+        and val.is_splat()
     ):
         return val.get_attrs()[0]
 

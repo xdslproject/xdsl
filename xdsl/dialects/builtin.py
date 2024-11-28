@@ -1888,7 +1888,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         """
         return self._data.data
 
-    def is_scalar(self) -> bool:
+    def is_splat(self) -> bool:
         """
         Return whethere or not this dense attribute is defined entirely
         by a single value (splat).

@@ -93,7 +93,7 @@ class FuseMultiplyAddPass(RewritePattern):
             and isinstance(op.op, arith.ConstantOp)
             and (
                 not isinstance(v := op.op.value, DenseIntOrFPElementsAttr)
-                or v.is_scalar()
+                or v.is_splat()
             )
         )
 

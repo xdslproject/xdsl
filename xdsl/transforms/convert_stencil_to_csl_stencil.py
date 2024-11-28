@@ -578,7 +578,7 @@ class PromoteCoefficients(RewritePattern):
         if (
             not isinstance(cnst := coeff.owner, arith.ConstantOp)
             or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
-            or not dense.is_scalar()
+            or not dense.is_splat()
         ):
             return
 
