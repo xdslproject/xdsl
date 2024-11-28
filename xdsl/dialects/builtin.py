@@ -1733,9 +1733,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    def get_shape(self) -> tuple[int, ...] | None:
-        if isinstance(self.type, UnrankedTensorType):
-            return None
+    def get_shape(self) -> tuple[int, ...]:
         return self.type.get_shape()
 
     def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
@@ -1744,8 +1742,6 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     @property
     def shape_is_complete(self) -> bool:
         shape = self.get_shape()
-        if shape is None or not len(shape):
-            return False
 
         n = 1
         for dim in shape:

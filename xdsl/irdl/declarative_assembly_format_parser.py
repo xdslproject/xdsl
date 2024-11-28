@@ -46,6 +46,7 @@ from xdsl.irdl.declarative_assembly_format import (
     FormatProgram,
     KeywordDirective,
     OperandOrResult,
+    OperandsDirective,
     OperandVariable,
     OptionalAttributeVariable,
     OptionalGroupDirective,
@@ -59,6 +60,7 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
+    ResultsDirective,
     ResultVariable,
     SuccessorVariable,
     TypeableDirective,
@@ -699,6 +701,10 @@ class FormatParser(BaseParser):
         Parse a typeable directive, with the following format:
           directive ::= variable
         """
+        if self.parse_optional_keyword("operands"):
+            return self.create_operands_directive(False)
+        if self.parse_optional_keyword("results"):
+            return self.create_results_directive()
         if variable := self.parse_optional_typeable_variable():
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
@@ -718,6 +724,8 @@ class FormatParser(BaseParser):
             return self.create_attr_dict_directive(True)
         if self.parse_optional_keyword("type"):
             return self.parse_type_directive()
+        if self.parse_optional_keyword("operands"):
+            return self.create_operands_directive(True)
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):
@@ -744,3 +752,46 @@ class FormatParser(BaseParser):
             reserved_attr_names=set(),
             print_properties=print_properties,
         )
+
+    def create_operands_directive(self, top_level: bool) -> OperandsDirective:
+        if not self.op_def.operands:
+            self.raise_error("'operands' should not be used when there are no operands")
+        if top_level and any(self.seen_operands):
+            self.raise_error("'operands' cannot be used with other operand directives")
+        if not top_level and any(self.seen_operand_types):
+            self.raise_error(
+                "'operands' cannot be used in a type directive with other operand type directives"
+            )
+        variadics = tuple(
+            (isinstance(o, OptionalDef), i)
+            for i, (_, o) in enumerate(self.op_def.operands)
+            if isinstance(o, VariadicDef)
+        )
+        if len(variadics) > 1:
+            self.raise_error("'operands' is ambiguous with multiple variadic operands")
+        if top_level:
+            self.seen_operands = [True] * len(self.seen_operands)
+        else:
+            self.seen_operand_types = [True] * len(self.seen_operand_types)
+        if not variadics:
+            return OperandsDirective(None)
+        return OperandsDirective(variadics[0])
+
+    def create_results_directive(self) -> ResultsDirective:
+        if not self.op_def.results:
+            self.raise_error("'results' should not be used when there are no results")
+        if any(self.seen_result_types):
+            self.raise_error(
+                "'results' cannot be used in a type directive with other result type directives"
+            )
+        variadics = tuple(
+            (isinstance(o, OptResultDef), i)
+            for i, (_, o) in enumerate(self.op_def.results)
+            if isinstance(o, VarResultDef)
+        )
+        if len(variadics) > 1:
+            self.raise_error("'results' is ambiguous with multiple variadic results")
+        self.seen_result_types = [True] * len(self.seen_result_types)
+        if not variadics:
+            return ResultsDirective(None)
+        return ResultsDirective(variadics[0])
