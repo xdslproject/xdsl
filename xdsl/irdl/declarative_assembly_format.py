@@ -357,9 +357,12 @@ class VariadicTypeDirective(VariadicLikeFormatDirective):
         return self.inner.parse_many_types(parser, state)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        types = self.inner.get_types(op)
+        if not types:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_list(self.inner.get_types(op), printer.print_attribute)
+        printer.print_list(types, printer.print_attribute)
         state.last_was_punctuation = False
         state.should_emit_space = True
 
@@ -535,13 +538,14 @@ class VariadicOperandVariable(VariadicVariable, VariadicOperandDirective):
         return ret
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operand = getattr(op, self.name)
+        if not operand:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        operand = getattr(op, self.name)
-        if operand:
-            printer.print_list(operand, printer.print_ssa_value)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_list(operand, printer.print_ssa_value)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return getattr(op, self.name).types
@@ -579,13 +583,14 @@ class OptionalOperandVariable(OptionalVariable, VariadicOperandDirective):
         return ret
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operand = getattr(op, self.name)
+        if not operand:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        operand = getattr(op, self.name)
-        if operand:
-            printer.print_ssa_value(operand)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_ssa_value(operand)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         operand = getattr(op, self.name)
@@ -866,13 +871,14 @@ class VariadicRegionVariable(VariadicRegionDirective, VariadicVariable):
         return bool(regions)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        region = getattr(op, self.name)
+        if not region:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        region = getattr(op, self.name)
-        if region:
-            printer.print_list(region, printer.print_region, delimiter=" ")
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_list(region, printer.print_region, delimiter=" ")
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -893,13 +899,14 @@ class OptionalRegionVariable(VariadicRegionDirective, OptionalVariable):
         return bool(region)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        region = getattr(op, self.name)
+        if not region:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        region = getattr(op, self.name)
-        if region:
-            printer.print_region(region)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_region(region)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -953,13 +960,14 @@ class VariadicSuccessorVariable(VariadicSuccessorDirective, VariadicVariable):
         return bool(successors)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        successor = getattr(op, self.name)
+        if not successor:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        successor = getattr(op, self.name)
-        if successor:
-            printer.print_list(successor, printer.print_block_name, delimiter=" ")
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_list(successor, printer.print_block_name, delimiter=" ")
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()
@@ -980,13 +988,14 @@ class OptionalSuccessorVariable(VariadicSuccessorDirective, OptionalVariable):
         return bool(successor)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        successor = getattr(op, self.name)
+        if not successor:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        successor = getattr(op, self.name)
-        if successor:
-            printer.print_block_name(successor)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_block_name(successor)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()
