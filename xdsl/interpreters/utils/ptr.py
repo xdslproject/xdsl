@@ -66,6 +66,7 @@ class RawPtr:
     def float64(self) -> TypedPtr[float]:
         return TypedPtr(self, xtype=float64)
 
+
 def index(bitwidth: Literal[32, 64]) -> XType[int]:
     return int32 if bitwidth == 32 else int64
 

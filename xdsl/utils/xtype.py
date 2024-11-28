@@ -6,6 +6,7 @@ from typing_extensions import TypeVar, final
 
 _TCov = TypeVar("_TCov", covariant=True)
 
+
 @final
 @dataclass(frozen=True)
 class XType(Generic[_TCov]):
@@ -30,11 +31,10 @@ class XType(Generic[_TCov]):
         """
         return self.format[0] + str(size) + self.format[1]
 
+
 int8 = XType(int, "<b")
 int16 = XType(int, "<h")
 int32 = XType(int, "<i")
 int64 = XType(int, "<q")
 float32 = XType(float, "<f")
 float64 = XType(float, "<d")
-
-
