@@ -365,7 +365,7 @@ class ConstantOpLowering(RewritePattern):
 
         # Scalar constant values for elements of the tensor
         constants: list[arith.ConstantOp] = [
-            arith.ConstantOp(FloatAttr(i.value.data, f64)) for i in constant_value.data
+            arith.ConstantOp(FloatAttr(i, f64)) for i in constant_value.get_values()
         ]
 
         # n-d indices of elements

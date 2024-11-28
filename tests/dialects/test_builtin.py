@@ -50,8 +50,8 @@ def test_FloatType_bitwidths():
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [])
 
-    value1 = check1.data.data[0].value.data
-    value2 = check1.data.data[1].value.data
+    value1 = check1.get_attrs()[0].value.data
+    value2 = check1.get_attrs()[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
     assert isinstance(value1, float)
@@ -64,8 +64,8 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 
     check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [])
 
-    value3 = check2.data.data[0].value.data
-    value4 = check2.data.data[1].value.data
+    value3 = check2.get_attrs()[0].value.data
+    value4 = check2.get_attrs()[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
     assert isinstance(value3, float)
@@ -77,7 +77,6 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 def test_DenseIntOrFPElementsAttr_from_list():
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
 
-    assert attr.data == ArrayAttr([FloatAttr(5.5, f32)])
     assert attr.type == AnyTensorType(f32, [])
 
 

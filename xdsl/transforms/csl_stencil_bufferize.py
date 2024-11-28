@@ -1,16 +1,21 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyMemRefType,
     AnyTensorType,
     AnyTensorTypeConstr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FunctionType,
+    IndexType,
+    IntegerType,
     ModuleOp,
+    RankedStructure,
     TensorType,
     i64,
 )
@@ -370,9 +375,11 @@ class ArithConstBufferize(RewritePattern):
             return
         assert isinstance(op.value, DenseIntOrFPElementsAttr)
         assert isa(op.value.type, TensorType[Attribute])
-        typ = DenseIntOrFPElementsAttr(
-            [tensor_to_memref_type(op.value.type), op.value.data]
+        memref_type = cast(
+            RankedStructure[AnyFloat | IntegerType | IndexType],
+            tensor_to_memref_type(op.value.type),
         )
+        typ = DenseIntOrFPElementsAttr.from_list(memref_type, op.value.get_values())
         rewriter.replace_matched_op(
             [
                 c := arith.ConstantOp(typ),
