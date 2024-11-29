@@ -29,7 +29,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
-    FloatData,
     FunctionType,
     IndexType,
     IntAttr,
@@ -575,20 +574,20 @@ class Printer:
         if isinstance(attribute, DenseArrayBase):
             self.print_string("array<")
             self.print_attribute(attribute.elt_type)
-            data = cast(ArrayAttr[IntAttr | FloatData], attribute.data)
-            if len(data.data) == 0:
+            if len(attribute) == 0:
                 self.print_string(">")
                 return
+            data = attribute.iter_values()
             self.print_string(": ")
             # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
             # therefore we need to print these as false and true
             if attribute.elt_type == i1:
                 self.print_list(
-                    data.data,
-                    lambda x: self.print_string("true" if x.data == 1 else "false"),
+                    data,
+                    lambda x: self.print_string("true" if x == 1 else "false"),
                 )
             else:
-                self.print_list(data.data, lambda x: self.print_string(f"{x.data}"))
+                self.print_list(data, lambda x: self.print_string(f"{x}"))
             self.print_string(">")
             return
 

@@ -292,10 +292,10 @@ def test_complex_init():
 
 def test_dense_as_tuple():
     floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
-    assert floats.as_tuple() == (3.14159, 2.71828)
+    assert floats.get_values() == (3.14159, 2.71828)
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
-    assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
+    assert ints.get_values() == (1, 1, 2, 3, 5, 8)
 
 
 def test_create_dense_int():

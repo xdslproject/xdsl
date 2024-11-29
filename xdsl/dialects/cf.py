@@ -239,7 +239,7 @@ class SwitchOp(IRDLOperation):
 
         def_sizes = cast(
             tuple[int, ...],
-            tuple(size_attr.data for size_attr in self.case_operand_segments.data.data),
+            tuple(size for size in self.case_operand_segments.iter_values()),
         )
 
         if sum(def_sizes) != len(self.case_operands):

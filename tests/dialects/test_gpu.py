@@ -224,8 +224,8 @@ def test_lane_id():
 def test_func():
     kernel = "mygpufunc"
     inputs = [builtin.IndexType()]
-    known_block_size = [32, 8, 4]
-    known_grid_size = [4, 16, 32]
+    known_block_size = (32, 8, 4)
+    known_grid_size = (4, 16, 32)
 
     body = Region(Block([ReturnOp([])]))
 
@@ -235,13 +235,10 @@ def test_func():
     assert func.kernel == builtin.UnitAttr()
     assert func.sym_name == builtin.StringAttr(kernel)
     assert func.known_block_size is not None
-    assert func.known_block_size.data == tuple(
-        builtin.IntegerAttr(i, builtin.i32) for i in known_block_size
-    )
+    assert func.known_block_size.get_values() == known_block_size
     assert func.known_grid_size is not None
-    assert func.known_grid_size.data == tuple(
-        builtin.IntegerAttr(i, builtin.i32) for i in known_grid_size
-    )
+    assert func.known_grid_size.get_values() == known_grid_size
+
     assert func.function_type == builtin.FunctionType.from_lists(inputs, [])
     assert func.body is body
 

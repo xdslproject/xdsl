@@ -1030,8 +1030,14 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             raise TypeError(f"Unsupported element type {data_type}")
 
-    def as_tuple(self) -> tuple[int, ...] | tuple[float, ...]:
-        return tuple(x.data for x in self.data.data)
+    def iter_values(self) -> Iterator[float] | Iterator[int]:
+        return (attr.data for attr in self.data.data)
+
+    def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
+        return tuple(self.iter_values())
+
+    def __len__(self) -> int:
+        return len(self.data.data)
 
 
 @irdl_attr_definition
