@@ -386,6 +386,15 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
 
+    def verify_value(self, value: int):
+        min_value, max_value = self.value_range()
+
+        if not (min_value <= value < max_value):
+            raise VerifyException(
+                f"Integer value {value} is out of range for type {self} which supports "
+                f"values in the range [{min_value}, {max_value})"
+            )
+
     @property
     def bitwidth(self) -> int:
         return self.width.data
@@ -493,14 +502,7 @@ class IntegerAttr(
         if isinstance(int_type := self.type, IndexType):
             return
 
-        min_value, max_value = int_type.value_range()
-
-        if not (min_value <= self.value.data < max_value):
-            raise VerifyException(
-                f"Integer value {self.value.data} is out of range for "
-                f"type {self.type} which supports values in the "
-                f"range [{min_value}, {max_value})"
-            )
+        int_type.verify_value(self.value.data)
 
     @staticmethod
     def parse_with_type(
@@ -978,6 +980,12 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             attr_list = cast(Sequence[IntAttr], data)
 
+        try:
+            for attr in attr_list:
+                data_type.verify_value(attr.data)
+        except VerifyException as e:
+            raise ValueError(str(e))
+
         return DenseArrayBase([data_type, ArrayAttr(attr_list)])
 
     @staticmethod
@@ -1023,14 +1031,6 @@ class DenseArrayBase(ParametrizedAttribute):
             raise TypeError(f"Unsupported element type {data_type}")
 
     def as_tuple(self) -> tuple[int, ...] | tuple[float, ...]:
-        """
-        Get the "raw" data out as a tuple. This will not
-        apply the datatype restrictions that the array element
-        type would suggest!
-
-        e.g. given a dense<i8: 99999999, 255, 256>, as_tuple()
-        would return 1234567, 255, 256 and not 135, 255, 0 (mod 256)
-        """
         return tuple(x.data for x in self.data.data)
 
 

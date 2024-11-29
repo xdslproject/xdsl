@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 
 import pytest
@@ -30,6 +31,7 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     f32,
+    i8,
     i32,
     i64,
 )
@@ -294,6 +296,16 @@ def test_dense_as_tuple():
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
+
+
+def test_create_dense_int():
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Integer value 99999999 is out of range for type i8 which supports values in the range [-128, 256)"
+        ),
+    ):
+        DenseArrayBase.create_dense_int(i8, (99999999, 255, 256))
 
 
 def test_strides():
