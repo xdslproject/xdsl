@@ -68,7 +68,7 @@ from xdsl.utils.bitwise_casts import (
     convert_u32_to_f32,
     convert_u64_to_f64,
 )
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span, StringLiteral, Token
 
@@ -893,6 +893,33 @@ class AttrParser(BaseParser):
         type = self.parse_type()
         return DenseResourceAttr.from_params(resource_handle, type)
 
+    def _parse_typed_integer(
+        self,
+        type: IntegerType,
+        allow_boolean: bool = True,
+        allow_negative: bool = True,
+        context_msg: str = "",
+    ) -> int:
+        """
+        Parse an (possible negative) integer. The integer can
+        either be decimal or hexadecimal.
+        Optionally allow parsing of 'true' or 'false' into 1 and 0.
+        """
+
+        pos = self.pos
+        res = self.parse_integer(
+            allow_boolean=allow_boolean,
+            allow_negative=allow_negative,
+            context_msg=context_msg,
+        )
+
+        try:
+            type.verify_value(res)
+        except VerifyException as e:
+            self.raise_error(str(e), pos, self.pos)
+
+        return res
+
     def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
         self.parse_characters("<", " in dense array")
         element_type = self.parse_attribute()
@@ -900,7 +927,7 @@ class AttrParser(BaseParser):
         if not isinstance(element_type, IntegerType | AnyFloat):
             raise ParseError(
                 name,
-                "dense array element type must be an " "integer or floating point type",
+                "dense array element type must be an integer or floating point type",
             )
 
         # Empty array
@@ -909,13 +936,22 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(
-            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
-        )
+        if isinstance(element_type, IntegerType):
+            values = self.parse_comma_separated_list(
+                self.Delimiter.NONE,
+                lambda: self._parse_typed_integer(element_type, allow_boolean=True),
+            )
+            res = DenseArrayBase.create_dense_int(element_type, values)
+        else:
+            values = self.parse_comma_separated_list(
+                self.Delimiter.NONE,
+                lambda: self.parse_float(),
+            )
+            res = DenseArrayBase.create_dense_float(element_type, values)
 
         self.parse_characters(">", " in dense array")
 
-        return DenseArrayBase.from_list(element_type, values)
+        return res
 
     def _parse_builtin_affine_map(self, _name: Span) -> AffineMapAttr:
         self.parse_characters("<", " in affine_map attribute")
