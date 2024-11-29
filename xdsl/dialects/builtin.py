@@ -1862,6 +1862,26 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
+    def get_values(self) -> Sequence[int] | Sequence[float]:
+        """
+        Return all the values of the elements in this DenseIntOrFPElementsAttr
+        """
+        return tuple(el.value.data for el in self.data.data)
+
+    def get_attrs(self) -> Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]:
+        """
+        Return all elements of the dense attribute in their relevant
+        attribute representation (IntegerAttr / FloatAttr)
+        """
+        return self.data.data
+
+    def is_splat(self) -> bool:
+        """
+        Return whethere or not this dense attribute is defined entirely
+        by a single value (splat).
+        """
+        return self.data.data.count(self.data.data[0]) == len(self.data.data)
+
     @staticmethod
     def parse_with_type(parser: AttrParser, type: Attribute) -> TypedAttribute:
         assert isa(type, RankedStructure[AnyDenseElement])

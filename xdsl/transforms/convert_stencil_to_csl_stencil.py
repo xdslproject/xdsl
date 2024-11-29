@@ -578,10 +578,11 @@ class PromoteCoefficients(RewritePattern):
         if (
             not isinstance(cnst := coeff.owner, arith.ConstantOp)
             or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
-            or dense.data.data.count(val := dense.data.data[0]) != len(dense.data.data)
+            or not dense.is_splat()
         ):
             return
 
+        val = dense.get_attrs()[0]
         assert isattr(val, AnyFloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])
