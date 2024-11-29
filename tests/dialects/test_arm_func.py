@@ -15,3 +15,4 @@ def test_callable_interface():
 
     assert trait.get_callable_region(func) is region
     assert trait.get_argument_types(func) == (a0, a1)
+    assert func.assembly_line() is None
