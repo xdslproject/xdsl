@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     FloatData,
     IntAttr,
+    IntegerType,
     MemRefType,
     NoneAttr,
     ShapedType,
@@ -44,6 +45,15 @@ def test_FloatType_bitwidths():
     assert Float64Type().bitwidth == 64
     assert Float80Type().bitwidth == 80
     assert Float128Type().bitwidth == 128
+
+
+def test_IntegerType_size():
+    assert IntegerType(1).size == 1
+    assert IntegerType(2).size == 1
+    assert IntegerType(8).size == 1
+    assert IntegerType(16).size == 2
+    assert IntegerType(32).size == 4
+    assert IntegerType(64).size == 8
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
