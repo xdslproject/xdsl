@@ -1107,58 +1107,55 @@ class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
     elt_type: ParameterDef[IntegerType | AnyFloat]
-    data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
+    data: ParameterDef[BytesAttr]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType):
-            for d in self.data.data:
-                if isinstance(d, FloatData):
-                    raise VerifyException(
-                        "dense array of integer element type should only contain "
-                        "integers"
-                    )
-        else:
-            for d in self.data.data:
-                if isinstance(d, IntAttr):
-                    raise VerifyException(
-                        "dense array of float element type should only contain floats"
-                    )
+        # TODO: verify length of bytes
+        ...
 
     @staticmethod
     def create_dense_int(
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
-            attr_list = tuple(IntAttr(d) for d in cast(Sequence[int], data))
+            vals = cast(Sequence[int], data)
         else:
-            attr_list = cast(Sequence[IntAttr], data)
+            vals = tuple(attr.data for attr in cast(Sequence[IntAttr], data))
 
-        normalized_values = tuple(
-            data_type.normalized_value(attr) for attr in attr_list
+        normalized_attrs = tuple(
+            data_type.normalized_value(IntAttr(val)) for val in vals
         )
 
-        for i, value in enumerate(normalized_values):
-            if value is None:
+        for i, attr in enumerate(normalized_attrs):
+            if attr is None:
                 min_value, max_value = data_type.value_range()
                 raise ValueError(
-                    f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
+                    f"Integer value {vals[i]} is out of range for type {data_type} which supports "
                     f"values in the range [{min_value}, {max_value})"
                 )
 
-        values = cast(tuple[IntAttr, ...], normalized_values)
+        attrs = cast(tuple[IntAttr, ...], normalized_attrs)
 
-        return DenseArrayBase([data_type, ArrayAttr(values)])
+        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
+
+        bytes_data = struct.pack(fmt, *(attr.data for attr in attrs))
+
+        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
     @staticmethod
     def create_dense_float(
         data_type: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int | float):
-            attr_list = [FloatData(float(d)) for d in cast(Sequence[int | float], data)]
+            vals = data
         else:
-            attr_list = cast(Sequence[FloatData], data)
+            vals = tuple(attr.data for attr in cast(Sequence[FloatData], data))
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
+
+        bytes_data = struct.pack(fmt, *vals)
+
+        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
     @overload
     @staticmethod
@@ -1192,13 +1189,17 @@ class DenseArrayBase(ParametrizedAttribute):
             raise TypeError(f"Unsupported element type {data_type}")
 
     def iter_values(self) -> Iterator[float] | Iterator[int]:
-        return (attr.data for attr in self.data.data)
+        # The memoryview needs to be a multiple of the size of the packed format
+        return (
+            values[0]
+            for values in struct.iter_unpack(self.elt_type.format, self.data.data)
+        )
 
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
         return tuple(self.iter_values())
 
     def __len__(self) -> int:
-        return len(self.data.data)
+        return len(self.data.data) // self.elt_type.size
 
 
 @irdl_attr_definition

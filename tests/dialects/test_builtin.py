@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     Float80Type,
     Float128Type,
     FloatAttr,
-    FloatData,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -238,22 +237,6 @@ def test_DenseIntOrFPElementsAttr_from_list():
     assert attr.type == AnyTensorType(f32, [])
 
 
-def test_DenseArrayBase_verifier_failure():
-    # Check that a malformed attribute raises a verify error
-
-    with pytest.raises(VerifyException) as err:
-        DenseArrayBase([f32, ArrayAttr([IntAttr(0)])])
-    assert err.value.args[0] == (
-        "dense array of float element type " "should only contain floats"
-    )
-
-    with pytest.raises(VerifyException) as err:
-        DenseArrayBase([i32, ArrayAttr([FloatData(0.0)])])
-    assert err.value.args[0] == (
-        "dense array of integer element type " "should only contain integers"
-    )
-
-
 @pytest.mark.parametrize(
     "ref,expected",
     [
@@ -439,7 +422,7 @@ def test_complex_init():
 
 def test_dense_as_tuple():
     floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
-    assert floats.get_values() == (3.14159, 2.71828)
+    assert floats.get_values() == (3.141590118408203, 2.718280076980591)
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.get_values() == (1, 1, 2, 3, 5, 8)
