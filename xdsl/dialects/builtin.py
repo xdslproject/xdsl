@@ -363,7 +363,7 @@ class FixedBitwidthType(TypeAttribute, ABC):
         """
         Contiguous memory footprint in bytes, defaults to `ceil(bitwidth / 8)`
         """
-        return self.bitwidth >> 3 + bool(self.bitwidth % 8)
+        return (self.bitwidth + 7) >> 3
 
 
 @irdl_attr_definition
