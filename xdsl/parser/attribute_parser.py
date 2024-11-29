@@ -628,7 +628,7 @@ class AttrParser(BaseParser):
             return v
         self.raise_error("Expected an integer literal or `?`" + context_msg)
 
-    def _parse_strided_layout_attr(self, name: Span) -> Attribute:
+    def _parse_strided_layout_attr(self) -> Attribute:
         """
         Parse a strided layout attribute parameters.
         | `<` `[` comma-separated-int-or-question `]`
@@ -694,7 +694,7 @@ class AttrParser(BaseParser):
         if name.text not in parsers:
             return None
         self._consume_token(Token.Kind.BARE_IDENT)
-        return parsers[name.text](name)
+        return parsers[name.text]()
 
     def _parse_builtin_dense_attr_hex(
         self,
@@ -866,10 +866,10 @@ class AttrParser(BaseParser):
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
+    def _parse_builtin_dense_attr(self) -> DenseIntOrFPElementsAttr:
         return self.parse_dense_int_or_fp_elements_attr(None)
 
-    def _parse_builtin_opaque_attr(self, _name: Span):
+    def _parse_builtin_opaque_attr(self):
         str_lit_list = self.parse_comma_separated_list(
             self.Delimiter.ANGLE, self.parse_str_literal
         )
@@ -885,7 +885,7 @@ class AttrParser(BaseParser):
 
         return OpaqueAttr.from_strings(*str_lit_list, type=type)
 
-    def _parse_builtin_dense_resource_attr(self, _name: Span) -> DenseResourceAttr:
+    def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
         self.parse_characters("<", " in dense_resource attribute")
         resource_handle = self.parse_identifier(" for resource handle")
         self.parse_characters(">", " in dense_resource attribute")
@@ -920,7 +920,7 @@ class AttrParser(BaseParser):
 
         return res
 
-    def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
+    def _parse_builtin_densearray_attr(self) -> DenseArrayBase | None:
         self.parse_characters("<", " in dense array")
         pos = self.pos
         element_type = self.parse_attribute()
@@ -955,13 +955,13 @@ class AttrParser(BaseParser):
 
         return res
 
-    def _parse_builtin_affine_map(self, _name: Span) -> AffineMapAttr:
+    def _parse_builtin_affine_map(self) -> AffineMapAttr:
         self.parse_characters("<", " in affine_map attribute")
         affine_map = self.parse_affine_map()
         self.parse_characters(">", " in affine_map attribute")
         return AffineMapAttr(affine_map)
 
-    def _parse_builtin_affine_set(self, _name: Span) -> AffineSetAttr:
+    def _parse_builtin_affine_set(self) -> AffineSetAttr:
         self.parse_characters("<", " in affine_set attribute")
         affine_set = self.parse_affine_set()
         self.parse_characters(">", " in affine_set attribute")
