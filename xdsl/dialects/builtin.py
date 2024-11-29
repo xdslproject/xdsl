@@ -1730,7 +1730,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         | RankedStructure[IndexType]
         | RankedStructure[AnyFloat]
     ]
-    _data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...] | None:
@@ -1755,7 +1755,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             n *= dim
 
         # Product of dimensions needs to equal length
-        return n == len(self._data.data)
+        return n == len(self.data.data)
 
     @staticmethod
     def create_dense_index(
@@ -1879,21 +1879,21 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return tuple(el.value.data for el in self._data.data)
+        return tuple(el.value.data for el in self.data.data)
 
     def get_attrs(self) -> Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]:
         """
         Return all elements of the dense attribute in their relevant
         attribute representation (IntegerAttr / FloatAttr)
         """
-        return self._data.data
+        return self.data.data
 
     def is_splat(self) -> bool:
         """
         Return whethere or not this dense attribute is defined entirely
         by a single value (splat).
         """
-        return self._data.data.count(self._data.data[0]) == len(self._data.data)
+        return self.data.data.count(self.data.data[0]) == len(self.data.data)
 
     @staticmethod
     def parse_with_type(parser: AttrParser, type: Attribute) -> TypedAttribute:
@@ -1937,7 +1937,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
 
     def print_without_type(self, printer: Printer):
         printer.print_string("dense<")
-        data = self._data.data
+        data = self.data.data
         shape = self.get_shape() if self.shape_is_complete else (len(data),)
         assert shape is not None, "If shape is complete, then it cannot be None"
         if len(data) == 0:
