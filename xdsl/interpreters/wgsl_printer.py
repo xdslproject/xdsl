@@ -38,7 +38,7 @@ class WGSLPrinter:
     def _(self, op: gpu.FuncOp, out_stream: IO[str]):
         workgroup_size = (1,)
         if op.known_block_size:
-            workgroup_size = tuple(item.data for item in op.known_block_size.data)
+            workgroup_size = op.known_block_size.get_values()
         for arg in op.body.block.args:
             auth = "read"
             arg_type = ""

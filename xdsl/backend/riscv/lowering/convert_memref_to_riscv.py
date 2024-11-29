@@ -387,8 +387,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
             index_ops: list[Operation] = []
 
             dynamic_offset_index = 0
-            for static_offset_attr in op.static_offsets.data:
-                static_offset = static_offset_attr.data
+            for static_offset in op.static_offsets.iter_values():
                 assert isinstance(static_offset, int)
                 if static_offset == memref.SubviewOp.DYNAMIC_INDEX:
                     index_ops.append(

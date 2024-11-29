@@ -1434,7 +1434,7 @@ def get_variadic_sizes_from_attr(
             f"{size_attribute_name} {container_name} is expected to "
             "be a DenseArrayBase of i32"
         )
-    def_sizes = cast(list[int], [size_attr.data for size_attr in attribute.data.data])
+    def_sizes = cast(Sequence[int], attribute.get_values())
 
     if len(def_sizes) != len(defs):
         raise VerifyException(

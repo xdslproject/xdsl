@@ -91,15 +91,11 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     max_distance = max(max_distance, ap.max_distance())
 
             # find max x and y dimensions
-            if len(shape := apply_op.topo.shape.data) == 2:
-                assert isinstance(
-                    shape.data[0].data, int
-                ), "Cannot have a float data shape"
-                assert isinstance(
-                    shape.data[1].data, int
-                ), "Cannot have a float data shape"
-                width = max(width, shape.data[0].data)
-                height = max(height, shape.data[1].data)
+            if len(shape := apply_op.topo.shape.get_values()) == 2:
+                assert isinstance(shape[0], int), "Cannot have a float data shape"
+                assert isinstance(shape[1], int), "Cannot have a float data shape"
+                width = max(width, shape[0])
+                height = max(height, shape[1])
             else:
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 

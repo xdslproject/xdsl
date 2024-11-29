@@ -577,7 +577,7 @@ class ExpandShapeOp(AlterShapeOperation):
         printer.print_attribute(self.reassociation)
         printer.print_string(" output_shape [")
         printer.print_list(self.output_shape, printer.print_operand)
-        t = self.static_output_shape.as_tuple()
+        t = self.static_output_shape.get_values()
         if self.output_shape and t:
             printer.print_string(", ")
         printer.print_list(t, lambda x: printer.print_string(str(x)))
@@ -826,21 +826,21 @@ class SubviewOp(IRDLOperation):
         print_dynamic_index_list(
             printer,
             self.offsets,
-            (cast(int, offset.data) for offset in self.static_offsets.data.data),
+            (cast(int, offset) for offset in self.static_offsets.iter_values()),
             dynamic_index=SubviewOp.DYNAMIC_INDEX,
         )
         printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             self.sizes,
-            (cast(int, size.data) for size in self.static_sizes.data.data),
+            (cast(int, size) for size in self.static_sizes.iter_values()),
             dynamic_index=SubviewOp.DYNAMIC_INDEX,
         )
         printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             self.strides,
-            (cast(int, stride.data) for stride in self.static_strides.data.data),
+            (cast(int, stride) for stride in self.static_strides.iter_values()),
             dynamic_index=SubviewOp.DYNAMIC_INDEX,
         )
         printer.print_op_attributes(self.attributes, print_keyword=True)

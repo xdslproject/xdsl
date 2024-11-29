@@ -189,7 +189,7 @@ def test_llvm_getelementptr_op():
     assert gep1.result.type == ptr_type
     assert gep1.ptr == ptr.res
     assert "elem_type" not in gep1.properties
-    assert len(gep1.rawConstantIndices.data) == 1
+    assert len(gep1.rawConstantIndices) == 1
     assert len(gep1.ssa_indices) == 0
 
     # check that construction with opaque pointer works:
@@ -204,13 +204,13 @@ def test_llvm_getelementptr_op():
     assert gep2.elem_type == builtin.i32
     assert "inbounds" not in gep2.properties
     assert gep2.result.type == ptr_type
-    assert len(gep1.rawConstantIndices.data) == 1
+    assert len(gep1.rawConstantIndices) == 1
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
     gep3 = llvm.GEPOp.from_mixed_indices(ptr, [1, size], ptr_type)
 
-    assert len(gep3.rawConstantIndices.data) == 2
+    assert len(gep3.rawConstantIndices) == 2
     assert len(gep3.ssa_indices) == 1
 
 
