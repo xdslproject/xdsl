@@ -922,12 +922,14 @@ class AttrParser(BaseParser):
 
     def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
         self.parse_characters("<", " in dense array")
+        pos = self.pos
         element_type = self.parse_attribute()
 
         if not isinstance(element_type, IntegerType | AnyFloat):
-            raise ParseError(
-                name,
+            self.raise_error(
                 "dense array element type must be an integer or floating point type",
+                pos,
+                self.pos,
             )
 
         # Empty array
