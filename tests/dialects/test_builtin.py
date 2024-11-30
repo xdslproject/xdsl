@@ -89,7 +89,7 @@ def test_FloatType_packing():
     unpacked = f32.unpack(buffer, len(nums))
     assert nums == unpacked
 
-    pi = f64.unpack(f64.pack((math.pi,)), 1)
+    pi = f64.unpack(f64.pack((math.pi,)), 1)[0]
     assert pi == math.pi
 
 
