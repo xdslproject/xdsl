@@ -1,3 +1,4 @@
+import math
 import re
 from collections.abc import Sequence
 
@@ -31,6 +32,7 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     f32,
+    f64,
     i8,
     i32,
     i64,
@@ -49,6 +51,56 @@ def test_FloatType_bitwidths():
     assert Float128Type().bitwidth == 128
 
 
+def test_FloatType_formats():
+    with pytest.raises(NotImplementedError):
+        BFloat16Type().format
+    with pytest.raises(NotImplementedError):
+        Float16Type().format
+    assert Float32Type().format == "<f"
+    assert Float64Type().format == "<d"
+    with pytest.raises(NotImplementedError):
+        Float80Type().format
+    with pytest.raises(NotImplementedError):
+        Float128Type().format
+
+
+def test_IntegerType_formats():
+    with pytest.raises(NotImplementedError):
+        IntegerType(2).format
+    assert IntegerType(1).format == "<b"
+    assert IntegerType(8).format == "<b"
+    assert IntegerType(16).format == "<h"
+    assert IntegerType(32).format == "<i"
+    assert IntegerType(64).format == "<q"
+
+
+def test_FloatType_py_type():
+    assert BFloat16Type().py_type is float
+    assert Float16Type().py_type is float
+    assert Float32Type().py_type is float
+    assert Float64Type().py_type is float
+    assert Float80Type().py_type is float
+    assert Float128Type().py_type is float
+
+
+def test_FloatType_packing():
+    nums = (-128, -1, 0, 1, 127)
+    buffer = f32.pack(nums)
+    unpacked = f32.unpack(buffer, len(nums))
+    assert nums == unpacked
+
+    pi = f64.unpack(f64.pack((math.pi,)), 1)
+    assert pi == math.pi
+
+
+def test_IntegerType_py_type():
+    assert IntegerType(1).py_type is int
+    assert IntegerType(8).py_type is int
+    assert IntegerType(16).py_type is int
+    assert IntegerType(32).py_type is int
+    assert IntegerType(64).py_type is int
+
+
 def test_IntegerType_size():
     assert IntegerType(1).size == 1
     assert IntegerType(2).size == 1
@@ -56,6 +108,16 @@ def test_IntegerType_size():
     assert IntegerType(16).size == 2
     assert IntegerType(32).size == 4
     assert IntegerType(64).size == 8
+
+
+def test_IntegerType_packing():
+    nums = (-128, -1, 0, 1, 127)
+    buffer = i8.pack(nums)
+    unpacked = i8.unpack(buffer, len(nums))
+    assert nums == unpacked
+    with pytest.raises(Exception, match="'b' format requires -128 <= number <= 127"):
+        # TODO: normalize before packing
+        i8.pack((255,))
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():

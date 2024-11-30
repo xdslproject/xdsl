@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import struct
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -78,8 +79,11 @@ from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
+    from _typeshed import ReadableBuffer, WriteableBuffer
+
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
+
 
 DYNAMIC_INDEX = -1
 """
@@ -345,10 +349,10 @@ class SignednessAttr(Data[Signedness]):
 
 class FixedBitwidthType(TypeAttribute, ABC):
     """
-    A type attribute with a defined bitwidth
+    A type attribute whose runtime bitwidth is target-independent.
     """
 
-    name = "abstract.bitwidth_type"
+    name = "abstract.fixed_bitwidth_type"
 
     @property
     @abstractmethod
@@ -366,8 +370,91 @@ class FixedBitwidthType(TypeAttribute, ABC):
         return (self.bitwidth + 7) >> 3
 
 
+_PyT = TypeVar("_PyT")
+
+
+class PyBackedType(Generic[_PyT], TypeAttribute, ABC):
+    """
+    Abstract base class for xDSL types whose values have a Python representation.
+    """
+
+    @property
+    @abstractmethod
+    def py_type(self) -> type[_PyT]:
+        """
+        The Python type of the value used at compile-time to hold a constant of this
+        xDSL type.
+        """
+        raise NotImplementedError()
+
+
+class PackableType(Generic[_PyT], FixedBitwidthType, PyBackedType[_PyT], ABC):
+    """
+    Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
+    """
+
+    @abstractmethod
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
+        """
+        Yields unpacked values one at a time, starting at the beginning of the buffer.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
+        """
+        Unpack `num` values from the beginning of the buffer.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
+        """
+        Pack a value at a given offset into a buffer.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def pack(self, values: Sequence[_PyT]) -> bytes:
+        """
+        Create a new buffer containing the input `values`.
+        """
+        raise NotImplementedError()
+
+
+class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
+    """
+    Abstract base class for xDSL types that can be packed and unpacked using Python's
+    `struct` package, using a format string.
+    """
+
+    @property
+    @abstractmethod
+    def format(self) -> str:
+        """
+        Format to be used when decoding and encoding bytes.
+
+        https://docs.python.org/3/library/struct.html
+        """
+        raise NotImplementedError()
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
+        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
+        fmt = self.format[0] + str(num) + self.format[1:]
+        return struct.unpack(fmt, buffer)
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
+        struct.pack_into(self.format, buffer, offset, value)
+
+    def pack(self, values: Sequence[_PyT]) -> bytes:
+        fmt = self.format[0] + str(len(values)) + self.format[1:]
+        return struct.pack(fmt, *values)
+
+
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, FixedBitwidthType):
+class IntegerType(ParametrizedAttribute, StructPackableType[int]):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -398,6 +485,24 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
     @property
     def bitwidth(self) -> int:
         return self.width.data
+
+    @property
+    def format(self) -> str:
+        match self.bitwidth:
+            case 1 | 8:
+                return "<b"
+            case 16:
+                return "<h"
+            case 32:
+                return "<i"
+            case 64:
+                return "<q"
+            case _:
+                raise NotImplementedError(f"Format not implemented for {self}")
+
+    @property
+    def py_type(self) -> type[int]:
+        return int
 
 
 i64 = IntegerType(64)
@@ -540,65 +645,93 @@ AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(ABC):
+class _FloatType(StructPackableType[float], ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
         raise NotImplementedError()
 
+    @property
+    def py_type(self) -> type[float]:
+        return float
+
 
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class BFloat16Type(ParametrizedAttribute, _FloatType):
     name = "bf16"
 
     @property
     def bitwidth(self) -> int:
         return 16
 
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float16Type(ParametrizedAttribute, _FloatType):
     name = "f16"
 
     @property
     def bitwidth(self) -> int:
         return 16
 
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float32Type(ParametrizedAttribute, _FloatType):
     name = "f32"
 
     @property
     def bitwidth(self) -> int:
         return 32
 
+    @property
+    def format(self) -> str:
+        return "<f"
+
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float64Type(ParametrizedAttribute, _FloatType):
     name = "f64"
 
     @property
     def bitwidth(self) -> int:
         return 64
 
+    @property
+    def format(self) -> str:
+        return "<d"
+
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float80Type(ParametrizedAttribute, _FloatType):
     name = "f80"
 
     @property
     def bitwidth(self) -> int:
         return 80
 
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float128Type(ParametrizedAttribute, _FloatType):
     name = "f128"
 
     @property
     def bitwidth(self) -> int:
         return 128
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
 
 
 AnyFloat: TypeAlias = (
