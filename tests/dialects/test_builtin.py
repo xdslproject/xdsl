@@ -115,7 +115,7 @@ def test_IntegerType_packing():
     buffer = i8.pack(nums)
     unpacked = i8.unpack(buffer, len(nums))
     assert nums == unpacked
-    with pytest.raises(Exception, match="'b' format requires -128 <= number <= 127"):
+    with pytest.raises(Exception, match="format requires -128 <= number <= 127"):
         # TODO: normalize before packing
         i8.pack((255,))
 
