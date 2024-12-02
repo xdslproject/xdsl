@@ -108,3 +108,19 @@ func.func @test_const_var_const() {
 // CHECK: %foldable_times = arith.constant 4 : i32
 %foldable_times = arith.muli %c2, %c2 : i32
 "test.op"(%foldable_times) : (i32) -> ()
+
+%c0 = arith.constant 0 : i32
+
+%zero_plus = arith.addi %c0, %a : i32
+%plus_zero = arith.addi %a, %c0 : i32
+
+// CHECK: "test.op"(%a, %a) {"identity addition check"} : (i32, i32) -> ()
+"test.op"(%one_times, %times_one) {"identity addition check"} : (i32, i32) -> ()
+
+// CHECK: %plus_const = arith.addi %a, %c2 : i32
+%plus_const = arith.addi %c2, %a : i32
+"test.op"(%plus_const) : (i32) -> ()
+
+// CHECK: %foldable_plus = arith.constant 4 : i32
+%foldable_plus = arith.addi %c2, %c2 : i32
+"test.op"(%foldable_plus) : (i32) -> ()

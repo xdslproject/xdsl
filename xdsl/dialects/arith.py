@@ -316,9 +316,12 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
 class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            AddiConstantProp,
+            AddiIdentityRight,
+        )
 
-        return (AddImmediateZero(),)
+        return (AddiIdentityRight(), AddiConstantProp())
 
 
 @irdl_op_definition
