@@ -65,6 +65,14 @@ from xdsl.irdl import (
     var_result_def,
     var_successor_def,
 )
+from xdsl.irdl.declarative_assembly_format import (
+    AttrDictDirective,
+    FormatProgram,
+    OperandsDirective,
+    PunctuationDirective,
+    ResultsDirective,
+    TypeDirective,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError, VerifyException
@@ -1254,6 +1262,77 @@ def test_operands_directive_bound_with_var(program: str, error: str):
         parser.parse_operation()
 
 
+def test_operands_directive_with_non_variadic_type_directive():
+    """Tests the 'parse_single_type' function of the operands directive."""
+
+    # The parser will never generate a non-variadic TypeDirective containing
+    # an OperandsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            OperandsDirective(None),
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(OperandsDirective(None)),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class OneOperandOp(IRDLOperation):
+        name = "test.one_operand"
+
+        op1 = operand_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> OneOperandOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(OneOperandOp)
+
+    check_roundtrip("test.one_operand %0 : i32", ctx)
+
+
+def test_operands_directive_with_variadic_type_directive():
+    """
+    Tests the 'parse_single_type' function of the operands directive
+    when the operation has a variadic.
+    """
+    # The parser will never generate a non-variadic TypeDirective containing
+    # an OperandsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            OperandsDirective((False, 1)),
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(OperandsDirective((False, 1))),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class TwoOperandOp(IRDLOperation):
+        name = "test.two_operand"
+
+        op1 = operand_def()
+        op2 = var_operand_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> TwoOperandOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandOp)
+
+    check_roundtrip("test.two_operand %0 : i32", ctx)
+
+
 ################################################################################
 # Results                                                                      #
 ################################################################################
@@ -1608,6 +1687,75 @@ def test_results_directive_bound_with_var():
     ):
         parser = Parser(ctx, "%0 = test.three_results : i32")
         parser.parse_operation()
+
+
+def test_results_directive_with_non_variadic_type_directive():
+    """Tests the 'parse_single_type' function of the results directive."""
+
+    # The parser will never generate a non-variadic TypeDirective containing
+    # a ResultsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(ResultsDirective(None)),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class OneResultOp(IRDLOperation):
+        name = "test.one_result"
+
+        res = result_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> OneResultOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(OneResultOp)
+
+    check_roundtrip("%0 = test.one_result : i32", ctx)
+
+
+def test_results_directive_with_variadic_type_directive():
+    """
+    Tests the 'parse_single_type' function of the results directive
+    when the operation has a variadic.
+    """
+    # The parser will never generate a non-variadic TypeDirective containing
+    # a ResultsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(ResultsDirective((False, 1))),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class TwoResultsOp(IRDLOperation):
+        name = "test.two_results"
+
+        res1 = result_def()
+        res2 = var_result_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> TwoResultsOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(TwoResultsOp)
+
+    check_roundtrip("%0 = test.two_results : i32", ctx)
 
 
 ################################################################################
