@@ -225,7 +225,7 @@ class IRDLFunctions(InterpreterFunctions):
                 case irdl.OperationOp():
                     operations.append(
                         type(
-                            entry.sym_name.data,
+                            entry.get_py_class_name(),
                             (IRDLOperation,),
                             dict(IRDLOperation.__dict__)
                             | {"name": entry.qualified_name},
