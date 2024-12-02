@@ -51,7 +51,7 @@ def signed_upper_bound(bitwidth: int) -> int:
     """
     The maximum representable value + 1.
     """
-    return 1 << (bitwidth - 1)
+    return 1 << max(bitwidth - 1, 0)
 
 
 def unsigned_value_range(bitwidth: int) -> tuple[int, int]:
