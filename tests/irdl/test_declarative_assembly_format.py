@@ -2374,23 +2374,19 @@ def test_variadic_length_inference():
 
         assembly_format = "$ins attr-dict `:` type($ins)"
 
-    with pytest.raises(
-        NotImplementedError,
-        match="Inference of length of variadic result 'outs' not implemented",
-    ):
-        ctx = MLContext()
-        ctx.load_op(RangeVarOp)
-        ctx.load_dialect(Test)
-        program = textwrap.dedent("""\
-        %in0, %in1 = "test.op"() : () -> (index, index)
-        %out0, %out1 = test.range_var %in0, %in1 : index, index
-        """)
+    ctx = MLContext()
+    ctx.load_op(RangeVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent("""\
+    %in0, %in1 = "test.op"() : () -> (index, index)
+    %out0, %out1 = test.range_var %in0, %in1 : index, index
+    """)
 
-        parser = Parser(ctx, program)
-        test_op = parser.parse_optional_operation()
-        assert isinstance(test_op, test.Operation)
-        my_op = parser.parse_optional_operation()
-        assert isinstance(my_op, RangeVarOp)
+    parser = Parser(ctx, program)
+    test_op = parser.parse_optional_operation()
+    assert isinstance(test_op, test.Operation)
+    my_op = parser.parse_optional_operation()
+    assert isinstance(my_op, RangeVarOp)
 
 
 ################################################################################

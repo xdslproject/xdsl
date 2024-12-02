@@ -677,17 +677,21 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         """
         return {}
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: Set[str], length_known: bool) -> bool:
         """
         Check if there is enough information to infer the attribute given the
-        constraint variables that are already set.
+        constraint variables that are already set, and whether the length of the
+        range is known in advance.
         """
         # By default, we cannot infer anything.
         return False
 
-    def infer(self, length: int, context: InferenceContext) -> Sequence[AttributeCovT]:
+    def infer(
+        self, context: InferenceContext, length: int | None
+    ) -> Sequence[AttributeCovT]:
         """
-        Infer the attribute given the the values for all variables.
+        Infer the attribute given the the values for all variables, and possibly
+        the length of the range if known.
 
         Raises an exception if the attribute cannot be inferred. If `can_infer`
         returns `True` with the given constraint variables, this method should
@@ -737,10 +741,12 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
         return {self.name: IdExtractor[Sequence[AttributeCovT]]()}
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(self, var_constraint_names: Set[str], length_known: bool) -> bool:
         return self.name in var_constraint_names
 
-    def infer(self, length: int, context: InferenceContext) -> Sequence[AttributeCovT]:
+    def infer(
+        self, context: InferenceContext, length: int | None
+    ) -> Sequence[AttributeCovT]:
         v = context.variables[self.name]
         return cast(Sequence[AttributeCovT], v)
 
@@ -761,14 +767,15 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
         for a in attrs:
             self.constr.verify(a, constraint_context)
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
-        return self.constr.can_infer(var_constraint_names)
+    def can_infer(self, var_constraint_names: Set[str], length_known: bool) -> bool:
+        return length_known and self.constr.can_infer(var_constraint_names)
 
     def infer(
         self,
-        length: int,
         context: InferenceContext,
+        length: int | None,
     ) -> Sequence[AttributeCovT]:
+        assert length is not None
         attr = self.constr.infer(context)
         return (attr,) * length
 
@@ -805,10 +812,14 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
             for v, r in self.constr.get_variable_extractors().items()
         }
 
-    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+    def can_infer(
+        self, var_constraint_names: Set[str], length_known: int | None
+    ) -> bool:
         return self.constr.can_infer(var_constraint_names)
 
-    def infer(self, length: int, context: InferenceContext) -> Sequence[AttributeCovT]:
+    def infer(
+        self, context: InferenceContext, length: int | None
+    ) -> Sequence[AttributeCovT]:
         return (self.constr.infer(context),)
 
 

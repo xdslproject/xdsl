@@ -186,8 +186,8 @@ class FormatProgram:
                 operand = state.operands[i]
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
-                    range_length,
                     InferenceContext(state.variables),
+                    range_length,
                 )
                 resolved_operand_type: Attribute | Sequence[Attribute]
                 if isinstance(operand_def, OptionalDef):
@@ -203,27 +203,22 @@ class FormatProgram:
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, (result_type, (result_name, result_def)) in enumerate(
+        for i, (result_type, (_, result_def)) in enumerate(
             zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
-                # The number of results is not passed in when parsing operations.
-                # In the generic format, the type of the operation always specifies the
-                # types of the results, and `resultSegmentSizes` specifies the ranges of
-                # of the results if multiple are variadic.
-                # In order to support variadic results, the types an length of all
-                # variadic results must be present in the custom syntax.
-                if isinstance(result_def, OptionalDef | VariadicDef):
-                    raise NotImplementedError(
-                        f"Inference of length of variadic result '{result_name}' not "
-                        "implemented"
-                    )
-                range_length = 1
                 inferred_result_types = result_def.constr.infer(
-                    range_length,
-                    InferenceContext(state.variables),
+                    InferenceContext(state.variables), None
                 )
-                resolved_result_type = inferred_result_types[0]
+                resolved_result_type: Attribute | Sequence[Attribute]
+                if isinstance(result_def, OptionalDef):
+                    resolved_result_type = (
+                        inferred_result_types[0] if inferred_result_types else ()
+                    )
+                elif isinstance(result_def, VariadicDef):
+                    resolved_result_type = inferred_result_types
+                else:
+                    resolved_result_type = inferred_result_types[0]
                 state.result_types[i] = resolved_result_type
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
