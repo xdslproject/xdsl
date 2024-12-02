@@ -56,16 +56,16 @@ def signed_upper_bound(bitwidth: int) -> int:
 
 def unsigned_value_range(bitwidth: int) -> tuple[int, int]:
     """
-    For a given bitwidth, returns the range `[min, max+1)`, where min and max are the
-    smallest and largest representable values.
+    For a given bitwidth, returns a tuple `(min, max)`, such that unsigned integers of
+    this bitwidth are in the range [`min`, `max`).
     """
     return 0, unsigned_upper_bound(bitwidth)
 
 
 def signed_value_range(bitwidth: int) -> tuple[int, int]:
     """
-    For a given bitwidth, returns the range `[min, max+1)`, where min and max are the
-    smallest and largest representable values.
+    For a given bitwidth, returns a tuple `(min, max)`, such that signed integers of
+    this bitwidth are in the range [`min`, `max`).
     """
     min_value = signed_lower_bound(bitwidth)
     max_value = signed_upper_bound(bitwidth)
@@ -75,8 +75,8 @@ def signed_value_range(bitwidth: int) -> tuple[int, int]:
 
 def signless_value_range(bitwidth: int) -> tuple[int, int]:
     """
-    For a given bitwidth, returns the range `[min, max+1)`, where min and max are the
-    smallest and largest representable values.
+    For a given bitwidth, returns a tuple `(min, max)`, such that signless integers of
+    this bitwidth are in the range [`min`, `max`).
 
     Signless integers are semantically just bit patterns, and don't represent an
     integer until being converted to signed or unsigned explicitly, so the representable
