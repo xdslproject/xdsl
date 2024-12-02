@@ -2,18 +2,18 @@
 Signed numbers are stored as Two's complement, meaning that the highest bit is used as
 the sign. Here's a table of values for a three-bit two's complement integer type:
 
-|------|----------|--------|
-| bits | unsigned | signed |
-|------|----------|--------|
-|  000 |     0    |   +0   |
-|  001 |     1    |   +1   |
-|  010 |     2    |   +2   |
-|  011 |     3    |   +3   |
-|  100 |     4    |   -4   |
-|  101 |     5    |   -3   |
-|  110 |     6    |   -2   |
-|  111 |     7    |   -1   |
-|------|----------|--------|
+|------|----------|--------|----------|
+| bits | unsigned | signed | signless |
+|------|----------|--------|----------|
+|  000 |     0    |   +0   |    +0    |
+|  001 |     1    |   +1   |    +1    |
+|  010 |     2    |   +2   |    +2    |
+|  011 |     3    |   +3   |    +3    |
+|  100 |     4    |   -4   | +4 or -4 |
+|  101 |     5    |   -3   | +5 or -3 |
+|  110 |     6    |   -2   | +6 or -2 |
+|  111 |     7    |   -1   | +7 or -1 |
+|------|----------|--------|----------|
 
 https://en.wikipedia.org/wiki/Two%27s_complement
 
@@ -56,16 +56,16 @@ def signed_upper_bound(bitwidth: int) -> int:
 
 def unsigned_value_range(bitwidth: int) -> tuple[int, int]:
     """
-    For a given bitwidth, returns (min, max+1), where min and max are the smallest and
-    largest representable values.
+    For a given bitwidth, returns the range `[min, max+1)`, where min and max are the
+    smallest and largest representable values.
     """
     return 0, unsigned_upper_bound(bitwidth)
 
 
 def signed_value_range(bitwidth: int) -> tuple[int, int]:
     """
-    For a given bitwidth, returns (min, max+1), where min and max are the smallest and
-    largest representable values.
+    For a given bitwidth, returns the range `[min, max+1)`, where min and max are the
+    smallest and largest representable values.
     """
     min_value = signed_lower_bound(bitwidth)
     max_value = signed_upper_bound(bitwidth)
@@ -75,11 +75,12 @@ def signed_value_range(bitwidth: int) -> tuple[int, int]:
 
 def signless_value_range(bitwidth: int) -> tuple[int, int]:
     """
-    For a given bitwidth, returns (min, max+1), where min and max are the smallest and
-    largest representable values.
+    For a given bitwidth, returns the range `[min, max+1)`, where min and max are the
+    smallest and largest representable values.
 
-    Signless integers are bit patterns, so the representable range is the union of the
-    signed and unsigned representable ranges.
+    Signless integers are semantically just bit patterns, and don't represent an
+    integer until being converted to signed or unsigned explicitly, so the representable
+    range is the union of the signed and unsigned representable ranges.
     """
     min_value = signed_lower_bound(bitwidth)
     max_value = unsigned_upper_bound(bitwidth)
@@ -89,7 +90,8 @@ def signless_value_range(bitwidth: int) -> tuple[int, int]:
 
 def to_unsigned(signless: int, bitwidth: int) -> int:
     """
-    Transforms values in range [MIN_SIGNED, MAX_UNSIGNED] to range [0, MAX_UNSIGNED].
+    Transforms values in range `[MIN_SIGNED, MAX_UNSIGNED)` to range `[0,
+    MAX_UNSIGNED)`.
     """
     # Normalise to unsigned range by adding the unsigned range and taking the remainder
     modulus = unsigned_upper_bound(bitwidth)
@@ -98,7 +100,8 @@ def to_unsigned(signless: int, bitwidth: int) -> int:
 
 def to_signed(signless: int, bitwidth: int) -> int:
     """
-    Transforms values in range [MIN_SIGNED, MAX_UNSIGNED] to range [MIN_SIGNED, MAX_SIGNED].
+    Transforms values in range `[MIN_SIGNED, MAX_UNSIGNED)` to range `[MIN_SIGNED,
+    MAX_SIGNED)`.
     """
     # Normalise to unsigned range by adding the unsigned range and taking the remainder
     modulus = unsigned_upper_bound(bitwidth)
