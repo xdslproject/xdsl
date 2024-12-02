@@ -10,4 +10,4 @@ def const_evaluate_operand(operand: SSAValue) -> int | None:
     if isinstance(op := operand.owner, arith.ConstantOp) and isinstance(
         val := op.value, IntegerAttr
     ):
-        return val.value.data
+        return val.get_value()

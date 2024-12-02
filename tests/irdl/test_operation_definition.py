@@ -882,13 +882,13 @@ def test_default_accessors():
 
     assert parsed.properties.get("opt_prop") is None
 
-    assert parsed.opt_prop.value.data == 1
+    assert parsed.opt_prop.get_value() is True
 
     assert parsed.attr.value.data == 0
 
     assert parsed.attributes.get("opt_attr") is None
 
-    assert parsed.opt_attr.value.data == 1
+    assert parsed.opt_attr.get_value() is True
 
 
 def test_generic_accessors():
@@ -901,14 +901,14 @@ def test_generic_accessors():
 
     assert isinstance(parsed, DefaultOp)
 
-    assert parsed.prop.value.data == 0
+    assert parsed.prop.get_value() is False
 
     assert parsed.properties.get("opt_prop") is None
 
-    assert parsed.opt_prop.value.data == 1
+    assert parsed.opt_prop.get_value() is True
 
-    assert parsed.attr.value.data == 0
+    assert parsed.attr.get_value() is False
 
     assert parsed.attributes.get("opt_attr") is None
 
-    assert parsed.opt_attr.value.data == 1
+    assert parsed.opt_attr.get_value() is True
