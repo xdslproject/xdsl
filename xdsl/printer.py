@@ -584,7 +584,7 @@ class Printer:
             if attribute.elt_type == i1:
                 self.print_list(
                     data,
-                    lambda x: self.print_string("true" if x == 1 else "false"),
+                    lambda x: self.print_string("true" if x else "false"),
                 )
             else:
                 self.print_list(data, lambda x: self.print_string(f"{x}"))

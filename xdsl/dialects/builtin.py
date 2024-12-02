@@ -399,6 +399,15 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
     def bitwidth(self) -> int:
         return self.width.data
 
+    def print_value_without_type(self, value: int, printer: Printer):
+        """
+        Prints the value, printing `true` or `false` if self.width == 1.
+        """
+        if self.width.data == 1:
+            printer.print_string("true" if value else "false", indent=0)
+        else:
+            printer.print_string(f"{value}")
+
 
 i64 = IntegerType(64)
 i32 = IntegerType(32)
@@ -439,6 +448,12 @@ class LocationAttr(ParametrizedAttribute):
 @irdl_attr_definition
 class IndexType(ParametrizedAttribute):
     name = "index"
+
+    def print_value_without_type(self, value: int, printer: Printer):
+        """
+        Prints the value.
+        """
+        printer.print_string(f"{value}")
 
 
 IndexTypeConstr = BaseAttr(IndexType)
@@ -513,7 +528,7 @@ class IntegerAttr(
         return IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type)
 
     def print_without_type(self, printer: Printer):
-        return printer.print(self.value.data)
+        self.type.print_value_without_type(self.value.data, printer)
 
     def get_type(self) -> Attribute:
         return self.type
@@ -1896,7 +1911,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     @staticmethod
     def _print_one_elem(val: Attribute, printer: Printer):
         if isinstance(val, IntegerAttr):
-            printer.print_string(f"{val.value.data}")
+            val.print_without_type(printer)
         elif isinstance(val, FloatAttr):
             printer.print_float(cast(AnyFloatAttr, val))
         else:

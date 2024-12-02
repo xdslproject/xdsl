@@ -2792,7 +2792,7 @@ class DefaultOp(IRDLOperation):
         ),
         (
             "test.default prop true opt_prop false",
-            "test.default prop 1 opt_prop 0",
+            "test.default prop true opt_prop false",
             '"test.default"() <{"prop" = true, "opt_prop" = false}> {"attr" = false} : () -> ()',
         ),
         (
@@ -2807,7 +2807,7 @@ class DefaultOp(IRDLOperation):
         ),
         (
             "test.default attr true opt_attr false",
-            "test.default attr 1 opt_attr 0",
+            "test.default attr true opt_attr false",
             '"test.default"() <{"prop" = false}> {"attr" = true, "opt_attr" = false} : () -> ()',
         ),
         (
@@ -2859,12 +2859,12 @@ class RenamedPropOp(IRDLOperation):
         ),
         (
             "test.renamed prop1 false prop2 false",
-            "test.renamed prop2 0",
+            "test.renamed prop2 false",
             '"test.renamed"() <{"test_prop1" = false, "test_prop2" = false}> : () -> ()',
         ),
         (
             "test.renamed prop1 true prop2 true",
-            "test.renamed prop1 1 prop2 1",
+            "test.renamed prop1 true prop2 true",
             '"test.renamed"() <{"test_prop1" = true, "test_prop2" = true}> : () -> ()',
         ),
     ],
