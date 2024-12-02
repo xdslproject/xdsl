@@ -179,6 +179,10 @@
     csl.return
   }
 
+  csl.task @negative_id_repr_task() attributes {kind = #csl<task_kind control>, id = -22 : i6} {
+    csl.return
+  }
+
   csl.task @data_task_no_bind(%arg: f32) attributes {kind = #csl<task_kind data>} {
     csl.return
   }
@@ -650,6 +654,13 @@ csl.func @builtins() {
 // CHECK-NEXT: }
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @bind_control_task(control_task, @get_control_task_id(42));
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: task negative_id_repr_task() void {
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: comptime {
+// CHECK-NEXT:   @bind_control_task(negative_id_repr_task, @get_control_task_id(42));
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: task data_task_no_bind(arg0 : f32) void {
