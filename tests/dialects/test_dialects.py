@@ -11,7 +11,6 @@ def test_op_class_names():
         (op.name, op.__name__)
         for dialect_factory in all_dialects.values()
         for op in dialect_factory().operations
-        if "cmath" not in op.name
         if op.__name__[-2:] != "Op"
     )
 
