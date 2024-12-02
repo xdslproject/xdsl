@@ -74,6 +74,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.comparisons import (
+    signed_upper_bound,
     signed_value_range,
     signless_value_range,
     unsigned_value_range,
@@ -395,6 +396,23 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
                 f"values in the range [{min_value}, {max_value})"
             )
 
+    def normalize_value(self, value: int) -> int:
+        """
+        Normalize signless values within the expected range to the signed range for the
+        same bitwidth.
+        Values outside the valid range are left as-is.
+        """
+        if self.signedness.data != Signedness.SIGNLESS:
+            return value
+
+        signed_ub = signed_upper_bound(self.bitwidth)
+        unsigned_ub = signed_ub << 1
+
+        if signed_ub <= value < unsigned_ub:
+            return value - unsigned_ub
+
+        return value
+
     @property
     def bitwidth(self) -> int:
         return self.width.data
@@ -511,10 +529,12 @@ class IntegerAttr(
     def __init__(
         self, value: int | IntAttr, value_type: int | IntegerType | IndexType
     ) -> None:
-        if isinstance(value, int):
-            value = IntAttr(value)
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
+        if isinstance(value, int):
+            value = IntAttr(value)
+        if not isinstance(value_type, IndexType):
+            value = IntAttr(value_type.normalize_value(value.data))
         super().__init__([value, value_type])
 
     @staticmethod
@@ -1014,9 +1034,16 @@ class DenseArrayBase(ParametrizedAttribute):
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
-            attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
+            attr_list = tuple(IntAttr(d) for d in cast(Sequence[int], data))
         else:
             attr_list = cast(Sequence[IntAttr], data)
+
+        if data_type.signedness.data == Signedness.SIGNLESS:
+            signed_ub = signed_upper_bound(data_type.bitwidth)
+            if any(signed_ub <= attr.data for attr in attr_list):
+                attr_list = tuple(
+                    IntAttr(data_type.normalize_value(attr.data)) for attr in attr_list
+                )
 
         try:
             for attr in attr_list:
