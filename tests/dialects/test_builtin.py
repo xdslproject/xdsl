@@ -83,16 +83,16 @@ def test_IntegerAttr_get_value():
 
 
 def test_IntegerType_normalize():
-    s8 = IntegerType(8, Signedness.SIGNED)
+    si8 = IntegerType(8, Signedness.SIGNED)
     u8 = IntegerType(8, Signedness.UNSIGNED)
 
     assert i8.normalize_value(-1) == -1
     assert i8.normalize_value(1) == 1
     assert i8.normalize_value(255) == -1
 
-    assert s8.normalize_value(-1) == -1
-    assert s8.normalize_value(1) == 1
-    assert s8.normalize_value(255) == 255
+    assert si8.normalize_value(-1) == -1
+    assert si8.normalize_value(1) == 1
+    assert si8.normalize_value(255) == 255
 
     assert u8.normalize_value(-1) == -1
     assert u8.normalize_value(1) == 1
