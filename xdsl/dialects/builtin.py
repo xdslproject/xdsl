@@ -398,9 +398,14 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
 
     def normalize_value(self, value: int) -> int:
         """
-        Normalize signless values within the expected range to the signed range for the
-        same bitwidth.
-        Values outside the valid range are left as-is.
+        Signless values can represent integers from both the signed and unsigned ranges
+        for a given bitwidth.
+        We choose to normalize values that are not in the intersection of the two ranges
+        to the signed version (meaning ambiguous values will always be negative).
+        For example, the bitpattern of all ones will always be represented as `-1` at
+        runtime.
+        Values outside of the valid range won't be normalized, so that the verification
+        error is raised with the original input.
         """
         if self.signedness.data != Signedness.SIGNLESS:
             return value
