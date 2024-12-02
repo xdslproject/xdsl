@@ -32,31 +32,59 @@ involved. For example, a signless value of 5 is equal to a signless value of -3,
 their bit representations are the same.
 """
 
-from xdsl.dialects.builtin import Signedness
-
 
 def unsigned_upper_bound(bitwidth: int) -> int:
     """
     The maximum representable value + 1.
     """
-    _, ub = Signedness.UNSIGNED.value_range(bitwidth)
-    return ub
+    return 1 << bitwidth
 
 
 def signed_lower_bound(bitwidth: int) -> int:
     """
     The minimum representable value.
     """
-    lb, _ = Signedness.SIGNED.value_range(bitwidth)
-    return lb
+    return -((1 << bitwidth) >> 1)
 
 
 def signed_upper_bound(bitwidth: int) -> int:
     """
     The maximum representable value + 1.
     """
-    _, ub = Signedness.SIGNED.value_range(bitwidth)
-    return ub
+    return 1 << (bitwidth - 1)
+
+
+def unsigned_value_range(bitwidth: int) -> tuple[int, int]:
+    """
+    For a given bitwidth, returns (min, max+1), where min and max are the smallest and
+    largest representable values.
+    """
+    return 0, unsigned_upper_bound(bitwidth)
+
+
+def signed_value_range(bitwidth: int) -> tuple[int, int]:
+    """
+    For a given bitwidth, returns (min, max+1), where min and max are the smallest and
+    largest representable values.
+    """
+    min_value = signed_lower_bound(bitwidth)
+    max_value = signed_upper_bound(bitwidth)
+
+    return min_value, max_value
+
+
+def signless_value_range(bitwidth: int) -> tuple[int, int]:
+    """
+    For a given bitwidth, returns (min, max+1), where min and max are the smallest and
+    largest representable values.
+
+    Signless integers are bit patterns, so the representable range is the union of the
+    signed and unsigned representable ranges.
+    """
+    min_value = signed_lower_bound(bitwidth)
+    max_value = unsigned_upper_bound(bitwidth)
+
+    return min_value, max_value
 
 
 def to_unsigned(signless: int, bitwidth: int) -> int:
