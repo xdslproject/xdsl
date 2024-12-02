@@ -103,7 +103,6 @@ def test_IntegerAttr_normalize():
     """
     Test that the value within the accepted signless range is normalized to signed
     range.
-
     """
     assert IntegerAttr(-1, 8) == IntegerAttr(255, 8)
     assert str(IntegerAttr(255, 8)) == "-1 : i8"
