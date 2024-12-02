@@ -103,7 +103,7 @@ class FuncOp(arm.ops.ARMOperation):
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
-            printer.print(f" {visibility}")
+            printer.print_string(f" {visibility}")
 
         print_func_op_like(
             printer,
