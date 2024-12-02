@@ -1,10 +1,11 @@
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 from xdsl.utils.hints import isa
 
 
@@ -163,3 +164,30 @@ class SelectSamePattern(RewritePattern):
     def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
         if op.lhs == op.rhs:
             rewriter.replace_matched_op((), (op.lhs,))
+
+
+class MuliIdentityLeft(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
+        if (lhs := const_evaluate_operand(op.lhs)) is None:
+            return
+        if lhs != 1:
+            return
+
+        rewriter.replace_matched_op((), (op.rhs,))
+
+
+class MuliConstantProp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            return
+        if (lhs := const_evaluate_operand(op.lhs)) is None:
+            # Swap inputs if rhs is constant and lhs is not
+            rewriter.replace_matched_op(arith.MuliOp(op.rhs, op.lhs))
+            return
+
+        assert isinstance(op.result.type, IntegerType | IndexType)
+        rewriter.replace_matched_op(
+            arith.ConstantOp.from_int_and_width(lhs * rhs, op.result.type)
+        )

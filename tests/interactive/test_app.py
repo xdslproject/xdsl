@@ -20,6 +20,10 @@ from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
+from xdsl.interactive.rewrites import (
+    convert_indexed_individual_rewrites_to_available_pass,
+    get_all_possible_rewrites,
+)
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     get_all_passes,
@@ -268,7 +272,9 @@ async def test_buttons():
             with ImplicitBuilder(function.body) as (n,):
                 n.name_hint = "n"
                 two = arith.ConstantOp(IntegerAttr(2, index)).result
-                res = arith.MuliOp(n, two)
+                two.name_hint = "two"
+                res = arith.MuliOp(n, two).result
+                res.name_hint = "res"
                 func.ReturnOp(res)
 
         assert isinstance(app.current_module, ModuleOp)
@@ -283,8 +289,14 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
+        rewrites = get_all_possible_rewrites(
+            expected_module,
+            individual_rewrite.REWRITE_BY_NAMES,
+        )
         assert app.available_pass_list == get_condensed_pass_list(
             expected_module, app.all_passes
+        ) + convert_indexed_individual_rewrites_to_available_pass(
+            rewrites, expected_module
         )
 
         # press "Uncondense" button
