@@ -629,7 +629,7 @@ class OperandsOrResultDirective(VariadicTypeableDirective, ABC):
         if self.variadic_index is None:
             if len(set_to) != len(field):
                 return f"Expected {len(field)} {field_name} but found {len(set_to)}"
-            field = [o for o in set_to]  # Copy needed as list is not covariant
+            field[:] = [o for o in set_to]  # Copy needed as list is not covariant
             return
 
         is_optional, var_position = self.variadic_index

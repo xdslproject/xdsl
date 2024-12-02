@@ -1014,8 +1014,8 @@ def test_operands_graph_region(format: str, program: str):
         "test.operands_directive %0, %1, %2 : i32, i32, i32",
     ],
 )
-def test_operands_directive(program: str):
-    """Test the operands directive"""
+def test_operands_directive_with_variadic(program: str):
+    """Test the operands directive with a variadic operand"""
 
     @irdl_op_definition
     class OperandsDirectiveOp(IRDLOperation):
@@ -1041,7 +1041,7 @@ def test_operands_directive(program: str):
     ],
 )
 def test_operands_directive_with_optional(program: str):
-    """Test the operands directive"""
+    """Test the operands directive with an optional operand"""
 
     @irdl_op_definition
     class OperandsDirectiveOp(IRDLOperation):
@@ -1057,6 +1057,25 @@ def test_operands_directive_with_optional(program: str):
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
+
+
+def test_operands_directive_with_no_variadic():
+    """Test the operands directive with no variadic operands"""
+
+    @irdl_op_definition
+    class OperandsDirectiveOp(IRDLOperation):
+        name = "test.operands_directive"
+
+        op1 = operand_def()
+        op2 = operand_def()
+
+        assembly_format = "operands `:` type(operands) attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OperandsDirectiveOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip("test.operands_directive %0, %1 : i32, i32", ctx)
 
 
 def test_operands_directive_fails_with_two_var():
@@ -1393,8 +1412,8 @@ def test_optional_result(format: str, program: str, generic_program: str):
         "%0, %1, %2 = test.results_directive : i32, i32, i32",
     ],
 )
-def test_results_directive(program: str):
-    """Test the results directive"""
+def test_results_directive_with_variadic(program: str):
+    """Test the results directive with a variadic result"""
 
     @irdl_op_definition
     class ResultsDirectiveOp(IRDLOperation):
@@ -1436,6 +1455,25 @@ def test_results_directive_with_optional(program: str):
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
+
+
+def test_results_directive_with_no_variadic():
+    """Test the results directive with no variadic results"""
+
+    @irdl_op_definition
+    class ResultsDirectiveOp(IRDLOperation):
+        name = "test.results_directive"
+
+        res1 = result_def()
+        res2 = result_def()
+
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = MLContext()
+    ctx.load_op(ResultsDirectiveOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip("%0, %1 = test.results_directive : i32, i32", ctx)
 
 
 def test_results_directive_fails_with_two_var():
