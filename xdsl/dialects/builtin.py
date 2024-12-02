@@ -73,6 +73,11 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.comparisons import (
+    signed_value_range,
+    signless_value_range,
+    unsigned_value_range,
+)
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
@@ -303,16 +308,11 @@ class Signedness(Enum):
         """
         match self:
             case Signedness.SIGNLESS:
-                min_value = -((1 << bitwidth) >> 1)
-                max_value = 1 << bitwidth
+                return signless_value_range(bitwidth)
             case Signedness.SIGNED:
-                min_value = -((1 << bitwidth) >> 1)
-                max_value = 1 << (bitwidth - 1)
+                return signed_value_range(bitwidth)
             case Signedness.UNSIGNED:
-                min_value = 0
-                max_value = 1 << bitwidth
-
-        return min_value, max_value
+                return unsigned_value_range(bitwidth)
 
 
 @irdl_attr_definition
