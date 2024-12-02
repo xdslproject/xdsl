@@ -665,9 +665,11 @@ class OperandsDirective(VariadicOperandDirective, OperandsOrResultDirective):
         return bool(operands)
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
-        if len(state.operand_types) > 1:
-            parser.raise_error("Expected multiple types but received one.")
-        state.operand_types[0] = parser.parse_type()
+        pos_start = parser.pos
+        if s := self._set_using_variadic_index(
+            state.operand_types, "operand types", (parser.parse_type(),)
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
         pos_start = parser.pos
@@ -787,9 +789,11 @@ class ResultsDirective(OperandsOrResultDirective):
     """
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
-        if len(state.result_types) > 1:
-            parser.raise_error("Expected multiple types but received one.")
-        state.result_types[0] = parser.parse_type()
+        pos_start = parser.pos
+        if s := self._set_using_variadic_index(
+            state.result_types, "result types", (parser.parse_type(),)
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
         pos_start = parser.pos
