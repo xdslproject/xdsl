@@ -187,7 +187,7 @@ class FormatProgram:
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
                     InferenceContext(state.variables),
-                    range_length,
+                    length=range_length,
                 )
                 resolved_operand_type: Attribute | Sequence[Attribute]
                 if isinstance(operand_def, OptionalDef):
@@ -208,7 +208,7 @@ class FormatProgram:
         ):
             if result_type is None:
                 inferred_result_types = result_def.constr.infer(
-                    InferenceContext(state.variables), None
+                    InferenceContext(state.variables), length=None
                 )
                 resolved_result_type: Attribute | Sequence[Attribute]
                 if isinstance(result_def, OptionalDef):

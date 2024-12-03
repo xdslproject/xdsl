@@ -330,7 +330,9 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format"
                 )
             if not seen_operand_type:
-                if not operand_def.constr.can_infer(var_constraint_names, True):
+                if not operand_def.constr.can_infer(
+                    var_constraint_names, length_known=True
+                ):
                     self.raise_error(
                         f"type of operand '{operand_name}' cannot be inferred, "
                         f"consider adding a 'type(${operand_name})' directive to the "
@@ -345,7 +347,9 @@ class FormatParser(BaseParser):
             self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
-                if not result_def.constr.can_infer(var_constraint_names, False):
+                if not result_def.constr.can_infer(
+                    var_constraint_names, length_known=False
+                ):
                     self.raise_error(
                         f"type of result '{result_name}' cannot be inferred, "
                         f"consider adding a 'type(${result_name})' directive to the "
