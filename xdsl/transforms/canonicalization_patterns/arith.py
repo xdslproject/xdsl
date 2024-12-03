@@ -198,8 +198,5 @@ class ApplyCmpiPredicateToEqualOperands(RewritePattern):
     def match_and_rewrite(self, op: arith.CmpiOp, rewriter: PatternRewriter):
         if op.lhs != op.rhs:
             return
-        if op.predicate.value.data in (0, 3, 5, 7, 9):
-            rewriter.replace_matched_op(arith.ConstantOp(BoolAttr.from_bool(True)))
-
-        else:
-            rewriter.replace_matched_op(arith.ConstantOp(BoolAttr.from_bool(False)))
+        val = op.predicate.value.data in (0, 3, 5, 7, 9)
+        rewriter.replace_matched_op(arith.ConstantOp(BoolAttr.from_bool(val)))
