@@ -392,11 +392,19 @@ class AddUIExtendedOp(IRDLOperation):
         )
 
 
+class MuliHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns import arith
+
+        return (arith.MuliIdentityRight(), arith.MuliConstantProp())
+
+
 @irdl_op_definition
 class MuliOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.muli"
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), MuliHasCanonicalizationPatterns())
 
 
 class MulExtendedBase(IRDLOperation):
