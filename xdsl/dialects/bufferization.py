@@ -146,6 +146,10 @@ class CloneOp(IRDLOperation):
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
+    def __init__(self, input: SSAValue | Operation):
+        result_type = SSAValue.get(input).type
+        super().__init__(operands=(input,), result_types=(result_type,))
+
 
 @irdl_op_definition
 class ToTensorOp(IRDLOperation):
