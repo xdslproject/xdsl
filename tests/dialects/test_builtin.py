@@ -18,9 +18,7 @@ from xdsl.dialects.builtin import (
     Float128Type,
     FloatAttr,
     FloatData,
-    IndexType,
     IntAttr,
-    IntegerAttr,
     IntegerType,
     MemRefType,
     NoneAttr,
@@ -33,7 +31,6 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     f32,
-    i1,
     i8,
     i32,
     i64,
@@ -59,26 +56,6 @@ def test_IntegerType_size():
     assert IntegerType(16).size == 2
     assert IntegerType(32).size == 4
     assert IntegerType(64).size == 8
-
-
-def test_IntegerType_py_value():
-    assert i1.py_value(-1) is True
-    assert i1.py_value(0) is False
-    assert i8.py_value(-1) is -1
-    assert i8.py_value(0) == 0
-    index = IndexType()
-    assert index.py_value(0) == 0
-    assert index.py_value(-1) == -1
-
-
-def test_IntegerAttr_get_value():
-    assert IntegerAttr(0, 1).get_value() is False
-    assert IntegerAttr(1, 1).get_value() is True
-    assert IntegerAttr(-1, 1).get_value() is True
-    index = IndexType()
-    assert IntegerAttr(0, index).get_value() == 0
-    assert IntegerAttr(1, index).get_value() == 1
-    assert IntegerAttr(-1, index).get_value() == -1
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():

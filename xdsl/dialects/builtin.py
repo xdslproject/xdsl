@@ -399,16 +399,6 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
     def bitwidth(self) -> int:
         return self.width.data
 
-    def py_value(self, value: int) -> int:
-        """
-        Returns the Python value for a given input.
-        If `self.width.data == 1`, returns boolean value.
-        """
-        if self.width.data == 1:
-            return bool(value)
-        else:
-            return value
-
     def print_value_without_type(self, value: int, printer: Printer):
         """
         Prints the value, printing `true` or `false` if `self.width.data == 1`.
@@ -458,12 +448,6 @@ class LocationAttr(ParametrizedAttribute):
 @irdl_attr_definition
 class IndexType(ParametrizedAttribute):
     name = "index"
-
-    def py_value(self, value: int) -> int:
-        """
-        Returns the Python value for a given input.
-        """
-        return value
 
     def print_value_without_type(self, value: int, printer: Printer):
         """
@@ -545,13 +529,6 @@ class IntegerAttr(
 
     def print_without_type(self, printer: Printer):
         self.type.print_value_without_type(self.value.data, printer)
-
-    def get_value(self) -> int:
-        """
-        Returns the canonical Python representation of the value.
-        If the type's width is 1, return `True` or `False`.
-        """
-        return self.type.py_value(self.value.data)
 
     def get_type(self) -> Attribute:
         return self.type
