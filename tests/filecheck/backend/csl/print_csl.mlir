@@ -167,19 +167,15 @@
   }
 
 
-  csl.task @data_task(%arg: f32) attributes {kind = #csl<task_kind data>, id = 0 : i5} {
+  csl.task @data_task(%arg: f32) attributes {kind = #csl<task_kind data>, id = 0 : ui5} {
     csl.return
   }
 
-  csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 1 : i5} {
+  csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
     csl.return
   }
 
-  csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 42 : i6} {
-    csl.return
-  }
-
-  csl.task @negative_id_repr_task() attributes {kind = #csl<task_kind control>, id = -22 : i6} {
+  csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 42 : ui6} {
     csl.return
   }
 
@@ -427,8 +423,8 @@ csl.func @builtins() {
   %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
   %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %i8_value) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
 
-  %fabin_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 2 : i5 , "queue_id" = 0 : i3}> : (si32) -> !csl<dsd fabin_dsd>
-  %fabout_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 3 : i5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (si32) -> !csl<dsd fabout_dsd>
+  %fabin_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 2 : ui5 , "queue_id" = 0 : i3}> : (si32) -> !csl<dsd fabin_dsd>
+  %fabout_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 3 : ui5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (si32) -> !csl<dsd fabout_dsd>
 
   %zero_stride_dsd = "csl.get_mem_dsd"(%A, %i16_value, %i16_value, %i16_value) <{"strides" = [0 : si16, 0 : si16, 1 : si16]}> : (memref<24xf32>, si16, si16, si16) -> !csl<dsd mem4d_dsd>
 
@@ -473,9 +469,9 @@ csl.func @builtins() {
   "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
-  csl.activate data, 0 : i32
-  csl.activate local, 1 : i32
-  csl.activate control, 42 : i32
+  csl.activate data, 0 : ui6
+  csl.activate local, 1 : ui6
+  csl.activate control, 42 : ui6
 
   csl.return
 }
@@ -656,13 +652,6 @@ csl.func @builtins() {
 // CHECK-NEXT:   @bind_control_task(control_task, @get_control_task_id(42));
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
-// CHECK-NEXT: task negative_id_repr_task() void {
-// CHECK-NEXT:   return;
-// CHECK-NEXT: }
-// CHECK-NEXT: comptime {
-// CHECK-NEXT:   @bind_control_task(negative_id_repr_task, @get_control_task_id(42));
-// CHECK-NEXT: }
-// CHECK-NEXT: {{ *}}
 // CHECK-NEXT: task data_task_no_bind(arg0 : f32) void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
@@ -824,12 +813,12 @@ csl.func @builtins() {
 // CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .input_queue = @get_input_queue(0),
-// CHECK-NEXT:     .fabric_color = 2 : i5,
+// CHECK-NEXT:     .fabric_color = 2 : ui5,
 // CHECK-NEXT:   }});
 // CHECK-NEXT:   const fabout_dsd : fabout_dsd = @get_dsd(fabout_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .output_queue = @get_output_queue(1),
-// CHECK-NEXT:     .fabric_color = 3 : i5,
+// CHECK-NEXT:     .fabric_color = 3 : ui5,
 // CHECK-NEXT:     .wavelet_index_offset = false,
 // CHECK-NEXT:     .control = true,
 // CHECK-NEXT:   }});
