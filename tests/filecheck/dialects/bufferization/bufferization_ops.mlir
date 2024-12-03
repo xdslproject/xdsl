@@ -15,6 +15,11 @@
 %t2 = bufferization.alloc_tensor() copy(%t0) : tensor<10x20x30xf64>
 %t3 = bufferization.alloc_tensor(%i0, %i1) size_hint = %i1: tensor<10x20x?x?xf64>
 
+// CHECK-NEXT:    %m = "test.op"() : () -> memref<30x20x10xf32>
+// CHECK-NEXT:    %c = bufferization.clone %m : memref<30x20x10xf32> to memref<30x20x10xf32>
+%m = "test.op"() : () -> memref<30x20x10xf32>
+%c = bufferization.clone %m : memref<30x20x10xf32> to memref<30x20x10xf32>
+
 // CHECK-NEXT:  }
 
 
@@ -24,4 +29,6 @@
 // CHECK-GENERIC-NEXT:    %t1 = "bufferization.alloc_tensor"(%i0, %i1) <{"operandSegmentSizes" = array<i32: 2, 0, 0>}> {"hello" = "world"} : (index, index) -> tensor<10x20x?x?xf64>
 // CHECK-GENERIC-NEXT:    %t2 = "bufferization.alloc_tensor"(%t0) <{"operandSegmentSizes" = array<i32: 0, 1, 0>}> : (tensor<10x20x30xf64>) -> tensor<10x20x30xf64>
 // CHECK-GENERIC-NEXT:    %t3 = "bufferization.alloc_tensor"(%i0, %i1, %i1) <{"operandSegmentSizes" = array<i32: 2, 0, 1>}> : (index, index, index) -> tensor<10x20x?x?xf64>
+// CHECK-GENERIC-NEXT:    %m = "test.op"() : () -> memref<30x20x10xf32>
+// CHECK-GENERIC-NEXT:    %c = "bufferization.clone"(%m) : (memref<30x20x10xf32>) -> memref<30x20x10xf32>
 // CHECK-GENERIC-NEXT:  }) : () -> ()

@@ -136,6 +136,22 @@ class AllocTensorOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CloneOp(IRDLOperation):
+    name = "bufferization.clone"
+
+    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+
+    input = operand_def(T)
+    output = result_def(T)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
+
+    def __init__(self, input: SSAValue | Operation):
+        result_type = SSAValue.get(input).type
+        super().__init__(operands=(input,), result_types=(result_type,))
+
+
+@irdl_op_definition
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
@@ -207,6 +223,7 @@ Bufferization = Dialect(
     "bufferization",
     [
         AllocTensorOp,
+        CloneOp,
         ToTensorOp,
         ToMemrefOp,
         MaterializeInDestinationOp,
