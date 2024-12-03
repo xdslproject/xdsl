@@ -166,23 +166,23 @@ class SelectSamePattern(RewritePattern):
             rewriter.replace_matched_op((), (op.lhs,))
 
 
-class MuliIdentityLeft(RewritePattern):
+class MuliIdentityRight(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
-        if (lhs := const_evaluate_operand(op.lhs)) is None:
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
             return
-        if lhs != 1:
+        if rhs != 1:
             return
 
-        rewriter.replace_matched_op((), (op.rhs,))
+        rewriter.replace_matched_op((), (op.lhs,))
 
 
 class MuliConstantProp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
-        if (rhs := const_evaluate_operand(op.rhs)) is None:
-            return
         if (lhs := const_evaluate_operand(op.lhs)) is None:
+            return
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
             # Swap inputs if rhs is constant and lhs is not
             rewriter.replace_matched_op(arith.MuliOp(op.rhs, op.lhs))
             return

@@ -397,7 +397,7 @@ class MuliHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns import arith
 
-        return (arith.MuliIdentityLeft(), arith.MuliConstantProp())
+        return (arith.MuliIdentityRight(), arith.MuliConstantProp())
 
 
 @irdl_op_definition

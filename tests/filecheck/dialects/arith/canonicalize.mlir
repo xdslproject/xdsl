@@ -101,8 +101,8 @@ func.func @test_const_var_const() {
 // CHECK: "test.op"(%a, %a) {"identity multiplication check"} : (i32, i32) -> ()
 "test.op"(%one_times, %times_one) {"identity multiplication check"} : (i32, i32) -> ()
 
-// CHECK: %times_by_const = arith.muli %c2, %a : i32
-%times_by_const = arith.muli %a, %c2 : i32
+// CHECK: %times_by_const = arith.muli %a, %c2 : i32
+%times_by_const = arith.muli %c2, %a : i32
 "test.op"(%times_by_const) : (i32) -> ()
 
 // CHECK: %foldable_times = arith.constant 4 : i32
