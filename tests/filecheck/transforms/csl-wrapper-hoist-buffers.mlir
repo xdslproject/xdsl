@@ -27,8 +27,8 @@ builtin.module {
 // CHECK-NEXT:   ^1(%4 : i16, %5 : i16):
 // CHECK-NEXT:     %6 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
 // CHECK-NEXT:     %arg0 = memref.alloc() : memref<512xf32>
-// CHECK-NEXT:     %7 = "csl.addressof"(%arg0) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
-// CHECK-NEXT:     "csl.export"(%7) <{"var_name" = "arg0", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT:     %arg0_ptr = "csl.addressof"(%arg0) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
+// CHECK-NEXT:     "csl.export"(%arg0_ptr) <{"var_name" = "arg0", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:     "csl.export"() <{"var_name" = @gauss_seidel_func, "type" = () -> ()}> : () -> ()
 // CHECK-NEXT:     csl.func @gauss_seidel_func() {
 // CHECK-NEXT:       "test.op"(%6) : (memref<510xf32>) -> ()
