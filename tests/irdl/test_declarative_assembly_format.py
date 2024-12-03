@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     BoolAttr,
     Float64Type,
     FloatAttr,
+    IndexType,
     IntegerAttr,
     MemRefType,
     ModuleOp,
@@ -1448,6 +1449,25 @@ def test_variadic_result(format: str, program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+def test_variadic_result_failure():
+    """Test that inferring a range of inferrable attributes of unknown length fails."""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="type of result 'res' cannot be inferred",
+    ):
+
+        @irdl_op_definition
+        class VariadicResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.var_results_op"
+
+            res = var_result_def(IndexType())
+
+            irdl_options = [AttrSizedResultSegments()]
+
+            assembly_format = "attr-dict"
 
 
 @pytest.mark.parametrize(
