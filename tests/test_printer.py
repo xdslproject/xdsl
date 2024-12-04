@@ -3,7 +3,6 @@ from __future__ import annotations
 from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
@@ -44,6 +43,8 @@ from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
 from xdsl.utils.test_value import TestSSAValue
+
+from .conftest import assert_print_op
 
 
 def test_simple_forgotten_op():

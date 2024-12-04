@@ -1,5 +1,4 @@
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects.arith import AddiOp, ConstantOp
@@ -8,6 +7,8 @@ from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.ir import Block, Region
 from xdsl.traits import CallableOpInterface
 from xdsl.utils.exceptions import VerifyException
+
+from ..conftest import assert_print_op
 
 
 def test_func():

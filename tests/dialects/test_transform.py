@@ -1,8 +1,8 @@
-from conftest import assert_print_op
-
 from xdsl.dialects import test, transform
 from xdsl.dialects.builtin import DenseArrayBase, IntegerAttr, IntegerType
 from xdsl.ir import Block, Region, SSAValue
+
+from ..conftest import assert_print_op
 
 
 def test_transform_op_type():

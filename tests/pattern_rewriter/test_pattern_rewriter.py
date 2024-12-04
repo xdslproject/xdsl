@@ -2,7 +2,6 @@ import re
 from collections.abc import Sequence
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.context import MLContext
 from xdsl.dialects import test
@@ -32,6 +31,8 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+
+from ..conftest import assert_print_op
 
 
 def rewrite_and_compare(

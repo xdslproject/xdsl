@@ -1,5 +1,4 @@
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import builtin, func
@@ -48,6 +47,8 @@ from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
+
+from ..conftest import assert_print_op
 
 
 def test_stencilboundsattr_verify():

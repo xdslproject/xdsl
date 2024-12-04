@@ -1,7 +1,6 @@
 from collections.abc import Callable
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.context import MLContext
 from xdsl.dialects import test
@@ -10,6 +9,8 @@ from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 from xdsl.rewriter import InsertPoint, Rewriter
+
+from .conftest import assert_print_op
 
 
 def rewrite_and_compare(
