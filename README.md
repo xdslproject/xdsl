@@ -137,7 +137,7 @@ makefile using `make pyright`.
 
 > [!IMPORTANT]
 >
-> ## Experimental Pyright Features
+> #### Experimental Pyright Features
 >
 > xDSL currently relies on an experimental feature of Pyright called TypeForm
 > TypeForm is [in discussion](https://discuss.python.org/t/pep-747-typeexpr-type-hint-for-a-type-expression/55984) and will likely land in some future version of Python.
