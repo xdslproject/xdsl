@@ -115,7 +115,7 @@ func.func @test_const_var_const() {
 %plus_zero = arith.addi %a, %c0 : i32
 
 // CHECK: "test.op"(%a, %a) {"identity addition check"} : (i32, i32) -> ()
-"test.op"(%one_times, %times_one) {"identity addition check"} : (i32, i32) -> ()
+"test.op"(%zero_plus, %plus_zero) {"identity addition check"} : (i32, i32) -> ()
 
 // CHECK: %plus_const = arith.addi %a, %c2 : i32
 %plus_const = arith.addi %c2, %a : i32
