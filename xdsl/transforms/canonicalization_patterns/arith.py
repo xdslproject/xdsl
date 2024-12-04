@@ -1,18 +1,19 @@
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 from xdsl.utils.hints import isa
 
 
 class AddImmediateZero(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
         if (
-            isinstance(op.lhs.owner, arith.Constant)
+            isinstance(op.lhs.owner, arith.ConstantOp)
             and isinstance(value := op.lhs.owner.value, IntegerAttr)
             and value.value.data == 0
         ):
@@ -23,15 +24,15 @@ def _fold_const_operation(
     op_t: type[arith.FloatingPointLikeBinaryOperation],
     lhs: builtin.AnyFloatAttr,
     rhs: builtin.AnyFloatAttr,
-) -> arith.Constant | None:
+) -> arith.ConstantOp | None:
     match op_t:
-        case arith.Addf:
+        case arith.AddfOp:
             val = lhs.value.data + rhs.value.data
-        case arith.Subf:
+        case arith.SubfOp:
             val = lhs.value.data - rhs.value.data
-        case arith.Mulf:
+        case arith.MulfOp:
             val = lhs.value.data * rhs.value.data
-        case arith.Divf:
+        case arith.DivfOp:
             if rhs.value.data == 0.0:
                 # this mirrors what mlir does
                 if lhs.value.data == 0.0:
@@ -44,7 +45,7 @@ def _fold_const_operation(
                 val = lhs.value.data / rhs.value.data
         case _:
             return
-    return arith.Constant(builtin.FloatAttr(val, lhs.type))
+    return arith.ConstantOp(builtin.FloatAttr(val, lhs.type))
 
 
 class FoldConstConstOp(RewritePattern):
@@ -57,8 +58,8 @@ class FoldConstConstOp(RewritePattern):
         self, op: arith.FloatingPointLikeBinaryOperation, rewriter: PatternRewriter, /
     ):
         if (
-            isinstance(op.lhs.owner, arith.Constant)
-            and isinstance(op.rhs.owner, arith.Constant)
+            isinstance(op.lhs.owner, arith.ConstantOp)
+            and isinstance(op.rhs.owner, arith.ConstantOp)
             and isa(l := op.lhs.owner.value, builtin.AnyFloatAttr)
             and isa(r := op.rhs.owner.value, builtin.AnyFloatAttr)
             and (cnst := _fold_const_operation(type(op), l, r))
@@ -78,20 +79,20 @@ class FoldConstsByReassociation(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: arith.Addf | arith.Mulf, rewriter: PatternRewriter, /
+        self, op: arith.AddfOp | arith.MulfOp, rewriter: PatternRewriter, /
     ):
-        if isinstance(op.lhs.owner, arith.Constant):
+        if isinstance(op.lhs.owner, arith.ConstantOp):
             const1, val = op.lhs.owner, op.rhs
         else:
             const1, val = op.rhs.owner, op.lhs
 
         if (
-            not isinstance(const1, arith.Constant)
+            not isinstance(const1, arith.ConstantOp)
             or len(op.result.uses) != 1
             or not isinstance(u := list(op.result.uses)[0].operation, type(op))
             or not isinstance(
                 const2 := u.lhs.owner if u.rhs == op.result else u.rhs.owner,
-                arith.Constant,
+                arith.ConstantOp,
             )
             or op.fastmath is None
             or u.fastmath is None
@@ -116,8 +117,8 @@ class SelectConstPattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Select, rewriter: PatternRewriter):
-        if not isinstance(condition := op.cond.owner, arith.Constant):
+    def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
+        if not isinstance(condition := op.cond.owner, arith.ConstantOp):
             return
 
         assert isinstance(const_cond := condition.value, IntegerAttr)
@@ -135,12 +136,12 @@ class SelectTrueFalsePattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Select, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
         if op.result.type != IntegerType(1):
             return
 
-        if not isinstance(lhs := op.lhs.owner, arith.Constant) or not isinstance(
-            rhs := op.rhs.owner, arith.Constant
+        if not isinstance(lhs := op.lhs.owner, arith.ConstantOp) or not isinstance(
+            rhs := op.rhs.owner, arith.ConstantOp
         ):
             return
 
@@ -151,7 +152,7 @@ class SelectTrueFalsePattern(RewritePattern):
             rewriter.replace_matched_op((), (op.cond,))
 
         if lhs_value.value.data == 0 and rhs_value.value.data == 1:
-            rewriter.replace_matched_op(arith.XOrI(op.cond, rhs))
+            rewriter.replace_matched_op(arith.XOrIOp(op.cond, rhs))
 
 
 class SelectSamePattern(RewritePattern):
@@ -160,6 +161,33 @@ class SelectSamePattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Select, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
         if op.lhs == op.rhs:
             rewriter.replace_matched_op((), (op.lhs,))
+
+
+class MuliIdentityRight(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            return
+        if rhs != 1:
+            return
+
+        rewriter.replace_matched_op((), (op.lhs,))
+
+
+class MuliConstantProp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
+        if (lhs := const_evaluate_operand(op.lhs)) is None:
+            return
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            # Swap inputs if rhs is constant and lhs is not
+            rewriter.replace_matched_op(arith.MuliOp(op.rhs, op.lhs))
+            return
+
+        assert isinstance(op.result.type, IntegerType | IndexType)
+        rewriter.replace_matched_op(
+            arith.ConstantOp.from_int_and_width(lhs * rhs, op.result.type)
+        )

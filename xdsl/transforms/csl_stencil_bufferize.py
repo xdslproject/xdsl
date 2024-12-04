@@ -222,7 +222,7 @@ class ApplyOpBufferize(RewritePattern):
                     result_types=[chunk_type],
                     properties={
                         "static_offsets": DenseArrayBase.from_list(
-                            i64, (memref.Subview.DYNAMIC_INDEX,)
+                            i64, (memref.SubviewOp.DYNAMIC_INDEX,)
                         ),
                         "static_sizes": DenseArrayBase.from_list(
                             i64, chunk_type.get_shape()
@@ -256,7 +256,7 @@ class ApplyOpBufferize(RewritePattern):
             result_types=[TensorType(typ.get_element_type(), typ.get_shape()[1:])],
             properties={
                 "static_offsets": DenseArrayBase.from_list(
-                    i64, (memref.Subview.DYNAMIC_INDEX,)
+                    i64, (memref.SubviewOp.DYNAMIC_INDEX,)
                 ),
                 "static_sizes": DenseArrayBase.from_list(i64, typ.get_shape()[1:]),
                 "static_strides": DenseArrayBase.from_list(i64, (1,)),
@@ -365,7 +365,7 @@ class ArithConstBufferize(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter, /):
         if not isa(op.result.type, TensorType[Attribute]):
             return
         assert isinstance(op.value, DenseIntOrFPElementsAttr)
@@ -375,7 +375,7 @@ class ArithConstBufferize(RewritePattern):
         )
         rewriter.replace_matched_op(
             [
-                c := arith.Constant(typ),
+                c := arith.ConstantOp(typ),
                 to_tensor_op(c.result),
             ]
         )
@@ -399,7 +399,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 or not isinstance(yld_arg.op.tensor, OpResult)
                 or not isinstance(
                     linalg_op := yld_arg.op.tensor.op,
-                    linalg.NamedOpBase | linalg.Generic,
+                    linalg.NamedOpBase | linalg.GenericOp,
                 )
                 or not isa(arg_t := arg.type, AnyMemRefType)
                 or not isa(yld_arg.type, AnyMemRefType)
@@ -479,7 +479,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: linalg.NamedOpBase | linalg.Generic, rewriter: PatternRewriter, /
+        self, op: linalg.NamedOpBase | linalg.GenericOp, rewriter: PatternRewriter, /
     ):
         # only apply rewrite when re-selecting `outs` from `ins`
         if (
@@ -502,7 +502,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
                 # check for a linalg op input with no later uses and keep looking
                 if isinstance(arg, OpResult) and isinstance(
-                    arg.op, linalg.NamedOpBase | linalg.Generic
+                    arg.op, linalg.NamedOpBase | linalg.GenericOp
                 ):
                     out = arg
 

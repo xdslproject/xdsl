@@ -87,11 +87,11 @@ class BuiltinFunctions(InterpreterFunctions):
     ) -> ShapedArray[Any]:
         assert isinstance(attr, builtin.DenseIntOrFPElementsAttr)
         shape = attr.get_shape()
-        data = [el.value.data for el in attr.data]
+        data = attr.get_values()
         data_ptr = ptr.TypedPtr[Any].new(
             data,
             xtype=xtype_for_el_type(
                 attr.get_element_type(), interpreter.index_bitwidth
             ),
         )
-        return ShapedArray(data_ptr, list(shape) if shape is not None else [])
+        return ShapedArray(data_ptr, list(shape))

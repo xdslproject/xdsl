@@ -410,7 +410,7 @@ def test_range_var_fail_not_satisfy_constraint():
 
 
 @irdl_op_definition
-class OperationWithoutProperty(IRDLOperation):
+class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
     prop1 = prop_def(Attribute)
@@ -418,7 +418,7 @@ class OperationWithoutProperty(IRDLOperation):
 
 # Check that an operation cannot accept properties that are not defined
 def test_unknown_property():
-    op = OperationWithoutProperty.create(properties={"prop1": i32, "prop2": i32})
+    op = WithoutPropOp.create(properties={"prop1": i32, "prop2": i32})
     with pytest.raises(
         VerifyException, match="property 'prop2' is not defined by the operation"
     ):

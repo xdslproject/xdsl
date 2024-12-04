@@ -21,7 +21,9 @@ from xdsl.transforms.loop_nest_lowering_utils import (
 
 class LowerGenericOpPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.Generic, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(
+        self, op: linalg.GenericOp, rewriter: PatternRewriter
+    ) -> None:
         if op.res:
             raise NotImplementedError(
                 "lowering for linalg.generic with results not yet supported"
@@ -39,7 +41,7 @@ class LowerGenericOpPattern(RewritePattern):
                 indices = indices_for_map(
                     rewriter, insertion_target, affine_map_attr.data, ind_vars
                 )
-                load_op = memref.Load.get(value, indices)
+                load_op = memref.LoadOp.get(value, indices)
                 rewriter.insert_op(load_op, insertion_target)
                 return load_op.res
             else:
@@ -60,7 +62,7 @@ class LowerGenericOpPattern(RewritePattern):
             indices = indices_for_map(
                 rewriter, insertion_target, affine_map_attr.data, ind_vars
             )
-            store_op = memref.Store.get(value, destination, indices)
+            store_op = memref.StoreOp.get(value, destination, indices)
             rewriter.insert_op(store_op, insertion_target)
             return store_op
 

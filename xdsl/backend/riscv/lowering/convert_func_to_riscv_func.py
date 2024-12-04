@@ -66,7 +66,7 @@ class LowerFuncOp(RewritePattern):
 
 class LowerFuncCallOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: func.Call, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter) -> None:
         if len(op.arguments) > 8:
             raise ValueError("Cannot lower func.call with more than 8 operands")
         if len(op.res) > 2:
@@ -104,7 +104,7 @@ class LowerFuncCallOp(RewritePattern):
 
 class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: func.Return, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
         if len(op.arguments) > 2:
             raise ValueError("Cannot lower func.return with more than 2 arguments")
 

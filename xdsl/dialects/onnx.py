@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import math
 from abc import ABC
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     Any,
     AnyFloat,
+    AnyFloatConstr,
     AnyIntegerAttr,
     AnyTensorType,
     ArrayAttr,
@@ -22,6 +23,7 @@ from xdsl.dialects.builtin import (
     SSAValue,
     StringAttr,
     SymbolRefAttr,
+    TensorOrMemrefOf,
     TensorType,
 )
 from xdsl.ir import (
@@ -31,6 +33,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     attr_def,
     base,
     irdl_op_definition,
@@ -167,27 +170,27 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class Add(ElementwiseBinOpBase):
+class AddOp(ElementwiseBinOpBase):
     name = "onnx.Add"
 
 
 @irdl_op_definition
-class Sub(ElementwiseBinOpBase):
+class SubOp(ElementwiseBinOpBase):
     name = "onnx.Sub"
 
 
 @irdl_op_definition
-class Mul(ElementwiseBinOpBase):
+class MulOp(ElementwiseBinOpBase):
     name = "onnx.Mul"
 
 
 @irdl_op_definition
-class Div(ElementwiseBinOpBase):
+class DivOp(ElementwiseBinOpBase):
     name = "onnx.Div"
 
 
 @irdl_op_definition
-class Relu(IRDLOperation):
+class ReluOp(IRDLOperation):
     """
     Relu takes one input data (Tensor) and produces one output data (Tensor) where the rectified linear function,
      y = max(0, x), is applied to the tensor elementwise.
@@ -220,7 +223,7 @@ class Relu(IRDLOperation):
 
 
 @irdl_op_definition
-class Gemm(IRDLOperation):
+class GemmOp(IRDLOperation):
     """
     General Matrix multiplication: https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3
     A' = transpose(A) if transA else A
@@ -318,7 +321,7 @@ class Gemm(IRDLOperation):
 
 
 @irdl_op_definition
-class Reshape(IRDLOperation):
+class ReshapeOp(IRDLOperation):
     """
     Reshape the input tensor similar to numpy.reshape.
     First input is the data tensor, second input is a shape tensor which specifies the output shape. It outputs the reshaped tensor.
@@ -387,7 +390,7 @@ class Reshape(IRDLOperation):
 
 
 @irdl_op_definition
-class Abs(IRDLOperation):
+class AbsOp(IRDLOperation):
     """
     Absolute takes one input data (Tensor) and produces one output data (Tensor) where absolute value,
     y = abs(x), is applied to the tensor elementwise.
@@ -419,7 +422,7 @@ class Abs(IRDLOperation):
 
 
 @irdl_op_definition
-class Conv(IRDLOperation):
+class ConvOp(IRDLOperation):
     """
     The convolution operator consumes an input tensor and a filter, and computes the output.
 
@@ -560,7 +563,7 @@ class Conv(IRDLOperation):
 
 
 @irdl_op_definition
-class Constant(IRDLOperation):
+class ConstantOp(IRDLOperation):
     """
     Produce a constant tensor.
 
@@ -668,7 +671,7 @@ class Constant(IRDLOperation):
 
 
 @irdl_op_definition
-class MaxPoolSingleOut(IRDLOperation):
+class MaxPoolSingleOutOp(IRDLOperation):
     """
     ONNX MaxPool operation with a single output.
 
@@ -703,9 +706,9 @@ class MaxPoolSingleOut(IRDLOperation):
 
     name = "onnx.MaxPoolSingleOut"
 
-    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
-    data = operand_def(base(TensorType[T]) | base(MemRefType[T]))
-    output = result_def(base(TensorType[T]) | base(MemRefType[T]))
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
+    data = operand_def(TensorOrMemrefOf(T))
+    output = result_def(TensorOrMemrefOf(T))
 
     auto_pad = attr_def(StringAttr)
     ceil_mode = attr_def(AnyIntegerAttr)
@@ -816,7 +819,7 @@ class MaxPoolSingleOut(IRDLOperation):
 
 
 @irdl_op_definition
-class EntryPoint(IRDLOperation):
+class EntryPointOp(IRDLOperation):
     """
     Indicate ONNX entry point
     The "onnx.EntryPoint" function indicates the main entry point of ONNX model.
@@ -834,7 +837,7 @@ class EntryPoint(IRDLOperation):
 
 
 @irdl_op_definition
-class MatMul(IRDLOperation):
+class MatMulOp(IRDLOperation):
     """
     The operation MatMul performs matrix multiplication between two input matrices, A and B, and returns the result as matrix Y.
     Matrix multiplication is a fundamental operation in linear algebra, where each element of the resulting matrix Y is computed by taking the
@@ -905,7 +908,7 @@ class MatMul(IRDLOperation):
 
 
 @irdl_op_definition
-class Transpose(IRDLOperation):
+class TransposeOp(IRDLOperation):
     """
     The transpose_tensor function takes a tensor as input and returns its transpose.
     Transposing a tensor means flipping its dimensions, so that rows become columns and vice versa.
@@ -977,7 +980,7 @@ class Transpose(IRDLOperation):
 
 
 @irdl_op_definition
-class Squeeze(IRDLOperation):
+class SqueezeOp(IRDLOperation):
     """
     Squeeze the input tensor along the specified axes.
 
@@ -1034,7 +1037,7 @@ class Squeeze(IRDLOperation):
 
 
 @irdl_op_definition
-class Sigmoid(IRDLOperation):
+class SigmoidOp(IRDLOperation):
     """
     Applies the sigmoid function element-wise to all elements of the input tensor.
     The sigmoid function, denoted by sigma(x), is a common mathematical function used in machine learning and neural networks. It is defined as:
@@ -1083,21 +1086,21 @@ class Sigmoid(IRDLOperation):
 ONNX = Dialect(
     "onnx",
     [
-        Abs,
-        Add,
-        Constant,
-        Conv,
-        Div,
-        EntryPoint,
-        Gemm,
-        MatMul,
-        MaxPoolSingleOut,
-        Mul,
-        Relu,
-        Reshape,
-        Sub,
-        Transpose,
-        Squeeze,
-        Sigmoid,
+        AbsOp,
+        AddOp,
+        ConstantOp,
+        ConvOp,
+        DivOp,
+        EntryPointOp,
+        GemmOp,
+        MatMulOp,
+        MaxPoolSingleOutOp,
+        MulOp,
+        ReluOp,
+        ReshapeOp,
+        SubOp,
+        TransposeOp,
+        SqueezeOp,
+        SigmoidOp,
     ],
 )

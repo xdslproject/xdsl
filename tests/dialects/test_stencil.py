@@ -3,9 +3,7 @@ from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import builtin, func
-from xdsl.dialects.arith import (
-    Addf,
-)
+from xdsl.dialects.arith import AddfOp
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -697,15 +695,15 @@ def test_1d3pt_stencil_construct():
                 stencil_acs_l = AccessOp.get(temp_in, (-1,))
                 stencil_acs_c = AccessOp.get(temp_in, (0,))
                 stencil_acs_r = AccessOp.get(temp_in, (1,))
-                stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
-                stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
+                stencil_comp0 = AddfOp(stencil_acs_l, stencil_acs_c)
+                stencil_comp1 = AddfOp(stencil_comp0, stencil_acs_r)
                 # Define the return operation
                 ReturnOp.get([stencil_comp1])
 
             # Apply the computation to the loaded values
             # Store the computed values to the output field
             StoreOp.get(apply.results[0], field_out, StencilBoundsAttr(((0, 6),)))
-            func.Return()
+            func.ReturnOp()
 
     expected = """
 builtin.module {

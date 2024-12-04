@@ -11,19 +11,19 @@ from xdsl.utils.hints import isa
 @ModuleOp
 @Builder.implicit_region
 def subview_module():
-    input = memref.Alloc.get(f32, 0, [100, 200, 300, 400])
+    input = memref.AllocOp.get(f32, 0, [100, 200, 300, 400])
     assert isa(input.memref.type, memref.MemRefType[Attribute])
 
-    subview = memref.Subview.from_static_parameters(
+    subview = memref.SubviewOp.from_static_parameters(
         input, input.memref.type, [1, 2, 3, 4], [90, 95, 1, 80], [3, 4, 1, 2]
     )
     assert isa(subview.result.type, memref.MemRefType[Attribute])
 
-    memref.Subview.from_static_parameters(
+    memref.SubviewOp.from_static_parameters(
         subview, subview.result.type, [2, 5, 6, 1], [70, 1, 20, 64], [1, 5, 3, 2]
     )
 
-    subview_reduced = memref.Subview.from_static_parameters(
+    subview_reduced = memref.SubviewOp.from_static_parameters(
         input,
         input.memref.type,
         [1, 2, 3, 4],
@@ -33,7 +33,7 @@ def subview_module():
     )
     assert isa(subview_reduced.result.type, memref.MemRefType[Attribute])
 
-    memref.Subview.from_static_parameters(
+    memref.SubviewOp.from_static_parameters(
         subview_reduced,
         subview_reduced.result.type,
         [2, 5, 6],

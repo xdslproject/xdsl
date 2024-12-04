@@ -17,11 +17,11 @@ from xdsl.interpreters.snitch_stream import StridedPointerInputStream
 @register_impls
 @dataclass
 class RiscvSnitchFunctions(InterpreterFunctions):
-    @impl(riscv_snitch.FrepOuter)
+    @impl(riscv_snitch.FrepOuterOp)
     def run_frep_outer(
         self,
         interpreter: Interpreter,
-        op: riscv_snitch.FrepOuter,
+        op: riscv_snitch.FrepOuterOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)

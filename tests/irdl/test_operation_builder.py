@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.test import TestTermOp
 from xdsl.ir import Block, Region
@@ -450,9 +450,9 @@ def test_noop_region():
 
 
 def test_singleop_region():
-    a = Constant.from_int_and_width(1, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
     region0 = Region(Block([a]))
-    assert type(region0.op) is Constant
+    assert type(region0.op) is ConstantOp
 
 
 @irdl_op_definition

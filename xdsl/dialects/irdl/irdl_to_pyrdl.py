@@ -37,7 +37,7 @@ def convert_op(op: OperationOp, dialect_name: str) -> str:
     """Convert an IRDL operation to Python code creating that operation in xDSL."""
     res = f"""\
 @irdl_op_definition
-class {op.sym_name.data}(IRDLOperation):
+class {op.get_py_class_name()}(IRDLOperation):
     name = "{dialect_name}.{op.sym_name.data}"
 """
 
@@ -64,7 +64,7 @@ def convert_dialect(dialect: DialectOp) -> str:
             attrs += [op.sym_name.data]
         if isinstance(op, OperationOp):
             res += convert_op(op, dialect.sym_name.data) + "\n\n"
-            ops += [op.sym_name.data]
+            ops += [op.get_py_class_name()]
     op_list = "[" + ", ".join(ops) + "]"
     attr_list = "[" + ", ".join(attrs) + "]"
     return (

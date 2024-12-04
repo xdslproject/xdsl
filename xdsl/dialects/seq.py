@@ -48,7 +48,7 @@ clock = ClockType()
 
 
 @irdl_op_definition
-class ClockDivider(IRDLOperation):
+class ClockDividerOp(IRDLOperation):
     """Produces a clock divided by a power of two"""
 
     name = "seq.clock_div"
@@ -206,7 +206,7 @@ class ConstClockOp(IRDLOperation):
 Seq = Dialect(
     "seq",
     [
-        ClockDivider,
+        ClockDividerOp,
         CompRegOp,
         ConstClockOp,
     ],

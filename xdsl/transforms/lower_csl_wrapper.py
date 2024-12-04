@@ -47,8 +47,8 @@ class ExtractCslModules(RewritePattern):
         Returns width, height, and a list of other params as SSAValues.
         Params can alternatively be lowered to constants via the `params_as_consts` flag.
         """
-        width = arith.Constant(op.width).result
-        height = arith.Constant(op.height).result
+        width = arith.ConstantOp(op.width).result
+        height = arith.ConstantOp(op.height).result
         if not self.params_as_consts:
             width = csl.ParamOp("width", op.width.type, width).res
             height = csl.ParamOp("height", op.height.type, height).res
@@ -56,7 +56,7 @@ class ExtractCslModules(RewritePattern):
         params = list[SSAValue]()
         for param in op.params:
             if isattr(param.value, builtin.AnyIntegerAttrConstr):
-                value = arith.Constant(param.value)
+                value = arith.ConstantOp(param.value)
             else:
                 value = None
             if value and self.params_as_consts:
@@ -130,15 +130,15 @@ class ExtractCslModules(RewritePattern):
         rewriter.erase_op(yield_op)
 
         with ImplicitBuilder(module_block):
-            const_0 = arith.Constant.from_int_and_width(0, builtin.IntegerType(16))
-            const_1 = arith.Constant.from_int_and_width(1, builtin.IntegerType(16))
+            const_0 = arith.ConstantOp.from_int_and_width(0, builtin.IntegerType(16))
+            const_1 = arith.ConstantOp.from_int_and_width(1, builtin.IntegerType(16))
 
             param_width, param_height, params_from_block_args = self._collect_params(op)
 
             layout = csl.LayoutOp(Region())
             with ImplicitBuilder(layout.body.block):
                 csl.SetRectangleOp(operands=[param_width, param_height])
-                scf.For(
+                scf.ForOp(
                     lb=const_0,
                     ub=param_width,
                     step=const_1,
@@ -147,14 +147,14 @@ class ExtractCslModules(RewritePattern):
                 )
 
                 with ImplicitBuilder(outer_loop_block):
-                    scf.For(
+                    scf.ForOp(
                         lb=const_0,
                         ub=param_height,
                         step=const_1,
                         iter_args=[],
                         body=inner_loop_block,
                     )
-                    scf.Yield()
+                    scf.YieldOp()
         rewriter.inline_block(
             op.layout_module.block,
             InsertPoint.at_start(inner_loop_block),
@@ -175,7 +175,7 @@ class ExtractCslModules(RewritePattern):
             prog_name,
         )
         inner_loop_block.add_ops((struct, tile_code))
-        inner_loop_block.add_op(scf.Yield())
+        inner_loop_block.add_op(scf.YieldOp())
 
         layout_mod = csl.CslModuleOp(
             regions=[Region(module_block)],

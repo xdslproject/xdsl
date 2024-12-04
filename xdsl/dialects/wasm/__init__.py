@@ -1,13 +1,13 @@
 from xdsl.ir import Dialect
 
 from .ops import (
-    WasmModule,
+    WasmModuleOp,
 )
 
 Wasm = Dialect(
     "wasm",
     [
-        WasmModule,
+        WasmModuleOp,
     ],
 )
 """

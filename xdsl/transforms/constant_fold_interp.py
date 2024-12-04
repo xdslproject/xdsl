@@ -70,7 +70,7 @@ class ConstantFoldInterpPattern(RewritePattern):
         match (value, value_type):
             case int(), IntegerType():
                 attr = IntegerAttr(value, value_type)
-                return arith.Constant(attr)
+                return arith.ConstantOp(attr)
             case _:
                 return None
 

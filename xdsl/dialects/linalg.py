@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
     AnyMemRefType,
-    AnyShapedType,
     AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
@@ -96,11 +95,11 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
 
 
 @irdl_op_definition
-class Generic(IRDLOperation):
+class GenericOp(IRDLOperation):
     name = "linalg.generic"
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
@@ -396,7 +395,7 @@ class NamedOpBase(IRDLOperation, ABC):
     """
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
@@ -574,7 +573,7 @@ class AddOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        add = arith.Addf if isinstance(arg_types[-1], AnyFloat) else arith.Addi
+        add = arith.AddfOp if isinstance(arg_types[-1], AnyFloat) else arith.AddiOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -613,7 +612,7 @@ class SubOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        sub = arith.Subf if isinstance(arg_types[-1], AnyFloat) else arith.Subi
+        sub = arith.SubfOp if isinstance(arg_types[-1], AnyFloat) else arith.SubiOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -642,6 +641,8 @@ class FillOp(NamedOpBase):
     """
 
     name = "linalg.fill"
+
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -702,7 +703,7 @@ class MulOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        mul = arith.Mulf if isinstance(arg_types[-1], AnyFloat) else arith.Muli
+        mul = arith.MulfOp if isinstance(arg_types[-1], AnyFloat) else arith.MuliOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -761,13 +762,13 @@ class TransposeOp(IRDLOperation):
                 f"Input rank ({input_rank}) does not match output rank ({init_rank})"
             )
         if (input_rank := len(input_shape)) != (
-            permutation_size := len(self.permutation.data)
+            permutation_size := len(self.permutation)
         ):
             raise VerifyException(
                 f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
             )
 
-        permutation_shape = cast(list[int], self.permutation.as_tuple())
+        permutation_shape = cast(list[int], self.permutation.get_values())
 
         for i in range(len(input_shape)):
             input_dimension = input_shape[permutation_shape[i]]
@@ -792,7 +793,7 @@ class TransposeOp(IRDLOperation):
         printer.print_string(") ")
         printer.print_string("permutation")
         printer.print_string(" = ")
-        printer.print(list(self.permutation.as_tuple()))
+        printer.print(list(self.permutation.get_values()))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -853,9 +854,9 @@ class MatmulOp(NamedOpBase):
 
         arg_types = self.body_arg_types((*inputs, *outputs))
         add, mul = (
-            (arith.Addf, arith.Mulf)
+            (arith.AddfOp, arith.MulfOp)
             if isinstance(arg_types[-1], AnyFloat)
-            else (arith.Addi, arith.Mulf)
+            else (arith.AddiOp, arith.MulfOp)
         )
 
         @Builder.implicit_region(arg_types)
@@ -919,11 +920,11 @@ class QuantizedMatmulOp(NamedOpBase):
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
             o1 = arith.ExtSIOp(args[0], IntegerType(32))
-            o2 = arith.Subi(o1, args[2])
+            o2 = arith.SubiOp(o1, args[2])
             o3 = arith.ExtSIOp(args[1], IntegerType(32))
-            o4 = arith.Subi(o3, args[3])
-            o5 = arith.Muli(o2, o4)
-            o6 = arith.Addi(args[4], o5)
+            o4 = arith.SubiOp(o3, args[3])
+            o5 = arith.MuliOp(o2, o4)
+            o6 = arith.AddiOp(args[4], o5)
             YieldOp(o6)
 
         # add linalg.memoized_indexing_maps attribute
@@ -951,7 +952,7 @@ class PoolingOpsBase(IRDLOperation, ABC):
     """Base class for linalg pooling operations."""
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
@@ -1002,7 +1003,7 @@ class ConvOpsBase(IRDLOperation, ABC):
     """Base class for linalg convolution operations."""
 
     inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
+    outputs = var_operand_def(base(ShapedType))
 
     res = var_result_def(AnyTensorType)
 
@@ -1084,7 +1085,7 @@ class BroadcastOp(IRDLOperation):
         assert isinstance(input_type := self.input.type, TensorType | MemRefType)
         assert isinstance(init_type := self.init.type, TensorType | MemRefType)
 
-        dimensions_shape = self.dimensions.as_tuple()
+        dimensions_shape = self.dimensions.get_values()
 
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
@@ -1128,7 +1129,7 @@ class BroadcastOp(IRDLOperation):
         printer.print_string(") ")
         printer.print_string("dimensions")
         printer.print_string(" = ")
-        printer.print(list(self.dimensions.as_tuple()))
+        printer.print(list(self.dimensions.get_values()))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -1161,7 +1162,7 @@ class BroadcastOp(IRDLOperation):
 Linalg = Dialect(
     "linalg",
     [
-        Generic,
+        GenericOp,
         YieldOp,
         AddOp,
         SubOp,

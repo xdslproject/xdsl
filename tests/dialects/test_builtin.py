@@ -1,8 +1,9 @@
+import re
 from collections.abc import Sequence
 
 import pytest
 
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
@@ -17,8 +18,8 @@ from xdsl.dialects.builtin import (
     Float128Type,
     FloatAttr,
     FloatData,
-    IndexType,
     IntAttr,
+    IntegerType,
     MemRefType,
     NoneAttr,
     ShapedType,
@@ -30,6 +31,7 @@ from xdsl.dialects.builtin import (
     VectorRankConstraint,
     VectorType,
     f32,
+    i8,
     i32,
     i64,
 )
@@ -47,11 +49,20 @@ def test_FloatType_bitwidths():
     assert Float128Type().bitwidth == 128
 
 
+def test_IntegerType_size():
+    assert IntegerType(1).size == 1
+    assert IntegerType(2).size == 1
+    assert IntegerType(8).size == 1
+    assert IntegerType(16).size == 2
+    assert IntegerType(32).size == 4
+    assert IntegerType(64).size == 8
+
+
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [])
 
-    value1 = check1.data.data[0].value.data
-    value2 = check1.data.data[1].value.data
+    value1 = check1.get_attrs()[0].value.data
+    value2 = check1.get_attrs()[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
     assert isinstance(value1, float)
@@ -64,8 +75,8 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 
     check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [])
 
-    value3 = check2.data.data[0].value.data
-    value4 = check2.data.data[1].value.data
+    value3 = check2.get_attrs()[0].value.data
+    value4 = check2.get_attrs()[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
     assert isinstance(value3, float)
@@ -77,7 +88,6 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 def test_DenseIntOrFPElementsAttr_from_list():
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
 
-    assert attr.data == ArrayAttr([FloatAttr(5.5, f32)])
     assert attr.type == AnyTensorType(f32, [])
 
 
@@ -91,15 +101,9 @@ def test_DenseArrayBase_verifier_failure():
     )
 
     with pytest.raises(VerifyException) as err:
-        DenseArrayBase([IndexType(), ArrayAttr([FloatData(0.0)])])
-    assert err.value.args[0] == (
-        "dense array of integer or index element type " "should only contain integers"
-    )
-
-    with pytest.raises(VerifyException) as err:
         DenseArrayBase([i32, ArrayAttr([FloatData(0.0)])])
     assert err.value.args[0] == (
-        "dense array of integer or index element type " "should only contain integers"
+        "dense array of integer element type " "should only contain integers"
     )
 
 
@@ -163,7 +167,7 @@ def test_vector_rank_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(2)
 
-    constraint.verify(vector_type)
+    constraint.verify(vector_type, ConstraintContext())
 
 
 def test_vector_rank_constraint_rank_mismatch():
@@ -171,7 +175,7 @@ def test_vector_rank_constraint_rank_mismatch():
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type)
+        constraint.verify(vector_type, ConstraintContext())
     assert e.value.args[0] == "Expected vector rank to be 3, got 2."
 
 
@@ -180,7 +184,7 @@ def test_vector_rank_constraint_attr_mismatch():
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(memref_type)
+        constraint.verify(memref_type, ConstraintContext())
     assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
@@ -188,7 +192,7 @@ def test_vector_base_type_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i32)
 
-    constraint.verify(vector_type)
+    constraint.verify(vector_type, ConstraintContext())
 
 
 def test_vector_base_type_constraint_type_mismatch():
@@ -196,7 +200,7 @@ def test_vector_base_type_constraint_type_mismatch():
     constraint = VectorBaseTypeConstraint(i64)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type)
+        constraint.verify(vector_type, ConstraintContext())
     assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
@@ -205,7 +209,7 @@ def test_vector_base_type_constraint_attr_mismatch():
     constraint = VectorBaseTypeConstraint(i32)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(memref_type)
+        constraint.verify(memref_type, ConstraintContext())
     assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
@@ -248,8 +252,8 @@ memref<1x2xi32> should be of type VectorType."""
 
 
 def test_unrealized_conversion_cast():
-    i64_constant = Constant.from_int_and_width(1, 64)
-    f32_constant = Constant(FloatAttr(10.1, f32))
+    i64_constant = ConstantOp.from_int_and_width(1, 64)
+    f32_constant = ConstantOp(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
     conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
@@ -288,10 +292,20 @@ def test_complex_init():
 
 def test_dense_as_tuple():
     floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
-    assert floats.as_tuple() == (3.14159, 2.71828)
+    assert floats.get_values() == (3.14159, 2.71828)
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
-    assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
+    assert ints.get_values() == (1, 1, 2, 3, 5, 8)
+
+
+def test_create_dense_int():
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Integer value 99999999 is out of range for type i8 which supports values in the range [-128, 256)"
+        ),
+    ):
+        DenseArrayBase.create_dense_int(i8, (99999999, 255, 256))
 
 
 def test_strides():

@@ -5,14 +5,15 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
+    AnyMemRefType,
     ArrayAttr,
     DenseIntOrFPElementsAttr,
+    Float16Type,
     Float32Type,
     FloatAttr,
     FunctionType,
     IndexType,
     IntegerAttr,
-    MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
     i16,
@@ -38,6 +39,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 def get_dir_and_distance(
@@ -72,13 +74,13 @@ def get_dir_and_distance(
 
 def get_dir_and_distance_ops(
     op: csl_stencil.AccessOp,
-) -> tuple[csl.DirectionOp, arith.Constant]:
+) -> tuple[csl.DirectionOp, arith.ConstantOp]:
     """
     Given an access op, return the distance and direction ops, assuming as access
     to a neighbour (not self) in a star-shape pattern
     """
     d, max_distance = get_dir_and_distance(op.offset)
-    return csl.DirectionOp(d), arith.Constant(IntegerAttr(max_distance, 16))
+    return csl.DirectionOp(d), arith.ConstantOp(IntegerAttr(max_distance, 16))
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -199,7 +201,7 @@ class LowerApplyOp(RewritePattern):
         # ensure we send only core data
         assert isa(op.accumulator.type, memref.MemRefType[Attribute])
         assert isa(op.field.type, memref.MemRefType[Attribute])
-        send_buf = memref.Subview.get(
+        send_buf = memref.SubviewOp.get(
             op.field,
             [
                 (d - s) // 2  # symmetric offset
@@ -213,7 +215,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # add api call
-        num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
+        num_chunks = arith.ConstantOp(IntegerAttr(op.num_chunks.value, i16))
         chunk_ref = csl.AddressOfFnOp(chunk_fn)
         done_ref = csl.AddressOfFnOp(done_fn)
         # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
@@ -276,7 +278,9 @@ class GenerateCoeffAPICalls(RewritePattern):
         ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
         cnsts = {
-            d: arith.Constant(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
+            d: arith.ConstantOp(
+                DenseIntOrFPElementsAttr.create_dense_float(memref_t, v)
+            )
             for d, v in cmap.items()
         }
         addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
@@ -292,7 +296,7 @@ class GenerateCoeffAPICalls(RewritePattern):
                 west := addrs[csl.Direction.WEST],
                 south := addrs[csl.Direction.SOUTH],
                 north := addrs[csl.Direction.NORTH],
-                flse := arith.Constant(IntegerAttr.from_bool(False)),
+                flse := arith.ConstantOp(IntegerAttr.from_bool(False)),
                 csl.MemberCallOp(
                     "setCoeffs",
                     None,
@@ -388,6 +392,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
      * each access is immediately processed by the same (type of) reduction op
      * each reduction op uses the same accumulator to store a result
      * each reduction op uses no inputs except from the above access ops
+     * if this is inside a loop, we need to zero-out the accumulator buffer either before or after the loop
      * todo: the data of the accumulator is not itself an input of the reduction
      * todo: no other ops modify the accumulator in-between reduction ops
     """
@@ -410,9 +415,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         # find potential 'reduction' ops
-        reduction_ops: set[Operation] = set(
-            u.operation for a in access_ops for u in a.result.uses
-        )
+        reduction_ops = set(u.operation for a in access_ops for u in a.result.uses)
 
         # check if reduction ops are of the same type
         red_op_ts = set(type(r) for r in reduction_ops)
@@ -421,7 +424,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             csl.FmulsOp,
         ]:
             return
-        red_ops = cast(set[csl.BuiltinDsdOp], reduction_ops)
+        reduction_ops = cast(set[csl.BuiltinDsdOp], reduction_ops)
 
         # check: only apply rewrite if each access has exactly one use
         if any(len(a.result.uses) != 1 for a in access_ops):
@@ -429,27 +432,27 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
 
         # check: only apply rewrite if reduction ops use `access` ops only (plus one other, checked below)
         # note, we have already checked that each access op is only consumed once, which by implication is here
-        red_args = set(arg for r in red_ops for arg in r.ops)
+        red_args = set(arg for r in reduction_ops for arg in r.ops)
         nonaccess_args = red_args - set(a.result for a in access_ops)
         if len(nonaccess_args) > 1:
             return
 
         # check: only apply rewrite if the non-`access` op is an accumulator and the result param in all reduction ops
         accumulator = nonaccess_args.pop()
-        if any(accumulator != r.ops[0] for r in red_ops):
+        if any(accumulator != r.ops[0] for r in reduction_ops):
             return
 
         if (
-            not isinstance(accumulator.type, MemRefType)
+            not isattr(accumulator.type, AnyMemRefType)
             or not isinstance(op.accumulator, OpResult)
-            or not isinstance(alloc := op.accumulator.op, memref.Alloc)
+            or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
         ):
             raise ValueError("Pass needs to be run on memref types")
 
         # Set up new accumulator GetMemDsd, with 0-stride in `direction` and `distance` dimensions.
         # Effectively, this activates only the z-value dimension.
         dsd_t = csl.DsdType(csl.DsdKind.mem4d_dsd)
-        direction_count = arith.Constant.from_int_and_width(4, 16)
+        direction_count = arith.ConstantOp.from_int_and_width(4, 16)
         pattern = wrapper.get_program_param("pattern")
         chunk_size = wrapper.get_program_param("chunk_size")
         acc_dsd = csl.GetMemDsdOp.build(
@@ -463,7 +466,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         new_ops: list[Operation] = [direction_count, acc_dsd]
         if (
             isinstance(accumulator, OpResult)
-            and isinstance(subview := accumulator.op, memref.Subview)
+            and isinstance(subview := accumulator.op, memref.SubviewOp)
             and subview.source == op.receive_chunk.block.args[2]
         ):
             assert isa(subview.source.type, memref.MemRefType[Attribute])
@@ -488,11 +491,22 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
 
         rewriter.insert_op(
             [*new_ops, full_stencil_dsd, reduction_op],
-            InsertPoint.after(list(red_ops)[-1]),
+            InsertPoint.after(list(reduction_ops)[-1]),
         )
 
-        for e in [*access_ops, *red_ops]:
+        for e in [*access_ops, *reduction_ops]:
             rewriter.erase_op(e, safe_erase=False)
+
+        # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
+        assert (elem_t := accumulator.type.get_element_type()) in [
+            Float16Type(),
+            Float32Type(),
+        ]
+        zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
+        mov_op = csl.FmovsOp if elem_t == Float32Type() else csl.FmovhOp
+        rewriter.insert_op(
+            [zero, mov_op(operands=[[op.accumulator, zero]])], InsertPoint.before(op)
+        )
 
     @staticmethod
     def is_full_2d_starshaped_access(

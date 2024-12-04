@@ -1,7 +1,7 @@
 from itertools import chain
 
 from xdsl.context import MLContext
-from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, stream
+from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, snitch
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -36,7 +36,12 @@ class ScfForLowering(RewritePattern):
             return
 
         if not all(
-            isinstance(value.type, riscv.FloatRegisterType | stream.StreamType)
+            isinstance(
+                value.type,
+                riscv.FloatRegisterType
+                | snitch.ReadableStreamType
+                | snitch.WritableStreamType,
+            )
             for o in body_block.ops
             for value in chain(o.operands, o.results)
         ):
@@ -60,7 +65,7 @@ class ScfForLowering(RewritePattern):
                     op.ub, op.lb, rd=riscv.IntRegisterType.unallocated()
                 ),
                 iter_count_minus_one := riscv.AddiOp(iter_count, -1),
-                riscv_snitch.FrepOuter(
+                riscv_snitch.FrepOuterOp(
                     iter_count_minus_one,
                     rewriter.move_region_contents_to_new_regions(op.body),
                     op.iter_args,

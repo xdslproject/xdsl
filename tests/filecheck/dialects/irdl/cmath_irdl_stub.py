@@ -52,12 +52,12 @@ if __name__ == "__main__":
 # CHECK-NEXT:      p0 : "Float32Type | Float64Type"
 # CHECK-EMPTY:
 # CHECK-EMPTY:
-# CHECK-NEXT:  class norm(IRDLOperation):
+# CHECK-NEXT:  class NormOp(IRDLOperation):
 # CHECK-NEXT:      o0 : Operand
 # CHECK-NEXT:      r0 : OpResult
 # CHECK-EMPTY:
 # CHECK-EMPTY:
-# CHECK-NEXT:  class mul(IRDLOperation):
+# CHECK-NEXT:  class MulOp(IRDLOperation):
 # CHECK-NEXT:      o0 : Operand
 # CHECK-NEXT:      o1 : Operand
 # CHECK-NEXT:      r0 : OpResult

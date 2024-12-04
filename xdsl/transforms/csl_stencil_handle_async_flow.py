@@ -107,7 +107,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
     counter: int
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter, /):
         if not self._is_inside_wrapper_outside_apply(op):
             return
 
@@ -119,7 +119,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # limitation: can yield iter_args in any order, but they cannot be modified in the loop body
         terminator = op.body.block.last_op
-        assert isinstance(terminator, scf.Yield)
+        assert isinstance(terminator, scf.YieldOp)
         assert all(
             arg in op.body.block.args for arg in terminator.arguments
         ), "Can only yield unmodified iter_args (in any order)"
@@ -128,9 +128,9 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         assert isinstance(op.lb, OpResult)
         assert isinstance(op.ub, OpResult)
         assert isinstance(op.step, OpResult)
-        assert isinstance(op.lb.op, arith.Constant)
-        assert isinstance(op.ub.op, arith.Constant)
-        assert isinstance(op.step.op, arith.Constant)
+        assert isinstance(op.lb.op, arith.ConstantOp)
+        assert isinstance(op.ub.op, arith.ConstantOp)
+        assert isinstance(op.step.op, arith.ConstantOp)
         assert isa(op.lb.op.value, IntegerAttr[IndexType])
         assert isa(op.ub.op.value, IntegerAttr[IndexType])
         assert isa(op.step.op.value, IntegerAttr[IndexType])
@@ -185,25 +185,25 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # for-loop condition func
         with ImplicitBuilder(cond_func.body.block):
-            ub = arith.Constant.from_int_and_width(op.ub.op.value.value, u32)
+            ub = arith.ConstantOp.from_int_and_width(op.ub.op.value.value, u32)
             iv_load = csl.LoadVarOp(iv)
             iv_load.res.name_hint = f"{iv.res.name_hint}_cond"
-            cond = arith.Cmpi(iv_load, ub, "slt")
-            branch = scf.If(cond, [], Region(Block()), Region(Block()))
+            cond = arith.CmpiOp(iv_load, ub, "slt")
+            branch = scf.IfOp(cond, [], Region(Block()), Region(Block()))
             with ImplicitBuilder(branch.true_region):
                 csl.CallOp(SymbolRefAttr(body_func.sym_name))
-                scf.Yield()
+                scf.YieldOp()
             with ImplicitBuilder(branch.false_region):
                 csl.CallOp(SymbolRefAttr(post_func.sym_name))
-                scf.Yield()
+                scf.YieldOp()
             csl.ReturnOp()
 
         # for-loop inc func
         with ImplicitBuilder(inc_func.body.block):
-            step = arith.Constant.from_int_and_width(op.step.op.value.value, u32)
+            step = arith.ConstantOp.from_int_and_width(op.step.op.value.value, u32)
             iv_load = csl.LoadVarOp(iv)
             iv_load.res.name_hint = f"{iv.res.name_hint}_inc"
-            stepped = arith.Addi(iv_load, step)
+            stepped = arith.AddiOp(iv_load, step)
             csl.StoreVarOp(iv, stepped)
 
             # pre-load iter_vars and store them in the order specified in scf.yield
@@ -268,7 +268,7 @@ class CopyArithConstants(RewritePattern):
     """ """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter, /):
         if not (parent_func := self._get_enclosing_function(op)):
             return
         for use in list(op.result.uses):

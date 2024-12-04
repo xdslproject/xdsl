@@ -34,12 +34,12 @@ class AddArithFastMathFlags(RewritePattern):
     def match_and_rewrite(
         self,
         op: (
-            arith.Addf
-            | arith.Subf
-            | arith.Mulf
-            | arith.Divf
-            | arith.Minimumf
-            | arith.Maximumf
+            arith.AddfOp
+            | arith.SubfOp
+            | arith.MulfOp
+            | arith.DivfOp
+            | arith.MinimumfOp
+            | arith.MaximumfOp
         ),
         rewriter: PatternRewriter,
     ) -> None:

@@ -90,3 +90,21 @@ func.func @test_const_var_const() {
 %z = arith.select %x, %y, %y : i64
 
 "test.op"(%z) : (i64) -> ()
+
+%c1 = arith.constant 1 : i32
+%c2 = arith.constant 2 : i32
+%a = "test.op"() : () -> (i32)
+
+%one_times = arith.muli %c1, %a : i32
+%times_one = arith.muli %a, %c1 : i32
+
+// CHECK: "test.op"(%a, %a) {"identity multiplication check"} : (i32, i32) -> ()
+"test.op"(%one_times, %times_one) {"identity multiplication check"} : (i32, i32) -> ()
+
+// CHECK: %times_by_const = arith.muli %a, %c2 : i32
+%times_by_const = arith.muli %c2, %a : i32
+"test.op"(%times_by_const) : (i32) -> ()
+
+// CHECK: %foldable_times = arith.constant 4 : i32
+%foldable_times = arith.muli %c2, %c2 : i32
+"test.op"(%foldable_times) : (i32) -> ()

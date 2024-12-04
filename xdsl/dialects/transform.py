@@ -150,7 +150,7 @@ AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
 
 
 @irdl_op_definition
-class GetConsumersOfResult(IRDLOperation):
+class GetConsumersOfResultOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult
     """
@@ -229,7 +229,7 @@ class GetParentOp(IRDLOperation):
 
 
 @irdl_op_definition
-class GetProducerOfOperand(IRDLOperation):
+class GetProducerOfOperandOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand
     """
@@ -604,8 +604,8 @@ class TileOp(IRDLOperation):
                     AnyOpType()
                     for _ in range(
                         (
-                            len(static_sizes.as_tuple())
-                            - static_sizes.as_tuple().count(0)
+                            len(static_sizes.get_values())
+                            - static_sizes.get_values().count(0)
                         )
                         if static_sizes
                         else 0
@@ -816,10 +816,10 @@ class MatchOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
-        GetConsumersOfResult,
+        GetConsumersOfResultOp,
         GetDefiningOp,
         GetParentOp,
-        GetProducerOfOperand,
+        GetProducerOfOperandOp,
         GetResultOp,
         GetTypeOp,
         IncludeOp,

@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyArrayAttr,
+    AnyDenseElement,
     AnyFloat,
     AnyFloatAttr,
     AnyFloatConstr,
@@ -67,7 +68,7 @@ from xdsl.utils.bitwise_casts import (
     convert_u32_to_f32,
     convert_u64_to_f64,
 )
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span, StringLiteral, Token
 
@@ -627,7 +628,7 @@ class AttrParser(BaseParser):
             return v
         self.raise_error("Expected an integer literal or `?`" + context_msg)
 
-    def _parse_strided_layout_attr(self, name: Span) -> Attribute:
+    def _parse_strided_layout_attr(self) -> Attribute:
         """
         Parse a strided layout attribute parameters.
         | `<` `[` comma-separated-int-or-question `]`
@@ -693,16 +694,12 @@ class AttrParser(BaseParser):
         if name.text not in parsers:
             return None
         self._consume_token(Token.Kind.BARE_IDENT)
-        return parsers[name.text](name)
+        return parsers[name.text]()
 
     def _parse_builtin_dense_attr_hex(
         self,
         hex_string: str,
-        type: (
-            RankedStructure[IntegerType]
-            | RankedStructure[IndexType]
-            | RankedStructure[AnyFloat]
-        ),
+        type: RankedStructure[AnyDenseElement],
     ) -> tuple[list[int] | list[float], list[int]]:
         """
         Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
@@ -795,7 +792,9 @@ class AttrParser(BaseParser):
             self.raise_error("Dense literal attribute should have a static shape.")
         return type
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
+    def parse_dense_int_or_fp_elements_attr(
+        self, type: RankedStructure[AnyDenseElement] | None
+    ) -> DenseIntOrFPElementsAttr:
         dense_contents: (
             tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
         )
@@ -821,8 +820,9 @@ class AttrParser(BaseParser):
             self.parse_punctuation(">", " in dense attribute")
 
         # Parse the dense type and check for correctness
-        self.parse_punctuation(":", " in dense attribute")
-        type = self._parse_dense_literal_type()
+        if type is None:
+            self.parse_punctuation(":", " in dense attribute")
+            type = self._parse_dense_literal_type()
         type_shape = list(type.get_shape())
         type_num_values = math.prod(type_shape)
 
@@ -866,7 +866,10 @@ class AttrParser(BaseParser):
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
-    def _parse_builtin_opaque_attr(self, _name: Span):
+    def _parse_builtin_dense_attr(self) -> DenseIntOrFPElementsAttr:
+        return self.parse_dense_int_or_fp_elements_attr(None)
+
+    def _parse_builtin_opaque_attr(self):
         str_lit_list = self.parse_comma_separated_list(
             self.Delimiter.ANGLE, self.parse_str_literal
         )
@@ -882,7 +885,7 @@ class AttrParser(BaseParser):
 
         return OpaqueAttr.from_strings(*str_lit_list, type=type)
 
-    def _parse_builtin_dense_resource_attr(self, _name: Span) -> DenseResourceAttr:
+    def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
         self.parse_characters("<", " in dense_resource attribute")
         resource_handle = self.parse_identifier(" for resource handle")
         self.parse_characters(">", " in dense_resource attribute")
@@ -890,14 +893,43 @@ class AttrParser(BaseParser):
         type = self.parse_type()
         return DenseResourceAttr.from_params(resource_handle, type)
 
-    def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
+    def _parse_typed_integer(
+        self,
+        type: IntegerType,
+        allow_boolean: bool = True,
+        allow_negative: bool = True,
+        context_msg: str = "",
+    ) -> int:
+        """
+        Parse an (possible negative) integer. The integer can
+        either be decimal or hexadecimal.
+        Optionally allow parsing of 'true' or 'false' into 1 and 0.
+        """
+
+        pos = self.pos
+        res = self.parse_integer(
+            allow_boolean=allow_boolean,
+            allow_negative=allow_negative,
+            context_msg=context_msg,
+        )
+
+        try:
+            type.verify_value(res)
+        except VerifyException as e:
+            self.raise_error(str(e), pos, self.pos)
+
+        return res
+
+    def _parse_builtin_densearray_attr(self) -> DenseArrayBase | None:
         self.parse_characters("<", " in dense array")
+        pos = self.pos
         element_type = self.parse_attribute()
 
         if not isinstance(element_type, IntegerType | AnyFloat):
-            raise ParseError(
-                name,
-                "dense array element type must be an " "integer or floating point type",
+            self.raise_error(
+                "dense array element type must be an integer or floating point type",
+                pos,
+                self.pos,
             )
 
         # Empty array
@@ -906,21 +938,30 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(
-            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
-        )
+        if isinstance(element_type, IntegerType):
+            values = self.parse_comma_separated_list(
+                self.Delimiter.NONE,
+                lambda: self._parse_typed_integer(element_type, allow_boolean=True),
+            )
+            res = DenseArrayBase.create_dense_int(element_type, values)
+        else:
+            values = self.parse_comma_separated_list(
+                self.Delimiter.NONE,
+                lambda: self.parse_float(),
+            )
+            res = DenseArrayBase.create_dense_float(element_type, values)
 
         self.parse_characters(">", " in dense array")
 
-        return DenseArrayBase.from_list(element_type, values)
+        return res
 
-    def _parse_builtin_affine_map(self, _name: Span) -> AffineMapAttr:
+    def _parse_builtin_affine_map(self) -> AffineMapAttr:
         self.parse_characters("<", " in affine_map attribute")
         affine_map = self.parse_affine_map()
         self.parse_characters(">", " in affine_map attribute")
         return AffineMapAttr(affine_map)
 
-    def _parse_builtin_affine_set(self, _name: Span) -> AffineSetAttr:
+    def _parse_builtin_affine_set(self) -> AffineSetAttr:
         self.parse_characters("<", " in affine_set attribute")
         affine_set = self.parse_affine_set()
         self.parse_characters(">", " in affine_set attribute")

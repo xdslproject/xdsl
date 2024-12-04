@@ -15,7 +15,7 @@ from xdsl.utils.test_value import TestSSAValue
             AffineExpr.constant(42),
             [],
             [],
-            [arith.Constant(IntegerAttr.from_index_int_value(42))],
+            [arith.ConstantOp(IntegerAttr.from_index_int_value(42))],
             None,
         ),
         (
@@ -38,7 +38,7 @@ from xdsl.utils.test_value import TestSSAValue
             ),
             [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
             [],
-            [arith.Addi(value2, value3)],
+            [arith.AddiOp(value2, value3)],
             None,
         ),
         (
@@ -47,7 +47,7 @@ from xdsl.utils.test_value import TestSSAValue
             ),
             [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
             [],
-            [arith.Muli(value2, value3)],
+            [arith.MuliOp(value2, value3)],
             None,
         ),
         (
@@ -56,7 +56,7 @@ from xdsl.utils.test_value import TestSSAValue
             ),
             [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
             [],
-            [arith.RemSI(value2, value3)],
+            [arith.RemSIOp(value2, value3)],
             None,
         ),
         (
@@ -67,7 +67,7 @@ from xdsl.utils.test_value import TestSSAValue
             ),
             [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
             [],
-            [arith.FloorDivSI(value2, value3)],
+            [arith.FloorDivSIOp(value2, value3)],
             None,
         ),
         (
@@ -78,7 +78,7 @@ from xdsl.utils.test_value import TestSSAValue
             ),
             [value2 := TestSSAValue(IndexType()), value3 := TestSSAValue(IndexType())],
             [],
-            [arith.CeilDivSI(value2, value3)],
+            [arith.CeilDivSIOp(value2, value3)],
             None,
         ),
     ],

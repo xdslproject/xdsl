@@ -25,19 +25,21 @@ from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition
-class HLSYield(IRDLOperation):
+class HLSYieldOp(IRDLOperation):
     name = "hls.yield"
     arguments = var_operand_def()
 
     traits = traits_def(IsTerminator())
 
     @staticmethod
-    def get(*operands: SSAValue | Operation) -> HLSYield:
-        return HLSYield.create(operands=[SSAValue.get(operand) for operand in operands])
+    def get(*operands: SSAValue | Operation) -> HLSYieldOp:
+        return HLSYieldOp.create(
+            operands=[SSAValue.get(operand) for operand in operands]
+        )
 
 
 @irdl_op_definition
-class PragmaPipeline(IRDLOperation):
+class PragmaPipelineOp(IRDLOperation):
     name = "hls.pipeline"
     ii = operand_def(IntegerType)
 
@@ -46,7 +48,7 @@ class PragmaPipeline(IRDLOperation):
 
 
 @irdl_op_definition
-class PragmaUnroll(IRDLOperation):
+class PragmaUnrollOp(IRDLOperation):
     name = "hls.unroll"
     factor = operand_def(IntegerType)
 
@@ -55,7 +57,7 @@ class PragmaUnroll(IRDLOperation):
 
 
 @irdl_op_definition
-class PragmaDataflow(IRDLOperation):
+class PragmaDataflowOp(IRDLOperation):
     name = "hls.dataflow"
 
     body = region_def()
@@ -65,7 +67,7 @@ class PragmaDataflow(IRDLOperation):
 
 
 @irdl_op_definition
-class PragmaArrayPartition(IRDLOperation):
+class PragmaArrayPartitionOp(IRDLOperation):
     name = "hls.array_partition"
     variable = opt_attr_def(StringAttr)
     array_type = opt_attr_def(Attribute)  # look at memref.Global
@@ -97,23 +99,23 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
-class HLSStream(IRDLOperation):
+class HLSStreamOp(IRDLOperation):
     name = "hls.stream"
     elem_type = attr_def(Attribute)
     result = result_def(HLSStreamType)  # This should be changed to HLSStreamType
 
     @staticmethod
-    def get(elem_type: Attribute) -> HLSStream:
+    def get(elem_type: Attribute) -> HLSStreamOp:
         attrs: dict[str, Attribute] = {}
 
         attrs["elem_type"] = elem_type
 
         stream_type = HLSStreamType([elem_type])
-        return HLSStream.build(result_types=[stream_type], attributes=attrs)
+        return HLSStreamOp.build(result_types=[stream_type], attributes=attrs)
 
 
 @irdl_op_definition
-class HLSStreamWrite(IRDLOperation):
+class HLSStreamWriteOp(IRDLOperation):
     name = "hls.write"
     element = operand_def()
     stream = operand_def(HLSStreamType)
@@ -123,7 +125,7 @@ class HLSStreamWrite(IRDLOperation):
 
 
 @irdl_op_definition
-class HLSStreamRead(IRDLOperation):
+class HLSStreamReadOp(IRDLOperation):
     name = "hls.read"
     stream = operand_def(HLSStreamType)
     res = result_def()
@@ -135,7 +137,7 @@ class HLSStreamRead(IRDLOperation):
 
 
 @irdl_op_definition
-class HLSExtractStencilValue(IRDLOperation):
+class HLSExtractStencilValueOp(IRDLOperation):
     name = "hls.extract_stencil_value"
 
     position = attr_def(DenseArrayBase)
@@ -161,15 +163,15 @@ class HLSExtractStencilValue(IRDLOperation):
 HLS = Dialect(
     "hls",
     [
-        PragmaPipeline,
-        PragmaUnroll,
-        PragmaDataflow,
-        PragmaArrayPartition,
-        HLSStream,
-        HLSStreamWrite,
-        HLSStreamRead,
-        HLSYield,
-        HLSExtractStencilValue,
+        PragmaPipelineOp,
+        PragmaUnrollOp,
+        PragmaDataflowOp,
+        PragmaArrayPartitionOp,
+        HLSStreamOp,
+        HLSStreamWriteOp,
+        HLSStreamReadOp,
+        HLSYieldOp,
+        HLSExtractStencilValueOp,
     ],
     [HLSStreamType],
 )

@@ -5,7 +5,7 @@ from conftest import assert_print_op
 
 from xdsl.context import MLContext
 from xdsl.dialects import test
-from xdsl.dialects.arith import Addi, Arith, Constant
+from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
@@ -70,7 +70,7 @@ def test_replace_op_one_op():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant_op = Constant.from_int_and_width(43, i32)
+        new_constant_op = ConstantOp.from_int_and_width(43, i32)
         rewriter.replace_op(constant_op, new_constant_op)
 
     rewrite_and_compare(prog, expected, transformation)
@@ -96,8 +96,8 @@ def test_replace_op_multiple_op():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant = Constant.from_int_and_width(1, i32)
-        new_add = Addi(new_constant, new_constant)
+        new_constant = ConstantOp.from_int_and_width(1, i32)
+        new_add = AddiOp(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
 
@@ -125,7 +125,7 @@ def test_replace_op_new_results():
         ops_iter = iter(module.ops)
         next(ops_iter)
         add_op = next(ops_iter)
-        assert isinstance(add_op, Addi)
+        assert isinstance(add_op, AddiOp)
 
         rewriter.replace_op(add_op, [], [add_op.lhs])
 
@@ -333,7 +333,7 @@ def test_insert_op_before():
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant = Constant.from_int_and_width(34, i64)
+        constant = ConstantOp.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
         rewriter.insert_op(constant, InsertPoint.before(first_op))
@@ -357,7 +357,7 @@ def test_insert_op_after():
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant = Constant.from_int_and_width(34, i64)
+        constant = ConstantOp.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
         rewriter.insert_op(constant, InsertPoint.after(first_op))
@@ -384,7 +384,7 @@ def test_preserve_naming_single_op():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant = Constant.from_int_and_width(1, i32)
+        new_constant = ConstantOp.from_int_and_width(1, i32)
 
         rewriter.replace_op(constant_op, [new_constant])
 
@@ -411,8 +411,8 @@ def test_preserve_naming_multiple_ops():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant = Constant.from_int_and_width(1, i32)
-        new_add = Addi(new_constant, new_constant)
+        new_constant = ConstantOp.from_int_and_width(1, i32)
+        new_add = AddiOp(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
 

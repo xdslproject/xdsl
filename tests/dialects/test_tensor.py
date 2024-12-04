@@ -89,8 +89,8 @@ def test_insert_slice_dynamic():
     )
 
     assert insert_slice.static_offsets == DenseArrayBase.from_list(
-        i64, 2 * [memref.Subview.DYNAMIC_INDEX]
+        i64, 2 * [memref.SubviewOp.DYNAMIC_INDEX]
     )
     assert insert_slice.static_strides == DenseArrayBase.from_list(
-        i64, 2 * [memref.Subview.DYNAMIC_INDEX]
+        i64, 2 * [memref.SubviewOp.DYNAMIC_INDEX]
     )
