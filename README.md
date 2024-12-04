@@ -144,7 +144,7 @@ makefile using `make pyright`.
 >
 > For xDSL to type check correctly using Pyright, please add this to your `pyproject.toml`:
 >
-> ``` text
+> ```yaml
 > [tool.pyright]
 > enableExperimentalFeatures = true
 > ```
