@@ -323,8 +323,8 @@ async def test_rewrites():
         app.input_text_area.insert(
             """
         func.func @hello(%n : i32) -> i32 {
-  %two = arith.constant 0 : i32
-  %res = arith.addi %two, %n : i32
+  %c0 = arith.constant 0 : i32
+  %res = arith.addi %n, %c0 : i32
   func.return %res : i32
 }
         """
@@ -334,11 +334,11 @@ async def test_rewrites():
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
-            display_name="AddiOp(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
+            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:AddiIdentityRight",
             module_pass=individual_rewrite.ApplyIndividualRewritePass,
             pass_spec=list(
                 parse_pipeline(
-                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
                 )
             )[0],
         )
@@ -359,7 +359,7 @@ async def test_rewrites():
                 individual_rewrite.ApplyIndividualRewritePass,
                 list(
                     parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
                     )
                 )[0],
             ),
@@ -371,7 +371,7 @@ async def test_rewrites():
             app.output_text_area.text
             == """builtin.module {
   func.func @hello(%n : i32) -> i32 {
-    %two = arith.constant 0 : i32
+    %c0 = arith.constant 0 : i32
     func.return %n : i32
   }
 }
