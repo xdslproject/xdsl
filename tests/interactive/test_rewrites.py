@@ -1,3 +1,5 @@
+from xdsl.context import MLContext
+from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import (
     StringAttr,
 )
@@ -9,14 +11,12 @@ from xdsl.interactive.rewrites import (
     convert_indexed_individual_rewrites_to_available_pass,
     get_all_possible_rewrites,
 )
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.transforms import individual_rewrite
 from xdsl.utils.parse_pipeline import parse_pipeline
 
@@ -97,7 +97,7 @@ def test_convert_indexed_individual_rewrites_to_available_pass():
         (
             AvailablePass(
                 display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
-                module_pass=individual_rewrite.IndividualRewrite,
+                module_pass=individual_rewrite.ApplyIndividualRewritePass,
                 pass_spec=list(
                     parse_pipeline(
                         'apply-individual-rewrite{matched_operation_index=1 operation_name="test.op" pattern_name="TestRewrite"}'
@@ -106,7 +106,7 @@ def test_convert_indexed_individual_rewrites_to_available_pass():
             ),
             AvailablePass(
                 display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
-                module_pass=individual_rewrite.IndividualRewrite,
+                module_pass=individual_rewrite.ApplyIndividualRewritePass,
                 pass_spec=list(
                     parse_pipeline(
                         'apply-individual-rewrite{matched_operation_index=2 operation_name="test.op" pattern_name="TestRewrite"}'

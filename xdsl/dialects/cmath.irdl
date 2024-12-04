@@ -1,0 +1,24 @@
+builtin.module {
+  irdl.dialect @cmath {
+    irdl.type @complex {
+      %0 = irdl.is f32
+      %1 = irdl.is f64
+      %2 = irdl.any_of(%0, %1)
+      irdl.parameters(%2)
+    }
+    irdl.operation @norm {
+      %3 = irdl.any
+      %4 = irdl.parametric @complex<%3>
+      irdl.operands(%4)
+      irdl.results(%3)
+    }
+    irdl.operation @mul {
+      %5 = irdl.is f32
+      %6 = irdl.is f64
+      %7 = irdl.any_of(%5, %6)
+      %8 = irdl.parametric @complex<%7>
+      irdl.operands(%8, %8)
+      irdl.results(%8)
+    }
+  }
+}

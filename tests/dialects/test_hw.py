@@ -6,6 +6,7 @@ from unittest.mock import ANY, patch
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
     HW,
@@ -26,7 +27,7 @@ from xdsl.dialects.hw import (
     ModuleType,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block, MLContext
+from xdsl.ir import Block
 from xdsl.irdl import (
     IRDLOperation,
     Region,
@@ -34,6 +35,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_region_def,
     region_def,
+    traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.traits import (
@@ -71,13 +73,13 @@ class ModuleOp(IRDLOperation):
     name = "module"
     region = region_def()
     sym_name = attr_def(StringAttr)
-    traits = frozenset({InnerSymbolTableTrait(), SymbolOpInterface()})
+    traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
 
 @irdl_op_definition
 class OutputOp(IRDLOperation):
     name = "output"
-    traits = frozenset({IsTerminator()})
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -85,12 +87,10 @@ class CircuitOp(IRDLOperation):
     name = "circuit"
     region: Region | None = opt_region_def()
     sym_name = attr_def(StringAttr)
-    traits = frozenset(
-        {
-            InnerRefNamespaceTrait(),
-            SymbolTable(),
-            SingleBlockImplicitTerminator(OutputOp),
-        }
+    traits = traits_def(
+        InnerRefNamespaceTrait(),
+        SymbolTable(),
+        SingleBlockImplicitTerminator(OutputOp),
     )
 
     def __post_init__(self):
@@ -102,7 +102,7 @@ class CircuitOp(IRDLOperation):
 class WireOp(IRDLOperation):
     name = "wire"
     sym_name = attr_def(StringAttr)
-    traits = frozenset({InnerRefUserOpInterfaceTrait()})
+    traits = traits_def(InnerRefUserOpInterfaceTrait())
 
 
 def test_inner_symbol_table_interface():
@@ -145,7 +145,7 @@ def test_inner_symbol_table_interface():
         name = "module"
         region = region_def()
         sym_name = attr_def(StringAttr)
-        traits = frozenset({InnerSymbolTableTrait()})
+        traits = traits_def(InnerSymbolTableTrait())
 
     mod_missing_trait = MissingTraitModuleOp(
         attributes={"sym_name": StringAttr("symbol_name")}, regions=[[OutputOp()]]
@@ -164,7 +164,7 @@ def test_inner_symbol_table_interface():
     class MissingAttrModuleOp(IRDLOperation):
         name = "module"
         region = region_def()
-        traits = frozenset({InnerSymbolTableTrait(), SymbolOpInterface()})
+        traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
     mod_missing_trait_parent = ModuleOp(regions=[[OutputOp()]])
     MissingAttrModuleOp(regions=[[mod_missing_trait_parent, OutputOp()]])
@@ -185,8 +185,8 @@ def test_inner_ref_namespace_interface():
         name = "circuit"
         region: Region | None = opt_region_def()
         sym_name = attr_def(StringAttr)
-        traits = frozenset(
-            {InnerRefNamespaceTrait(), SingleBlockImplicitTerminator(OutputOp)}
+        traits = traits_def(
+            InnerRefNamespaceTrait(), SingleBlockImplicitTerminator(OutputOp)
         )
 
     wire0 = WireOp(attributes={"sym_name": StringAttr("wire0")})
@@ -363,8 +363,8 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
     assert inst_op.arg_names.data == (StringAttr("foo"), StringAttr("bar"))
     assert inst_op.result_names.data == (StringAttr("baz"), StringAttr("qux"))
 
-    assert [op.type for op in inst_op.operands] == [i32, i64]
-    assert [res.type for res in inst_op.results] == [i32, i64]
+    assert inst_op.operand_types == (i32, i64)
+    assert inst_op.result_types == (i32, i64)
 
 
 def test_hwmoduleop_hwmodulelike():

@@ -15,7 +15,7 @@ import subprocess
 import timeit
 from collections.abc import Iterable
 
-from xdsl.ir import MLContext
+from xdsl.context import MLContext
 from xdsl.parser import Parser
 
 

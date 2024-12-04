@@ -117,13 +117,13 @@ def test_external_func():
             return tuple()
 
     i = Interpreter(
-        ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]),
+        ModuleOp([func_op := func.FuncOp.external("testfunc", [builtin.i32], [])]),
         index_bitwidth=32,
     )
     funcs = TestFunc(0)
 
     i.register_implementations(funcs)
-    i.call_op("testfunc", (100,))
+    i.call_external("testfunc", func_op, (100,))
 
     assert funcs.a == 100
 
@@ -146,9 +146,18 @@ def test_interpreter_data():
 
     assert interpreter.get_data(Funcs1, "a", lambda: {"b": 2}) == {"b": 2}
 
+    # No existing value for key
+    interpreter.set_data(Funcs0, "c", 3)
+
+    assert interpreter.get_data(Funcs0, "c", lambda: {"b": 2}) == 3
+
+    # Update value for key
+    interpreter.set_data(Funcs0, "c", 4)
+
+    assert interpreter.get_data(Funcs0, "c", lambda: {"b": 2}) == 4
+
 
 def test_run_op_interpreter_args():
-
     @dataclass
     @register_impls
     class TestFunctions(InterpreterFunctions):
@@ -207,7 +216,6 @@ def test_mixed_values():
     @dataclass
     @register_impls
     class TestFuncA(InterpreterFunctions):
-
         @impl_attr(IndexType)
         def index_value(
             self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
@@ -217,7 +225,6 @@ def test_mixed_values():
     @dataclass
     @register_impls
     class TestFuncB(InterpreterFunctions):
-
         @impl_attr(IntegerType)
         def index_value(
             self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType

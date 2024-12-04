@@ -3,24 +3,24 @@ from io import StringIO
 
 import pytest
 
-from xdsl.dialects import builtin
-from xdsl.ir import MLContext
+from xdsl.context import MLContext
+from xdsl.dialects import builtin, get_all_dialects
 from xdsl.passes import ModulePass
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
-from xdsl.xdsl_opt_main import get_all_passes, xDSLOptMain
+from xdsl.xdsl_opt_main import xDSLOptMain
 
 
 def test_dialects_and_passes():
-    assert len(get_all_dialects()) > 0
-    assert len(get_all_passes()) > 0
+    assert get_all_dialects()
+    assert get_all_passes()
 
 
 def test_opt():
     opt = xDSLOptMain(args=[])
-    assert len(opt.available_frontends.keys()) > 0
-    assert len(opt.available_targets.keys()) > 0
-    assert len(opt.available_passes.keys()) > 0
+    assert opt.available_frontends.keys()
+    assert opt.available_targets.keys()
+    assert opt.available_passes.keys()
 
 
 def test_empty_program():
@@ -135,7 +135,7 @@ def test_operation_deletion():
 
 def test_print_between_passes():
     filename_in = "tests/xdsl_opt/empty_program.mlir"
-    passes = ["stencil-shape-inference", "dce", "frontend-desymrefy"]
+    passes = ["shape-inference", "dce", "frontend-desymrefy"]
     flags = ["--print-between-passes", "-p", ",".join(passes)]
 
     f = StringIO("")

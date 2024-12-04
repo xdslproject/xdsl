@@ -4,11 +4,11 @@ import argparse
 import sys
 from collections.abc import Sequence
 
+from xdsl.context import MLContext
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
     register_implementations,
 )
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.traits import CallableOpInterface
@@ -62,6 +62,8 @@ class xDSLRunMain(CommandLineTool):
         arg_parser.add_argument(
             "--index-bitwidth",
             choices=(32, 64),
+            # Otherwise default is None, overriding interpreter default mechanism
+            default=Interpreter.DEFAULT_BITWIDTH,
             type=int,
             nargs="?",
             help="Bitwidth of the index type representation.",

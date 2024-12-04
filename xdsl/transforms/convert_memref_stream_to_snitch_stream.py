@@ -1,31 +1,32 @@
-import operator
-from collections.abc import Sequence
-from functools import reduce
-from itertools import accumulate
-from typing import cast
+from typing import Any, cast
 
 from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
-    register_type_for_type,
 )
+from xdsl.context import MLContext
 from xdsl.dialects import (
     builtin,
     memref,
     memref_stream,
     riscv,
     riscv_snitch,
+    snitch,
     snitch_stream,
-    stream,
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    Float16Type,
+    Float32Type,
+    Float64Type,
     IntAttr,
+    MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
+    VectorType,
 )
-from xdsl.ir import Attribute, MLContext, Operation
-from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.ir import Attribute, AttributeCovT, Operation
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -34,6 +35,28 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import DiagnosticException
+
+
+def snitch_stream_element_type_is_valid(attr: Attribute) -> bool:
+    """
+    An override of the helper to account for Snitch packed SIMD.
+    """
+    if isinstance(attr, VectorType):
+        attr = cast(VectorType[Any], attr)
+        match attr.element_type, attr.element_count():
+            case Float64Type(), 1:
+                return True
+            case Float32Type(), 2:
+                return True
+            case Float16Type(), 4:
+                return True
+            case _:
+                # TODO: handle fp8
+                return False
+    else:
+        return isinstance(attr, Float64Type)
 
 
 class ReadOpLowering(RewritePattern):
@@ -42,14 +65,18 @@ class ReadOpLowering(RewritePattern):
         self, op: memref_stream.ReadOp, rewriter: PatternRewriter
     ) -> None:
         stream_type = op.stream.type
-        assert isinstance(stream_type, stream.ReadableStreamType)
+        assert isinstance(stream_type, memref_stream.ReadableStreamType)
         value_type = cast(
-            stream.ReadableStreamType[Attribute], stream_type
+            memref_stream.ReadableStreamType[Attribute], stream_type
         ).element_type
-        register_type = register_type_for_type(value_type).unallocated()
+        if not snitch_stream_element_type_is_valid(value_type):
+            raise DiagnosticException(
+                f"Invalid snitch stream element type {value_type}"
+            )
+        register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
-            (op.stream,), (stream.ReadableStreamType(register_type),)
+            (op.stream,), (snitch.ReadableStreamType(register_type),)
         )
         new_op = riscv_snitch.ReadOp(new_stream.results[0])
         if len(op.res.uses) == 1:
@@ -76,14 +103,18 @@ class WriteOpLowering(RewritePattern):
         self, op: memref_stream.WriteOp, rewriter: PatternRewriter
     ) -> None:
         stream_type = op.stream.type
-        assert isinstance(stream_type, stream.WritableStreamType)
+        assert isinstance(stream_type, memref_stream.WritableStreamType)
         value_type = cast(
-            stream.WritableStreamType[Attribute], stream_type
+            memref_stream.WritableStreamType[Attribute], stream_type
         ).element_type
-        register_type = register_type_for_type(value_type).unallocated()
+        if not snitch_stream_element_type_is_valid(value_type):
+            raise DiagnosticException(
+                f"Invalid snitch stream element type {value_type}"
+            )
+        register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
-            (op.stream,), (stream.WritableStreamType(register_type),)
+            (op.stream,), (snitch.WritableStreamType(register_type),)
         )
         cast_op = UnrealizedConversionCastOp.get((op.value,), (register_type,))
         if isinstance(defining_op := op.value.owner, Operation) and (
@@ -93,9 +124,10 @@ class WriteOpLowering(RewritePattern):
             move_ops = ()
             new_values = cast_op.results
         else:
-            move_ops, new_values = move_to_unallocated_regs(
-                cast_op.results, (value_type,)
+            move_ops = (
+                riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),
             )
+            new_values = move_ops[0].results
         new_write = riscv_snitch.WriteOp(new_values[0], new_stream.results[0])
 
         rewriter.replace_matched_op(
@@ -113,23 +145,17 @@ class StreamOpLowering(RewritePattern):
             for value in op.operands
             if isinstance(value_type := value.type, memref.MemRefType)
         )
-        el_types = tuple(operand_type.element_type for operand_type in operand_types)
-        if not all(el_type == builtin.f64 for el_type in el_types):
-            # Only support f64 streams for now
-            return
-        bytes_per_element = 8
-        shapes = tuple(operand_type.get_shape() for operand_type in operand_types)
         stride_patterns = tuple(
             snitch_stream.StridePattern(
-                pattern.ub,
+                ArrayAttr(ub.value for ub in pattern.ub),
                 ArrayAttr(
                     IntAttr(stride)
                     for stride in strides_for_affine_map(
-                        pattern.index_map.data, shape, bytes_per_element
+                        pattern.index_map.data, memref_type
                     )
                 ),
             ).simplified()
-            for pattern, shape in zip(op.patterns, shapes, strict=True)
+            for pattern, memref_type in zip(op.patterns, operand_types, strict=True)
         )
         if len(set(stride_patterns)) == 1:
             stride_patterns = (stride_patterns[0],)
@@ -149,71 +175,24 @@ class StreamOpLowering(RewritePattern):
 
         new_body = new_op.body.block
 
-        input_stream_types = (stream.ReadableStreamType(freg),) * len(op.inputs)
-        output_stream_types = (stream.WritableStreamType(freg),) * len(op.outputs)
+        input_stream_types = (snitch.ReadableStreamType(freg),) * len(op.inputs)
+        output_stream_types = (snitch.WritableStreamType(freg),) * len(op.outputs)
         stream_types = input_stream_types + output_stream_types
         for i in reversed(range(len(stream_types))):
             arg = new_body.args[i]
             stream_type = stream_types[i]
-            rewriter.insert_op_at_start(
+            rewriter.insert_op(
                 cast_op := builtin.UnrealizedConversionCastOp.get((arg,), (arg.type,)),
-                new_body,
+                InsertPoint.at_start(new_body),
             )
-            arg.replace_by(cast_op.results[0])
-            cast_op.operands = (arg,)
-            rewriter.modify_block_argument_type(arg, stream_type)
-
-
-def offset_map_from_shape(shape: Sequence[int], factor: int) -> AffineMap:
-    """
-    Given a list of lengths for each dimension of a memref, and the number of bytes per
-    element, returns the map from indices to an offset in bytes in memory. The resulting
-    map has one result expression.
-
-    e.g.:
-    ```
-    my_list = [1, 2, 3, 4, 5, 6]
-    shape = [2, 3]
-    for i in range(2):
-        for j in range(3):
-            k = i * 3 + j
-            el = my_list[k]
-            print(el) # -> 1, 2, 3, 4, 5, 6
-
-    map = offset_map_from_strides([3, 1])
-
-    for i in range(2):
-        for j in range(3):
-            k = map.eval(i, j)
-            el = my_list[k]
-            print(el) # -> 1, 2, 3, 4, 5, 6
-    ```
-    """
-    if not shape:
-        # Return empty map to avoid reducing over an empty sequence
-        return AffineMap(0, 0, (AffineExpr.constant(factor),))
-
-    strides: tuple[int, ...] = tuple(
-        accumulate(reversed(shape), operator.mul, initial=factor)
-    )[:-1]
-
-    return AffineMap(
-        len(shape),
-        0,
-        (
-            reduce(
-                operator.add,
-                (
-                    AffineExpr.dimension(i) * stride
-                    for i, stride in enumerate(reversed(strides))
-                ),
-            ),
-        ),
-    )
+            arg.replace_by_if(
+                cast_op.results[0], lambda use: use.operation is not cast_op
+            )
+            rewriter.modify_value_type(arg, stream_type)
 
 
 def strides_for_affine_map(
-    affine_map: AffineMap, shape: Sequence[int], factor: int
+    affine_map: AffineMap, memref_type: MemRefType[AttributeCovT]
 ) -> list[int]:
     """
     Given an iteration space represented as an affine map (for indexing) and a shape (for
@@ -223,22 +202,33 @@ def strides_for_affine_map(
     """
     if affine_map.num_symbols:
         raise ValueError("Cannot create strides for affine map with symbols")
-    offset_map = offset_map_from_shape(shape, factor)
+
+    # only static memref shapes are supported for now:
+    static_shapes = (shape != -1 for shape in memref_type.get_shape())
+    if not all(static_shapes):
+        raise ValueError("Cannot create strides for a memref with dynamic shapes")
+
+    offset_map = memref_type.get_affine_map_in_bytes()
     composed = offset_map.compose(affine_map)
 
     zeros = [0] * composed.num_dims
+    # composed map can have symbols for dynamic offset, just set them to 0
+    symbols = [0] * composed.num_symbols
 
     result: list[int] = []
 
+    # subtract the static offset from each result
+    offset = composed.eval(zeros, symbols)[0]
+
     for i in range(composed.num_dims):
         zeros[i] = 1
-        result.append(composed.eval(zeros, ())[0])
+        result.append(composed.eval(zeros, symbols)[0] - offset)
         zeros[i] = 0
 
     return result
 
 
-class ConvertMemrefStreamToSnitch(ModulePass):
+class ConvertMemrefStreamToSnitchStreamPass(ModulePass):
     """
     Converts memref_stream `read` and `write` operations to the snitch_stream equivalents.
 
@@ -253,7 +243,7 @@ class ConvertMemrefStreamToSnitch(ModulePass):
      streaming region or if the defining operation is a stream read.
     """
 
-    name = "convert-memref-stream-to-snitch"
+    name = "convert-memref-stream-to-snitch-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

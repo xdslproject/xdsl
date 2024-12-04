@@ -4,6 +4,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from xdsl.dialects import builtin, riscv
 from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
 
 
 def register_type_for_type(
@@ -160,9 +161,12 @@ def cast_ops_for_values(
                 (value,), (new_type.unallocated(),)
             )
             new_ops.append(cast_op)
-            value = cast_op.results[0]
+            new_value = cast_op.results[0]
+            new_value.name_hint = value.name_hint
+        else:
+            new_value = value
 
-        new_values.append(value)
+        new_values.append(new_value)
 
     return new_ops, new_values
 
@@ -225,7 +229,7 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
         arg.replace_by(cast_op.results[0])
         move_op.operands[0] = arg
 
-    rewriter.insert_op_at_start(new_ops, block)
+    rewriter.insert_op(new_ops, InsertPoint.at_start(block))
 
 
 def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
@@ -235,11 +239,11 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
     """
 
     for arg in block.args:
-        rewriter.insert_op_at_start(
+        rewriter.insert_op(
             new_val := builtin.UnrealizedConversionCastOp(
                 operands=[arg], result_types=[arg.type]
             ),
-            block,
+            InsertPoint.at_start(block),
         )
 
         arg.type = register_type_for_type(arg.type).unallocated()

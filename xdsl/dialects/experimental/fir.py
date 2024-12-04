@@ -33,20 +33,13 @@ from xdsl.ir import (
     Attribute,
     Data,
     Dialect,
-    OpResult,
     ParametrizedAttribute,
     TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    Operand,
-    OptOperand,
-    OptOpResult,
     ParameterDef,
-    VarOperand,
-    VarOpResult,
-    VarRegion,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -56,6 +49,7 @@ from xdsl.irdl import (
     opt_result_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -95,7 +89,6 @@ class FortranVariableFlags(Enum):
 
 @dataclass(frozen=True)
 class FortranVariableFlagsAttrBase(Data[tuple[FortranVariableFlags, ...]]):
-
     @property
     def flags(self) -> set[FortranVariableFlags]:
         """
@@ -451,7 +444,7 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
-class Absent(IRDLOperation):
+class AbsentOp(IRDLOperation):
     """
     Given the type of a function argument, create a value that will signal that
     an optional argument is absent in the call. On the caller side, fir.is_present
@@ -466,22 +459,22 @@ class Absent(IRDLOperation):
     """
 
     name = "fir.absent"
-    intype: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    intype = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Addc(IRDLOperation):
+class AddcOp(IRDLOperation):
     name = "fir.addc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class AddressOf(IRDLOperation):
+class AddressOfOp(IRDLOperation):
     """
     Convert a symbol (a function or global reference) to an SSA-value to be
     used in other operations. References to Fortran symbols are distinguished
@@ -491,13 +484,13 @@ class AddressOf(IRDLOperation):
     """
 
     name = "fir.address_of"
-    symbol: SymbolRefAttr = prop_def(SymbolRefAttr)
-    resTy: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    symbol = prop_def(SymbolRefAttr)
+    resTy = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Allocmem(IRDLOperation):
+class AllocmemOp(IRDLOperation):
     """
     Creates a heap memory reference suitable for storing a value of the
     given type, T.  The heap refernce returned has type `!fir.heap<T>`.
@@ -509,19 +502,19 @@ class Allocmem(IRDLOperation):
     """
 
     name = "fir.allocmem"
-    in_type: Attribute = prop_def(Attribute)
-    uniq_name: StringAttr | None = opt_prop_def(StringAttr)
-    typeparams: VarOperand = var_operand_def()
-    shape: VarOperand = var_operand_def()
+    in_type = prop_def(Attribute)
+    uniq_name = opt_prop_def(StringAttr)
+    typeparams = var_operand_def()
+    shape = var_operand_def()
 
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
-class Alloca(IRDLOperation):
+class AllocaOp(IRDLOperation):
     """
     This primitive operation is used to allocate an object on the stack.  A
     reference to the object of type '!fir.ref<T>' is returned.  The returned
@@ -582,20 +575,20 @@ class Alloca(IRDLOperation):
     """
 
     name = "fir.alloca"
-    in_type: Attribute = prop_def(Attribute)
-    uniq_name: StringAttr | None = opt_prop_def(StringAttr)
-    bindc_name: StringAttr | None = opt_prop_def(StringAttr)
-    typeparams: VarOperand = var_operand_def()
-    shape: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
-    valuebyref: UnitAttr | None = opt_prop_def(UnitAttr)
+    in_type = prop_def(Attribute)
+    uniq_name = opt_prop_def(StringAttr)
+    bindc_name = opt_prop_def(StringAttr)
+    typeparams = var_operand_def()
+    shape = var_operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
+    valuebyref = opt_prop_def(UnitAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
-class ArrayAccess(IRDLOperation):
+class ArrayAccessOp(IRDLOperation):
     """
     The 'array_access' provides a reference to a single element from an array
     value. This is not a view in the immutable array, otherwise it couldn't
@@ -635,15 +628,15 @@ class ArrayAccess(IRDLOperation):
     """
 
     name = "fir.array_access"
-    sequence: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    element: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    element = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ArrayAmend(IRDLOperation):
+class ArrayAmendOp(IRDLOperation):
     """
     The 'array_amend' operation marks an array value as having been changed via
     a reference obtained by an `array_access`. It acts as a logical transaction
@@ -662,14 +655,14 @@ class ArrayAmend(IRDLOperation):
     """
 
     name = "fir.array_amend"
-    sequence: Operand = operand_def()
-    memref: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    memref = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ArrayCoor(IRDLOperation):
+class ArrayCoorOp(IRDLOperation):
     """
     Compute the location of an element in an array when the shape of the
     array is only known at runtime.
@@ -689,17 +682,17 @@ class ArrayCoor(IRDLOperation):
     """
 
     name = "fir.array_coor"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    shape = operand_def()
+    slice = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ArrayFetch(IRDLOperation):
+class ArrayFetchOp(IRDLOperation):
     """
     Fetch the value of an element in an array value.
 
@@ -722,15 +715,15 @@ class ArrayFetch(IRDLOperation):
     """
 
     name = "fir.array_fetch"
-    sequence: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    element: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    element = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ArrayLoad(IRDLOperation):
+class ArrayLoadOp(IRDLOperation):
     """
     This operation taken with array_merge_store captures Fortran's
     copy-in/copy-out semantics. One way to think of this is that array_load
@@ -762,16 +755,16 @@ class ArrayLoad(IRDLOperation):
     """
 
     name = "fir.array_load"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    shape = operand_def()
+    slice = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ArrayMergeStore(IRDLOperation):
+class ArrayMergeStoreOp(IRDLOperation):
     """
     Store a merged array value to memory.
 
@@ -791,16 +784,16 @@ class ArrayMergeStore(IRDLOperation):
     """
 
     name = "fir.array_merge_store"
-    original: Operand = operand_def()
-    sequence: Operand = operand_def()
-    memref: Operand = operand_def()
-    slice: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    original = operand_def()
+    sequence = operand_def()
+    memref = operand_def()
+    slice = operand_def()
+    typeparams = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ArrayModify(IRDLOperation):
+class ArrayModifyOp(IRDLOperation):
     """
     Modify the value of an element in an array value through actions done
     on the returned address. A new array value is also
@@ -831,16 +824,16 @@ class ArrayModify(IRDLOperation):
     """
 
     name = "fir.array_modify"
-    sequence: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    result_1: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    result_1 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ArrayUpdate(IRDLOperation):
+class ArrayUpdateOp(IRDLOperation):
     """
      Updates the value of an element in an array value. A new array value is
     returned where all element values of the input array are identical except
@@ -868,16 +861,16 @@ class ArrayUpdate(IRDLOperation):
     """
 
     name = "fir.array_update"
-    sequence: Operand = operand_def()
-    merge: Operand = operand_def()
-    indices: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    sequence = operand_def()
+    merge = operand_def()
+    indices = operand_def()
+    typeparams = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxAddr(IRDLOperation):
+class BoxAddrOp(IRDLOperation):
     """
     This operator is overloaded to work with values of type 'box',
     'boxchar', and 'boxproc'.  The result for each of these
@@ -890,13 +883,13 @@ class BoxAddr(IRDLOperation):
     """
 
     name = "fir.box_addr"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxcharLen(IRDLOperation):
+class BoxcharLenOp(IRDLOperation):
     """
     Extracts the LEN type parameter from a 'boxchar' value.
 
@@ -905,13 +898,13 @@ class BoxcharLen(IRDLOperation):
     """
 
     name = "fir.boxchar_len"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxDims(IRDLOperation):
+class BoxDimsOp(IRDLOperation):
     """
     Returns the triple of lower bound, extent, and stride for 'dim' dimension
     of 'val', which must have a 'box' type.  The dimensions are enumerated from
@@ -927,16 +920,16 @@ class BoxDims(IRDLOperation):
     """
 
     name = "fir.box_dims"
-    val: Operand = operand_def()
-    dim: Operand = operand_def()
-    result_0: OpResult = result_def()
-    result_1: OpResult = result_def()
-    result_2: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    dim = operand_def()
+    result_0 = result_def()
+    result_1 = result_def()
+    result_2 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxElesize(IRDLOperation):
+class BoxElesizeOp(IRDLOperation):
     """
     Returns the size of an element in an entity of 'box' type.  This size may
     not be known until runtime.
@@ -949,13 +942,13 @@ class BoxElesize(IRDLOperation):
     """
 
     name = "fir.box_elesize"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxIsalloc(IRDLOperation):
+class BoxIsallocOp(IRDLOperation):
     """
     Determine if the boxed value was from an ALLOCATABLE entity. This will
     return true if the originating box value was from a 'fir.embox' op
@@ -970,13 +963,13 @@ class BoxIsalloc(IRDLOperation):
     """
 
     name = "fir.box_isalloc"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxIsarray(IRDLOperation):
+class BoxIsarrayOp(IRDLOperation):
     """
     Determine if the boxed value has a positive (> 0) rank. This will return
     true if the originating box value was from a fir.embox with a memory
@@ -990,13 +983,13 @@ class BoxIsarray(IRDLOperation):
     """
 
     name = "fir.box_isarray"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxIsptr(IRDLOperation):
+class BoxIsptrOp(IRDLOperation):
     """
     Determine if the boxed value was from a POINTER entity.
 
@@ -1006,13 +999,13 @@ class BoxIsptr(IRDLOperation):
     """
 
     name = "fir.box_isptr"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxprocHost(IRDLOperation):
+class BoxprocHostOp(IRDLOperation):
     """
     Extract the host context pointer from a boxproc value.
 
@@ -1026,13 +1019,13 @@ class BoxprocHost(IRDLOperation):
     """
 
     name = "fir.boxproc_host"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxRank(IRDLOperation):
+class BoxRankOp(IRDLOperation):
     """
     Return the rank of a value of 'box' type.  If the value is scalar, the
     rank is 0.
@@ -1046,13 +1039,13 @@ class BoxRank(IRDLOperation):
     """
 
     name = "fir.box_rank"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class BoxTdesc(IRDLOperation):
+class BoxTdescOp(IRDLOperation):
     """
     Return the opaque type descriptor of a value of 'box' type. A type
     descriptor is an implementation defined value that fully describes a type
@@ -1062,13 +1055,13 @@ class BoxTdesc(IRDLOperation):
     """
 
     name = "fir.box_tdesc"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Call(IRDLOperation):
+class CallOp(IRDLOperation):
     """
     Call the specified function or function reference.
 
@@ -1077,15 +1070,15 @@ class Call(IRDLOperation):
     """
 
     name = "fir.call"
-    callee: Attribute = prop_def(Attribute)
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result_0: OptOpResult = opt_result_def()
-    args: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
+    callee = prop_def(Attribute)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result_0 = opt_result_def()
+    args = var_operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class CharConvert(IRDLOperation):
+class CharConvertOp(IRDLOperation):
     """
     Copy a CHARACTER (must be in memory) of KIND _k1_ to a CHARACTER (also must
     be in memory) of KIND _k2_ where _k1_ != _k2_ and the buffers do not
@@ -1106,27 +1099,27 @@ class CharConvert(IRDLOperation):
     """
 
     name = "fir.char_convert"
-    _from: Operand = operand_def()
-    count: Operand = operand_def()
-    to: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    _from = operand_def()
+    count = operand_def()
+    to = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Cmpc(IRDLOperation):
+class CmpcOp(IRDLOperation):
     """
     A complex comparison to handle complex types found in FIR.
     """
 
     name = "fir.cmpc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Constc(IRDLOperation):
+class ConstcOp(IRDLOperation):
     """
     A complex constant. Similar to the standard dialect complex type, but this
     extension allows constants with APFloat values that are not supported in
@@ -1134,12 +1127,12 @@ class Constc(IRDLOperation):
     """
 
     name = "fir.constc"
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Convert(IRDLOperation):
+class ConvertOp(IRDLOperation):
     """
     Generalized type conversion. Convert the ssa-value from type T to type U.
     Not all pairs of types have conversions. When types T and U are the same
@@ -1153,13 +1146,13 @@ class Convert(IRDLOperation):
     """
 
     name = "fir.convert"
-    value: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    value = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class CoordinateOf(IRDLOperation):
+class CoordinateOfOp(IRDLOperation):
     """
     Compute the internal coordinate address starting from a boxed value or
     unboxed memory reference. Returns a memory reference. When computing the
@@ -1180,15 +1173,15 @@ class CoordinateOf(IRDLOperation):
     """
 
     name = "fir.coordinate_of"
-    baseType: Attribute = prop_def(Attribute)
-    ref: Operand = operand_def()
-    coor: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    baseType = prop_def(Attribute)
+    ref = operand_def()
+    coor = var_operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Declare(IRDLOperation):
+class DeclareOp(IRDLOperation):
     """
     Tie the properties of a Fortran variable to an address. The properties
     include bounds, length parameters, and Fortran attributes.
@@ -1225,15 +1218,15 @@ class Declare(IRDLOperation):
     """
 
     name = "fir.declare"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    typeparams: VarOperand = var_operand_def()
-    uniq_name: StringAttr = prop_def(StringAttr)
+    memref = operand_def()
+    shape = operand_def()
+    typeparams = var_operand_def()
+    uniq_name = prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
 
 
 @irdl_op_definition
-class DtEntry(IRDLOperation):
+class DtEntryOp(IRDLOperation):
     """
     An entry in a dispatch table.  Allows a function symbol to be bound
     to a specifier method identifier.  A dispatch operation uses the dynamic
@@ -1245,11 +1238,11 @@ class DtEntry(IRDLOperation):
     """
 
     name = "fir.dt_entry"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Dispatch(IRDLOperation):
+class DispatchOp(IRDLOperation):
     """
     Perform a dynamic dispatch on the method name via the dispatch table
     associated with the first operand.  The attribute 'pass_arg_pos' can be
@@ -1264,15 +1257,15 @@ class Dispatch(IRDLOperation):
     """
 
     name = "fir.dispatch"
-    pass_arg_pos: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
-    object: Operand = operand_def()
-    args: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    pass_arg_pos = opt_prop_def(AnyIntegerAttr)
+    object = operand_def()
+    args = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class DispatchTable(IRDLOperation):
+class DispatchTableOp(IRDLOperation):
     """
     Define a dispatch table for a derived type with type-bound procedures.
 
@@ -1290,23 +1283,23 @@ class DispatchTable(IRDLOperation):
     name = "fir.dispatch_table"
 
     sym_name = prop_def(StringAttr)
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
 
 @irdl_op_definition
-class Divc(IRDLOperation):
+class DivcOp(IRDLOperation):
     name = "fir.divc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class DoLoop(IRDLOperation):
+class DoLoopOp(IRDLOperation):
     """
     Generalized high-level looping construct. This operation is similar to
     MLIR's 'scf.for'.
@@ -1326,17 +1319,17 @@ class DoLoop(IRDLOperation):
     """
 
     name = "fir.do_loop"
-    lowerBound: Operand = operand_def()
-    upperBound: Operand = operand_def()
-    step: Operand = operand_def()
-    finalValue: Attribute | None = opt_prop_def(Attribute)
-    initArgs: Operand = operand_def()
-    _results: VarOpResult = var_result_def()
-    regs: VarRegion = var_region_def()
+    lowerBound = operand_def()
+    upperBound = operand_def()
+    step = operand_def()
+    finalValue = opt_prop_def(Attribute)
+    initArgs = operand_def()
+    _results = var_result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Emboxchar(IRDLOperation):
+class EmboxcharOp(IRDLOperation):
     """
     Create a boxed CHARACTER value. The CHARACTER type has the LEN type
     parameter, the value of which may only be known at runtime.  Therefore,
@@ -1354,14 +1347,14 @@ class Emboxchar(IRDLOperation):
     """
 
     name = "fir.emboxchar"
-    memref: Operand = operand_def()
-    len: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    len = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Embox(IRDLOperation):
+class EmboxOp(IRDLOperation):
     """
     Create a boxed reference value. In Fortran, the implementation can require
     extra information about an entity, such as its type, rank, etc.  This
@@ -1384,19 +1377,19 @@ class Embox(IRDLOperation):
     """
 
     name = "fir.embox"
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: VarOperand = var_operand_def()
-    typeparams: VarOperand = var_operand_def()
-    sourceBox: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    shape = operand_def()
+    slice = var_operand_def()
+    typeparams = var_operand_def()
+    sourceBox = var_operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
-class Emboxproc(IRDLOperation):
+class EmboxprocOp(IRDLOperation):
     """
     Creates an abstract encapsulation of a PROCEDURE POINTER along with an
     optional pointer to a host instance context. If the pointer is not to an
@@ -1418,14 +1411,14 @@ class Emboxproc(IRDLOperation):
     """
 
     name = "fir.emboxproc"
-    func: Operand = operand_def()
-    host: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    func = operand_def()
+    host = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ExtractValue(IRDLOperation):
+class ExtractValueOp(IRDLOperation):
     """
     Extract a value from an entity with a type composed of tuples, arrays,
     and/or derived types. Returns the value from entity with the type of the
@@ -1442,13 +1435,13 @@ class ExtractValue(IRDLOperation):
     """
 
     name = "fir.extract_value"
-    adt: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    adt = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class FieldIndex(IRDLOperation):
+class FieldIndexOp(IRDLOperation):
     """
     Generate a field (offset) value from an identifier.  Field values may be
     lowered into exact offsets when the layout of a Fortran derived type is
@@ -1461,13 +1454,13 @@ class FieldIndex(IRDLOperation):
     """
 
     name = "fir.field_index"
-    typeparams: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    typeparams = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class End(IRDLOperation):
+class EndOp(IRDLOperation):
     """
     The end terminator is a special terminator used inside various FIR
     operations that have regions.  End is thus the custom invisible terminator
@@ -1476,11 +1469,11 @@ class End(IRDLOperation):
     """
 
     name = "fir.end"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Freemem(IRDLOperation):
+class FreememOp(IRDLOperation):
     """
     Deallocates a heap memory reference that was allocated by an 'allocmem'.
     The memory object that is deallocated is placed in an undefined state
@@ -1494,12 +1487,12 @@ class Freemem(IRDLOperation):
     """
 
     name = "fir.freemem"
-    heapref: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    heapref = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Gentypedesc(IRDLOperation):
+class GentypedescOp(IRDLOperation):
     """
     Generates a constant object that is an abstract type descriptor of the
     specified type.  The meta-type of a type descriptor for the type 'T'
@@ -1510,12 +1503,12 @@ class Gentypedesc(IRDLOperation):
     """
 
     name = "fir.gentypedesc"
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class GlobalLen(IRDLOperation):
+class GlobalLenOp(IRDLOperation):
     """
     A global entity (that is not an automatic data object) can have extra LEN
     parameter (compile-time) constants associated with the instance's type.
@@ -1529,11 +1522,11 @@ class GlobalLen(IRDLOperation):
     """
 
     name = "fir.global_len"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Global(IRDLOperation):
+class GlobalOp(IRDLOperation):
     """
     A global variable or constant with initial values.
 
@@ -1554,18 +1547,18 @@ class Global(IRDLOperation):
     """
 
     name = "fir.global"
-    regs: VarRegion = var_region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    symref: SymbolRefAttr = prop_def(SymbolRefAttr)
-    type: Attribute = prop_def(Attribute)
-    linkName: StringAttr | None = opt_prop_def(StringAttr)
-    constant: UnitAttr | None = opt_prop_def(UnitAttr)
+    regs = var_region_def()
+    sym_name = prop_def(StringAttr)
+    symref = prop_def(SymbolRefAttr)
+    type = prop_def(Attribute)
+    linkName = opt_prop_def(StringAttr)
+    constant = opt_prop_def(UnitAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
 
 @irdl_op_definition
-class HasValue(IRDLOperation):
+class HasValueOp(IRDLOperation):
     """
     The terminator for a GlobalOp with a body.
 
@@ -1582,14 +1575,14 @@ class HasValue(IRDLOperation):
     """
 
     name = "fir.has_value"
-    resval: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    resval = operand_def()
+    regs = var_region_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
-class If(IRDLOperation):
+class IfOp(IRDLOperation):
     """
     Used to conditionally execute operations. This operation is the FIR
     dialect's version of 'loop.if'.
@@ -1604,12 +1597,12 @@ class If(IRDLOperation):
     """
 
     name = "fir.if"
-    condition: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    condition = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class InsertOnRange(IRDLOperation):
+class InsertOnRangeOp(IRDLOperation):
     """
     Insert copies of a value into an entity with an array type of constant shape
     and size.
@@ -1627,14 +1620,14 @@ class InsertOnRange(IRDLOperation):
     """
 
     name = "fir.insert_on_range"
-    seq: Operand = operand_def()
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    seq = operand_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class InsertValue(IRDLOperation):
+class InsertValueOp(IRDLOperation):
     """
     Insert a value into an entity with a type composed of tuples, arrays,
     and/or derived types. Returns a new ssa-value with the same type as the
@@ -1653,14 +1646,14 @@ class InsertValue(IRDLOperation):
     """
 
     name = "fir.insert_value"
-    adt: Operand = operand_def()
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    adt = operand_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class IsPresent(IRDLOperation):
+class IsPresentOp(IRDLOperation):
     """
     Determine if an optional function argument is PRESENT (i.e. that it was not
     created by a fir.absent op on the caller side).
@@ -1671,13 +1664,13 @@ class IsPresent(IRDLOperation):
     """
 
     name = "fir.is_present"
-    val: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class IterateWhile(IRDLOperation):
+class IterateWhileOp(IRDLOperation):
     """
     This single-entry, single-exit looping construct is useful for lowering
     counted loops that can exit early such as, for instance, implied-DO loops.
@@ -1704,17 +1697,17 @@ class IterateWhile(IRDLOperation):
     """
 
     name = "fir.iterate_while"
-    lowerBound: Operand = operand_def()
-    upperBound: Operand = operand_def()
-    step: Operand = operand_def()
-    iterateIn: Operand = operand_def()
-    initArgs: Operand = operand_def()
-    _results: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lowerBound = operand_def()
+    upperBound = operand_def()
+    step = operand_def()
+    iterateIn = operand_def()
+    initArgs = operand_def()
+    _results = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class LenParamIndex(IRDLOperation):
+class LenParamIndexOp(IRDLOperation):
     """
     Generate a LEN parameter (offset) value from a LEN parameter identifier.
     The type of a LEN parameter value is '!fir.len' and these values can be
@@ -1727,13 +1720,13 @@ class LenParamIndex(IRDLOperation):
     """
 
     name = "fir.len_param_index"
-    typeparams: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    typeparams = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Load(IRDLOperation):
+class LoadOp(IRDLOperation):
     """
     Load a value from a memory reference into an ssa-value (virtual register).
     Produces an immutable ssa-value of the referent type. A memory reference
@@ -1747,31 +1740,31 @@ class Load(IRDLOperation):
     """
 
     name = "fir.load"
-    memref: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    memref = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Mulc(IRDLOperation):
+class MulcOp(IRDLOperation):
     name = "fir.mulc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Negc(IRDLOperation):
+class NegcOp(IRDLOperation):
     name = "fir.negc"
-    operand: Operand = operand_def()
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    operand = operand_def()
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class NoReassoc(IRDLOperation):
+class NoReassocOp(IRDLOperation):
     """
     Primitive operation meant to intrusively prevent operator reassociation.
     The operation is otherwise a nop and the value returned is the same as the
@@ -1787,13 +1780,13 @@ class NoReassoc(IRDLOperation):
     """
 
     name = "fir.no_reassoc"
-    val: Operand = operand_def()
-    res: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    val = operand_def()
+    res = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Rebox(IRDLOperation):
+class ReboxOp(IRDLOperation):
     """
     Create a new boxed reference value from another box. This is meant to be
     used when the taking a reference to part of a boxed value, or to an entire
@@ -1825,15 +1818,15 @@ class Rebox(IRDLOperation):
     """
 
     name = "fir.rebox"
-    box: Operand = operand_def()
-    shape: Operand = operand_def()
-    slice: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    box = operand_def()
+    shape = operand_def()
+    slice = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Result(IRDLOperation):
+class ResultOp(IRDLOperation):
     """
     Result takes a list of ssa-values produced in the block and forwards them
     as a result to the operation that owns the region of the block. The
@@ -1842,14 +1835,14 @@ class Result(IRDLOperation):
     """
 
     name = "fir.result"
-    regs: VarRegion = var_region_def()
-    _results: OptOperand = opt_operand_def()
+    regs = var_region_def()
+    _results = opt_operand_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
-class SaveResult(IRDLOperation):
+class SaveResultOp(IRDLOperation):
     """
     Save the result of a function returning an array, box, or record type value
     into a memory location given the shape and LEN parameters of the result.
@@ -1879,15 +1872,15 @@ class SaveResult(IRDLOperation):
     """
 
     name = "fir.save_result"
-    value: Operand = operand_def()
-    memref: Operand = operand_def()
-    shape: Operand = operand_def()
-    typeparams: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    value = operand_def()
+    memref = operand_def()
+    shape = operand_def()
+    typeparams = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class SelectCase(IRDLOperation):
+class SelectCaseOp(IRDLOperation):
     """
     Similar to 'select', select_case provides a way to express Fortran's
     SELECT CASE construct.  In this case, the selector value is matched
@@ -1904,14 +1897,14 @@ class SelectCase(IRDLOperation):
     """
 
     name = "fir.select_case"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Select(IRDLOperation):
+class SelectOp(IRDLOperation):
     """
     A multiway branch terminator with similar semantics to C's 'switch'
     statement.  A selector value is matched against a list of constants
@@ -1928,14 +1921,14 @@ class Select(IRDLOperation):
     """
 
     name = "fir.select"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class SelectRank(IRDLOperation):
+class SelectRankOp(IRDLOperation):
     """
     Similar to 'select', select_rank provides a way to express Fortran's
     SELECT RANK construct.  In this case, the rank of the selector value
@@ -1951,14 +1944,14 @@ class SelectRank(IRDLOperation):
     """
 
     name = "fir.select_rank"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class SelectType(IRDLOperation):
+class SelectTypeOp(IRDLOperation):
     """
     Similar to 'select', select_type provides a way to express Fortran's
     SELECT TYPE construct.  In this case, the type of the selector value
@@ -1975,14 +1968,14 @@ class SelectType(IRDLOperation):
     """
 
     name = "fir.select_type"
-    selector: Operand = operand_def()
-    compareArgs: Operand = operand_def()
-    targetArgs: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    selector = operand_def()
+    compareArgs = operand_def()
+    targetArgs = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Shape(IRDLOperation):
+class ShapeOp(IRDLOperation):
     """
     The arguments are an ordered list of integral type values that define the
     runtime extent of each dimension of an array. The shape information is
@@ -1994,12 +1987,12 @@ class Shape(IRDLOperation):
     """
 
     name = "fir.shape"
-    extents: VarOperand = var_operand_def()
-    result_0: OpResult = result_def()
+    extents = var_operand_def()
+    result_0 = result_def()
 
 
 @irdl_op_definition
-class ShapeShift(IRDLOperation):
+class ShapeShiftOp(IRDLOperation):
     """
     The arguments are an ordered list of integral type values that is a multiple
     of 2 in length. Each such pair is defined as: the lower bound and the
@@ -2012,13 +2005,13 @@ class ShapeShift(IRDLOperation):
     """
 
     name = "fir.shape_shift"
-    pairs: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    pairs = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Shift(IRDLOperation):
+class ShiftOp(IRDLOperation):
     """
     The arguments are an ordered list of integral type values that define the
     runtime lower bound of each dimension of an array. The shape information is
@@ -2030,13 +2023,13 @@ class Shift(IRDLOperation):
     """
 
     name = "fir.shift"
-    origins: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    origins = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Slice(IRDLOperation):
+class SliceOp(IRDLOperation):
     """
     The array slicing arguments are an ordered list of integral type values
     that must be a multiple of 3 in length.  Each such triple is defined as:
@@ -2064,15 +2057,15 @@ class Slice(IRDLOperation):
     """
 
     name = "fir.slice"
-    triples: Operand = operand_def()
-    fields: Operand = operand_def()
-    substr: Operand = operand_def()
-    result_0: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    triples = operand_def()
+    fields = operand_def()
+    substr = operand_def()
+    result_0 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Store(IRDLOperation):
+class StoreOp(IRDLOperation):
     """
     Store an ssa-value (virtual register) to a memory reference.  The stored
     value must be of the same type as the referent type of the memory
@@ -2088,13 +2081,13 @@ class Store(IRDLOperation):
     """
 
     name = "fir.store"
-    value: Operand = operand_def()
-    memref: Operand = operand_def()
-    regs: VarRegion = var_region_def()
+    value = operand_def()
+    memref = operand_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class StringLit(IRDLOperation):
+class StringLitOp(IRDLOperation):
     """
     An FIR constant that represents a sequence of characters that correspond
     to Fortran's CHARACTER type, including a LEN.  We support CHARACTER values
@@ -2105,23 +2098,23 @@ class StringLit(IRDLOperation):
     """
 
     name = "fir.string_lit"
-    size: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    value: StringAttr = attr_def(StringAttr)
-    result_0: OpResult = result_def()
+    size = attr_def(IntegerAttr[IntegerType])
+    value = attr_def(StringAttr)
+    result_0 = result_def()
 
 
 @irdl_op_definition
-class Subc(IRDLOperation):
+class SubcOp(IRDLOperation):
     name = "fir.subc"
-    lhs: Operand = operand_def()
-    rhs: Operand = operand_def()
-    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
-    result: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    lhs = operand_def()
+    rhs = operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Unboxchar(IRDLOperation):
+class UnboxcharOp(IRDLOperation):
     """
     Unboxes a value of 'boxchar' type into a pair consisting of a memory
     reference to the CHARACTER data and the LEN type parameter.
@@ -2131,14 +2124,14 @@ class Unboxchar(IRDLOperation):
     """
 
     name = "fir.unboxchar"
-    boxchar: Operand = operand_def()
-    result_0: OpResult = result_def()
-    result_1: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    boxchar = operand_def()
+    result_0 = result_def()
+    result_1 = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Unboxproc(IRDLOperation):
+class UnboxprocOp(IRDLOperation):
     """
     Unboxes a value of 'boxproc' type into a pair consisting of a procedure
     pointer and a pointer to a host context.
@@ -2148,14 +2141,14 @@ class Unboxproc(IRDLOperation):
     """
 
     name = "fir.unboxproc"
-    boxproc: Operand = operand_def()
-    result_0: OpResult = result_def()
-    refTuple: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    boxproc = operand_def()
+    result_0 = result_def()
+    refTuple = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Undefined(IRDLOperation):
+class UndefinedOp(IRDLOperation):
     """
     Constructs an ssa-value of the specified type with an undefined value.
     This operation is typically created internally by the mem2reg conversion
@@ -2168,12 +2161,12 @@ class Undefined(IRDLOperation):
     """
 
     name = "fir.undefined"
-    intype: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    intype = result_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class Unreachable(IRDLOperation):
+class UnreachableOp(IRDLOperation):
     """
     Terminates a basic block with the assertion that the end of the block
     will never be reached at runtime.  This instruction can be used
@@ -2185,11 +2178,11 @@ class Unreachable(IRDLOperation):
     """
 
     name = "fir.unreachable"
-    regs: VarRegion = var_region_def()
+    regs = var_region_def()
 
 
 @irdl_op_definition
-class ZeroBits(IRDLOperation):
+class ZeroBitsOp(IRDLOperation):
     """
     Constructs an ssa-value of the specified type with a value of zero for all
     bits.
@@ -2200,88 +2193,88 @@ class ZeroBits(IRDLOperation):
     """
 
     name = "fir.zero_bits"
-    intype: OpResult = result_def()
-    regs: VarRegion = var_region_def()
+    intype = result_def()
+    regs = var_region_def()
 
 
 FIR = Dialect(
     "fir",
     [
-        Absent,
-        Addc,
-        AddressOf,
-        Allocmem,
-        Alloca,
-        ArrayAccess,
-        ArrayAmend,
-        ArrayCoor,
-        ArrayFetch,
-        ArrayLoad,
-        ArrayMergeStore,
-        ArrayModify,
-        ArrayUpdate,
-        BoxAddr,
-        BoxcharLen,
-        BoxDims,
-        BoxElesize,
-        BoxIsalloc,
-        BoxIsarray,
-        BoxIsptr,
-        BoxprocHost,
-        BoxRank,
-        BoxTdesc,
-        Call,
-        CharConvert,
-        Cmpc,
-        Constc,
-        Convert,
-        CoordinateOf,
-        Declare,
-        DtEntry,
-        Dispatch,
-        DispatchTable,
-        Divc,
-        DoLoop,
-        Emboxchar,
-        Embox,
-        Emboxproc,
-        ExtractValue,
-        FieldIndex,
-        End,
-        Freemem,
-        Gentypedesc,
-        GlobalLen,
-        Global,
-        HasValue,
-        If,
-        InsertOnRange,
-        InsertValue,
-        IsPresent,
-        IterateWhile,
-        LenParamIndex,
-        Load,
-        Mulc,
-        Negc,
-        NoReassoc,
-        Rebox,
-        Result,
-        SaveResult,
-        SelectCase,
-        Select,
-        SelectRank,
-        SelectType,
-        Shape,
-        ShapeShift,
-        Shift,
-        Slice,
-        Store,
-        StringLit,
-        Subc,
-        Unboxchar,
-        Unboxproc,
-        Undefined,
-        Unreachable,
-        ZeroBits,
+        AbsentOp,
+        AddcOp,
+        AddressOfOp,
+        AllocmemOp,
+        AllocaOp,
+        ArrayAccessOp,
+        ArrayAmendOp,
+        ArrayCoorOp,
+        ArrayFetchOp,
+        ArrayLoadOp,
+        ArrayMergeStoreOp,
+        ArrayModifyOp,
+        ArrayUpdateOp,
+        BoxAddrOp,
+        BoxcharLenOp,
+        BoxDimsOp,
+        BoxElesizeOp,
+        BoxIsallocOp,
+        BoxIsarrayOp,
+        BoxIsptrOp,
+        BoxprocHostOp,
+        BoxRankOp,
+        BoxTdescOp,
+        CallOp,
+        CharConvertOp,
+        CmpcOp,
+        ConstcOp,
+        ConvertOp,
+        CoordinateOfOp,
+        DeclareOp,
+        DtEntryOp,
+        DispatchOp,
+        DispatchTableOp,
+        DivcOp,
+        DoLoopOp,
+        EmboxcharOp,
+        EmboxOp,
+        EmboxprocOp,
+        ExtractValueOp,
+        FieldIndexOp,
+        EndOp,
+        FreememOp,
+        GentypedescOp,
+        GlobalLenOp,
+        GlobalOp,
+        HasValueOp,
+        IfOp,
+        InsertOnRangeOp,
+        InsertValueOp,
+        IsPresentOp,
+        IterateWhileOp,
+        LenParamIndexOp,
+        LoadOp,
+        MulcOp,
+        NegcOp,
+        NoReassocOp,
+        ReboxOp,
+        ResultOp,
+        SaveResultOp,
+        SelectCaseOp,
+        SelectOp,
+        SelectRankOp,
+        SelectTypeOp,
+        ShapeOp,
+        ShapeShiftOp,
+        ShiftOp,
+        SliceOp,
+        StoreOp,
+        StringLitOp,
+        SubcOp,
+        UnboxcharOp,
+        UnboxprocOp,
+        UndefinedOp,
+        UnreachableOp,
+        ZeroBitsOp,
     ],
     [
         FortranVariableFlagsAttr,

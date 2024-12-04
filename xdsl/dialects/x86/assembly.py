@@ -59,7 +59,7 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
             reg = arg.type.register_name
             return reg
         else:
-            assert False, f"{arg.type}"
+            raise ValueError(f"Unexpected register type {arg.type}")
 
 
 def assembly_line(

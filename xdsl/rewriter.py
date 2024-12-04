@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from typing_extensions import deprecated
+
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -118,7 +120,7 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def inline_block_at_location(
+    def inline_block(
         source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()
     ):
         """
@@ -177,6 +179,7 @@ class Rewriter:
             parent_region.detach_block(source)
         source.erase()
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_at_end(
         inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
@@ -186,10 +189,11 @@ class Rewriter:
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
+        Rewriter.inline_block(
             inlined_block, InsertPoint.at_end(extended_block), arg_values=arg_values
         )
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_at_start(
         inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
@@ -199,18 +203,18 @@ class Rewriter:
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
+        Rewriter.inline_block(
             inlined_block, InsertPoint.at_start(extended_block), arg_values=arg_values
         )
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_before(
         source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
     ):
-        Rewriter.inline_block_at_location(
-            source, InsertPoint.before(op), arg_values=arg_values
-        )
+        Rewriter.inline_block(source, InsertPoint.before(op), arg_values=arg_values)
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_after(
         block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
@@ -220,9 +224,7 @@ class Rewriter:
         The block should not be a parent of the operation.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
-            block, InsertPoint.after(op), arg_values=arg_values
-        )
+        Rewriter.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
 
     @staticmethod
     def insert_block_after(block: Block | list[Block], target: Block):
@@ -255,67 +257,60 @@ class Rewriter:
         region.insert_block(block_list, pos)
 
     @staticmethod
-    def insert_ops_at_location(ops: Sequence[Operation], insertion_point: InsertPoint):
+    def insert_op(
+        op_or_ops: Operation | Sequence[Operation], insertion_point: InsertPoint
+    ):
         """Insert operations at a certain location in a block."""
+        ops = (op_or_ops,) if isinstance(op_or_ops, Operation) else op_or_ops
         if insertion_point.insert_before is not None:
             insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)
         else:
             insertion_point.block.add_ops(ops)
 
+    @deprecated("Please use `insert_op` instead")
     @staticmethod
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
-        Rewriter.insert_ops_at_location((new_op,), InsertPoint.after(op))
+        Rewriter.insert_op(new_op, InsertPoint.after(op))
 
+    @deprecated("Please use `insert_op` instead")
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
-        Rewriter.insert_ops_at_location((new_op,), InsertPoint.before(op))
+        Rewriter.insert_op(new_op, InsertPoint.before(op))
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:
         """Move the region blocks to a new region."""
         new_region = Region()
-        for block in region.blocks:
-            block.parent = None
-            new_region.add_block(block)
-        region.blocks = []
+        region.move_blocks(new_region)
         return new_region
-
-    @staticmethod
-    def _inline_region_at_pos(region: Region, target: Region, pos: int) -> None:
-        """Move the region blocks to an existing region, at position `pos`."""
-        if region is target:
-            raise ValueError("Cannot move region into itself.")
-        for block in region.blocks:
-            block.parent = None
-        target.insert_block(region.blocks, pos)
-        region.blocks = []
 
     @staticmethod
     def inline_region_before(region: Region, target: Block) -> None:
         """Move the region blocks to an existing region, before `target`."""
-        parent_region = target.parent
-        if parent_region is None:
-            raise ValueError("Cannot inline region before a block with no parent")
-        pos = parent_region.get_block_index(target)
-        Rewriter._inline_region_at_pos(region, parent_region, pos)
+        region.move_blocks_before(target)
 
     @staticmethod
     def inline_region_after(region: Region, target: Block) -> None:
         """Move the region blocks to an existing region, after `target`."""
-        parent_region = target.parent
-        if parent_region is None:
-            raise ValueError("Cannot inline region before a block with no parent")
-        pos = parent_region.get_block_index(target) + 1
-        Rewriter._inline_region_at_pos(region, parent_region, pos)
+        if target.next_block is not None:
+            Rewriter.inline_region_before(region, target.next_block)
+        else:
+            parent_region = target.parent
+            if parent_region is None:
+                raise ValueError("Cannot inline region before a block with no parent")
+            region.move_blocks(region)
 
     @staticmethod
     def inline_region_at_start(region: Region, target: Region) -> None:
         """Move the region blocks to the start of an existing region."""
-        Rewriter._inline_region_at_pos(region, target, 0)
+        if target.first_block is not None:
+            Rewriter.inline_region_before(region, target.first_block)
+        else:
+            Rewriter.inline_region_at_end(region, target)
 
     @staticmethod
     def inline_region_at_end(region: Region, target: Region) -> None:
         """Move the region blocks to the end of an existing region."""
-        Rewriter._inline_region_at_pos(region, target, len(target.blocks))
+        region.move_blocks(target)

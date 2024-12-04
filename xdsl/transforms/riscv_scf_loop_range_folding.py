@@ -1,5 +1,5 @@
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, riscv, riscv_scf
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 
 
-class HoistIndexTimesConstant(RewritePattern):
+class HoistIndexTimesConstantOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter) -> None:
         index = op.body.block.args[0]
@@ -84,6 +84,6 @@ class RiscvScfLoopRangeFoldingPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            HoistIndexTimesConstant(),
+            HoistIndexTimesConstantOp(),
             apply_recursively=False,
         ).rewrite_module(op)

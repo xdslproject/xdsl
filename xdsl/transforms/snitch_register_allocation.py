@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
+from xdsl.context import MLContext
+from xdsl.dialects import riscv, riscv_snitch, snitch, snitch_stream
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -40,12 +40,12 @@ class AllocateSnitchStreamingRegionRegisters(RewritePattern):
         block = op.body.block
 
         for index, input_stream in enumerate(block.args):
-            input_stream.type = stream.ReadableStreamType(riscv.Registers.FT[index])
+            input_stream.type = snitch.ReadableStreamType(riscv.Registers.FT[index])
 
         input_count = len(op.inputs)
 
         for index, output_stream in enumerate(block.args[input_count:]):
-            output_stream.type = stream.WritableStreamType(
+            output_stream.type = snitch.WritableStreamType(
                 riscv.Registers.FT[index + input_count]
             )
 
@@ -59,7 +59,7 @@ class AllocateRiscvSnitchReadRegisters(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_snitch.ReadOp, rewriter: PatternRewriter, /):
         stream_type = cast(
-            stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
+            snitch.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
         op.res.type = stream_type.element_type
 
@@ -73,7 +73,7 @@ class AllocateRiscvSnitchWriteRegisters(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_snitch.WriteOp, rewriter: PatternRewriter, /):
         stream_type = cast(
-            stream.WritableStreamType[riscv.FloatRegisterType], op.stream.type
+            snitch.WritableStreamType[riscv.FloatRegisterType], op.stream.type
         )
         op.value.type = stream_type.element_type
 

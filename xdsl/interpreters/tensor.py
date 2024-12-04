@@ -10,15 +10,14 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.builtin import xtype_for_el_type
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
 class TensorFunctions(InterpreterFunctions):
-
     @impl(tensor.EmptyOp)
     def run_empty(
         self, interpreter: Interpreter, op: tensor.EmptyOp, args: tuple[Any, ...]
@@ -30,7 +29,7 @@ class TensorFunctions(InterpreterFunctions):
         xtype = xtype_for_el_type(result_type.element_type, interpreter.index_bitwidth)
         return (
             ShapedArray(
-                TypedPtr.new((0,) * math.prod(result_shape), xtype=xtype),
+                TypedPtr[Any].new((0,) * math.prod(result_shape), xtype=xtype),
                 result_shape,
             ),
         )

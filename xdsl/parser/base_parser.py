@@ -10,7 +10,15 @@ from enum import Enum
 from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Lexer, Position, Span, StringLiteral, Token
+from xdsl.utils.lexer import (
+    Lexer,
+    Position,
+    PunctuationSpelling,
+    Span,
+    StringLiteral,
+    Token,
+)
+from xdsl.utils.str_enum import StrEnum
 
 
 @dataclass(init=False)
@@ -34,6 +42,7 @@ class ParserState:
 
 
 _AnyInvT = TypeVar("_AnyInvT")
+_EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 
 @dataclass
@@ -350,6 +359,36 @@ class BaseParser:
             "Expected integer literal" + context_msg,
         )
 
+    def parse_optional_float(
+        self,
+        *,
+        allow_negative: bool = True,
+    ) -> float | None:
+        """
+        Parse a (possibly negative) float, if present.
+        """
+        is_negative = False
+        if allow_negative:
+            is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+
+        if (value := self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
+            value = value.get_float_value()
+            return -value if is_negative else value
+
+    def parse_float(
+        self,
+        *,
+        allow_negative: bool = True,
+    ) -> float:
+        """
+        Parse a (possibly negative) float.
+        """
+
+        return self.expect(
+            lambda: self.parse_optional_float(allow_negative=allow_negative),
+            "Expected float literal",
+        )
+
     def parse_optional_number(
         self, *, allow_boolean: bool = False
     ) -> int | float | None:
@@ -367,8 +406,7 @@ class BaseParser:
         ) is not None:
             return -value if is_negative else value
 
-        if (value := self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
-            value = value.get_float_value()
+        if (value := self.parse_optional_float(allow_negative=False)) is not None:
             return -value if is_negative else value
 
         if is_negative:
@@ -503,11 +541,11 @@ class BaseParser:
         self.raise_error(error_msg)
 
     def parse_optional_punctuation(
-        self, punctuation: Token.PunctuationSpelling
-    ) -> Token.PunctuationSpelling | None:
+        self, punctuation: PunctuationSpelling
+    ) -> PunctuationSpelling | None:
         """
         Parse a punctuation, if it is present. Otherwise, return None.
-        Punctuations are defined by `Token.PunctuationSpelling`.
+        Punctuations are defined by `PunctuationSpelling`.
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
@@ -520,11 +558,11 @@ class BaseParser:
         return None
 
     def parse_punctuation(
-        self, punctuation: Token.PunctuationSpelling, context_msg: str = ""
-    ) -> Token.PunctuationSpelling:
+        self, punctuation: PunctuationSpelling, context_msg: str = ""
+    ) -> PunctuationSpelling:
         """
         Parse a punctuation. Punctuations are defined by
-        `Token.PunctuationSpelling`.
+        `PunctuationSpelling`.
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
@@ -534,3 +572,28 @@ class BaseParser:
         kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
         self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
         return punctuation
+
+    def parse_str_enum(self, enum_type: type[_EnumType]) -> _EnumType:
+        """Parse a string enum value."""
+        result = self.parse_optional_str_enum(enum_type)
+        if result is not None:
+            return result
+        enum_values = tuple(enum_type)
+        if len(enum_values) == 1:
+            self.raise_error(f"Expected `{enum_values[0]}`.")
+        self.raise_error(
+            f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`."
+        )
+
+    def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
+        """Parse a string enum value, if present."""
+
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+
+        val = self._current_token.text
+        if val not in enum_type.__members__.values():
+            return None
+
+        self._consume_token(Token.Kind.BARE_IDENT)
+        return enum_type(val)

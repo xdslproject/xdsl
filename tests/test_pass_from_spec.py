@@ -4,8 +4,8 @@ from typing import Literal
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
@@ -78,7 +78,7 @@ def test_pass_instantiation():
 
 @pytest.mark.parametrize(
     "spec, error_msg",
-    (
+    [
         (PipelinePassSpec("wrong", {"a": (1,)}), "Cannot create Pass simple"),
         (PipelinePassSpec("simple", {}), 'requires argument "a"'),
         (
@@ -91,7 +91,7 @@ def test_pass_instantiation():
             PipelinePassSpec("simple", {"a": ("test",), "literal": ("definitely",)}),
             "Incompatible types",
         ),
-    ),
+    ],
 )
 def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
     """

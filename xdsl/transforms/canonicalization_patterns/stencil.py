@@ -1,16 +1,20 @@
 from typing import cast
 
 from xdsl.dialects import stencil
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import cse
 
 
-class RedundantOperands(RewritePattern):
+class ApplyRedundantOperands(RewritePattern):
+    """
+    Merge duplicate operands of a `stencil.apply`.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
@@ -40,7 +44,10 @@ class RedundantOperands(RewritePattern):
         cse(op.region.block)
 
 
-class UnusedOperands(RewritePattern):
+class ApplyUnusedOperands(RewritePattern):
+    """
+    Remove unused operands of a `stencil.apply`.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
@@ -61,11 +68,14 @@ class UnusedOperands(RewritePattern):
             [cast(stencil.TempType[Attribute], r.type) for r in op.res],
         )
 
-        rewriter.inline_block_at_start(op.region.block, block, block.args)
+        rewriter.inline_block(op.region.block, InsertPoint.at_start(block), block.args)
         rewriter.replace_matched_op(new)
 
 
-class UnusedResults(RewritePattern):
+class ApplyUnusedResults(RewritePattern):
+    """
+    Remove unused results of a `stencil.apply`.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
@@ -85,8 +95,12 @@ class UnusedResults(RewritePattern):
             results.pop(i)
             return_args.pop(i)
 
-        new = stencil.ApplyOp.get(
-            op.args, block, [cast(stencil.TempType[Attribute], r.type) for r in results]
+        new = stencil.ApplyOp.build(
+            operands=[op.args, op.dest],
+            regions=[Region(block)],
+            result_types=[[cast(stencil.TempType[Attribute], r.type) for r in results]],
+            properties=op.properties.copy(),
+            attributes=op.attributes.copy(),
         )
 
         replace_results: list[SSAValue | None] = list(new.res)
@@ -95,3 +109,14 @@ class UnusedResults(RewritePattern):
 
         rewriter.replace_op(old_return, stencil.ReturnOp.get(return_args))
         rewriter.replace_matched_op(new, replace_results)
+
+
+class RemoveCastWithNoEffect(RewritePattern):
+    """
+    Remove `stencil.cast` where input and output types are equal.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.CastOp, rewriter: PatternRewriter) -> None:
+        if op.result.type == op.field.type:
+            rewriter.replace_matched_op([], new_results=[op.field])

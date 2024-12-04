@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, TypeGuard, cast
 
@@ -56,9 +56,9 @@ class IOpResult(ISSAValue):
     def __hash__(self) -> int:
         return hash(id(self.op)) + hash(self.index)
 
-    def __eq__(self, __o: object) -> bool:
-        if isinstance(__o, IOpResult):
-            return self.op == __o.op and self.index == __o.index
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, IOpResult):
+            return self.op == other.op and self.index == other.index
         return False
 
 
@@ -72,8 +72,8 @@ class IBlockArg(ISSAValue):
     def __hash__(self) -> int:
         return hash(id(self.block)) + hash(self.index)
 
-    def __eq__(self, __o: IBlockArg) -> bool:
-        return self is __o
+    def __eq__(self, other: object) -> bool:
+        return self is other
 
     def __repr__(self) -> str:
         return "BlockArg(type:" + self.type.name + ("attached") + ")"
@@ -127,7 +127,7 @@ class IRegion:
     @classmethod
     def from_mutable(
         cls,
-        blocks: Sequence[Block],
+        blocks: Iterable[Block],
         value_map: dict[SSAValue, ISSAValue] | None = None,
         block_map: dict[Block, IBlock] | None = None,
     ) -> IRegion:
@@ -140,12 +140,6 @@ class IRegion:
             value_map = {}
         if block_map is None:
             block_map = {}
-
-        if blocks[0].parent is None:
-            raise InvalidIRException(
-                "Cannot create an IRegion from a mutable Block "
-                "that is not attached to a Region."
-            )
 
         # adding dummy block mappings so that ops have a successor to reference
         # when the actual block is created all successor references will be moved
@@ -161,6 +155,11 @@ class IRegion:
 
         # clean up successor references to blocks for ops inside this region
         for block, imm_block in zip(blocks, region.blocks):
+            if block.parent is None:
+                raise InvalidIRException(
+                    "Cannot create an IRegion from a mutable Block "
+                    "that is not attached to a Region."
+                )
             dummy_block = block_map[block]
             for block in region.blocks:
                 for op in block.ops:
@@ -244,12 +243,13 @@ class IBlock:
         def is_type_seq(list: Sequence[Any]) -> TypeGuard[Sequence[Attribute]]:
             return all([isinstance(elem, Attribute) for elem in list])
 
+        block_args: Sequence[IBlockArg]
         if is_type_seq(args):
-            block_args: Sequence[IBlockArg] = [
+            block_args = [
                 IBlockArg(type, IList(()), self, idx) for idx, type in enumerate(args)
             ]
         elif is_iblock_arg_seq(args):
-            block_args: Sequence[IBlockArg] = args
+            block_args = args
             for block_arg in block_args:
                 object.__setattr__(block_arg, "block", self)
         else:
@@ -570,7 +570,7 @@ class IOperation:
             op.name,
             op_type,
             operands,
-            [result.type for result in op.results],
+            op.result_types,
             properties,
             attributes,
             successors,

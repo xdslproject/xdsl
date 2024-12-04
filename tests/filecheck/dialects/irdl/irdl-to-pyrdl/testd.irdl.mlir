@@ -38,27 +38,27 @@ builtin.module {
 // CHECK-NEXT:     param0: ParameterDef[Attribute]
 
 
-    irdl.operation @eq {
+    irdl.operation @my_eq {
       %0 = irdl.is i32
       irdl.results(%0)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class eq(IRDLOperation):
-// CHECK-NEXT:     name = "testd.eq"
+// CHECK-NEXT: class MyEqOp(IRDLOperation):
+// CHECK-NEXT:     name = "testd.my_eq"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     regs = var_region_def()
 // CHECK-NEXT:     succs = var_successor_def()
 
 
-    irdl.operation @anyof {
+    irdl.operation @any_of {
       %0 = irdl.is i32
       %1 = irdl.is i64
       %2 = irdl.any_of(%0, %1)
       irdl.results(%2)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class anyof(IRDLOperation):
-// CHECK-NEXT:     name = "testd.anyof"
+// CHECK-NEXT: class AnyOfOp(IRDLOperation):
+// CHECK-NEXT:     name = "testd.any_of"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     regs = var_region_def()
 // CHECK-NEXT:     succs = var_successor_def()
@@ -72,7 +72,7 @@ builtin.module {
       irdl.results(%3)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class all_of(IRDLOperation):
+// CHECK-NEXT: class AllOfOp(IRDLOperation):
 // CHECK-NEXT:     name = "testd.all_of"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     regs = var_region_def()
@@ -84,7 +84,7 @@ builtin.module {
       irdl.results(%0)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class any(IRDLOperation):
+// CHECK-NEXT: class AnyOp(IRDLOperation):
 // CHECK-NEXT:     name = "testd.any"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     regs = var_region_def()
@@ -97,7 +97,7 @@ builtin.module {
       irdl.results(%1)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class dynbase(IRDLOperation):
+// CHECK-NEXT: class DynbaseOp(IRDLOperation):
 // CHECK-NEXT:     name = "testd.dynbase"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     regs = var_region_def()
@@ -111,7 +111,7 @@ builtin.module {
       irdl.results(%3)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class dynparams(IRDLOperation):
+// CHECK-NEXT: class DynparamsOp(IRDLOperation):
 // CHECK-NEXT:     name = "testd.dynparams"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     regs = var_region_def()
@@ -124,7 +124,7 @@ builtin.module {
       irdl.results(%2, %2)
     }
 // CHECK:      @irdl_op_definition
-// CHECK-NEXT: class constraint_vars(IRDLOperation):
+// CHECK-NEXT: class ConstraintVarsOp(IRDLOperation):
 // CHECK-NEXT:     name = "testd.constraint_vars"
 // CHECK-NEXT:     result0 = result_def()
 // CHECK-NEXT:     result1 = result_def()
@@ -133,4 +133,4 @@ builtin.module {
   }
 }
 
-// CHECK: testd = Dialect("testd", [eq, anyof, all_of, any, dynbase, dynparams, constraint_vars], [parametric, parametric_attr, attr_in_type_out])
+// CHECK: testd = Dialect("testd", [MyEqOp, AnyOfOp, AllOfOp, AnyOp, DynbaseOp, DynparamsOp, ConstraintVarsOp], [parametric, parametric_attr, attr_in_type_out])

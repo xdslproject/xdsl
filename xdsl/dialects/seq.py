@@ -5,7 +5,7 @@ CIRCT’s seq dialect
 """
 
 from enum import Enum
-from typing import Annotated
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -15,13 +15,13 @@ from xdsl.dialects.builtin import (
     i1,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Attribute, Data, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Data, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
-    Operand,
     ParametrizedAttribute,
+    VarConstraint,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -48,14 +48,14 @@ clock = ClockType()
 
 
 @irdl_op_definition
-class ClockDivider(IRDLOperation):
+class ClockDividerOp(IRDLOperation):
     """Produces a clock divided by a power of two"""
 
     name = "seq.clock_div"
 
     pow2 = attr_def(AnyIntegerAttr)
-    clockIn: Operand = operand_def(ClockType)
-    clockOut: OpResult = result_def(ClockType)
+    clockIn = operand_def(ClockType)
+    clockOut = result_def(ClockType)
 
     def __init__(self, clockIn: SSAValue | Operation, pow2: int | AnyIntegerAttr):
         if isinstance(pow2, int):
@@ -94,15 +94,15 @@ class CompRegOp(IRDLOperation):
 
     name = "seq.compreg"
 
-    DataType = Annotated[Attribute, ConstraintVar("DataType")]
+    DATA_TYPE: ClassVar = VarConstraint("DataType", AnyAttr())
 
     inner_sym = opt_attr_def(InnerSymAttr)
-    input = operand_def(DataType)
+    input = operand_def(DATA_TYPE)
     clk = operand_def(clock)
     reset = opt_operand_def(i1)
-    reset_value = opt_operand_def(DataType)
-    power_on_value = opt_operand_def(DataType)
-    data = result_def(DataType)
+    reset_value = opt_operand_def(DATA_TYPE)
+    power_on_value = opt_operand_def(DATA_TYPE)
+    data = result_def(DATA_TYPE)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -186,8 +186,8 @@ class ConstClockOp(IRDLOperation):
 
     name = "seq.const_clock"
 
-    value: ClockConstAttr = attr_def(ClockConstAttr)
-    result: OpResult = result_def(clock)
+    value = attr_def(ClockConstAttr)
+    result = result_def(clock)
 
     @classmethod
     def parse(cls, parser: Parser) -> "ConstClockOp":
@@ -206,7 +206,7 @@ class ConstClockOp(IRDLOperation):
 Seq = Dialect(
     "seq",
     [
-        ClockDivider,
+        ClockDividerOp,
         CompRegOp,
         ConstClockOp,
     ],

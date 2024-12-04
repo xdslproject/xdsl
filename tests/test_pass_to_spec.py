@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
@@ -47,7 +47,7 @@ class SimplePass(ModulePass):
 
 @pytest.mark.parametrize(
     "test_pass, test_spec",
-    (
+    [
         (
             CustomPass(3, (1, 2), None, ("clown", "season")),
             PipelinePassSpec(
@@ -66,7 +66,38 @@ class SimplePass(ModulePass):
             SimplePass((3.14, 2.13), 2),
             PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
         ),
-    ),
+    ],
 )
-def test_pass_to_spec_equality(test_pass: ModulePass, test_spec: PipelinePassSpec):
+def test_pass_to_spec_include_default(
+    test_pass: ModulePass,
+    test_spec: PipelinePassSpec,
+):
+    assert test_pass.pipeline_pass_spec(include_default=True) == test_spec
+
+
+@pytest.mark.parametrize(
+    "test_pass, test_spec",
+    [
+        (
+            CustomPass(3, (1, 2), None, ("clown", "season")),
+            PipelinePassSpec(
+                "custom-pass",
+                {
+                    "number": (3,),
+                    "int_list": (1, 2),
+                    "list_str": ("clown", "season"),
+                },
+            ),
+        ),
+        (EmptyPass(), PipelinePassSpec("empty", {})),
+        (
+            SimplePass((3.14, 2.13), 2),
+            PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
+        ),
+    ],
+)
+def test_pass_to_spec_exclude_default(
+    test_pass: ModulePass, test_spec: PipelinePassSpec
+):
+    assert test_pass.pipeline_pass_spec(include_default=False) == test_spec
     assert test_pass.pipeline_pass_spec() == test_spec

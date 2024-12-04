@@ -17,9 +17,9 @@ from xdsl.interpreters.shaped_array import ShapedArray
 
 @register_impls
 class LinalgFunctions(InterpreterFunctions):
-    @impl(linalg.Generic)
+    @impl(linalg.GenericOp)
     def run_generic(
-        self, interpreter: Interpreter, op: linalg.Generic, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
         if op.library_call is not None:
             raise NotImplementedError(
@@ -188,7 +188,7 @@ class LinalgFunctions(InterpreterFunctions):
         strides_type = op.strides.type
         assert isinstance(strides_type, TensorType)
         (strides_shape,) = strides_type.get_shape()
-        strides = tuple(value.value.data for value in op.strides.data)
+        strides = op.strides.get_values()
         if strides_shape != 2:
             raise NotImplementedError("Only 2d max pooling supported")
 
@@ -222,7 +222,6 @@ class LinalgFunctions(InterpreterFunctions):
         op: linalg.Conv2DNchwFchwOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-
         input, kernel_filter, res = args[0], args[1], args[2]
         assert isinstance(input, ShapedArray)
         assert isinstance(kernel_filter, ShapedArray)
@@ -234,7 +233,7 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError()
         m_height, m_width = input.shape[2:]
         ky, kx = kernel_filter.shape[2], kernel_filter.shape[3]
-        strides = tuple(value.value.data for value in op.strides.data)
+        strides = op.strides.get_values()
         # convert input into a numpy like array
         input_data = [
             [input.data[r * m_width + c] for c in range(m_width)]

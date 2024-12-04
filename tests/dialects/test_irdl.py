@@ -1,6 +1,9 @@
+# do not include 'from __future__ import annotations' in this file
+from typing import ClassVar
+
 import pytest
 
-from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32
+from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32
 from xdsl.dialects.irdl import (
     AllOfOp,
     AnyOfOp,
@@ -17,7 +20,10 @@ from xdsl.dialects.irdl import (
     ResultsOp,
     TypeOp,
 )
+from xdsl.dialects.irdl.irdl import VariadicityArrayAttr, VariadicityAttr
 from xdsl.ir import Block, Region
+from xdsl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.utils.exceptions import PyRDLOpDefinitionError
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -41,16 +47,38 @@ def test_named_region_op_init(
     assert len(op.body.blocks) == 1
 
 
-@pytest.mark.parametrize("op_type", [ParametersOp, OperandsOp, ResultsOp])
-def test_parameters_init(op_type: type[ParametersOp | OperandsOp | ResultsOp]):
+def test_parameter_op_init():
     """
-    Test __init__ of ParametersOp, OperandsOp, ResultsOp.
+    Test __init__ of ParametersOp.
     """
 
     val1 = TestSSAValue(AttributeType())
     val2 = TestSSAValue(AttributeType())
-    op = op_type([val1, val2])
-    op2 = op_type.create(operands=[val1, val2])
+    op = ParametersOp([val1, val2])
+    op2 = ParametersOp.create(operands=[val1, val2])
+
+    assert op.is_structurally_equivalent(op2)
+
+    assert op.args == (val1, val2)
+
+
+@pytest.mark.parametrize("op_type", [OperandsOp, ResultsOp])
+def test_parameters_init(op_type: type[OperandsOp | ResultsOp]):
+    """
+    Test __init__ of OperandsOp, ResultsOp.
+    """
+
+    val1 = TestSSAValue(AttributeType())
+    val2 = TestSSAValue(AttributeType())
+    op = op_type([(VariadicityAttr.SINGLE, val1), (VariadicityAttr.OPTIONAL, val2)])
+    op2 = op_type.create(
+        operands=[val1, val2],
+        attributes={
+            "variadicity": VariadicityArrayAttr(
+                ArrayAttr((VariadicityAttr.SINGLE, VariadicityAttr.OPTIONAL))
+            )
+        },
+    )
 
     assert op.is_structurally_equivalent(op2)
 
@@ -131,3 +159,65 @@ def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
 
     assert op.args == (val1, val2)
     assert op.output.type == AttributeType()
+
+
+@pytest.mark.parametrize("op_type", [OperationOp, TypeOp, AttributeOp])
+def test_qualified_name(op_type: type[OperationOp | TypeOp | AttributeOp]):
+    """Test qualified_name property of OperationOp, TypeOp, AttributeOp."""
+    op = op_type.create(
+        attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())]
+    )
+    dialect = DialectOp("mydialect", Region(Block([op])))
+    dialect.verify()
+    assert op.qualified_name == "mydialect.myname"
+
+
+class MyOpWithClassVar(IRDLOperation):
+    name = "test.has_class_var"
+
+    VAR: ClassVar[str] = "hello_world"
+
+
+class MyOpWithClassVarInvalid(IRDLOperation):
+    name = "test.has_class_var"
+
+    var: ClassVar[str] = "hello_world"
+
+
+def test_class_var_on_op():
+    irdl_op_definition(MyOpWithClassVar)
+
+
+def test_class_var_on_op_invalid():
+    with pytest.raises(PyRDLOpDefinitionError, match="is neither a"):
+        irdl_op_definition(MyOpWithClassVarInvalid)
+
+
+class MySuperWithClassVarDef(IRDLOperation):
+    name = "test.super_has_class_var"
+
+    VAR: ClassVar[str]
+
+
+class MySubWithClassVarOverload(MySuperWithClassVarDef):
+    name = "test.super_has_class_var"
+
+    VAR: ClassVar[str] = "hello_world"
+
+
+def test_class_var_on_super():
+    irdl_op_definition(MySuperWithClassVarDef)
+    irdl_op_definition(MySubWithClassVarOverload)
+
+
+@pytest.mark.parametrize(
+    "op_name, class_name",
+    [
+        ("my_operation", "MyOperationOp"),
+        ("AlreadyCamelCase", "AlreadyCamelCaseOp"),
+        ("nested.name", "NestedNameOp"),
+    ],
+)
+def test_get_py_class_name(op_name: str, class_name: str):
+    op = OperationOp(op_name, Region(Block()))
+    assert op.get_py_class_name() == class_name

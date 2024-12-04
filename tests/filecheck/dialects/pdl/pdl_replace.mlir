@@ -28,4 +28,4 @@ pdl.pattern @replaceWithOp : benefit(1) {
 }
 
 // CHECK: @replaceWithOp
-// CHECK: pdl.replace %{{.*}} with %{{.*}}
+// CHECK: pdl.replace %{{.*}} with %{{\S+}}

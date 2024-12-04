@@ -5,6 +5,7 @@ from pathlib import Path
 @dataclass
 class Location:
     "Structure definition a location in a file."
+
     file: Path
     line: int
     col: int

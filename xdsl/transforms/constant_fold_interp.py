@@ -6,11 +6,12 @@ inputs are constant, replacing the computation with a constant value.
 from dataclasses import dataclass
 from typing import Any, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import register_implementations
-from xdsl.ir import Attribute, MLContext, Operation, OpResult
+from xdsl.ir import Attribute, Operation, OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -69,7 +70,7 @@ class ConstantFoldInterpPattern(RewritePattern):
         match (value, value_type):
             case int(), IntegerType():
                 attr = IntegerAttr(value, value_type)
-                return arith.Constant(attr)
+                return arith.ConstantOp(attr)
             case _:
                 return None
 

@@ -36,7 +36,7 @@ def test_quasiaffine_map():
     N = AffineExpr.symbol(0)
 
     # map1: (x)[N] -> (x floordiv 2)
-    map1 = AffineMap(1, 1, (x.floor_div(2),))
+    map1 = AffineMap(1, 1, (x // 2,))
     assert map1.eval([1], [10]) == (0,)
     assert map1.eval([2], [10]) == (1,)
     assert map1.eval([3], [10]) == (1,)
@@ -88,7 +88,7 @@ def test_composition():
         2,
         0,
         (
-            AffineExpr.dimension(0).floor_div(2),
+            AffineExpr.dimension(0) // 2,
             2 * AffineExpr.dimension(0) + 3 * AffineExpr.dimension(1),
         ),
     )

@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
 
     steps:
     - uses: actions/checkout@v4
@@ -25,6 +25,10 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip' # caching pip dependencies
+        cache-dependency-path: |
+          setup.py
+          requirements.txt
     - name: Upgrade pip
       run: |
         pip install --upgrade pip
@@ -34,3 +38,6 @@ jobs:
       run: |
         # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
         pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
+    - name: Test marimo notebooks
+      run: |
+        make tests-marimo

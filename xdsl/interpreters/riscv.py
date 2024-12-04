@@ -20,8 +20,8 @@ from xdsl.interpreter import (
     impl_cast,
     register_impls,
 )
-from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
@@ -83,7 +83,7 @@ class RiscvFunctions(InterpreterFunctions):
 
         if stored_value != value:
             raise InterpretationError(
-                f"Runtime and stored value mismatch: {value} != {stored_value}"
+                f"Runtime and stored value mismatch: {value} != {stored_value} {attr}"
             )
 
         return value
@@ -124,10 +124,20 @@ class RiscvFunctions(InterpreterFunctions):
     def set_reg_values(
         interpreter: Interpreter, results: Sequence[SSAValue], values: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        assert len(results) == len(values)
         return tuple(
             RiscvFunctions.set_reg_value(interpreter, result.type, value)
-            for result, value in zip(results, values)
+            for result, value in zip(results, values, strict=True)
+        )
+
+    @staticmethod
+    def set_reg_values_for_types(
+        interpreter: Interpreter,
+        result_types: Sequence[Attribute],
+        values: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        return tuple(
+            RiscvFunctions.set_reg_value(interpreter, result_type, value)
+            for result_type, value in zip(result_types, values, strict=True)
         )
 
     @staticmethod
@@ -596,7 +606,7 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
-                data = [el.value.data for el in attr.data]
+                data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
                     xtype=xtype_for_el_type(

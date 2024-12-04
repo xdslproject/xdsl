@@ -4,9 +4,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from warnings import warn
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, Use
+from xdsl.ir import Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -68,9 +69,7 @@ def _try_remove_cast_chain(
         # because types are homogeneous (e.g. {A -> B, B -> A})
         # otherwise it means the cast is not unifiable with its uses
         assert len(cast.results) == len(op.inputs)
-        has_trivial_cycle = all(
-            r.type == i.type for r, i in zip(cast.results, op.inputs)
-        )
+        has_trivial_cycle = cast.result_types == op.inputs.types
         if is_live and not has_trivial_cycle:
             if warn_on_failure:
                 warn(

@@ -1,13 +1,30 @@
 from collections.abc import Sequence
 
-from xdsl.dialects import arith, scf
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects import scf
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
+from xdsl.traits import ConstantLike
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
+
+
+class RehoistConstInLoops(RewritePattern):
+    """
+    Carry out const definitions from the loops.
+    In the future this will probably be done by the pattern rewriter itself, like it's done in the MLIR's applyPatternsAndFoldGreedily.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
+        for child_op in op.body.ops:
+            if child_op.has_trait(ConstantLike):
+                # we only rehoist consts that are not embeded in another region inside the loop
+                rewriter.insert_op_before_matched_op((new_const := child_op.clone(),))
+                rewriter.replace_op(child_op, (), new_const.results)
 
 
 class SimplifyTrivialLoops(RewritePattern):
@@ -18,7 +35,7 @@ class SimplifyTrivialLoops(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
         # If the upper bound is the same as the lower bound, the loop does not iterate,
         # just remove it.
         if (lb := const_evaluate_operand(op.lb)) is None:
@@ -73,16 +90,6 @@ def replace_op_with_region(
     block = region.block
     terminator = block.last_op
     assert terminator is not None
-    rewriter.inline_block_before(block, op, args)
+    rewriter.inline_block(block, InsertPoint.before(op), args)
     rewriter.replace_op(op, (), terminator.operands)
     rewriter.erase_op(terminator)
-
-
-def const_evaluate_operand(operand: SSAValue) -> int | None:
-    """
-    Try to constant evaluate an SSA value, returning None on failure.
-    """
-    if isinstance(op := operand.owner, arith.Constant) and isinstance(
-        val := op.value, IntegerAttr
-    ):
-        return val.value.data

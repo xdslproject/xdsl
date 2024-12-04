@@ -18,7 +18,6 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     Operation,
-    OpResult,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute,
@@ -26,10 +25,9 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    OptOperand,
-    OptOpResult,
     ParameterDef,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -38,7 +36,6 @@ from xdsl.irdl import (
     opt_result_def,
     result_def,
 )
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.hints import isa
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -112,6 +109,7 @@ class DataType(ParametrizedAttribute, TypeAttribute):
 
 
 VectorWrappable = RequestType | StatusType | DataType
+VectorWrappableConstr = base(RequestType) | base(StatusType) | base(DataType)
 _VectorT = TypeVar("_VectorT", bound=VectorWrappable)
 
 
@@ -148,7 +146,7 @@ class MPIBaseOp(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class Reduce(MPIBaseOp):
+class ReduceOp(MPIBaseOp):
     """
     This wraps the MPI_Reduce function (blocking reduction)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html
@@ -174,12 +172,12 @@ class Reduce(MPIBaseOp):
 
     name = "mpi.reduce"
 
-    send_buffer: Operand = operand_def(Attribute)
-    recv_buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
-    operationtype: OperationType = attr_def(OperationType)
-    root: Operand = operand_def(i32)
+    send_buffer = operand_def(Attribute)
+    recv_buffer = operand_def(Attribute)
+    count = operand_def(i32)
+    datatype = operand_def(DataType)
+    operationtype = attr_def(OperationType)
+    root = operand_def(i32)
 
     def __init__(
         self,
@@ -196,25 +194,9 @@ class Reduce(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        send_buffer: SSAValue | Operation,
-        recv_buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        operationtype: OperationType,
-        root: SSAValue | Operation,
-    ):
-        return Reduce.build(
-            operands=[send_buffer, recv_buffer, count, datatype, root],
-            attributes={"operationtype": operationtype},
-            result_types=[],
-        )
-
 
 @irdl_op_definition
-class Allreduce(MPIBaseOp):
+class AllreduceOp(MPIBaseOp):
     """
     This wraps the MPI_Allreduce function (blocking all reduction)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
@@ -239,11 +221,11 @@ class Allreduce(MPIBaseOp):
 
     name = "mpi.allreduce"
 
-    send_buffer: OptOperand = opt_operand_def(Attribute)
-    recv_buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
-    operationtype: OperationType = attr_def(OperationType)
+    send_buffer = opt_operand_def(Attribute)
+    recv_buffer = operand_def(Attribute)
+    count = operand_def(i32)
+    datatype = operand_def(DataType)
+    operationtype = attr_def(OperationType)
 
     def __init__(
         self,
@@ -268,32 +250,9 @@ class Allreduce(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        send_buffer: SSAValue | Operation | None,
-        recv_buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        operationtype: OperationType,
-    ):
-        operands_to_add: Sequence[
-            SSAValue | Operation | Sequence[SSAValue | Operation]
-        ] = []
-        if send_buffer is None:
-            operands_to_add = [[], recv_buffer, count, datatype]
-        else:
-            operands_to_add = [[send_buffer], recv_buffer, count, datatype]
-
-        return Allreduce.build(
-            operands=operands_to_add,
-            attributes={"operationtype": operationtype},
-            result_types=[],
-        )
-
 
 @irdl_op_definition
-class Bcast(MPIBaseOp):
+class BcastOp(MPIBaseOp):
     """
     This wraps the MPI_Bcast function (blocking broadcast)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html
@@ -317,10 +276,10 @@ class Bcast(MPIBaseOp):
 
     name = "mpi.bcast"
 
-    buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
-    root: Operand = operand_def(i32)
+    buffer = operand_def(Attribute)
+    count = operand_def(i32)
+    datatype = operand_def(DataType)
+    root = operand_def(i32)
 
     def __init__(
         self,
@@ -334,22 +293,9 @@ class Bcast(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        root: SSAValue | Operation,
-    ):
-        return Bcast.build(
-            operands=[buffer, count, datatype, root],
-            result_types=[],
-        )
-
 
 @irdl_op_definition
-class Isend(MPIBaseOp):
+class IsendOp(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html
@@ -374,12 +320,12 @@ class Isend(MPIBaseOp):
 
     name = "mpi.isend"
 
-    buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
-    dest: Operand = operand_def(i32)
-    tag: Operand = operand_def(i32)
-    request: Operand = operand_def(RequestType)
+    buffer = operand_def(Attribute)
+    count = operand_def(i32)
+    datatype = operand_def(DataType)
+    dest = operand_def(i32)
+    tag = operand_def(i32)
+    request = operand_def(RequestType)
 
     def __init__(
         self,
@@ -395,24 +341,9 @@ class Isend(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        dest: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        request: SSAValue | Operation,
-    ):
-        return Isend.build(
-            operands=[buffer, count, datatype, dest, tag, request],
-            result_types=[],
-        )
-
 
 @irdl_op_definition
-class Send(MPIBaseOp):
+class SendOp(MPIBaseOp):
     """
     This wraps the MPI_Send function (blocking send)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Send.html
@@ -437,11 +368,11 @@ class Send(MPIBaseOp):
 
     name = "mpi.send"
 
-    buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
-    dest: Operand = operand_def(i32)
-    tag: Operand = operand_def(i32)
+    buffer = operand_def(Attribute)
+    count = operand_def(i32)
+    datatype = operand_def(DataType)
+    dest = operand_def(i32)
+    tag = operand_def(i32)
 
     def __init__(
         self,
@@ -455,22 +386,9 @@ class Send(MPIBaseOp):
             operands=[buffer, count, datatype, dest, tag], result_types=[]
         )
 
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        dest: SSAValue | Operation,
-        tag: SSAValue | Operation,
-    ) -> Send:
-        return Send.build(
-            operands=[buffer, count, datatype, dest, tag], result_types=[]
-        )
-
 
 @irdl_op_definition
-class Irecv(MPIBaseOp):
+class IrecvOp(MPIBaseOp):
     """
     This wraps the MPI_Irecv function (nonblocking receive).
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html
@@ -496,12 +414,12 @@ class Irecv(MPIBaseOp):
 
     name = "mpi.irecv"
 
-    buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
-    source: Operand = operand_def(i32)
-    tag: Operand = operand_def(i32)
-    request: Operand = operand_def(RequestType)
+    buffer = operand_def(Attribute)
+    count = operand_def(i32)
+    datatype = operand_def(DataType)
+    source = operand_def(i32)
+    tag = operand_def(i32)
+    request = operand_def(RequestType)
 
     def __init__(
         self,
@@ -517,24 +435,9 @@ class Irecv(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        source: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        request: SSAValue | Operation,
-    ):
-        return Irecv.build(
-            operands=[buffer, count, datatype, source, tag, request],
-            result_types=[],
-        )
-
 
 @irdl_op_definition
-class Recv(MPIBaseOp):
+class RecvOp(MPIBaseOp):
     """
     This wraps the MPI_Recv function (blocking receive).
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Recv.html
@@ -560,13 +463,13 @@ class Recv(MPIBaseOp):
 
     name = "mpi.recv"
 
-    buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
-    source: Operand = operand_def(i32)
-    tag: Operand = operand_def(i32)
+    buffer = operand_def(Attribute)
+    count = operand_def(i32)
+    datatype = operand_def(DataType)
+    source = operand_def(i32)
+    tag = operand_def(i32)
 
-    status: OptOpResult = opt_result_def(StatusType)
+    status = opt_result_def(StatusType)
 
     def __init__(
         self,
@@ -582,24 +485,9 @@ class Recv(MPIBaseOp):
             result_types=[[]] if ignore_status else [[StatusType()]],
         )
 
-    @deprecated("Use Init instead.")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        source: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        ignore_status: bool = True,
-    ):
-        return Recv.build(
-            operands=[buffer, count, datatype, source, tag],
-            result_types=[[]] if ignore_status else [[StatusType()]],
-        )
-
 
 @irdl_op_definition
-class Test(MPIBaseOp):
+class TestOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Test function (test for completion of request)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Test.html
@@ -615,22 +503,17 @@ class Test(MPIBaseOp):
 
     name = "mpi.test"
 
-    request: Operand = operand_def(RequestType)
+    request = operand_def(RequestType)
 
-    flag: OpResult = result_def(t_bool)
-    status: OpResult = result_def(StatusType)
+    flag = result_def(t_bool)
+    status = result_def(StatusType)
 
     def __init__(self, request: Operand):
         return super().__init__(operands=[request], result_types=[t_bool, StatusType()])
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(request: Operand):
-        return Test.build(operands=[request], result_types=[t_bool, StatusType()])
-
 
 @irdl_op_definition
-class Wait(MPIBaseOp):
+class WaitOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Wait function (blocking wait for request)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Wait.html
@@ -645,8 +528,8 @@ class Wait(MPIBaseOp):
 
     name = "mpi.wait"
 
-    request: Operand = operand_def(RequestType)
-    status: OptOpResult = opt_result_def(StatusType)
+    request = operand_def(RequestType)
+    status = opt_result_def(StatusType)
 
     def __init__(self, request: Operand, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[StatusType()]]
@@ -655,18 +538,9 @@ class Wait(MPIBaseOp):
 
         return super().__init__(operands=[request], result_types=result_types)
 
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(request: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[StatusType()]]
-        if ignore_status:
-            result_types = [[]]
-
-        return Wait.build(operands=[request], result_types=result_types)
-
 
 @irdl_op_definition
-class Waitall(MPIBaseOp):
+class WaitallOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Waitall function (blocking wait for requests)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html
@@ -683,29 +557,20 @@ class Waitall(MPIBaseOp):
 
     name = "mpi.waitall"
 
-    requests: Operand = operand_def(VectorType[RequestType])
-    count: Operand = operand_def(i32)
-    statuses: OptOpResult = opt_result_def(VectorType[StatusType])
+    requests = operand_def(VectorType[RequestType])
+    count = operand_def(i32)
+    statuses = opt_result_def(VectorType[StatusType])
 
     def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
+        result_types: list[list[Attribute]] = [[VectorType[StatusType].of(StatusType)]]
         if ignore_status:
             result_types = [[]]
 
         return super().__init__(operands=[requests, count], result_types=result_types)
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
-        if ignore_status:
-            result_types = [[]]
-
-        return Waitall.build(operands=[requests, count], result_types=result_types)
-
 
 @irdl_op_definition
-class GetStatusField(MPIBaseOp):
+class GetStatusFieldOp(MPIBaseOp):
     """
     Accessors for the MPI_Status struct
 
@@ -719,11 +584,11 @@ class GetStatusField(MPIBaseOp):
 
     name = "mpi.status.get"
 
-    status: Operand = operand_def(StatusType)
+    status = operand_def(StatusType)
 
-    field: StringAttr = attr_def(StringAttr)
+    field = attr_def(StringAttr)
 
-    result: OpResult = result_def(i32)
+    result = result_def(i32)
 
     def __init__(self, status_obj: Operand, field: StatusTypeField):
         return super().__init__(
@@ -732,18 +597,9 @@ class GetStatusField(MPIBaseOp):
             result_types=[i32],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(status_obj: Operand, field: StatusTypeField):
-        return GetStatusField.build(
-            operands=[status_obj],
-            attributes={"field": StringAttr(field.value)},
-            result_types=[i32],
-        )
-
 
 @irdl_op_definition
-class CommRank(MPIBaseOp):
+class CommRankOp(MPIBaseOp):
     """
     Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns
     the rank of the communicator
@@ -753,19 +609,14 @@ class CommRank(MPIBaseOp):
 
     name = "mpi.comm.rank"
 
-    rank: OpResult = result_def(i32)
+    rank = result_def(i32)
 
     def __init__(self):
         return super().__init__(result_types=[i32])
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get():
-        return CommRank.build(result_types=[i32])
-
 
 @irdl_op_definition
-class CommSize(MPIBaseOp):
+class CommSizeOp(MPIBaseOp):
     """
     Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns
     the size of the communicator
@@ -775,19 +626,14 @@ class CommSize(MPIBaseOp):
 
     name = "mpi.comm.size"
 
-    size: OpResult = result_def(i32)
+    size = result_def(i32)
 
     def __init__(self):
         return super().__init__(result_types=[i32])
 
-    @deprecated("Use init instead")
-    @staticmethod
-    def get():
-        return CommSize.build(result_types=[i32])
-
 
 @irdl_op_definition
-class Init(MPIBaseOp):
+class InitOp(MPIBaseOp):
     """
     This represents a bare MPI_Init call with both args being nullptr
     """
@@ -796,7 +642,7 @@ class Init(MPIBaseOp):
 
 
 @irdl_op_definition
-class Finalize(MPIBaseOp):
+class FinalizeOp(MPIBaseOp):
     """
     This represents an MPI_Finalize call with both args being nullptr
     """
@@ -814,22 +660,14 @@ class UnwrapMemrefOp(MPIBaseOp):
 
     name = "mpi.unwrap_memref"
 
-    ref: Operand = operand_def(MemRefType[AnyNumericType])
+    ref = operand_def(MemRefType[AnyNumericType])
 
-    ptr: OpResult = result_def(llvm.LLVMPointerType)
-    len: OpResult = result_def(i32)
-    type: OpResult = result_def(DataType)
+    ptr = result_def(llvm.LLVMPointerType)
+    len = result_def(i32)
+    type = result_def(DataType)
 
     def __init__(self, ref: SSAValue | Operation):
         return super().__init__(
-            operands=[ref],
-            result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
-        )
-
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
-        return UnwrapMemrefOp.build(
             operands=[ref],
             result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
         )
@@ -850,17 +688,12 @@ class GetDtypeOp(MPIBaseOp):
 
     name = "mpi.get_dtype"
 
-    dtype: Attribute = attr_def(Attribute)
+    dtype = attr_def(Attribute)
 
-    result: OpResult = result_def(DataType)
+    result = result_def(DataType)
 
     def __init__(self, dtype: Attribute):
         return super().__init__(result_types=[DataType()], attributes={"dtype": dtype})
-
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(dtype: Attribute):
-        return GetDtypeOp.build(result_types=[DataType()], attributes={"dtype": dtype})
 
 
 @irdl_op_definition
@@ -877,11 +710,11 @@ class AllocateTypeOp(MPIBaseOp):
 
     name = "mpi.allocate"
 
-    bindc_name: StringAttr | None = opt_attr_def(StringAttr)
-    dtype: VectorWrappable = attr_def(VectorWrappable)
-    count: Operand = operand_def(i32)
+    bindc_name = opt_attr_def(StringAttr)
+    dtype = attr_def(VectorWrappableConstr)
+    count = operand_def(i32)
 
-    result: OpResult = result_def(VectorType)
+    result = result_def(VectorType)
 
     def __init__(
         self,
@@ -890,23 +723,7 @@ class AllocateTypeOp(MPIBaseOp):
         bindc_name: StringAttr | None = None,
     ):
         return super().__init__(
-            result_types=[VectorType.of(dtype)],
-            attributes={
-                "dtype": dtype(),
-                "bindc_name": bindc_name,
-            },
-            operands=[count],
-        )
-
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        dtype: type[VectorWrappable],
-        count: SSAValue | Operation,
-        bindc_name: StringAttr | None = None,
-    ) -> AllocateTypeOp:
-        return AllocateTypeOp.build(
-            result_types=[VectorType.of(dtype)],
+            result_types=[VectorType[dtype].of(dtype)],
             attributes={
                 "dtype": dtype(),
                 "bindc_name": bindc_name,
@@ -924,26 +741,16 @@ class VectorGetOp(MPIBaseOp):
 
     name = "mpi.vector_get"
 
-    vect: Operand = operand_def(VectorType)
-    element: Operand = operand_def(i32)
+    vect = operand_def(VectorType)
+    element = operand_def(i32)
 
-    result: OpResult = result_def(VectorWrappable)
+    result = result_def(VectorWrappableConstr)
 
     def __init__(self, vect: SSAValue | Operation, element: SSAValue | Operation):
         ssa_val = SSAValue.get(vect)
         assert isa(ssa_val.type, VectorType[VectorWrappable])
 
         return super().__init__(
-            result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
-        )
-
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:
-        ssa_val = SSAValue.get(vect)
-        assert isa(ssa_val.type, VectorType[VectorWrappable])
-
-        return VectorGetOp.build(
             result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
         )
 
@@ -960,15 +767,10 @@ class NullRequestOp(MPIBaseOp):
 
     name = "mpi.request_null"
 
-    request: Operand = operand_def(RequestType)
+    request = operand_def(RequestType)
 
     def __init__(self, req: SSAValue | Operation):
         return super().__init__(operands=[req])
-
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(req: SSAValue | Operation):
-        return NullRequestOp.build(operands=[req])
 
 
 @irdl_op_definition
@@ -995,15 +797,15 @@ class GatherOp(MPIBaseOp):
 
     name = "mpi.gather"
 
-    sendbuf: Operand = operand_def(llvm.LLVMPointerType)
-    sendcount: Operand = operand_def(i32)
-    sendtype: Operand = operand_def(DataType)
+    sendbuf = operand_def(llvm.LLVMPointerType)
+    sendcount = operand_def(i32)
+    sendtype = operand_def(DataType)
 
-    recvbuf: Operand = operand_def(llvm.LLVMPointerType)
-    recvcount: Operand = operand_def(i32)
-    recvtype: Operand = operand_def(DataType)
+    recvbuf = operand_def(llvm.LLVMPointerType)
+    recvcount = operand_def(i32)
+    recvtype = operand_def(DataType)
 
-    root: Operand = operand_def(i32)
+    root = operand_def(i32)
 
     def __init__(
         self,
@@ -1031,20 +833,21 @@ class GatherOp(MPIBaseOp):
 MPI = Dialect(
     "mpi",
     [
-        Isend,
-        Irecv,
-        Test,
-        Recv,
-        Send,
-        Reduce,
-        Allreduce,
-        Bcast,
-        Wait,
-        Waitall,
-        GetStatusField,
-        Init,
-        Finalize,
-        CommRank,
+        CommSizeOp,
+        IsendOp,
+        IrecvOp,
+        TestOp,
+        RecvOp,
+        SendOp,
+        ReduceOp,
+        AllreduceOp,
+        BcastOp,
+        WaitOp,
+        WaitallOp,
+        GetStatusFieldOp,
+        InitOp,
+        FinalizeOp,
+        CommRankOp,
         UnwrapMemrefOp,
         GetDtypeOp,
         AllocateTypeOp,

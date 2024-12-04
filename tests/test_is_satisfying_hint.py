@@ -8,10 +8,12 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    StringAttr,
 )
 from xdsl.ir import Attribute, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition
+from xdsl.irdl import BaseAttr, EqAttrConstraint, ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 class Class1:
@@ -24,19 +26,6 @@ class SubClass1(Class1):
 
 class Class2:
     pass
-
-
-################################################################################
-# Any
-################################################################################
-
-
-def test_any_hint():
-    """Test that the we can check if a value is satisfying `Any`."""
-    assert isa(3, Any)
-    assert isa([], Any)
-    assert isa([2], Any)
-    assert isa(int, Any)
 
 
 ################################################################################
@@ -383,15 +372,29 @@ def test_parametrized_attribute():
 
 
 def test_literal():
-    assert isa("string", Literal["string"])
-    assert isa("string", Literal["string", "another string"])
-    assert isa("another string", Literal["string", "another string"])
-    assert not isa("not this string", Literal["string", "another string"])
+    assert isa("string", Literal["string"])  # pyright: ignore[reportArgumentType]
+    assert isa("string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
+    assert isa("another string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
+    assert not isa("not this string", Literal["string", "another string"])  # pyright: ignore[reportArgumentType]
 
-    assert isa(1, Literal[1])
-    assert isa(1, Literal[1, 2])
-    assert isa(2, Literal[1, 2])
-    assert not isa(3, Literal[1, 2])
+    assert isa(1, Literal[1])  # pyright: ignore[reportArgumentType]
+    assert isa(1, Literal[1, 2])  # pyright: ignore[reportArgumentType]
+    assert isa(2, Literal[1, 2])  # pyright: ignore[reportArgumentType]
+    assert not isa(3, Literal[1, 2])  # pyright: ignore[reportArgumentType]
 
-    assert not isa(1, Literal["1"])
-    assert not isa("1", Literal[1])
+    assert not isa(1, Literal["1"])  # pyright: ignore[reportArgumentType]
+    assert not isa("1", Literal[1])  # pyright: ignore[reportArgumentType]
+
+
+################################################################################
+# isattr
+################################################################################
+
+
+def test_isattr():
+    assert isattr(IntAttr(1), IntAttr)
+    assert not isattr(IntAttr(1), StringAttr)
+    assert isattr(IntAttr(1), BaseAttr(IntAttr))
+    assert not isattr(IntAttr(1), BaseAttr(StringAttr))
+    assert isattr(IntAttr(1), EqAttrConstraint(IntAttr(1)))
+    assert not isattr(IntAttr(1), EqAttrConstraint(IntAttr(2)))

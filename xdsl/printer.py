@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, TypeVar, cast
 
+from typing_extensions import deprecated
+
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyFloatAttr,
-    AnyIntegerAttr,
     AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -20,7 +22,6 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     ComplexType,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
     Float16Type,
@@ -28,8 +29,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
-    FloatAttr,
-    FloatData,
     FunctionType,
     IndexType,
     IntAttr,
@@ -65,8 +64,14 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.utils.bitwise_casts import (
+    convert_f16_to_u16,
+    convert_f32_to_u32,
+    convert_f64_to_u64,
+)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.lexer import Lexer
 
@@ -142,14 +147,66 @@ class Printer:
             text = str(arg)
             self.print_string(text)
 
-    def print_string(self, text: str) -> None:
+    @deprecated("Please use `printer.print_strint(text, indent=0)`")
+    def print_string_raw(self, text: str) -> None:
+        """
+        Prints a string to the printer's output, without taking
+        indentation into account.
+        """
+        self.print_string(text, indent=0)
+
+    def print_string(self, text: str, *, indent: int | None = None) -> None:
+        """
+        Prints a string to the printer's output.
+
+        This function takes into account indentation level when
+        printing new lines.
+        If the indentation level is specified as 0, the string is printed as-is, if `None`
+        then the `Printer` instance's indentation level is used.
+        """
+
+        num_newlines = text.count("\n")
+
+        if not num_newlines:
+            self._current_column += len(text)
+            print(text, end="", file=self.stream)
+            return
+
+        indent = self._indent if indent is None else indent
         lines = text.split("\n")
-        if len(lines) != 1:
-            self._current_line += len(lines) - 1
+
+        if indent == 0 and not self._next_line_callback:
+            # No indent and no callback to print after the next newline, the text
+            # can be printed directly.
+            self._current_line += num_newlines
             self._current_column = len(lines[-1])
-        else:
-            self._current_column += len(lines[-1])
-        print(text, end="", file=self.stream)
+            print(text, end="", file=self.stream)
+            return
+
+        # Line and column information is not computed ahead of time
+        # as indent-aware newline printing may use it as part of
+        # callbacks.
+        print(lines[0], end="", file=self.stream)
+        self._current_column += len(lines[0])
+        for line in lines[1:]:
+            self._print_new_line(indent=indent)
+            print(line, end="", file=self.stream)
+            self._current_column += len(line)
+
+    @contextmanager
+    def indented(self, amount: int = 1):
+        """
+        Increases the indentation level by the provided amount
+        for the duration of the context.
+
+        Only affects new lines printed within the context.
+        """
+
+        self._indent += amount
+        try:
+            yield
+        finally:
+            self._indent -= amount
 
     def _add_message_on_next_line(self, message: str, begin_pos: int, end_pos: int):
         """Add a message that will be displayed on the next line."""
@@ -166,24 +223,24 @@ class Printer:
         Print a message.
         This is expected to be called at the beginning of a new line and to create a new
         line at the end.
-        [begin_pos, end_pos)
+        The span of the message to be underlined is represented as [begin_pos, end_pos).
         """
         indent = self._indent if indent is None else indent
         indent_size = indent * indentNumSpaces
-        self.print(" " * indent_size)
+        self.print_string(" " * indent_size)
         message_end_pos = max(map(len, message.split("\n"))) + indent_size + 2
         first_line = (
             (begin_pos - indent_size) * "-"
             + (end_pos - begin_pos) * "^"
             + (max(message_end_pos, end_pos) - end_pos) * "-"
         )
-        self.print(first_line)
+        self.print_string(first_line)
         self._print_new_line(indent=indent, print_message=False)
         for message_line in message.split("\n"):
-            self.print("| ")
-            self.print(message_line)
+            self.print_string("| ")
+            self.print_string(message_line)
             self._print_new_line(indent=indent, print_message=False)
-        self.print("-" * (max(message_end_pos, end_pos) - indent_size))
+        self.print_string("-" * (max(message_end_pos, end_pos) - indent_size))
         self._print_new_line(indent=0, print_message=False)
 
     T = TypeVar("T")
@@ -195,7 +252,7 @@ class Printer:
     ) -> None:
         for i, elem in enumerate(elems):
             if i:
-                self.print(delimiter)
+                self.print_string(delimiter)
             print_fn(elem)
 
     def print_dictionary(
@@ -207,21 +264,26 @@ class Printer:
     ) -> None:
         for i, (key, value) in enumerate(elems.items()):
             if i:
-                self.print(delimiter)
+                self.print_string(delimiter)
             print_key(key)
-            self.print("=")
+            self.print_string("=")
             print_value(value)
 
     def _print_new_line(
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
         indent = self._indent if indent is None else indent
-        self.print("\n")
+        # Prints a newline, bypassing the `print_string` method
+        print(file=self.stream)
+        self._current_line += 1
         if print_message:
             for callback in self._next_line_callback:
                 callback()
             self._next_line_callback = []
-        self.print(" " * indent * indentNumSpaces)
+        num_spaces = indent * indentNumSpaces
+        # Prints indentation, bypassing the `print_string` method
+        print(" " * num_spaces, end="", file=self.stream)
+        self._current_column = num_spaces
 
     def _get_new_valid_name_id(self) -> str:
         self._next_valid_name_id[-1] += 1
@@ -239,7 +301,7 @@ class Printer:
 
         # Multiple results
         self.print_list(op.results, self.print)
-        self.print(" = ")
+        self.print_string(" = ")
 
     def print_ssa_value(self, value: SSAValue) -> str:
         """
@@ -262,17 +324,17 @@ class Printer:
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
 
-        self.print(f"%{name}")
+        self.print_string(f"%{name}")
         return name
 
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
     def print_block_name(self, block: Block) -> None:
-        self.print("^")
+        self.print_string("^")
         if block not in self.block_names:
             self.block_names[block] = self._get_new_valid_block_id()
-        self.print(self._block_names[-1][block])
+        self.print_string(f"{self._block_names[-1][block]}")
 
     def print_block(
         self,
@@ -290,29 +352,31 @@ class Printer:
             self._print_new_line()
             self.print_block_name(block)
             if len(block.args) != 0:
-                self.print("(")
+                self.print_string("(")
                 self.print_list(block.args, self.print_block_argument)
-                self.print(")")
-            self.print(":")
+                self.print_string(")")
+            self.print_string(":")
 
-        self._indent += 1
-        for op in block.ops:
-            if not print_block_terminator and op.has_trait(IsTerminator):
-                continue
-            self._print_new_line()
-            self.print_op(op)
-        self._indent -= 1
+        with self.indented():
+            for op in block.ops:
+                if not print_block_terminator and op.has_trait(
+                    IsTerminator, value_if_unregistered=False
+                ):
+                    continue
+                self._print_new_line()
+                self.print_op(op)
 
     def print_block_argument(self, arg: BlockArgument, print_type: bool = True) -> None:
         """
         Print a block argument with its type, e.g. `%arg : i32`
         Optionally, do not print the type.
         """
-        self.print(arg)
+        self.print_ssa_value(arg)
         if print_type:
-            self.print(" : ", arg.type)
+            self.print_string(" : ")
+            self.print_attribute(arg.type)
             if self.print_debuginfo:
-                self.print(" loc(unknown)")
+                self.print_string(" loc(unknown)")
 
     def print_region(
         self,
@@ -329,13 +393,12 @@ class Printer:
         * If `print_block_terminators` is False, the block terminators are not printed.
         """
         # Empty region
-        self.print("{")
-        if len(region.blocks) == 0:
+        self.print_string("{")
+        if (entry_block := region.blocks.first) is None:
             self._print_new_line()
-            self.print("}")
+            self.print_string("}")
             return
 
-        entry_block = region.blocks[0]
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
         ) or (not entry_block.ops and print_empty_block)
@@ -344,35 +407,39 @@ class Printer:
             print_block_args=print_entry_block_args,
             print_block_terminator=print_block_terminators,
         )
-        for block in region.blocks[1:]:
-            self.print_block(block, print_block_terminator=print_block_terminators)
-        self._print_new_line()
-        self.print("}")
 
-    def print_regions(self, regions: list[Region]) -> None:
+        next_block = entry_block.next_block
+        while next_block is not None:
+            self.print_block(next_block, print_block_terminator=print_block_terminators)
+            next_block = next_block.next_block
+
+        self._print_new_line()
+        self.print_string("}")
+
+    def print_regions(self, regions: Sequence[Region]) -> None:
         if len(regions) == 0:
             return
 
-        self.print(" (")
+        self.print_string(" (")
         self.print_list(regions, self.print_region)
-        self.print(")")
+        self.print_string(")")
 
     def print_operands(self, operands: Sequence[SSAValue]) -> None:
-        self.print("(")
+        self.print_string("(")
         self.print_list(operands, self.print_operand)
-        self.print(")")
+        self.print_string(")")
 
     def print_paramattr_parameters(
         self, params: Sequence[Attribute], always_print_brackets: bool = False
     ) -> None:
         if len(params) == 0 and not always_print_brackets:
             return
-        self.print("<")
+        self.print_string("<")
         self.print_list(params, self.print_attribute)
-        self.print(">")
+        self.print_string(">")
 
     def print_string_literal(self, string: str):
-        self.print(json.dumps(string))
+        self.print_string(json.dumps(string))
 
     def print_identifier_or_string_literal(self, string: str):
         """
@@ -382,55 +449,96 @@ class Printer:
         if Lexer.bare_identifier_regex.fullmatch(string) is None:
             self.print_string_literal(string)
             return
-        self.print(string)
+        self.print_string(string)
 
     def print_bytes_literal(self, bytestring: bytes):
-        self.print('"')
+        self.print_string('"')
         for byte in bytestring:
             match byte:
                 case 0x5C:  # ord("\\")
-                    self.print("\\\\")
+                    self.print_string("\\\\")
                 case _ if 0x20 > byte or byte > 0x7E or byte == 0x22:
-                    self.print(f"\\{byte:02X}")
+                    self.print_string(f"\\{byte:02X}")
                 case _:
-                    self.print(chr(byte))
-        self.print('"')
+                    self.print_string(chr(byte))
+        self.print_string('"')
+
+    def print_float(self, attribute: AnyFloatAttr):
+        value = attribute.value
+        if math.isnan(value.data) or math.isinf(value.data):
+            if isinstance(attribute.type, Float16Type):
+                self.print_string(f"{hex(convert_f16_to_u16(value.data))}")
+            elif isinstance(attribute.type, Float32Type):
+                self.print_string(f"{hex(convert_f32_to_u32(value.data))}")
+            elif isinstance(attribute.type, Float64Type):
+                self.print_string(f"{hex(convert_f64_to_u64(value.data))}")
+            else:
+                raise NotImplementedError(
+                    f"Cannot print '{value.data}' value for float type {str(attribute.type)}"
+                )
+        else:
+            # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
+            float_str = f"{value.data:.6e}"
+            if float(float_str) == value.data:
+                self.print_string(float_str)
+            else:
+                self.print_string(f"{repr(value.data)}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
+            self.print_string("unit")
             return
 
         if isinstance(attribute, LocationAttr):
-            self.print("loc(unknown)")
+            self.print_string("loc(unknown)")
             return
 
         if isinstance(attribute, IntegerType):
             if attribute.signedness.data == Signedness.SIGNLESS:
-                self.print("i")
+                self.print_string("i")
             elif attribute.signedness.data == Signedness.SIGNED:
-                self.print("si")
+                self.print_string("si")
             elif attribute.signedness.data == Signedness.UNSIGNED:
-                self.print("ui")
-            self.print(attribute.width.data)
+                self.print_string("ui")
+            self.print_string(str(attribute.width.data))
             return
 
         if isinstance(attribute, BFloat16Type):
-            self.print("bf16")
+            self.print_string("bf16")
             return
         if isinstance(attribute, Float16Type):
-            self.print("f16")
+            self.print_string("f16")
             return
         if isinstance(attribute, Float32Type):
-            self.print("f32")
+            self.print_string("f32")
             return
         if isinstance(attribute, Float64Type):
-            self.print("f64")
+            self.print_string("f64")
             return
         if isinstance(attribute, Float80Type):
-            self.print("f80")
+            self.print_string("f80")
             return
         if isinstance(attribute, Float128Type):
-            self.print("f128")
+            self.print_string("f128")
+            return
+
+        if isinstance(attribute, IntegerAttr):
+            # boolean shorthands
+            if (
+                isinstance(
+                    (ty := attribute.get_type()),
+                    IntegerType,
+                )
+                and ty.width.data == 1
+            ):
+                self.print_string("true" if attribute.value.data else "false")
+                return
+            # Otherwise we fall through to TypedAttribute case
+
+        if isinstance(attribute, TypedAttribute):
+            attribute.print_without_type(self)
+            self.print_string(" : ")
+            self.print_attribute(attribute.get_type())
             return
 
         if isinstance(attribute, StringAttr):
@@ -442,45 +550,18 @@ class Printer:
             return
 
         if isinstance(attribute, SymbolRefAttr):
-            self.print("@")
+            self.print_string("@")
             self.print_identifier_or_string_literal(attribute.root_reference.data)
             for ref in attribute.nested_references.data:
-                self.print("::@")
+                self.print_string("::@")
                 self.print_identifier_or_string_literal(ref.data)
-            return
-
-        if isinstance(attribute, IntegerAttr):
-            attribute = cast(AnyIntegerAttr, attribute)
-
-            # boolean shorthands
-            if (
-                isinstance((attr_type := attribute.type), IntegerType)
-                and attr_type.width.data == 1
-            ):
-                self.print("false" if attribute.value.data == 0 else "true")
-                return
-
-            width = attribute.value
-            attr_type = attribute.type
-            assert isinstance(width, IntAttr)
-            self.print(width.data)
-            self.print(" : ")
-            self.print_attribute(attr_type)
-            return
-
-        if isinstance(attribute, FloatAttr):
-            value = attribute.value
-            attr_type = cast(
-                FloatAttr[Float16Type | Float32Type | Float64Type], attribute
-            ).type
-            self.print(f"{value.data:.6e}")
-            self.print(" : ")
-            self.print_attribute(attr_type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
         if isinstance(attribute, ComplexType):
-            self.print("complex<", attribute.element_type, ">")
+            self.print_string("complex<")
+            self.print_attribute(attribute.element_type)
+            self.print_string(">")
             return
 
         if isinstance(attribute, ArrayAttr):
@@ -491,21 +572,23 @@ class Printer:
             return
 
         if isinstance(attribute, DenseArrayBase):
-            self.print("array<", attribute.elt_type)
-            data = cast(ArrayAttr[IntAttr | FloatData], attribute.data)
-            if len(data.data) == 0:
-                self.print(">")
+            self.print_string("array<")
+            self.print_attribute(attribute.elt_type)
+            if len(attribute) == 0:
+                self.print_string(">")
                 return
-            self.print(": ")
+            data = attribute.iter_values()
+            self.print_string(": ")
             # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
             # therefore we need to print these as false and true
             if attribute.elt_type == i1:
                 self.print_list(
-                    data.data, lambda x: self.print("true" if x.data == 1 else "false")
+                    data,
+                    lambda x: self.print_string("true" if x else "false"),
                 )
             else:
-                self.print_list(data.data, lambda x: self.print(x.data))
-            self.print(">")
+                self.print_list(data, lambda x: self.print_string(f"{x}"))
+            self.print_string(">")
             return
 
         if isinstance(attribute, DictionaryAttr):
@@ -513,83 +596,43 @@ class Printer:
             return
 
         if isinstance(attribute, FunctionType):
-            self.print("(")
+            self.print_string("(")
             self.print_list(attribute.inputs.data, self.print_attribute)
-            self.print(") -> ")
+            self.print_string(") -> ")
             outputs = attribute.outputs.data
             if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
                 self.print_attribute(outputs[0])
             else:
-                self.print("(")
+                self.print_string("(")
                 self.print_list(outputs, self.print_attribute)
-                self.print(")")
-            return
-
-        if isinstance(attribute, DenseIntOrFPElementsAttr):
-
-            def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr):
-                    self.print(val.value.data)
-                elif isinstance(val, FloatAttr):
-                    self.print(f"{val.value.data:.6e}")
-                else:
-                    raise Exception(
-                        "unexpected attribute type "
-                        "in DenseIntOrFPElementsAttr: "
-                        f"{type(val)}"
-                    )
-
-            def print_dense_list(
-                array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: Sequence[int],
-            ):
-                self.print("[")
-                if len(shape) > 1:
-                    k = len(array) // shape[0]
-                    self.print_list(
-                        (array[i : i + k] for i in range(0, len(array), k)),
-                        lambda subarray: print_dense_list(subarray, shape[1:]),
-                    )
-                else:
-                    self.print_list(array, print_one_elem)
-                self.print("]")
-
-            self.print("dense<")
-            data = attribute.data.data
-            shape = (
-                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
-            )
-            assert shape is not None, "If shape is complete, then it cannot be None"
-            if len(data) == 0:
-                pass
-            elif data.count(data[0]) == len(data):
-                print_one_elem(data[0])
-            else:
-                print_dense_list(data, shape)
-            self.print("> : ")
-            self.print(attribute.type)
+                self.print_string(")")
             return
 
         if isinstance(attribute, DenseResourceAttr):
             handle = attribute.resource_handle.data
-            self.print(f"dense_resource<{handle}> : ", attribute.type)
+            self.print_string(f"dense_resource<{handle}> : ")
+            self.print_attribute(attribute.type)
             return
 
         if isinstance(attribute, TensorType):
             attribute = cast(AnyVectorType, attribute)
-            self.print("tensor<")
+            self.print_string("tensor<")
             self.print_list(
                 attribute.shape.data,
-                lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
+                lambda x: (
+                    self.print_string(f"{x.data}")
+                    if x.data != -1
+                    else self.print_string("?")
+                ),
                 "x",
             )
             if len(attribute.shape.data) != 0:
-                self.print("x")
-            self.print(attribute.element_type)
+                self.print_string("x")
+            self.print_attribute(attribute.element_type)
             if isinstance(attribute, TensorType) and attribute.encoding != NoneAttr():
-                self.print(", ")
-                self.print(attribute.encoding)
-            self.print(">")
+                self.print_string(", ")
+                self.print_attribute(attribute.encoding)
+            self.print_string(">")
             return
 
         if isinstance(attribute, VectorType):
@@ -604,121 +647,134 @@ class Printer:
                 static_dimensions = shape[: -attribute.get_num_scalable_dims()]
                 scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
 
-            self.print("vector<")
+            self.print_string("vector<")
             if len(static_dimensions) != 0:
-                self.print_list(static_dimensions, lambda x: self.print(x), "x")
-                self.print("x")
+                self.print_list(
+                    static_dimensions, lambda x: self.print_string(f"{x}"), "x"
+                )
+                self.print_string("x")
 
             if len(scalable_dimensions) != 0:
-                self.print("[")
-                self.print_list(scalable_dimensions, lambda x: self.print(x), "x")
-                self.print("]")
-                self.print("x")
+                self.print_string("[")
+                self.print_list(
+                    scalable_dimensions, lambda x: self.print_string(f"{x}"), "x"
+                )
+                self.print_string("]")
+                self.print_string("x")
 
-            self.print(attribute.element_type)
-            self.print(">")
+            self.print_attribute(attribute.element_type)
+            self.print_string(">")
             return
 
         if isinstance(attribute, UnrankedTensorType):
             attribute = cast(AnyUnrankedTensorType, attribute)
-            self.print("tensor<*x")
-            self.print(attribute.element_type)
-            self.print(">")
+            self.print_string("tensor<*x")
+            self.print_attribute(attribute.element_type)
+            self.print_string(">")
             return
 
         if isinstance(attribute, StridedLayoutAttr):
-            self.print("strided<[")
+            self.print_string("strided<[")
 
             def print_int_or_question(value: IntAttr | NoneAttr) -> None:
-                self.print(value.data if isinstance(value, IntAttr) else "?")
+                self.print_string(
+                    f"{value.data}" if isinstance(value, IntAttr) else "?"
+                )
 
             self.print_list(attribute.strides.data, print_int_or_question, ", ")
-            self.print("]")
+            self.print_string("]")
             if attribute.offset == IntAttr(0):
-                self.print(">")
+                self.print_string(">")
                 return
-            self.print(", offset: ")
+            self.print_string(", offset: ")
             print_int_or_question(attribute.offset)
-            self.print(">")
+            self.print_string(">")
             return
 
         if isinstance(attribute, MemRefType):
             attribute = cast(MemRefType[Attribute], attribute)
-            self.print("memref<")
+            self.print_string("memref<")
             if attribute.shape.data:
                 self.print_list(
                     attribute.shape.data,
-                    lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
+                    lambda x: (
+                        self.print_string(f"{x.data}")
+                        if x.data != -1
+                        else self.print_string("?")
+                    ),
                     "x",
                 )
-                self.print("x")
-            self.print(attribute.element_type)
+                self.print_string("x")
+            self.print_attribute(attribute.element_type)
             if not isinstance(attribute.layout, NoneAttr):
-                self.print(", ", attribute.layout)
+                self.print_string(", ")
+                self.print_attribute(attribute.layout)
             if not isinstance(attribute.memory_space, NoneAttr):
-                self.print(", ", attribute.memory_space)
-            self.print(">")
+                self.print_string(", ")
+                self.print_attribute(attribute.memory_space)
+            self.print_string(">")
             return
 
         if isinstance(attribute, UnrankedMemrefType):
             attribute = cast(AnyUnrankedMemrefType, attribute)
-            self.print("memref<*x")
-            self.print(attribute.element_type)
+            self.print_string("memref<*x")
+            self.print_attribute(attribute.element_type)
             if not isinstance(attribute.memory_space, NoneAttr):
-                self.print(", ", attribute.memory_space)
-            self.print(">")
+                self.print_string(", ")
+                self.print_attribute(attribute.memory_space)
+            self.print_string(">")
             return
 
         if isinstance(attribute, IndexType):
-            self.print("index")
+            self.print_string("index")
             return
 
         if isinstance(attribute, NoneType):
-            self.print("none")
+            self.print_string("none")
             return
 
         if isinstance(attribute, OpaqueAttr):
-            self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
+            self.print_string("opaque<")
+            self.print_attribute(attribute.ident)
+            self.print_string(", ")
+            self.print_attribute(attribute.value)
+            self.print_string(">")
+
             if not isinstance(attribute.type, NoneAttr):
-                self.print(" : ", attribute.type)
+                self.print_string(" : ")
+                self.print_attribute(attribute.type)
             return
 
         if isinstance(attribute, AffineMapAttr):
-            self.print("affine_map<")
-            self.print(attribute.data)
-            self.print(">")
+            self.print_string(f"affine_map<{attribute.data}>")
             return
 
         if isinstance(attribute, AffineSetAttr):
-            self.print("affine_set<")
-            self.print(attribute.data)
-            self.print(">")
+            self.print_string(f"affine_set<{attribute.data}>")
             return
 
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            self.print("!" if attribute.is_type.data else "#")
+            self.print_string("!" if attribute.is_type.data else "#")
             if attribute.is_opaque.data:
-                self.print(attribute.attr_name.data.replace(".", "<", 1))
-                self.print(attribute.value.data)
-                self.print(">")
+                self.print_string(
+                    f"{attribute.attr_name.data.replace('.', '<', 1)}{attribute.value.data}>"
+                )
             else:
-                self.print(attribute.attr_name.data)
+                self.print_string(attribute.attr_name.data)
                 if attribute.value.data:
-                    self.print("<")
-                    self.print(attribute.value.data)
-                    self.print(">")
+                    self.print_string(f"<{attribute.value.data}>")
             return
 
         # Print dialect attributes
-        self.print("!" if isinstance(attribute, TypeAttribute) else "#")
+        self.print_string("!" if isinstance(attribute, TypeAttribute) else "#")
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
-            self.print(attribute.name.replace(".", "<", 1))
+            self.print_string(attribute.name.replace(".", "<", 1))
             if isinstance(attribute, SpacedOpaqueSyntaxAttribute):
-                self.print(" ")
+                self.print_string(" ")
         else:
-            self.print(attribute.name)
+            self.print_string(attribute.name)
 
         if isinstance(attribute, Data):
             attribute.print_parameter(self)
@@ -727,22 +783,22 @@ class Printer:
             attribute.print_parameters(self)
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
-            self.print(">")
+            self.print_string(">")
 
         return
 
-    def print_successors(self, successors: list[Block]):
+    def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:
             return
-        self.print(" [")
+        self.print_string(" [")
         self.print_list(successors, self.print_block_name)
-        self.print("]")
+        self.print_string("]")
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
         if isinstance(attr_tuple[1], UnitAttr):
-            self.print(f'"{attr_tuple[0]}"')
+            self.print_string(f'"{attr_tuple[0]}"')
         else:
-            self.print(f'"{attr_tuple[0]}" = ')
+            self.print_string(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
     def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
@@ -779,9 +835,9 @@ class Printer:
             return
 
         if print_keyword:
-            self.print(" attributes")
+            self.print_string(" attributes")
 
-        self.print(" ")
+        self.print_string(" ")
         self.print_attr_dict(attributes)
 
     def print_op_with_default_format(self, op: Operation) -> None:
@@ -800,7 +856,7 @@ class Printer:
             self.print_op_attributes(op.attributes | op.properties)
         else:
             self.print_op_attributes(op.attributes)
-        self.print(" : ")
+        self.print_string(" : ")
         self.print_operation_type(op)
 
     def print_function_type(
@@ -822,16 +878,16 @@ class Printer:
         (i32) -> ((i32) -> i32)  # one input, one function type output
         ```
         """
-        self.print("(")
+        self.print_string("(")
         self.print_list(input_types, self.print_attribute)
-        self.print(") -> ")
+        self.print_string(") -> ")
 
         remaining_outputs_iterator = iter(output_types)
         try:
             first_type = next(remaining_outputs_iterator)
         except StopIteration:
             # No outputs
-            self.print("()")
+            self.print_string("()")
             return
 
         try:
@@ -839,25 +895,25 @@ class Printer:
         except StopIteration:
             # One output, drop parentheses unless it's a FunctionType
             if isinstance(first_type, FunctionType):
-                self.print("(", first_type, ")")
+                self.print_string("(")
+                self.print_attribute(first_type)
+                self.print_string(")")
             else:
-                self.print(first_type)
+                self.print_attribute(first_type)
             return
 
         # Two or more outputs, comma-separated list
-        self.print("(")
+        self.print_string("(")
         self.print_list(
             chain((first_type, second_type), remaining_outputs_iterator),
             self.print_attribute,
         )
-        self.print(")")
+        self.print_string(")")
 
     def print_operation_type(self, op: Operation) -> None:
-        self.print_function_type(
-            (o.type for o in op.operands), (r.type for r in op.results)
-        )
+        self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
-            self.print(" loc(unknown)")
+            self.print_string(" loc(unknown)")
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])
@@ -879,13 +935,13 @@ class Printer:
             self.enter_scope()
         use_custom_format = False
         if isinstance(op, UnregisteredOp):
-            self.print(f'"{op.op_name.data}"')
+            self.print_string(f'"{op.op_name.data}"')
         # If we print with the generic format, or the operation does not have a custom
         # format
         elif self.print_generic_format or Operation.print is type(op).print:
-            self.print(f'"{op.name}"')
+            self.print_string(f'"{op.name}"')
         else:
-            self.print(f"{op.name}")
+            self.print_string(f"{op.name}")
             use_custom_format = True
         end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:

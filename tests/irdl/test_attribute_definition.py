@@ -4,6 +4,7 @@ Test the definition of attributes and their constraints.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
@@ -18,10 +19,10 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
-    StringAttr,
 )
 from xdsl.ir import (
     Attribute,
+    BitEnumAttribute,
     Data,
     EnumAttribute,
     ParametrizedAttribute,
@@ -33,6 +34,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     BaseAttr,
+    ConstraintContext,
     ConstraintVar,
     GenericData,
     MessageConstraint,
@@ -155,6 +157,7 @@ def test_non_class_data():
 class TestEnum(StrEnum):
     Yes = auto()
     No = auto()
+    Maybe = auto()
 
 
 class TestNonIdentifierEnum(StrEnum):
@@ -175,10 +178,7 @@ class EnumData(EnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
 def test_enum_attribute():
     """Test the definition of an EnumAttribute."""
     attr = EnumData(TestEnum.No)
-    stream = StringIO()
-    p = Printer(stream=stream)
-    p.print_attribute(attr)
-    assert stream.getvalue() == "#test<enum no>"
+    assert str(attr) == "#test<enum no>"
 
 
 def test_indirect_enum_guard():
@@ -205,6 +205,39 @@ def test_identifier_enum_guard():
             name = "test.non_identifier_enum"
 
 
+@irdl_attr_definition
+class BitEnumData(BitEnumAttribute[TestEnum]):
+    name = "test.bitenum"
+    all_value = "all"
+    none_value = "none"
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (None, "#test.bitenum<none>"),
+        ([], "#test.bitenum<none>"),
+        ([TestEnum.No], "#test.bitenum<no>"),
+        ([TestEnum.Yes], "#test.bitenum<yes>"),
+        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], "#test.bitenum<all>"),
+        ("all", "#test.bitenum<all>"),
+        ("none", "#test.bitenum<none>"),
+    ],
+)
+def test_bit_enum_attribute(input: Sequence[TestEnum] | str, output: str):
+    attr = BitEnumData(input)
+    assert str(attr) == output
+
+
+def test_bit_enum_invalid_str():
+    with pytest.raises(
+        TypeError,
+        match="expected string parameter to be one of none or all, got helloworld",
+    ):
+        BitEnumData("helloworld")
+
+
 ################################################################################
 # Typed Attribute
 ################################################################################
@@ -218,22 +251,9 @@ def test_typed_attribute():
 
         @irdl_attr_definition
         class TypedAttr(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute[Attribute]
+            TypedAttribute
         ):
             name = "test.typed"
-
-    with pytest.raises(
-        Exception,
-        match="A TypedAttribute `type` parameter must be of the same type as the type variable in the TypedAttribute base class.",
-    ):
-
-        @irdl_attr_definition
-        class TypedAttrBis(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute[IntegerAttr[IndexType]]
-        ):
-            name = "test.typed"
-
-            type: ParameterDef[StringAttr]
 
 
 ################################################################################
@@ -347,7 +367,7 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
@@ -563,8 +583,8 @@ def test_informative_constraint():
         VerifyException,
         match="User-enlightening message.\nUnderlying verification failure: Expected attribute #none but got #builtin.int<1>",
     ):
-        constr.verify(IntAttr(1), {})
-    assert constr.get_resolved_variables() == set()
+        constr.verify(IntAttr(1), ConstraintContext())
+    assert constr.can_infer(set())
     assert constr.get_unique_base() == NoneAttr
 
 
@@ -613,7 +633,7 @@ def test_data_with_generic_missing_generic_data_failure():
 A = TypeVar("A", bound=Attribute)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DataListAttr(AttrConstraint):
     """
     A constraint that enforces that the elements of a ListData all respect
@@ -622,10 +642,14 @@ class DataListAttr(AttrConstraint):
 
     elem_constr: AttrConstraint
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
         attr = cast(ListData[Attribute], attr)
         for e in attr.data:
-            self.elem_constr.verify(e, constraint_vars)
+            self.elem_constr.verify(e, constraint_context)
 
 
 @irdl_attr_definition
@@ -650,14 +674,6 @@ class ListData(GenericData[list[A]]):
     @staticmethod
     def from_list(data: list[A]) -> ListData[A]:
         return ListData(data)
-
-    def verify(self) -> None:
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but element "
-                    f"{idx} is of type {type(val)}."
-                )
 
 
 AnyListData: TypeAlias = ListData[Attribute]

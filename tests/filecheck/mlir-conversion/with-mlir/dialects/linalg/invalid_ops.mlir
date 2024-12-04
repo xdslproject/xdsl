@@ -5,7 +5,7 @@ builtin.module {
   %0, %1 = "test.op"() : () -> (tensor<2x3xf32>, tensor<2x3xf32>)
 
   // CHECK: Input type is tensor<2x3xf32> but must be an instance of AnyFloat or IntegerType.
-   %res_fill = "linalg.fill"(%0, %1) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (tensor<2x3xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>
+   %res_fill = linalg.fill ins (%0: tensor<2x3xf32>) outs (%1: tensor<2x3xf32>) -> tensor<2x3xf32>
 
 }
 
@@ -65,10 +65,3 @@ builtin.module {
   %res_transpose = "linalg.broadcast"(%0, %1) {"dimensions" = array<i64: 1>} : (tensor<3x4x5xf32>, tensor<4x5x6x2xf32>) -> tensor<4x5x6x2xf32>
 
 }
-
-
-
-
-
-
-
