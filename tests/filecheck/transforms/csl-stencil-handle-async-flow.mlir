@@ -108,10 +108,10 @@
 // CHECK-NEXT:       %40 = arith.constant 1 : index
 // CHECK-NEXT:       "csl.store_var"(%var0, %arg0) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
 // CHECK-NEXT:       "csl.store_var"(%var1, %arg1) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-// CHECK-NEXT:       csl.activate local, 1 : i32
+// CHECK-NEXT:       csl.activate local, 1 : ui5
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : i5}{
+// CHECK-NEXT:     csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
 // CHECK-NEXT:       %41 = arith.constant 1000 : ui32
 // CHECK-NEXT:       %iteration_cond = "csl.load_var"(%iteration) : (!csl.var<ui32>) -> ui32
 // CHECK-NEXT:       %42 = arith.cmpi slt, %iteration_cond, %41 : ui32
@@ -159,7 +159,7 @@
 // CHECK-NEXT:       %var1_inc = "csl.load_var"(%var1) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
 // CHECK-NEXT:       "csl.store_var"(%var0, %var1_inc) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
 // CHECK-NEXT:       "csl.store_var"(%var1, %var0_inc) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-// CHECK-NEXT:       csl.activate local, 1 : i32
+// CHECK-NEXT:       csl.activate local, 1 : ui5
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @for_post0() {

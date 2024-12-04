@@ -31,6 +31,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
+from xdsl.utils.comparisons import to_unsigned
 from xdsl.utils.hints import isa
 
 _CSL_KW_SET = {
@@ -235,8 +236,9 @@ class CslPrintContext:
         if id is None:
             return
         with self.descend("comptime") as inner:
+            unsigned_id = to_unsigned(id.value.data, id.type.width.data)
             inner.print(
-                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrap_task_id(kind, id.value.data)}));"
+                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrap_task_id(kind, unsigned_id)}));"
             )
 
     def _memref_global_init(self, init: Attribute, type: str) -> str:
