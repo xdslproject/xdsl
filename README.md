@@ -135,13 +135,11 @@ Furthermore, all python code must run through [pyright](https://github.com/micro
 without errors. Pyright can be run on all staged files through the
 makefile using `make pyright`.
 
-> [!WARNING] Experimental Pyright Features
+> [!IMPORTANT]
 >
+> *Experimental Pyright Features*
 > xDSL currently relies on an experimental feature of Pyright called TypeForm
 > TypeForm is [in discussion](https://discuss.python.org/t/pep-747-typeexpr-type-hint-for-a-type-expression/55984) and will likely land in some future version of Python.
-
-> [!IMPORTANT]
-> Test
 
 For xDSL to type check correctly using Pyright, please add this to your `pyproject.toml`:
 
