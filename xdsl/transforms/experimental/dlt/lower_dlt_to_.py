@@ -1,5 +1,5 @@
 import typing
-from dataclasses import dataclass
+from abc import ABC
 from typing import assert_type, cast
 
 from xdsl.dialects import affine, arith, builtin, llvm, printf, scf
@@ -37,7 +37,7 @@ from xdsl.transforms.experimental.dlt.layout_llvm_semantics import (
     PtrCarriedExtentGetter,
     PtrCarriedIndexGetter,
     SSAExtentGetter,
-    Semantic_Map,
+    SemanticsMapper, load_all_semantics,
     ValueMapInitialiser,
 )
 
@@ -51,9 +51,14 @@ def get_as_i64(value: SSAValue) -> tuple[list[Operation], SSAValue]:
     return [op := arith.IndexCastOp(value, i64)], op.result
     # return [op := UnrealizedConversionCastOp.get([value], [i64])], op.outputs[0]
 
+class DLTRewritePattern(RewritePattern, ABC):
 
-@dataclass
-class DLTSelectRewriter(RewritePattern):
+    def __init__(self, semantics: SemanticsMapper):
+        self.semantics = semantics
+
+
+class DLTSelectRewriter(DLTRewritePattern):
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, select: dlt.SelectOp, rewriter: PatternRewriter):
         assert isinstance(select.tree.type, dlt.PtrType)
@@ -65,7 +70,7 @@ class DLTSelectRewriter(RewritePattern):
         output_layout = output_type.layout
         # print(input_layout, output_layout)
 
-        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
+        llvm_in_ptr_type = self.semantics.get_data_type_from_dlt_ptr(input_type)
         ops = []
         cast_input_op = UnrealizedConversionCastOp.get(select.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
@@ -92,7 +97,7 @@ class DLTSelectRewriter(RewritePattern):
         )
         ops.append(get_ptr_op)
 
-        select_ops, select_result = Semantic_Map.get_select_for(
+        select_ops, select_result = self.semantics.get_select_for(
             input_layout,
             output_layout,
             members,
@@ -113,7 +118,7 @@ class DLTSelectRewriter(RewritePattern):
             ops.append(set_ptr_op)
             ptr_struct_result = set_ptr_op.res
         else:
-            gen_ops, ptr_struct_result = Semantic_Map.generate_ptr_struct(
+            gen_ops, ptr_struct_result = self.semantics.generate_ptr_struct(
                 output_type, select_result, dim_map, extent_resolver
             )
             ops.extend(gen_ops)
@@ -129,8 +134,7 @@ class DLTSelectRewriter(RewritePattern):
         pass
 
 
-@dataclass
-class DLTGetRewriter(RewritePattern):
+class DLTGetRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, get_op: dlt.GetOp, rewriter: PatternRewriter):
@@ -142,7 +146,7 @@ class DLTGetRewriter(RewritePattern):
         assert isinstance(get_type, dlt.AcceptedTypes)
 
         ops = []
-        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
+        llvm_in_ptr_type = self.semantics.get_data_type_from_dlt_ptr(input_type)
         cast_input_op = UnrealizedConversionCastOp.get(get_op.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
         llvm_dlt_ptr_in = cast_input_op.outputs[0]
@@ -155,7 +159,7 @@ class DLTGetRewriter(RewritePattern):
         ops.append(get_data_ptr_op)
         llvm_data_ptr = get_data_ptr_op.res
 
-        get_ops, get_res, get_found = Semantic_Map.get_getter_for(
+        get_ops, get_res, get_found = self.semantics.get_getter_for(
             input_type.layout,
             get_type,
             set(input_type.filled_members),
@@ -189,8 +193,7 @@ class DLTGetRewriter(RewritePattern):
         rewriter.replace_matched_op(ops, [get_res])
 
 
-@dataclass
-class DLTGetSRewriter(RewritePattern):
+class DLTGetSRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, get_op: dlt.GetSOp, rewriter: PatternRewriter):
@@ -202,7 +205,7 @@ class DLTGetSRewriter(RewritePattern):
         assert isinstance(get_type, dlt.AcceptedTypes)
 
         ops = []
-        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
+        llvm_in_ptr_type = self.semantics.get_data_type_from_dlt_ptr(input_type)
         cast_input_op = UnrealizedConversionCastOp.get(get_op.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
         llvm_dlt_ptr_in = cast_input_op.outputs[0]
@@ -215,7 +218,7 @@ class DLTGetSRewriter(RewritePattern):
         ops.append(get_data_ptr_op)
         llvm_data_ptr = get_data_ptr_op.res
 
-        get_ops, get_res, get_found = Semantic_Map.get_getter_for(
+        get_ops, get_res, get_found = self.semantics.get_getter_for(
             input_type.layout,
             get_type,
             set(input_type.filled_members),
@@ -249,8 +252,7 @@ class DLTGetSRewriter(RewritePattern):
         rewriter.replace_matched_op(ops, [gets_res, get_found])
 
 
-@dataclass
-class DLTSetRewriter(RewritePattern):
+class DLTSetRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, set_op: dlt.SetOp, rewriter: PatternRewriter):
@@ -262,7 +264,7 @@ class DLTSetRewriter(RewritePattern):
         assert isinstance(set_type, dlt.AcceptedTypes)
 
         ops = []
-        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
+        llvm_in_ptr_type = self.semantics.get_data_type_from_dlt_ptr(input_type)
         cast_input_op = UnrealizedConversionCastOp.get(set_op.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
         llvm_dlt_ptr_in = cast_input_op.outputs[0]
@@ -275,7 +277,7 @@ class DLTSetRewriter(RewritePattern):
         ops.append(get_data_ptr_op)
         llvm_data_ptr = get_data_ptr_op.res
 
-        set_ops = Semantic_Map.get_setter_for(
+        set_ops = self.semantics.get_setter_for(
             input_type.layout,
             set_op.value,
             set(input_type.filled_members),
@@ -299,8 +301,7 @@ class DLTSetRewriter(RewritePattern):
         rewriter.replace_matched_op(ops, [])
 
 
-@dataclass
-class DLTAllocRewriter(RewritePattern):
+class DLTAllocRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, alloc_op: dlt.AllocOp, rewriter: PatternRewriter):
@@ -329,7 +330,7 @@ class DLTAllocRewriter(RewritePattern):
         #     get_size_from_layout(ptr_type.layout, extent_resolver), sum=True
         # )
         size_ops, (alloc_bytes,) = (
-            Semantic_Map.get_size(ptr_type.layout, extent_resolver).sum().output()
+            self.semantics.get_size(ptr_type.layout, extent_resolver).sum().output()
         )
         ops.extend(size_ops)
 
@@ -344,9 +345,11 @@ class DLTAllocRewriter(RewritePattern):
                 "malloc", alloc_bytes, return_type=llvm.LLVMPointerType.opaque()
             )
         )
+        if self.semantics.print_memory_calls:
+            ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_bytes, malloc.returned))
         buffer = malloc.returned
 
-        gen_ops, ptr_struct = Semantic_Map.generate_ptr_struct(
+        gen_ops, ptr_struct = self.semantics.generate_ptr_struct(
             ptr_type, buffer, {}, extent_resolver
         )
         ops.extend(gen_ops)
@@ -356,13 +359,13 @@ class DLTAllocRewriter(RewritePattern):
             for init_arg in alloc_op.initialValues
         }
         value_map_initialiser = ValueMapInitialiser(
-            Semantic_Map, extent_resolver, init_values_map
+            self.semantics, extent_resolver, init_values_map
         )
 
         # init_ops = init_layout(
         #     ptr_type.layout, extent_resolver, buffer, init_values_map
         # )
-        init_ops, callback_ret = Semantic_Map.init_layout(
+        init_ops, callback_ret = self.semantics.init_layout(
             ptr_type.layout,
             extent_resolver,
             buffer,
@@ -381,8 +384,7 @@ class DLTAllocRewriter(RewritePattern):
         rewriter.replace_matched_op(ops, [dlt_ptr_out])
 
 
-@dataclass
-class DLTDeallocRewriter(RewritePattern):
+class DLTDeallocRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, dealloc_op: dlt.DeallocOp, rewriter: PatternRewriter):
@@ -391,7 +393,7 @@ class DLTDeallocRewriter(RewritePattern):
 
         ops = []
 
-        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(ptr_type)
+        llvm_in_ptr_type = self.semantics.get_data_type_from_dlt_ptr(ptr_type)
         cast_input_op = UnrealizedConversionCastOp.get(
             dealloc_op.tree, llvm_in_ptr_type
         )
@@ -412,7 +414,7 @@ class DLTDeallocRewriter(RewritePattern):
         ops.append(get_data_ptr_op)
         llvm_data_ptr = get_data_ptr_op.res
 
-        dealloc_ops = Semantic_Map.dealloc_layout(
+        dealloc_ops = self.semantics.dealloc_layout(
             ptr_type.layout,
             extent_resolver,
             llvm_data_ptr,
@@ -421,162 +423,13 @@ class DLTDeallocRewriter(RewritePattern):
         ops.extend(dealloc_ops)
 
         ops.append(free := llvm.CallOp("free", llvm_data_ptr, return_type=None))
+        if self.semantics.print_memory_calls:
+            ops.append(printf.PrintFormatOp("# called free({})", llvm_data_ptr))
 
         rewriter.replace_matched_op(ops, [])
 
 
-# @functools.singledispatch
-# def init_layout(
-#     layout: dlt.Layout,
-#     extent_resolver: ExtentResolver,
-#     input_ptr: SSAValue,
-#     initial_values: dict[dlt.ElementAttr, SSAValue],
-# ) -> list[Operation]:
-#     assert isinstance(input_ptr.type, llvm.LLVMPointerType)
-#     assert all(
-#         isinstance(initial_value.type, dlt.PtrType)
-#         for initial_value in initial_values.values()
-#     )
-#     # assert all(element in initial_values for element in layout.contents_type.elements)
-#     raise NotImplementedError(
-#         f"init_layout not implemented for this layout: {type(layout)} : {layout}"
-#     )
-
-#
-# @init_layout.register
-# def _(
-#     layout: dlt.PrimitiveLayoutAttr,
-#     extent_resolver: ExtentResolver,
-#     input_ptr: SSAValue,
-#     initial_values: dict[dlt.ElementAttr, SSAValue],
-# ) -> list[Operation]:
-#     elem = layout.contents_type.get_single_element()
-#     debug = (
-#         []
-#     )  # [int_op := llvm.PtrToIntOp(input_ptr), trunc_op := arith.TruncIOp(int_op.output, builtin.i32), printf.PrintIntOp(trunc_op.result)]
-#     if elem not in initial_values:
-#         return debug + []
-#     return debug + [
-#         init_val := dlt.GetOp(initial_values[elem], layout.base_type),
-#         llvm.StoreOp(init_val, input_ptr),
-#     ]
-#
-#
-# # @init_layout.register
-# # def _(
-# #     layout: dlt.NamedLayoutAttr,
-# #     extent_resolver: ExtentResolver,
-# #     input_ptr: SSAValue,
-# #     initial_values: dict[dlt.ElementAttr, SSAValue],
-# # ) -> list[Operation]:
-# #     return init_layout(layout.child, extent_resolver, input_ptr, initial_values)
-#
-#
-# @init_layout.register
-# def _(
-#     layout: dlt.MemberLayoutAttr,
-#     extent_resolver: ExtentResolver,
-#     input_ptr: SSAValue,
-#     initial_values: dict[dlt.ElementAttr, SSAValue],
-# ) -> list[Operation]:
-#     # initial_values = {elem.select_member(layout.member_specifier): val for elem, val in initial_values.items() if elem.has_members([layout.member_specifier])}
-#     ops = []
-#     new_init_values = {}
-#     for elem, dlt_ptr in initial_values.items():
-#         ops.append(
-#             select_op := dlt.SelectOp(dlt_ptr, [layout.member_specifier], [], [])
-#         )
-#         new_elem = cast(
-#             dlt.PtrType, select_op.res.type
-#         ).contents_type.get_single_element()
-#         assert new_elem == elem.select_member(layout.member_specifier)
-#         new_init_values[new_elem] = select_op.res
-#
-#     return ops + init_layout(layout.child, extent_resolver, input_ptr, new_init_values)
-#
-#
-# @init_layout.register
-# def _(
-#     layout: dlt.StructLayoutAttr,
-#     extent_resolver: ExtentResolver,
-#     input_ptr: SSAValue,
-#     initial_values: dict[dlt.ElementAttr, SSAValue],
-# ) -> list[Operation]:
-#     ops = []
-#     current_input_ptr = input_ptr
-#     for child in layout.children:
-#         child = cast(dlt.Layout, child)
-#         child_initial_values = {
-#             elem: val
-#             for elem, val in initial_values.items()
-#             if elem in child.contents_type
-#         }
-#         ops.extend(
-#             init_layout(child, extent_resolver, current_input_ptr, child_initial_values)
-#         )
-#
-#         offset_ptr_ops, size = from_int_to_ssa(
-#             get_size_from_layout(child, extent_resolver), sum=True
-#         )
-#         ops.extend(offset_ptr_ops)
-#         increment_ops, current_input_ptr = add_to_llvm_pointer(current_input_ptr, size)
-#         ops.extend(increment_ops)
-#     return ops
-#
-#
-# @init_layout.register
-# def _(
-#     layout: dlt.DenseLayoutAttr,
-#     extent_resolver: ExtentResolver,
-#     input_ptr: SSAValue,
-#     initial_values: dict[dlt.ElementAttr, SSAValue],
-# ) -> list[Operation]:
-#     initial_values = {
-#         elem.select_dimension(layout.dimension): val
-#         for elem, val in initial_values.items()
-#         if elem.has_dimensions([layout.dimension])
-#     }
-#     ops, size, extra = from_int_to_ssa(
-#         get_size_from_layout(layout.child, extent_resolver)
-#     )
-#
-#     block = Block()
-#     index = block.insert_arg(IndexType(), 0)
-#     block.add_op(offsetMul_op := arith.Muli(index, size))
-#     ptr_add_ops, ptr_arg = add_to_llvm_pointer(input_ptr, offsetMul_op.result)
-#     block.add_ops(ptr_add_ops)
-#
-#     new_init_values = {}
-#     for elem, dlt_ptr in initial_values.items():
-#         block.add_op(
-#             select_op := dlt.SelectOp(dlt_ptr, [], [layout.dimension], [index])
-#         )
-#         new_elem = cast(
-#             dlt.PtrType, select_op.res.type
-#         ).contents_type.get_single_element()
-#         assert new_elem == elem.select_dimension(layout.dimension)
-#         new_init_values[new_elem] = select_op.res
-#
-#     block.add_ops(init_layout(layout.child, extent_resolver, ptr_arg, new_init_values))
-#     # block.add_ops(increment_ops)
-#     block.add_op(scf.Yield())
-#
-#     ops.append(lb := arith.Constant(IntegerAttr(0, IndexType())))
-#     ops.append(step := arith.Constant(IntegerAttr(1, IndexType())))
-#     ub_ops, ub = from_int_to_ssa(extent_resolver.resolve(layout.dimension.extent))
-#     ops.extend(ub_ops)
-#     debug = [
-#         trunc_op := arith.IndexCastOp(ub, builtin.i32),
-#         printf.PrintIntOp(trunc_op.result),
-#     ]
-#     # ops.extend(debug)
-#     loop = scf.For(lb, ub, step, [], block)
-#     ops.append(loop)
-#     return ops
-
-
-@dataclass
-class DLTIterateRewriter(RewritePattern):
+class DLTIterateRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, iterate_op: dlt.IterateOp, rewriter: PatternRewriter):
@@ -608,7 +461,7 @@ class DLTIterateRewriter(RewritePattern):
             )
             ops.append(
                 cast_op := builtin.UnrealizedConversionCastOp.get(
-                    tensor_arg, Semantic_Map.get_data_type_from_dlt_ptr(tensor_arg.type)
+                    tensor_arg, self.semantics.get_data_type_from_dlt_ptr(tensor_arg.type)
                 )
             )
             llvm_tensor_arg = cast_op.outputs[0]
@@ -673,8 +526,8 @@ class DLTIterateRewriter(RewritePattern):
         )
         rewriter.replace_matched_op(ops, resulting_iter_args)
 
-    @staticmethod
     def _make_for_loop(
+        self,
         iterate_op: dlt.IterateOp,
         extent_resolver: ExtentResolver,
         tensor_map: list[tuple[SSAValue, dict[dlt.DimensionAttr, int]]],
@@ -685,7 +538,7 @@ class DLTIterateRewriter(RewritePattern):
         pre_ops: list[Operation],
     ) -> list[SSAValue]:
         if isinstance(iteration_order, dlt.BodyIterationOrderAttr):
-            resulting_iter_args = DLTIterateRewriter._make_inner_body(
+            resulting_iter_args = self._make_inner_body(
                 iterate_op,
                 extent_resolver,
                 tensor_map,
@@ -718,7 +571,7 @@ class DLTIterateRewriter(RewritePattern):
                 select_op = dlt.SelectOp(tensor_ssa, [], dims, values)
                 loop_body.add_op(select_op)
                 new_tensor_map.append((select_op.res, new_t_map))
-            resulting_iter_args = DLTIterateRewriter._make_for_loop(
+            resulting_iter_args = self._make_for_loop(
                 iterate_op,
                 extent_resolver,
                 new_tensor_map,
@@ -744,7 +597,7 @@ class DLTIterateRewriter(RewritePattern):
                 sparse_tensor_idx
             ).type
             inner_ptr_type = typing.cast(dlt.PtrType, inner_ptr_type)
-            sparse_tensor_llvm_type = Semantic_Map.get_data_type_from_dlt_ptr(
+            sparse_tensor_llvm_type = self.semantics.get_data_type_from_dlt_ptr(
                 sparse_tensor_ptr_type
             )
             cast_op = UnrealizedConversionCastOp.get(
@@ -788,7 +641,7 @@ class DLTIterateRewriter(RewritePattern):
 
             Rewriter.insert_ops_at_location(ops, insert_point)
 
-            child_ops, iter_args_out = Semantic_Map.make_sparse_loop_for(
+            child_ops, iter_args_out = self.semantics.make_sparse_loop_for(
                 sparse_tensor_ptr_type.layout,
                 inner_ptr_type.layout,
                 extent_resolver,
@@ -804,8 +657,8 @@ class DLTIterateRewriter(RewritePattern):
         else:
             raise NotImplementedError(f"We do not currently support {iteration_order}")
 
-    @staticmethod
     def _make_inner_body(
+            self,
             iterate_op: dlt.IterateOp,
         extent_resolver: ExtentResolver,
         tensor_map: list[tuple[SSAValue, dict[dlt.DimensionAttr, int]]],
@@ -882,6 +735,7 @@ class _IterMakeLoopCallback(LoopCallback):
 
     def __init__(
             self,
+            iterate_rewriter: DLTIterateRewriter,
             iterate_op: dlt.IterateOp,
             extent_resolver: ExtentResolver,
             tensor_map: list[tuple[SSAValue, dict[dlt.DimensionAttr, int]]],
@@ -893,6 +747,7 @@ class _IterMakeLoopCallback(LoopCallback):
 
     ):
         super().__init__(iter_args)
+        self.iterate_rewriter = iterate_rewriter
         self.iterate_op = iterate_op
         self.extent_resolver = extent_resolver
         self.tensor_map = tensor_map
@@ -928,7 +783,7 @@ class _IterMakeLoopCallback(LoopCallback):
             if t_idx == tensor_idx:
 
                 tensor_ptr_type = typing.cast(dlt.PtrType, tensor_ssa.type)
-                extract_ops, data_ptr, ptr_dim_map, ptr_extent_map = Semantic_Map.extract_from_ptr_struct(
+                extract_ops, data_ptr, ptr_dim_map, ptr_extent_map = self.iterate_rewriter.semantics.extract_from_ptr_struct(
                     tensor_ptr_type, tensor_ssa)
                 ops.extend(extract_ops)
 
@@ -947,7 +802,7 @@ class _IterMakeLoopCallback(LoopCallback):
                     ArrayAttr(dimensions_needed),
                     ArrayAttr(extents_needed),
                 )
-                gen_ops, ptr_struct_result = Semantic_Map.generate_ptr_struct(
+                gen_ops, ptr_struct_result = self.iterate_rewriter.semantics.generate_ptr_struct(
                     new_tensor_ptr_type, ptr, ptr_dim_map | dim_map, self.extent_resolver.with_new(ptr_extent_map)
                 )
                 ops.extend(gen_ops)
@@ -966,7 +821,7 @@ class _IterMakeLoopCallback(LoopCallback):
             sub_indices_map[i] = value
 
         loop_block = Block()
-        resulting_iter_args = DLTIterateRewriter._make_for_loop(
+        resulting_iter_args = self.iterate_rewriter._make_for_loop(
             self.iterate_op,
             self.extent_resolver,
             new_tensor_map,
@@ -1027,8 +882,7 @@ class _IterMakeLoopCallback(LoopCallback):
         return ops, list(for_op.res)
 
 
-@dataclass
-class DLTCopyRewriter(RewritePattern):
+class DLTCopyRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, copy_op: dlt.CopyOp, rewriter: PatternRewriter):
@@ -1068,8 +922,7 @@ class DLTCopyRewriter(RewritePattern):
         rewriter.replace_matched_op(ops)
 
 
-@dataclass
-class DLTExtractExtentRewriter(RewritePattern):
+class DLTExtractExtentRewriter(DLTRewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -1080,7 +933,7 @@ class DLTExtractExtentRewriter(RewritePattern):
         # dlt_ptr = cast(dlt.PtrType, dlt_ptr)
         ops = []
 
-        llvm_type = Semantic_Map.get_data_type_from_dlt_ptr(dlt_ptr)
+        llvm_type = self.semantics.get_data_type_from_dlt_ptr(dlt_ptr)
         ops.append(
             cast_op := builtin.UnrealizedConversionCastOp.get(
                 extract_op.tree, llvm_type
@@ -1098,7 +951,6 @@ class DLTExtractExtentRewriter(RewritePattern):
         rewriter.replace_matched_op(ops, [extent_ssa])
 
 
-@dataclass
 class DLTScopeRewriter(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, scope_op: dlt.LayoutScopeOp, rewriter: PatternRewriter):
@@ -1106,53 +958,43 @@ class DLTScopeRewriter(RewritePattern):
         rewriter.erase_matched_op()
 
 
-@dataclass
 class DLTPtrTypeRewriter(TypeConversionPattern):
+
+
+    def __init__(self, semantics: SemanticsMapper, recursive: bool = False, ops: tuple[type[Operation]]|None = None):
+        self.semantics = semantics
+        super().__init__(recursive, ops)
+
     @attr_type_rewrite_pattern
     def convert_type(self, typ: dlt.PtrType, /) -> Attribute | None:
-        return Semantic_Map.get_data_type_from_dlt_ptr(typ)
+        return self.semantics.get_data_type_from_dlt_ptr(typ)
 
 
-@dataclass
 class DLTIndexTypeRewriter(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: builtin.IndexType, /) -> Attribute | None:
         return builtin.i64
 
 
-@dataclass
 class DLTIndexRangeTypeRewriter(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: dlt.IndexRangeType, /) -> Attribute | None:
         return llvm.LLVMStructType.from_type_list([i64, i64])
 
 
-# def add_to_llvm_pointer(
-#     ptr: SSAValue, value: SSAValue
-# ) -> tuple[list[Operation], SSAValue]:
-#     assert isinstance(ptr.type, llvm.LLVMPointerType)
-#     ops = []
-#     if isinstance(value.type, IndexType):
-#         cast_ops, value = get_as_i64(value)
-#         ops.extend(cast_ops)
-#     ops.append(ptr_to_int_op := llvm.PtrToIntOp(ptr))
-#     ops.append(add_op := arith.Addi(ptr_to_int_op.output, value))
-#     ops.append(int_to_ptr_op := llvm.IntToPtrOp(add_op.result))
-#     return ops, int_to_ptr_op.output
 
-
-class LowerDLTPass(ModulePass):
-    name = "lwer-dlt"
-
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    DLTSelectRewriter(),
-                    DLTGetRewriter(),
-                    DLTGetSRewriter(),
-                    DLTSetRewriter(),
-                ]
-            )
-        )
-        walker.rewrite_module(op)
+# class LowerDLTPass(ModulePass):
+#     name = "lwer-dlt"
+#
+#     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+#         walker = PatternRewriteWalker(
+#             GreedyRewritePatternApplier(
+#                 [
+#                     DLTSelectRewriter(),
+#                     DLTGetRewriter(),
+#                     DLTGetSRewriter(),
+#                     DLTSetRewriter(),
+#                 ]
+#             )
+#         )
+#         walker.rewrite_module(op)

@@ -773,7 +773,9 @@ IterateInnerBodyFunc = Callable[
 
 
 class SemanticsMapper:
-    def __init__(self):
+    def __init__(self, print_memory_calls: bool = False):
+        self.print_memory_calls = print_memory_calls
+
         self.direct_map: dict[typing.Type[dlt.Layout], DirectLayoutNodeSemantics] = {}
         self.indexed_map: dict[typing.Type[dlt.Layout], IndexedLayoutNodeSemantics] = {}
 
@@ -5757,12 +5759,13 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         )
         iter_ops, _, _ = direct_iter_func(dealloc_callback, True)
         ops.extend(iter_ops)
-        # ops.append(
-        #     printf.PrintFormatOp("5204 free idx {}", idx_buffer_ptr))
         ops.append(llvm.CallOp("free", idx_buffer_ptr))
-        # ops.append(
-        #     printf.PrintFormatOp("5207 free data {}", data_buffer_ptr))
+        if self.semantics.print_memory_calls:
+            ops.append(printf.PrintFormatOp("# called free({})", idx_buffer_ptr))
+
         ops.append(llvm.CallOp("free", data_buffer_ptr))
+        if self.semantics.print_memory_calls:
+            ops.append(printf.PrintFormatOp("# called free({})", data_buffer_ptr))
 
         return ops
 
@@ -5981,8 +5984,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
 
         return while_op, index_is_found, index
 
-    @staticmethod
     def malloc_buffers(
+        self,
         upcoo_layout: dlt.UnpackedCOOLayoutAttr,
         num_non_zero: SSAValue,
         child_size: NumericResult2,
@@ -6010,7 +6013,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             ops.append(malloc_idx_buffer)
             idx_buffer_ptr = malloc_idx_buffer.returned
-            # ops.append(printf.PrintFormatOp("# malloc idx size: {} -> {}", alloc_idx_buffer_bytes, idx_buffer_ptr))
+            if self.semantics.print_memory_calls:
+                ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_idx_buffer_bytes_i64, idx_buffer_ptr))
         else:
 
             realloc_idx_buffer = llvm.CallOp(
@@ -6021,7 +6025,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             ops.append(realloc_idx_buffer)
             idx_buffer_ptr = realloc_idx_buffer.returned
-            # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {} -> {}", old_buffers[0], alloc_idx_buffer_bytes, idx_buffer_ptr))
+            if self.semantics.print_memory_calls:
+                ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[0], alloc_idx_buffer_bytes_i64, idx_buffer_ptr))
 
         # c_db_ops, (child_size, child_size_debug) = child_size.split_n(2)
         # ops.extend(c_db_ops)
@@ -6045,7 +6050,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             ops.append(malloc_data_buffer)
             data_buffer_ptr = malloc_data_buffer.returned
-            # ops.append(printf.PrintFormatOp("# malloc data size: {} -> {}", alloc_data_buffer_bytes, data_buffer_ptr))
+            if self.semantics.print_memory_calls:
+                ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_data_buffer_bytes_i64, data_buffer_ptr))
         else:
             realloc_data_buffer = llvm.CallOp(
                 "realloc",
@@ -6055,7 +6061,8 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             ops.append(realloc_data_buffer)
             data_buffer_ptr = realloc_data_buffer.returned
-            # ops.append(printf.PrintFormatOp("# Realloc data: {} to size: {} -> {}", old_buffers[1], alloc_data_buffer_bytes, data_buffer_ptr))
+            if self.semantics.print_memory_calls:
+                ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[1], alloc_data_buffer_bytes_i64, data_buffer_ptr))
 
         # db_ops, (child_size_db_base, child_size_db_extra) = child_size_debug.output()
         # ops.extend(db_ops)
@@ -7786,9 +7793,13 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             # ops.append(
             #     printf.PrintFormatOp("5204 free idx {}", idx_buffer_ptr))
             ops.append(llvm.CallOp("free", idx_buffer_ptr))
+            if self.semantics.print_memory_calls:
+                ops.append(printf.PrintFormatOp("# called free({})", idx_buffer_ptr))
         # ops.append(
         #     printf.PrintFormatOp("5207 free data {}", data_buffer_ptr))
         ops.append(llvm.CallOp("free", data_buffer_ptr))
+        if self.semantics.print_memory_calls:
+            ops.append(printf.PrintFormatOp("# called free({})", data_buffer_ptr))
 
         return ops
 
@@ -8588,8 +8599,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
 
         return ops, result_index, found_op.result
 
-    @staticmethod
     def malloc_buffers(
+        self,
         scoo_layout: dlt.SeparatedCOOLayoutAttr,
         num_non_zero: SSAValue,
         child_size: NumericResult2,
@@ -8615,6 +8626,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 )
                 ops.append(malloc_idx_buffer)
                 idx_buffers.append(malloc_idx_buffer.returned)
+                if self.semantics.print_memory_calls:
+                    ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_idx_buffer_bytes_i64, malloc_idx_buffer.returned))
                 # ops.append(printf.PrintFormatOp("# malloc idx size: {} -> {}", alloc_idx_buffer_bytes, malloc_idx_buffer.returned))
             else:
                 # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {}", old_buffers[0][i],
@@ -8627,6 +8640,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 )
                 ops.append(realloc_idx_buffer)
                 idx_buffers.append(realloc_idx_buffer.returned)
+                if self.semantics.print_memory_calls:
+                    ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[0][i], alloc_idx_buffer_bytes_i64, realloc_idx_buffer.returned))
                 # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {} -> {}", old_buffers[0][i],
                 #                                 alloc_idx_buffer_bytes, realloc_idx_buffer.returned))
 
@@ -8653,6 +8668,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             )
             ops.append(malloc_data_buffer)
             data_buffer_ptr = malloc_data_buffer.returned
+            if self.semantics.print_memory_calls:
+                ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_data_buffer_bytes_i64, data_buffer_ptr))
             # ops.append(printf.PrintFormatOp("# malloc data size: {} -> {}", alloc_data_buffer_bytes, data_buffer_ptr))
         else:
             # ops.append(
@@ -8665,6 +8682,8 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             )
             ops.append(realloc_data_buffer)
             data_buffer_ptr = realloc_data_buffer.returned
+            if self.semantics.print_memory_calls:
+                ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[1], alloc_data_buffer_bytes_i64, data_buffer_ptr))
             # ops.append(printf.PrintFormatOp("# Realloc data: {} to size: {} -> {}", old_buffers[1], alloc_data_buffer_bytes, data_buffer_ptr))
 
         # db_ops, (child_size_db_base, child_size_db_extra) = child_size_debug.output()
@@ -10013,17 +10032,20 @@ def _make_bool_ssa(value: bool | SSAValue) -> tuple[list[Operation], SSAValue]:
         raise ValueError("Cannot convert to bool ssa")
 
 
-Semantic_Map = SemanticsMapper()
-Semantic_Map.add_direct(dlt.PrimitiveLayoutAttr, PrimitiveSemantics(Semantic_Map))
-Semantic_Map.add_direct(dlt.ConstantLayoutAttr, ConstantSemantics(Semantic_Map))
-Semantic_Map.add_direct(dlt.MemberLayoutAttr, MemberSemantics(Semantic_Map))
-Semantic_Map.add_direct(dlt.DenseLayoutAttr, DenseSemantics(Semantic_Map))
-Semantic_Map.add_direct(dlt.StructLayoutAttr, StructSemantics(Semantic_Map))
-Semantic_Map.add_direct(dlt.ArithDropLayoutAttr, ArithDropSemantics(Semantic_Map))
-Semantic_Map.add_direct(dlt.ArithReplaceLayoutAttr, ArithReplaceSemantics(Semantic_Map))
+# Semantic_Map = SemanticsMapper()
 
-Semantic_Map.add_direct(dlt.IndexingLayoutAttr, IndexingSemantics(Semantic_Map))
-Semantic_Map.add_indexed(dlt.UnpackedCOOLayoutAttr, UnpackCOOSemantics(Semantic_Map))
-Semantic_Map.add_indexed(
-    dlt.SeparatedCOOLayoutAttr, SeparatedCOOSemantics(Semantic_Map)
-)
+def load_all_semantics(semantics_map: SemanticsMapper) -> SemanticsMapper:
+    semantics_map.add_direct(dlt.PrimitiveLayoutAttr, PrimitiveSemantics(semantics_map))
+    semantics_map.add_direct(dlt.ConstantLayoutAttr, ConstantSemantics(semantics_map))
+    semantics_map.add_direct(dlt.MemberLayoutAttr, MemberSemantics(semantics_map))
+    semantics_map.add_direct(dlt.DenseLayoutAttr, DenseSemantics(semantics_map))
+    semantics_map.add_direct(dlt.StructLayoutAttr, StructSemantics(semantics_map))
+    semantics_map.add_direct(dlt.ArithDropLayoutAttr, ArithDropSemantics(semantics_map))
+    semantics_map.add_direct(dlt.ArithReplaceLayoutAttr, ArithReplaceSemantics(semantics_map))
+
+    semantics_map.add_direct(dlt.IndexingLayoutAttr, IndexingSemantics(semantics_map))
+    semantics_map.add_indexed(dlt.UnpackedCOOLayoutAttr, UnpackCOOSemantics(semantics_map))
+    semantics_map.add_indexed(
+        dlt.SeparatedCOOLayoutAttr, SeparatedCOOSemantics(semantics_map)
+    )
+    return semantics_map

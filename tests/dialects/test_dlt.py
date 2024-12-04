@@ -3,6 +3,7 @@ from xdsl.dialects.experimental import dlt
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.transforms.experimental.dlt import lower_dlt_to_
+from xdsl.transforms.experimental.dlt.layout_llvm_semantics import SemanticsMapper, load_all_semantics
 
 
 def test_typetype_has_selectable_type():
@@ -35,16 +36,17 @@ def test_make_ConstantLayout():
 
     module.verify()
 
+    semantics = load_all_semantics(SemanticsMapper())
     dlt_to_llvm_applier = PatternRewriteWalker(GreedyRewritePatternApplier(
         [
-         # lower_dlt_to_.DLTSelectRewriter(),
-         # lower_dlt_to_.DLTGetRewriter(),
-         # lower_dlt_to_.DLTSetRewriter(),
-         lower_dlt_to_.DLTAllocRewriter(),
-         lower_dlt_to_.DLTDeallocRewriter(),
-         # lower_dlt_to_.DLTIterateRewriter(),
-         # lower_dlt_to_.DLTCopyRewriter(),
-         # lower_dlt_to_.DLTExtractExtentRewriter(),
+         # lower_dlt_to_.DLTSelectRewriter(semantics),
+         # lower_dlt_to_.DLTGetRewriter(semantics),
+         # lower_dlt_to_.DLTSetRewriter(semantics),
+         lower_dlt_to_.DLTAllocRewriter(semantics),
+         lower_dlt_to_.DLTDeallocRewriter(semantics),
+         # lower_dlt_to_.DLTIterateRewriter(semantics),
+         # lower_dlt_to_.DLTCopyRewriter(semantics),
+         # lower_dlt_to_.DLTExtractExtentRewriter(semantics),
          ]),
         walk_regions_first=False)
     dlt_to_llvm_applier.rewrite_module(module)
@@ -65,17 +67,19 @@ def test_make_ArithDropLayout():
     set_op = dlt.SetOp(select_op.res, get_op.res)
     module = builtin.ModuleOp([alloc_op, three, select_op, get_op, set_op])
     print(module)
+
+    semantics = load_all_semantics(SemanticsMapper())
     dlt_to_llvm_applier = PatternRewriteWalker(GreedyRewritePatternApplier(
         [RemoveUnusedOperations(),
-         lower_dlt_to_.DLTSelectRewriter(),
-         lower_dlt_to_.DLTGetRewriter(),
-         lower_dlt_to_.DLTGetSRewriter(),
-         lower_dlt_to_.DLTSetRewriter(),
-         lower_dlt_to_.DLTAllocRewriter(),
-         lower_dlt_to_.DLTDeallocRewriter(),
-         lower_dlt_to_.DLTIterateRewriter(),
-         lower_dlt_to_.DLTCopyRewriter(),
-         lower_dlt_to_.DLTExtractExtentRewriter(),
+         lower_dlt_to_.DLTSelectRewriter(semantics),
+         lower_dlt_to_.DLTGetRewriter(semantics),
+         lower_dlt_to_.DLTGetSRewriter(semantics),
+         lower_dlt_to_.DLTSetRewriter(semantics),
+         lower_dlt_to_.DLTAllocRewriter(semantics),
+         lower_dlt_to_.DLTDeallocRewriter(semantics),
+         lower_dlt_to_.DLTIterateRewriter(semantics),
+         lower_dlt_to_.DLTCopyRewriter(semantics),
+         lower_dlt_to_.DLTExtractExtentRewriter(semantics),
          ]),
         walk_regions_first=False)
     dlt_to_llvm_applier.rewrite_module(module)
@@ -109,17 +113,18 @@ def test_make_UnpackedCOOLayout():
     get_op = dlt.GetOp(sel_op.res, builtin.i32)
     module = builtin.ModuleOp([dlt.LayoutScopeOp([],[init_values_op, alloc_op, i_get, j_get, k_get, sel_op, get_op])])
 
+    semantics = load_all_semantics(SemanticsMapper())
     dlt_to_llvm_applier = PatternRewriteWalker(GreedyRewritePatternApplier(
         [RemoveUnusedOperations(),
-         lower_dlt_to_.DLTSelectRewriter(),
-         lower_dlt_to_.DLTGetRewriter(),
-         lower_dlt_to_.DLTGetSRewriter(),
-         lower_dlt_to_.DLTSetRewriter(),
-         lower_dlt_to_.DLTAllocRewriter(),
-         lower_dlt_to_.DLTDeallocRewriter(),
-         lower_dlt_to_.DLTIterateRewriter(),
-         lower_dlt_to_.DLTCopyRewriter(),
-         lower_dlt_to_.DLTExtractExtentRewriter(),
+         lower_dlt_to_.DLTSelectRewriter(semantics),
+         lower_dlt_to_.DLTGetRewriter(semantics),
+         lower_dlt_to_.DLTGetSRewriter(semantics),
+         lower_dlt_to_.DLTSetRewriter(semantics),
+         lower_dlt_to_.DLTAllocRewriter(semantics),
+         lower_dlt_to_.DLTDeallocRewriter(semantics),
+         lower_dlt_to_.DLTIterateRewriter(semantics),
+         lower_dlt_to_.DLTCopyRewriter(semantics),
+         lower_dlt_to_.DLTExtractExtentRewriter(semantics),
          ]),
         walk_regions_first=False)
     dlt_to_llvm_applier.rewrite_module(module)
