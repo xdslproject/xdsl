@@ -108,3 +108,28 @@ func.func @test_const_var_const() {
 // CHECK: %foldable_times = arith.constant 4 : i32
 %foldable_times = arith.muli %c2, %c2 : i32
 "test.op"(%foldable_times) : (i32) -> ()
+
+// CHECK: %int = "test.op"() : () -> i32
+%int = "test.op"() : () -> i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%0 = arith.cmpi eq, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%1 = arith.cmpi ne, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%2 = arith.cmpi slt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%3 = arith.cmpi sle, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%4 = arith.cmpi sgt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%5 = arith.cmpi sge, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%6 = arith.cmpi ult, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%7 = arith.cmpi ule, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%8 = arith.cmpi ugt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%9 = arith.cmpi uge, %int, %int : i32
+
+"test.op"(%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %int) : (i1, i1, i1, i1, i1, i1, i1, i1, i1, i1, i32) -> ()
