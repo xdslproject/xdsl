@@ -31,7 +31,7 @@ optimization capabilities.
 - [xDSL Developer Setup](#xdsl-developer-setup)
   - [Developer Installation](#developer-installation)
   - [Testing](#testing)
-  - [Formatting](#formatting-and-typechecking)
+  - [Formatting and Typechecking](#formatting-and-typechecking)
 
 ## Installation
 
