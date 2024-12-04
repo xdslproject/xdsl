@@ -6,19 +6,17 @@ from xdsl.dialects.onnx import AddOp, MatMulOp, SubOp, TransposeOp
 from xdsl.ir import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
-try:
-    from onnx import TensorProto, ValueInfoProto, helper
+pytest.importorskip("onnx", reason="onnx is an optional dependency")
 
-    from xdsl.frontend.onnx.ir_builder import (
-        OnnxXdslMapping,
-        build_module,
-        visit_graph,
-        visit_node,
-        visit_value_info,
-    )
-except ImportError as exc:
-    print(exc)
-    pytest.skip("onnx is an optional dependency", allow_module_level=True)
+from onnx import TensorProto, ValueInfoProto, helper  # noqa: E402
+
+from xdsl.frontend.onnx.ir_builder import (  # noqa: E402
+    OnnxXdslMapping,
+    build_module,
+    visit_graph,
+    visit_node,
+    visit_value_info,
+)
 
 
 def test_visit_value_info():

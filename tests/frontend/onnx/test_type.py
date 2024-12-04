@@ -1,21 +1,19 @@
-import onnx
 import pytest
 
 from xdsl.dialects.builtin import Float32Type, TensorType, f32, f64
 
-try:
-    from onnx import TensorShapeProto, TypeProto
+pytest.importorskip("onnx", reason="onnx is an optional dependency")
 
-    from xdsl.frontend.onnx.type import (
-        get_elem_type,
-        get_shape,
-        get_tensor_type,
-        get_type,
-    )
-    from xdsl.utils.hints import isa
-except ImportError as exc:
-    print(exc)
-    pytest.skip("onnx is an optional dependency", allow_module_level=True)
+import onnx  # noqa: E402
+from onnx import TensorShapeProto, TypeProto  # noqa: E402
+
+from xdsl.frontend.onnx.type import (  # noqa: E402
+    get_elem_type,
+    get_shape,
+    get_tensor_type,
+    get_type,
+)
+from xdsl.utils.hints import isa  # noqa: E402
 
 
 def test_get_elem_type():
