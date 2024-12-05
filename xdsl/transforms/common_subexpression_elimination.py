@@ -247,7 +247,10 @@ class CSEDriver:
         self._commit_erasures()
 
 
-def cse(thing: Operation | Block | Region, rewriter: PatternRewriter | None = None):
+def cse(
+    thing: Operation | Block | Region,
+    rewriter: Rewriter | PatternRewriter | None = None,
+):
     if rewriter is not None:
         CSEDriver(_rewriter=rewriter).simplify(thing)
     else:
