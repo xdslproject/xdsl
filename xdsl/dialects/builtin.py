@@ -77,6 +77,7 @@ from xdsl.utils.comparisons import (
     signed_upper_bound,
     signed_value_range,
     signless_value_range,
+    unsigned_upper_bound,
     unsigned_value_range,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
@@ -412,7 +413,7 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
 
         if self.signedness.data == Signedness.SIGNLESS:
             signed_ub = signed_upper_bound(self.bitwidth)
-            unsigned_ub = signed_ub << 1
+            unsigned_ub = unsigned_upper_bound(self.bitwidth)
             if signed_ub <= value.data:
                 return IntAttr(value.data - unsigned_ub)
 
