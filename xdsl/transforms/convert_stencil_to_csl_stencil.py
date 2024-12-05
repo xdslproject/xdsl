@@ -26,7 +26,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import Operand, base
+from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -82,7 +82,7 @@ def _get_prefetch_buf_idx(op: stencil.ApplyOp) -> int | None:
         return
 
     # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
-    prefetch = max(candidate_prefetches)[1]
+    prefetch = max(candidate_prefetches, key=lambda x: x[0])[1]
     return op.operands.index(prefetch)
 
 
@@ -99,7 +99,7 @@ def _get_apply_op(op: Operation) -> stencil.ApplyOp | None:
 
 
 @dataclass(frozen=True)
-class ConvertAccessOpFromPrefetchPattern(RewritePattern):
+class ConvertAccessOpPattern(RewritePattern):
     """
     Rebuilds stencil.access by csl_stencil.access which operates on prefetched accesses.
 
@@ -109,51 +109,40 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
     Note: This is intended to be called in a nested pattern rewriter, such that the above precondition is met.
     """
 
-    arg_index: int
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
         assert len(op.offset) == 2
-        # translate access to own data or non-prefetch data, which operates on stencil.TempType
-        if op.temp != op.get_apply().region.block.args[self.arg_index] or tuple(
-            op.offset
-        ) == (0, 0):
-            assert isattr(op.res.type, base(AnyTensorType))
-            rewriter.replace_matched_op(
-                csl_stencil.AccessOp(
-                    op=op.temp,
-                    offset=op.offset,
-                    offset_mapping=op.offset_mapping,
-                    result_type=op.res.type,
-                )
+        if isa(op.temp.type, AnyTensorType):
+            res_type = TensorType(
+                op.temp.type.get_element_type(), op.temp.type.get_shape()[1:]
             )
-            return
-
-        prefetched_arg = op.get_apply().region.block.args[-1]
-        assert isa(t_type := prefetched_arg.type, TensorType[Attribute])
-
-        csl_access_op = csl_stencil.AccessOp(
-            op=prefetched_arg,
-            offset=op.offset,
-            offset_mapping=op.offset_mapping,
-            result_type=TensorType(t_type.get_element_type(), t_type.get_shape()[1:]),
+        else:
+            assert isa(op.res.type, AnyTensorType)
+            res_type = op.res.type
+        rewriter.replace_matched_op(
+            new_access_op := csl_stencil.AccessOp(
+                op=op.temp,
+                offset=op.offset,
+                offset_mapping=op.offset_mapping,
+                result_type=res_type,
+            )
         )
 
         # The stencil-tensorize-z-dimension pass inserts tensor.ExtractSliceOps after stencil.access to remove ghost cells.
         # Since ghost cells are not prefetched, these ops can be removed again. Check if the ExtractSliceOp
         # has no other effect and if so, remove both.
         if (
-            len(op.res.uses) == 1
-            and isinstance(use := list(op.res.uses)[0].operation, tensor.ExtractSliceOp)
-            and use.static_sizes.get_values() == t_type.get_shape()[1:]
+            len(new_access_op.result.uses) == 1
+            and isinstance(
+                use := list(new_access_op.result.uses)[0].operation,
+                tensor.ExtractSliceOp,
+            )
+            and use.static_sizes.get_values() == res_type.get_shape()
             and len(use.offsets) == 0
             and len(use.sizes) == 0
             and len(use.strides) == 0
         ):
-            rewriter.replace_op(use, csl_access_op)
-            rewriter.erase_op(op)
-        else:
-            rewriter.replace_matched_op(csl_access_op)
+            rewriter.replace_op(use, [], new_results=[new_access_op.result])
 
 
 @dataclass(frozen=True)
@@ -228,10 +217,16 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
 
             # arg_idx points to the stencil.temp type whose data is prefetched in a separate buffer
             arg_idx = apply_op.args.index(op.input_stencil)
+            field_block_arg = apply_op.region.block.args[arg_idx]
 
             # add the prefetched buffer as the last arg to stencil.access
-            apply_op.region.block.insert_arg(
+            prefetch_block_arg = apply_op.region.block.insert_arg(
                 prefetch_op.result.type, len(apply_op.args)
+            )
+            field_block_arg.replace_by_if(
+                prefetch_block_arg,
+                lambda use: isinstance(use.operation, stencil.AccessOp)
+                and tuple(use.operation.offset) != (0, 0),
             )
 
             # rebuild stencil.apply op
@@ -245,14 +240,6 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
                 attributes=apply_op.attributes,
             )
             rewriter.replace_op(apply_op, new_apply_op)
-
-            # replace stencil.access (operating on stencil.temp at arg_index)
-            # with csl_stencil.access (operating on memref at last arg index)
-            nested_rewriter = PatternRewriteWalker(
-                ConvertAccessOpFromPrefetchPattern(arg_idx)
-            )
-
-            nested_rewriter.rewrite_region(new_apply_op.region)
 
 
 def split_ops(
@@ -601,13 +588,23 @@ class ConvertStencilToCslStencilPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ConvertSwapToPrefetchPattern(),
+                    ConvertAccessOpPattern(),
+                ]
+            ),
+            walk_reverse=False,
+            apply_recursively=False,
+        )
+        module_pass.rewrite_module(op)
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
                     ConvertApplyOpPattern(num_chunks=self.num_chunks),
                     PromoteCoefficients(),
                 ]
             ),
-            walk_reverse=False,
-        )
-        module_pass.rewrite_module(op)
+            apply_recursively=False,
+        ).rewrite_module(op)
+
         ConvertVarithToArithPass().apply(ctx, op)
 
         if self.num_chunks > 1:
