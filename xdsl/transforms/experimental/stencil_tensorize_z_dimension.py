@@ -79,11 +79,14 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
             if (
                 isinstance(use.operation, InsertSliceOp)
                 and is_tensor(use.operation.result.type)
-                and isa(use.operation.static_sizes.data, ArrayAttr[IntAttr])
+                and isa(
+                    static_sizes := use.operation.static_sizes.get_values(),
+                    tuple[int, ...],
+                )
             ):
                 return TensorType(
                     use.operation.result.type.get_element_type(),
-                    use.operation.static_sizes.data,
+                    static_sizes,
                 )
             for ret in use.operation.results:
                 if isa(r_type := ret.type, TensorType[Attribute]):
@@ -355,7 +358,7 @@ class ExtractSliceOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
-                if isa(offsets := op.static_offsets.data.data, Sequence[IntAttr]):
+                if isa(offsets := op.static_offsets.get_values(), Sequence[IntAttr]):
                     new_offsets = [o.data for o in offsets]
                 else:
                     assert isa(offsets, Sequence[int])

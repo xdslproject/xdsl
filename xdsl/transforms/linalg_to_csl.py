@@ -45,9 +45,9 @@ def get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
         isinstance(op, OpResult)
         and isinstance(op.op, arith.ConstantOp)
         and isa(val := op.op.value, DenseIntOrFPElementsAttr)
-        and val.data.data.count(val.data.data[0]) == len(val.data.data)
+        and val.is_splat()
     ):
-        return val.data.data[0]
+        return val.get_attrs()[0]
 
 
 class ConvertBinaryLinalgOp(RewritePattern):

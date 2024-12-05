@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
@@ -119,9 +120,9 @@ class LowerSubviewOpPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
         assert isa(op.source.type, MemRefType[Attribute])
-        assert len(op.static_sizes.data) == 1, "not implemented"
-        assert len(op.static_offsets.data) == 1, "not implemented"
-        assert len(op.static_strides.data) == 1, "not implemented"
+        assert len(op.static_sizes) == 1, "not implemented"
+        assert len(op.static_offsets) == 1, "not implemented"
+        assert len(op.static_strides) == 1, "not implemented"
 
         last_op = op.source
         size_ops = self._update_sizes(op, last_op)
@@ -141,19 +142,21 @@ class LowerSubviewOpPass(RewritePattern):
         assert isa(subview.source.type, MemRefType[Attribute])
         ops = list[Operation]()
 
-        if subview.static_sizes.data.data[0].data == memref.SubviewOp.DYNAMIC_INDEX:
+        static_sizes = cast(Sequence[int], subview.static_sizes.get_values())
+
+        if static_sizes[0] == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], csl.u16_value))
             ops.append(
                 curr_op := csl.SetDsdLengthOp.build(
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
                 )
             )
-        elif subview.static_sizes.as_tuple() != subview.source.type.get_shape():
+        elif static_sizes != subview.source.type.get_shape():
             # update sizes only if they differ from op.source.type
             ops.append(
                 len_op := arith.ConstantOp(
                     IntegerAttr(
-                        cast(ArrayAttr[IntAttr], subview.static_sizes.data).data[0],
+                        static_sizes[0],
                         csl.u16_value,
                     )
                 )
@@ -172,7 +175,9 @@ class LowerSubviewOpPass(RewritePattern):
         assert isa(subview.source.type, MemRefType[Attribute])
         ops = list[Operation]()
 
-        if subview.static_strides.data.data[0].data == memref.SubviewOp.DYNAMIC_INDEX:
+        static_strides = cast(Sequence[int], subview.static_strides.get_values())
+
+        if static_strides[0] == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(
                 cast_op := arith.IndexCastOp(
                     subview.strides[0], IntegerType(8, Signedness.SIGNED)
@@ -183,12 +188,12 @@ class LowerSubviewOpPass(RewritePattern):
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
                 )
             )
-        elif subview.static_strides.as_tuple() != subview.source.type.get_strides():
+        elif static_strides != subview.source.type.get_strides():
             # update strides only if they differ from op.source.type
             ops.append(
                 stride_op := arith.ConstantOp(
                     IntegerAttr(
-                        cast(ArrayAttr[IntAttr], subview.static_strides.data).data[0],
+                        static_strides[0],
                         IntegerType(8, Signedness.SIGNED),
                     )
                 )
@@ -207,7 +212,9 @@ class LowerSubviewOpPass(RewritePattern):
         assert isa(subview.source.type, MemRefType[Attribute])
         ops = list[Operation]()
 
-        if subview.static_offsets.data.data[0].data == memref.SubviewOp.DYNAMIC_INDEX:
+        static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
+
+        if static_offsets[0] == memref.SubviewOp.DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value))
             ops.append(
                 csl.IncrementDsdOffsetOp.build(
@@ -218,16 +225,15 @@ class LowerSubviewOpPass(RewritePattern):
             )
         elif (
             isinstance(subview.source.type.layout, StridedLayoutAttr)
-            and subview.static_offsets.as_tuple()[0]
-            != (subview.source.type.layout.get_offset() or 0)
+            and static_offsets[0] != (subview.source.type.layout.get_offset() or 0)
             or isinstance(subview.source.type.layout, NoneAttr)
-            and subview.static_offsets.as_tuple()[0] != 0
+            and static_offsets[0] != 0
         ):
             # update offsets only if they differ from op.source.type
             ops.append(
                 offset_op := arith.ConstantOp(
                     IntegerAttr(
-                        cast(ArrayAttr[IntAttr], subview.static_offsets.data).data[0],
+                        static_offsets[0],
                         csl.i16_value,
                     )
                 )

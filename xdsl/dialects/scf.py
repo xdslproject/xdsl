@@ -703,18 +703,18 @@ class IndexSwitchOp(IRDLOperation):
         if self.cases.elt_type != i64:
             raise VerifyException("case values should have type i64")
 
-        if len(self.cases.data) != len(self.case_regions):
+        if len(self.cases) != len(self.case_regions):
             raise VerifyException(
-                f"has {len(self.case_regions)} case regions but {len(self.cases.data)} case values"
+                f"has {len(self.case_regions)} case regions but {len(self.cases)} case values"
             )
 
-        cases = self.cases.data.data
-        if len(set(cases)) != len(cases):
+        cases = self.cases
+        if len(set(cases.iter_values())) != len(cases):
             raise VerifyException("has duplicate case value")
 
         self._verify_region(self.default_region, "default")
-        for name, region in zip(cases, self.case_regions):
-            self._verify_region(region, str(name.data))
+        for name, region in zip(cases.iter_values(), self.case_regions, strict=True):
+            self._verify_region(region, str(name))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -727,8 +727,10 @@ class IndexSwitchOp(IRDLOperation):
             printer.print_string(" -> ")
             printer.print_list(self.result_types, printer.print_attribute)
         printer.print_string("\n")
-        for case_value, case_region in zip(self.cases.data.data, self.case_regions):
-            printer.print_string(f"case {case_value.data} ")
+        for case_value, case_region in zip(
+            self.cases.iter_values(), self.case_regions, strict=True
+        ):
+            printer.print_string(f"case {case_value} ")
             printer.print_region(case_region)
             printer.print_string("\n")
 

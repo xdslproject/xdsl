@@ -134,25 +134,25 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def offset(self) -> tuple[int, ...]:
-        data = self.offset_.as_tuple()
+        data = self.offset_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def size(self) -> tuple[int, ...]:
-        data = self.size_.as_tuple()
+        data = self.size_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def source_offset(self) -> tuple[int, ...]:
-        data = self.source_offset_.as_tuple()
+        data = self.source_offset_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_.as_tuple()
+        data = self.neighbor_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
@@ -270,25 +270,25 @@ class ShapeAttr(ParametrizedAttribute):
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
-        data = self.buff_lb_.as_tuple()
+        data = self.buff_lb_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def buff_ub(self) -> tuple[int, ...]:
-        data = self.buff_ub_.as_tuple()
+        data = self.buff_ub_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_lb(self) -> tuple[int, ...]:
-        data = self.core_lb_.as_tuple()
+        data = self.core_lb_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_ub(self) -> tuple[int, ...]:
-        data = self.core_ub_.as_tuple()
+        data = self.core_ub_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
@@ -413,7 +413,7 @@ class RankTopoAttr(ParametrizedAttribute):
         super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
 
     def as_tuple(self) -> tuple[int, ...]:
-        shape = self.shape.as_tuple()
+        shape = self.shape.get_values()
         assert isa(shape, tuple[int, ...])
         return shape
 
@@ -437,7 +437,7 @@ class RankTopoAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
-        printer.print_string("x".join(str(x) for x in self.shape.as_tuple()))
+        printer.print_string("x".join(str(x) for x in self.shape.get_values()))
         printer.print_string(">")
 
 

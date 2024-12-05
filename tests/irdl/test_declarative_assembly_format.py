@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     BoolAttr,
     Float64Type,
     FloatAttr,
+    IndexType,
     IntegerAttr,
     MemRefType,
     ModuleOp,
@@ -64,6 +65,14 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
     var_successor_def,
+)
+from xdsl.irdl.declarative_assembly_format import (
+    AttrDictDirective,
+    FormatProgram,
+    OperandsDirective,
+    PunctuationDirective,
+    ResultsDirective,
+    TypeDirective,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -1014,8 +1023,8 @@ def test_operands_graph_region(format: str, program: str):
         "test.operands_directive %0, %1, %2 : i32, i32, i32",
     ],
 )
-def test_operands_directive(program: str):
-    """Test the operands directive"""
+def test_operands_directive_with_variadic(program: str):
+    """Test the operands directive with a variadic operand"""
 
     @irdl_op_definition
     class OperandsDirectiveOp(IRDLOperation):
@@ -1041,7 +1050,7 @@ def test_operands_directive(program: str):
     ],
 )
 def test_operands_directive_with_optional(program: str):
-    """Test the operands directive"""
+    """Test the operands directive with an optional operand"""
 
     @irdl_op_definition
     class OperandsDirectiveOp(IRDLOperation):
@@ -1057,6 +1066,25 @@ def test_operands_directive_with_optional(program: str):
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
+
+
+def test_operands_directive_with_no_variadic():
+    """Test the operands directive with no variadic operands"""
+
+    @irdl_op_definition
+    class OperandsDirectiveOp(IRDLOperation):
+        name = "test.operands_directive"
+
+        op1 = operand_def()
+        op2 = operand_def()
+
+        assembly_format = "operands `:` type(operands) attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OperandsDirectiveOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip("test.operands_directive %0, %1 : i32, i32", ctx)
 
 
 def test_operands_directive_fails_with_two_var():
@@ -1235,6 +1263,77 @@ def test_operands_directive_bound_with_var(program: str, error: str):
         parser.parse_operation()
 
 
+def test_operands_directive_with_non_variadic_type_directive():
+    """Tests the 'parse_single_type' function of the operands directive."""
+
+    # The parser will never generate a non-variadic TypeDirective containing
+    # an OperandsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            OperandsDirective(None),
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(OperandsDirective(None)),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class OneOperandOp(IRDLOperation):
+        name = "test.one_operand"
+
+        op1 = operand_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> OneOperandOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(OneOperandOp)
+
+    check_roundtrip("test.one_operand %0 : i32", ctx)
+
+
+def test_operands_directive_with_variadic_type_directive():
+    """
+    Tests the 'parse_single_type' function of the operands directive
+    when the operation has a variadic.
+    """
+    # The parser will never generate a non-variadic TypeDirective containing
+    # an OperandsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            OperandsDirective((False, 1)),
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(OperandsDirective((False, 1))),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class TwoOperandOp(IRDLOperation):
+        name = "test.two_operand"
+
+        op1 = operand_def()
+        op2 = var_operand_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> TwoOperandOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandOp)
+
+    check_roundtrip("test.two_operand %0 : i32", ctx)
+
+
 ################################################################################
 # Results                                                                      #
 ################################################################################
@@ -1352,6 +1451,25 @@ def test_variadic_result(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
+def test_variadic_result_failure():
+    """Test that inferring a range of inferrable attributes of unknown length fails."""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="type of result 'res' cannot be inferred",
+    ):
+
+        @irdl_op_definition
+        class VariadicResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.var_results_op"
+
+            res = var_result_def(IndexType())
+
+            irdl_options = [AttrSizedResultSegments()]
+
+            assembly_format = "attr-dict"
+
+
 @pytest.mark.parametrize(
     "format, program, generic_program",
     [
@@ -1393,8 +1511,8 @@ def test_optional_result(format: str, program: str, generic_program: str):
         "%0, %1, %2 = test.results_directive : i32, i32, i32",
     ],
 )
-def test_results_directive(program: str):
-    """Test the results directive"""
+def test_results_directive_with_variadic(program: str):
+    """Test the results directive with a variadic result"""
 
     @irdl_op_definition
     class ResultsDirectiveOp(IRDLOperation):
@@ -1436,6 +1554,25 @@ def test_results_directive_with_optional(program: str):
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
+
+
+def test_results_directive_with_no_variadic():
+    """Test the results directive with no variadic results"""
+
+    @irdl_op_definition
+    class ResultsDirectiveOp(IRDLOperation):
+        name = "test.results_directive"
+
+        res1 = result_def()
+        res2 = result_def()
+
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = MLContext()
+    ctx.load_op(ResultsDirectiveOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip("%0, %1 = test.results_directive : i32, i32", ctx)
 
 
 def test_results_directive_fails_with_two_var():
@@ -1570,6 +1707,139 @@ def test_results_directive_bound_with_var():
     ):
         parser = Parser(ctx, "%0 = test.three_results : i32")
         parser.parse_operation()
+
+
+def test_results_directive_with_non_variadic_type_directive():
+    """Tests the 'parse_single_type' function of the results directive."""
+
+    # The parser will never generate a non-variadic TypeDirective containing
+    # a ResultsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(ResultsDirective(None)),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class OneResultOp(IRDLOperation):
+        name = "test.one_result"
+
+        res = result_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> OneResultOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(OneResultOp)
+
+    check_roundtrip("%0 = test.one_result : i32", ctx)
+
+
+def test_results_directive_with_variadic_type_directive():
+    """
+    Tests the 'parse_single_type' function of the results directive
+    when the operation has a variadic.
+    """
+    # The parser will never generate a non-variadic TypeDirective containing
+    # a ResultsDirective, but we can manually make one.
+    format_program = FormatProgram(
+        (
+            AttrDictDirective(False, set(), False),
+            PunctuationDirective(":"),
+            TypeDirective(ResultsDirective((False, 1))),
+        ),
+        {},
+    )
+
+    @irdl_op_definition
+    class TwoResultsOp(IRDLOperation):
+        name = "test.two_results"
+
+        res1 = result_def()
+        res2 = var_result_def()
+
+        @classmethod
+        def parse(cls, parser: Parser) -> TwoResultsOp:
+            return format_program.parse(parser, cls)
+
+        def print(self, printer: Printer):
+            format_program.print(printer, self)
+
+    ctx = MLContext()
+    ctx.load_op(TwoResultsOp)
+
+    check_roundtrip("%0 = test.two_results : i32", ctx)
+
+
+################################################################################
+# Functional type                                                              #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
+        "test.functional_type %0, %1 : (i32, i32) -> ()",
+        "%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
+        "%0 = test.functional_type %1 : (i32) -> i32",
+        "%0 = test.functional_type : () -> i32",
+    ],
+)
+def test_functional_type(program: str):
+    """Test the parsing of the functional-type directive"""
+
+    @irdl_op_definition
+    class FunctionalTypeOp(IRDLOperation):
+        name = "test.functional_type"
+
+        ops = var_operand_def()
+        res = var_result_def()
+
+        assembly_format = "$ops attr-dict `:` functional-type($ops, $res)"
+
+    ctx = MLContext()
+    ctx.load_op(FunctionalTypeOp)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "%0 = test.functional_type %1, %2 : (i32, i32) -> i32",
+        "%0, %1 = test.functional_type %2, %3 : (i32, i32) -> (i32, i32)",
+        "%0 = test.functional_type %1 : (i32) -> i32",
+    ],
+)
+def test_functional_type_with_operands_and_results(program: str):
+    """
+    Test the parsing of the functional-type directive using the operands and
+    results directives
+    """
+
+    @irdl_op_definition
+    class FunctionalTypeOp(IRDLOperation):
+        name = "test.functional_type"
+
+        op1 = operand_def()
+        ops2 = var_operand_def()
+        res1 = var_result_def()
+        res2 = result_def()
+
+        assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    ctx = MLContext()
+    ctx.load_op(FunctionalTypeOp)
+
+    check_roundtrip(program, ctx)
 
 
 ################################################################################
@@ -2188,23 +2458,19 @@ def test_variadic_length_inference():
 
         assembly_format = "$ins attr-dict `:` type($ins)"
 
-    with pytest.raises(
-        NotImplementedError,
-        match="Inference of length of variadic result 'outs' not implemented",
-    ):
-        ctx = MLContext()
-        ctx.load_op(RangeVarOp)
-        ctx.load_dialect(Test)
-        program = textwrap.dedent("""\
-        %in0, %in1 = "test.op"() : () -> (index, index)
-        %out0, %out1 = test.range_var %in0, %in1 : index, index
-        """)
+    ctx = MLContext()
+    ctx.load_op(RangeVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent("""\
+    %in0, %in1 = "test.op"() : () -> (index, index)
+    %out0, %out1 = test.range_var %in0, %in1 : index, index
+    """)
 
-        parser = Parser(ctx, program)
-        test_op = parser.parse_optional_operation()
-        assert isinstance(test_op, test.Operation)
-        my_op = parser.parse_optional_operation()
-        assert isinstance(my_op, RangeVarOp)
+    parser = Parser(ctx, program)
+    test_op = parser.parse_optional_operation()
+    assert isinstance(test_op, test.Operation)
+    my_op = parser.parse_optional_operation()
+    assert isinstance(my_op, RangeVarOp)
 
 
 ################################################################################
@@ -2542,7 +2808,7 @@ class DefaultOp(IRDLOperation):
         ),
         (
             "test.default prop true opt_prop false",
-            "test.default prop 1 opt_prop 0",
+            "test.default prop true opt_prop false",
             '"test.default"() <{"prop" = true, "opt_prop" = false}> {"attr" = false} : () -> ()',
         ),
         (
@@ -2557,7 +2823,7 @@ class DefaultOp(IRDLOperation):
         ),
         (
             "test.default attr true opt_attr false",
-            "test.default attr 1 opt_attr 0",
+            "test.default attr true opt_attr false",
             '"test.default"() <{"prop" = false}> {"attr" = true, "opt_attr" = false} : () -> ()',
         ),
         (
@@ -2609,12 +2875,12 @@ class RenamedPropOp(IRDLOperation):
         ),
         (
             "test.renamed prop1 false prop2 false",
-            "test.renamed prop2 0",
+            "test.renamed prop2 false",
             '"test.renamed"() <{"test_prop1" = false, "test_prop2" = false}> : () -> ()',
         ),
         (
             "test.renamed prop1 true prop2 true",
-            "test.renamed prop1 1 prop2 1",
+            "test.renamed prop1 true prop2 true",
             '"test.renamed"() <{"test_prop1" = true, "test_prop2" = true}> : () -> ()',
         ),
     ],

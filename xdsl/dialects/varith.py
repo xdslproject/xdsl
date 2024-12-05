@@ -178,9 +178,9 @@ class VarithSwitchOp(IRDLOperation):
         with printer.indented():
             printer.print_string("\n")
             cases = [("default", self.default_arg)] + [
-                (str(c.value.data), arg)
+                (str(c), arg)
                 for (c, arg) in zip(
-                    self.case_values.data.data,
+                    self.case_values.get_values(),
                     self.args,
                     strict=True,
                 )

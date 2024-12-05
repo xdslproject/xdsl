@@ -145,7 +145,7 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
         if (
             len(op.res.uses) == 1
             and isinstance(use := list(op.res.uses)[0].operation, tensor.ExtractSliceOp)
-            and tuple(d.data for d in use.static_sizes.data) == t_type.get_shape()[1:]
+            and use.static_sizes.get_values() == t_type.get_shape()[1:]
             and len(use.offsets) == 0
             and len(use.sizes) == 0
             and len(use.strides) == 0
@@ -581,10 +581,11 @@ class PromoteCoefficients(RewritePattern):
         if (
             not isinstance(cnst := coeff.owner, arith.ConstantOp)
             or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
-            or dense.data.data.count(val := dense.data.data[0]) != len(dense.data.data)
+            or not dense.is_splat()
         ):
             return
 
+        val = dense.get_attrs()[0]
         assert isattr(val, AnyFloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])

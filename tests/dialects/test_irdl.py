@@ -208,3 +208,16 @@ class MySubWithClassVarOverload(MySuperWithClassVarDef):
 def test_class_var_on_super():
     irdl_op_definition(MySuperWithClassVarDef)
     irdl_op_definition(MySubWithClassVarOverload)
+
+
+@pytest.mark.parametrize(
+    "op_name, class_name",
+    [
+        ("my_operation", "MyOperationOp"),
+        ("AlreadyCamelCase", "AlreadyCamelCaseOp"),
+        ("nested.name", "NestedNameOp"),
+    ],
+)
+def test_get_py_class_name(op_name: str, class_name: str):
+    op = OperationOp(op_name, Region(Block()))
+    assert op.get_py_class_name() == class_name

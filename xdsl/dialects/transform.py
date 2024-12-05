@@ -604,8 +604,8 @@ class TileOp(IRDLOperation):
                     AnyOpType()
                     for _ in range(
                         (
-                            len(static_sizes.as_tuple())
-                            - static_sizes.as_tuple().count(0)
+                            len(static_sizes.get_values())
+                            - static_sizes.get_values().count(0)
                         )
                         if static_sizes
                         else 0

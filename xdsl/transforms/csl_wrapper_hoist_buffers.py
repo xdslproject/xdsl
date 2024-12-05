@@ -23,8 +23,7 @@ class HoistBuffers(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         # always attempt to set name hints
-        if op.memref.name_hint is None:
-            self._set_name_hint(op)
+        self._set_name_hint(op)
 
         wrapper = op.parent_op()
         while wrapper and not isinstance(wrapper, csl_wrapper.ModuleOp):

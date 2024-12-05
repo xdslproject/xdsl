@@ -44,6 +44,7 @@ from xdsl.irdl.declarative_assembly_format import (
     DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
+    FunctionalTypeDirective,
     KeywordDirective,
     OperandOrResult,
     OperandsDirective,
@@ -330,7 +331,9 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format"
                 )
             if not seen_operand_type:
-                if not operand_def.constr.can_infer(var_constraint_names):
+                if not operand_def.constr.can_infer(
+                    var_constraint_names, length_known=True
+                ):
                     self.raise_error(
                         f"type of operand '{operand_name}' cannot be inferred, "
                         f"consider adding a 'type(${operand_name})' directive to the "
@@ -345,7 +348,9 @@ class FormatParser(BaseParser):
             self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
-                if not result_def.constr.can_infer(var_constraint_names):
+                if not result_def.constr.can_infer(
+                    var_constraint_names, length_known=False
+                ):
                     self.raise_error(
                         f"type of result '{result_name}' cannot be inferred, "
                         f"consider adding a 'type(${result_name})' directive to the "
@@ -617,6 +622,19 @@ class FormatParser(BaseParser):
             return VariadicTypeDirective(inner)
         return TypeDirective(inner)
 
+    def parse_functional_type_directive(self) -> FormatDirective:
+        """
+        Parse a functional-type directive with the following format
+          functional-type-directive ::= `functional-type` `(` typeable-directive `,` typeable-directive `)`
+        `functional-type` is expected to have already been parsed
+        """
+        self.parse_punctuation("(")
+        operands = self.parse_typeable_directive()
+        self.parse_punctuation(",")
+        results = self.parse_typeable_directive()
+        self.parse_punctuation(")")
+        return FunctionalTypeDirective(operands, results)
+
     def parse_optional_group(self) -> FormatDirective:
         """
         Parse an optional group, with the following format:
@@ -739,6 +757,8 @@ class FormatParser(BaseParser):
             return self.parse_type_directive()
         if self.parse_optional_keyword("operands"):
             return self.create_operands_directive(True)
+        if self.parse_optional_keyword("functional-type"):
+            return self.parse_functional_type_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):
