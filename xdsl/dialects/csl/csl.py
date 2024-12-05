@@ -409,7 +409,13 @@ class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.child_type
 
 
-ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
+ColorIdAttr: TypeAlias = IntegerAttr[
+    Annotated[
+        IntegerType,
+        eq(IntegerType(5, Signedness.UNSIGNED))
+        | eq(IntegerType(6, Signedness.UNSIGNED)),
+    ]
+]
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
@@ -838,7 +844,9 @@ class TaskOp(_FuncBase):
         if isinstance(task_kind, TaskKind):
             task_kind = TaskKindAttr(task_kind)
         if isinstance(id, int):
-            id = IntegerAttr.from_int_and_width(id, task_kind.get_color_bits())
+            id = IntegerAttr(
+                id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
+            )
         if id is not None:
             assert (
                 id.type.width.data == task_kind.get_color_bits()
@@ -880,6 +888,7 @@ class TaskOp(_FuncBase):
 
     @classmethod
     def parse(cls, parser: Parser) -> TaskOp:
+        pos = parser.pos
         (
             name,
             input_types,
@@ -898,7 +907,11 @@ class TaskOp(_FuncBase):
             parser.raise_error(f"{cls.name} expected kind attribute")
         id = extra_attrs.data.get("id")
         if id is not None and not isa(id, ColorIdAttr):
-            parser.raise_error(f"{cls.name} expected kind attribute")
+            parser.raise_error(
+                f"{cls.name} expected kind attribute, got {id} ({ColorIdAttr})",
+                pos,
+                parser.pos,
+            )
 
         assert (
             len(return_types) <= 1
@@ -925,7 +938,7 @@ class ActivateOp(IRDLOperation):
     corresponding `@get_<kind>_task_id` to convert the numeric ID to a task id, e.g.:
 
     ```
-    csl.activate local, 0 : i32
+    csl.activate local, 0 : ui6
            |
            V
     @activate(@get_local_task_id(0));
@@ -941,10 +954,12 @@ class ActivateOp(IRDLOperation):
     assembly_format = "attr-dict $kind `,` $id"
 
     def __init__(self, id: int | ColorIdAttr, kind: TaskKind | TaskKindAttr):
-        if isinstance(id, int):
-            id = IntegerAttr.from_int_and_width(id, 32)
         if isinstance(kind, TaskKind):
             kind = TaskKindAttr(kind)
+        if isinstance(id, int):
+            id = IntegerAttr(
+                id, IntegerType(kind.get_color_bits(), Signedness.UNSIGNED)
+            )
 
         super().__init__(properties={"id": id, "kind": kind})
 

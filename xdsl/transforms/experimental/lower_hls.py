@@ -1,4 +1,5 @@
 import typing
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -432,8 +433,8 @@ class LowerHLSExtractStencilValue(RewritePattern):
     def match_and_rewrite(
         self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /
     ):
-        indices = [attr.data for attr in op.position.data]
-        assert isa(indices, list[int])
+        indices = op.position.get_values()
+        assert isa(indices, Sequence[int])
 
         assert isinstance(op.container, OpResult)
         assert isinstance(op.container.op, llvm.LoadOp)

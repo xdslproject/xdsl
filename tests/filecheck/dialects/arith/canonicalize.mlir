@@ -90,3 +90,62 @@ func.func @test_const_var_const() {
 %z = arith.select %x, %y, %y : i64
 
 "test.op"(%z) : (i64) -> ()
+
+%c1 = arith.constant 1 : i32
+%c2 = arith.constant 2 : i32
+%a = "test.op"() : () -> (i32)
+
+%one_times = arith.muli %c1, %a : i32
+%times_one = arith.muli %a, %c1 : i32
+
+// CHECK: "test.op"(%a, %a) {"identity multiplication check"} : (i32, i32) -> ()
+"test.op"(%one_times, %times_one) {"identity multiplication check"} : (i32, i32) -> ()
+
+// CHECK: %times_by_const = arith.muli %a, %c2 : i32
+%times_by_const = arith.muli %c2, %a : i32
+"test.op"(%times_by_const) : (i32) -> ()
+
+// CHECK: %foldable_times = arith.constant 4 : i32
+%foldable_times = arith.muli %c2, %c2 : i32
+"test.op"(%foldable_times) : (i32) -> ()
+
+%c0 = arith.constant 0 : i32
+
+%zero_plus = arith.addi %c0, %a : i32
+%plus_zero = arith.addi %a, %c0 : i32
+
+// CHECK: "test.op"(%a, %a) {"identity addition check"} : (i32, i32) -> ()
+"test.op"(%zero_plus, %plus_zero) {"identity addition check"} : (i32, i32) -> ()
+
+// CHECK: %plus_const = arith.addi %a, %c2 : i32
+%plus_const = arith.addi %c2, %a : i32
+"test.op"(%plus_const) : (i32) -> ()
+
+// CHECK: %foldable_plus = arith.constant 4 : i32
+%foldable_plus = arith.addi %c2, %c2 : i32
+"test.op"(%foldable_plus) : (i32) -> ()
+
+// CHECK: %int = "test.op"() : () -> i32
+%int = "test.op"() : () -> i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%0 = arith.cmpi eq, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%1 = arith.cmpi ne, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%2 = arith.cmpi slt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%3 = arith.cmpi sle, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%4 = arith.cmpi sgt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%5 = arith.cmpi sge, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%6 = arith.cmpi ult, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%7 = arith.cmpi ule, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%8 = arith.cmpi ugt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%9 = arith.cmpi uge, %int, %int : i32
+
+"test.op"(%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %int) : (i1, i1, i1, i1, i1, i1, i1, i1, i1, i1, i32) -> ()

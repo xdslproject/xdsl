@@ -186,8 +186,8 @@ class FormatProgram:
                 operand = state.operands[i]
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
-                    range_length,
                     InferenceContext(state.variables),
+                    length=range_length,
                 )
                 resolved_operand_type: Attribute | Sequence[Attribute]
                 if isinstance(operand_def, OptionalDef):
@@ -203,27 +203,22 @@ class FormatProgram:
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, (result_type, (result_name, result_def)) in enumerate(
+        for i, (result_type, (_, result_def)) in enumerate(
             zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
-                # The number of results is not passed in when parsing operations.
-                # In the generic format, the type of the operation always specifies the
-                # types of the results, and `resultSegmentSizes` specifies the ranges of
-                # of the results if multiple are variadic.
-                # In order to support variadic results, the types an length of all
-                # variadic results must be present in the custom syntax.
-                if isinstance(result_def, OptionalDef | VariadicDef):
-                    raise NotImplementedError(
-                        f"Inference of length of variadic result '{result_name}' not "
-                        "implemented"
-                    )
-                range_length = 1
                 inferred_result_types = result_def.constr.infer(
-                    range_length,
-                    InferenceContext(state.variables),
+                    InferenceContext(state.variables), length=None
                 )
-                resolved_result_type = inferred_result_types[0]
+                resolved_result_type: Attribute | Sequence[Attribute]
+                if isinstance(result_def, OptionalDef):
+                    resolved_result_type = (
+                        inferred_result_types[0] if inferred_result_types else ()
+                    )
+                elif isinstance(result_def, VariadicDef):
+                    resolved_result_type = inferred_result_types
+                else:
+                    resolved_result_type = inferred_result_types[0]
                 state.result_types[i] = resolved_result_type
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
@@ -629,7 +624,7 @@ class OperandsOrResultDirective(VariadicTypeableDirective, ABC):
         if self.variadic_index is None:
             if len(set_to) != len(field):
                 return f"Expected {len(field)} {field_name} but found {len(set_to)}"
-            field = [o for o in set_to]  # Copy needed as list is not covariant
+            field[:] = set_to
             return
 
         is_optional, var_position = self.variadic_index
@@ -665,9 +660,11 @@ class OperandsDirective(VariadicOperandDirective, OperandsOrResultDirective):
         return bool(operands)
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
-        if len(state.operand_types) > 1:
-            parser.raise_error("Expected multiple types but received one.")
-        state.operand_types[0] = parser.parse_type()
+        pos_start = parser.pos
+        if s := self._set_using_variadic_index(
+            state.operand_types, "operand types", (parser.parse_type(),)
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
         pos_start = parser.pos
@@ -787,9 +784,11 @@ class ResultsDirective(OperandsOrResultDirective):
     """
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
-        if len(state.result_types) > 1:
-            parser.raise_error("Expected multiple types but received one.")
-        state.result_types[0] = parser.parse_type()
+        pos_start = parser.pos
+        if s := self._set_using_variadic_index(
+            state.result_types, "result types", (parser.parse_type(),)
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
         pos_start = parser.pos
@@ -814,6 +813,61 @@ class ResultsDirective(OperandsOrResultDirective):
 
     def is_present(self, op: IRDLOperation) -> bool:
         return bool(op.results)
+
+
+@dataclass(frozen=True)
+class FunctionalTypeDirective(OptionallyParsableDirective):
+    """
+    A directive which parses a functional type, with format:
+      functional-type-directive ::= functional-type(typeable-directive, typeable-directive)
+    A functional type is either of the form
+      `(` type-list `)` `->` `(` type-list `)`
+    or
+      `(` type-list `)` `->` type
+    where type-list is a comma separated list of types (or the empty string to signify the empty list).
+    The second format is preferred for printing when possible.
+    """
+
+    operand_typeable_directive: TypeableDirective
+    result_typeable_directive: TypeableDirective
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            return False
+        if isinstance(self.operand_typeable_directive, VariadicTypeableDirective):
+            self.operand_typeable_directive.parse_many_types(parser, state)
+        else:
+            self.operand_typeable_directive.parse_single_type(parser, state)
+        parser.parse_punctuation(")")
+        parser.parse_punctuation("->")
+        if parser.parse_optional_punctuation("("):
+            if isinstance(self.result_typeable_directive, VariadicTypeableDirective):
+                self.result_typeable_directive.parse_many_types(parser, state)
+            else:
+                self.result_typeable_directive.parse_single_type(parser, state)
+            parser.parse_punctuation(")")
+        else:
+            self.result_typeable_directive.parse_single_type(parser, state)
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print_string(" ")
+        state.should_emit_space = True
+        printer.print_string("(")
+        printer.print_list(
+            self.operand_typeable_directive.get_types(op), printer.print_attribute
+        )
+        printer.print_string(") -> ")
+        result_types = self.result_typeable_directive.get_types(op)
+        if len(result_types) == 1:
+            printer.print_attribute(result_types[0])
+            state.last_was_punctuation = False
+        else:
+            printer.print_string("(")
+            printer.print_list(result_types, printer.print_attribute)
+            printer.print_string(")")
+            state.last_was_punctuation = True
 
 
 class RegionDirective(OptionallyParsableDirective, ABC):

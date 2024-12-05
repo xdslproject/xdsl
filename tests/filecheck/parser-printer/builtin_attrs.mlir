@@ -174,7 +174,7 @@
                       value1 = dense<[true, false]> : tensor<2xi1>,
                       sym_name = "dense_bool_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<[1, 0]> : tensor<2xi1>
+  // CHECK: "value1" = dense<[true, false]> : tensor<2xi1>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = opaque<"test", "contents">,

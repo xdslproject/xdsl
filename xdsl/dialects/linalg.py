@@ -762,13 +762,13 @@ class TransposeOp(IRDLOperation):
                 f"Input rank ({input_rank}) does not match output rank ({init_rank})"
             )
         if (input_rank := len(input_shape)) != (
-            permutation_size := len(self.permutation.data)
+            permutation_size := len(self.permutation)
         ):
             raise VerifyException(
                 f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
             )
 
-        permutation_shape = cast(list[int], self.permutation.as_tuple())
+        permutation_shape = cast(list[int], self.permutation.get_values())
 
         for i in range(len(input_shape)):
             input_dimension = input_shape[permutation_shape[i]]
@@ -793,7 +793,7 @@ class TransposeOp(IRDLOperation):
         printer.print_string(") ")
         printer.print_string("permutation")
         printer.print_string(" = ")
-        printer.print(list(self.permutation.as_tuple()))
+        printer.print(list(self.permutation.get_values()))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -1085,7 +1085,7 @@ class BroadcastOp(IRDLOperation):
         assert isinstance(input_type := self.input.type, TensorType | MemRefType)
         assert isinstance(init_type := self.init.type, TensorType | MemRefType)
 
-        dimensions_shape = self.dimensions.as_tuple()
+        dimensions_shape = self.dimensions.get_values()
 
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
@@ -1129,7 +1129,7 @@ class BroadcastOp(IRDLOperation):
         printer.print_string(") ")
         printer.print_string("dimensions")
         printer.print_string(" = ")
-        printer.print(list(self.dimensions.as_tuple()))
+        printer.print(list(self.dimensions.get_values()))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
