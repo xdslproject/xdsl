@@ -649,7 +649,7 @@ csl.func @builtins() {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: comptime {
-// CHECK-NEXT:   @bind_control_task(control_task, @get_control_task_id(-22));
+// CHECK-NEXT:   @bind_control_task(control_task, @get_control_task_id(42));
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: task data_task_no_bind(arg0 : f32) void {
