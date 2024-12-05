@@ -28,16 +28,7 @@ class EqsatPDLMatcher(PDLMatcher):
         ), "newly converted eqsat always has 1 element in eclass"
         arg = owner.operands[0]
         res = super().match_operand(ssa_val, pdl_op, arg)
-        # self.value_to_eclass[arg] = owner
         return res
-
-        # res = super().match_operand(ssa_val, pdl_op, xdsl_val)
-        # uses = xdsl_val.uses
-        # assert len(uses) == 1, f"Eclass representation of code, uses: {uses}"
-        # only_use = next(iter(uses))
-        # assert isinstance(only_use.operation, eqsat.EClassOp)
-        # self.value_to_eclass[ssa_val] = only_use.operation
-        # return res
 
 
 def _get_root_op(op: Operation | None) -> Operation | None:
