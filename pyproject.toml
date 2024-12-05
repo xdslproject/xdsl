@@ -69,6 +69,7 @@ reportMissingModuleSource = false
 enableTypeIgnoreComments = false
 enableExperimentalFeatures = true
 typeCheckingMode = "strict"
+extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
     "tests/dialects/test_memref.py",
