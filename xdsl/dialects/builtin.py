@@ -396,7 +396,7 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
                 f"values in the range [{min_value}, {max_value})"
             )
 
-    def normalize_value(self, value: int) -> int:
+    def normalized_value(self, value: IntAttr) -> IntAttr | None:
         """
         Signless values can represent integers from both the signed and unsigned ranges
         for a given bitwidth.
@@ -404,17 +404,17 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
         to the signed version (meaning ambiguous values will always be negative).
         For example, the bitpattern of all ones will always be represented as `-1` at
         runtime.
-        Values outside of the valid range won't be normalized, so that the verification
-        error is raised with the original input.
+        If the input value is outside of the valid range, return `None`.
         """
-        if self.signedness.data != Signedness.SIGNLESS:
-            return value
+        min_value, max_value = self.value_range()
+        if not (min_value <= value.data < max_value):
+            return None
 
-        signed_ub = signed_upper_bound(self.bitwidth)
-        unsigned_ub = signed_ub << 1
-
-        if signed_ub <= value < unsigned_ub:
-            return value - unsigned_ub
+        if self.signedness.data == Signedness.SIGNLESS:
+            signed_ub = signed_upper_bound(self.bitwidth)
+            unsigned_ub = signed_ub << 1
+            if signed_ub <= value.data:
+                return IntAttr(value.data - unsigned_ub)
 
         return value
 
@@ -523,7 +523,9 @@ class IntegerAttr(
         if isinstance(value, int):
             value = IntAttr(value)
         if not isinstance(value_type, IndexType):
-            value = IntAttr(value_type.normalize_value(value.data))
+            normalized_value = value_type.normalized_value(value)
+            if normalized_value is not None:
+                value = normalized_value
         super().__init__([value, value_type])
 
     @staticmethod
@@ -1020,20 +1022,21 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             attr_list = cast(Sequence[IntAttr], data)
 
-        if data_type.signedness.data == Signedness.SIGNLESS:
-            signed_ub = signed_upper_bound(data_type.bitwidth)
-            if any(signed_ub <= attr.data for attr in attr_list):
-                attr_list = tuple(
-                    IntAttr(data_type.normalize_value(attr.data)) for attr in attr_list
+        normalized_values = tuple(
+            data_type.normalized_value(attr) for attr in attr_list
+        )
+
+        for i, value in enumerate(normalized_values):
+            if value is None:
+                min_value, max_value = data_type.value_range()
+                raise ValueError(
+                    f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
+                    f"values in the range [{min_value}, {max_value})"
                 )
 
-        try:
-            for attr in attr_list:
-                data_type.verify_value(attr.data)
-        except VerifyException as e:
-            raise ValueError(str(e))
+        values = cast(tuple[IntAttr, ...], normalized_values)
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        return DenseArrayBase([data_type, ArrayAttr(values)])
 
     @staticmethod
     def create_dense_float(
