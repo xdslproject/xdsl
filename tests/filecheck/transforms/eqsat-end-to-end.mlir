@@ -11,4 +11,3 @@ func.func @test(%x : index) -> (index) {
 // CHECK-NEXT:    %res = arith.muli %x, %c2 : index
 // CHECK-NEXT:    func.return %res : index
 // CHECK-NEXT:  }
-
