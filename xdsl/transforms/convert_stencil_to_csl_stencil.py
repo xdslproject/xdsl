@@ -249,7 +249,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             # replace stencil.access (operating on stencil.temp at arg_index)
             # with csl_stencil.access (operating on memref at last arg index)
             nested_rewriter = PatternRewriteWalker(
-                ConvertAccessOpFromPrefetchPattern(arg_idx)
+                ConvertAccessOpFromPrefetchPattern(arg_idx), listener=rewriter
             )
 
             nested_rewriter.rewrite_region(new_apply_op.region)
@@ -415,6 +415,7 @@ class ConvertApplyOpPattern(RewritePattern):
         PatternRewriteWalker(
             SplitVarithOpPattern(op.region.block.args[prefetch_idx]),
             apply_recursively=False,
+            listener=rewriter,
         ).rewrite_region(op.region)
 
         # determine how ops should be split across the two regions
@@ -505,12 +506,13 @@ class ConvertApplyOpPattern(RewritePattern):
         # add operations from list to receive_chunk, use translation table to rebuild operands
         for o in chunk_region_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
+                rewriter.erase_op(o)
                 break
             o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
-            receive_chunk.block.add_op(o)
+            rewriter.insert_op(o, InsertPoint.at_end(receive_chunk.block))
 
         # put `chunk_res` into `accumulator` (using tensor.insert_slice) and yield the result
-        receive_chunk.block.add_ops(
+        rewriter.insert_op(
             [
                 insert_slice_op := tensor.InsertSliceOp.get(
                     source=chunk_res,
@@ -519,13 +521,14 @@ class ConvertApplyOpPattern(RewritePattern):
                     static_sizes=(prefetch.type.get_shape()[1] // self.num_chunks,),
                 ),
                 csl_stencil.YieldOp(insert_slice_op.result),
-            ]
+            ],
+            InsertPoint.at_end(receive_chunk.block),
         )
 
         # add operations from list to done_exchange, use translation table to rebuild operands
         for o in done_exchange_ops:
             o.operands = [done_exchange_oprnd_table.get(x, x) for x in o.operands]
-            done_exchange.block.add_op(o)
+            rewriter.insert_op(o, InsertPoint.at_end(done_exchange.block))
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
 
