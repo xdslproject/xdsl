@@ -1,5 +1,5 @@
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerAttr, IntegerType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -9,15 +9,30 @@ from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_opera
 from xdsl.utils.hints import isa
 
 
-class AddImmediateZero(RewritePattern):
+class AddiIdentityRight(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.lhs.owner, arith.ConstantOp)
-            and isinstance(value := op.lhs.owner.value, IntegerAttr)
-            and value.value.data == 0
-        ):
-            rewriter.replace_matched_op([], [op.rhs])
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            return
+        if rhs != 0:
+            return
+        rewriter.replace_matched_op((), (op.lhs,))
+
+
+class AddiConstantProp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter):
+        if (lhs := const_evaluate_operand(op.lhs)) is None:
+            return
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            # Swap inputs if lhs is constant and rhs is not
+            rewriter.replace_matched_op(arith.AddiOp(op.rhs, op.lhs))
+            return
+
+        assert isinstance(op.result.type, IntegerType | IndexType)
+        rewriter.replace_matched_op(
+            arith.ConstantOp.from_int_and_width(lhs + rhs, op.result.type)
+        )
 
 
 def _fold_const_operation(
@@ -159,3 +174,39 @@ class SelectSamePattern(RewritePattern):
     def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
         if op.lhs == op.rhs:
             rewriter.replace_matched_op((), (op.lhs,))
+
+
+class MuliIdentityRight(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            return
+        if rhs != 1:
+            return
+
+        rewriter.replace_matched_op((), (op.lhs,))
+
+
+class MuliConstantProp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.MuliOp, rewriter: PatternRewriter):
+        if (lhs := const_evaluate_operand(op.lhs)) is None:
+            return
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            # Swap inputs if rhs is constant and lhs is not
+            rewriter.replace_matched_op(arith.MuliOp(op.rhs, op.lhs))
+            return
+
+        assert isinstance(op.result.type, IntegerType | IndexType)
+        rewriter.replace_matched_op(
+            arith.ConstantOp.from_int_and_width(lhs * rhs, op.result.type)
+        )
+
+
+class ApplyCmpiPredicateToEqualOperands(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.CmpiOp, rewriter: PatternRewriter):
+        if op.lhs != op.rhs:
+            return
+        val = op.predicate.value.data in (0, 3, 5, 7, 9)
+        rewriter.replace_matched_op(arith.ConstantOp(BoolAttr.from_bool(val)))

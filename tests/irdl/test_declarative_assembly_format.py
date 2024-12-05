@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     BoolAttr,
     Float64Type,
     FloatAttr,
+    IndexType,
     IntegerAttr,
     MemRefType,
     ModuleOp,
@@ -1450,6 +1451,25 @@ def test_variadic_result(format: str, program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
+def test_variadic_result_failure():
+    """Test that inferring a range of inferrable attributes of unknown length fails."""
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="type of result 'res' cannot be inferred",
+    ):
+
+        @irdl_op_definition
+        class VariadicResultsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.var_results_op"
+
+            res = var_result_def(IndexType())
+
+            irdl_options = [AttrSizedResultSegments()]
+
+            assembly_format = "attr-dict"
+
+
 @pytest.mark.parametrize(
     "format, program, generic_program",
     [
@@ -2438,23 +2458,19 @@ def test_variadic_length_inference():
 
         assembly_format = "$ins attr-dict `:` type($ins)"
 
-    with pytest.raises(
-        NotImplementedError,
-        match="Inference of length of variadic result 'outs' not implemented",
-    ):
-        ctx = MLContext()
-        ctx.load_op(RangeVarOp)
-        ctx.load_dialect(Test)
-        program = textwrap.dedent("""\
-        %in0, %in1 = "test.op"() : () -> (index, index)
-        %out0, %out1 = test.range_var %in0, %in1 : index, index
-        """)
+    ctx = MLContext()
+    ctx.load_op(RangeVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent("""\
+    %in0, %in1 = "test.op"() : () -> (index, index)
+    %out0, %out1 = test.range_var %in0, %in1 : index, index
+    """)
 
-        parser = Parser(ctx, program)
-        test_op = parser.parse_optional_operation()
-        assert isinstance(test_op, test.Operation)
-        my_op = parser.parse_optional_operation()
-        assert isinstance(my_op, RangeVarOp)
+    parser = Parser(ctx, program)
+    test_op = parser.parse_optional_operation()
+    assert isinstance(test_op, test.Operation)
+    my_op = parser.parse_optional_operation()
+    assert isinstance(my_op, RangeVarOp)
 
 
 ################################################################################
