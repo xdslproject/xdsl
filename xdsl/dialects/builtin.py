@@ -499,8 +499,6 @@ class IntegerAttr(
             value = IntAttr(value)
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        if isinstance(value_type, IntegerType) and value_type.bitwidth == 1:
-            value = IntAttr(-abs(value.data))
         super().__init__([value, value_type])
 
     @staticmethod
