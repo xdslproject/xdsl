@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, TypeAlias
+from typing import Literal, TypeVar
 
 from xdsl.dialects.builtin import UnitAttr
 from xdsl.ir import (
@@ -186,8 +186,8 @@ class FormatProgram:
                 operand = state.operands[i]
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
-                    range_length,
                     InferenceContext(state.variables),
+                    length=range_length,
                 )
                 resolved_operand_type: Attribute | Sequence[Attribute]
                 if isinstance(operand_def, OptionalDef):
@@ -203,27 +203,22 @@ class FormatProgram:
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, (result_type, (result_name, result_def)) in enumerate(
+        for i, (result_type, (_, result_def)) in enumerate(
             zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
-                # The number of results is not passed in when parsing operations.
-                # In the generic format, the type of the operation always specifies the
-                # types of the results, and `resultSegmentSizes` specifies the ranges of
-                # of the results if multiple are variadic.
-                # In order to support variadic results, the types an length of all
-                # variadic results must be present in the custom syntax.
-                if isinstance(result_def, OptionalDef | VariadicDef):
-                    raise NotImplementedError(
-                        f"Inference of length of variadic result '{result_name}' not "
-                        "implemented"
-                    )
-                range_length = 1
                 inferred_result_types = result_def.constr.infer(
-                    range_length,
-                    InferenceContext(state.variables),
+                    InferenceContext(state.variables), length=None
                 )
-                resolved_result_type = inferred_result_types[0]
+                resolved_result_type: Attribute | Sequence[Attribute]
+                if isinstance(result_def, OptionalDef):
+                    resolved_result_type = (
+                        inferred_result_types[0] if inferred_result_types else ()
+                    )
+                elif isinstance(result_def, VariadicDef):
+                    resolved_result_type = inferred_result_types
+                else:
+                    resolved_result_type = inferred_result_types[0]
                 state.result_types[i] = resolved_result_type
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
@@ -306,39 +301,22 @@ class TypeableDirective(Directive, ABC):
     """
 
     @abstractmethod
-    def set_type(self, type: Attribute, state: ParsingState) -> None: ...
-
-    @abstractmethod
-    def get_type(self, op: IRDLOperation) -> Attribute: ...
-
-
-class VariadicTypeableDirective(AnchorableDirective, ABC):
-    """
-    Directives which can set or get multiple types.
-    """
-
-    @abstractmethod
-    def set_types(self, types: Sequence[Attribute], state: ParsingState) -> None: ...
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None: ...
 
     @abstractmethod
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]: ...
 
 
-class OptionalTypeableDirective(AnchorableDirective, ABC):
+class VariadicTypeableDirective(TypeableDirective, AnchorableDirective, ABC):
     """
-    Directives which can optionally set or get a single type.
+    Directives which can set or get multiple types.
     """
 
     @abstractmethod
-    def set_type(self, type: Attribute | None, state: ParsingState) -> None: ...
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool: ...
 
     @abstractmethod
-    def get_type(self, op: IRDLOperation) -> Attribute | None: ...
-
-
-AnyTypeableDirective: TypeAlias = (
-    TypeableDirective | VariadicTypeableDirective | OptionalTypeableDirective
-)
+    def set_types_empty(self, state: ParsingState) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -351,41 +329,7 @@ class TypeDirective(FormatDirective):
     inner: TypeableDirective
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        ty = parser.parse_type()
-        self.inner.set_type(ty, state)
-
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
-        printer.print_attribute(self.inner.get_type(op))
-        state.last_was_punctuation = False
-        state.should_emit_space = True
-
-
-class VariadicLikeTypeDirective(VariadicLikeFormatDirective):
-    """
-    Base class for type checking.
-    A variadic-like type directive can not be followed by a variadic-like type directive.
-    """
-
-
-@dataclass(frozen=True)
-class VariadicTypeDirective(VariadicLikeTypeDirective):
-    """
-    A directive which parses the type of a variadic typeable directive, with format:
-      type-directive ::= type(typeable-directive)
-    """
-
-    inner: VariadicTypeableDirective
-
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        types = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_type, parser.parse_type
-        )
-        if types is None:
-            types = ()
-        self.inner.set_types(types, state)
-        return bool(types)
+        self.inner.parse_single_type(parser, state)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
@@ -394,41 +338,34 @@ class VariadicTypeDirective(VariadicLikeTypeDirective):
         state.last_was_punctuation = False
         state.should_emit_space = True
 
-    def is_present(self, op: IRDLOperation) -> bool:
-        return self.inner.is_present(op)
-
-    def set_empty(self, state: ParsingState):
-        self.inner.set_types((), state)
-
 
 @dataclass(frozen=True)
-class OptionalTypeDirective(VariadicLikeTypeDirective):
+class VariadicTypeDirective(VariadicLikeFormatDirective):
     """
-    A directive which parses the type of a optional typeable directive, with format:
+    A directive which parses the type of a variadic typeable directive, with format:
       type-directive ::= type(typeable-directive)
     """
 
-    inner: OptionalTypeableDirective
+    inner: VariadicTypeableDirective
 
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        type = parser.parse_optional_type()
-        self.inner.set_type(type, state)
-        return bool(type)
+        return self.inner.parse_many_types(parser, state)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        types = self.inner.get_types(op)
+        if not types:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        type = self.inner.get_type(op)
-        if type:
-            printer.print_attribute(type)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_list(types, printer.print_attribute)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def is_present(self, op: IRDLOperation) -> bool:
         return self.inner.is_present(op)
 
     def set_empty(self, state: ParsingState):
-        self.inner.set_type(None, state)
+        self.inner.set_types_empty(state)
 
 
 @dataclass(frozen=True)
@@ -542,8 +479,8 @@ class OperandVariable(VariableDirective, FormatDirective, TypeableDirective):
         operand = parser.parse_unresolved_operand()
         state.operands[self.index] = operand
 
-    def set_type(self, type: Attribute, state: ParsingState) -> None:
-        state.operand_types[self.index] = type
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        state.operand_types[self.index] = parser.parse_type()
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
@@ -552,11 +489,13 @@ class OperandVariable(VariableDirective, FormatDirective, TypeableDirective):
         state.last_was_punctuation = False
         state.should_emit_space = True
 
-    def get_type(self, op: IRDLOperation) -> Attribute:
-        return getattr(op, self.name).type
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
+        return (getattr(op, self.name).type,)
 
 
-class VariadicOperandDirective(VariadicLikeFormatDirective, ABC):
+class VariadicOperandDirective(
+    VariadicLikeFormatDirective, VariadicTypeableDirective, ABC
+):
     """
     Base class for typechecking.
     A variadic operand directive cannot follow another variadic operand directive.
@@ -564,9 +503,7 @@ class VariadicOperandDirective(VariadicLikeFormatDirective, ABC):
 
 
 @dataclass(frozen=True)
-class VariadicOperandVariable(
-    VariadicVariable, VariadicOperandDirective, VariadicTypeableDirective
-):
+class VariadicOperandVariable(VariadicVariable, VariadicOperandDirective):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -582,17 +519,28 @@ class VariadicOperandVariable(
         state.operands[self.index] = operands
         return bool(operands)
 
-    def set_types(self, types: Sequence[Attribute], state: ParsingState) -> None:
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        state.operand_types[self.index] = (parser.parse_type(),)
+
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        types = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_type, parser.parse_type
+        )
+        ret = types is None
+        if ret:
+            types = ()
         state.operand_types[self.index] = types
+        return ret
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operand = getattr(op, self.name)
+        if not operand:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        operand = getattr(op, self.name)
-        if operand:
-            printer.print_list(operand, printer.print_ssa_value)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_list(operand, printer.print_ssa_value)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return getattr(op, self.name).types
@@ -600,10 +548,11 @@ class VariadicOperandVariable(
     def set_empty(self, state: ParsingState):
         state.operands[self.index] = ()
 
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.operand_types[self.index] = ()
 
-class OptionalOperandVariable(
-    OptionalVariable, VariadicOperandDirective, OptionalTypeableDirective
-):
+
+class OptionalOperandVariable(OptionalVariable, VariadicOperandDirective):
     """
     An optional operand variable, with the following format:
       operand-directive ::= ( percent-ident )?
@@ -617,26 +566,140 @@ class OptionalOperandVariable(
         state.operands[self.index] = operand
         return bool(operand)
 
-    def set_type(self, type: Attribute | None, state: ParsingState) -> None:
-        state.operand_types[self.index] = type or ()
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        state.operand_types[self.index] = (parser.parse_type(),)
+
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        type = parser.parse_optional_type()
+        ret = type is None
+        if ret:
+            type = ()
+        state.operand_types[self.index] = type
+        return ret
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operand = getattr(op, self.name)
+        if not operand:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        operand = getattr(op, self.name)
-        if operand:
-            printer.print_ssa_value(operand)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_ssa_value(operand)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
-    def get_type(self, op: IRDLOperation) -> Attribute | None:
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         operand = getattr(op, self.name)
         if operand:
-            return operand.type
-        return None
+            return (operand.type,)
+        return ()
 
     def set_empty(self, state: ParsingState):
         state.operands[self.index] = ()
+
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.operand_types[self.index] = ()
+
+
+_T = TypeVar("_T")
+
+
+@dataclass(frozen=True)
+class OperandsOrResultDirective(VariadicTypeableDirective, ABC):
+    """
+    Base class for the 'operands' and 'results' directives.
+    """
+
+    variadic_index: tuple[bool, int] | None
+    """
+    Represents the position of a (single) variadic variable, with the boolean
+    representing whether it is optional
+    """
+
+    def _set_using_variadic_index(
+        self,
+        field: list[_T | None | Sequence[_T]],
+        field_name: str,
+        set_to: Sequence[_T],
+    ) -> str | None:
+        if self.variadic_index is None:
+            if len(set_to) != len(field):
+                return f"Expected {len(field)} {field_name} but found {len(set_to)}"
+            field[:] = set_to
+            return
+
+        is_optional, var_position = self.variadic_index
+        var_length = len(set_to) - len(field) + 1
+        if var_length < 0:
+            return f"Expected at least {len(field) - 1} {field_name} but found {len(set_to)}"
+        if var_length > 1 and is_optional:
+            return f"Expected at most {len(field)} {field_name} but found {len(set_to)}"
+        field[:var_position] = set_to[:var_position]
+        field[var_position] = set_to[var_position : var_position + var_length]
+        field[var_position + 1 :] = set_to[var_position + var_length :]
+
+
+class OperandsDirective(VariadicOperandDirective, OperandsOrResultDirective):
+    """
+    An operands directive, with the following format:
+      operands-directive ::= operands
+    Prints each operand of the operation, inserting a comma between each.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        pos_start = parser.pos
+        operands = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_unresolved_operand,
+                parser.parse_unresolved_operand,
+            )
+            or []
+        )
+
+        if s := self._set_using_variadic_index(state.operands, "operands", operands):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+        return bool(operands)
+
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        pos_start = parser.pos
+        if s := self._set_using_variadic_index(
+            state.operand_types, "operand types", (parser.parse_type(),)
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        pos_start = parser.pos
+        types = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_type, parser.parse_type
+            )
+            or []
+        )
+
+        if s := self._set_using_variadic_index(
+            state.operand_types, "operand types", types
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+        return bool(types)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if op.operands:
+            if state.should_emit_space or not state.last_was_punctuation:
+                printer.print(" ")
+            printer.print_list(op.operands, printer.print_ssa_value)
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.operand_types = [() for _ in state.operand_types]
+
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
+        return op.operand_types
+
+    def set_empty(self, state: ParsingState):
+        state.operands = [() for _ in state.operands]
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(op.operands)
 
 
 @dataclass(frozen=True)
@@ -648,11 +711,11 @@ class ResultVariable(VariableDirective, TypeableDirective):
     parsing is not handled by the custom operation parser.
     """
 
-    def set_type(self, type: Attribute, state: ParsingState) -> None:
-        state.result_types[self.index] = type
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        state.result_types[self.index] = parser.parse_type()
 
-    def get_type(self, op: IRDLOperation) -> Attribute:
-        return getattr(op, self.name).type
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
+        return (getattr(op, self.name).type,)
 
 
 @dataclass(frozen=True)
@@ -664,14 +727,27 @@ class VariadicResultVariable(VariadicVariable, VariadicTypeableDirective):
     parsing is not handled by the custom operation parser.
     """
 
-    def set_types(self, types: Sequence[Attribute], state: ParsingState) -> None:
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        state.result_types[self.index] = (parser.parse_type(),)
+
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        types = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_type, parser.parse_type
+        )
+        ret = types is None
+        if ret:
+            types = ()
         state.result_types[self.index] = types
+        return ret
 
     def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         return getattr(op, self.name).types
 
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.result_types[self.index] = ()
 
-class OptionalResultVariable(OptionalVariable, OptionalTypeableDirective):
+
+class OptionalResultVariable(OptionalVariable, VariadicTypeableDirective):
     """
     An optional result variable, with the following format:
       result-directive ::= ( percent-ident )?
@@ -679,14 +755,119 @@ class OptionalResultVariable(OptionalVariable, OptionalTypeableDirective):
     parsing is not handled by the custom operation parser.
     """
 
-    def set_type(self, type: Attribute | None, state: ParsingState) -> None:
-        state.result_types[self.index] = type or ()
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        state.result_types[self.index] = (parser.parse_type(),)
 
-    def get_type(self, op: IRDLOperation) -> Attribute | None:
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        type = parser.parse_optional_type()
+        ret = type is None
+        if ret:
+            type = ()
+        state.result_types[self.index] = type
+        return ret
+
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
         res = getattr(op, self.name)
         if res:
-            return res.type
-        return None
+            return (res.type,)
+        return ()
+
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.result_types[self.index] = ()
+
+
+class ResultsDirective(OperandsOrResultDirective):
+    """
+    A results directive, with the following format:
+      results-directive ::= results
+    A typeable directive which processes the result types of the operation.
+    """
+
+    def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
+        pos_start = parser.pos
+        if s := self._set_using_variadic_index(
+            state.result_types, "result types", (parser.parse_type(),)
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+
+    def parse_many_types(self, parser: Parser, state: ParsingState) -> bool:
+        pos_start = parser.pos
+        types = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_type, parser.parse_type
+            )
+            or []
+        )
+
+        if s := self._set_using_variadic_index(
+            state.result_types, "result types", types
+        ):
+            parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
+        return bool(types)
+
+    def set_types_empty(self, state: ParsingState) -> None:
+        state.result_types = [() for _ in state.operand_types]
+
+    def get_types(self, op: IRDLOperation) -> Sequence[Attribute]:
+        return op.result_types
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(op.results)
+
+
+@dataclass(frozen=True)
+class FunctionalTypeDirective(OptionallyParsableDirective):
+    """
+    A directive which parses a functional type, with format:
+      functional-type-directive ::= functional-type(typeable-directive, typeable-directive)
+    A functional type is either of the form
+      `(` type-list `)` `->` `(` type-list `)`
+    or
+      `(` type-list `)` `->` type
+    where type-list is a comma separated list of types (or the empty string to signify the empty list).
+    The second format is preferred for printing when possible.
+    """
+
+    operand_typeable_directive: TypeableDirective
+    result_typeable_directive: TypeableDirective
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            return False
+        if isinstance(self.operand_typeable_directive, VariadicTypeableDirective):
+            self.operand_typeable_directive.parse_many_types(parser, state)
+        else:
+            self.operand_typeable_directive.parse_single_type(parser, state)
+        parser.parse_punctuation(")")
+        parser.parse_punctuation("->")
+        if parser.parse_optional_punctuation("("):
+            if isinstance(self.result_typeable_directive, VariadicTypeableDirective):
+                self.result_typeable_directive.parse_many_types(parser, state)
+            else:
+                self.result_typeable_directive.parse_single_type(parser, state)
+            parser.parse_punctuation(")")
+        else:
+            self.result_typeable_directive.parse_single_type(parser, state)
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print_string(" ")
+        state.should_emit_space = True
+        printer.print_string("(")
+        printer.print_list(
+            self.operand_typeable_directive.get_types(op), printer.print_attribute
+        )
+        printer.print_string(") -> ")
+        result_types = self.result_typeable_directive.get_types(op)
+        if len(result_types) == 1:
+            printer.print_attribute(result_types[0])
+            state.last_was_punctuation = False
+        else:
+            printer.print_string("(")
+            printer.print_list(result_types, printer.print_attribute)
+            printer.print_string(")")
+            state.last_was_punctuation = True
 
 
 class RegionDirective(OptionallyParsableDirective, ABC):
@@ -744,13 +925,14 @@ class VariadicRegionVariable(VariadicRegionDirective, VariadicVariable):
         return bool(regions)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        region = getattr(op, self.name)
+        if not region:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        region = getattr(op, self.name)
-        if region:
-            printer.print_list(region, printer.print_region, delimiter=" ")
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_list(region, printer.print_region, delimiter=" ")
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -771,13 +953,14 @@ class OptionalRegionVariable(VariadicRegionDirective, OptionalVariable):
         return bool(region)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        region = getattr(op, self.name)
+        if not region:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        region = getattr(op, self.name)
-        if region:
-            printer.print_region(region)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_region(region)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.regions[self.index] = ()
@@ -831,13 +1014,14 @@ class VariadicSuccessorVariable(VariadicSuccessorDirective, VariadicVariable):
         return bool(successors)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        successor = getattr(op, self.name)
+        if not successor:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        successor = getattr(op, self.name)
-        if successor:
-            printer.print_list(successor, printer.print_block_name, delimiter=" ")
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_list(successor, printer.print_block_name, delimiter=" ")
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()
@@ -858,13 +1042,14 @@ class OptionalSuccessorVariable(VariadicSuccessorDirective, OptionalVariable):
         return bool(successor)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        successor = getattr(op, self.name)
+        if not successor:
+            return
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        successor = getattr(op, self.name)
-        if successor:
-            printer.print_block_name(successor)
-            state.last_was_punctuation = False
-            state.should_emit_space = True
+        printer.print_block_name(successor)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
 
     def set_empty(self, state: ParsingState):
         state.successors[self.index] = ()

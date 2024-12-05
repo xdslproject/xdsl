@@ -240,7 +240,7 @@ class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
 
 
 @irdl_op_definition
-class OpWithInterface(IRDLOperation):
+class HasInterfaceOp(IRDLOperation):
     name = "test.op_with_interface"
     traits = traits_def(GetNumResultsTraitForOpWithOneResult())
 
@@ -251,8 +251,8 @@ def test_interface():
     """
     Test the features of a trait with methods (An MLIR interface).
     """
-    op = OpWithInterface.create(result_types=(i32,))
-    trait = OpWithInterface.get_trait(GetNumResultsTrait)
+    op = HasInterfaceOp.create(result_types=(i32,))
+    trait = HasInterfaceOp.get_trait(GetNumResultsTrait)
     assert trait is not None
     assert 1 == trait.get_num_results(op)
 
@@ -262,13 +262,13 @@ def test_get_trait_specialized():
     Test get_trait and has_trait in the case where the trait is a child class of the
     trait we want.
     """
-    assert OpWithInterface.has_trait(GetNumResultsTrait)
-    assert OpWithInterface.has_trait(GetNumResultsTraitForOpWithOneResult)
+    assert HasInterfaceOp.has_trait(GetNumResultsTrait)
+    assert HasInterfaceOp.has_trait(GetNumResultsTraitForOpWithOneResult)
     assert (
-        OpWithInterface.get_trait(GetNumResultsTrait)
+        HasInterfaceOp.get_trait(GetNumResultsTrait)
         == GetNumResultsTraitForOpWithOneResult()
     )
-    assert OpWithInterface.get_traits_of_type(GetNumResultsTrait) == [
+    assert HasInterfaceOp.get_traits_of_type(GetNumResultsTrait) == [
         GetNumResultsTraitForOpWithOneResult()
     ]
 

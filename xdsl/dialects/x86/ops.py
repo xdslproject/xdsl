@@ -1084,7 +1084,7 @@ class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
 
 
 @irdl_op_definition
-class RRI_ImulOP(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the source register and stores the result in the destination register.
     x[r1] = x[r2] * immediate

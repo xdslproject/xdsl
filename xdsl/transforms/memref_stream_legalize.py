@@ -76,15 +76,15 @@ def _is_safe_to_legalize(op: Operation) -> bool:
     return isinstance(
         op,
         memref_stream.YieldOp
-        | arith.Minimumf
-        | arith.Minnumf
-        | arith.Maximumf
-        | arith.Maxnumf
-        | arith.Addf
-        | arith.Subf
-        | arith.Mulf
-        | arith.Divf
-        | arith.Negf,
+        | arith.MinimumfOp
+        | arith.MinnumfOp
+        | arith.MaximumfOp
+        | arith.MaxnumfOp
+        | arith.AddfOp
+        | arith.SubfOp
+        | arith.MulfOp
+        | arith.DivfOp
+        | arith.NegfOp,
     )
 
 

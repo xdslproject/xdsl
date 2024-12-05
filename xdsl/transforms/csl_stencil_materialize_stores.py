@@ -41,7 +41,7 @@ class MaterializeInApplyDest(RewritePattern):
                 dst.type, len(apply.done_exchange.block.args)
             )
             views.append(
-                memref.Subview.get(
+                memref.SubviewOp.get(
                     dst_arg,
                     [
                         (d - s) // 2  # symmetric offset
@@ -99,7 +99,7 @@ class DisableComputeInBorderRegion(RewritePattern):
         op.done_exchange.block.insert_arg(cond.type, len(op.done_exchange.block.args))
 
         rewriter.insert_op(
-            if_op := scf.If(
+            if_op := scf.IfOp(
                 op.done_exchange.block.args[-1], [], Region(Block()), Region(Block())
             ),
             InsertPoint.at_start(op.done_exchange.block),
@@ -119,8 +119,8 @@ class DisableComputeInBorderRegion(RewritePattern):
         rewriter.insert_op(
             csl_stencil.YieldOp(), InsertPoint.at_end(op.done_exchange.block)
         )
-        rewriter.replace_op(yld, scf.Yield())
-        rewriter.insert_op(scf.Yield(), InsertPoint.at_start(if_op.true_region.block))
+        rewriter.replace_op(yld, scf.YieldOp())
+        rewriter.insert_op(scf.YieldOp(), InsertPoint.at_start(if_op.true_region.block))
         rewriter.replace_matched_op(
             csl_stencil.ApplyOp(
                 operands=[

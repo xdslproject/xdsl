@@ -60,8 +60,10 @@ class AddBenchTimersPattern(RewritePattern):
             return
 
         ptr = op.body.block.insert_arg(llvm.LLVMPointerType.opaque(), len(op.args))
-        start_call = func.Call(TIMER_START, [], tuple(self.start_func_t.outputs))
-        end_call = func.Call(TIMER_END, start_call.res, tuple(self.end_func_t.outputs))
+        start_call = func.CallOp(TIMER_START, [], tuple(self.start_func_t.outputs))
+        end_call = func.CallOp(
+            TIMER_END, start_call.res, tuple(self.end_func_t.outputs)
+        )
         store_time = llvm.StoreOp(end_call.res[0], ptr)
 
         ptr.name_hint = "timers"

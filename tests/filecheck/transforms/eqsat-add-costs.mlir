@@ -60,7 +60,7 @@ func.func @existing_cost(%a : index, %b : index) -> (index) {
 
 // -----
 
-// CHECK:    Unexpected value 1000 : i64 for key eqsat_cost in Constant(%one = arith.constant {"eqsat_cost" = 1000 : i64} 1 : index)
+// CHECK:    Unexpected value 1000 : i64 for key eqsat_cost in ConstantOp(%one = arith.constant {"eqsat_cost" = 1000 : i64} 1 : index)
 
 func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
     %a_eq = eqsat.eclass %a : index

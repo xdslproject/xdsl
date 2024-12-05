@@ -110,7 +110,7 @@ def test_build_pattern():
     assert pattern.body is body
 
     @irdl_op_definition
-    class DummyTerminator(IRDLOperation):
+    class DummyTerminatorOp(IRDLOperation):
         name = "dummy.terminator"
         traits = traits_def(HasParent(pdl.PatternOp), IsTerminator())
 
@@ -120,7 +120,7 @@ def test_build_pattern():
 
         @Builder.implicit_region
         def body() -> None:
-            DummyTerminator()
+            DummyTerminatorOp()
 
         pattern = pdl.PatternOp(1, "pattern", body)
         pattern.verify()

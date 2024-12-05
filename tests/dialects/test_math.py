@@ -2,7 +2,7 @@ from typing import TypeVar
 
 import pytest
 
-from xdsl.dialects.arith import Constant, FloatingPointLikeBinaryOperation
+from xdsl.dialects.arith import ConstantOp, FloatingPointLikeBinaryOperation
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -54,8 +54,8 @@ _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
 class Test_float_math_binary_construction:
     operand_type = f32
-    a = Constant(FloatAttr(1.1, operand_type))
-    b = Constant(FloatAttr(2.2, operand_type))
+    a = ConstantOp(FloatAttr(1.1, operand_type))
+    b = ConstantOp(FloatAttr(2.2, operand_type))
 
     f32_vector_type = VectorType(f32, [3])
 
@@ -134,7 +134,7 @@ class Test_float_math_binary_construction:
 
 class Test_float_math_unary_constructions:
     operand_type = f32
-    a = Constant(FloatAttr(1, operand_type))
+    a = ConstantOp(FloatAttr(1, operand_type))
 
     f32_vector_type = VectorType(f32, [3])
 
@@ -256,8 +256,8 @@ class Test_float_math_unary_constructions:
 
 
 class Test_fpowi:
-    a = Constant(FloatAttr(2.2, f32))
-    b = Constant.from_int_and_width(0, 32)
+    a = ConstantOp(FloatAttr(2.2, f32))
+    b = ConstantOp.from_int_and_width(0, 32)
 
     f32_vector_type = VectorType(f32, [3])
 
@@ -291,9 +291,9 @@ class Test_fpowi:
 
 
 class Test_fma:
-    a = Constant(FloatAttr(1.1, f32))
-    b = Constant(FloatAttr(2.2, f32))
-    c = Constant(FloatAttr(3.3, f32))
+    a = ConstantOp(FloatAttr(1.1, f32))
+    b = ConstantOp(FloatAttr(2.2, f32))
+    c = ConstantOp(FloatAttr(3.3, f32))
 
     f32_vector_type = VectorType(f32, [3])
     test_vector_ssa = TestSSAValue(f32_vector_type)
@@ -332,7 +332,7 @@ class Test_fma:
 
 class Test_int_math_unary_constructions:
     operand_type = i32
-    a = Constant.from_int_and_width(0, 32)
+    a = ConstantOp.from_int_and_width(0, 32)
 
     i32_vector_type = VectorType(i32, [1])
     test_vector_ssa = TestSSAValue(i32_vector_type)
@@ -408,7 +408,7 @@ class Test_int_math_unary_constructions:
 
 class Test_Trunci:
     operand_type = i32
-    a = Constant.from_int_and_width(0, 32)
+    a = ConstantOp.from_int_and_width(0, 32)
 
     i32_vector_type = VectorType(i32, [1])
     test_vector_ssa = TestSSAValue(i32_vector_type)

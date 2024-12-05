@@ -40,7 +40,7 @@ def sum_to_for_op():
             riscv_scf.YieldOp(res)
 
         result = riscv_scf.ForOp(lb, ub, step, (initial,), for_loop_region)
-        func.Return(result)
+        func.ReturnOp(result)
 
 
 # Python implementation of `sum_to_while_op`
@@ -82,7 +82,7 @@ def sum_to_while_op():
             before_region,
             after_region,
         ).res
-        func.Return(result)
+        func.ReturnOp(result)
 
 
 def interp(module_op: ModuleOp, func_name: str, n: int) -> int:

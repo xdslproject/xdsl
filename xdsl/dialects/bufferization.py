@@ -28,6 +28,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    opt_result_def,
     result_def,
     var_operand_def,
 )
@@ -136,6 +137,22 @@ class AllocTensorOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CloneOp(IRDLOperation):
+    name = "bufferization.clone"
+
+    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+
+    input = operand_def(T)
+    output = result_def(T)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
+
+    def __init__(self, input: SSAValue | Operation):
+        result_type = SSAValue.get(input).type
+        super().__init__(operands=(input,), result_types=(result_type,))
+
+
+@irdl_op_definition
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
@@ -189,27 +206,28 @@ class ToMemrefOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MaterializeInDestination(IRDLOperation):
+class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
-    T: ClassVar = VarConstraint("T", AnyTensorTypeConstr | AnyUnrankedTensorTypeConstr)
-    source = operand_def(T)
-    dest = operand_def(T)
-    result = result_def(T)
+    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    source = operand_def(TensorFromMemrefConstraint(T))
+    dest = operand_def(T | TensorFromMemrefConstraint(T))
+    result = opt_result_def(TensorFromMemrefConstraint(T))
 
     restrict = opt_prop_def(UnitAttr)
     writable = opt_prop_def(UnitAttr)
 
-    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` `(` type($source) `,` type($dest) `)` `->` type($result)"
+    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"
 
 
 Bufferization = Dialect(
     "bufferization",
     [
         AllocTensorOp,
+        CloneOp,
         ToTensorOp,
         ToMemrefOp,
-        MaterializeInDestination,
+        MaterializeInDestinationOp,
     ],
     [],
 )

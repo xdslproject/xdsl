@@ -231,7 +231,7 @@ class FuncOp(IRDLOperation):
             return_type,
         )
 
-    def get_return_op(self) -> Return | None:
+    def get_return_op(self) -> ReturnOp | None:
         """
         Helper for easily retrieving the return operation of a given
         function. Returns None if it couldn't find a return op.
@@ -241,7 +241,7 @@ class FuncOp(IRDLOperation):
         if (last_block := self.body.blocks.last) is None:
             return None
         ret_op = last_block.last_op
-        if not isinstance(ret_op, Return):
+        if not isinstance(ret_op, ReturnOp):
             return None
         return ret_op
 
@@ -268,7 +268,7 @@ class FuncOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Call(IRDLOperation):
+class CallOp(IRDLOperation):
     name = "func.call"
     arguments = var_operand_def()
     callee = prop_def(FlatSymbolRefAttrConstr)
@@ -300,18 +300,18 @@ class Call(IRDLOperation):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> Call:
+    def parse(cls, parser: Parser) -> CallOp:
         callee, arguments, results, extra_attributes = parse_call_op_like(
             parser, reserved_attr_names=("callee",)
         )
-        call = Call(callee, arguments, results)
+        call = CallOp(callee, arguments, results)
         if extra_attributes is not None:
             call.attributes |= extra_attributes.data
         return call
 
 
 @irdl_op_definition
-class Return(IRDLOperation):
+class ReturnOp(IRDLOperation):
     name = "func.return"
     arguments = var_operand_def()
 
@@ -334,4 +334,12 @@ class Return(IRDLOperation):
             )
 
 
-Func = Dialect("func", [FuncOp, Call, Return], [])
+Func = Dialect(
+    "func",
+    [
+        FuncOp,
+        CallOp,
+        ReturnOp,
+    ],
+    [],
+)

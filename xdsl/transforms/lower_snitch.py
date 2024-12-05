@@ -217,7 +217,7 @@ class LowerSsrSetStreamRepetitionOp(RewritePattern):
 
 class LowerSsrEnable(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: snitch.SsrEnable, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: snitch.SsrEnableOp, rewriter: PatternRewriter, /):
         get_stream_ops = tuple(riscv_snitch.GetStreamOp(res.type) for res in op.results)
         rewriter.replace_matched_op(
             [
@@ -235,7 +235,7 @@ class LowerSsrEnable(RewritePattern):
 
 class LowerSsrDisable(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: snitch.SsrDisable, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: snitch.SsrDisableOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
             [
                 riscv.CsrrciOp(

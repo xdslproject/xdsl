@@ -1,5 +1,5 @@
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import func, riscv, riscv_snitch, stream
+from xdsl.dialects import func, riscv, riscv_snitch, snitch
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
@@ -21,18 +21,18 @@ def test_read_write():
     output_stream = Acc()
 
     assert interpreter.run_op(
-        riscv_snitch.ReadOp(TestSSAValue(stream.ReadableStreamType(a0)), a0),
+        riscv_snitch.ReadOp(TestSSAValue(snitch.ReadableStreamType(a0)), a0),
         (input_stream,),
     ) == (1,)
     assert interpreter.run_op(
-        riscv_snitch.ReadOp(TestSSAValue(stream.ReadableStreamType(a1)), a1),
+        riscv_snitch.ReadOp(TestSSAValue(snitch.ReadableStreamType(a1)), a1),
         (input_stream,),
     ) == (2,)
 
     assert (
         interpreter.run_op(
             riscv_snitch.WriteOp(
-                TestSSAValue(a0), TestSSAValue(stream.ReadableStreamType(a0))
+                TestSSAValue(a0), TestSSAValue(snitch.ReadableStreamType(a0))
             ),
             (
                 1,
@@ -45,7 +45,7 @@ def test_read_write():
     assert (
         interpreter.run_op(
             riscv_snitch.WriteOp(
-                TestSSAValue(a1), TestSSAValue(stream.ReadableStreamType(a1))
+                TestSSAValue(a1), TestSSAValue(snitch.ReadableStreamType(a1))
             ),
             (
                 2,
@@ -76,8 +76,8 @@ def test_frep_carried_vars():
                 res = riscv.FAddDOp(acc, acc, rd=acc_reg_type)
                 riscv_snitch.FrepYieldOp(res)
 
-            result = riscv_snitch.FrepOuter(count, for_loop_region, (initial,)).res
-            func.Return(*result)
+            result = riscv_snitch.FrepOuterOp(count, for_loop_region, (initial,)).res
+            func.ReturnOp(*result)
 
     interpreter = Interpreter(sum_to_for_op)
     interpreter.register_implementations(RiscvSnitchFunctions())

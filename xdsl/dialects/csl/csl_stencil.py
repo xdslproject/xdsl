@@ -101,7 +101,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_param.as_tuple()
+        data = self.neighbor_param.get_values()
         assert isa(data, tuple[int, ...])
         return data
 

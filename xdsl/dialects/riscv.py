@@ -3422,7 +3422,7 @@ class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FeqSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
+class FeqSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -3437,7 +3437,7 @@ class FeqSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
 
 @irdl_op_definition
-class FltSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
+class FltSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet less comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -3452,7 +3452,7 @@ class FltSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
 
 @irdl_op_definition
-class FleSOP(RdRsRsFloatFloatIntegerOperationWithFastMath):
+class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
     Performs a quiet less or equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
@@ -4022,9 +4022,9 @@ RISCV = Dialect(
         FCvtWSOp,
         FCvtWuSOp,
         FMvXWOp,
-        FeqSOP,
-        FltSOP,
-        FleSOP,
+        FeqSOp,
+        FltSOp,
+        FleSOp,
         FClassSOp,
         FCvtSWOp,
         FCvtSWuOp,

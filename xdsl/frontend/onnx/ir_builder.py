@@ -7,10 +7,10 @@ from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import IRDLOperation
 
 OP_BY_OP_TYPE: dict[str, type[IRDLOperation]] = {
-    "Add": onnx.Add,
-    "Sub": onnx.Sub,
-    "MatMul": onnx.MatMul,
-    "Transpose": onnx.Transpose,
+    "Add": onnx.AddOp,
+    "Sub": onnx.SubOp,
+    "MatMul": onnx.MatMulOp,
+    "Transpose": onnx.TransposeOp,
 }
 """Associate the name of the operations with the respective operation in ONNX dialect."""
 
@@ -87,7 +87,7 @@ def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> IRDLOperation:
         fn.body.block.add_op(results)
 
     returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
-    retfn = func.Return(*returned_values)
+    retfn = func.ReturnOp(*returned_values)
     fn.body.block.add_op(retfn)
 
     return fn

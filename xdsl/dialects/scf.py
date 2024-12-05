@@ -50,7 +50,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class While(IRDLOperation):
+class WhileOp(IRDLOperation):
     name = "scf.while"
     arguments = var_operand_def()
 
@@ -156,20 +156,20 @@ class While(IRDLOperation):
 
 
 @irdl_op_definition
-class Yield(AbstractYieldOperation[Attribute]):
+class YieldOp(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
     traits = lazy_traits_def(
         lambda: (
             IsTerminator(),
-            HasParent(For, If, While, IndexSwitchOp),
+            HasParent(ForOp, IfOp, WhileOp, IndexSwitchOp),
             Pure(),
         )
     )
 
 
 @irdl_op_definition
-class If(IRDLOperation):
+class IfOp(IRDLOperation):
     name = "scf.if"
     output = var_result_def()
     cond = operand_def(IntegerType(1))
@@ -179,7 +179,7 @@ class If(IRDLOperation):
     false_region = region_def()
 
     traits = traits_def(
-        SingleBlockImplicitTerminator(Yield),
+        SingleBlockImplicitTerminator(YieldOp),
         RecursiveMemoryEffect(),
         RecursivelySpeculatable(),
     )
@@ -213,7 +213,7 @@ class If(IRDLOperation):
         if last_op is not None and last_op.has_trait(IsTerminator):
             return region
 
-        block.add_op(Yield())
+        block.add_op(YieldOp())
 
         return region
 
@@ -282,7 +282,7 @@ class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class For(IRDLOperation):
+class ForOp(IRDLOperation):
     name = "scf.for"
 
     T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
@@ -298,7 +298,7 @@ class For(IRDLOperation):
     body = region_def("single_block")
 
     traits = traits_def(
-        SingleBlockImplicitTerminator(Yield),
+        SingleBlockImplicitTerminator(YieldOp),
         ForOpHasCanonicalizationPatternsTrait(),
         RecursiveMemoryEffect(),
     )
@@ -349,7 +349,7 @@ class For(IRDLOperation):
                     "Block args after the induction variable must match the loop-carried variables."
                 )
         if (last_op := self.body.block.last_op) is not None and isinstance(
-            last_op, Yield
+            last_op, YieldOp
         ):
             yieldop = last_op
             if len(yieldop.arguments) != iter_args_num:
@@ -637,12 +637,12 @@ class ReduceReturnOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Condition(IRDLOperation):
+class ConditionOp(IRDLOperation):
     name = "scf.condition"
     condition = operand_def(IntegerType(1))
     args = var_operand_def()
 
-    traits = traits_def(HasParent(While), IsTerminator(), Pure())
+    traits = traits_def(HasParent(WhileOp), IsTerminator(), Pure())
 
     assembly_format = "`(` $condition `)` attr-dict ($args^ `:` type($args))?"
 
@@ -666,7 +666,7 @@ class IndexSwitchOp(IRDLOperation):
     default_region = region_def("single_block")
     case_regions = var_region_def("single_block")
 
-    traits = traits_def(RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield))
+    traits = traits_def(RecursiveMemoryEffect(), SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self,
@@ -691,7 +691,7 @@ class IndexSwitchOp(IRDLOperation):
 
     def _verify_region(self, region: Region, name: str):
         yield_op = region.block.last_op
-        assert isinstance(yield_op, Yield)
+        assert isinstance(yield_op, YieldOp)
 
         if yield_op.operand_types != self.result_types:
             raise VerifyException(
@@ -703,18 +703,18 @@ class IndexSwitchOp(IRDLOperation):
         if self.cases.elt_type != i64:
             raise VerifyException("case values should have type i64")
 
-        if len(self.cases.data) != len(self.case_regions):
+        if len(self.cases) != len(self.case_regions):
             raise VerifyException(
-                f"has {len(self.case_regions)} case regions but {len(self.cases.data)} case values"
+                f"has {len(self.case_regions)} case regions but {len(self.cases)} case values"
             )
 
-        cases = self.cases.data.data
-        if len(set(cases)) != len(cases):
+        cases = self.cases
+        if len(set(cases.iter_values())) != len(cases):
             raise VerifyException("has duplicate case value")
 
         self._verify_region(self.default_region, "default")
-        for name, region in zip(cases, self.case_regions):
-            self._verify_region(region, str(name.data))
+        for name, region in zip(cases.iter_values(), self.case_regions, strict=True):
+            self._verify_region(region, str(name))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -727,8 +727,10 @@ class IndexSwitchOp(IRDLOperation):
             printer.print_string(" -> ")
             printer.print_list(self.result_types, printer.print_attribute)
         printer.print_string("\n")
-        for case_value, case_region in zip(self.cases.data.data, self.case_regions):
-            printer.print_string(f"case {case_value.data} ")
+        for case_value, case_region in zip(
+            self.cases.iter_values(), self.case_regions, strict=True
+        ):
+            printer.print_string(f"case {case_value} ")
             printer.print_region(case_region)
             printer.print_string("\n")
 
@@ -761,14 +763,14 @@ class IndexSwitchOp(IRDLOperation):
 Scf = Dialect(
     "scf",
     [
-        If,
-        For,
-        Yield,
-        Condition,
+        IfOp,
+        ForOp,
+        YieldOp,
+        ConditionOp,
         ParallelOp,
         ReduceOp,
         ReduceReturnOp,
-        While,
+        WhileOp,
         IndexSwitchOp,
     ],
     [],

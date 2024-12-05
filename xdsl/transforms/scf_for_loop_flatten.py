@@ -1,8 +1,7 @@
-from typing import Any, cast
+from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, scf
-from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -10,6 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 
 #  This pass flattens pairs nested loops into a single loop.
 #
@@ -38,27 +38,16 @@ from xdsl.pattern_rewriter import (
 #
 
 
-def get_constant_value(
-    value: SSAValue,
-) -> builtin.IntegerAttr[builtin.IndexType] | None:
-    if isinstance(value.owner, arith.Constant) and isinstance(
-        val := value.owner.value, builtin.IntegerAttr
-    ):
-        val = cast(builtin.IntegerAttr[Any], val)
-        if isinstance(val.type, builtin.IndexType):
-            return val
-
-
 class FlattenNestedLoopsPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
         outer_body = op.body.block
-        if not isinstance(inner_loop := outer_body.first_op, scf.For):
+        if not isinstance(inner_loop := outer_body.first_op, scf.ForOp):
             # Outer loop must contain inner loop
             return
         if (
             inner_loop
-            is not (outer_yield_op := cast(scf.Yield, outer_body.last_op)).prev_op
+            is not (outer_yield_op := cast(scf.YieldOp, outer_body.last_op)).prev_op
         ):
             # Outer loop must contain only inner loop and yield
             return
@@ -81,27 +70,27 @@ class FlattenNestedLoopsPattern(RewritePattern):
         elif inner_loop.iter_args:
             return
 
-        if (inner_lb := get_constant_value(inner_loop.lb)) is None:
+        if (inner_lb := const_evaluate_operand(inner_loop.lb)) is None:
             return
 
-        if (inner_ub := get_constant_value(inner_loop.ub)) is None:
+        if (inner_ub := const_evaluate_operand(inner_loop.ub)) is None:
             return
-        if (outer_step := get_constant_value(op.step)) is None:
+        if (outer_step := const_evaluate_operand(op.step)) is None:
             return
-        if (inner_step := get_constant_value(inner_loop.step)) is None:
+        if (inner_step := const_evaluate_operand(inner_loop.step)) is None:
             return
 
         outer_index = outer_body.args[0]
         inner_index = inner_loop.body.block.args[0]
 
         if outer_index.uses or inner_index.uses:
-            if inner_lb.value.data != 0:
+            if inner_lb != 0:
                 return
 
             if inner_ub != outer_step:
                 return
 
-            if outer_step.value.data % inner_step.value.data:
+            if outer_step % inner_step:
                 return
 
             # If either induction variable is used, we can only fold if used exactly once
@@ -115,7 +104,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
 
             user = outer_user
 
-            if not isinstance(user, arith.Addi):
+            if not isinstance(user, arith.AddiOp):
                 return
 
             # We can fuse
@@ -124,18 +113,18 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_ub = op.ub
             new_step = inner_loop.step
         else:
-            if (outer_lb := get_constant_value(op.lb)) is None:
+            if (outer_lb := const_evaluate_operand(op.lb)) is None:
                 return
 
-            if outer_lb.value.data != 0:
+            if outer_lb != 0:
                 # Do not currently handle lb != 0
                 return
 
-            factor = (
-                inner_ub.value.data - inner_lb.value.data
-            ) // inner_step.value.data
-            factor_op = arith.Constant(builtin.IntegerAttr(factor, builtin.IndexType()))
-            new_ub_op = arith.Muli(op.ub, factor_op.result)
+            factor = (inner_ub - inner_lb) // inner_step
+            factor_op = arith.ConstantOp(
+                builtin.IntegerAttr(factor, builtin.IndexType())
+            )
+            new_ub_op = arith.MuliOp(op.ub, factor_op.result)
             rewriter.insert_op_before_matched_op((factor_op, new_ub_op))
             new_ub = new_ub_op.result
             new_step = op.step
@@ -145,7 +134,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
         rewriter.erase_op(inner_loop)
 
         rewriter.replace_matched_op(
-            scf.For(
+            scf.ForOp(
                 op.lb,
                 new_ub,
                 new_step,

@@ -20,6 +20,10 @@ from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
+from xdsl.interactive.rewrites import (
+    convert_indexed_individual_rewrites_to_available_pass,
+    get_all_possible_rewrites,
+)
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     get_all_passes,
@@ -91,9 +95,9 @@ async def test_inputs():
         with ImplicitBuilder(expected_module.body):
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
-                two = arith.Constant(IntegerAttr(2, index)).result
-                res = arith.Muli(n, two)
-                func.Return(res)
+                two = arith.ConstantOp(IntegerAttr(2, index)).result
+                res = arith.MuliOp(n, two)
+                func.ReturnOp(res)
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
@@ -267,9 +271,11 @@ async def test_buttons():
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
                 n.name_hint = "n"
-                two = arith.Constant(IntegerAttr(2, index)).result
-                res = arith.Muli(n, two)
-                func.Return(res)
+                two = arith.ConstantOp(IntegerAttr(2, index)).result
+                two.name_hint = "two"
+                res = arith.MuliOp(n, two).result
+                res.name_hint = "res"
+                func.ReturnOp(res)
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
@@ -283,8 +289,14 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
+        rewrites = get_all_possible_rewrites(
+            expected_module,
+            individual_rewrite.REWRITE_BY_NAMES,
+        )
         assert app.available_pass_list == get_condensed_pass_list(
             expected_module, app.all_passes
+        ) + convert_indexed_individual_rewrites_to_available_pass(
+            rewrites, expected_module
         )
 
         # press "Uncondense" button
@@ -311,8 +323,8 @@ async def test_rewrites():
         app.input_text_area.insert(
             """
         func.func @hello(%n : i32) -> i32 {
-  %two = arith.constant 0 : i32
-  %res = arith.addi %two, %n : i32
+  %c0 = arith.constant 0 : i32
+  %res = arith.addi %n, %c0 : i32
   func.return %res : i32
 }
         """
@@ -322,11 +334,11 @@ async def test_rewrites():
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
-            display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
+            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:AddiIdentityRight",
             module_pass=individual_rewrite.ApplyIndividualRewritePass,
             pass_spec=list(
                 parse_pipeline(
-                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
                 )
             )[0],
         )
@@ -347,7 +359,7 @@ async def test_rewrites():
                 individual_rewrite.ApplyIndividualRewritePass,
                 list(
                     parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
                     )
                 )[0],
             ),
@@ -359,7 +371,7 @@ async def test_rewrites():
             app.output_text_area.text
             == """builtin.module {
   func.func @hello(%n : i32) -> i32 {
-    %two = arith.constant 0 : i32
+    %c0 = arith.constant 0 : i32
     func.return %n : i32
   }
 }
@@ -449,8 +461,8 @@ async def test_passes():
                 with ImplicitBuilder(function.body) as (n,):
                     zero = riscv.MVOp(n, rd=riscv.IntRegisterType(""))
                     n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
-                    two = arith.Constant(IntegerAttr(2, index)).result
-                    res = arith.Muli(n_one, two)
+                    two = arith.ConstantOp(IntegerAttr(2, index)).result
+                    res = arith.MuliOp(n_one, two)
                     one = UnrealizedConversionCastOp.get(
                         [res.result], [riscv.IntRegisterType("")]
                     )

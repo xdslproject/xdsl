@@ -28,7 +28,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class Global(IRDLOperation):
+class GlobalOp(IRDLOperation):
     """
     Module level declaration of a global variable
 
@@ -112,7 +112,7 @@ class Global(IRDLOperation):
 
 
 @irdl_op_definition
-class GlobalLoadConstant(IRDLOperation):
+class GlobalLoadConstantOp(IRDLOperation):
     """
     Direct load a constant value from a global
 
@@ -160,7 +160,7 @@ class GlobalLoadConstant(IRDLOperation):
 MLProgram = Dialect(
     "ml_program",
     [
-        Global,
-        GlobalLoadConstant,
+        GlobalOp,
+        GlobalLoadConstantOp,
     ],
 )

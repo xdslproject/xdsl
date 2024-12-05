@@ -145,7 +145,7 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
         if (
             len(op.res.uses) == 1
             and isinstance(use := list(op.res.uses)[0].operation, tensor.ExtractSliceOp)
-            and tuple(d.data for d in use.static_sizes.data) == t_type.get_shape()[1:]
+            and use.static_sizes.get_values() == t_type.get_shape()[1:]
             and len(use.offsets) == 0
             and len(use.sizes) == 0
             and len(use.strides) == 0
@@ -252,7 +252,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
                 ConvertAccessOpFromPrefetchPattern(arg_idx)
             )
 
-            nested_rewriter.rewrite_op(new_apply_op)
+            nested_rewriter.rewrite_region(new_apply_op.region)
 
 
 def split_ops(
@@ -275,7 +275,7 @@ def split_ops(
     for op in ops:
         if isinstance(op, csl_stencil.AccessOp):
             (b, a)[op.op == buf].append(op)
-        elif isinstance(op, arith.Constant):
+        elif isinstance(op, arith.ConstantOp):
             a.append(op)
         else:
             rem.append(op)
@@ -311,7 +311,7 @@ def split_ops(
                         rem.remove(use.operation)
 
     # find constants in `a` needed outside of `a`
-    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.Constant)]
+    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp)]
 
     # `a` exports one value plus any number of constants - duplicate exported constants and return op split
     if len(a_exports) == 1 + len(cnst_exports):
@@ -415,7 +415,7 @@ class ConvertApplyOpPattern(RewritePattern):
         PatternRewriteWalker(
             SplitVarithOpPattern(op.region.block.args[prefetch_idx]),
             apply_recursively=False,
-        ).rewrite_op(op)
+        ).rewrite_region(op.region)
 
         # determine how ops should be split across the two regions
         chunk_region_ops, done_exchange_ops = split_ops(
@@ -569,19 +569,20 @@ class PromoteCoefficients(RewritePattern):
             not isinstance(apply := op.get_apply(), csl_stencil.ApplyOp)
             or not op.op == apply.receive_chunk.block.args[0]
             or len(op.result.uses) != 1
-            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.Mulf)
+            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.MulfOp)
         ):
             return
 
         coeff = mulf.lhs if op.result == mulf.rhs else mulf.rhs
 
         if (
-            not isinstance(cnst := coeff.owner, arith.Constant)
+            not isinstance(cnst := coeff.owner, arith.ConstantOp)
             or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
-            or dense.data.data.count(val := dense.data.data[0]) != len(dense.data.data)
+            or not dense.is_splat()
         ):
             return
 
+        val = dense.get_attrs()[0]
         assert isattr(val, AnyFloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])

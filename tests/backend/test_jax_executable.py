@@ -21,7 +21,7 @@ def test_abs():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
 
@@ -65,7 +65,7 @@ def test_add_sub():
     with ImplicitBuilder(main_op.body) as (arg0, arg1):
         res0 = stablehlo.AddOp(arg0, arg1).result
         res1 = stablehlo.SubtractOp(arg0, arg1).result
-        func.Return(res0, res1)
+        func.ReturnOp(res0, res1)
 
     module = ModuleOp([main_op])
 
@@ -93,7 +93,7 @@ def test_no_main():
         main_op = func.FuncOp("not_main", ((TI32,), (TI32,)))
         with ImplicitBuilder(main_op.body) as (arg,):
             res = stablehlo.AbsOp(arg).result
-            func.Return(res)
+            func.ReturnOp(res)
 
         module = ModuleOp([main_op])
 
@@ -120,7 +120,7 @@ def test_parameter_count_mismatch():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -140,7 +140,7 @@ def test_parameter_annotation():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -159,7 +159,7 @@ def test_return_annotation_tuple_type():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -181,7 +181,7 @@ def test_return_annotation_single():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -201,7 +201,7 @@ def test_return_value_count_mismatch():
     main_op = func.FuncOp("main", ((TI32,), (TI32, TI32)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res, res)
+        func.ReturnOp(res, res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)

@@ -14,17 +14,16 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.utils.hints import isa
 
 # map the arith operation to the right varith op:
 ARITH_TO_VARITH_TYPE_MAP: dict[
     type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
     type[varith.VarithOp],
 ] = {
-    arith.Addi: varith.VarithAddOp,
-    arith.Addf: varith.VarithAddOp,
-    arith.Muli: varith.VarithMulOp,
-    arith.Mulf: varith.VarithMulOp,
+    arith.AddiOp: varith.VarithAddOp,
+    arith.AddfOp: varith.VarithAddOp,
+    arith.MuliOp: varith.VarithMulOp,
+    arith.MulfOp: varith.VarithMulOp,
 }
 
 
@@ -36,7 +35,7 @@ class ArithToVarithPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        op: arith.Addi | arith.Addf | arith.Muli | arith.Mulf,
+        op: arith.AddiOp | arith.AddfOp | arith.MuliOp | arith.MulfOp,
         rewriter: PatternRewriter,
         /,
     ):
@@ -99,10 +98,10 @@ ARITH_TYPES: dict[
     tuple[Literal["float", "int"], Literal["add", "mul"]],
     type[arith.SignlessIntegerBinaryOperation | arith.FloatingPointLikeBinaryOperation],
 ] = {
-    ("int", "add"): arith.Addi,
-    ("int", "mul"): arith.Muli,
-    ("float", "add"): arith.Addf,
-    ("float", "mul"): arith.Mulf,
+    ("int", "add"): arith.AddiOp,
+    ("int", "mul"): arith.MuliOp,
+    ("float", "add"): arith.AddfOp,
+    ("float", "mul"): arith.MulfOp,
 }
 
 
@@ -138,14 +137,14 @@ class MergeVarithOpsPattern(RewritePattern):
         # iterate over operands of the varith op:
         for inp in op.operands:
             # if the input happens to be the right arith op:
-            if isa(inp.owner, target_arith_type):
+            if isinstance(inp.owner, target_arith_type):
                 # fuse the operands of the arith op into the new varith op
                 new_operands.append(inp.owner.lhs)
                 new_operands.append(inp.owner.rhs)
                 # check if the old arith op can be erased
                 possibly_erased_ops.append(inp.owner)
             # if the parent op is a varith op of the same type as us
-            elif isa(inp.owner, type(op)):
+            elif isinstance(inp.owner, type(op)):
                 # include all operands of that
                 new_operands.extend(inp.owner.operands)
                 # check the old varith op for usages
@@ -203,7 +202,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
             elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
         )
 
-        consts: list[arith.Constant] = []
+        consts: list[arith.ConstantOp] = []
         fusions: list[Operation] = []
         new_args: list[Operation | SSAValue] = []
         for arg, count in collections.Counter(op.args).items():
@@ -225,11 +224,11 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
         t: builtin.IntegerType | builtin.IndexType | builtin.AnyFloat,
     ):
         if isinstance(t, builtin.IntegerType | builtin.IndexType):
-            c = arith.Constant(builtin.IntegerAttr(count, t))
-            f = arith.Muli
+            c = arith.ConstantOp(builtin.IntegerAttr(count, t))
+            f = arith.MuliOp
         else:
-            c = arith.Constant(builtin.FloatAttr(count, t))
-            f = arith.Mulf
+            c = arith.ConstantOp(builtin.FloatAttr(count, t))
+            f = arith.MulfOp
         return c, f(c, arg)
 
 
@@ -252,7 +251,7 @@ class ConvertArithToVarithPass(ModulePass):
                 ]
             ),
             walk_reverse=True,
-        ).rewrite_op(op)
+        ).rewrite_module(op)
 
 
 class ConvertVarithToArithPass(ModulePass):
@@ -268,7 +267,7 @@ class ConvertVarithToArithPass(ModulePass):
         PatternRewriteWalker(
             VarithToArithPattern(),
             apply_recursively=False,
-        ).rewrite_op(op)
+        ).rewrite_module(op)
 
 
 class VarithFuseRepeatedOperandsPass(ModulePass):
@@ -285,4 +284,4 @@ class VarithFuseRepeatedOperandsPass(ModulePass):
         PatternRewriteWalker(
             FuseRepeatedAddArgsPattern(self.min_reps),
             apply_recursively=False,
-        ).rewrite_op(op)
+        ).rewrite_module(op)

@@ -8,7 +8,7 @@ from conftest import assert_print_op
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import test
-from xdsl.dialects.arith import Addi, Arith, Constant
+from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     Builtin,
@@ -51,8 +51,8 @@ def test_simple_forgotten_op():
     ctx = MLContext()
     ctx.load_dialect(Arith)
 
-    lit = Constant.from_int_and_width(42, 32)
-    add = Addi(lit, lit)
+    lit = ConstantOp.from_int_and_width(42, 32)
+    add = AddiOp(lit, lit)
 
     add.verify()
 

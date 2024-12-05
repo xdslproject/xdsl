@@ -4,6 +4,7 @@ import pytest
 
 from xdsl.dialects.bufferization import (
     AllocTensorOp,
+    CloneOp,
     TensorFromMemrefConstraint,
     ToTensorOp,
 )
@@ -50,7 +51,7 @@ def test_tensor_from_memref_inference():
 
 
 @irdl_op_definition
-class TensorFromMemref(IRDLOperation):
+class TensorFromMemrefOp(IRDLOperation):
     name = "test.tensor_from_memref"
     T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
 
@@ -72,7 +73,7 @@ def test_tensor_from_memref_constraint():
             TensorType(IndexType(), [10, 20, 30]),
         ]
     ).res
-    op1 = TensorFromMemref(operands=(v_tensor, v_memref, v_tensor))
+    op1 = TensorFromMemrefOp(operands=(v_tensor, v_memref, v_tensor))
     op1.verify()
 
     [v_unranked_memref, v_unranked_tensor] = TestOp(
@@ -81,7 +82,7 @@ def test_tensor_from_memref_constraint():
             UnrankedTensorType(IndexType()),
         ]
     ).res
-    op2 = TensorFromMemref(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
+    op2 = TensorFromMemrefOp(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
     op2.verify()
 
 
@@ -131,7 +132,7 @@ def test_tensor_from_memref_constraint_failure(
         ]
     ).res
 
-    op1 = TensorFromMemref(operands=(v1, v2, v3))
+    op1 = TensorFromMemrefOp(operands=(v1, v2, v3))
     with pytest.raises(VerifyException, match=error):
         op1.verify()
 
@@ -162,3 +163,14 @@ def test_alloc_tensor_static():
     assert alloc_tensor.dynamic_sizes == ()
     assert alloc_tensor.copy is None
     assert alloc_tensor.size_hint is None
+
+
+def test_clone():
+    memref_t = MemRefType(f64, [10, 20, 30])
+    memref_v = TestOp(result_types=[memref_t]).res[0]
+
+    clone = CloneOp(memref_v)
+
+    assert clone.input == memref_v
+    assert clone.input.type == memref_t
+    assert clone.output.type == memref_t
