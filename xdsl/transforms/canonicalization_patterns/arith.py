@@ -1,5 +1,5 @@
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
