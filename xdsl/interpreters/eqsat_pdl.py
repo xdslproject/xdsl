@@ -1,19 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import IO, Any, cast
+from dataclasses import dataclass
 
-from xdsl.context import MLContext
 from xdsl.dialects import eqsat, pdl
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.interpreter import Interpreter, impl, register_impls
-from xdsl.interpreters.pdl import PDLMatcher, PDLRewriteFunctions
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
-from xdsl.irdl import IRDLOperation
-from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
-from xdsl.rewriter import InsertPoint
-from xdsl.transforms.convert_onnx_to_linalg import get_root_op
-from xdsl.utils.exceptions import InterpretationError
+from xdsl.interpreters.pdl import PDLMatcher
+from xdsl.ir import SSAValue
 
 
 @dataclass

@@ -1,19 +1,14 @@
-from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.context import MLContext
-from xdsl.dialects import arith, pdl, test
+from xdsl.dialects import pdl, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
     IntegerType,
-    ModuleOp,
     StringAttr,
     i32,
     i64,
 )
-from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl import EqsatPDLMatcher
-from xdsl.ir import Attribute, Block
-from xdsl.pattern_rewriter import PatternRewriteWalker
+from xdsl.ir import Block
 from xdsl.utils.test_value import TestSSAValue
 
 
