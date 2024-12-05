@@ -37,7 +37,7 @@ def update_result_size(
         apply = value.owner
         res_types = (cast(TempType[Attribute], r.type) for r in apply.res)
         newsize = reduce(
-            lambda l, r: l | r,
+            StencilBoundsAttr.union,
             (
                 size,
                 *(

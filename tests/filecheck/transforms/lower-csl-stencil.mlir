@@ -168,10 +168,10 @@ builtin.module {
       %28 = arith.constant 1 : index
       "csl.store_var"(%24, %19) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
       "csl.store_var"(%25, %20) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-      csl.activate local, 1 : i32
+      csl.activate local, 1 : ui6
       csl.return
     }
-    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : i5}{
+    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
       %29 = arith.constant 1000 : i16
       %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
       %31 = arith.cmpi slt, %30, %29 : i16
@@ -226,7 +226,7 @@ builtin.module {
       %37 = "csl.load_var"(%25) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
       "csl.store_var"(%24, %37) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
       "csl.store_var"(%25, %36) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-      csl.activate local, 1 : i32
+      csl.activate local, 1 : ui6
       csl.return
     }
     csl.func @for_post0() {
@@ -276,10 +276,10 @@ builtin.module {
 // CHECK-NEXT:      %79 = arith.constant 1 : index
 // CHECK-NEXT:      "csl.store_var"(%75, %70) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
 // CHECK-NEXT:      "csl.store_var"(%76, %71) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-// CHECK-NEXT:      csl.activate local, 1 : i32
+// CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : i5}{
+// CHECK-NEXT:    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
 // CHECK-NEXT:      %80 = arith.constant 1000 : i16
 // CHECK-NEXT:      %81 = "csl.load_var"(%74) : (!csl.var<i16>) -> i16
 // CHECK-NEXT:      %82 = arith.cmpi slt, %81, %80 : i16
@@ -342,7 +342,7 @@ builtin.module {
 // CHECK-NEXT:      %102 = "csl.load_var"(%76) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
 // CHECK-NEXT:      "csl.store_var"(%75, %102) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
 // CHECK-NEXT:      "csl.store_var"(%76, %101) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
-// CHECK-NEXT:      csl.activate local, 1 : i32
+// CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_post0() {
@@ -521,10 +521,10 @@ builtin.module {
       %28 = arith.constant 1 : index
       "csl.store_var"(%24, %19) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
       "csl.store_var"(%25, %20) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-      csl.activate local, 1 : i32
+      csl.activate local, 1 : ui6
       csl.return
     }
-    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : i5}{
+    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
       %29 = arith.constant 1000 : i16
       %30 = "csl.load_var"(%23) : (!csl.var<i16>) -> i16
       %31 = arith.cmpi slt, %30, %29 : i16
@@ -573,7 +573,7 @@ builtin.module {
       %37 = "csl.load_var"(%25) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
       "csl.store_var"(%24, %37) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
       "csl.store_var"(%25, %36) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-      csl.activate local, 1 : i32
+      csl.activate local, 1 : ui6
       csl.return
     }
     csl.func @for_post0() {
@@ -623,10 +623,10 @@ builtin.module {
 // CHECK-NEXT:      %188 = arith.constant 1 : index
 // CHECK-NEXT:      "csl.store_var"(%184, %179) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
 // CHECK-NEXT:      "csl.store_var"(%185, %180) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-// CHECK-NEXT:      csl.activate local, 1 : i32
+// CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : i5}{
+// CHECK-NEXT:    csl.task @for_cond0()  attributes {"kind" = #csl<task_kind local>, "id" = 1 : ui5}{
 // CHECK-NEXT:      %189 = arith.constant 1000 : i16
 // CHECK-NEXT:      %190 = "csl.load_var"(%183) : (!csl.var<i16>) -> i16
 // CHECK-NEXT:      %191 = arith.cmpi slt, %190, %189 : i16
@@ -699,7 +699,7 @@ builtin.module {
 // CHECK-NEXT:      %218 = "csl.load_var"(%185) : (!csl.var<memref<511xf32>>) -> memref<511xf32>
 // CHECK-NEXT:      "csl.store_var"(%184, %218) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
 // CHECK-NEXT:      "csl.store_var"(%185, %217) : (!csl.var<memref<511xf32>>, memref<511xf32>) -> ()
-// CHECK-NEXT:      csl.activate local, 1 : i32
+// CHECK-NEXT:      csl.activate local, 1 : ui6
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    csl.func @for_post0() {
