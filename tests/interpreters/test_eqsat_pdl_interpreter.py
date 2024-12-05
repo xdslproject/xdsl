@@ -1,15 +1,9 @@
-from xdsl.dialects import pdl, test, eqsat
+from xdsl.dialects import eqsat, pdl
 from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IntegerAttr,
     IntegerType,
     StringAttr,
-    i32,
-    i64,
 )
 from xdsl.interpreters.eqsat_pdl import EqsatPDLMatcher
-from xdsl.ir import Block
-from xdsl.utils.test_value import TestSSAValue
 
 
 def test_match_type():
