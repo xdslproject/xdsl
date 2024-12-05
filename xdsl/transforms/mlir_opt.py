@@ -7,8 +7,8 @@ from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.printer import Printer
+from xdsl.rewriter import Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -52,9 +52,10 @@ class MLIROptPass(ModulePass):
 
             new_module = parser.parse_module()
 
-            rewriter = PatternRewriter(op)
             op.detach_region(op.body)
-            op.add_region(rewriter.move_region_contents_to_new_regions(new_module.body))
+            op.add_region(
+                Rewriter().move_region_contents_to_new_regions(new_module.body)
+            )
             op.attributes = new_module.attributes
         except Exception as e:
             raise DiagnosticException(
