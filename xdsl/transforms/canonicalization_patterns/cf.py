@@ -33,7 +33,7 @@ class AssertTrue(RewritePattern):
         if not isinstance(value, IntegerAttr):
             return
 
-        if value.value.data != 1:
+        if not value.value.data:
             return
 
         rewriter.replace_matched_op([])
@@ -142,9 +142,12 @@ class SimplifyConstCondBranchPred(RewritePattern):
         # Check if cond operand is constant
         cond = const_evaluate_operand(op.cond)
 
-        if cond == 1:
+        if cond is None:
+            return
+
+        if cond:
             rewriter.replace_matched_op(cf.BranchOp(op.then_block, *op.then_arguments))
-        elif cond == 0:
+        else:
             rewriter.replace_matched_op(cf.BranchOp(op.else_block, *op.else_arguments))
 
 

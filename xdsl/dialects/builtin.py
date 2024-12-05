@@ -401,7 +401,7 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
 
     def print_value_without_type(self, value: int, printer: Printer):
         """
-        Prints the value, printing `true` or `false` if self.width == 1.
+        Prints the value, printing `true` or `false` if `self.width.data == 1`.
         """
         if self.width.data == 1:
             printer.print_string("true" if value else "false", indent=0)
