@@ -32,7 +32,7 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install the project
-      run: uv sync --all-extras
+      run: uv sync --only-dev
 
     - name: Run all tests
       run: |
