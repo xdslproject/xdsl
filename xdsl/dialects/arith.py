@@ -45,6 +45,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    Commutative,
     ConditionallySpeculatable,
     ConstantLike,
     HasCanonicalizationPatternsTrait,
@@ -190,6 +191,18 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return None
+
+    @staticmethod
+    def is_right_zero(attr: AnyIntegerAttr) -> bool:
+        return False
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return False
+
     def __init__(
         self,
         operand1: Operation | SSAValue,
@@ -202,6 +215,22 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
     def __hash__(self) -> int:
         return id(self)
+
+
+class SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            SignlessIntegerBinaryOperationConstantProp,
+            SignlessIntegerBinaryOperationZeroOrUnitRight,
+        )
+
+        return (
+            SignlessIntegerBinaryOperationConstantProp(),
+            SignlessIntegerBinaryOperationZeroOrUnitRight(),
+        )
 
 
 class SignlessIntegerBinaryOperationWithOverflow(
@@ -313,22 +342,23 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
         printer.print_attribute(self.result.type)
 
 
-class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import (
-            AddiConstantProp,
-            AddiIdentityRight,
-        )
-
-        return (AddiIdentityRight(), AddiConstantProp())
-
-
 @irdl_op_definition
 class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.addi"
 
-    traits = traits_def(Pure(), AddiOpHasCanonicalizationPatternsTrait())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs + rhs
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -395,19 +425,27 @@ class AddUIExtendedOp(IRDLOperation):
         )
 
 
-class MuliHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns import arith
-
-        return (arith.MuliIdentityRight(), arith.MuliConstantProp())
-
-
 @irdl_op_definition
 class MuliOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.muli"
 
-    traits = traits_def(Pure(), MuliHasCanonicalizationPatterns())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs * rhs
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
+
+    @staticmethod
+    def is_right_zero(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 class MulExtendedBase(IRDLOperation):
@@ -455,7 +493,17 @@ class MulSIExtendedOp(MulExtendedBase):
 class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.subi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs - rhs
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 class DivUISpeculatable(ConditionallySpeculatable):
@@ -478,7 +526,15 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.divui"
 
-    traits = traits_def(NoMemoryEffect(), DivUISpeculatable())
+    traits = traits_def(
+        NoMemoryEffect(),
+        DivUISpeculatable(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
@@ -490,7 +546,14 @@ class DivSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.divsi"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(
+        NoMemoryEffect(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
@@ -501,21 +564,40 @@ class FloorDivSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.floordivsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
 class CeilDivSIOp(SignlessIntegerBinaryOperation):
     name = "arith.ceildivsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
 class CeilDivUIOp(SignlessIntegerBinaryOperation):
     name = "arith.ceildivui"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(
+        NoMemoryEffect(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
@@ -562,21 +644,57 @@ class MaxSIOp(SignlessIntegerBinaryOperation):
 class AndIOp(SignlessIntegerBinaryOperation):
     name = "arith.andi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs & rhs
+
+    @staticmethod
+    def is_right_zero(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
 class OrIOp(SignlessIntegerBinaryOperation):
     name = "arith.ori"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs | rhs
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
 class XOrIOp(SignlessIntegerBinaryOperation):
     name = "arith.xori"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs ^ rhs
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -588,7 +706,13 @@ class ShLIOp(SignlessIntegerBinaryOperationWithOverflow):
 
     name = "arith.shli"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -601,7 +725,13 @@ class ShRUIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.shrui"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -615,7 +745,13 @@ class ShRSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.shrsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 class ComparisonOperation(IRDLOperation):
