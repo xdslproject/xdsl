@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -436,6 +437,14 @@ def test_create_dense_int():
         ),
     ):
         DenseArrayBase.create_dense_int(i8, (99999999, 255, 256))
+
+
+def test_create_dense_wrong_size():
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("Data length of array (1) not divisible by element size 2"),
+    ):
+        DenseArrayBase((i16, BytesAttr(b"F")))
 
 
 def test_strides():

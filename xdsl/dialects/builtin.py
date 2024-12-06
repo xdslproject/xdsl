@@ -1110,8 +1110,13 @@ class DenseArrayBase(ParametrizedAttribute):
     data: ParameterDef[BytesAttr]
 
     def verify(self):
-        # TODO: verify length of bytes
-        ...
+        data_len = len(self.data.data)
+        elt_size = self.elt_type.size
+        if data_len % elt_size:
+            raise VerifyException(
+                f"Data length of {self.name} ({data_len}) not divisible by element "
+                f"size {elt_size}"
+            )
 
     @staticmethod
     def create_dense_int(
