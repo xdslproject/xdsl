@@ -13,7 +13,7 @@
     ],
     "operandSegmentSizes" = array<i32: 2, 1>
 }> ({
-^0(%a_stream : !stream.readable<!riscv.freg<ft0>>, %b_stream : !stream.readable<!riscv.freg<ft1>>, %c_stream : !stream.writable<!riscv.freg<ft2>>):
+^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
     "test.op"() : () -> ()
 }) : (!riscv.reg, !riscv.reg, !riscv.reg) -> ()
 // CHECK-NEXT:  %{{.*}} = riscv.li 2 : !riscv.reg
@@ -75,7 +75,7 @@
 // CHECK-NEXT:  "snitch.ssr_set_dimension_source"(%A) {"dm" = #builtin.int<0>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_source"(%B) {"dm" = #builtin.int<1>, "dimension" = #builtin.int<1>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_destination"(%C) {"dm" = #builtin.int<2>, "dimension" = #builtin.int<3>} : (!riscv.reg) -> ()
-// CHECK-NEXT:  %a_stream, %b_stream, %c_stream = "snitch.ssr_enable"() : () -> (!stream.readable<!riscv.freg<ft0>>, !stream.readable<!riscv.freg<ft1>>, !stream.writable<!riscv.freg<ft2>>)
+// CHECK-NEXT:  %a_stream, %b_stream, %c_stream = "snitch.ssr_enable"() : () -> (!snitch.readable<!riscv.freg<ft0>>, !snitch.readable<!riscv.freg<ft1>>, !snitch.writable<!riscv.freg<ft2>>)
 // CHECK-NEXT:  "test.op"() : () -> ()
 // CHECK-NEXT:  "snitch.ssr_disable"() : () -> ()
 
@@ -85,7 +85,7 @@
     ],
     "operandSegmentSizes" = array<i32: 1, 1>
 }> ({
-^0(%a_stream : !stream.readable<!riscv.freg<ft0>>, %b_stream : !stream.writable<!riscv.freg<ft1>>):
+^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
     "test.op"() : () -> ()
 }) : (!riscv.reg, !riscv.reg) -> ()
 
@@ -99,7 +99,7 @@
 // CHECK-NEXT:  "snitch.ssr_set_stream_repetition"(%{{.*}}) {"dm" = #builtin.int<31>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_source"(%A) {"dm" = #builtin.int<0>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_destination"(%B) {"dm" = #builtin.int<1>, "dimension" = #builtin.int<0>} : (!riscv.reg) -> ()
-// CHECK-NEXT:  %{{.*}}, %{{.*}} = "snitch.ssr_enable"() : () -> (!stream.readable<!riscv.freg<ft0>>, !stream.writable<!riscv.freg<ft1>>)
+// CHECK-NEXT:  %{{.*}}, %{{.*}} = "snitch.ssr_enable"() : () -> (!snitch.readable<!riscv.freg<ft0>>, !snitch.writable<!riscv.freg<ft1>>)
 // CHECK-NEXT:  "test.op"() : () -> ()
 // CHECK-NEXT:  "snitch.ssr_disable"() : () -> ()
 

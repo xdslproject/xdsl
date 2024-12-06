@@ -55,7 +55,7 @@ def test_alloc():
     assert alloc.hostShared is None
 
     dyn_type = memref.MemRefType(builtin.Float32Type(), [-1, -1, -1])
-    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
     dynamic_sizes = [ten, ten, ten]
     token = alloc.asyncToken
 
@@ -86,7 +86,7 @@ def test_all_reduce_operation():
 def test_all_reduce():
     op = AllReduceOpAttr(AllReduceOpEnum.Add)
 
-    init = arith.Constant.from_int_and_width(0, builtin.IndexType())
+    init = arith.ConstantOp.from_int_and_width(0, builtin.IndexType())
 
     all_reduce = AllReduceOp.from_op(op, init)
 
@@ -100,7 +100,7 @@ def test_all_reduce():
 
     @Builder.implicit_region
     def body():
-        sum = Operation.clone(arith.Addi(body_block.args[0], body_block.args[1]))
+        sum = Operation.clone(arith.AddiOp(body_block.args[0], body_block.args[1]))
         YieldOp([sum])
 
     all_reduce_body = AllReduceOp.from_body(body, init)
@@ -197,7 +197,7 @@ def test_grid_dim():
 
 def test_host_register():
     memref_type = memref.MemRefType(builtin.i32, [-1])
-    unranked = memref.Alloca.get(memref_type, 0)
+    unranked = memref.AllocaOp.get(memref_type, 0)
 
     register = HostRegisterOp(unranked)
 
@@ -207,7 +207,7 @@ def test_host_register():
 
 def test_host_unregister():
     memref_type = memref.MemRefType(builtin.i32, [-1])
-    unranked = memref.Alloca.get(memref_type, 0)
+    unranked = memref.AllocaOp.get(memref_type, 0)
 
     unregister = HostUnregisterOp(unranked)
 
@@ -224,8 +224,8 @@ def test_lane_id():
 def test_func():
     kernel = "mygpufunc"
     inputs = [builtin.IndexType()]
-    known_block_size = [32, 8, 4]
-    known_grid_size = [4, 16, 32]
+    known_block_size = (32, 8, 4)
+    known_grid_size = (4, 16, 32)
 
     body = Region(Block([ReturnOp([])]))
 
@@ -235,20 +235,17 @@ def test_func():
     assert func.kernel == builtin.UnitAttr()
     assert func.sym_name == builtin.StringAttr(kernel)
     assert func.known_block_size is not None
-    assert func.known_block_size.data == tuple(
-        builtin.IntegerAttr(i, builtin.i32) for i in known_block_size
-    )
+    assert func.known_block_size.get_values() == known_block_size
     assert func.known_grid_size is not None
-    assert func.known_grid_size.data == tuple(
-        builtin.IntegerAttr(i, builtin.i32) for i in known_grid_size
-    )
+    assert func.known_grid_size.get_values() == known_grid_size
+
     assert func.function_type == builtin.FunctionType.from_lists(inputs, [])
     assert func.body is body
 
 
 def test_launch():
     body = Region([])
-    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
     gridSize: list[Operation | SSAValue] = [ten, ten, ten]
     blockSize: list[Operation | SSAValue] = [ten, ten, ten]
     launch = LaunchOp(body, gridSize, blockSize)
@@ -261,13 +258,16 @@ def test_launch():
     assert launch.blockSizeX is ten.result
     assert launch.blockSizeY is ten.result
     assert launch.blockSizeZ is ten.result
+    assert launch.clusterSizeX is None
+    assert launch.clusterSizeY is None
+    assert launch.clusterSizeZ is None
     assert launch.asyncToken is None
     assert launch.asyncDependencies == tuple()
     assert launch.dynamicSharedMemorySize is None
 
     body2 = Region()
 
-    nd_launch = LaunchOp(body2, gridSize, blockSize, True, [], ten)
+    nd_launch = LaunchOp(body2, gridSize, blockSize, [], True, [], ten)
 
     assert isinstance(launch, LaunchOp)
     assert nd_launch.body is body2
@@ -277,6 +277,9 @@ def test_launch():
     assert nd_launch.blockSizeX is ten.result
     assert nd_launch.blockSizeY is ten.result
     assert nd_launch.blockSizeZ is ten.result
+    assert nd_launch.clusterSizeX is None
+    assert nd_launch.clusterSizeY is None
+    assert nd_launch.clusterSizeZ is None
     assert nd_launch.asyncToken is not None
     assert nd_launch.asyncToken.type == AsyncTokenType()
     assert nd_launch.asyncDependencies == tuple()
@@ -285,8 +288,8 @@ def test_launch():
 
 def test_launchfunc():
     kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
-    args = [arith.Constant.from_int_and_width(10, builtin.IndexType())]
-    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    args = [arith.ConstantOp.from_int_and_width(10, builtin.IndexType())]
+    ten = arith.ConstantOp.from_int_and_width(10, builtin.IndexType())
     gridSize: list[Operation | SSAValue] = [ten, ten, ten]
     blockSize: list[Operation | SSAValue] = [ten, ten, ten]
     launch = LaunchFuncOp(kernel, gridSize, blockSize)
@@ -334,7 +337,7 @@ def test_launchfunc():
 
 def test_memcpy():
     memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
-    host_alloc = memref.Alloc.get(builtin.Float32Type(), 0, [10, 10, 10])
+    host_alloc = memref.AllocOp.get(builtin.Float32Type(), 0, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # for Pyright
@@ -366,7 +369,7 @@ def test_num_subgroups():
 
 
 def test_set_default_device():
-    devIndex = arith.Constant.from_int_and_width(0, builtin.i32)
+    devIndex = arith.ConstantOp.from_int_and_width(0, builtin.i32)
 
     set_default_device = SetDefaultDeviceOp(devIndex)
 
@@ -420,9 +423,9 @@ def test_yield():
     operands: list[SSAValue | Operation] = [
         o
         for o in [
-            arith.Constant.from_int_and_width(42, builtin.i32),
-            arith.Constant.from_int_and_width(19, builtin.IndexType()),
-            arith.Constant.from_int_and_width(84, builtin.i64),
+            arith.ConstantOp.from_int_and_width(42, builtin.i32),
+            arith.ConstantOp.from_int_and_width(19, builtin.IndexType()),
+            arith.ConstantOp.from_int_and_width(84, builtin.i64),
         ]
     ]
     yield_op = YieldOp(operands)

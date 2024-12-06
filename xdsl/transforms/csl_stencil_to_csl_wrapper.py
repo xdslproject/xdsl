@@ -3,16 +3,23 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
-from xdsl.dialects import arith, builtin, func, memref, stencil
+from xdsl.dialects import arith, builtin, func, llvm, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyMemRefType,
     AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
+    ArrayAttr,
+    DictionaryAttr,
+    IndexType,
     IntegerAttr,
+    IntegerType,
     ShapedType,
+    Signedness,
+    StringAttr,
     TensorType,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
+from xdsl.ir import Attribute, BlockArgument, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -23,8 +30,24 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms import csl_stencil_bufferize
+from xdsl.transforms.function_transformations import (
+    TIMER_END,
+    TIMER_START,
+)
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
+
+
+def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
+    """
+    Return the enclosing csl_wrapper.module
+    """
+    parent_op = op.parent_op()
+    while parent_op:
+        if isinstance(parent_op, csl_wrapper.ModuleOp):
+            return parent_op
+        parent_op = parent_op.parent_op()
+    return None
 
 
 @dataclass(frozen=True)
@@ -40,6 +63,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
+        # erase timer stubs
+        if op.is_declaration and op.sym_name.data in [TIMER_START, TIMER_END]:
+            rewriter.erase_matched_op()
+            return
         # find csl_stencil.apply ops, abort if there are none
         apply_ops = self.get_csl_stencil_apply_ops(op)
         if len(apply_ops) == 0:
@@ -64,15 +91,11 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     max_distance = max(max_distance, ap.max_distance())
 
             # find max x and y dimensions
-            if len(shape := apply_op.topo.shape.data) == 2:
-                assert isinstance(
-                    shape.data[0].data, int
-                ), "Cannot have a float data shape"
-                assert isinstance(
-                    shape.data[1].data, int
-                ), "Cannot have a float data shape"
-                width = max(width, shape.data[0].data)
-                height = max(height, shape.data[1].data)
+            if len(shape := apply_op.topo.shape.get_values()) == 2:
+                assert isinstance(shape[0], int), "Cannot have a float data shape"
+                assert isinstance(shape[1], int), "Cannot have a float data shape"
+                width = max(width, shape[0])
+                height = max(height, shape[1])
             else:
                 raise ValueError("Stencil accesses must be 2-dimensional at this stage")
 
@@ -129,7 +152,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # set up main function and move func.func ops into this csl.func
         main_func = csl.FuncOp(op.sym_name.data, ((), None))
         func_export = csl.SymbolExportOp(main_func.sym_name, main_func.function_type)
-        args_to_ops, arg_mappings = self._translate_function_args(op.args)
+        args_to_ops, arg_mappings = self._translate_function_args(op.args, op.arg_attrs)
         rewriter.inline_block(
             op.body.block,
             InsertPoint.at_start(main_func.body.block),
@@ -143,7 +166,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # replace func.return by unblock_cmd_stream and csl.return
         func_return = main_func.body.block.last_op
-        assert isinstance(func_return, func.Return)
+        assert isinstance(func_return, func.ReturnOp)
         assert (
             len(func_return.arguments) == 0
         ), "Non-empty returns currently not supported"
@@ -166,7 +189,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         return result
 
     def _translate_function_args(
-        self, args: Sequence[BlockArgument]
+        self, args: Sequence[BlockArgument], attrs: ArrayAttr[DictionaryAttr] | None
     ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
         """
         Args of the top-level function act as the interface to the program and need to be translated to writable buffers.
@@ -176,6 +199,15 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         ptr_converts: list[Operation] = []
         export_ops: list[Operation] = []
         cast_ops: list[Operation] = []
+        import_ops: list[Operation] = []
+
+        if attrs is not None:
+            for arg, attr in zip(args, attrs, strict=True):
+                assert isinstance(attr, DictionaryAttr)
+                if "llvm.name" in attr.data:
+                    nh = attr.data["llvm.name"]
+                    assert isinstance(nh, StringAttr)
+                    arg.name_hint = nh.data
 
         for arg in args:
             arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
@@ -190,19 +222,13 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     if isa(arg.type, stencil.FieldType[TensorType[Attribute]])
                     else arg.type
                 )
-                arg_ops.append(alloc := memref.Alloc([], [], arg_t))
+                arg_ops.append(alloc := memref.AllocOp([], [], arg_t))
                 ptr_converts.append(
                     address := csl.AddressOfOp(
-                        operands=[alloc],
-                        result_types=[
-                            csl.PtrType(
-                                [
-                                    arg_t.get_element_type(),
-                                    csl.PtrKindAttr(csl.PtrKind.MANY),
-                                    csl.PtrConstAttr(csl.PtrConst.VAR),
-                                ]
-                            )
-                        ],
+                        alloc,
+                        csl.PtrType.get(
+                            arg_t.get_element_type(), is_single=False, is_const=False
+                        ),
                     )
                 )
                 export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
@@ -215,8 +241,43 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     arg_op_mapping.append(cast_op.outputs[0])
                 else:
                     arg_op_mapping.append(alloc.memref)
+            # check if this looks like a timer
+            elif isinstance(arg.type, llvm.LLVMPointerType) and all(
+                isinstance(u.operation, llvm.StoreOp)
+                and isinstance(u.operation.value, OpResult)
+                and isinstance(u.operation.value.op, func.CallOp)
+                and u.operation.value.op.callee.string_value() == TIMER_END
+                for u in arg.uses
+            ):
+                start_end_size = 3
+                arg_t = memref.MemRefType(
+                    IntegerType(16, Signedness.UNSIGNED), (2 * start_end_size,)
+                )
+                arg_ops.append(alloc := memref.AllocOp([], [], arg_t))
+                ptr_converts.append(
+                    address := csl.AddressOfOp(
+                        alloc,
+                        csl.PtrType.get(
+                            arg_t.get_element_type(), is_single=False, is_const=False
+                        ),
+                    )
+                )
+                export_ops.append(csl.SymbolExportOp(arg_name, SSAValue.get(address)))
+                arg_op_mapping.append(alloc.memref)
+                import_ops.append(
+                    csl_wrapper.ImportOp(
+                        "<time>",
+                        field_name_mapping={},
+                    )
+                )
 
-        return [*arg_ops, *cast_ops, *ptr_converts, *export_ops], arg_op_mapping
+        return [
+            *arg_ops,
+            *cast_ops,
+            *ptr_converts,
+            *export_ops,
+            *import_ops,
+        ], arg_op_mapping
 
     def initialise_layout_module(self, module_op: csl_wrapper.ModuleOp):
         """Initialises the layout_module (wrapper block) by setting up (esp. stencil-related) program params"""
@@ -231,7 +292,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # fill layout module wrapper block with ops
         with ImplicitBuilder(module_op.layout_module.block):
             # set up LAUNCH
-            zero = arith.Constant(IntegerAttr(0, 16))
+            zero = arith.ConstantOp(IntegerAttr(0, 16))
             launch = csl.GetColorOp(zero)
 
             # import memcpy/get_params and routes
@@ -276,19 +337,21 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             )
 
             # set up program param `is_border_region_pe`
-            one = arith.Constant(IntegerAttr(1, 16))
-            pattern_minus_one = arith.Subi(param_pattern, one)
-            width_minus_x = arith.Subi(param_width, param_x)
-            height_minus_y = arith.Subi(param_height, param_y)
-            x_lt_pattern_minus_one = arith.Cmpi(param_x, pattern_minus_one, "slt")
-            y_lt_pattern_minus_one = arith.Cmpi(param_y, pattern_minus_one, "slt")
-            width_minus_one_lt_pattern = arith.Cmpi(width_minus_x, param_pattern, "slt")
-            height_minus_one_lt_pattern = arith.Cmpi(
+            one = arith.ConstantOp(IntegerAttr(1, 16))
+            pattern_minus_one = arith.SubiOp(param_pattern, one)
+            width_minus_x = arith.SubiOp(param_width, param_x)
+            height_minus_y = arith.SubiOp(param_height, param_y)
+            x_lt_pattern_minus_one = arith.CmpiOp(param_x, pattern_minus_one, "slt")
+            y_lt_pattern_minus_one = arith.CmpiOp(param_y, pattern_minus_one, "slt")
+            width_minus_one_lt_pattern = arith.CmpiOp(
+                width_minus_x, param_pattern, "slt"
+            )
+            height_minus_one_lt_pattern = arith.CmpiOp(
                 height_minus_y, param_pattern, "slt"
             )
-            or1_op = arith.OrI(x_lt_pattern_minus_one, y_lt_pattern_minus_one)
-            or2_op = arith.OrI(or1_op, width_minus_one_lt_pattern)
-            is_border_region_pe = arith.OrI(or2_op, height_minus_one_lt_pattern)
+            or1_op = arith.OrIOp(x_lt_pattern_minus_one, y_lt_pattern_minus_one)
+            or2_op = arith.OrIOp(or1_op, width_minus_one_lt_pattern)
+            is_border_region_pe = arith.OrIOp(or2_op, height_minus_one_lt_pattern)
 
             # yield things as named params to the program module
             csl_wrapper.YieldOp.from_field_name_mapping(
@@ -320,6 +383,69 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
+class LowerTimerFuncCall(RewritePattern):
+    """
+    Lowers calls to the start and end timer to csl API calls.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: llvm.StoreOp, rewriter: PatternRewriter, /):
+        if (
+            not isinstance(end_call := op.value.owner, func.CallOp)
+            or not end_call.callee.string_value() == TIMER_END
+            or not (isinstance(start_call := end_call.arguments[0].owner, func.CallOp))
+            or not start_call.callee.string_value() == TIMER_START
+            or not (wrapper := _get_module_wrapper(op))
+            or not isa(op.ptr.type, AnyMemRefType)
+        ):
+            return
+
+        time_lib = wrapper.get_program_import("<time>")
+
+        three_elem_ptr_type = csl.PtrType(
+            [
+                memref.MemRefType(op.ptr.type.get_element_type(), (3,)),
+                csl.PtrKindAttr(csl.PtrKind.SINGLE),
+                csl.PtrConstAttr(csl.PtrConst.VAR),
+            ]
+        )
+
+        rewriter.insert_op(
+            [
+                three := arith.ConstantOp.from_int_and_width(3, IndexType()),
+                load_three := memref.LoadOp.get(op.ptr, [three]),
+                addr_of := csl.AddressOfOp(
+                    load_three,
+                    csl.PtrType.get(
+                        op.ptr.type.get_element_type(), is_single=True, is_const=False
+                    ),
+                ),
+                ptrcast := csl.PtrCastOp(addr_of, three_elem_ptr_type),
+                csl.MemberCallOp("get_timestamp", None, time_lib, [ptrcast]),
+                csl.MemberCallOp("disable_tsc", None, time_lib, []),
+            ],
+            InsertPoint.before(end_call),
+        )
+        rewriter.insert_op(
+            [
+                addr_of := csl.AddressOfOp(
+                    op.ptr,
+                    csl.PtrType.get(
+                        op.ptr.type.get_element_type(), is_single=False, is_const=False
+                    ),
+                ),
+                ptrcast := csl.PtrCastOp(addr_of, three_elem_ptr_type),
+                csl.MemberCallOp("enable_tsc", None, time_lib, []),
+                csl.MemberCallOp("get_timestamp", None, time_lib, [ptrcast]),
+            ],
+            InsertPoint.before(start_call),
+        )
+        rewriter.erase_op(op)
+        rewriter.erase_op(end_call)
+        rewriter.erase_op(start_call)
+
+
+@dataclass(frozen=True)
 class CslStencilToCslWrapperPass(ModulePass):
     """
     Wraps program in the csl_stencil dialect in a csl_wrapper by translating each
@@ -333,6 +459,7 @@ class CslStencilToCslWrapperPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ConvertStencilFuncToModuleWrappedPattern(),
+                    LowerTimerFuncCall(),
                 ]
             ),
             apply_recursively=False,

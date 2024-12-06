@@ -11,7 +11,8 @@ from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
+from xdsl.tools.command_line_tool import CommandLineTool
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
@@ -191,6 +192,11 @@ class xDSLOptMain(CommandLineTool):
         Add other/additional targets by overloading this function.
         """
 
+        def _output_arm_asm(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.arm import print_assembly
+
+            print_assembly(prog, output)
+
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
                 stream=output,
@@ -212,11 +218,11 @@ class xDSLOptMain(CommandLineTool):
             print_assembly(prog, output)
 
         def _output_wat(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.wasm import WasmModule
+            from xdsl.dialects.wasm import WasmModuleOp
             from xdsl.dialects.wasm.wat import WatPrinter
 
             for op in prog.walk():
-                if isinstance(op, WasmModule):
+                if isinstance(op, WasmModuleOp):
                     printer = WatPrinter(output)
                     op.print_wat(printer)
                     print("", file=output)
@@ -240,6 +246,7 @@ class xDSLOptMain(CommandLineTool):
 
             print_to_csl(prog, output)
 
+        self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm

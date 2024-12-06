@@ -13,6 +13,10 @@
 %dim2 = "tensor.dim"(%t1, %i1) {"hello" = "world"}: (tensor<2x3xf32>, index) -> index
 %cast1 = "tensor.cast"(%t1) : (tensor<2x3xf32>) -> tensor<?x?xf32>
 %cast2 = "tensor.cast"(%t1) {"hello" = "world"} : (tensor<2x3xf32>) -> tensor<?x?xf32>
+%big_tensor = tensor.empty() : tensor<2x3x2x3xf32>
+%collapsed = tensor.collapse_shape %big_tensor [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
+%extracted = tensor.extract %t2[%i1] : tensor<2xf32>
+%tensor_with_ins = tensor.insert %extracted into %t2[%i1] : tensor<2xf32>
 
 
 // CHECK:       module {
@@ -29,4 +33,8 @@
 // CHECK-NEXT:  %{{.*}} = tensor.dim {hello = "world"} %{{.*}}, %{{.*}} : tensor<2x3xf32>
 // CHECK-NEXT:  %{{.*}} = tensor.cast %{{.*}} : tensor<2x3xf32> to tensor<?x?xf32>
 // CHECK-NEXT:  %{{.*}} = tensor.cast %{{.*}} {hello = "world"} : tensor<2x3xf32> to tensor<?x?xf32>
+// CHECK-NEXT:  %6 = tensor.empty() : tensor<2x3x2x3xf32>
+// CHECK-NEXT:  %collapsed = tensor.collapse_shape %6 [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
+// CHECK-NEXT:  %extracted = tensor.extract %1[%2] : tensor<2xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.insert %extracted into %1[%2] : tensor<2xf32>
 // CHECK-NEXT: }

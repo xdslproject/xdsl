@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import affine, arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
-from xdsl.dialects.scf import ParallelOp, Yield
+from xdsl.dialects.scf import ParallelOp, ReduceOp
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -35,10 +35,10 @@ class ScfParallelLoopTilingPattern(RewritePattern):
             len(lower) - len(self.tile_sizes)
         )
 
-        zero = arith.Constant(IntegerAttr.from_index_int_value(0))
+        zero = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
         tile_sizes_v = {i: s for i, s in enumerate(tile_sizes_v) if s != 0}
         tile_sizes = {
-            i: arith.Constant(IntegerAttr.from_index_int_value(s))
+            i: arith.ConstantOp(IntegerAttr.from_index_int_value(s))
             for i, s in tile_sizes_v.items()
         }
         tiled_dims = sorted(tile_sizes.keys())
@@ -46,7 +46,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
             return
         outter_lower = [lower[d] for d in tiled_dims]
         outter_upper = [upper[d] for d in tiled_dims]
-        outter_step = [arith.Muli(step[d], tile_sizes[d]) for d in tiled_dims]
+        outter_step = [arith.MuliOp(step[d], tile_sizes[d]) for d in tiled_dims]
 
         outter_loop = ParallelOp(
             outter_lower,
@@ -54,7 +54,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
             outter_step,
             Region(
                 Block(
-                    [(outter_yield := Yield())],
+                    [(outter_reduce := ReduceOp())],
                     arg_types=[IndexType()] * len(outter_lower),
                 )
             ),
@@ -78,9 +78,9 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                 inner_lower.append(zero)
                 ilower, iupper, istep = lower[i], upper[i], step[i]
                 if (
-                    isinstance(ilower, arith.Constant)
-                    and isinstance(iupper, arith.Constant)
-                    and isinstance(istep, arith.Constant)
+                    isinstance(ilower, arith.ConstantOp)
+                    and isinstance(iupper, arith.ConstantOp)
+                    and isinstance(istep, arith.ConstantOp)
                 ):
                     lower_v, upper_v, step_v = (
                         c.value for c in (ilower, iupper, istep)
@@ -119,7 +119,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         for i, arg in reversed(list(enumerate(inner_loop.body.block.args))):
             if i in tile_sizes:
                 arg_index = tiled_dims.index(i)
-                iv = arith.Addi(outter_loop.body.block.args[arg_index], arg)
+                iv = arith.AddiOp(outter_loop.body.block.args[arg_index], arg)
                 assert inner_loop.body.block.first_op is not None
                 inner_loop.body.block.insert_op_before(
                     iv, inner_loop.body.block.first_op
@@ -128,7 +128,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                     if use.operation is iv:
                         continue
                     use.operation.operands[use.index] = iv.result
-        outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_yield)
+        outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_reduce)
         rewriter.replace_matched_op(
             [zero, *tile_sizes.values(), *outter_step, outter_loop]
         )

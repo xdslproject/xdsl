@@ -31,7 +31,7 @@ optimization capabilities.
 - [xDSL Developer Setup](#xdsl-developer-setup)
   - [Developer Installation](#developer-installation)
   - [Testing](#testing)
-  - [Formatting](#formatting)
+  - [Formatting and Typechecking](#formatting-and-typechecking)
 
 ## Installation
 
@@ -44,7 +44,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is commit `98e674c9f16d677d95c67bc130e267fae331e43c`.
+MLIR version is commit `d401987fe349a87c53fe25829215b080b70c0c1a`.
 
 ### Subprojects With Extra Dependencies
 
@@ -162,6 +162,20 @@ uv run ruff format
 Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)
 without errors. Pyright can be run on all staged files through the
 makefile using `make pyright`.
+
+> [!IMPORTANT]
+>
+> #### Experimental Pyright Features
+>
+> xDSL currently relies on an experimental feature of Pyright called TypeForm
+> TypeForm is [in discussion](https://discuss.python.org/t/pep-747-typeexpr-type-hint-for-a-type-expression/55984) and will likely land in some future version of Python.
+>
+> For xDSL to type check correctly using Pyright, please add this to your `pyproject.toml`:
+>
+> ```toml
+> [tool.pyright]
+> enableExperimentalFeatures = true
+> ```
 
 ### Discussion
 

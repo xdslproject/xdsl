@@ -167,15 +167,15 @@
   }
 
 
-  csl.task @data_task(%arg: f32) attributes {kind = #csl<task_kind data>, id = 0 : i5} {
+  csl.task @data_task(%arg: f32) attributes {kind = #csl<task_kind data>, id = 0 : ui5} {
     csl.return
   }
 
-  csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 1 : i5} {
+  csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 1 : ui5} {
     csl.return
   }
 
-  csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 42 : i6} {
+  csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 42 : ui6} {
     csl.return
   }
 
@@ -213,6 +213,7 @@
   %const_array = memref.get_global @const_array : memref<10xi32>
 
   %literal_array = arith.constant dense<[1.200000e+00, 2.300000e+00, 3.400000e+00]> : memref<3xf32>
+  %literal_array_w_zeros = arith.constant dense<[1.200000e+00, 0, 3.400000e+00, 0]> : memref<4xf32>
 
   %uninit_ptr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
   %global_ptr = "csl.addressof"(%global_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
@@ -374,6 +375,26 @@ csl.func @ctrlflow() {
   csl.return
 }
 
+%tsc = "csl.import_module"() <{"module" = "<time>"}> : () -> !csl.imported_module
+%tsc_buf = "csl.zeros"() : () -> memref<6xui16>
+
+csl.func @timestamp_start() {
+  %addr_of_1 = "csl.addressof"(%tsc_buf) : (memref<6xui16>) -> !csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>
+  %ptrcast_1 = "csl.ptrcast"(%addr_of_1) : (!csl.ptr<ui16, #csl<ptr_kind many>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  "csl.member_call"(%tsc) <{"field" = "enable_tsc"}> : (!csl.imported_module) -> ()
+  "csl.member_call"(%tsc, %ptrcast_1) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
+  csl.return
+}
+
+csl.func @timestamp_stop() {
+  %three = arith.constant 3 : index
+  %ld = memref.load %tsc_buf[%three] : memref<6xui16>
+  %addr_of_2 = "csl.addressof"(%ld) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %ptrcast_2 = "csl.ptrcast"(%addr_of_2) : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>
+  "csl.member_call"(%tsc, %ptrcast_2) <{"field" = "get_timestamp"}> : (!csl.imported_module, !csl.ptr<memref<3xui16>, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
+  csl.return
+}
+
 csl.func @builtins() {
   %i8_value = arith.constant 10 : si8
   %i16_value = arith.constant 10 : si16
@@ -402,8 +423,8 @@ csl.func @builtins() {
   %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
   %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %i8_value) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
 
-  %fabin_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 2 : i5 , "queue_id" = 0 : i3}> : (si32) -> !csl<dsd fabin_dsd>
-  %fabout_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 3 : i5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (si32) -> !csl<dsd fabout_dsd>
+  %fabin_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 2 : ui5 , "queue_id" = 0 : i3}> : (si32) -> !csl<dsd fabin_dsd>
+  %fabout_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 3 : ui5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (si32) -> !csl<dsd fabout_dsd>
 
   %zero_stride_dsd = "csl.get_mem_dsd"(%A, %i16_value, %i16_value, %i16_value) <{"strides" = [0 : si16, 0 : si16, 1 : si16]}> : (memref<24xf32>, si16, si16, si16) -> !csl<dsd mem4d_dsd>
 
@@ -448,9 +469,9 @@ csl.func @builtins() {
   "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
-  csl.activate data, 0 : i32
-  csl.activate local, 1 : i32
-  csl.activate control, 42 : i32
+  csl.activate data, 0 : ui6
+  csl.activate local, 1 : ui6
+  csl.activate control, 42 : ui6
 
   csl.return
 }
@@ -655,6 +676,7 @@ csl.func @builtins() {
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
 // CHECK-NEXT: const literal_array : [3]f32 = [3]f32 { 1.2, 2.3, 3.4 };
+// CHECK-NEXT: const literal_array_w_zeros : [4]f32 = [4]f32 { 1.2, 0.0, 3.4, 0.0 };
 // CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
 // CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
@@ -742,6 +764,21 @@ csl.func @builtins() {
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
+// CHECK-NEXT: const tsc : imported_module = @import_module("<time>");
+// CHECK-NEXT: var tsc_buf : [6]u16 = @zeros([6]u16);
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn timestamp_start() void {
+// CHECK-NEXT:   var addr_of : [*]u16 = &tsc_buf;
+// CHECK-NEXT:   tsc.enable_tsc();
+// CHECK-NEXT:   tsc.get_timestamp(@ptrcast(*[3]u16, addr_of));
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: {{ *}}
+// CHECK-NEXT: fn timestamp_stop() void {
+// CHECK-NEXT:   var addr_of : *u16 = &(tsc_buf[3]);
+// CHECK-NEXT:   tsc.get_timestamp(@ptrcast(*[3]u16, addr_of));
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn builtins() void {
 // CHECK-NEXT:   const i16_value : i16 = 10;
@@ -776,12 +813,12 @@ csl.func @builtins() {
 // CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .input_queue = @get_input_queue(0),
-// CHECK-NEXT:     .fabric_color = 2 : i5,
+// CHECK-NEXT:     .fabric_color = 2 : ui5,
 // CHECK-NEXT:   }});
 // CHECK-NEXT:   const fabout_dsd : fabout_dsd = @get_dsd(fabout_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .output_queue = @get_output_queue(1),
-// CHECK-NEXT:     .fabric_color = 3 : i5,
+// CHECK-NEXT:     .fabric_color = 3 : ui5,
 // CHECK-NEXT:     .wavelet_index_offset = false,
 // CHECK-NEXT:     .control = true,
 // CHECK-NEXT:   }});

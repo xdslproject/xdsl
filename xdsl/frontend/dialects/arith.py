@@ -12,49 +12,49 @@ def addi(lhs: _Int, rhs: _Int) -> _Int: ...
 
 
 def resolve_addi() -> Callable[..., Operation]:
-    return arith.Addi
+    return arith.AddiOp
 
 
 def andi(lhs: _Int, rhs: _Int) -> _Int: ...
 
 
 def resolve_andi() -> Callable[..., Operation]:
-    return arith.AndI
+    return arith.AndIOp
 
 
 def cmpi(lhs: _Int, rhs: _Int, mnemonic: str) -> i1: ...
 
 
 def resolve_cmpi() -> Callable[..., Operation]:
-    return arith.Cmpi
+    return arith.CmpiOp
 
 
 def muli(lhs: _Int, rhs: _Int) -> _Int: ...
 
 
 def resolve_muli() -> Callable[..., Operation]:
-    return arith.Muli
+    return arith.MuliOp
 
 
 def shli(lhs: _Int, rhs: _Int) -> _Int: ...
 
 
 def resolve_shli() -> Callable[..., Operation]:
-    return arith.ShLI
+    return arith.ShLIOp
 
 
 def shrsi(lhs: _Int, rhs: _Int) -> _Int: ...
 
 
 def resolve_shrsi() -> Callable[..., Operation]:
-    return arith.ShRSI
+    return arith.ShRSIOp
 
 
 def subi(lhs: _Int, rhs: _Int) -> _Int: ...
 
 
 def resolve_subi() -> Callable[..., Operation]:
-    return arith.Subi
+    return arith.SubiOp
 
 
 _Float = TypeVar("_Float", bound=f16 | f32 | f64)
@@ -64,18 +64,18 @@ def addf(lhs: _Float, rhs: _Float) -> _Float: ...
 
 
 def resolve_addf() -> Callable[..., Operation]:
-    return arith.Addf
+    return arith.AddfOp
 
 
 def mulf(lhs: _Float, rhs: _Float) -> _Float: ...
 
 
 def resolve_mulf() -> Callable[..., Operation]:
-    return arith.Mulf
+    return arith.MulfOp
 
 
 def subf(lhs: _Float, rhs: _Float) -> _Float: ...
 
 
 def resolve_subf() -> Callable[..., Operation]:
-    return arith.Subf
+    return arith.SubfOp

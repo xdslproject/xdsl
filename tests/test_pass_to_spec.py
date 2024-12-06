@@ -47,7 +47,7 @@ class SimplePass(ModulePass):
 
 @pytest.mark.parametrize(
     "test_pass, test_spec",
-    (
+    [
         (
             CustomPass(3, (1, 2), None, ("clown", "season")),
             PipelinePassSpec(
@@ -66,7 +66,7 @@ class SimplePass(ModulePass):
             SimplePass((3.14, 2.13), 2),
             PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
         ),
-    ),
+    ],
 )
 def test_pass_to_spec_include_default(
     test_pass: ModulePass,
@@ -77,7 +77,7 @@ def test_pass_to_spec_include_default(
 
 @pytest.mark.parametrize(
     "test_pass, test_spec",
-    (
+    [
         (
             CustomPass(3, (1, 2), None, ("clown", "season")),
             PipelinePassSpec(
@@ -94,7 +94,7 @@ def test_pass_to_spec_include_default(
             SimplePass((3.14, 2.13), 2),
             PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
         ),
-    ),
+    ],
 )
 def test_pass_to_spec_exclude_default(
     test_pass: ModulePass, test_spec: PipelinePassSpec

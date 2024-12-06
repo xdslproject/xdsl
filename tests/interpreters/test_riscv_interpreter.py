@@ -14,8 +14,8 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.interpreter import Interpreter, PythonValues
-from xdsl.interpreters.ptr import RawPtr, TypedPtr
 from xdsl.interpreters.riscv import RiscvFunctions
+from xdsl.interpreters.utils.ptr import RawPtr, TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError

@@ -8,10 +8,14 @@ from typing_extensions import Self
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    Annotated,
     AnySignlessIntegerOrIndexType,
+    ArrayAttr,
     ContainerType,
     DenseArrayBase,
     IndexType,
+    IntegerAttr,
+    IntegerType,
     TensorType,
     UnrankedTensorType,
     i64,
@@ -26,6 +30,7 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
@@ -52,7 +57,7 @@ class CastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
@@ -88,7 +93,7 @@ class DimOp(IRDLOperation):
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -133,7 +138,7 @@ class EmptyOp(IRDLOperation):
 
     tensor = result_def(TensorType[Attribute])
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, dynamic_sizes: Sequence[SSAValue], tensor_type: Attribute):
         super().__init__(
@@ -176,6 +181,25 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
+ReassociationAttr = ArrayAttr[
+    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+]
+
+
+@irdl_op_definition
+class CollapseShapeOp(IRDLOperation):
+    name = "tensor.collapse_shape"
+
+    src = operand_def(TensorType[Attribute])
+    result = result_def(TensorType[Attribute])
+    reassociation = prop_def(ReassociationAttr)
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
+    traits = traits_def(NoMemoryEffect())
+
+
 @irdl_op_definition
 class ReshapeOp(IRDLOperation):
     name = "tensor.reshape"
@@ -184,7 +208,7 @@ class ReshapeOp(IRDLOperation):
     shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
     result = result_def(TensorType[Attribute])
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, source: SSAValue, shape: SSAValue, result_type: Attribute):
         super().__init__(
@@ -238,7 +262,9 @@ class ReshapeOp(IRDLOperation):
             or not isinstance(shape_type := self.shape.type, TensorType)
             or not isinstance(res_type := self.result.type, TensorType)
         ):
-            assert False, "tensor elementwise operation operands and result must be of type TensorType"
+            raise ValueError(
+                "tensor elementwise operation operands and result must be of type TensorType"
+            )
 
         source_type = cast(TensorType[Attribute], source_type)
         shape_type = cast(TensorType[Attribute], shape_type)
@@ -284,7 +310,7 @@ class ExtractSliceOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def from_static_parameters(
@@ -335,7 +361,7 @@ class InsertSliceOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
@@ -354,11 +380,11 @@ class InsertSliceOp(IRDLOperation):
         sizes = [] if sizes is None else sizes
         strides = [] if strides is None else strides
         if not static_offsets:
-            static_offsets = [memref.Subview.DYNAMIC_INDEX] * len(offsets) + (
+            static_offsets = [memref.SubviewOp.DYNAMIC_INDEX] * len(offsets) + (
                 [0] * (dims - len(offsets))
             )
         if not static_strides:
-            static_strides = [memref.Subview.DYNAMIC_INDEX] * len(strides) + (
+            static_strides = [memref.SubviewOp.DYNAMIC_INDEX] * len(strides) + (
                 [1] * (dims - len(strides))
             )
         return InsertSliceOp.build(
@@ -411,6 +437,90 @@ class InsertSliceOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ExtractOp(IRDLOperation):
+    name = "tensor.extract"
+
+    tensor = operand_def(TensorType)
+    indices = var_operand_def(IndexType)
+    result = result_def(Attribute)
+    # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
+
+    def __init__(
+        self,
+        tensor: SSAValue,
+        indices: Sequence[SSAValue] | SSAValue,
+        result_type: Attribute,
+    ):
+        if isinstance(indices, SSAValue):
+            indices = [indices]
+        return super().__init__(operands=[tensor, indices], result_types=[result_type])
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.tensor)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_ssa_value)
+        printer.print_string("]")
+        printer.print_string(" : ")
+        printer.print_attribute(self.tensor.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        tensor = parser.parse_operand()
+        indices = parser.parse_comma_separated_list(
+            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
+        )
+        parser.parse_punctuation(":")
+        source_tensor_type = parser.parse_type()
+        tensor_type = cast(TensorType[Attribute], source_tensor_type)
+        return cls(tensor, indices, tensor_type.get_element_type())
+
+
+@irdl_op_definition
+class InsertOp(IRDLOperation):
+    name = "tensor.insert"
+
+    scalar = operand_def(Attribute)
+    dest = operand_def(TensorType)
+    indices = var_operand_def(IndexType)
+    result = result_def(TensorType)
+    # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
+
+    def __init__(
+        self,
+        scalar: SSAValue,
+        dest: SSAValue,
+        indices: Sequence[SSAValue] | SSAValue,
+    ):
+        if isinstance(indices, SSAValue):
+            indices = [indices]
+        super().__init__(operands=(scalar, dest, indices), result_types=(dest.type,))
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.scalar)
+        printer.print_string(" into ")
+        printer.print_ssa_value(self.dest)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_ssa_value)
+        printer.print_string("]")
+        printer.print_string(" : ")
+        printer.print_attribute(self.dest.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        scalar = parser.parse_operand()
+        parser.parse_characters("into")
+        dest = parser.parse_operand()
+        indices = parser.parse_comma_separated_list(
+            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
+        )
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        return cls(scalar, dest, indices)
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -420,6 +530,9 @@ Tensor = Dialect(
         ExtractSliceOp,
         InsertSliceOp,
         ReshapeOp,
+        CollapseShapeOp,
+        ExtractOp,
+        InsertOp,
     ],
     [],
 )

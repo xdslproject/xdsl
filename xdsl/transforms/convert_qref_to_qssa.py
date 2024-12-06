@@ -48,4 +48,4 @@ class ConvertQRefToQssa(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             ConvertQRefToQssaPattern(), apply_recursively=False
-        ).rewrite_op(op)
+        ).rewrite_module(op)

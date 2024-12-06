@@ -17,6 +17,7 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     result_def,
+    traits_def,
 )
 from xdsl.traits import Pure
 
@@ -26,7 +27,7 @@ class BinaryOp(IRDLOperation, ABC):
     Simple binary operation
     """
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -36,7 +37,7 @@ class BinaryOp(IRDLOperation, ABC):
     irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($output)"
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
     def __init__(
         self,

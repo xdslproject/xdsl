@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import math
 from abc import ABC
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     Any,
     AnyFloat,
+    AnyFloatConstr,
     AnyIntegerAttr,
     AnyTensorType,
     ArrayAttr,
@@ -22,6 +23,7 @@ from xdsl.dialects.builtin import (
     SSAValue,
     StringAttr,
     SymbolRefAttr,
+    TensorOrMemrefOf,
     TensorType,
 )
 from xdsl.ir import (
@@ -31,6 +33,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     attr_def,
     base,
     irdl_op_definition,
@@ -160,40 +163,34 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
 
     def verify_(self) -> None:
         # Check that the arguments are broadcastable (using Numpy semantics) and that the result type is correct.
-        if (
-            not isinstance(lhs_type := self.lhs.type, TensorType)
-            or not isinstance(rhs_type := self.rhs.type, TensorType)
-            or not isinstance(res_type := self.res.type, TensorType)
-        ):
-            assert False, "onnx elementwise binary operation operands and result must be of type TensorType"
-        lhs_type = cast(TensorType[Attribute], lhs_type)
-        rhs_type = cast(TensorType[Attribute], rhs_type)
-        res_type = cast(TensorType[Attribute], res_type)
-        verify_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)
+        assert isinstance(lhs_type := self.lhs.type, TensorType)
+        assert isinstance(rhs_type := self.rhs.type, TensorType)
+        assert isinstance(res_type := self.res.type, TensorType)
+        verify_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)  # pyright: ignore[reportUnknownArgumentType]
 
 
 @irdl_op_definition
-class Add(ElementwiseBinOpBase):
+class AddOp(ElementwiseBinOpBase):
     name = "onnx.Add"
 
 
 @irdl_op_definition
-class Sub(ElementwiseBinOpBase):
+class SubOp(ElementwiseBinOpBase):
     name = "onnx.Sub"
 
 
 @irdl_op_definition
-class Mul(ElementwiseBinOpBase):
+class MulOp(ElementwiseBinOpBase):
     name = "onnx.Mul"
 
 
 @irdl_op_definition
-class Div(ElementwiseBinOpBase):
+class DivOp(ElementwiseBinOpBase):
     name = "onnx.Div"
 
 
 @irdl_op_definition
-class Relu(IRDLOperation):
+class ReluOp(IRDLOperation):
     """
     Relu takes one input data (Tensor) and produces one output data (Tensor) where the rectified linear function,
      y = max(0, x), is applied to the tensor elementwise.
@@ -226,7 +223,7 @@ class Relu(IRDLOperation):
 
 
 @irdl_op_definition
-class Gemm(IRDLOperation):
+class GemmOp(IRDLOperation):
     """
     General Matrix multiplication: https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3
     A' = transpose(A) if transA else A
@@ -276,13 +273,10 @@ class Gemm(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if (
-            not isinstance(tensor_a_type := self.tensor_a.type, TensorType)
-            or not isinstance(tensor_b_type := self.tensor_b.type, TensorType)
-            or not isinstance(tensor_c_type := self.tensor_c.type, TensorType)
-            or not isinstance(res_tensor_type := self.res_tensor.type, TensorType)
-        ):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(tensor_a_type := self.tensor_a.type, TensorType)
+        assert isinstance(tensor_b_type := self.tensor_b.type, TensorType)
+        assert isinstance(tensor_c_type := self.tensor_c.type, TensorType)
+        assert isinstance(res_tensor_type := self.res_tensor.type, TensorType)
 
         tensor_a_type = cast(TensorType[Attribute], tensor_a_type)
         tensor_b_type = cast(TensorType[Attribute], tensor_b_type)
@@ -327,7 +321,7 @@ class Gemm(IRDLOperation):
 
 
 @irdl_op_definition
-class Reshape(IRDLOperation):
+class ReshapeOp(IRDLOperation):
     """
     Reshape the input tensor similar to numpy.reshape.
     First input is the data tensor, second input is a shape tensor which specifies the output shape. It outputs the reshaped tensor.
@@ -362,12 +356,9 @@ class Reshape(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if (
-            not isinstance(data_type := self.data.type, TensorType)
-            or not isinstance(shape_type := self.shape.type, TensorType)
-            or not isinstance(reshaped_type := self.reshaped.type, TensorType)
-        ):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(data_type := self.data.type, TensorType)
+        assert isinstance(shape_type := self.shape.type, TensorType)
+        assert isinstance(reshaped_type := self.reshaped.type, TensorType)
 
         data_type = cast(TensorType[Attribute], data_type)
         reshaped_type = cast(TensorType[Attribute], reshaped_type)
@@ -399,7 +390,7 @@ class Reshape(IRDLOperation):
 
 
 @irdl_op_definition
-class Abs(IRDLOperation):
+class AbsOp(IRDLOperation):
     """
     Absolute takes one input data (Tensor) and produces one output data (Tensor) where absolute value,
     y = abs(x), is applied to the tensor elementwise.
@@ -431,7 +422,7 @@ class Abs(IRDLOperation):
 
 
 @irdl_op_definition
-class Conv(IRDLOperation):
+class ConvOp(IRDLOperation):
     """
     The convolution operator consumes an input tensor and a filter, and computes the output.
 
@@ -506,16 +497,10 @@ class Conv(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if (
-            not isinstance(data_type := self.data.type, TensorType)
-            or not isinstance(weight_type := self.weight.type, TensorType)
-            or not isinstance(bias_type := self.bias.type, TensorType | NoneType)
-            or not isinstance(res_type := self.res.type, TensorType)
-        ):
-            assert False, (
-                "onnx elementwise operation operands (data, weight) and result (res) must be of type TensorType,"
-                "operand (bias) must be of type TensorType or NoneType"
-            )
+        assert isinstance(data_type := self.data.type, TensorType)
+        assert isinstance(weight_type := self.weight.type, TensorType)
+        assert isinstance(bias_type := self.bias.type, TensorType | NoneType)
+        assert isinstance(res_type := self.res.type, TensorType)
 
         weight_type = cast(TensorType[Attribute], weight_type)
         data_type = cast(TensorType[Attribute], data_type)
@@ -578,7 +563,7 @@ class Conv(IRDLOperation):
 
 
 @irdl_op_definition
-class Constant(IRDLOperation):
+class ConstantOp(IRDLOperation):
     """
     Produce a constant tensor.
 
@@ -686,7 +671,7 @@ class Constant(IRDLOperation):
 
 
 @irdl_op_definition
-class MaxPoolSingleOut(IRDLOperation):
+class MaxPoolSingleOutOp(IRDLOperation):
     """
     ONNX MaxPool operation with a single output.
 
@@ -721,9 +706,9 @@ class MaxPoolSingleOut(IRDLOperation):
 
     name = "onnx.MaxPoolSingleOut"
 
-    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
-    data = operand_def(base(TensorType[T]) | base(MemRefType[T]))
-    output = result_def(base(TensorType[T]) | base(MemRefType[T]))
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
+    data = operand_def(TensorOrMemrefOf(T))
+    output = result_def(TensorOrMemrefOf(T))
 
     auto_pad = attr_def(StringAttr)
     ceil_mode = attr_def(AnyIntegerAttr)
@@ -763,13 +748,8 @@ class MaxPoolSingleOut(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(
-            data_type := self.data.type, TensorType | MemRefType
-        ) or not isinstance(output_type := self.output.type, TensorType | MemRefType):
-            assert False, (
-                "onnx elementwise operation operands (data) and result (output) must be of type TensorType or "
-                "MemRefTyoe "
-            )
+        assert isinstance(data_type := self.data.type, TensorType | MemRefType)
+        assert isinstance(output_type := self.output.type, TensorType | MemRefType)
 
         data_type = cast(TensorType[Attribute], data_type)
         output_type = cast(TensorType[Attribute], output_type)
@@ -839,7 +819,7 @@ class MaxPoolSingleOut(IRDLOperation):
 
 
 @irdl_op_definition
-class EntryPoint(IRDLOperation):
+class EntryPointOp(IRDLOperation):
     """
     Indicate ONNX entry point
     The "onnx.EntryPoint" function indicates the main entry point of ONNX model.
@@ -857,7 +837,7 @@ class EntryPoint(IRDLOperation):
 
 
 @irdl_op_definition
-class MatMul(IRDLOperation):
+class MatMulOp(IRDLOperation):
     """
     The operation MatMul performs matrix multiplication between two input matrices, A and B, and returns the result as matrix Y.
     Matrix multiplication is a fundamental operation in linear algebra, where each element of the resulting matrix Y is computed by taking the
@@ -928,7 +908,7 @@ class MatMul(IRDLOperation):
 
 
 @irdl_op_definition
-class Transpose(IRDLOperation):
+class TransposeOp(IRDLOperation):
     """
     The transpose_tensor function takes a tensor as input and returns its transpose.
     Transposing a tensor means flipping its dimensions, so that rows become columns and vice versa.
@@ -956,10 +936,8 @@ class Transpose(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(
-            tensor_input_type := self.tensor_input.type, TensorType
-        ) or not isinstance(tensor_output_type := self.tensor_output.type, TensorType):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(tensor_input_type := self.tensor_input.type, TensorType)
+        assert isinstance(tensor_output_type := self.tensor_output.type, TensorType)
 
         tensor_input_shape = tensor_input_type.get_shape()
         tensor_output_shape = tensor_output_type.get_shape()
@@ -1002,7 +980,7 @@ class Transpose(IRDLOperation):
 
 
 @irdl_op_definition
-class Squeeze(IRDLOperation):
+class SqueezeOp(IRDLOperation):
     """
     Squeeze the input tensor along the specified axes.
 
@@ -1041,8 +1019,9 @@ class Squeeze(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(input_tensor_type := self.input_tensor.type, TensorType):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(
+            input_tensor_type := self.input_tensor.type, TensorType
+        ), "onnx elementwise operation operands and result must be of type TensorType"
 
         input_tensor_shape = input_tensor_type.get_shape()
 
@@ -1058,7 +1037,7 @@ class Squeeze(IRDLOperation):
 
 
 @irdl_op_definition
-class Sigmoid(IRDLOperation):
+class SigmoidOp(IRDLOperation):
     """
     Applies the sigmoid function element-wise to all elements of the input tensor.
     The sigmoid function, denoted by sigma(x), is a common mathematical function used in machine learning and neural networks. It is defined as:
@@ -1091,10 +1070,8 @@ class Sigmoid(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(
-            input_tensor_type := self.input_tensor.type, TensorType
-        ) or not isinstance(output_tensor_type := self.output_tensor.type, TensorType):
-            assert False, "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(input_tensor_type := self.input_tensor.type, TensorType)
+        assert isinstance(output_tensor_type := self.output_tensor.type, TensorType)
 
         input_tensor_shape = input_tensor_type.get_shape()
         output_tensor_shape = output_tensor_type.get_shape()
@@ -1109,21 +1086,21 @@ class Sigmoid(IRDLOperation):
 ONNX = Dialect(
     "onnx",
     [
-        Abs,
-        Add,
-        Constant,
-        Conv,
-        Div,
-        EntryPoint,
-        Gemm,
-        MatMul,
-        MaxPoolSingleOut,
-        Mul,
-        Relu,
-        Reshape,
-        Sub,
-        Transpose,
-        Squeeze,
-        Sigmoid,
+        AbsOp,
+        AddOp,
+        ConstantOp,
+        ConvOp,
+        DivOp,
+        EntryPointOp,
+        GemmOp,
+        MatMulOp,
+        MaxPoolSingleOutOp,
+        MulOp,
+        ReluOp,
+        ReshapeOp,
+        SubOp,
+        TransposeOp,
+        SqueezeOp,
+        SigmoidOp,
     ],
 )

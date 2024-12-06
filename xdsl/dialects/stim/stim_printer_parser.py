@@ -4,8 +4,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
 
-from xdsl.dialects.builtin import ArrayAttr, IntAttr
-from xdsl.ir import Attribute
+from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
+from xdsl.ir import Attribute, Operation
 
 """
 This file implements a printer that prints to the .stim file format.
@@ -48,10 +48,18 @@ class StimPrinter:
             with self.in_parens():
                 self.print_list(attribute, self.print_attribute)
             return
+        if isinstance(attribute, FloatData):
+            self.print_string(f"{attribute.data}")
+            return
         if isinstance(attribute, IntAttr):
             self.print_string(f"{attribute.data}")
             return
         raise ValueError(f"Cannot print in stim format: {attribute}")
+
+    def print_op(self, op: Operation):
+        if not isinstance(op, StimPrintable):
+            raise ValueError(f"Cannot print in stim format: {op}")
+        op.print_stim(self)
 
 
 class StimPrintable(abc.ABC):

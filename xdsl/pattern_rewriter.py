@@ -22,8 +22,10 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.irdl import GenericAttrConstraint, base
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @dataclass(eq=False)
@@ -551,8 +553,34 @@ _AttributeT = TypeVar("_AttributeT", bound=Attribute)
 _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
+def attr_constr_rewrite_pattern(
+    constr: GenericAttrConstraint[_AttributeT],
+) -> Callable[
+    [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
+    Callable[[_TypeConversionPatternT, Attribute], Attribute | None],
+]:
+    """
+    This function is intended to be used as a decorator on a TypeConversionPattern
+    method. It uses the passed constraint to match on a specific attribute type before
+    calling the decorated function.
+    """
+
+    def wrapper(
+        func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
+    ):
+        @wraps(func)
+        def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
+            if isattr(typ, constr):
+                return func(self, typ)
+            return None
+
+        return impl
+
+    return wrapper
+
+
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
+    func: Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None],
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern
@@ -561,14 +589,8 @@ def attr_type_rewrite_pattern(
     """
     params = list(inspect.signature(func).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
-
-    @wraps(func)
-    def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-        if isa(typ, expected_type):
-            return func(self, typ)
-        return None
-
-    return impl
+    constr = base(expected_type)
+    return attr_constr_rewrite_pattern(constr)(func)
 
 
 @dataclass(eq=False, repr=False)
@@ -668,7 +690,7 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
-    post_walk_func: Callable[[Operation, PatternRewriterListener], bool] | None = field(
+    post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
         default=None
     )
     """
@@ -751,19 +773,19 @@ class PatternRewriteWalker:
         Rewrite operations nested in the given operation by repeatedly applying the
         pattern. Returns `True` if the IR was mutated.
         """
-        return self.rewrite_op(module)
+        return self.rewrite_region(module.body)
 
-    def rewrite_op(self, op: Operation) -> bool:
+    def rewrite_region(self, region: Region) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
         pattern. Returns `True` if the IR was mutated.
         """
         pattern_listener = self._get_rewriter_listener()
 
-        self._populate_worklist(op)
+        self._populate_worklist(region)
         op_was_modified = self._process_worklist(pattern_listener)
         if self.post_walk_func is not None:
-            op_was_modified |= self.post_walk_func(op, pattern_listener)
+            op_was_modified |= self.post_walk_func(region, pattern_listener)
 
         if not self.apply_recursively:
             return op_was_modified
@@ -771,14 +793,14 @@ class PatternRewriteWalker:
         result = op_was_modified
 
         while op_was_modified:
-            self._populate_worklist(op)
+            self._populate_worklist(region)
             op_was_modified = self._process_worklist(pattern_listener)
             if self.post_walk_func is not None:
-                op_was_modified |= self.post_walk_func(op, pattern_listener)
+                op_was_modified |= self.post_walk_func(region, pattern_listener)
 
         return result
 
-    def _populate_worklist(self, op: Operation) -> None:
+    def _populate_worklist(self, op: Operation | Region | Block) -> None:
         """Populate the worklist with all nested operations."""
         # We walk in reverse order since we use a stack for our worklist.
         for sub_op in op.walk(

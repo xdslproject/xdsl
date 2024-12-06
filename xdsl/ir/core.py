@@ -606,20 +606,22 @@ class ParametrizedAttribute(Attribute):
         super()._verify()
 
 
-class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
+class TypedAttribute(ParametrizedAttribute, ABC):
     """
     An attribute with a type.
     """
 
-    @staticmethod
-    def get_type_index() -> int: ...
-
     @classmethod
+    def get_type_index(cls) -> int: ...
+
+    def get_type(self) -> Attribute:
+        return self.parameters[self.get_type_index()]
+
+    @staticmethod
     def parse_with_type(
-        cls: type[TypedAttribute[AttributeCovT]],
         parser: AttrParser,
         type: Attribute,
-    ) -> TypedAttribute[AttributeCovT]:
+    ) -> TypedAttribute:
         """
         Parse the attribute with the given type.
         """
@@ -708,6 +710,40 @@ class OpOperands(Sequence[SSAValue]):
         return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
+class OpTraits(Iterable[OpTrait]):
+    """
+    An operation's traits.
+    Some operations have mutually recursive traits, such as one is always the parent
+    operation of the other.
+    For this case, the operation's traits can be declared lazily, and resolved only
+    at the first use.
+    """
+
+    _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+
+    def __init__(
+        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+    ) -> None:
+        self._traits = traits
+
+    @property
+    def traits(self) -> frozenset[OpTrait]:
+        """Returns a copy of this instance's traits."""
+        if not isinstance(self._traits, frozenset):
+            self._traits = frozenset(self._traits())
+        return self._traits
+
+    def add_trait(self, trait: OpTrait):
+        """Adds a trait to the class."""
+        self._traits = self.traits.union((trait,))
+
+    def __iter__(self) -> Iterator[OpTrait]:
+        return iter(self.traits)
+
+    def __eq__(self, value: object, /) -> bool:
+        return isinstance(value, OpTraits) and self._traits == value._traits
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -749,7 +785,7 @@ class Operation(IRNode):
     _prev_op: Operation | None = field(default=None, repr=False)
     """Previous operation in block containing this operation."""
 
-    traits: ClassVar[frozenset[OpTrait]]
+    traits: ClassVar[OpTraits]
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set
@@ -921,10 +957,9 @@ class Operation(IRNode):
         """Get the region position in the operation."""
         if region.parent is not self:
             raise Exception("Region is not attached to the operation.")
-        for idx, curr_region in enumerate(self.regions):
-            if curr_region is region:
-                return idx
-        assert False, "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
+        return next(
+            idx for idx, curr_region in enumerate(self.regions) if curr_region is region
+        )
 
     def detach_region(self, region: int | Region) -> Region:
         """
@@ -1618,10 +1653,7 @@ class Block(IRNode, IRWithUses):
         """Get the operation position in a block."""
         if op.parent is not self:
             raise Exception("Operation is not a children of the block.")
-        for idx, block_op in enumerate(self.ops):
-            if block_op is op:
-                return idx
-        assert False, "Unexpected xdsl error"
+        return next(idx for idx, block_op in enumerate(self.ops) if block_op is op)
 
     def detach_op(self, op: Operation) -> Operation:
         """
@@ -2142,10 +2174,9 @@ class Region(IRNode):
         """Get the block position in a region."""
         if block.parent is not self:
             raise Exception("Block is not a child of the region.")
-        for idx, region_block in enumerate(self.blocks):
-            if region_block is block:
-                return idx
-        assert False, "Unexpected xdsl error"
+        return next(
+            idx for idx, region_block in enumerate(self.blocks) if region_block is block
+        )
 
     def detach_block(self, block: int | Block) -> Block:
         """

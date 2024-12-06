@@ -7,7 +7,7 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.2.1",
+    "immutabledict<4.2.2",
     "typing-extensions>=4.7,<4.13",
     "ordered-set==4.1.0",
 ]
@@ -24,20 +24,20 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.9.6",
+    "marimo==0.9.31",
     "pre-commit==4.0.1",
-    "ruff==0.6.9",
+    "ruff==0.8.2",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
-    "textual-dev==1.6.1",
+    "textual-dev==1.7.0",
     "pytest-asyncio==0.24.0",
-    "pyright==1.1.384",
+    "pyright==1.1.390",
 ]
-gui = ["textual==0.83.0", "pyclip==0.7"]
-jax = ["jax==0.4.34", "numpy==2.1.2"]
-onnx = ["onnx==1.17.0", "numpy==2.1.2"]
+gui = ["textual==0.89.1", "pyclip==0.7"]
+jax = ["jax==0.4.36", "numpy==2.1.3"]
+onnx = ["onnx==1.17.0", "numpy==2.1.3"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.18.1"]
+wgpu = ["wgpu==0.19.2"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -67,7 +67,9 @@ build-backend = "setuptools.build_meta"
 reportImportCycles = false
 reportMissingModuleSource = false
 enableTypeIgnoreComments = false
+enableExperimentalFeatures = true
 typeCheckingMode = "strict"
+extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
     "tests/dialects/test_memref.py",
@@ -77,7 +79,7 @@ typeCheckingMode = "strict"
     "tests/test_frontend_python_code_check.py",
     "xdsl/frontend/onnx/ir_builder.py",
     "xdsl/frontend/onnx/type.py",
-    "xdsl/interpreters/experimental/wgpu.py",
+    "xdsl/interpreters/wgpu.py",
 ]
 "ignore" = [
     "docs/marimo",
@@ -98,10 +100,8 @@ select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
 ignore = [
     "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
-    "PT007", # https://beta.ruff.rs/docs/rules/pytest-parametrize-values-wrong-type/
     "PT011", # https://beta.ruff.rs/docs/rules/pytest-raises-too-broad/
     "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
-    "PT015", # https://beta.ruff.rs/docs/rules/pytest-assert-always-false/
 ]
 
 [tool.ruff.lint.pycodestyle]
@@ -111,17 +111,19 @@ ignore = [
 max-line-length = 300
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"xdsl.parser.core".msg = "Use xdsl.parser instead."
-"xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
-"xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
-"xdsl.ir.core".msg = "Use xdsl.ir instead."
-"xdsl.irdl.common".msg = "Use xdsl.irdl instead"
-"xdsl.irdl.constraints".msg = "Use xdsl.irdl instead"
-"xdsl.irdl.attributes".msg = "Use xdsl.irdl instead"
-"xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
+"xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
+"xdsl.dialects.utils.format".msg = "Use xdsl.dialects.utils instead"
 "xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"
 "xdsl.ir.affine.affine_map".msg = "Use xdsl.ir.affine instead"
 "xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"
+"xdsl.ir.core".msg = "Use xdsl.ir instead."
+"xdsl.irdl.attributes".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.common".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.constraints".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
+"xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
+"xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
+"xdsl.parser.core".msg = "Use xdsl.parser instead."
 
 
 [tool.ruff.lint.per-file-ignores]

@@ -45,6 +45,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -59,7 +60,7 @@ from xdsl.utils.exceptions import VerifyException
 
 class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
     # TODO: Remove this constraint for complex types.
-    T: ClassVar[VarConstraint[AnyTensorType]] = VarConstraint("T", base(AnyTensorType))
+    T: ClassVar = VarConstraint("T", base(AnyTensorType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -223,7 +224,7 @@ class AbsOp(IRDLOperation):
     name = "stablehlo.abs"
 
     # TODO: Remove this constraint for complex types.
-    T: ClassVar[VarConstraint[AnyTensorType]] = VarConstraint("T", base(AnyTensorType))
+    T: ClassVar = VarConstraint("T", base(AnyTensorType))
 
     operand = operand_def(T)
     result = result_def(T)
@@ -286,9 +287,7 @@ class AndOp(IRDLOperation):
 
     name = "stablehlo.and"
 
-    T: ClassVar[VarConstraint[IntegerTensorType]] = VarConstraint(
-        "T", base(IntegerTensorType)
-    )
+    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -415,7 +414,7 @@ class ReturnOp(IRDLOperation):
     name = "stablehlo.return"
 
     input = var_operand_def(AnyTensorType)
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(self, input: list[SSAValue]):
         super().__init__(operands=(input,))
@@ -449,7 +448,7 @@ class TransposeOp(IRDLOperation):
         )
 
     def get_permutation(self) -> tuple[int, ...]:
-        return cast(tuple[int, ...], self.permutation.as_tuple())
+        return cast(tuple[int, ...], self.permutation.get_values())
 
     def verify_(self) -> None:
         # Operand and result types are checked before the custom `verify_`

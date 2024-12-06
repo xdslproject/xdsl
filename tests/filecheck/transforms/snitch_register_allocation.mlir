@@ -6,7 +6,7 @@
     "stride_patterns" = [#snitch_stream.stride_pattern<ub = [], strides = []>],
     "operandSegmentSizes" = array<i32: 2, 1>
 }> ({
-^0(%s0 : !stream.readable<!riscv.freg>, %s1 : !stream.readable<!riscv.freg>, %s2 : !stream.writable<!riscv.freg>):
+^0(%s0 : !snitch.readable<!riscv.freg>, %s1 : !snitch.readable<!riscv.freg>, %s2 : !snitch.writable<!riscv.freg>):
     %c5 = riscv.li 5 : !riscv.reg
     riscv_snitch.frep_outer %c5 {
         %x = riscv_snitch.read from %s0 : !riscv.freg
@@ -24,7 +24,7 @@
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [], strides = []>
 // CHECK-NEXT:      ]
 // CHECK-NEXT:    } ins(%ptr0, %ptr1 : !riscv.reg, !riscv.reg) outs(%ptr2 : !riscv.reg) {
-// CHECK-NEXT:    ^{{.*}}(%s0 : !stream.readable<!riscv.freg<ft0>>, %s1 : !stream.readable<!riscv.freg<ft1>>, %s2 : !stream.writable<!riscv.freg<ft2>>):
+// CHECK-NEXT:    ^{{.*}}(%s0 : !snitch.readable<!riscv.freg<ft0>>, %s1 : !snitch.readable<!riscv.freg<ft1>>, %s2 : !snitch.writable<!riscv.freg<ft2>>):
 // CHECK-NEXT:      %c5 = riscv.li 5 : !riscv.reg
 // CHECK-NEXT:      riscv_snitch.frep_outer %c5 {
 // CHECK-NEXT:        %x = riscv_snitch.read from %s0 : !riscv.freg<ft0>

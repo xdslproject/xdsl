@@ -2,9 +2,15 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func, memref
+from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
+    AnyMemRefType,
     ArrayAttr,
+    DenseIntOrFPElementsAttr,
+    Float16Type,
+    Float32Type,
+    FloatAttr,
     FunctionType,
     IndexType,
     IntegerAttr,
@@ -13,7 +19,15 @@ from xdsl.dialects.builtin import (
     i16,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,15 +42,16 @@ from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 
-def get_dir_and_distance_ops(
-    op: csl_stencil.AccessOp,
-) -> tuple[csl.DirectionOp, arith.Constant]:
+def get_dir_and_distance(
+    offset: stencil.IndexAttr | tuple[int, ...],
+) -> tuple[csl.Direction, int]:
     """
     Given an access op, return the distance and direction, assuming as access
     to a neighbour (not self) in a star-shape pattern
     """
 
-    offset = tuple(op.offset)
+    if isinstance(offset, stencil.IndexAttr):
+        offset = tuple(offset)
     assert len(offset) == 2, "Expecting 2-dimensional access"
     assert (offset[0] == 0) != (
         offset[1] == 0
@@ -54,7 +69,18 @@ def get_dir_and_distance_ops(
             "Invalid offset, expecting 2-dimensional star-shape neighbor access"
         )
     max_distance = abs(max(offset, key=abs))
-    return csl.DirectionOp(d), arith.Constant(IntegerAttr(max_distance, 16))
+    return d, max_distance
+
+
+def get_dir_and_distance_ops(
+    op: csl_stencil.AccessOp,
+) -> tuple[csl.DirectionOp, arith.ConstantOp]:
+    """
+    Given an access op, return the distance and direction ops, assuming as access
+    to a neighbour (not self) in a star-shape pattern
+    """
+    d, max_distance = get_dir_and_distance(op.offset)
+    return csl.DirectionOp(d), arith.ConstantOp(IntegerAttr(max_distance, 16))
 
 
 def _get_module_wrapper(op: Operation) -> csl_wrapper.ModuleOp | None:
@@ -149,12 +175,12 @@ class LowerApplyOp(RewritePattern):
             op.field,  # buffer - this is a placeholder and should not be used after lowering AccessOp
             index_op.result,
             op.accumulator,
-            *op.args[: len(op.receive_chunk.block.args) - 3],
+            *op.args_rchunk,
         ]
         done_arg_m = [
             op.field,
             op.accumulator,
-            *op.args[len(chunk_arg_m) - 3 :],
+            *op.args_dexchng,
         ]
         index_op.result.name_hint = "offset"
         op.accumulator.name_hint = "accumulator"
@@ -175,7 +201,7 @@ class LowerApplyOp(RewritePattern):
         # ensure we send only core data
         assert isa(op.accumulator.type, memref.MemRefType[Attribute])
         assert isa(op.field.type, memref.MemRefType[Attribute])
-        send_buf = memref.Subview.get(
+        send_buf = memref.SubviewOp.get(
             op.field,
             [
                 (d - s) // 2  # symmetric offset
@@ -189,7 +215,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # add api call
-        num_chunks = arith.Constant(IntegerAttr(op.num_chunks.value, i16))
+        num_chunks = arith.ConstantOp(IntegerAttr(op.num_chunks.value, i16))
         chunk_ref = csl.AddressOfFnOp(chunk_fn)
         done_ref = csl.AddressOfFnOp(done_fn)
         # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
@@ -209,6 +235,84 @@ class LowerApplyOp(RewritePattern):
         rewriter.replace_matched_op(
             [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
         )
+
+
+@dataclass(frozen=True)
+class GenerateCoeffAPICalls(RewritePattern):
+    """
+    Generates calls to the stencil_comms API to set coefficients.
+
+    The API currently supports only f32 coeffs.
+
+    Todo:
+      * reset coeffs for any subsequent apply op that does not generate a `setCoeffs` API call
+      * check if coeffs need to be set repeatedly (in loops or for multiple applies)
+      * hoist API call for loops with exactly one apply op
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        if (
+            not (wrapper := _get_module_wrapper(op))
+            or op.coeffs is None
+            or len(op.coeffs) == 0
+        ):
+            return
+        coeffs = list(op.coeffs)
+        elem_t = coeffs[0].coeff.type
+        pattern = wrapper.get_param_value("pattern").value.data
+        neighbours = pattern - 1
+        empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
+        cmap: dict[csl.Direction, list[AnyFloatAttr]] = {
+            csl.Direction.NORTH: empty,
+            csl.Direction.SOUTH: empty.copy(),
+            csl.Direction.EAST: empty.copy(),
+            csl.Direction.WEST: empty.copy(),
+        }
+
+        for c in coeffs:
+            direction, distance = get_dir_and_distance(c.offset)
+            cmap[direction][distance] = c.coeff
+
+        memref_t = memref.MemRefType(Float32Type(), (pattern,))
+        ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
+
+        cnsts = {
+            d: arith.ConstantOp(
+                DenseIntOrFPElementsAttr.create_dense_float(memref_t, v)
+            )
+            for d, v in cmap.items()
+        }
+        addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
+
+        # pretty-printing
+        for d, c in cnsts.items():
+            c.result.name_hint = str(d)
+
+        rewriter.insert_op(
+            [
+                *cnsts.values(),
+                east := addrs[csl.Direction.EAST],
+                west := addrs[csl.Direction.WEST],
+                south := addrs[csl.Direction.SOUTH],
+                north := addrs[csl.Direction.NORTH],
+                flse := arith.ConstantOp(IntegerAttr.from_bool(False)),
+                csl.MemberCallOp(
+                    "setCoeffs",
+                    None,
+                    wrapper.get_program_import("stencil_comms.csl"),
+                    [
+                        east,
+                        west,
+                        south,
+                        north,
+                        flse,
+                    ],
+                ),
+            ],
+            InsertPoint.before(op),
+        )
+        op.coeffs = None
 
 
 @dataclass(frozen=True)
@@ -235,24 +339,37 @@ class InlineApplyOpArgs(RewritePattern):
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
         arg_mapping = zip(
             op.done_exchange.block.args[2:],
-            op.args[-(len(op.done_exchange.block.args) - 2) :],
+            op.args_dexchng,
         )
         for block_arg, arg in [
             (op.done_exchange.block.args[0], op.field),
             *arg_mapping,
         ]:
-            if isinstance(arg, OpResult) and arg.op.parent == op.parent:
-                if not (
-                    isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)
-                ):
-                    raise ValueError(
-                        "Can only promote csl.LoadVarOp or side_effect_free op"
-                    )
-                rewriter.insert_op(
-                    new_arg := arg.op.clone(),
-                    InsertPoint.at_start(op.done_exchange.block),
+            self._replace_block_arg(block_arg, arg, op.done_exchange, op, rewriter)
+        for block_arg, arg in zip(
+            op.receive_chunk.block.args[3:],
+            op.args_rchunk,
+        ):
+            self._replace_block_arg(block_arg, arg, op.receive_chunk, op, rewriter)
+
+    @staticmethod
+    def _replace_block_arg(
+        block_arg: BlockArgument,
+        arg: SSAValue,
+        region: Region,
+        apply: csl_stencil.ApplyOp,
+        rewriter: PatternRewriter,
+    ):
+        if isinstance(arg, OpResult) and arg.op.parent == apply.parent:
+            if not (isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)):
+                raise ValueError(
+                    "Can only promote csl.LoadVarOp or side_effect_free op"
                 )
-                block_arg.replace_by(SSAValue.get(new_arg))
+            rewriter.insert_op(
+                new_arg := arg.op.clone(),
+                InsertPoint.at_start(region.block),
+            )
+            block_arg.replace_by(SSAValue.get(new_arg))
 
 
 @dataclass(frozen=True)
@@ -275,6 +392,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
      * each access is immediately processed by the same (type of) reduction op
      * each reduction op uses the same accumulator to store a result
      * each reduction op uses no inputs except from the above access ops
+     * if this is inside a loop, we need to zero-out the accumulator buffer either before or after the loop
      * todo: the data of the accumulator is not itself an input of the reduction
      * todo: no other ops modify the accumulator in-between reduction ops
     """
@@ -297,9 +415,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         # find potential 'reduction' ops
-        reduction_ops: set[Operation] = set(
-            u.operation for a in access_ops for u in a.result.uses
-        )
+        reduction_ops = set(u.operation for a in access_ops for u in a.result.uses)
 
         # check if reduction ops are of the same type
         red_op_ts = set(type(r) for r in reduction_ops)
@@ -308,7 +424,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             csl.FmulsOp,
         ]:
             return
-        red_ops = cast(set[csl.BuiltinDsdOp], reduction_ops)
+        reduction_ops = cast(set[csl.BuiltinDsdOp], reduction_ops)
 
         # check: only apply rewrite if each access has exactly one use
         if any(len(a.result.uses) != 1 for a in access_ops):
@@ -316,27 +432,27 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
 
         # check: only apply rewrite if reduction ops use `access` ops only (plus one other, checked below)
         # note, we have already checked that each access op is only consumed once, which by implication is here
-        red_args = set(arg for r in red_ops for arg in r.ops)
+        red_args = set(arg for r in reduction_ops for arg in r.ops)
         nonaccess_args = red_args - set(a.result for a in access_ops)
         if len(nonaccess_args) > 1:
             return
 
         # check: only apply rewrite if the non-`access` op is an accumulator and the result param in all reduction ops
         accumulator = nonaccess_args.pop()
-        if any(accumulator != r.ops[0] for r in red_ops):
+        if any(accumulator != r.ops[0] for r in reduction_ops):
             return
 
         if (
-            not isattr(accumulator.type, memref.MemRefType)
+            not isattr(accumulator.type, AnyMemRefType)
             or not isinstance(op.accumulator, OpResult)
-            or not isinstance(alloc := op.accumulator.op, memref.Alloc)
+            or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
         ):
             raise ValueError("Pass needs to be run on memref types")
 
         # Set up new accumulator GetMemDsd, with 0-stride in `direction` and `distance` dimensions.
         # Effectively, this activates only the z-value dimension.
         dsd_t = csl.DsdType(csl.DsdKind.mem4d_dsd)
-        direction_count = arith.Constant.from_int_and_width(4, 16)
+        direction_count = arith.ConstantOp.from_int_and_width(4, 16)
         pattern = wrapper.get_program_param("pattern")
         chunk_size = wrapper.get_program_param("chunk_size")
         acc_dsd = csl.GetMemDsdOp.build(
@@ -350,7 +466,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         new_ops: list[Operation] = [direction_count, acc_dsd]
         if (
             isinstance(accumulator, OpResult)
-            and isinstance(subview := accumulator.op, memref.Subview)
+            and isinstance(subview := accumulator.op, memref.SubviewOp)
             and subview.source == op.receive_chunk.block.args[2]
         ):
             assert isa(subview.source.type, memref.MemRefType[Attribute])
@@ -375,11 +491,22 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
 
         rewriter.insert_op(
             [*new_ops, full_stencil_dsd, reduction_op],
-            InsertPoint.after(list(red_ops)[-1]),
+            InsertPoint.after(list(reduction_ops)[-1]),
         )
 
-        for e in [*access_ops, *red_ops]:
+        for e in [*access_ops, *reduction_ops]:
             rewriter.erase_op(e, safe_erase=False)
+
+        # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
+        assert (elem_t := accumulator.type.get_element_type()) in [
+            Float16Type(),
+            Float32Type(),
+        ]
+        zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
+        mov_op = csl.FmovsOp if elem_t == Float32Type() else csl.FmovhOp
+        rewriter.insert_op(
+            [zero, mov_op(operands=[[op.accumulator, zero]])], InsertPoint.before(op)
+        )
 
     @staticmethod
     def is_full_2d_starshaped_access(
@@ -415,6 +542,10 @@ class LowerCslStencil(ModulePass):
                     InlineApplyOpArgs(),
                 ]
             ),
+            apply_recursively=False,
+        ).rewrite_module(op)
+        PatternRewriteWalker(
+            GenerateCoeffAPICalls(),
             apply_recursively=False,
         ).rewrite_module(op)
         module_pass = PatternRewriteWalker(

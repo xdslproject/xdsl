@@ -47,7 +47,7 @@ def __():
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
-    from xdsl.interpreters.ptr import TypedPtr
+    from xdsl.interpreters.utils.ptr import TypedPtr
     from xdsl.ir import Attribute, Block, Region, SSAValue
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
@@ -147,7 +147,7 @@ def __(
         b.name_hint = "B"
         c.name_hint = "C"
         body = Region(Block(arg_types = (f64, f64, f64)))
-        linalg.Generic(
+        linalg.GenericOp(
             inputs=(a, b),
             outputs=(c,),
             body=body,
@@ -163,8 +163,8 @@ def __(
             )
         )
         with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
-            prod_val = arith.Mulf(a_val, b_val).result
-            acc_new_val = arith.Addf(acc_old_val, prod_val).result
+            prod_val = arith.MulfOp(a_val, b_val).result
+            acc_new_val = arith.AddfOp(acc_old_val, prod_val).result
             linalg.YieldOp(acc_new_val)
             # Add more name hints to make it easier to track how values are lowered
             a_val.name_hint = "a"
@@ -172,7 +172,7 @@ def __(
             acc_old_val.name_hint = "acc_old"
             prod_val.name_hint = "prod"
             acc_new_val.name_hint = "acc_new"
-        func.Return()
+        func.ReturnOp()
 
     linalg_module = ModuleOp((kernel_op,))
 
@@ -554,7 +554,7 @@ def __(
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-    register_implementations(snitch_interpreter, ctx, include_wgpu=False)
+    register_implementations(snitch_interpreter, ctx, include_wgpu=False, include_onnx=False)
 
     snitch_interpreter.call_op(
         "matmul",

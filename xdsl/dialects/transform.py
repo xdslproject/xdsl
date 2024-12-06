@@ -40,6 +40,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -149,7 +150,7 @@ AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
 
 
 @irdl_op_definition
-class GetConsumersOfResult(IRDLOperation):
+class GetConsumersOfResultOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult
     """
@@ -228,7 +229,7 @@ class GetParentOp(IRDLOperation):
 
 
 @irdl_op_definition
-class GetProducerOfOperand(IRDLOperation):
+class GetProducerOfOperandOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand
     """
@@ -261,8 +262,7 @@ class GetResultOp(IRDLOperation):
 
     name = "transform.get_result"
 
-    result_number = prop_def(AnyIntegerAttr)
-    raw_position_list = opt_prop_def(DenseArrayBase)
+    raw_position_list = prop_def(DenseArrayBase)
     is_inverted = opt_prop_def(UnitAttr)
     is_all = opt_prop_def(UnitAttr)
     target = operand_def(TransformOpHandleType)
@@ -270,23 +270,17 @@ class GetResultOp(IRDLOperation):
 
     def __init__(
         self,
-        result_number: int | AnyIntegerAttr,
         target: SSAValue,
-        raw_position_list: (
-            Sequence[int] | Sequence[IntAttr] | DenseArrayBase | None
-        ) = None,
+        raw_position_list: (Sequence[int] | Sequence[IntAttr] | DenseArrayBase),
         is_inverted: bool = False,
         is_all: bool = False,
     ):
-        if isinstance(result_number, int):
-            result_number = IntegerAttr(result_number, IntegerType(64))
         if isinstance(raw_position_list, Sequence):
             raw_position_list = DenseArrayBase.create_dense_int(
                 IntegerType(64), raw_position_list
             )
         super().__init__(
             properties={
-                "result_number": result_number,
                 "raw_position_list": raw_position_list,
                 "is_inverted": UnitAttr() if is_inverted else None,
                 "is_all": UnitAttr() if is_all else None,
@@ -513,7 +507,7 @@ class YieldOp(IRDLOperation):
 
     name = "transform.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -530,7 +524,7 @@ class SequenceOp(IRDLOperation):
     extra_bindings = var_operand_def(TransformHandleType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = frozenset([IsolatedFromAbove()])
+    traits = traits_def(IsolatedFromAbove())
 
     def __init__(
         self,
@@ -610,8 +604,8 @@ class TileOp(IRDLOperation):
                     AnyOpType()
                     for _ in range(
                         (
-                            len(static_sizes.as_tuple())
-                            - static_sizes.as_tuple().count(0)
+                            len(static_sizes.get_values())
+                            - static_sizes.get_values().count(0)
                         )
                         if static_sizes
                         else 0
@@ -822,10 +816,10 @@ class MatchOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
-        GetConsumersOfResult,
+        GetConsumersOfResultOp,
         GetDefiningOp,
         GetParentOp,
-        GetProducerOfOperand,
+        GetProducerOfOperandOp,
         GetResultOp,
         GetTypeOp,
         IncludeOp,

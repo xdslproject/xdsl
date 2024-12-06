@@ -9,8 +9,8 @@ from xdsl.ir.affine import AffineExpr, AffineMap
 def test_linalg_on_memrefs():
     @Builder.implicit_region(())
     def funcBody(args: tuple[Any, ...]):
-        mem = memref.Alloc.get(f32, shape=[100])
-        constant = arith.Constant(FloatAttr(0.0, f32))
+        mem = memref.AllocOp.get(f32, shape=[100])
+        constant = arith.ConstantOp(FloatAttr(0.0, f32))
 
         inputs = [constant.results[0]]
         outputs = [mem.results[0]]
@@ -29,17 +29,17 @@ def test_linalg_on_memrefs():
 
         iterators = [linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL)]
 
-        linalg.Generic(inputs, outputs, body, indexing_maps, iterators)
+        linalg.GenericOp(inputs, outputs, body, indexing_maps, iterators)
 
-        func.Return()
+        func.ReturnOp()
 
     func.FuncOp("foo", ([], []), funcBody)
 
 
 def test_matmul_on_memrefs():
-    a = memref.Alloc.get(f32, shape=[100, 50])
-    b = memref.Alloc.get(f32, shape=[50, 100])
-    c = memref.Alloc.get(f32, shape=[100, 100])
+    a = memref.AllocOp.get(f32, shape=[100, 50])
+    b = memref.AllocOp.get(f32, shape=[50, 100])
+    c = memref.AllocOp.get(f32, shape=[100, 100])
 
     matmul_op = linalg.MatmulOp(inputs=(a.memref, b.memref), outputs=(c.memref,))
 
@@ -47,14 +47,14 @@ def test_matmul_on_memrefs():
 
 
 def test_loop_range_methods():
-    A = memref.Alloc.get(f32, shape=[100, 50])
-    B = memref.Alloc.get(f32, shape=[50, 100])
-    C = memref.Alloc.get(f32, shape=[100, 100])
+    A = memref.AllocOp.get(f32, shape=[100, 50])
+    B = memref.AllocOp.get(f32, shape=[50, 100])
+    C = memref.AllocOp.get(f32, shape=[100, 100])
 
     @Builder.implicit_region((f32, f32, f32))
     def body(args: tuple[Any, ...]):
         a, b, c = args
-        linalg.YieldOp(arith.Addf(arith.Mulf(a, b), c))
+        linalg.YieldOp(arith.AddfOp(arith.MulfOp(a, b), c))
 
     i = AffineExpr.dimension(0)
     j = AffineExpr.dimension(1)
@@ -71,7 +71,7 @@ def test_loop_range_methods():
         linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
     ]
 
-    op = linalg.Generic(
+    op = linalg.GenericOp(
         [A.results[0], B.results[0]], [C.results[0]], body, indexing_maps, iterators
     )
 

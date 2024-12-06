@@ -113,7 +113,7 @@ def _generate_single_axis_calc_and_check(
     # because my_pos + 0 is always inbounds!
     if offset_in_axis == 0:
         return (
-            [true := arith.Constant.from_int_and_width(1, 1)],
+            [true := arith.ConstantOp.from_int_and_width(1, 1)],
             pos_in_axis,
             true.result,
         )
@@ -129,14 +129,16 @@ def _generate_single_axis_calc_and_check(
 
     return (
         [
-            offset_v := arith.Constant.from_int_and_width(offset_in_axis, _rank_dtype),
-            dest := arith.Addi(pos_in_axis, offset_v),
+            offset_v := arith.ConstantOp.from_int_and_width(
+                offset_in_axis, _rank_dtype
+            ),
+            dest := arith.AddiOp(pos_in_axis, offset_v),
             # get the bound we need to check:
-            bound := arith.Constant.from_int_and_width(
+            bound := arith.ConstantOp.from_int_and_width(
                 0 if is_decrement else axis_size, _rank_dtype
             ),
             # comparison == true <=> we have a valid dest positon
-            cond_val := arith.Cmpi(dest, bound, comparison),
+            cond_val := arith.CmpiOp(dest, bound, comparison),
         ],
         dest.result,
         cond_val.result,
@@ -160,9 +162,9 @@ def _grid_coords_from_rank(
 
     carry = my_rank
     for div in divisors:
-        imm = arith.Constant.from_int_and_width(div, builtin.i32)
-        coord_i = arith.DivUI(carry, imm)
-        carry = arith.RemUI(carry, imm)
+        imm = arith.ConstantOp.from_int_and_width(div, builtin.i32)
+        coord_i = arith.DivUIOp(carry, imm)
+        carry = arith.RemUIOp(carry, imm)
 
         ret_ops.extend([imm, coord_i, carry])
         node_pos_nd.append(coord_i.result)
@@ -205,7 +207,7 @@ def _generate_dest_rank_computation(
     # "and" all the condition vals
     accumulated_cond_val: SSAValue = condition_vals[0]
     for val in condition_vals[1:]:
-        cmp = arith.AndI(accumulated_cond_val, val)
+        cmp = arith.AndIOp(accumulated_cond_val, val)
         ret_ops.append(cmp)
         accumulated_cond_val = cmp.result
 
@@ -217,9 +219,9 @@ def _generate_dest_rank_computation(
     multiples = [prod(shape[i + 1 :]) for i in range(len(shape))]
 
     for pos, mul in zip(dest_pos_nd[:-1], multiples[:-1]):
-        val = arith.Constant.from_int_and_width(mul, builtin.i32)
-        intermediate = arith.Muli(val, pos)
-        carry_op = arith.Addi(carry, intermediate)
+        val = arith.ConstantOp.from_int_and_width(mul, builtin.i32)
+        intermediate = arith.MuliOp(val, pos)
+        carry_op = arith.AddiOp(carry, intermediate)
         carry = carry_op.result
         ret_ops.extend([val, intermediate, carry_op])
 
@@ -236,27 +238,29 @@ def generate_mpi_calls_for(
 ) -> Iterable[Operation]:
     # call mpi init (this will be hoisted to function level)
     if emit_init:
-        yield mpi.Init()
+        yield mpi.InitOp()
     # allocate request array
     # we need two request objects per exchange
     # one for the send, one for the recv
-    req_cnt = arith.Constant.from_int_and_width(len(exchanges) * 2, builtin.i32)
+    req_cnt = arith.ConstantOp.from_int_and_width(len(exchanges) * 2, builtin.i32)
     reqs = mpi.AllocateTypeOp(mpi.RequestType, req_cnt)
     # get comm rank
-    rank = mpi.CommRank()
+    rank = mpi.CommRankOp()
     # define static tag of 0
-    tag = arith.Constant.from_int_and_width(0, builtin.i32)
+    tag = arith.ConstantOp.from_int_and_width(0, builtin.i32)
 
     yield from (req_cnt, reqs, rank, tag)
 
-    recv_buffers: list[tuple[dmp.ExchangeDeclarationAttr, memref.Alloc, SSAValue]] = []
+    recv_buffers: list[
+        tuple[dmp.ExchangeDeclarationAttr, memref.AllocOp, SSAValue]
+    ] = []
 
     for i, ex in enumerate(exchanges):
         # generate a temp buffer to store the data in
         reduced_size = [i for i in ex.size if i != 1]
-        alloc_outbound = memref.Alloc.get(dtype, 64, reduced_size)
+        alloc_outbound = memref.AllocOp.get(dtype, 64, reduced_size)
         alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
-        alloc_inbound = memref.Alloc.get(dtype, 64, reduced_size)
+        alloc_inbound = memref.AllocOp.get(dtype, 64, reduced_size)
         alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
@@ -269,8 +273,8 @@ def generate_mpi_calls_for(
         recv_buffers.append((ex, alloc_inbound, is_in_bounds))
 
         # get two unique indices
-        cst_i = arith.Constant.from_int_and_width(i, builtin.i32)
-        cst_in = arith.Constant.from_int_and_width(i + len(exchanges), builtin.i32)
+        cst_i = arith.ConstantOp.from_int_and_width(i, builtin.i32)
+        cst_in = arith.ConstantOp.from_int_and_width(i + len(exchanges), builtin.i32)
         yield from (cst_i, cst_in)
         # from these indices, get request objects
         req_send = mpi.VectorGetOp(reqs, cst_i)
@@ -291,7 +295,7 @@ def generate_mpi_calls_for(
                 )
 
             # isend call
-            yield mpi.Isend(
+            yield mpi.IsendOp(
                 unwrap_out.ptr,
                 unwrap_out.len,
                 unwrap_out.type,
@@ -305,7 +309,7 @@ def generate_mpi_calls_for(
             unwrap_in.ptr.name_hint = f"recv_buff_ex{i}_ptr"
             yield unwrap_in
             # Irecv call
-            yield mpi.Irecv(
+            yield mpi.IrecvOp(
                 unwrap_in.ptr,
                 unwrap_in.len,
                 unwrap_in.type,
@@ -313,16 +317,16 @@ def generate_mpi_calls_for(
                 tag,
                 req_recv,
             )
-            yield scf.Yield()
+            yield scf.YieldOp()
 
         def else_() -> Iterable[Operation]:
             # set the request object to MPI_REQUEST_NULL s.t. they are ignored
             # in the waitall call
             yield mpi.NullRequestOp(req_send)
             yield mpi.NullRequestOp(req_recv)
-            yield scf.Yield()
+            yield scf.YieldOp()
 
-        yield scf.If(
+        yield scf.IfOp(
             is_in_bounds,
             [],
             Region([Block(then())]),
@@ -330,11 +334,11 @@ def generate_mpi_calls_for(
         )
 
     # wait for all calls to complete
-    yield mpi.Waitall(reqs.result, req_cnt.result)
+    yield mpi.WaitallOp(reqs.result, req_cnt.result)
 
     # start shuffling data into the main memref again
     for ex, buffer, cond_val in recv_buffers:
-        yield scf.If(
+        yield scf.IfOp(
             cond_val,
             [],
             Region(
@@ -355,11 +359,11 @@ def generate_mpi_calls_for(
                             )
                         ]
                         * (1 if emit_debug else 0)
-                        + [scf.Yield()]
+                        + [scf.YieldOp()]
                     )
                 ]
             ),
-            Region([Block([scf.Yield()])]),
+            Region([Block([scf.YieldOp()])]),
         )
 
 
@@ -387,7 +391,7 @@ def generate_memcpy(
 
     offset = stencil.IndexAttr.get(*ex.offset) - field_type.bounds.lb
 
-    subview = memref.Subview.from_static_parameters(
+    subview = memref.SubviewOp.from_static_parameters(
         memref_val,
         memref_type,
         tuple(offset),
@@ -432,11 +436,11 @@ class MpiLoopInvariantCodeMotion:
     def rewrite(
         self,
         op: (
-            memref.Alloc
-            | mpi.CommRank
+            memref.AllocOp
+            | mpi.CommRankOp
             | mpi.AllocateTypeOp
             | mpi.UnwrapMemrefOp
-            | mpi.Init
+            | mpi.InitOp
         ),
         rewriter: Rewriter,
         /,
@@ -447,7 +451,7 @@ class MpiLoopInvariantCodeMotion:
 
         # memref unwraps can always be moved to their allocation
         if isinstance(op, mpi.UnwrapMemrefOp) and isinstance(
-            op.ref.owner, memref.Alloc
+            op.ref.owner, memref.AllocOp
         ):
             op.detach()
             rewriter.insert_op(op, InsertPoint.after(op.ref.owner))
@@ -472,7 +476,7 @@ class MpiLoopInvariantCodeMotion:
             return
 
         # if we move an mpi.init, generate a finalize()!
-        if isinstance(op, mpi.Init):
+        if isinstance(op, mpi.InitOp):
             # ignore multiple inits
             if parent in self.has_init:
                 rewriter.erase_op(op)
@@ -482,7 +486,7 @@ class MpiLoopInvariantCodeMotion:
             block = parent.regions[0].blocks[-1]
             return_op = block.last_op
             assert return_op is not None
-            rewriter.insert_op(mpi.Finalize(), InsertPoint.before(return_op))
+            rewriter.insert_op(mpi.FinalizeOp(), InsertPoint.before(return_op))
 
         ops = list(collect_args_recursive(op))
         for found_op in ops:
@@ -492,11 +496,11 @@ class MpiLoopInvariantCodeMotion:
     def get_matcher(
         self,
         worklist: list[
-            memref.Alloc
-            | mpi.CommRank
+            memref.AllocOp
+            | mpi.CommRankOp
             | mpi.AllocateTypeOp
             | mpi.UnwrapMemrefOp
-            | mpi.Init
+            | mpi.InitOp
         ],
     ) -> Callable[[Operation], None]:
         """
@@ -507,11 +511,11 @@ class MpiLoopInvariantCodeMotion:
         def match(op: Operation):
             if isinstance(
                 op,
-                memref.Alloc
-                | mpi.CommRank
+                memref.AllocOp
+                | mpi.CommRankOp
                 | mpi.AllocateTypeOp
                 | mpi.UnwrapMemrefOp
-                | mpi.Init,
+                | mpi.InitOp,
             ):
                 worklist.append(op)
 
@@ -526,11 +530,11 @@ class MpiLoopInvariantCodeMotion:
         """
         # collect all ops that should be rewritten
         worklist: list[
-            memref.Alloc
-            | mpi.CommRank
+            memref.AllocOp
+            | mpi.CommRankOp
             | mpi.AllocateTypeOp
             | mpi.UnwrapMemrefOp
-            | mpi.Init
+            | mpi.InitOp
         ] = list()
         matcher = self.get_matcher(worklist)
         for o in op.walk():
@@ -542,7 +546,7 @@ class MpiLoopInvariantCodeMotion:
             self.rewrite(matched_op, rewriter)
 
 
-_LOOP_INVARIANT_OPS = (arith.Constant, arith.Addi, arith.Muli)
+_LOOP_INVARIANT_OPS = (arith.ConstantOp, arith.AddiOp, arith.MuliOp)
 
 
 def can_loop_invariant_code_move(op: Operation):
@@ -633,7 +637,7 @@ class DistributeStencilPass(DmpDecompositionPass):
 
 
 @dataclass(frozen=True)
-class LowerHaloToMPI(ModulePass):
+class DmpToMpiPass(ModulePass):
     name = "dmp-to-mpi"
 
     mpi_init: bool = True

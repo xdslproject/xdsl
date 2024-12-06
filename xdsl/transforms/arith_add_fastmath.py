@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from xdsl.dialects import arith, builtin, llvm
+from xdsl.dialects import arith, builtin
+from xdsl.dialects.utils import FastMathFlag
 from xdsl.passes import MLContext, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -13,7 +14,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-_FASTMATH_NAMES_TO_ENUM = {str(member.value): member for member in llvm.FastMathFlag}
+_FASTMATH_NAMES_TO_ENUM = {str(member.value): member for member in FastMathFlag}
 
 
 def _get_flag_list(flags: tuple[str, ...]):
@@ -33,12 +34,12 @@ class AddArithFastMathFlags(RewritePattern):
     def match_and_rewrite(
         self,
         op: (
-            arith.Addf
-            | arith.Subf
-            | arith.Mulf
-            | arith.Divf
-            | arith.Minimumf
-            | arith.Maximumf
+            arith.AddfOp
+            | arith.SubfOp
+            | arith.MulfOp
+            | arith.DivfOp
+            | arith.MinimumfOp
+            | arith.MaximumfOp
         ),
         rewriter: PatternRewriter,
     ) -> None:

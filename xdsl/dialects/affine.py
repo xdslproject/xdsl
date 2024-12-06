@@ -31,6 +31,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -53,7 +54,7 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(
@@ -110,7 +111,7 @@ class ApplyOp(IRDLOperation):
 
 
 @irdl_op_definition
-class For(IRDLOperation):
+class ForOp(IRDLOperation):
     name = "affine.for"
 
     lowerBoundOperands = var_operand_def(IndexType)
@@ -168,7 +169,7 @@ class For(IRDLOperation):
         upper_bound: int | AffineMapAttr,
         region: Region,
         step: int | AnyIntegerAttr = 1,
-    ) -> For:
+    ) -> ForOp:
         if isinstance(lower_bound, int):
             lower_bound = AffineMapAttr(
                 AffineMap(0, 0, (AffineExpr.constant(lower_bound),))
@@ -184,7 +185,7 @@ class For(IRDLOperation):
             "upperBoundMap": upper_bound,
             "step": step,
         }
-        return For.build(
+        return ForOp.build(
             operands=[lowerBoundOperands, upperBoundOperands, inits],
             result_types=[result_types],
             properties=properties,
@@ -193,7 +194,7 @@ class For(IRDLOperation):
 
 
 @irdl_op_definition
-class If(IRDLOperation):
+class IfOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
     """
@@ -208,7 +209,7 @@ class If(IRDLOperation):
     then_region = region_def("single_block")
     else_region = region_def()
 
-    traits = frozenset([RecursiveMemoryEffect(), RecursivelySpeculatable()])
+    traits = traits_def(RecursiveMemoryEffect(), RecursivelySpeculatable())
 
 
 @irdl_op_definition
@@ -245,24 +246,24 @@ class ParallelOp(IRDLOperation):
                 "Expected as many operands as results, lower bound args and upper bound args."
             )
 
-        if sum(g.value.data for g in self.lowerBoundsGroups.data) != len(
+        if sum(self.lowerBoundsGroups.get_values()) != len(
             self.lowerBoundsMap.data.results
         ):
             raise VerifyException("Expected a lower bound group for each lower bound")
-        if sum(g.value.data for g in self.upperBoundsGroups.data) != len(
+        if sum(self.upperBoundsGroups.get_values()) != len(
             self.upperBoundsMap.data.results
         ):
             raise VerifyException("Expected an upper bound group for each upper bound")
 
 
 @irdl_op_definition
-class Store(IRDLOperation):
+class StoreOp(IRDLOperation):
     name = "affine.store"
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
     map = opt_prop_def(AffineMapAttr)
 
@@ -289,12 +290,12 @@ class Store(IRDLOperation):
 
 
 @irdl_op_definition
-class Load(IRDLOperation):
+class LoadOp(IRDLOperation):
     name = "affine.load"
 
-    T: ClassVar[VarConstraint[Attribute]] = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType[Attribute].constr(element_type=T))
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     result = result_def(T)
@@ -351,28 +352,28 @@ class MinOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Yield(IRDLOperation):
+class YieldOp(IRDLOperation):
     name = "affine.yield"
     arguments = var_operand_def()
 
-    traits = frozenset([IsTerminator(), Pure()])
+    traits = traits_def(IsTerminator(), Pure())
 
     @staticmethod
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
+    def get(*operands: SSAValue | Operation) -> YieldOp:
+        return YieldOp.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 Affine = Dialect(
     "affine",
     [
         ApplyOp,
-        For,
+        ForOp,
         ParallelOp,
-        If,
-        Store,
-        Load,
+        IfOp,
+        StoreOp,
+        LoadOp,
         MinOp,
-        Yield,
+        YieldOp,
     ],
     [],
 )

@@ -33,6 +33,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Arith
 
+    def get_arm():
+        from xdsl.dialects.arm import ARM
+
+        return ARM
+
+    def get_arm_func():
+        from xdsl.dialects.arm_func import ARM_FUNC
+
+        return ARM_FUNC
+
     def get_bufferization():
         from xdsl.dialects.bufferization import Bufferization
 
@@ -188,6 +198,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Printf
 
+    def get_ptr_xdsl():
+        from xdsl.dialects.ptr import Ptr
+
+        return Ptr
+
     def get_quantum():
         from xdsl.dialects.quantum import QUANTUM
 
@@ -273,11 +288,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Stim
 
-    def get_stream():
-        from xdsl.dialects.stream import Stream
-
-        return Stream
-
     def get_symref():
         from xdsl.frontend.symref import Symref
 
@@ -329,6 +339,8 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "aie": get_aie,
         "air": get_air,
         "arith": get_arith,
+        "arm": get_arm,
+        "arm_func": get_arm_func,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,
@@ -360,6 +372,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
+        "ptr_xdsl": get_ptr_xdsl,
         "quantum": get_quantum,
         "qref": get_qref,
         "qssa": get_qssa,
@@ -377,7 +390,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "stablehlo": get_stablehlo,
         "stencil": get_stencil,
         "stim": get_stim,
-        "stream": get_stream,
         "symref": get_symref,
         "tensor": get_tensor,
         "test": get_test,

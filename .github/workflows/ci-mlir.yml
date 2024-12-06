@@ -20,7 +20,7 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: 98e674c9f16d677d95c67bc130e267fae331e43c
+      MLIR-Version: d401987fe349a87c53fe25829215b080b70c0c1a
     steps:
     - uses: actions/checkout@v4
       with:
@@ -115,12 +115,12 @@ jobs:
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
-    - name: Test MLIR dependent marimo notebooks
+    - name: Test ONNX-dependent marimo notebooks
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        uv run make tests-marimo-mlir
+        uv run make tests-marimo-onnx
 
     - name: Combine coverage data
       run: |

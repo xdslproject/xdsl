@@ -53,6 +53,7 @@ pytest: uv-installed
 pytest-nb: uv-installed
 	uv run pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
+		--ignore=docs/Toy \
 		--nbval-current-env
 
 # run tests for Toy tutorial
@@ -64,8 +65,16 @@ filecheck-toy: uv-installed
 pytest-toy: uv-installed
 	uv run pytest docs/Toy/toy/tests
 
+.PHONY: pytest-toy-nb
+pytest-toy-nb:
+	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
+		uv run pytest -W error --nbval -vv docs/Toy --nbval-current-env; \
+	else \
+		echo "riscemu is not installed, skipping tests."; \
+	fi
+
 .PHONY: tests-toy
-tests-toy: filecheck-toy pytest-toy
+tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
 .PHONY: tests-marimo
 tests-marimo: uv-installed
@@ -79,26 +88,35 @@ tests-marimo: uv-installed
 	done
 	@echo "All marimo tests passed successfully."
 
-.PHONY: tests-marimo-mlir
-tests-marimo-mlir: uv-installed
-	@if ! command -v mlir-opt > /dev/null 2>&1; then \
-		echo "MLIR is not installed, skipping tests."; \
-		exit 0; \
+.PHONY: tests-marimo-onnx
+tests-marimo-onnx: uv-installed
+	@if uv run python -c "import onnx" > /dev/null 2>&1; then \
+		echo "onnx is installed, running tests."; \
+		if ! command -v mlir-opt > /dev/null 2>&1; then \
+			echo "MLIR is not installed, skipping tests."; \
+			exit 0; \
+		fi; \
+		for file in docs/marimo/onnx/*.py; do \
+			echo "Running $$file"; \
+			error_message=$$(uv run python3 "$$file" 2>&1) || { \
+				echo "Error running $$file"; \
+				echo "$$error_message"; \
+				exit 1; \
+			}; \
+		done; \
+		echo "All marimo onnx tests passed successfully."; \
+	else \
+		echo "onnx is not installed, skipping tests."; \
 	fi
-	@echo "MLIR is installed, running tests."
-	@for file in docs/marimo/mlir/*.py; do \
-		echo "Running $$file"; \
-		error_message=$$(uv run python3 "$$file" 2>&1) || { \
-			echo "Error running $$file"; \
-			echo "$$error_message"; \
-			exit 1; \
-		}; \
-	done
-	@echo "All marimo mlir tests passed successfully."
+
+# run all tests
+.PHONY: tests-functional
+tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx
+	@echo All functional tests done.
 
 # run all tests
 .PHONY: tests
-tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-mlir pyright
+tests: tests-functional pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory

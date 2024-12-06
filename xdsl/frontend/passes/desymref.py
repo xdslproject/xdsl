@@ -98,7 +98,7 @@ from xdsl.rewriter import Rewriter
 
 
 def has_symbol(op: Operation) -> bool:
-    return isinstance(op, symref.Declare | symref.Fetch | symref.Update)
+    return isinstance(op, symref.DeclareOp | symref.FetchOp | symref.UpdateOp)
 
 
 def get_symbol(op: Operation) -> str | None:
@@ -106,9 +106,9 @@ def get_symbol(op: Operation) -> str | None:
     Returns a symbol attribute for an operation. If operation has no symbol
     attributes, None is returned.
     """
-    if isinstance(op, symref.Declare):
+    if isinstance(op, symref.DeclareOp):
         return op.sym_name.data
-    elif isinstance(op, symref.Fetch | symref.Update):
+    elif isinstance(op, symref.FetchOp | symref.UpdateOp):
         return op.symbol.root_reference.data
     else:
         return None
@@ -126,7 +126,7 @@ def get_symbols(block: Block) -> set[str]:
 
 
 def lower_positional_bound(
-    writes: list[symref.Update], read: symref.Fetch
+    writes: list[symref.UpdateOp], read: symref.FetchOp
 ) -> Operation | None:
     """
     Returns a nearest write preceeding the `read`. If there is no such write,
@@ -229,12 +229,12 @@ class Desymrefier:
         symbols = get_symbols(block)
         for symbol in symbols:
             num_reads = sum(
-                isinstance(op, symref.Fetch)
+                isinstance(op, symref.FetchOp)
                 for op in block.ops
                 if get_symbol(op) == symbol
             )
             num_writes = sum(
-                isinstance(op, symref.Update)
+                isinstance(op, symref.UpdateOp)
                 for op in block.ops
                 if get_symbol(op) == symbol
             )
@@ -252,7 +252,7 @@ class Desymrefier:
         while (
             len(
                 definitions := [
-                    op for op in block.ops if isinstance(op, symref.Declare)
+                    op for op in block.ops if isinstance(op, symref.DeclareOp)
                 ]
             )
             > 0
@@ -265,12 +265,12 @@ class Desymrefier:
                 reads = [
                     op
                     for op in block.ops
-                    if isinstance(op, symref.Fetch) and get_symbol(op) == symbol
+                    if isinstance(op, symref.FetchOp) and get_symbol(op) == symbol
                 ]
                 writes = [
                     op
                     for op in block.ops
-                    if isinstance(op, symref.Update) and get_symbol(op) == symbol
+                    if isinstance(op, symref.UpdateOp) and get_symbol(op) == symbol
                 ]
 
                 # Symbol is never read, so remove its definition and any writes.
@@ -299,7 +299,7 @@ class Desymrefier:
 
     def _prune_unused_reads(self, block: Block):
         def is_unused_read(op: Operation) -> bool:
-            return isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
+            return isinstance(op, symref.FetchOp) and len(op.results[0].uses) == 0
 
         unused_reads = [op for op in block.ops if is_unused_read(op)]
         for read in unused_reads:
@@ -325,12 +325,12 @@ class Desymrefier:
                 reads = [
                     op
                     for op in block.ops
-                    if isinstance(op, symref.Fetch) and get_symbol(op) == symbol
+                    if isinstance(op, symref.FetchOp) and get_symbol(op) == symbol
                 ]
                 writes = [
                     op
                     for op in block.ops
-                    if isinstance(op, symref.Update) and get_symbol(op) == symbol
+                    if isinstance(op, symref.UpdateOp) and get_symbol(op) == symbol
                 ]
                 assert len(reads) > 0 or len(writes) > 0
 
@@ -368,7 +368,7 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
 
-class DesymrefyPass(ModulePass):
+class FrontendDesymrefyPass(ModulePass):
     name = "frontend-desymrefy"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp):

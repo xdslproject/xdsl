@@ -15,10 +15,8 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     parse_call_op_like,
     parse_func_op_like,
-    parse_return_op_like,
     print_call_op_like,
     print_func_op_like,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
@@ -28,6 +26,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_result_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -166,12 +165,10 @@ class FuncOp(riscv.RISCVAsmOperation):
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
 
-    traits = frozenset(
-        [
-            SymbolOpInterface(),
-            FuncOpCallableInterface(),
-            IsolatedFromAbove(),
-        ]
+    traits = traits_def(
+        SymbolOpInterface(),
+        FuncOpCallableInterface(),
+        IsolatedFromAbove(),
     )
 
     def __init__(
@@ -243,7 +240,9 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = traits_def(IsTerminator(), HasParent(FuncOp))
+
+    assembly_format = "attr-dict ($values^ `:` type($values))?"
 
     def __init__(
         self,
@@ -264,16 +263,6 @@ class ReturnOp(riscv.RISCVInstruction):
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.values)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReturnOp:
-        attrs, args = parse_return_op_like(parser)
-        op = ReturnOp(*args)
-        op.attributes.update(attrs)
-        return op
 
     def assembly_instruction_name(self) -> str:
         return "ret"

@@ -4,7 +4,7 @@ from jax._src.core import ClosedJaxpr
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import FunctionType, ModuleOp, TensorType, f32
-from xdsl.dialects.func import FuncOp, Return
+from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Block, Region
 
 
@@ -72,7 +72,7 @@ class IRGen:
         assert inputVars == outputVars
 
         return_ssa = block.args[0]
-        self.builder.insert(Return(return_ssa))
+        self.builder.insert(ReturnOp(return_ssa))
 
         self.builder = parent_builder
 

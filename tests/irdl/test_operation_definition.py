@@ -4,7 +4,9 @@ from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseArrayBase,
     IndexType,
     IntAttr,
@@ -46,10 +48,12 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.traits import NoTerminator
 from xdsl.utils.exceptions import (
     DiagnosticException,
@@ -248,9 +252,7 @@ def test_constraint_var_fail_not_satisfy_constraint():
 class GenericConstraintVarOp(IRDLOperation):
     name = "test.constraint_var_op"
 
-    T: ClassVar[VarConstraint[IntegerType | IndexType]] = VarConstraint(
-        "T", base(IntegerType) | base(IndexType)
-    )
+    T: ClassVar = VarConstraint("T", base(IntegerType) | base(IndexType))
 
     operand = operand_def(T)
     result = result_def(T)
@@ -408,7 +410,7 @@ def test_range_var_fail_not_satisfy_constraint():
 
 
 @irdl_op_definition
-class OperationWithoutProperty(IRDLOperation):
+class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
     prop1 = prop_def(Attribute)
@@ -416,7 +418,7 @@ class OperationWithoutProperty(IRDLOperation):
 
 # Check that an operation cannot accept properties that are not defined
 def test_unknown_property():
-    op = OperationWithoutProperty.create(properties={"prop1": i32, "prop2": i32})
+    op = WithoutPropOp.create(properties={"prop1": i32, "prop2": i32})
     with pytest.raises(
         VerifyException, match="property 'prop2' is not defined by the operation"
     ):
@@ -807,7 +809,7 @@ class EntryArgsOp(IRDLOperation):
     name = "test.entry_args"
     body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
 
-    traits = frozenset((NoTerminator(),))
+    traits = traits_def(NoTerminator())
 
 
 def test_entry_args_op():
@@ -853,3 +855,60 @@ def test_no_multiple_var_option():
         match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
+
+
+@irdl_op_definition
+class DefaultOp(IRDLOperation):
+    name = "test.default"
+
+    prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_prop = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+    opt_attr = opt_attr_def(BoolAttr, default_value=BoolAttr.from_bool(True))
+
+    assembly_format = "(`prop` $prop^)? (`opt_prop` $opt_prop^)? (`attr` $attr^)? (`opt_attr` $opt_attr^)? attr-dict"
+
+
+def test_default_accessors():
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(ctx, "test.default").parse_operation()
+
+    assert isinstance(parsed, DefaultOp)
+
+    assert not parsed.prop.value.data
+
+    assert parsed.properties.get("opt_prop") is None
+
+    assert parsed.opt_prop.value.data
+
+    assert not parsed.attr.value.data
+
+    assert parsed.attributes.get("opt_attr") is None
+
+    assert parsed.opt_attr.value.data
+
+
+def test_generic_accessors():
+    ctx = MLContext()
+    ctx.load_op(DefaultOp)
+
+    parsed = Parser(
+        ctx, '"test.default"() <{ "prop" = false }> {"attr" = false} : () -> ()'
+    ).parse_operation()
+
+    assert isinstance(parsed, DefaultOp)
+
+    assert not parsed.prop.value.data
+
+    assert parsed.properties.get("opt_prop") is None
+
+    assert parsed.opt_prop.value.data
+
+    assert not parsed.attr.value.data
+
+    assert parsed.attributes.get("opt_attr") is None
+
+    assert parsed.opt_attr.value.data

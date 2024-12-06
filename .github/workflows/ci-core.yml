@@ -17,16 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Install native dependencies
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: mesa-vulkan-drivers
-        version: 1.0
 
     - name: Install uv
       uses: astral-sh/setup-uv@v3
@@ -40,11 +34,6 @@ jobs:
     - name: Install the project
       run: uv sync --all-extras
 
-    - name: Test with pytest
-      run: uv run pytest -W error
-
-    - name: Execute lit tests
+    - name: Run all tests
       run: |
-        export PYTHONPATH=$(pwd)
-        uv run lit -v tests/filecheck/
-        uv run lit -v docs/Toy/examples/
+        make tests-functional

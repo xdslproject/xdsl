@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     i1,
 )
 from xdsl.dialects.hw import InnerSymAttr
-from xdsl.ir import Attribute, Data, Dialect, Operation, SSAValue
+from xdsl.ir import Data, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -48,7 +48,7 @@ clock = ClockType()
 
 
 @irdl_op_definition
-class ClockDivider(IRDLOperation):
+class ClockDividerOp(IRDLOperation):
     """Produces a clock divided by a power of two"""
 
     name = "seq.clock_div"
@@ -94,7 +94,7 @@ class CompRegOp(IRDLOperation):
 
     name = "seq.compreg"
 
-    DATA_TYPE: ClassVar[VarConstraint[Attribute]] = VarConstraint("DataType", AnyAttr())
+    DATA_TYPE: ClassVar = VarConstraint("DataType", AnyAttr())
 
     inner_sym = opt_attr_def(InnerSymAttr)
     input = operand_def(DATA_TYPE)
@@ -206,7 +206,7 @@ class ConstClockOp(IRDLOperation):
 Seq = Dialect(
     "seq",
     [
-        ClockDivider,
+        ClockDividerOp,
         CompRegOp,
         ConstClockOp,
     ],

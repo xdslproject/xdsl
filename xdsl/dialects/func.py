@@ -13,10 +13,8 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     parse_call_op_like,
     parse_func_op_like,
-    parse_return_op_like,
     print_call_op_like,
     print_func_op_like,
-    print_return_op_like,
 )
 from xdsl.ir import (
     Attribute,
@@ -33,6 +31,7 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -76,8 +75,8 @@ class FuncOp(IRDLOperation):
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    traits = frozenset(
-        [IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()]
+    traits = traits_def(
+        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
     )
 
     def __init__(
@@ -232,7 +231,7 @@ class FuncOp(IRDLOperation):
             return_type,
         )
 
-    def get_return_op(self) -> Return | None:
+    def get_return_op(self) -> ReturnOp | None:
         """
         Helper for easily retrieving the return operation of a given
         function. Returns None if it couldn't find a return op.
@@ -242,7 +241,7 @@ class FuncOp(IRDLOperation):
         if (last_block := self.body.blocks.last) is None:
             return None
         ret_op = last_block.last_op
-        if not isinstance(ret_op, Return):
+        if not isinstance(ret_op, ReturnOp):
             return None
         return ret_op
 
@@ -269,7 +268,7 @@ class FuncOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Call(IRDLOperation):
+class CallOp(IRDLOperation):
     name = "func.call"
     arguments = var_operand_def()
     callee = prop_def(FlatSymbolRefAttrConstr)
@@ -301,22 +300,24 @@ class Call(IRDLOperation):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> Call:
+    def parse(cls, parser: Parser) -> CallOp:
         callee, arguments, results, extra_attributes = parse_call_op_like(
             parser, reserved_attr_names=("callee",)
         )
-        call = Call(callee, arguments, results)
+        call = CallOp(callee, arguments, results)
         if extra_attributes is not None:
             call.attributes |= extra_attributes.data
         return call
 
 
 @irdl_op_definition
-class Return(IRDLOperation):
+class ReturnOp(IRDLOperation):
     name = "func.return"
     arguments = var_operand_def()
 
-    traits = frozenset([HasParent(FuncOp), IsTerminator()])
+    traits = traits_def(HasParent(FuncOp), IsTerminator())
+
+    assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 
     def __init__(self, *return_vals: SSAValue | Operation):
         super().__init__(operands=[return_vals])
@@ -332,15 +333,13 @@ class Return(IRDLOperation):
                 "Expected arguments to have the same types as the function output types"
             )
 
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
 
-    @classmethod
-    def parse(cls, parser: Parser) -> Return:
-        attrs, args = parse_return_op_like(parser)
-        op = Return(*args)
-        op.attributes.update(attrs)
-        return op
-
-
-Func = Dialect("func", [FuncOp, Call, Return], [])
+Func = Dialect(
+    "func",
+    [
+        FuncOp,
+        CallOp,
+        ReturnOp,
+    ],
+    [],
+)

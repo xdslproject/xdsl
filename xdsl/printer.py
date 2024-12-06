@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -13,7 +14,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyFloatAttr,
-    AnyIntegerAttr,
     AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     ComplexType,
     DenseArrayBase,
-    DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
     Float16Type,
@@ -30,8 +29,6 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
-    FloatAttr,
-    FloatData,
     FunctionType,
     IndexType,
     IntAttr,
@@ -67,8 +64,14 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.utils.bitwise_casts import (
+    convert_f16_to_u16,
+    convert_f32_to_u32,
+    convert_f64_to_u64,
+)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.lexer import Lexer
 
@@ -356,7 +359,9 @@ class Printer:
 
         with self.indented():
             for op in block.ops:
-                if not print_block_terminator and op.has_trait(IsTerminator):
+                if not print_block_terminator and op.has_trait(
+                    IsTerminator, value_if_unregistered=False
+                ):
                     continue
                 self._print_new_line()
                 self.print_op(op)
@@ -458,6 +463,27 @@ class Printer:
                     self.print_string(chr(byte))
         self.print_string('"')
 
+    def print_float(self, attribute: AnyFloatAttr):
+        value = attribute.value
+        if math.isnan(value.data) or math.isinf(value.data):
+            if isinstance(attribute.type, Float16Type):
+                self.print_string(f"{hex(convert_f16_to_u16(value.data))}")
+            elif isinstance(attribute.type, Float32Type):
+                self.print_string(f"{hex(convert_f32_to_u32(value.data))}")
+            elif isinstance(attribute.type, Float64Type):
+                self.print_string(f"{hex(convert_f64_to_u64(value.data))}")
+            else:
+                raise NotImplementedError(
+                    f"Cannot print '{value.data}' value for float type {str(attribute.type)}"
+                )
+        else:
+            # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
+            float_str = f"{value.data:.6e}"
+            if float(float_str) == value.data:
+                self.print_string(float_str)
+            else:
+                self.print_string(f"{repr(value.data)}")
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             self.print_string("unit")
@@ -496,6 +522,25 @@ class Printer:
             self.print_string("f128")
             return
 
+        if isinstance(attribute, IntegerAttr):
+            # boolean shorthands
+            if (
+                isinstance(
+                    (ty := attribute.get_type()),
+                    IntegerType,
+                )
+                and ty.width.data == 1
+            ):
+                self.print_string("true" if attribute.value.data else "false")
+                return
+            # Otherwise we fall through to TypedAttribute case
+
+        if isinstance(attribute, TypedAttribute):
+            attribute.print_without_type(self)
+            self.print_string(" : ")
+            self.print_attribute(attribute.get_type())
+            return
+
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
             return
@@ -510,33 +555,6 @@ class Printer:
             for ref in attribute.nested_references.data:
                 self.print_string("::@")
                 self.print_identifier_or_string_literal(ref.data)
-            return
-
-        if isinstance(attribute, IntegerAttr):
-            attribute = cast(AnyIntegerAttr, attribute)
-
-            # boolean shorthands
-            if (
-                isinstance((attr_type := attribute.type), IntegerType)
-                and attr_type.width.data == 1
-            ):
-                self.print_string("false" if attribute.value.data == 0 else "true")
-                return
-
-            width = attribute.value
-            attr_type = attribute.type
-            assert isinstance(width, IntAttr)
-            self.print_string(f"{width.data} : ")
-            self.print_attribute(attr_type)
-            return
-
-        if isinstance(attribute, FloatAttr):
-            value = attribute.value
-            attr_type = cast(
-                FloatAttr[Float16Type | Float32Type | Float64Type], attribute
-            ).type
-            self.print_string(f"{value.data:.6e} : ")
-            self.print_attribute(attr_type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
@@ -556,20 +574,20 @@ class Printer:
         if isinstance(attribute, DenseArrayBase):
             self.print_string("array<")
             self.print_attribute(attribute.elt_type)
-            data = cast(ArrayAttr[IntAttr | FloatData], attribute.data)
-            if len(data.data) == 0:
+            if len(attribute) == 0:
                 self.print_string(">")
                 return
+            data = attribute.iter_values()
             self.print_string(": ")
             # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
             # therefore we need to print these as false and true
             if attribute.elt_type == i1:
                 self.print_list(
-                    data.data,
-                    lambda x: self.print_string("true" if x.data == 1 else "false"),
+                    data,
+                    lambda x: self.print_string("true" if x else "false"),
                 )
             else:
-                self.print_list(data.data, lambda x: self.print_string(f"{x.data}"))
+                self.print_list(data, lambda x: self.print_string(f"{x}"))
             self.print_string(">")
             return
 
@@ -588,51 +606,6 @@ class Printer:
                 self.print_string("(")
                 self.print_list(outputs, self.print_attribute)
                 self.print_string(")")
-            return
-
-        if isinstance(attribute, DenseIntOrFPElementsAttr):
-
-            def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr):
-                    self.print_string(f"{val.value.data}")
-                elif isinstance(val, FloatAttr):
-                    self.print_string(f"{val.value.data:.6e}")
-                else:
-                    raise Exception(
-                        "unexpected attribute type "
-                        "in DenseIntOrFPElementsAttr: "
-                        f"{type(val)}"
-                    )
-
-            def print_dense_list(
-                array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: Sequence[int],
-            ):
-                self.print_string("[")
-                if len(shape) > 1:
-                    k = len(array) // shape[0]
-                    self.print_list(
-                        (array[i : i + k] for i in range(0, len(array), k)),
-                        lambda subarray: print_dense_list(subarray, shape[1:]),
-                    )
-                else:
-                    self.print_list(array, print_one_elem)
-                self.print_string("]")
-
-            self.print_string("dense<")
-            data = attribute.data.data
-            shape = (
-                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
-            )
-            assert shape is not None, "If shape is complete, then it cannot be None"
-            if len(data) == 0:
-                pass
-            elif data.count(data[0]) == len(data):
-                print_one_elem(data[0])
-            else:
-                print_dense_list(data, shape)
-            self.print_string("> : ")
-            self.print_attribute(attribute.type)
             return
 
         if isinstance(attribute, DenseResourceAttr):

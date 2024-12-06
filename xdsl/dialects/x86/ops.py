@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Annotated, Generic, TypeVar
+from typing import IO, Generic, TypeVar
 
 from typing_extensions import Self
 
@@ -24,7 +24,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     Successor,
     attr_def,
@@ -33,6 +32,7 @@ from xdsl.irdl import (
     opt_attr_def,
     result_def,
     successor_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -373,7 +373,6 @@ class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     A base class for x86 operations that have one register acting as both source and destination.
     """
 
-    T = Annotated[GeneralRegisterType, ConstraintVar("T")]
     source = operand_def(R1InvT)
     destination = result_def(R1InvT)
 
@@ -1085,7 +1084,7 @@ class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
 
 
 @irdl_op_definition
-class RRI_ImulOP(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RRI_ImulOp(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the immediate value with the source register and stores the result in the destination register.
     x[r1] = x[r2] * immediate
@@ -1641,7 +1640,7 @@ class S_JmpOp(IRDLOperation, X86Instruction):
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -1996,7 +1995,7 @@ class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -2475,7 +2474,7 @@ class RM_VbroadcastsdOp(R_RM_Operation[AVXRegisterType, GeneralRegisterType]):
     name = "x86.rm.vbroadcastsd"
 
 
-class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
+class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op, ABC):
     """
     This instruction allows us to create an SSAValue for a given register name.
     """
