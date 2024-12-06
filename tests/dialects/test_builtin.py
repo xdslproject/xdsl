@@ -119,6 +119,26 @@ def test_IntegerType_normalized():
     assert ui8.normalized_value(255) == 255
 
 
+def test_IntegerType_truncated():
+    si8 = IntegerType(8, Signedness.SIGNED)
+    ui8 = IntegerType(8, Signedness.UNSIGNED)
+
+    assert i8.normalized_value(-1, truncate_bits=True) == -1
+    assert i8.normalized_value(1, truncate_bits=True) == 1
+    assert i8.normalized_value(255, truncate_bits=True) == -1
+    assert i8.normalized_value(256, truncate_bits=True) == 0
+
+    assert si8.normalized_value(-1, truncate_bits=True) == -1
+    assert si8.normalized_value(1, truncate_bits=True) == 1
+    assert si8.normalized_value(255, truncate_bits=True) == -1
+    assert si8.normalized_value(256, truncate_bits=True) == 0
+
+    assert ui8.normalized_value(-1, truncate_bits=True) == 255
+    assert ui8.normalized_value(1, truncate_bits=True) == 1
+    assert ui8.normalized_value(255, truncate_bits=True) == 255
+    assert ui8.normalized_value(256, truncate_bits=True) == 0
+
+
 def test_IntegerAttr_normalize():
     """
     Test that the value within the accepted signless range is normalized to signed

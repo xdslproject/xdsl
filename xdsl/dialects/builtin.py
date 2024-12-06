@@ -489,7 +489,9 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
                 f"values in the range [{min_value}, {max_value})"
             )
 
-    def normalized_value(self, value: int) -> int | None:
+    def normalized_value(
+        self, value: int, *, truncate_bits: bool = False
+    ) -> int | None:
         """
         Signless values can represent integers from both the signed and unsigned ranges
         for a given bitwidth.
@@ -497,13 +499,16 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
         to the signed version (meaning ambiguous values will always be negative).
         For example, the bitpattern of all ones will always be represented as `-1` at
         runtime.
-        If the input value is outside of the valid range, return `None`.
+        If the input value is outside of the valid range, return `None` if `truncate_bits`
+        is false, otherwise returns a value in range by truncating the bits of the input.
         """
         min_value, max_value = self.value_range()
         if not (min_value <= value < max_value):
-            return None
+            if not truncate_bits:
+                return None
+            value = value % (2**self.bitwidth)
 
-        if self.signedness.data == Signedness.SIGNLESS:
+        if self.signedness.data != Signedness.UNSIGNED:
             signed_ub = signed_upper_bound(self.bitwidth)
             unsigned_ub = unsigned_upper_bound(self.bitwidth)
             if signed_ub <= value:
@@ -620,22 +625,34 @@ class IntegerAttr(
         self,
         value: int | IntAttr,
         value_type: _IntegerAttrType,
+        *,
+        truncate_bits: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType], value: int | IntAttr, value_type: int
+        self: IntegerAttr[IntegerType],
+        value: int | IntAttr,
+        value_type: int,
+        *,
+        truncate_bits: bool = False,
     ) -> None: ...
 
     def __init__(
-        self, value: int | IntAttr, value_type: int | IntegerType | IndexType
+        self,
+        value: int | IntAttr,
+        value_type: int | IntegerType | IndexType,
+        *,
+        truncate_bits: bool = False,
     ) -> None:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
         if isinstance(value, IntAttr):
             value = value.data
         if not isinstance(value_type, IndexType):
-            normalized_value = value_type.normalized_value(value)
+            normalized_value = value_type.normalized_value(
+                value, truncate_bits=truncate_bits
+            )
             if normalized_value is not None:
                 value = normalized_value
         super().__init__([IntAttr(value), value_type])

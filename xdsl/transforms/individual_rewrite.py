@@ -17,10 +17,10 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
         if op.lhs == op.rhs:
-            assert isinstance(op.lhs.type, IntegerType | IndexType)
+            assert isinstance(type := op.lhs.type, IntegerType | IndexType)
             rewriter.replace_matched_op(
                 [
-                    li_op := arith.ConstantOp(IntegerAttr(2, op.lhs.type)),
+                    li_op := arith.ConstantOp(IntegerAttr(2, type, truncate_bits=True)),
                     arith.MuliOp(op.lhs, li_op),
                 ]
             )
