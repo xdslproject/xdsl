@@ -1107,22 +1107,16 @@ class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
     elt_type: ParameterDef[IntegerType | AnyFloat]
-    data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
+    data: ParameterDef[BytesAttr]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType):
-            for d in self.data.data:
-                if isinstance(d, FloatData):
-                    raise VerifyException(
-                        "dense array of integer element type should only contain "
-                        "integers"
-                    )
-        else:
-            for d in self.data.data:
-                if isinstance(d, IntAttr):
-                    raise VerifyException(
-                        "dense array of float element type should only contain floats"
-                    )
+        data_len = len(self.data.data)
+        elt_size = self.elt_type.size
+        if data_len % elt_size:
+            raise VerifyException(
+                f"Data length of {self.name} ({data_len}) not divisible by element "
+                f"size {elt_size}"
+            )
 
     @staticmethod
     def create_dense_int(
@@ -1147,18 +1141,26 @@ class DenseArrayBase(ParametrizedAttribute):
 
         values = cast(tuple[IntAttr, ...], normalized_values)
 
-        return DenseArrayBase([data_type, ArrayAttr(values)])
+        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
+
+        bytes_data = struct.pack(fmt, *(attr.data for attr in values))
+
+        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
     @staticmethod
     def create_dense_float(
         data_type: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int | float):
-            attr_list = [FloatData(float(d)) for d in cast(Sequence[int | float], data)]
+            vals = data
         else:
-            attr_list = cast(Sequence[FloatData], data)
+            vals = tuple(attr.data for attr in cast(Sequence[FloatData], data))
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
+
+        bytes_data = struct.pack(fmt, *vals)
+
+        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
     @overload
     @staticmethod
@@ -1192,13 +1194,13 @@ class DenseArrayBase(ParametrizedAttribute):
             raise TypeError(f"Unsupported element type {data_type}")
 
     def iter_values(self) -> Iterator[float] | Iterator[int]:
-        return (attr.data for attr in self.data.data)
+        return self.elt_type.iter_unpack(self.data.data)
 
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
-        return tuple(self.iter_values())
+        return self.elt_type.unpack(self.data.data, len(self))
 
     def __len__(self) -> int:
-        return len(self.data.data)
+        return len(self.data.data) // self.elt_type.size
 
 
 @irdl_attr_definition
