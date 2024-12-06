@@ -146,11 +146,13 @@ class ConvertAccessOpPattern(RewritePattern):
             rewriter.replace_op(use, [], new_results=[new_access_op.result])
 
 
-@dataclass(frozen=True)
+@dataclass
 class ConvertSwapToPrefetchPattern(RewritePattern):
     """
     Translates dmp.swap to csl_stencil.prefetch
     """
+
+    num_chunks: int = 1
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
@@ -188,6 +190,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         prefetch_op = csl_stencil.PrefetchOp(
             input_stencil=op.input_stencil,
             topo=op.strategy.comm_layout(),
+            num_chunks=IntegerAttr(self.num_chunks, 64),
             swaps=[
                 csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
                 for swap in op.swaps
@@ -588,33 +591,15 @@ class TransformPrefetch(RewritePattern):
         self, op: csl_stencil.PrefetchOp, rewriter: PatternRewriter, /
     ):
         a_buf = tensor.EmptyOp((), op.result.type)
-        apply_ops = [
-            use.operation
-            for use in op.input_stencil.uses
-            if isinstance(use.operation, csl_stencil.ApplyOp)
-        ]
+        # because we are building a set of offsets, we are not retaining offset mappings
+        offsets = [swap.neighbor for swap in op.swaps]
 
-        access_ops: list[csl_stencil.AccessOp] = []
-        for apply_op in apply_ops:
-            for operation in apply_op.done_exchange.ops:
-                if isinstance(operation, csl_stencil.AccessOp):
-                    # todo check this is using the correct buffer
-                    if isa(operation.op.type, AnyTensorType):
-                        access_ops.append(operation)
-
-        if not access_ops:
-            return
-
-        # because we are building a set of offsets (an offset set), we are not retaining offset mappings
-        offsets = set(access_op.offset for access_op in access_ops)
-
-        num_chunks = apply_ops[0].num_chunks
         assert isa(op.result.type, AnyTensorType)
         chunk_buf_t = TensorType(
             op.result.type.get_element_type(),
             (
                 len(op.swaps),
-                op.result.type.get_shape()[1] // num_chunks.value.data,
+                op.result.type.get_shape()[1] // op.num_chunks.value.data,
             ),
         )
         chunk_t = TensorType(chunk_buf_t.element_type, chunk_buf_t.get_shape()[1:])
@@ -626,7 +611,9 @@ class TransformPrefetch(RewritePattern):
         with ImplicitBuilder(block) as (_, offset, acc):
             dest = acc
             for i, acc_offset in enumerate(offsets):
-                ac_op = csl_stencil.AccessOp(dest, acc_offset, chunk_t)
+                ac_op = csl_stencil.AccessOp(
+                    dest, stencil.IndexAttr.get(*acc_offset), chunk_t
+                )
                 assert isa(ac_op.result.type, AnyTensorType)
                 dest = tensor.InsertSliceOp.get(
                     source=ac_op.result,
@@ -643,7 +630,7 @@ class TransformPrefetch(RewritePattern):
             properties={
                 "swaps": op.swaps,
                 "topo": op.topo,
-                "num_chunks": num_chunks,
+                "num_chunks": op.num_chunks,
             },
             result_types=[[]],
         )
@@ -663,7 +650,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertSwapToPrefetchPattern(),
+                    ConvertSwapToPrefetchPattern(num_chunks=self.num_chunks),
                     ConvertAccessOpPattern(),
                 ]
             ),

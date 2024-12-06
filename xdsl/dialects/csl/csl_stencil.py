@@ -140,12 +140,15 @@ class PrefetchOp(IRDLOperation):
 
     topo = prop_def(dmp.RankTopoAttr)
 
+    num_chunks = prop_def(AnyIntegerAttr)
+
     result = result_def(AnyMemRefTypeConstr | AnyTensorTypeConstr)
 
     def __init__(
         self,
         input_stencil: SSAValue | Operation,
         topo: dmp.RankTopoAttr,
+        num_chunks: AnyIntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
         result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
     ):
@@ -154,6 +157,7 @@ class PrefetchOp(IRDLOperation):
             properties={
                 "topo": topo,
                 "swaps": builtin.ArrayAttr(swaps),
+                "num_chunks": num_chunks,
             },
             result_types=[result_type],
         )
