@@ -185,20 +185,18 @@ def test_IntegerType_packing():
     assert nums_f64 == unpacked_f64
 
     # Test error cases
-    with pytest.raises(Exception, match="'b' format requires -128 <= number <= 127"):
+    with pytest.raises(Exception, match="format requires -128 <= number <= 127"):
         # Values must be normalized before packing
         i8.pack((255,))
-    with pytest.raises(
-        Exception, match="'h' format requires -32768 <= number <= 32767"
-    ):
+    with pytest.raises(Exception, match="format requires -32768 <= number <= 32767"):
         i16.pack((32768,))
     with pytest.raises(
-        Exception, match="'i' format requires -2147483648 <= number <= 2147483647"
+        Exception, match="format requires -2147483648 <= number <= 2147483647"
     ):
         i32.pack((2147483648,))
     with pytest.raises(
         Exception,
-        match="'q' format requires -9223372036854775808 <= number <= 9223372036854775807",
+        match="format requires -9223372036854775808 <= number <= 9223372036854775807",
     ):
         i64.pack((9223372036854775808,))
 
