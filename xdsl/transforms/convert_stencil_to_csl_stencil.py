@@ -493,7 +493,7 @@ class ConvertApplyOpPattern(RewritePattern):
         # add operations from list to receive_chunk, use translation table to rebuild operands
         for o in chunk_region_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
-                rewriter.erase_op(o)
+                # rewriter.erase_op(o)
                 break
             o.operands = [chunk_region_oprnd_table.get(x, x) for x in o.operands]
             rewriter.insert_op(o, InsertPoint.at_end(receive_chunk.block))
