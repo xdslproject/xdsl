@@ -185,6 +185,7 @@ def test_IntegerType_packing():
     assert nums_f64 == unpacked_f64
 
     # Test error cases
+    # Different Python versions have different error messages for these
     with pytest.raises(Exception, match="format requires -128 <= number <= 127"):
         # Values must be normalized before packing
         i8.pack((255,))
@@ -196,7 +197,7 @@ def test_IntegerType_packing():
         i32.pack((2147483648,))
     with pytest.raises(
         Exception,
-        match="format requires -9223372036854775808 <= number <= 9223372036854775807",
+        match="argument out of range|format requires -9223372036854775808 <= number <= 9223372036854775807",
     ):
         i64.pack((9223372036854775808,))
 
