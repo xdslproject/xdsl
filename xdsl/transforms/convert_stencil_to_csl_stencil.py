@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
 
+from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
@@ -587,44 +588,57 @@ class TransformPrefetch(RewritePattern):
         self, op: csl_stencil.PrefetchOp, rewriter: PatternRewriter, /
     ):
         a_buf = tensor.EmptyOp((), op.result.type)
-        op_list: list[csl_stencil.AccessOp] = []
-        for use in op.input_stencil.uses:
-            if isinstance(use.operation, csl_stencil.ApplyOp):
-                apply_op = use.operation
-                break
-        else:
-            raise ValueError("Prefetch is not in use by an apply")
-        for operation in apply_op.done_exchange.ops:
-            if isinstance(operation, csl_stencil.AccessOp):
-                if isa(operation.op.type, AnyTensorType):
-                    op_list.append(operation)
-        block = Block(arg_types=[op.result.type, builtin.IndexType(), op.result.type])
-        dest = block.args[2]
-        for i, access_op in enumerate(op_list):
-            block.add_op(
-                ac_op := csl_stencil.AccessOp.build(
-                    operands=[block.args[2]],
-                    result_types=access_op.result_types,
+        apply_ops = [
+            use.operation
+            for use in op.input_stencil.uses
+            if isinstance(use.operation, csl_stencil.ApplyOp)
+        ]
+
+        access_ops: list[csl_stencil.AccessOp] = []
+        for apply_op in apply_ops:
+            for operation in apply_op.done_exchange.ops:
+                if isinstance(operation, csl_stencil.AccessOp):
+                    # todo check this is using the correct buffer
+                    if isa(operation.op.type, AnyTensorType):
+                        access_ops.append(operation)
+
+        if not access_ops:
+            return
+
+        num_chunks = apply_ops[0].num_chunks
+        assert isa(op.result.type, AnyTensorType)
+        chunk_buf_t = TensorType(
+            op.result.type.get_element_type(),
+            (
+                len(op.swaps),
+                op.result.type.get_shape()[1] // num_chunks.value.data,
+            ),
+        )
+        chunk_t = TensorType(chunk_buf_t.element_type, chunk_buf_t.get_shape()[1:])
+
+        block = Block(arg_types=[chunk_buf_t, builtin.IndexType(), op.result.type])
+        block2 = Block(arg_types=[op.input_stencil.type, op.result.type])
+        block2.add_op(csl_stencil.YieldOp(block2.args[1]))
+
+        with ImplicitBuilder(block) as (_, offset, acc):
+            dest = acc
+            for i, access_op in enumerate(access_ops):
+                ac_op = csl_stencil.AccessOp.build(
+                    operands=[dest],
+                    result_types=[chunk_t],
                     regions=access_op.regions,
                     properties=access_op.properties,
                     attributes=access_op.attributes,
                 )
-            )
-            assert isa(ac_op.result.type, AnyTensorType)
-            insertslice = tensor.InsertSliceOp.get(
-                source=ac_op.result,
-                dest=dest,
-                static_sizes=ac_op.result.type.get_shape(),
-                static_offsets=[i, memref.SubviewOp.DYNAMIC_INDEX],
-                offsets=[block.args[1]],
-            )
-            dest = insertslice.result
-            block.add_op(insertslice)
-        yield_op = csl_stencil.YieldOp(dest)
-        block.add_op(yield_op)
-
-        block2 = Block(arg_types=[op.input_stencil.type, op.result.type])
-        block2.add_op(csl_stencil.YieldOp(block2.args[1]))
+                assert isa(ac_op.result.type, AnyTensorType)
+                dest = tensor.InsertSliceOp.get(
+                    source=ac_op.result,
+                    dest=dest,
+                    static_sizes=ac_op.result.type.get_shape(),
+                    static_offsets=[i, memref.SubviewOp.DYNAMIC_INDEX],
+                    offsets=[offset],
+                ).result
+            csl_stencil.YieldOp(dest)
 
         apply_op = csl_stencil.ApplyOp(
             operands=[op.input_stencil, a_buf, [], [], []],
@@ -632,14 +646,12 @@ class TransformPrefetch(RewritePattern):
             properties={
                 "swaps": op.swaps,
                 "topo": op.topo,
-                "num_chunks": IntegerAttr(1, IntegerType(64)),
+                "num_chunks": num_chunks,
             },
             result_types=[[]],
         )
 
         rewriter.replace_matched_op([a_buf, apply_op], new_results=[a_buf.tensor])
-
-        pass
 
 
 @dataclass(frozen=True)
@@ -671,6 +683,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
                 ]
             ),
             apply_recursively=False,
+            walk_reverse=True,
         ).rewrite_module(op)
 
         ConvertVarithToArithPass().apply(ctx, op)
