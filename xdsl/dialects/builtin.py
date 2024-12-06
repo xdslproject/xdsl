@@ -74,8 +74,10 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.comparisons import (
+    signed_upper_bound,
     signed_value_range,
     signless_value_range,
+    unsigned_upper_bound,
     unsigned_value_range,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
@@ -395,6 +397,28 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
                 f"values in the range [{min_value}, {max_value})"
             )
 
+    def normalized_value(self, value: IntAttr) -> IntAttr | None:
+        """
+        Signless values can represent integers from both the signed and unsigned ranges
+        for a given bitwidth.
+        We choose to normalize values that are not in the intersection of the two ranges
+        to the signed version (meaning ambiguous values will always be negative).
+        For example, the bitpattern of all ones will always be represented as `-1` at
+        runtime.
+        If the input value is outside of the valid range, return `None`.
+        """
+        min_value, max_value = self.value_range()
+        if not (min_value <= value.data < max_value):
+            return None
+
+        if self.signedness.data == Signedness.SIGNLESS:
+            signed_ub = signed_upper_bound(self.bitwidth)
+            unsigned_ub = unsigned_upper_bound(self.bitwidth)
+            if signed_ub <= value.data:
+                return IntAttr(value.data - unsigned_ub)
+
+        return value
+
     @property
     def bitwidth(self) -> int:
         return self.width.data
@@ -495,10 +519,14 @@ class IntegerAttr(
     def __init__(
         self, value: int | IntAttr, value_type: int | IntegerType | IndexType
     ) -> None:
-        if isinstance(value, int):
-            value = IntAttr(value)
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
+        if isinstance(value, int):
+            value = IntAttr(value)
+        if not isinstance(value_type, IndexType):
+            normalized_value = value_type.normalized_value(value)
+            if normalized_value is not None:
+                value = normalized_value
         super().__init__([value, value_type])
 
     @staticmethod
@@ -991,17 +1019,25 @@ class DenseArrayBase(ParametrizedAttribute):
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
-            attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
+            attr_list = tuple(IntAttr(d) for d in cast(Sequence[int], data))
         else:
             attr_list = cast(Sequence[IntAttr], data)
 
-        try:
-            for attr in attr_list:
-                data_type.verify_value(attr.data)
-        except VerifyException as e:
-            raise ValueError(str(e))
+        normalized_values = tuple(
+            data_type.normalized_value(attr) for attr in attr_list
+        )
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        for i, value in enumerate(normalized_values):
+            if value is None:
+                min_value, max_value = data_type.value_range()
+                raise ValueError(
+                    f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
+                    f"values in the range [{min_value}, {max_value})"
+                )
+
+        values = cast(tuple[IntAttr, ...], normalized_values)
+
+        return DenseArrayBase([data_type, ArrayAttr(values)])
 
     @staticmethod
     def create_dense_float(

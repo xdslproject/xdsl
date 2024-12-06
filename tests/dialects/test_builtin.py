@@ -19,10 +19,12 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     FloatData,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     MemRefType,
     NoneAttr,
     ShapedType,
+    Signedness,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -56,6 +58,50 @@ def test_IntegerType_size():
     assert IntegerType(16).size == 2
     assert IntegerType(32).size == 4
     assert IntegerType(64).size == 8
+
+
+def test_IntegerType_normalized():
+    si8 = IntegerType(8, Signedness.SIGNED)
+    ui8 = IntegerType(8, Signedness.UNSIGNED)
+
+    assert i8.normalized_value(IntAttr(-1)) == IntAttr(-1)
+    assert i8.normalized_value(IntAttr(1)) == IntAttr(1)
+    assert i8.normalized_value(IntAttr(255)) == IntAttr(-1)
+
+    assert si8.normalized_value(IntAttr(-1)) == IntAttr(-1)
+    assert si8.normalized_value(IntAttr(1)) == IntAttr(1)
+    assert si8.normalized_value(IntAttr(255)) is None
+
+    assert ui8.normalized_value(IntAttr(-1)) is None
+    assert ui8.normalized_value(IntAttr(1)) == IntAttr(1)
+    assert ui8.normalized_value(IntAttr(255)) == IntAttr(255)
+
+
+def test_IntegerAttr_normalize():
+    """
+    Test that the value within the accepted signless range is normalized to signed
+    range.
+    """
+    assert IntegerAttr(-1, 8) == IntegerAttr(255, 8)
+    assert str(IntegerAttr(255, 8)) == "-1 : i8"
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "Integer value -129 is out of range for type i8 which supports "
+            "values in the range [-128, 256)"
+        ),
+    ):
+        IntegerAttr(-129, 8)
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "Integer value 256 is out of range for type i8 which supports "
+            "values in the range [-128, 256)"
+        ),
+    ):
+        IntegerAttr(256, 8)
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
