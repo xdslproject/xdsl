@@ -519,3 +519,21 @@ async def test_argument_pass_screen():
 
         arg_screen_str: type[Screen[Any]] = AddArguments
         assert isinstance(app.screen, arg_screen_str)
+
+
+@pytest.mark.asyncio
+async def test_dark_mode():
+    """Tests that 'd' switches between dark and light mode"""
+
+    async with InputApp(tuple(), tuple()).run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+
+        assert app.theme == "textual-dark"
+
+        await pilot.press("d")
+
+        assert app.theme == "textual-light"
+
+        await pilot.press("d")
+
+        assert app.theme == "textual-dark"
