@@ -1127,21 +1127,23 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             attr_list = cast(Sequence[IntAttr], data)
 
-        normalized_attrs = tuple(data_type.normalized_value(attr) for attr in attr_list)
+        normalized_values = tuple(
+            data_type.normalized_value(attr) for attr in attr_list
+        )
 
-        for i, attr in enumerate(normalized_attrs):
-            if attr is None:
+        for i, value in enumerate(normalized_values):
+            if value is None:
                 min_value, max_value = data_type.value_range()
                 raise ValueError(
                     f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
                     f"values in the range [{min_value}, {max_value})"
                 )
 
-        attrs = cast(tuple[IntAttr, ...], normalized_attrs)
+        values = cast(tuple[IntAttr, ...], normalized_values)
 
         fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
 
-        bytes_data = struct.pack(fmt, *(attr.data for attr in attrs))
+        bytes_data = struct.pack(fmt, *(attr.data for attr in values))
 
         return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
