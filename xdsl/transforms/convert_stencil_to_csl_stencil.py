@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from math import prod
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, stencil, tensor, varith
+from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyMemRefTypeConstr,
@@ -575,6 +575,71 @@ class PromoteCoefficients(RewritePattern):
         rewriter.replace_op(mulf, [], new_results=[op.result])
 
 
+class TransformPrefetch(RewritePattern):
+    """
+    Rewrites a prefetch into a communicate-only csl_stencil.apply
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: csl_stencil.PrefetchOp, rewriter: PatternRewriter, /
+    ):
+        a_buf = tensor.EmptyOp((), op.result.type)
+        op_list: list[csl_stencil.AccessOp] = []
+        for use in op.input_stencil.uses:
+            if isinstance(use.operation, csl_stencil.ApplyOp):
+                apply_op = use.operation
+                break
+        else:
+            raise ValueError("Prefetch is not in use by an apply")
+        for operation in apply_op.done_exchange.ops:
+            if isinstance(operation, csl_stencil.AccessOp):
+                if isa(operation.op.type, AnyTensorType):
+                    op_list.append(operation)
+        block = Block(arg_types=[op.result.type, builtin.IndexType(), op.result.type])
+        dest = block.args[2]
+        for i, access_op in enumerate(op_list):
+            block.add_op(
+                ac_op := csl_stencil.AccessOp.build(
+                    operands=[block.args[2]],
+                    result_types=access_op.result_types,
+                    regions=access_op.regions,
+                    properties=access_op.properties,
+                    attributes=access_op.attributes,
+                )
+            )
+            assert isa(ac_op.result.type, AnyTensorType)
+            insertslice = tensor.InsertSliceOp.get(
+                source=ac_op.result,
+                dest=dest,
+                static_sizes=ac_op.result.type.get_shape(),
+                static_offsets=[i, memref.SubviewOp.DYNAMIC_INDEX],
+                offsets=[block.args[1]],
+            )
+            dest = insertslice.result
+            block.add_op(insertslice)
+        yield_op = csl_stencil.YieldOp(dest)
+        block.add_op(yield_op)
+
+        block2 = Block(arg_types=[op.input_stencil.type, op.result.type])
+        block2.add_op(csl_stencil.YieldOp(block2.args[1]))
+
+        apply_op = csl_stencil.ApplyOp(
+            operands=[op.input_stencil, a_buf, [], [], []],
+            regions=[Region(block), Region(block2)],
+            properties={
+                "swaps": op.swaps,
+                "topo": op.topo,
+                "num_chunks": IntegerAttr(1, IntegerType(64)),
+            },
+            result_types=[[]],
+        )
+
+        rewriter.replace_matched_op([a_buf, apply_op], new_results=[a_buf.tensor])
+
+        pass
+
+
 @dataclass(frozen=True)
 class ConvertStencilToCslStencilPass(ModulePass):
     name = "convert-stencil-to-csl-stencil"
@@ -600,6 +665,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
                 [
                     ConvertApplyOpPattern(num_chunks=self.num_chunks),
                     PromoteCoefficients(),
+                    TransformPrefetch(),
                 ]
             ),
             apply_recursively=False,
