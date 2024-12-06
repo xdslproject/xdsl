@@ -605,6 +605,9 @@ class TransformPrefetch(RewritePattern):
         if not access_ops:
             return
 
+        # because we are building a set of offsets (an offset set), we are not retaining offset mappings
+        offsets = set(access_op.offset for access_op in access_ops)
+
         num_chunks = apply_ops[0].num_chunks
         assert isa(op.result.type, AnyTensorType)
         chunk_buf_t = TensorType(
@@ -622,14 +625,8 @@ class TransformPrefetch(RewritePattern):
 
         with ImplicitBuilder(block) as (_, offset, acc):
             dest = acc
-            for i, access_op in enumerate(access_ops):
-                ac_op = csl_stencil.AccessOp.build(
-                    operands=[dest],
-                    result_types=[chunk_t],
-                    regions=access_op.regions,
-                    properties=access_op.properties,
-                    attributes=access_op.attributes,
-                )
+            for i, acc_offset in enumerate(offsets):
+                ac_op = csl_stencil.AccessOp(dest, acc_offset, chunk_t)
                 assert isa(ac_op.result.type, AnyTensorType)
                 dest = tensor.InsertSliceOp.get(
                     source=ac_op.result,
