@@ -39,6 +39,14 @@ class InvalidIRException(Exception):
     pass
 
 
+class ShrinkException(Exception):
+    """
+    Exception used for shrinking purposes.
+    """
+
+    pass
+
+
 class InterpretationError(Exception):
     """
     An error that can be raised during interpretation, or Interpreter setup.

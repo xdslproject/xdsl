@@ -37,6 +37,7 @@ from xdsl.transforms.canonicalization_patterns.stencil import (
 )
 from xdsl.transforms.shape_inference_patterns.stencil import update_result_size
 from xdsl.transforms.stencil_unroll import offseted_block_clone
+from xdsl.utils.exceptions import ShrinkException
 
 
 def is_before_in_block(op1: Operation, op2: Operation):
@@ -58,6 +59,7 @@ class StencilStoreResultForwardPattern(RewritePattern):
     def match_and_rewrite(self, op: StoreResultOp, rewriter: PatternRewriter, /):
         if op.arg is None:
             return
+        raise ShrinkException
         rewriter.replace_matched_op([], [op.arg])
 
 
