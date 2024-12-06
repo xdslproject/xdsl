@@ -2,8 +2,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
 
+from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
-from xdsl.dialects import arith, stencil, tensor, varith
+from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyMemRefTypeConstr,
@@ -145,11 +146,13 @@ class ConvertAccessOpPattern(RewritePattern):
             rewriter.replace_op(use, [], new_results=[new_access_op.result])
 
 
-@dataclass(frozen=True)
+@dataclass
 class ConvertSwapToPrefetchPattern(RewritePattern):
     """
     Translates dmp.swap to csl_stencil.prefetch
     """
+
+    num_chunks: int = 1
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
@@ -187,6 +190,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         prefetch_op = csl_stencil.PrefetchOp(
             input_stencil=op.input_stencil,
             topo=op.strategy.comm_layout(),
+            num_chunks=IntegerAttr(self.num_chunks, 64),
             swaps=[
                 csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
                 for swap in op.swaps
@@ -577,6 +581,63 @@ class PromoteCoefficients(RewritePattern):
         rewriter.replace_op(mulf, [], new_results=[op.result])
 
 
+class TransformPrefetch(RewritePattern):
+    """
+    Rewrites a prefetch into a communicate-only csl_stencil.apply
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: csl_stencil.PrefetchOp, rewriter: PatternRewriter, /
+    ):
+        a_buf = tensor.EmptyOp((), op.result.type)
+        # because we are building a set of offsets, we are not retaining offset mappings
+        offsets = [swap.neighbor for swap in op.swaps]
+
+        assert isa(op.result.type, AnyTensorType)
+        chunk_buf_t = TensorType(
+            op.result.type.get_element_type(),
+            (
+                len(op.swaps),
+                op.result.type.get_shape()[1] // op.num_chunks.value.data,
+            ),
+        )
+        chunk_t = TensorType(chunk_buf_t.element_type, chunk_buf_t.get_shape()[1:])
+
+        block = Block(arg_types=[chunk_buf_t, builtin.IndexType(), op.result.type])
+        block2 = Block(arg_types=[op.input_stencil.type, op.result.type])
+        block2.add_op(csl_stencil.YieldOp(block2.args[1]))
+
+        with ImplicitBuilder(block) as (_, offset, acc):
+            dest = acc
+            for i, acc_offset in enumerate(offsets):
+                ac_op = csl_stencil.AccessOp(
+                    dest, stencil.IndexAttr.get(*acc_offset), chunk_t
+                )
+                assert isa(ac_op.result.type, AnyTensorType)
+                dest = tensor.InsertSliceOp.get(
+                    source=ac_op.result,
+                    dest=dest,
+                    static_sizes=ac_op.result.type.get_shape(),
+                    static_offsets=[i, memref.SubviewOp.DYNAMIC_INDEX],
+                    offsets=[offset],
+                ).result
+            csl_stencil.YieldOp(dest)
+
+        apply_op = csl_stencil.ApplyOp(
+            operands=[op.input_stencil, a_buf, [], [], []],
+            regions=[Region(block), Region(block2)],
+            properties={
+                "swaps": op.swaps,
+                "topo": op.topo,
+                "num_chunks": op.num_chunks,
+            },
+            result_types=[[]],
+        )
+
+        rewriter.replace_matched_op([a_buf, apply_op], new_results=[a_buf.tensor])
+
+
 @dataclass(frozen=True)
 class ConvertStencilToCslStencilPass(ModulePass):
     name = "convert-stencil-to-csl-stencil"
@@ -589,7 +650,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertSwapToPrefetchPattern(),
+                    ConvertSwapToPrefetchPattern(num_chunks=self.num_chunks),
                     ConvertAccessOpPattern(),
                 ]
             ),
@@ -602,9 +663,11 @@ class ConvertStencilToCslStencilPass(ModulePass):
                 [
                     ConvertApplyOpPattern(num_chunks=self.num_chunks),
                     PromoteCoefficients(),
+                    TransformPrefetch(),
                 ]
             ),
             apply_recursively=False,
+            walk_reverse=True,
         ).rewrite_module(op)
 
         ConvertVarithToArithPass().apply(ctx, op)
