@@ -189,7 +189,10 @@ def test_IntegerType_packing():
     with pytest.raises(Exception, match="format requires -128 <= number <= 127"):
         # Values must be normalized before packing
         i8.pack((255,))
-    with pytest.raises(Exception, match="format requires -32768 <= number <= 32767"):
+    with pytest.raises(
+        Exception,
+        match="format requires (-32768)|(\\(-0x7fff - 1\\)) <= number <= (32767)|(0x7fff)",
+    ):
         i16.pack((32768,))
     with pytest.raises(
         Exception, match="format requires -2147483648 <= number <= 2147483647"
