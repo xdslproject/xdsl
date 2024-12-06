@@ -4,6 +4,10 @@ MAKEFLAGS += --no-builtin-variables
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
 
+# allow overriding the name of the venv directory
+VENV_DIR ?= venv
+export UV_PROJECT_ENVIRONMENT=${VENV_DIR}
+
 # allow overriding which extras are installed
 VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
 
