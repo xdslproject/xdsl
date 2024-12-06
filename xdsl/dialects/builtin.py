@@ -1123,19 +1123,17 @@ class DenseArrayBase(ParametrizedAttribute):
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
-            vals = cast(Sequence[int], data)
+            attr_list = tuple(IntAttr(d) for d in cast(Sequence[int], data))
         else:
-            vals = tuple(attr.data for attr in cast(Sequence[IntAttr], data))
+            attr_list = cast(Sequence[IntAttr], data)
 
-        normalized_attrs = tuple(
-            data_type.normalized_value(IntAttr(val)) for val in vals
-        )
+        normalized_attrs = tuple(data_type.normalized_value(attr) for attr in attr_list)
 
         for i, attr in enumerate(normalized_attrs):
             if attr is None:
                 min_value, max_value = data_type.value_range()
                 raise ValueError(
-                    f"Integer value {vals[i]} is out of range for type {data_type} which supports "
+                    f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
                     f"values in the range [{min_value}, {max_value})"
                 )
 
