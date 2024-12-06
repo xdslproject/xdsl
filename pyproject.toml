@@ -161,3 +161,6 @@ style = "pep440"
 versionfile_source = "xdsl/_version.py"
 versionfile_build = "xdsl/_version.py"
 tag_prefix = "v"
+
+[tool.pyright]
+enableExperimentalFeatures = true
