@@ -35,7 +35,9 @@ from xdsl.dialects.builtin import (
     VectorType,
     f32,
     f64,
+    i1,
     i8,
+    i16,
     i32,
     i64,
 )
@@ -140,13 +142,65 @@ def test_IntegerAttr_normalize():
 
 
 def test_IntegerType_packing():
-    nums = (-128, -1, 0, 1, 127)
-    buffer = i8.pack(nums)
-    unpacked = i8.unpack(buffer, len(nums))
-    assert nums == unpacked
+    # i1
+    nums_i1 = (0, 1, 0, 1)
+    buffer_i1 = i1.pack(nums_i1)
+    unpacked_i1 = i1.unpack(buffer_i1, len(nums_i1))
+    assert nums_i1 == unpacked_i1
+
+    # i8
+    nums_i8 = (-128, -1, 0, 1, 127)
+    buffer_i8 = i8.pack(nums_i8)
+    unpacked_i8 = i8.unpack(buffer_i8, len(nums_i8))
+    assert nums_i8 == unpacked_i8
+
+    # i16
+    nums_i16 = (-32768, -1, 0, 1, 32767)
+    buffer_i16 = i16.pack(nums_i16)
+    unpacked_i16 = i16.unpack(buffer_i16, len(nums_i16))
+    assert nums_i16 == unpacked_i16
+
+    # i32
+    nums_i32 = (-2147483648, -1, 0, 1, 2147483647)
+    buffer_i32 = i32.pack(nums_i32)
+    unpacked_i32 = i32.unpack(buffer_i32, len(nums_i32))
+    assert nums_i32 == unpacked_i32
+
+    # i64
+    nums_i64 = (-9223372036854775808, -1, 0, 1, 9223372036854775807)
+    buffer_i64 = i64.pack(nums_i64)
+    unpacked_i64 = i64.unpack(buffer_i64, len(nums_i64))
+    assert nums_i64 == unpacked_i64
+
+    # f32
+    nums_f32 = (-3.140000104904175, -1.0, 0.0, 1.0, 3.140000104904175)
+    buffer_f32 = f32.pack(nums_f32)
+    unpacked_f32 = f32.unpack(buffer_f32, len(nums_f32))
+    assert nums_f32 == unpacked_f32
+
+    # f64
+    nums_f64 = (-3.14159265359, -1.0, 0.0, 1.0, 3.14159265359)
+    buffer_f64 = f64.pack(nums_f64)
+    unpacked_f64 = f64.unpack(buffer_f64, len(nums_f64))
+    assert nums_f64 == unpacked_f64
+
+    # Test error cases
     with pytest.raises(Exception, match="'b' format requires -128 <= number <= 127"):
         # Values must be normalized before packing
         i8.pack((255,))
+    with pytest.raises(
+        Exception, match="'h' format requires -32768 <= number <= 32767"
+    ):
+        i16.pack((32768,))
+    with pytest.raises(
+        Exception, match="'i' format requires -2147483648 <= number <= 2147483647"
+    ):
+        i32.pack((2147483648,))
+    with pytest.raises(
+        Exception,
+        match="'q' format requires -9223372036854775808 <= number <= 9223372036854775807",
+    ):
+        i64.pack((9223372036854775808,))
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
