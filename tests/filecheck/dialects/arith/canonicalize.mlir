@@ -149,3 +149,8 @@ func.func @test_const_var_const() {
 %9 = arith.cmpi uge, %int, %int : i32
 
 "test.op"(%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %int) : (i1, i1, i1, i1, i1, i1, i1, i1, i1, i1, i32) -> ()
+
+// Subtraction is not commutative so should not have the constant swapped to the right
+// CHECK: arith.subi %c2, %a : i32
+%10 = arith.subi %c2, %a : i32
+"test.op"(%10) : (i32) -> ()
