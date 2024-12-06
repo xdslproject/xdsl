@@ -1194,14 +1194,10 @@ class DenseArrayBase(ParametrizedAttribute):
             raise TypeError(f"Unsupported element type {data_type}")
 
     def iter_values(self) -> Iterator[float] | Iterator[int]:
-        # The memoryview needs to be a multiple of the size of the packed format
-        return (
-            values[0]
-            for values in struct.iter_unpack(self.elt_type.format, self.data.data)
-        )
+        return self.elt_type.iter_unpack(self.data.data)
 
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
-        return tuple(self.iter_values())
+        return self.elt_type.unpack(self.data.data, len(self))
 
     def __len__(self) -> int:
         return len(self.data.data) // self.elt_type.size
