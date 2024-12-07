@@ -448,6 +448,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_bufferize.StencilBufferize
 
+    def get_stencil_inlining():
+        from xdsl.transforms import stencil_inlining
+
+        return stencil_inlining.StencilInliningPass
+
     def get_stencil_shape_minimize():
         from xdsl.transforms import stencil_shape_minimize
 
@@ -574,6 +579,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "shape-inference": get_shape_inference,
         "snitch-allocate-registers": get_snitch_allocate_registers,
         "stencil-bufferize": get_stencil_bufferize,
+        "stencil-inlining": get_stencil_inlining,
         "stencil-shape-minimize": get_stencil_shape_minimize,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
