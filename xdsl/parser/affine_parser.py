@@ -7,9 +7,10 @@ from xdsl.ir.affine import (
     AffineMap,
     AffineSet,
 )
-from xdsl.parser.base_parser import BaseParser, ParserState
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import MLIRToken, MLIRTokenKind
+
+from .base_parser import BaseParser, ParserState  # noqa: TID251
 
 
 class AffineParser(BaseParser):

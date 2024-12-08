@@ -123,6 +123,7 @@ max-line-length = 300
 "xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
 "xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
+"xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
 
 
