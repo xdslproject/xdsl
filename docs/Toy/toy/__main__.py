@@ -22,7 +22,7 @@ from .emulator.toy_accelerator_instruction_functions import (
     ToyAcceleratorInstructionFunctions,
 )
 from .frontend.ir_gen import IRGen
-from .frontend.parser import Parser as ToyParser
+from .frontend.parser import ToyParser as ToyParser
 from .interpreter import Interpreter, ToyFunctions
 
 parser = argparse.ArgumentParser(description="Process Toy file")
