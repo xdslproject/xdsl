@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 from typing import cast
 
@@ -569,18 +570,20 @@ def test_parse_comma_separated_list_error_delimiters(
 ):
     input = open_bracket + "2, 4 5"
     parser = Parser(MLContext(), input)
-    with pytest.raises(ParseError) as e:
+    with pytest.raises(
+        ParseError, match=re.escape(f"'{close_bracket}' expected in test")
+    ) as e:
         parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert e.value.span.text == "5"
-    assert e.value.msg == "Expected '" + close_bracket + "' in test"
 
     parser = Parser(MLContext(), input)
-    with pytest.raises(ParseError) as e:
+    with pytest.raises(
+        ParseError, match=re.escape(f"'{close_bracket}' expected in test")
+    ) as e:
         parser.parse_optional_comma_separated_list(
             delimiter, parser.parse_integer, " in test"
         )
     assert e.value.span.text == "5"
-    assert e.value.msg == "Expected '" + close_bracket + "' in test"
 
 
 @pytest.mark.parametrize(
