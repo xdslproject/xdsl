@@ -73,7 +73,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f64_to_u64,
 )
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.mlir_lexer import Lexer
+from xdsl.utils.mlir_lexer import MLIRLexer
 
 indentNumSpaces = 2
 
@@ -446,7 +446,7 @@ class Printer:
         Prints the provided string as an identifier if it is one,
         and as a string literal otherwise.
         """
-        if Lexer.bare_identifier_regex.fullmatch(string) is None:
+        if MLIRLexer.bare_identifier_regex.fullmatch(string) is None:
             self.print_string_literal(string)
             return
         self.print_string(string)

@@ -11,15 +11,15 @@ import timeit
 from collections.abc import Iterable
 
 from xdsl.utils.lexer import Input
-from xdsl.utils.mlir_lexer import Kind, Lexer
+from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
 
 def lex_file(file: Input):
     """
     Lex the given file
     """
-    lexer = Lexer(file)
-    while lexer.lex().kind is not Kind.EOF:
+    lexer = MLIRLexer(file)
+    while lexer.lex().kind is not MLIRTokenKind.EOF:
         pass
 
 

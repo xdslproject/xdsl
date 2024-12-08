@@ -7,7 +7,7 @@ from string import hexdigits
 from typing import Literal, TypeAlias, TypeGuard, cast, overload
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import AbstractLexer, GenericToken, Position, Span
+from xdsl.utils.lexer import Lexer, Position, Span, Token
 
 PunctuationSpelling: TypeAlias = Literal[
     "->",
@@ -87,7 +87,7 @@ class StringLiteral(Span):
         return bytes(bytes_contents)
 
 
-class Kind(Enum):
+class MLIRTokenKind(Enum):
     # Markers
     EOF = object()
 
@@ -134,50 +134,50 @@ class Kind(Enum):
     FILE_METADATA_END = "#-}"
 
     @staticmethod
-    def get_punctuation_spelling_to_kind_dict() -> dict[str, Kind]:
+    def get_punctuation_spelling_to_kind_dict() -> dict[str, MLIRTokenKind]:
         return {
-            "->": Kind.ARROW,
-            ":": Kind.COLON,
-            ",": Kind.COMMA,
-            "...": Kind.ELLIPSIS,
-            "=": Kind.EQUAL,
-            ">": Kind.GREATER,
-            "{": Kind.L_BRACE,
-            "(": Kind.L_PAREN,
-            "[": Kind.L_SQUARE,
-            "<": Kind.LESS,
-            "-": Kind.MINUS,
-            "+": Kind.PLUS,
-            "?": Kind.QUESTION,
-            "}": Kind.R_BRACE,
-            ")": Kind.R_PAREN,
-            "]": Kind.R_SQUARE,
-            "*": Kind.STAR,
-            "|": Kind.VERTICAL_BAR,
-            "{-#": Kind.FILE_METADATA_BEGIN,
-            "#-}": Kind.FILE_METADATA_END,
+            "->": MLIRTokenKind.ARROW,
+            ":": MLIRTokenKind.COLON,
+            ",": MLIRTokenKind.COMMA,
+            "...": MLIRTokenKind.ELLIPSIS,
+            "=": MLIRTokenKind.EQUAL,
+            ">": MLIRTokenKind.GREATER,
+            "{": MLIRTokenKind.L_BRACE,
+            "(": MLIRTokenKind.L_PAREN,
+            "[": MLIRTokenKind.L_SQUARE,
+            "<": MLIRTokenKind.LESS,
+            "-": MLIRTokenKind.MINUS,
+            "+": MLIRTokenKind.PLUS,
+            "?": MLIRTokenKind.QUESTION,
+            "}": MLIRTokenKind.R_BRACE,
+            ")": MLIRTokenKind.R_PAREN,
+            "]": MLIRTokenKind.R_SQUARE,
+            "*": MLIRTokenKind.STAR,
+            "|": MLIRTokenKind.VERTICAL_BAR,
+            "{-#": MLIRTokenKind.FILE_METADATA_BEGIN,
+            "#-}": MLIRTokenKind.FILE_METADATA_END,
         }
 
     def is_punctuation(self) -> bool:
-        punctuation_dict = Kind.get_punctuation_spelling_to_kind_dict()
+        punctuation_dict = MLIRTokenKind.get_punctuation_spelling_to_kind_dict()
         return self in punctuation_dict.values()
 
     @staticmethod
     def is_spelling_of_punctuation(
         spelling: str,
     ) -> TypeGuard[PunctuationSpelling]:
-        punctuation_dict = Kind.get_punctuation_spelling_to_kind_dict()
+        punctuation_dict = MLIRTokenKind.get_punctuation_spelling_to_kind_dict()
         return spelling in punctuation_dict.keys()
 
     @staticmethod
     def get_punctuation_kind_from_spelling(
         spelling: PunctuationSpelling,
-    ) -> Kind:
-        assert Kind.is_spelling_of_punctuation(spelling), (
+    ) -> MLIRTokenKind:
+        assert MLIRTokenKind.is_spelling_of_punctuation(spelling), (
             "Kind.get_punctuation_kind_from_spelling: spelling is not a "
             "valid punctuation spelling!"
         )
-        return Kind.get_punctuation_spelling_to_kind_dict()[spelling]
+        return MLIRTokenKind.get_punctuation_spelling_to_kind_dict()[spelling]
 
     def get_int_value(self, span: Span):
         """
@@ -185,7 +185,7 @@ class Kind(Enum):
         This function will raise an exception if the token is not an integer
         literal.
         """
-        if self != Kind.INTEGER_LIT:
+        if self != MLIRTokenKind.INTEGER_LIT:
             raise ValueError("Token is not an integer literal!")
         if span.text[:2] in ["0x", "0X"]:
             return int(span.text, 16)
@@ -197,7 +197,7 @@ class Kind(Enum):
         This function will raise an exception if the token is not a float
         literal.
         """
-        if self != Kind.FLOAT_LIT:
+        if self != MLIRTokenKind.FLOAT_LIT:
             raise ValueError("Token is not a float literal!")
         return float(span.text)
 
@@ -208,16 +208,16 @@ class Kind(Enum):
         the string.
         This function will raise an exception if the token is not a string literal.
         """
-        if self != Kind.STRING_LIT:
+        if self != MLIRTokenKind.STRING_LIT:
             raise ValueError("Token is not a string literal!")
         return StringLiteral.from_span(span).string_contents
 
 
-Token = GenericToken[Kind]
+MLIRToken = Token[MLIRTokenKind]
 
 
 @dataclass
-class Lexer(AbstractLexer[Kind]):
+class MLIRLexer(Lexer[MLIRTokenKind]):
     def _is_in_bounds(self, size: Position = 1) -> bool:
         """
         Check if the current position is within the bounds of the input.
@@ -265,13 +265,13 @@ class Lexer(AbstractLexer[Kind]):
         """
         self._consume_regex(self._whitespace_regex)
 
-    def _form_token(self, kind: Kind, start_pos: Position) -> Token:
+    def _form_token(self, kind: MLIRTokenKind, start_pos: Position) -> MLIRToken:
         """
         Return a token with the given kind, and the start position.
         """
-        return Token(kind, Span(start_pos, self.pos, self.input))
+        return MLIRToken(kind, Span(start_pos, self.pos, self.input))
 
-    def lex(self) -> Token:
+    def lex(self) -> MLIRToken:
         """
         Lex a token from the input, and returns it.
         """
@@ -283,7 +283,7 @@ class Lexer(AbstractLexer[Kind]):
 
         # Handle end of file
         if current_char is None:
-            return self._form_token(Kind.EOF, start_pos)
+            return self._form_token(MLIRTokenKind.EOF, start_pos)
 
         # bare identifier
         if current_char.isalpha() or current_char == "_":
@@ -291,20 +291,20 @@ class Lexer(AbstractLexer[Kind]):
 
         # single-char punctuation that are not part of a multi-char token
         single_char_punctuation = {
-            ":": Kind.COLON,
-            ",": Kind.COMMA,
-            "(": Kind.L_PAREN,
-            ")": Kind.R_PAREN,
-            "}": Kind.R_BRACE,
-            "[": Kind.L_SQUARE,
-            "]": Kind.R_SQUARE,
-            "<": Kind.LESS,
-            ">": Kind.GREATER,
-            "=": Kind.EQUAL,
-            "+": Kind.PLUS,
-            "*": Kind.STAR,
-            "?": Kind.QUESTION,
-            "|": Kind.VERTICAL_BAR,
+            ":": MLIRTokenKind.COLON,
+            ",": MLIRTokenKind.COMMA,
+            "(": MLIRTokenKind.L_PAREN,
+            ")": MLIRTokenKind.R_PAREN,
+            "}": MLIRTokenKind.R_BRACE,
+            "[": MLIRTokenKind.L_SQUARE,
+            "]": MLIRTokenKind.R_SQUARE,
+            "<": MLIRTokenKind.LESS,
+            ">": MLIRTokenKind.GREATER,
+            "=": MLIRTokenKind.EQUAL,
+            "+": MLIRTokenKind.PLUS,
+            "*": MLIRTokenKind.STAR,
+            "?": MLIRTokenKind.QUESTION,
+            "|": MLIRTokenKind.VERTICAL_BAR,
         }
         if current_char in single_char_punctuation:
             return self._form_token(single_char_punctuation[current_char], start_pos)
@@ -316,26 +316,26 @@ class Lexer(AbstractLexer[Kind]):
                     Span(start_pos, start_pos + 1, self.input),
                     "Expected three consecutive '.' for an ellipsis",
                 )
-            return self._form_token(Kind.ELLIPSIS, start_pos)
+            return self._form_token(MLIRTokenKind.ELLIPSIS, start_pos)
 
         # '-' and '->'
         if current_char == "-":
             if self._peek_chars() == ">":
                 self._consume_chars()
-                return self._form_token(Kind.ARROW, start_pos)
-            return self._form_token(Kind.MINUS, start_pos)
+                return self._form_token(MLIRTokenKind.ARROW, start_pos)
+            return self._form_token(MLIRTokenKind.MINUS, start_pos)
 
         # '{' and '{-#'
         if current_char == "{":
             if self._peek_chars(2) == "-#":
                 self._consume_chars(2)
-                return self._form_token(Kind.FILE_METADATA_BEGIN, start_pos)
-            return self._form_token(Kind.L_BRACE, start_pos)
+                return self._form_token(MLIRTokenKind.FILE_METADATA_BEGIN, start_pos)
+            return self._form_token(MLIRTokenKind.L_BRACE, start_pos)
 
         # '#-}'
         if current_char == "#" and self._peek_chars(2) == "-}":
             self._consume_chars(2)
-            return self._form_token(Kind.FILE_METADATA_END, start_pos)
+            return self._form_token(MLIRTokenKind.FILE_METADATA_END, start_pos)
 
         # '@' and at-identifier
         if current_char == "@":
@@ -360,7 +360,7 @@ class Lexer(AbstractLexer[Kind]):
     bare_identifier_regex = re.compile(r"[a-zA-Z_]" + IDENTIFIER_SUFFIX)
     bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX)
 
-    def _lex_bare_identifier(self, start_pos: Position) -> Token:
+    def _lex_bare_identifier(self, start_pos: Position) -> MLIRToken:
         """
         Lex a bare identifier with the following grammar:
         `bare-id ::= (letter|[_]) (letter|digit|[_$.])*`
@@ -369,9 +369,9 @@ class Lexer(AbstractLexer[Kind]):
         """
         self._consume_regex(self.bare_identifier_suffix_regex)
 
-        return self._form_token(Kind.BARE_IDENT, start_pos)
+        return self._form_token(MLIRTokenKind.BARE_IDENT, start_pos)
 
-    def _lex_at_ident(self, start_pos: Position) -> Token:
+    def _lex_at_ident(self, start_pos: Position) -> MLIRToken:
         """
         Lex an at-identifier with the following grammar:
         `at-id ::= `@` (bare-id | string-literal)`
@@ -389,12 +389,12 @@ class Lexer(AbstractLexer[Kind]):
         # bare identifier case
         if current_char.isalpha() or current_char == "_":
             token = self._lex_bare_identifier(start_pos)
-            return self._form_token(Kind.AT_IDENT, token.span.start)
+            return self._form_token(MLIRTokenKind.AT_IDENT, token.span.start)
 
         # literal string case
         if current_char == '"':
             token = self._lex_string_literal(start_pos)
-            return self._form_token(Kind.AT_IDENT, token.span.start)
+            return self._form_token(MLIRTokenKind.AT_IDENT, token.span.start)
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),
@@ -403,7 +403,7 @@ class Lexer(AbstractLexer[Kind]):
 
     _suffix_id = re.compile(r"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
 
-    def _lex_prefixed_ident(self, start_pos: Position) -> Token:
+    def _lex_prefixed_ident(self, start_pos: Position) -> MLIRToken:
         """
         Parsed the following prefixed identifiers:
         ```
@@ -424,16 +424,16 @@ class Lexer(AbstractLexer[Kind]):
         ), "First prefixed identifier character must have been parsed"
         first_char = self.input.at(self.pos - 1)
         if first_char == "#":
-            kind = Kind.HASH_IDENT
+            kind = MLIRTokenKind.HASH_IDENT
         elif first_char == "!":
-            kind = Kind.EXCLAMATION_IDENT
+            kind = MLIRTokenKind.EXCLAMATION_IDENT
         elif first_char == "^":
-            kind = Kind.CARET_IDENT
+            kind = MLIRTokenKind.CARET_IDENT
         else:
             assert (
                 first_char == "%"
             ), "First prefixed identifier character must have been parsed correctly"
-            kind = Kind.PERCENT_IDENT
+            kind = MLIRTokenKind.PERCENT_IDENT
 
         match = self._consume_regex(self._suffix_id)
         if match is None:
@@ -446,7 +446,7 @@ class Lexer(AbstractLexer[Kind]):
 
     _unescaped_characters_regex = re.compile(r'[^"\\\n\v\f]*')
 
-    def _lex_string_literal(self, start_pos: Position) -> Token:
+    def _lex_string_literal(self, start_pos: Position) -> MLIRToken:
         """
         Lex a string literal.
         The first character `"` is expected to have already been parsed.
@@ -460,9 +460,9 @@ class Lexer(AbstractLexer[Kind]):
             # end of string literal
             if current_char == '"':
                 if bytes_token:
-                    return self._form_token(Kind.BYTES_LIT, start_pos)
+                    return self._form_token(MLIRTokenKind.BYTES_LIT, start_pos)
                 else:
-                    return self._form_token(Kind.STRING_LIT, start_pos)
+                    return self._form_token(MLIRTokenKind.STRING_LIT, start_pos)
 
             # newline character in string literal (not allowed)
             if current_char in ["\n", "\v", "\f"]:
@@ -500,7 +500,7 @@ class Lexer(AbstractLexer[Kind]):
     _digits_star_regex = re.compile(r"[0-9]*")
     _fractional_suffix_regex = re.compile(r"\.[0-9]*([eE][+-]?[0-9]+)?")
 
-    def _lex_number(self, start_pos: Position) -> Token:
+    def _lex_number(self, start_pos: Position) -> MLIRToken:
         """
         Lex a number literal, which is either a decimal or an hexadecimal.
         The first character is expected to have already been parsed.
@@ -518,7 +518,7 @@ class Lexer(AbstractLexer[Kind]):
         ):
             self._consume_chars(2)
             self._consume_regex(self._hexdigits_star_regex)
-            return self._form_token(Kind.INTEGER_LIT, start_pos)
+            return self._form_token(MLIRTokenKind.INTEGER_LIT, start_pos)
 
         # Decimal case
         self._consume_regex(self._digits_star_regex)
@@ -526,5 +526,5 @@ class Lexer(AbstractLexer[Kind]):
         # Check if we are lexing a floating point
         match = self._consume_regex(self._fractional_suffix_regex)
         if match is not None:
-            return self._form_token(Kind.FLOAT_LIT, start_pos)
-        return self._form_token(Kind.INTEGER_LIT, start_pos)
+            return self._form_token(MLIRTokenKind.FLOAT_LIT, start_pos)
+        return self._form_token(MLIRTokenKind.INTEGER_LIT, start_pos)
