@@ -10,7 +10,8 @@ from xdsl.ir.affine import (
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import MLIRToken, MLIRTokenKind
 
-from .base_parser import BaseParser, ParserState  # noqa: TID251
+from .base_parser import BaseParser  # noqa: TID251
+from .generic_parser import ParserState  # noqa: TID251
 
 
 class AffineParser(BaseParser):
@@ -23,7 +24,7 @@ class AffineParser(BaseParser):
         "mod": 20,
     }
 
-    def __init__(self, state: ParserState) -> None:
+    def __init__(self, state: ParserState[MLIRTokenKind]) -> None:
         self._resume_from(state)
 
     def _parse_primary(self, dims: list[str], syms: list[str]) -> AffineExpr:
