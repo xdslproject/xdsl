@@ -1,7 +1,8 @@
 import pytest
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Input, Lexer, Token
+from xdsl.utils.lexer import Input
+from xdsl.utils.mlir_lexer import Kind, Lexer, Token
 
 
 def get_token(input: str) -> Token:
@@ -12,7 +13,7 @@ def get_token(input: str) -> Token:
 
 
 def assert_single_token(
-    input: str, expected_kind: Token.Kind, expected_text: str | None = None
+    input: str, expected_kind: Kind, expected_text: str | None = None
 ):
     if expected_text is None:
         expected_text = input
@@ -33,29 +34,29 @@ def assert_token_fail(input: str):
 @pytest.mark.parametrize(
     "text,kind",
     [
-        ("->", Token.Kind.ARROW),
-        (":", Token.Kind.COLON),
-        (",", Token.Kind.COMMA),
-        ("...", Token.Kind.ELLIPSIS),
-        ("=", Token.Kind.EQUAL),
-        (">", Token.Kind.GREATER),
-        ("{", Token.Kind.L_BRACE),
-        ("(", Token.Kind.L_PAREN),
-        ("[", Token.Kind.L_SQUARE),
-        ("<", Token.Kind.LESS),
-        ("-", Token.Kind.MINUS),
-        ("+", Token.Kind.PLUS),
-        ("?", Token.Kind.QUESTION),
-        ("}", Token.Kind.R_BRACE),
-        (")", Token.Kind.R_PAREN),
-        ("]", Token.Kind.R_SQUARE),
-        ("*", Token.Kind.STAR),
-        ("|", Token.Kind.VERTICAL_BAR),
-        ("{-#", Token.Kind.FILE_METADATA_BEGIN),
-        ("#-}", Token.Kind.FILE_METADATA_END),
+        ("->", Kind.ARROW),
+        (":", Kind.COLON),
+        (",", Kind.COMMA),
+        ("...", Kind.ELLIPSIS),
+        ("=", Kind.EQUAL),
+        (">", Kind.GREATER),
+        ("{", Kind.L_BRACE),
+        ("(", Kind.L_PAREN),
+        ("[", Kind.L_SQUARE),
+        ("<", Kind.LESS),
+        ("-", Kind.MINUS),
+        ("+", Kind.PLUS),
+        ("?", Kind.QUESTION),
+        ("}", Kind.R_BRACE),
+        (")", Kind.R_PAREN),
+        ("]", Kind.R_SQUARE),
+        ("*", Kind.STAR),
+        ("|", Kind.VERTICAL_BAR),
+        ("{-#", Kind.FILE_METADATA_BEGIN),
+        ("#-}", Kind.FILE_METADATA_END),
     ],
 )
-def test_punctuation(text: str, kind: Token.Kind):
+def test_punctuation(text: str, kind: Kind):
     assert_single_token(text, kind)
 
 
@@ -68,7 +69,7 @@ def test_punctuation_fail(text: str):
     "text", ['""', '"@"', '"foo"', '"\\""', '"\\n"', '"\\\\"', '"\\t"']
 )
 def test_str_literal(text: str):
-    assert_single_token(text, Token.Kind.STRING_LIT)
+    assert_single_token(text, Kind.STRING_LIT)
 
 
 @pytest.mark.parametrize("text", ['"', '"\\"', '"\\a"', '"\n"', '"\v"', '"\f"'])
@@ -81,7 +82,7 @@ def test_str_literal_fail(text: str):
 )
 def test_bare_ident(text: str):
     """bare-id ::= (letter|[_]) (letter|digit|[_$.])*"""
-    assert_single_token(text, Token.Kind.BARE_IDENT)
+    assert_single_token(text, Kind.BARE_IDENT)
 
 
 @pytest.mark.parametrize(
@@ -108,7 +109,7 @@ def test_bare_ident(text: str):
 )
 def test_at_ident(text: str):
     """at-ident ::= `@` (bare-id | string-literal)"""
-    assert_single_token(text, Token.Kind.AT_IDENT)
+    assert_single_token(text, Kind.AT_IDENT)
 
 
 @pytest.mark.parametrize(
@@ -128,10 +129,10 @@ def test_prefixed_ident(text: str):
     """percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
     """caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
     """exclamation-ident  ::= `!` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
-    assert_single_token("#" + text, Token.Kind.HASH_IDENT)
-    assert_single_token("%" + text, Token.Kind.PERCENT_IDENT)
-    assert_single_token("^" + text, Token.Kind.CARET_IDENT)
-    assert_single_token("!" + text, Token.Kind.EXCLAMATION_IDENT)
+    assert_single_token("#" + text, Kind.HASH_IDENT)
+    assert_single_token("%" + text, Kind.PERCENT_IDENT)
+    assert_single_token("^" + text, Kind.CARET_IDENT)
+    assert_single_token("!" + text, Kind.EXCLAMATION_IDENT)
 
 
 @pytest.mark.parametrize("text", ["+", '""', "#", "%", "^", "!", "\n", ""])
@@ -154,46 +155,46 @@ def test_prefixed_ident_fail(text: str):
 )
 def test_prefixed_ident_split(text: str, expected: str):
     """Check that the prefixed identifier is split at the right character."""
-    assert_single_token("#" + text, Token.Kind.HASH_IDENT, "#" + expected)
-    assert_single_token("%" + text, Token.Kind.PERCENT_IDENT, "%" + expected)
-    assert_single_token("^" + text, Token.Kind.CARET_IDENT, "^" + expected)
-    assert_single_token("!" + text, Token.Kind.EXCLAMATION_IDENT, "!" + expected)
+    assert_single_token("#" + text, Kind.HASH_IDENT, "#" + expected)
+    assert_single_token("%" + text, Kind.PERCENT_IDENT, "%" + expected)
+    assert_single_token("^" + text, Kind.CARET_IDENT, "^" + expected)
+    assert_single_token("!" + text, Kind.EXCLAMATION_IDENT, "!" + expected)
 
 
 @pytest.mark.parametrize("text", ["0", "01", "123456789", "99", "0x1234", "0xabcdef"])
 def test_integer_literal(text: str):
-    assert_single_token(text, Token.Kind.INTEGER_LIT)
+    assert_single_token(text, Kind.INTEGER_LIT)
 
 
 @pytest.mark.parametrize(
     "text,expected", [("0a", "0"), ("0xg", "0"), ("0xfg", "0xf"), ("0xf.", "0xf")]
 )
 def test_integer_literal_split(text: str, expected: str):
-    assert_single_token(text, Token.Kind.INTEGER_LIT, expected)
+    assert_single_token(text, Kind.INTEGER_LIT, expected)
 
 
 @pytest.mark.parametrize(
     "text", ["0.", "1.", "0.2", "38.1243", "92.54e43", "92.5E43", "43.3e-54", "32.E+25"]
 )
 def test_float_literal(text: str):
-    assert_single_token(text, Token.Kind.FLOAT_LIT)
+    assert_single_token(text, Kind.FLOAT_LIT)
 
 
 @pytest.mark.parametrize(
     "text,expected", [("3.9e", "3.9"), ("4.5e+", "4.5"), ("5.8e-", "5.8")]
 )
 def test_float_literal_split(text: str, expected: str):
-    assert_single_token(text, Token.Kind.FLOAT_LIT, expected)
+    assert_single_token(text, Kind.FLOAT_LIT, expected)
 
 
 @pytest.mark.parametrize("text", ["0", " 0", "   0", "\n0", "\t0", "// Comment\n0"])
 def test_whitespace_skip(text: str):
-    assert_single_token(text, Token.Kind.INTEGER_LIT, "0")
+    assert_single_token(text, Kind.INTEGER_LIT, "0")
 
 
 @pytest.mark.parametrize("text", ["", "   ", "\n\n", "// Comment\n"])
 def test_eof(text: str):
-    assert_single_token(text, Token.Kind.EOF, "")
+    assert_single_token(text, Kind.EOF, "")
 
 
 @pytest.mark.parametrize(
@@ -208,8 +209,8 @@ def test_eof(text: str):
 )
 def test_token_get_int_value(text: str, expected: int):
     token = get_token(text)
-    assert token.kind == Token.Kind.INTEGER_LIT
-    assert token.get_int_value() == expected
+    assert token.kind == Kind.INTEGER_LIT
+    assert token.kind.get_int_value(token.span) == expected
 
 
 @pytest.mark.parametrize(
@@ -227,8 +228,8 @@ def test_token_get_int_value(text: str, expected: int):
 )
 def test_token_get_float_value(text: str, expected: float):
     token = get_token(text)
-    assert token.kind == Token.Kind.FLOAT_LIT
-    assert token.get_float_value() == expected
+    assert token.kind == Kind.FLOAT_LIT
+    assert token.kind.get_float_value(token.span) == expected
 
 
 @pytest.mark.parametrize(
@@ -245,5 +246,5 @@ def test_token_get_float_value(text: str, expected: float):
 )
 def test_token_get_string_literal_value(text: str, expected: float):
     token = get_token(text)
-    assert token.kind == Token.Kind.STRING_LIT
-    assert token.get_string_literal_value() == expected
+    assert token.kind == Kind.STRING_LIT
+    assert token.kind.get_string_literal_value(token.span) == expected

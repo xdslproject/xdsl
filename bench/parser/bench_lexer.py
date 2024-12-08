@@ -10,7 +10,8 @@ import glob
 import timeit
 from collections.abc import Iterable
 
-from xdsl.utils.lexer import Input, Lexer, Token
+from xdsl.utils.lexer import Input
+from xdsl.utils.mlir_lexer import Kind, Lexer
 
 
 def lex_file(file: Input):
@@ -18,7 +19,7 @@ def lex_file(file: Input):
     Lex the given file
     """
     lexer = Lexer(file)
-    while lexer.lex().kind is not Token.Kind.EOF:
+    while lexer.lex().kind is not Kind.EOF:
         pass
 
 

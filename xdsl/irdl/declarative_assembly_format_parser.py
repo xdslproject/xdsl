@@ -79,7 +79,8 @@ from xdsl.irdl.declarative_assembly_format import (
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
-from xdsl.utils.lexer import Input, Lexer, Token
+from xdsl.utils.lexer import Input
+from xdsl.utils.mlir_lexer import Kind, Lexer, Token
 
 
 @dataclass
@@ -101,13 +102,13 @@ class FormatLexer(Lexer):
 
         # Handle end of file
         if current_char is None:
-            return self._form_token(Token.Kind.EOF, start_pos)
+            return self._form_token(Kind.EOF, start_pos)
 
         # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
         if current_char in ("`", "$", "\\", "^"):
             self._consume_chars()
-            return self._form_token(Token.Kind.BARE_IDENT, start_pos)
+            return self._form_token(Kind.BARE_IDENT, start_pos)
         return super().lex()
 
     # Authorize `-` in bare identifier
@@ -167,7 +168,7 @@ class FormatParser(BaseParser):
         unambiguous and refer to all elements exactly once.
         """
         elements: list[FormatDirective] = []
-        while self._current_token.kind != Token.Kind.EOF:
+        while self._current_token.kind != Kind.EOF:
             elements.append(self.parse_format_directive())
 
         self.add_reserved_attrs_to_directive(elements)
@@ -716,7 +717,7 @@ class FormatParser(BaseParser):
         if self._current_token.kind.is_punctuation():
             punctuation = self._consume_token().text
             self.parse_characters("`")
-            assert Token.Kind.is_spelling_of_punctuation(punctuation)
+            assert Kind.is_spelling_of_punctuation(punctuation)
             return PunctuationDirective(punctuation)
 
         # Identifier case
