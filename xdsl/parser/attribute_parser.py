@@ -62,7 +62,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import BaseAttr, base
-from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.bitwise_casts import (
     convert_u16_to_f16,
     convert_u32_to_f32,
@@ -72,6 +71,8 @@ from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.isattr import isattr
 from xdsl.utils.lexer import Position, Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
+
+from .base_parser import BaseParser  # noqa: TID251
 
 
 @dataclass
