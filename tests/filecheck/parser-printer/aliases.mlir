@@ -21,7 +21,7 @@
 #attr = 0
 
 "test.op"() {"attr" = #attr : i32} : () -> ()
-// CHECK: Expected '}'
+// CHECK: '}' expected
 
 // -----
 
