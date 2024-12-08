@@ -31,8 +31,8 @@ from typing import (
 from typing_extensions import Self, deprecated
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
-from xdsl.utils import lexer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.mlir_lexer import Lexer
 from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
@@ -404,7 +404,7 @@ def _check_enum_constraints(
         raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
 
     for v in enum_type:
-        if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
+        if Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
             raise ValueError(
                 "All StrEnum values of an EnumAttribute must be parsable as an identifer."
             )

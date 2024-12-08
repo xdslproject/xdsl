@@ -30,7 +30,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError, VerifyException
-from xdsl.utils.lexer import PunctuationSpelling, Token
+from xdsl.utils.mlir_lexer import Kind, PunctuationSpelling
 from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
@@ -584,53 +584,51 @@ def test_parse_comma_separated_list_error_delimiters(
 
 
 @pytest.mark.parametrize(
-    "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().values())
+    "punctuation", list(Kind.get_punctuation_spelling_to_kind_dict().values())
 )
-def test_is_punctuation_true(punctuation: Token.Kind):
+def test_is_punctuation_true(punctuation: Kind):
     assert punctuation.is_punctuation()
 
 
-@pytest.mark.parametrize(
-    "punctuation", [Token.Kind.BARE_IDENT, Token.Kind.EOF, Token.Kind.INTEGER_LIT]
-)
-def test_is_punctuation_false(punctuation: Token.Kind):
+@pytest.mark.parametrize("punctuation", [Kind.BARE_IDENT, Kind.EOF, Kind.INTEGER_LIT])
+def test_is_punctuation_false(punctuation: Kind):
     assert not punctuation.is_punctuation()
 
 
 @pytest.mark.parametrize(
-    "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().values())
+    "punctuation", list(Kind.get_punctuation_spelling_to_kind_dict().values())
 )
-def test_is_spelling_of_punctuation_true(punctuation: Token.Kind):
+def test_is_spelling_of_punctuation_true(punctuation: Kind):
     value = cast(PunctuationSpelling, punctuation.value)
-    assert Token.Kind.is_spelling_of_punctuation(value)
+    assert Kind.is_spelling_of_punctuation(value)
 
 
 @pytest.mark.parametrize("punctuation", [">-", "o", "4", "$", "_", "@"])
 def test_is_spelling_of_punctuation_false(punctuation: str):
-    assert not Token.Kind.is_spelling_of_punctuation(punctuation)
+    assert not Kind.is_spelling_of_punctuation(punctuation)
 
 
 @pytest.mark.parametrize(
-    "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().values())
+    "punctuation", list(Kind.get_punctuation_spelling_to_kind_dict().values())
 )
-def test_get_punctuation_kind(punctuation: Token.Kind):
+def test_get_punctuation_kind(punctuation: Kind):
     value = cast(PunctuationSpelling, punctuation.value)
     assert punctuation.get_punctuation_kind_from_spelling(value) == punctuation
 
 
 @pytest.mark.parametrize(
-    "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
+    "punctuation", list(Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
 
     res = parser.parse_punctuation(punctuation)
     assert res == punctuation
-    assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
+    assert parser._parse_token(Kind.EOF, "").kind == Kind.EOF
 
 
 @pytest.mark.parametrize(
-    "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
+    "punctuation", list(Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), "e +")
@@ -641,17 +639,17 @@ def test_parse_punctuation_fail(punctuation: PunctuationSpelling):
 
 
 @pytest.mark.parametrize(
-    "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
+    "punctuation", list(Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_optional_punctuation(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
-    assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
+    assert parser._parse_token(Kind.EOF, "").kind == Kind.EOF
 
 
 @pytest.mark.parametrize(
-    "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
+    "punctuation", list(Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_optional_punctuation_fail(punctuation: PunctuationSpelling):
     parser = Parser(MLContext(), "e +")

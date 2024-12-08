@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.lexer import Input, Span, StringLiteral
+from xdsl.utils.lexer import Input, Span
+from xdsl.utils.mlir_lexer import StringLiteral
 
 
 @dataclass
