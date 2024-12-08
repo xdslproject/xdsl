@@ -149,7 +149,7 @@ TokenKindT = TypeVar("TokenKindT", bound=Enum)
 
 
 @dataclass
-class GenericToken(Generic[TokenKindT]):
+class Token(Generic[TokenKindT]):
     kind: TokenKindT
 
     span: Span
@@ -161,7 +161,7 @@ class GenericToken(Generic[TokenKindT]):
 
 
 @dataclass
-class AbstractLexer(Generic[TokenKindT], ABC):
+class Lexer(Generic[TokenKindT], ABC):
     input: Input
     """Input that is currently being lexed."""
 
@@ -171,16 +171,14 @@ class AbstractLexer(Generic[TokenKindT], ABC):
     The position can be out of bounds, in which case the lexer is in EOF state.
     """
 
-    def _form_token(
-        self, kind: TokenKindT, start_pos: Position
-    ) -> GenericToken[TokenKindT]:
+    def _form_token(self, kind: TokenKindT, start_pos: Position) -> Token[TokenKindT]:
         """
         Return a token with the given kind, and the start position.
         """
-        return GenericToken(kind, Span(start_pos, self.pos, self.input))
+        return Token(kind, Span(start_pos, self.pos, self.input))
 
     @abstractmethod
-    def lex(self) -> GenericToken[TokenKindT]:
+    def lex(self) -> Token[TokenKindT]:
         """
         Lex a token from the input, and returns it.
         """
