@@ -1,14 +1,14 @@
 from pathlib import Path
-from typing import NoReturn, TypeVar, cast, overload
+from typing import NoReturn, cast
+
+from xdsl.utils.exceptions import ParseError
 
 from .lexer import (
-    EOFToken,
-    IdentifierToken,
-    NumberToken,
-    OperatorToken,
-    Token,
+    ToyToken,
+    ToyTokenKind,
     tokenize,
 )
+from .location import loc
 from .toy_ast import (
     BinaryExprAST,
     CallExprAST,
@@ -26,42 +26,10 @@ from .toy_ast import (
 )
 
 
-class ParseError(Exception):
-    def __init__(
-        self,
-        token: Token,
-        expected: str | type[Token],
-        context: str = "",
-        line: str = "",
-    ):
-        loc = token.loc
-
-        message = f"Parse error ({loc.line}, {loc.col}): expected "
-        if isinstance(expected, str):
-            message += expected
-        else:
-            message += expected.name()
-
-        if len(context):
-            message += " " + context
-
-        message += f" but has Token '{token.text}'\n"
-
-        if len(line):
-            message += line + "\n"
-
-        super().__init__(message)
-
-    pass
-
-
-TokenT = TypeVar("TokenT", bound=Token)
-
-
 class Parser:
     file: Path
     program: str
-    tokens: list[Token]
+    tokens: list[ToyToken]
     pos: int
 
     def __init__(self, file: Path, program: str):
@@ -85,13 +53,7 @@ class Parser:
 
         return PRECEDENCE.get(op, -1)
 
-    @overload
-    def peek(self, pattern: str) -> Token | None: ...
-
-    @overload
-    def peek(self, pattern: type[TokenT] = Token) -> TokenT | None: ...
-
-    def peek(self, pattern: str | type[TokenT] = Token) -> Token | TokenT | None:
+    def peek(self, pattern: str | ToyTokenKind) -> ToyToken | None:
         """
         Returns token matching pattern or None
         """
@@ -100,26 +62,22 @@ class Parser:
         if isinstance(pattern, str):
             if token.text == pattern:
                 return token
-            else:
-                return None
         else:
-            if isinstance(token, pattern):
+            if token.kind == pattern:
                 return token
-            else:
-                return None
 
-    def check(self, pattern: str | type[Token] = Token) -> bool:
+    def check(self, pattern: str | ToyTokenKind) -> bool:
         """
         Verifies that the current token fits the pattern,
         returns False otherwise
         """
         return self.peek(pattern) is not None
 
-    def pop(self) -> Token:
+    def pop(self) -> ToyToken:
         self.pos += 1
         return self.tokens[self.pos - 1]
 
-    def pop_pattern(self, pattern: str) -> Token:
+    def pop_pattern(self, pattern: str) -> ToyToken:
         """
         Verifies that the current token fits the pattern,
         raises ParseError otherwise
@@ -130,7 +88,7 @@ class Parser:
         self.pos += 1
         return token
 
-    def pop_token(self, tokenType: type[TokenT]) -> TokenT:
+    def pop_token(self, tokenType: ToyTokenKind) -> ToyToken:
         """
         Verifies that the current token is of expected type,
         raises ParseError otherwise
@@ -147,11 +105,11 @@ class Parser:
         """
         functions: list[FunctionAST] = []
 
-        while not self.check(EOFToken):
+        while not self.check(ToyTokenKind.EOF):
             functions.append(self.parseDefinition())
 
         # If we didn't reach EOF, there was an error during parsing
-        self.pop_token(EOFToken)
+        self.pop_token(ToyTokenKind.EOF)
 
         return ModuleAST(tuple(functions))
 
@@ -167,15 +125,15 @@ class Parser:
         if not self.check(";"):
             expr = self.parseExpression()
 
-        return ReturnExprAST(returnToken.loc, expr)
+        return ReturnExprAST(loc(returnToken), expr)
 
     def parseNumberExpr(self):
         """
         Parse a literal number.
         numberexpr ::= number
         """
-        numberToken = self.pop_token(NumberToken)
-        return NumberExprAST(numberToken.loc, numberToken.value)
+        numberToken = self.pop_token(ToyTokenKind.NUMBER)
+        return NumberExprAST(loc(numberToken), float(numberToken.span.text))
 
     def parseTensorLiteralExpr(self) -> LiteralExprAST | NumberExprAST:
         """
@@ -183,7 +141,7 @@ class Parser:
         tensorLiteral ::= [ literalList ] | number
         literalList ::= tensorLiteral | tensorLiteral, literalList
         """
-        if self.check(NumberToken):
+        if self.check(ToyTokenKind.NUMBER):
             return self.parseNumberExpr()
 
         openBracket = self.pop_pattern("[")
@@ -198,7 +156,7 @@ class Parser:
             if self.check("["):
                 values.append(self.parseTensorLiteralExpr())
             else:
-                if not self.check(NumberToken):
+                if not self.check(ToyTokenKind.NUMBER):
                     self.parseError("<num> or [", "in literal expression")
                 values.append(self.parseNumberExpr())
 
@@ -233,7 +191,7 @@ class Parser:
 
             dims += first
 
-        return LiteralExprAST(openBracket.loc, values, dims)
+        return LiteralExprAST(loc(openBracket), values, dims)
 
     def parseParenExpr(self) -> ExprAST:
         "parenexpr ::= '(' expression ')'"
@@ -248,10 +206,10 @@ class Parser:
         ::= identifier
         ::= identifier '(' expression ')'
         """
-        name = self.pop_token(IdentifierToken)
+        name = self.pop_token(ToyTokenKind.IDENTIFIER)
         if not self.check("("):
             # Simple variable ref.
-            return VariableExprAST(name.loc, name.text)
+            return VariableExprAST(loc(name), name.text)
 
         # This is a function call.
         self.pop_pattern("(")
@@ -268,9 +226,9 @@ class Parser:
             if len(args) != 1:
                 self.parseError("<single arg>", "as argument to print()")
 
-            return PrintExprAST(name.loc, args[0])
+            return PrintExprAST(loc(name), args[0])
 
-        return CallExprAST(name.loc, name.text, args)
+        return CallExprAST(loc(name), name.text, args)
 
     def parsePrimary(self) -> ExprAST | None:
         """
@@ -281,9 +239,9 @@ class Parser:
         ::= tensorliteral
         """
         current = self.tokens[self.pos]
-        if isinstance(current, IdentifierToken):
+        if current.kind == ToyTokenKind.IDENTIFIER:
             return self.parseIdentifierExpr()
-        elif isinstance(current, NumberToken):
+        elif current.kind == ToyTokenKind.NUMBER:
             return self.parseNumberExpr()
         elif current.text == "(":
             return self.parseParenExpr()
@@ -305,9 +263,9 @@ class Parser:
         ::= tensorliteral
         """
         current = self.tokens[self.pos]
-        if isinstance(current, IdentifierToken):
+        if current.kind == ToyTokenKind.IDENTIFIER:
             return self.parseIdentifierExpr()
-        elif isinstance(current, NumberToken):
+        elif current.kind == ToyTokenKind.NUMBER:
             return self.parseNumberExpr()
         elif current.text == "(":
             return self.parseParenExpr()
@@ -333,7 +291,7 @@ class Parser:
                 return lhs
 
             # Okay, we know this is a binop.
-            binOp = self.pop_token(OperatorToken).text
+            binOp = self.pop_token(ToyTokenKind.OPERATOR).text
 
             # Parse the primary expression after the binary operator.
             rhs = self.parsePrimary()
@@ -363,8 +321,8 @@ class Parser:
         self.pop_pattern("<")
         shape: list[int] = []
 
-        while token := self.pop_token(NumberToken):
-            shape.append(int(token.value))
+        while token := self.pop_token(ToyTokenKind.NUMBER):
+            shape.append(int(token.span.text))
             if self.check(">"):
                 self.pop()
                 break
@@ -380,7 +338,7 @@ class Parser:
         decl ::= var identifier [ type ] = expr
         """
         var = self.pop_pattern("var")
-        name = self.pop_token(IdentifierToken).text
+        name = self.pop_token(ToyTokenKind.IDENTIFIER).text
 
         # Type is optional, it can be inferred
         if self.check("<"):
@@ -391,7 +349,7 @@ class Parser:
         self.pop_pattern("=")
 
         expr = self.parseExpression()
-        return VarDeclExprAST(var.loc, name, varType, expr)
+        return VarDeclExprAST(loc(var), name, varType, expr)
 
     def parseBlock(self) -> tuple[ExprAST, ...]:
         """
@@ -437,20 +395,20 @@ class Parser:
         decl_list ::= identifier | identifier, decl_list
         """
         defToken = self.pop_pattern("def")
-        fnName = self.pop_token(IdentifierToken).text
+        fnName = self.pop_token(ToyTokenKind.IDENTIFIER).text
         self.pop_pattern("(")
 
         args: list[VariableExprAST] = []
         if not self.check(")"):
             while True:
-                arg = self.pop_token(IdentifierToken)
-                args.append(VariableExprAST(arg.loc, arg.text))
+                arg = self.pop_token(ToyTokenKind.IDENTIFIER)
+                args.append(VariableExprAST(loc(arg), arg.text))
                 if not self.check(","):
                     break
                 self.pop_pattern(",")
 
         self.pop_pattern(")")
-        return PrototypeAST(defToken.loc, fnName, args)
+        return PrototypeAST(loc(defToken), fnName, args)
 
     def parseDefinition(self):
         """
@@ -463,12 +421,11 @@ class Parser:
         block = self.parseBlock()
         return FunctionAST(proto.loc, proto, block)
 
-    def parseError(self, expected: str | type[Token], context: str = "") -> NoReturn:
+    def parseError(self, expected: str | ToyTokenKind, context: str = "") -> NoReturn:
         """
         Helper function to signal errors while parsing, it takes an argument
         indicating the expected token and another argument giving more context.
         Location is retrieved from the lexer to enrich the error message.
         """
         token = self.getToken()
-        line = self.program.splitlines()[token.line - 1]
-        raise ParseError(self.getToken(), expected, context, line)
+        raise ParseError(token.span, context)
