@@ -729,3 +729,60 @@ class HasInsnRepresentation(OpTrait, abc.ABC):
         Return the insn representation of the operation for printing.
         """
         raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class SameOperandsAndResultType(OpTrait):
+    """Constrain the operation to have the same operands and result type."""
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.dialects.builtin import NoneAttr, TensorType
+        from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
+
+        if len(op.results) < 1 or len(op.operands) < 1:
+            raise VerifyException(
+                f"'{op.name}' requires at least one result or operand"
+            )
+
+        res_type0 = get_element_type_or_self(op.result_types[0])
+
+        def get_encoding(maybe_shaped_type: Attribute) -> Attribute:
+            if isinstance(maybe_shaped_type, TensorType):
+                return maybe_shaped_type.encoding
+            return NoneAttr()
+
+        encoding = get_encoding(op.result_types[0])
+
+        for res_type in op.result_types[1:]:
+            res_type_elem = get_element_type_or_self(res_type)
+            if res_type0 != res_type_elem or not have_compatible_shape(
+                op.result_types[0], res_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            elem_encoding = get_encoding(res_type)
+
+            if encoding != elem_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )
+
+        for oprnd_type in op.operand_types:
+            oprnd_type_elem = get_element_type_or_self(oprnd_type)
+            if res_type0 != oprnd_type_elem or not have_compatible_shape(
+                op.result_types[0], oprnd_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            elem_encoding = NoneAttr()
+            if isinstance(oprnd_type, TensorType):
+                elem_encoding = oprnd_type.encoding
+
+            if encoding != elem_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )
