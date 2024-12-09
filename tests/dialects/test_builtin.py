@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     Float80Type,
     Float128Type,
     FloatAttr,
+    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -77,6 +78,12 @@ def test_IntegerType_formats():
     assert IntegerType(32).format == "<i"
     assert IntegerType(64).format == "<q"
 
+def test_IndexType_formats():
+    assert IndexType().format == "<q"
+
+def test_IndexType_bitwidth():
+    with pytest.raises(RuntimeError):
+        IndexType().bitwidth
 
 def test_FloatType_packing():
     nums = (-128, -1, 0, 1, 127)
