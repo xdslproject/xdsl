@@ -556,7 +556,7 @@ class LocationAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IndexType(ParametrizedAttribute):
+class IndexType(ParametrizedAttribute, StructPackableType[int]):
     name = "index"
 
     def print_value_without_type(self, value: int, printer: Printer):
@@ -565,6 +565,13 @@ class IndexType(ParametrizedAttribute):
         """
         printer.print_string(f"{value}")
 
+    @property
+    def format(self) -> str:
+        return "<q"
+
+    @property
+    def bitwidth(self) -> int:
+        raise RuntimeError("IndexType bitwidth not known at compile-time")
 
 IndexTypeConstr = BaseAttr(IndexType)
 
