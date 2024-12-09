@@ -568,7 +568,7 @@ async def test_apply_individual_rewrite():
                 n.data is not None
                 and n.data[1] is not None
                 and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiConstantProp"}'
+                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationConstantProp"}'
             ):
                 node = n
 
@@ -598,7 +598,7 @@ async def test_apply_individual_rewrite():
                 n.data is not None
                 and n.data[1] is not None
                 and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
+                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
             ):
                 node = n
 
