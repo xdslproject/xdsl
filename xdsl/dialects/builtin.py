@@ -699,7 +699,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
     @property
     def format(self) -> str:
-        raise NotImplementedError()
+        return "<e"
 
 
 @irdl_attr_definition
