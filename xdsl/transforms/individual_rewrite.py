@@ -18,10 +18,9 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
         if op.lhs == op.rhs:
             assert isinstance(type := op.lhs.type, IntegerType | IndexType)
-            value = 0 if isinstance(type, IntegerType) and type.bitwidth <= 1 else 2
             rewriter.replace_matched_op(
                 [
-                    li_op := arith.ConstantOp(IntegerAttr(value, type)),
+                    li_op := arith.ConstantOp(IntegerAttr(2, type, truncate_bits=True)),
                     arith.MuliOp(op.lhs, li_op),
                 ]
             )
