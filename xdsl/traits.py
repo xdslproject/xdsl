@@ -175,9 +175,12 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
         if len(region.blocks) > 1:
             raise VerifyException(f"'{op.name}' does not contain single-block regions")
 
+        from xdsl.dialects.builtin import UnregisteredOp
+
         for block in region.blocks:
             if (
                 (last_op := block.last_op) is not None
+                and not isinstance(last_op, UnregisteredOp)
                 and last_op.has_trait(IsTerminator)
                 and not isinstance(last_op, trait.op_type)
             ):
@@ -195,7 +198,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
 
         for block in region.blocks:
             if (last_op := block.last_op) is None or not last_op.has_trait(
-                IsTerminator
+                IsTerminator, value_if_unregistered=False
             ):
                 with ImplicitBuilder(block):
                     trait.op_type.create()
