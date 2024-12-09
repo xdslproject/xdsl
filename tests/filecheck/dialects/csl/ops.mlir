@@ -571,7 +571,7 @@ csl.func @builtins() {
 // CHECK-NEXT:   }) {"sym_name" = "program"} : () -> ()
 // CHECK-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-NEXT:     %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
-// CHECK-NEXT:     %init = arith.constant 3.140000e+00 : f16
+// CHECK-NEXT:     %init = arith.constant 3.140620e+00 : f16
 // CHECK-NEXT:     %p2 = "csl.param"(%init) <{"param_name" = "param_2"}> : (f16) -> f16
 // CHECK-NEXT:     csl.layout {
 // CHECK-NEXT:       %x_dim, %y_dim = "test.op"() : () -> (i32, i32)
@@ -818,7 +818,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "program"} : () -> ()
 // CHECK-GENERIC-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-GENERIC-NEXT:     %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
-// CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{"value" = 3.140000e+00 : f16}> : () -> f16
+// CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{"value" = 3.140620e+00 : f16}> : () -> f16
 // CHECK-GENERIC-NEXT:     %p2 = "csl.param"(%init) <{"param_name" = "param_2"}> : (f16) -> f16
 // CHECK-GENERIC-NEXT:     "csl.layout"() ({
 // CHECK-GENERIC-NEXT:       %x_dim, %y_dim = "test.op"() : () -> (i32, i32)

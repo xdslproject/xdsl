@@ -481,11 +481,32 @@ class Printer:
                 )
         else:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
-            float_str = f"{value:.6e}"
-            if float(float_str) == value:
+            float_str = f"{value:.5e}"
+            index = float_str.find("e")
+            float_str = float_str[:index] + "0" + float_str[index:]
+
+            parsed_value = type.unpack(type.pack([float(float_str)]), 1)[0]
+
+            if parsed_value == value:
                 self.print_string(float_str)
             else:
-                self.print_string(f"{repr(value)}")
+                if isinstance(type, Float32Type):
+                    # f32 is printed with 9 significant digits
+                    float_str = f"{value:.9g}"
+                    if "." in float_str:
+                        self.print_string(float_str)
+                    else:
+                        self.print_string(f"0x{convert_f32_to_u32(value):X}")
+                elif isinstance(type, Float64Type):
+                    # f64 is printed with 17 significant digits
+                    float_str = f"{value:.17g}"
+                    if "." in float_str:
+                        self.print_string(float_str)
+                    else:
+                        self.print_string(f"0x{convert_f64_to_u64(value):X}")
+                else:
+                    # default to full python precision
+                    self.print_string(f"{repr(value)}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):

@@ -28,9 +28,9 @@ func.func @test_const_const() {
 
     // CHECK-LABEL: @test_const_const
     // CHECK-NEXT:   %0 = arith.constant 6.139400e+00 : f32
-    // CHECK-NEXT:   %1 = arith.constant -0.14360000000000017 : f32
-    // CHECK-NEXT:   %2 = arith.constant 9.41790285 : f32
-    // CHECK-NEXT:   %3 = arith.constant 0.9542893522202769 : f32
+    // CHECK-NEXT:   %1 = arith.constant -0.143599987 : f32
+    // CHECK-NEXT:   %2 = arith.constant 9.41790295 : f32
+    // CHECK-NEXT:   %3 = arith.constant 0.954289377 : f32
     // CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (f32, f32, f32, f32) -> ()
 }
 
@@ -57,7 +57,7 @@ func.func @test_const_var_const() {
     // CHECK-NEXT:   %b = arith.constant 3.141500e+00 : f32
     // CHECK-NEXT:   %2 = arith.mulf %0, %a : f32
     // CHECK-NEXT:   %3 = arith.mulf %2, %b : f32
-    // CHECK-NEXT:   %4 = arith.constant 21.29352225 : f32
+    // CHECK-NEXT:   %4 = arith.constant 21.2935219 : f32
     // CHECK-NEXT:   %5 = arith.mulf %4, %0 fastmath<fast> : f32
     // CHECK-NEXT:   "test.op"(%3, %5) : (f32, f32) -> ()
 }
