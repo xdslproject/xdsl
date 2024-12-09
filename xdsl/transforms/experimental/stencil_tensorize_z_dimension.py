@@ -17,8 +17,12 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
+    IndexType,
     IntAttr,
+    IntegerType,
     ModuleOp,
+    RankedStructure,
     ShapedType,
     TensorType,
 )
@@ -189,7 +193,7 @@ class ArithOpTensorize(RewritePattern):
     @staticmethod
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
-        dest_typ: TensorType[Attribute],
+        dest_typ: TensorType[AnyFloat],
         op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
@@ -199,8 +203,10 @@ class ArithOpTensorize(RewritePattern):
         If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
         """
         if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, ConstantOp):
+            assert isinstance(float_attr := scalar_op.op.value, FloatAttr)
+            scalar_value = float_attr.value.data
             tens_const = ConstantOp(
-                DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
+                DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result
@@ -427,8 +433,15 @@ class ConstOpUpdateShape(RewritePattern):
             if typ := get_required_result_type(op):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
+                    dense_type = cast(
+                        RankedStructure[IntegerType | IndexType | AnyFloat], typ
+                    )
                     rewriter.replace_matched_op(
-                        ConstantOp(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                        ConstantOp(
+                            DenseIntOrFPElementsAttr.from_list(
+                                dense_type, [op.value.get_values()[0]]
+                            )
+                        )
                     )
 
 

@@ -246,7 +246,7 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 def test_DenseIntOrFPElementsAttr_from_list():
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
 
-    assert attr.type == AnyTensorType(f32, [])
+    assert attr.type == AnyTensorType(f32, [1])
 
 
 @pytest.mark.parametrize(
