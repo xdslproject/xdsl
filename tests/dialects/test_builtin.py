@@ -33,6 +33,7 @@ from xdsl.dialects.builtin import (
     VectorBaseTypeConstraint,
     VectorRankConstraint,
     VectorType,
+    f16,
     f32,
     f64,
     i1,
@@ -58,8 +59,7 @@ def test_FloatType_bitwidths():
 def test_FloatType_formats():
     with pytest.raises(NotImplementedError):
         BFloat16Type().format
-    with pytest.raises(NotImplementedError):
-        Float16Type().format
+    assert Float16Type().format == "<e"
     assert Float32Type().format == "<f"
     assert Float64Type().format == "<d"
     with pytest.raises(NotImplementedError):
@@ -171,6 +171,12 @@ def test_IntegerType_packing():
     buffer_i64 = i64.pack(nums_i64)
     unpacked_i64 = i64.unpack(buffer_i64, len(nums_i64))
     assert nums_i64 == unpacked_i64
+
+    # f16
+    nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    buffer_f16 = f16.pack(nums_f16)
+    unpacked_f16 = f16.unpack(buffer_f16, len(nums_f16))
+    assert nums_f16 == unpacked_f16
 
     # f32
     nums_f32 = (-3.140000104904175, -1.0, 0.0, 1.0, 3.140000104904175)
