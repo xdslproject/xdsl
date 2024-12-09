@@ -27,7 +27,7 @@ class IndexedIndividualRewrite(NamedTuple):
 
 
 def convert_indexed_individual_rewrites_to_available_pass(
-    rewrites: tuple[IndexedIndividualRewrite, ...], current_module: ModuleOp
+    rewrites: Sequence[IndexedIndividualRewrite], current_module: ModuleOp
 ) -> tuple[AvailablePass, ...]:
     """
     Function that takes a tuple of rewrites, converts each rewrite into an IndividualRewrite pass and returns the tuple of AvailablePass.
