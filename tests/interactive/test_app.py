@@ -537,3 +537,85 @@ async def test_dark_mode():
         await pilot.press("d")
 
         assert app.theme == "textual-dark"
+
+
+@pytest.mark.asyncio
+async def test_apply_individual_rewrite():
+    """Tests that using the tree to apply an individual rewrite works"""
+
+    async with InputApp(tuple(get_all_dialects().items()), ()).run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
+        # Testing a pass
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : i32) -> i32 {
+  %c0 = arith.constant 0 : i32
+  %res = arith.addi %c0, %n : i32
+  func.return %res : i32
+}
+        """
+        )
+        app.passes_tree.root.expand()
+        await pilot.pause()
+
+        node = None
+        for n in app.passes_tree.root.children:
+            if (
+                n.data is not None
+                and n.data[1] is not None
+                and str(n.data[1])
+                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiConstantProp"}'
+            ):
+                node = n
+
+        assert node is not None
+
+        # manually trigger node selection
+        app.passes_tree.select_node(node)
+
+        await pilot.pause()
+
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : i32) -> i32 {
+    %c0 = arith.constant 0 : i32
+    %res = arith.addi %n, %c0 : i32
+    func.return %res : i32
+  }
+}
+"""
+        )
+
+        # Apply second individual rewrite
+        node = None
+        for n in app.passes_tree.root.children:
+            if (
+                n.data is not None
+                and n.data[1] is not None
+                and str(n.data[1])
+                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
+            ):
+                node = n
+
+        assert node is not None
+
+        # manually trigger node selection
+        app.passes_tree.select_node(node)
+
+        await pilot.pause()
+
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : i32) -> i32 {
+    %c0 = arith.constant 0 : i32
+    func.return %n : i32
+  }
+}
+"""
+        )
