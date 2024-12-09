@@ -10,6 +10,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyFloatAttr,
     Builtin,
     FloatAttr,
@@ -19,6 +20,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     SymbolRefAttr,
     UnitAttr,
+    f32,
     i32,
 )
 from xdsl.dialects.func import Func
@@ -761,6 +763,49 @@ def test_densearray_attr():
     parsed = parser.parse_op()
 
     assert_print_op(parsed, prog, None)
+
+
+def test_float():
+    printer = Printer()
+
+    def _test_float_print(expected: str, value: float, type: AnyFloat):
+        io = StringIO()
+        printer.stream = io
+        printer.print_float(value, type)
+        assert io.getvalue() == expected
+
+    _test_float_print("3.000000e+00", 3, f32)
+    _test_float_print("-3.000000e+00", -3, f32)
+    _test_float_print("3.140000e+00", 3.14, f32)
+    _test_float_print("3.140000e+08", 3.14e8, f32)
+    _test_float_print("3.142857142857143", 22 / 7, f32)
+    _test_float_print("314285714.28571427", 22e8 / 7, f32)
+    _test_float_print("-3.142857142857143", -22 / 7, f32)
+
+
+def test_float_attr():
+    printer = Printer()
+
+    def _test_float_attr(value: float, type: AnyFloat):
+        io_float = StringIO()
+        printer.stream = io_float
+        printer.print_float(value, type)
+
+        io_attr = StringIO()
+        printer.stream = io_attr
+        printer.print_float_attr(FloatAttr(value, type))
+
+        assert io_float.getvalue() == io_attr.getvalue()
+
+    for value in (
+        3,
+        3.14,
+        22 / 7,
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+    ):
+        _test_float_attr(value, f32)
 
 
 def test_float_attr_specials():

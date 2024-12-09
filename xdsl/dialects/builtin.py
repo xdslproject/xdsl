@@ -699,7 +699,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
     @property
     def format(self) -> str:
-        raise NotImplementedError()
+        return "<e"
 
 
 @irdl_attr_definition
@@ -836,7 +836,7 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
         return FloatAttr(parser.parse_float(), type)
 
     def print_without_type(self, printer: Printer):
-        return printer.print_float(self)
+        return printer.print_float_attr(self)
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -2061,7 +2061,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         if isinstance(val, IntegerAttr):
             val.print_without_type(printer)
         elif isinstance(val, FloatAttr):
-            printer.print_float(cast(AnyFloatAttr, val))
+            printer.print_float_attr(cast(AnyFloatAttr, val))
         else:
             raise Exception(
                 "unexpected attribute type "
