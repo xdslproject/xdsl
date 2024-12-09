@@ -74,7 +74,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f64_to_u64,
 )
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.lexer import Lexer
+from xdsl.utils.mlir_lexer import Lexer
 
 indentNumSpaces = 2
 
