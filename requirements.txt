@@ -1,1 +1,0 @@
--e .[gui,jax,riscv,wgpu,onnx,dev]
