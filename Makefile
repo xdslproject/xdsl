@@ -10,6 +10,9 @@ COVERAGE_FILE ?= .coverage
 # use different coverage data file per coverage run, otherwise combine complains
 TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 
+# default lit options
+LIT_OPTIONS ?= -v --order=smart
+
 # make tasks run all commands in a single shell
 .ONESHELL:
 
@@ -39,7 +42,7 @@ clean: clean-caches
 
 # run filecheck tests
 filecheck:
-	lit -vv tests/filecheck --order=smart --timeout=20
+	lit $(LIT_OPTIONS) tests/filecheck
 
 # run pytest tests
 pytest:
@@ -54,7 +57,7 @@ pytest-nb:
 
 # run tests for Toy tutorial
 filecheck-toy:
-	lit -v docs/Toy/examples --order=smart
+	lit $(LIT_OPTIONS) docs/Toy/examples
 
 pytest-toy:
 	pytest docs/Toy/toy/tests
@@ -141,7 +144,7 @@ coverage-tests:
 
 # run coverage over filecheck tests
 coverage-filecheck-tests:
-	lit -v tests/filecheck/ -DCOVERAGE
+	lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
 coverage-report-html:
