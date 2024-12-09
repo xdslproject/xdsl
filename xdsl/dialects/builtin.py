@@ -349,7 +349,15 @@ class SignednessAttr(Data[Signedness]):
                 raise ValueError(f"Invalid signedness {data}")
 
 
-class FixedBitwidthType(TypeAttribute, ABC):
+class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
+    """
+    A type attribute whose runtime bitwidth is fixed, but may be target-dependent.
+    """
+
+    name = "abstract.compile_time_fixed_bitwidth_type"
+
+
+class FixedBitwidthType(CompileTimeFixedBitwidthType, ABC):
     """
     A type attribute whose runtime bitwidth is target-independent.
     """
@@ -375,7 +383,7 @@ class FixedBitwidthType(TypeAttribute, ABC):
 _PyT = TypeVar("_PyT")
 
 
-class PackableType(Generic[_PyT], FixedBitwidthType, ABC):
+class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
     """
     Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
     """
@@ -441,7 +449,7 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, StructPackableType[int]):
+class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthType):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -567,6 +575,7 @@ class IndexType(ParametrizedAttribute, StructPackableType[int]):
 
     @property
     def format(self) -> str:
+        # index types are always packable as int64
         return "<q"
 
     @property
@@ -677,7 +686,7 @@ AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], ABC):
+class _FloatType(StructPackableType[float], FixedBitwidthType, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
