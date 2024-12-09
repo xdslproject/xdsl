@@ -13,7 +13,7 @@ from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, ShrinkException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
@@ -75,9 +75,16 @@ class xDSLOptMain(CommandLineTool):
                     output_stream.flush()
                 finally:
                     chunk.close()
+        except ShrinkException:
+            assert self.args.shrink
+            print("Success, can shrink")
+            exit(0)
         finally:
             if output_stream is not sys.stdout:
                 output_stream.close()
+        if self.args.shrink:
+            print("Failure, can't shrink")
+            exit(1)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -169,6 +176,13 @@ class xDSLOptMain(CommandLineTool):
             "--version",
             action="version",
             version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+        )
+
+        arg_parser.add_argument(
+            "--shrink",
+            default=False,
+            action="store_true",
+            help="Return success on exit if ShrinkException was raised.",
         )
 
     def register_pass(
