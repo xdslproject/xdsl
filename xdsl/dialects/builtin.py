@@ -573,6 +573,7 @@ class IndexType(ParametrizedAttribute, StructPackableType[int]):
     def bitwidth(self) -> int:
         raise RuntimeError("IndexType bitwidth not known at compile-time")
 
+
 IndexTypeConstr = BaseAttr(IndexType)
 
 _IntegerAttrType = TypeVar(
