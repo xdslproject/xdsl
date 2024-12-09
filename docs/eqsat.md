@@ -1,8 +1,11 @@
-# Equality Saturation Dialect Notes
+# Equality Saturation Dialect
+
+## Tutorial 
 
 In this note, we will present the `eqsat` dialect with examples.
+The `eqsat` dialect refers to [e-graph](https://egraphs-good.github.io/), a graph representation of multiple functionally equivalent programs.
 
-## How does a e-graph look like in MLIR?
+### How does a e-graph look like in MLIR?
 
 In our example, we will saturate the expression `lambda x: x + x` with the following rules:
 
@@ -158,7 +161,29 @@ func.func @test(%x : index) -> (index) {
 }
 ```
 
-## How do we define scope of an e-graph?
+### Getting Started
+
+An end-to-end example is provided under `xdsl/tests/filecheck/projects/eqsat/identity.mlir`.
+To run the test case:
+
+```
+xdsl-opt -p 'eqsat-create-eclasses,apply-eqsat-pdl,eqsat-add-costs,eqsat-extract' \
+xdsl/tests/filecheck/projects/eqsat/identity.mlir
+```
+
+The command involves four passes:
+* `eqsat-create-eclasses`: translates an MLIR program into an initial e-graph, where each e-class contains an e-node.
+* `apply-eqsat-pdl`: explores a given set of rewrites on the e-graph and expands e-classes with more e-nodes. Particularly for this example, we have a single rewrite rule `x * y == y * x`.
+* `eqsat-add-costs`: assigns a numerical cost to each e-node in an e-class, indicating which one is preferred to be presented in the output.
+* `eqsat-extract`: extracts an e-node from each e-class based on the cost function (often taking the one with the lowest cost), and returns the transformed MLIR program.
+
+PS: In the given example, the output program is identical to the input program but that is expected.
+If you run these passes seperately and observe the intermediate MLIR, we can find a new representation is created and unioned into the e-graph, but did not get extracted from the graph as it has the same cost as the original program. By default, the first found e-node with the lowest cost is extracted - but we can improve this using a different cost function as a future work.
+
+## Development Notes 
+
+
+### How do we define scope of an e-graph?
 
 JC: @Sasha proposes an new op to define a specific region/block for exploring equality saturation.
 This improves the scalability of optimization so we can skip well-optimized code.
@@ -167,7 +192,7 @@ Question: Should this be a region or block? Personally I think region is more us
 Before the `eqsat` dialect is available, I would use a function to define such design space.
 A region is useful when we explore rewrites such as if conversion and complex loop transformation.
 
-## How does the e-graph handle arbitrary operations?
+### How does the e-graph handle arbitrary operations?
 
 We face the following problems when adding the `eqsat` dialect:
 
@@ -177,7 +202,7 @@ We face the following problems when adding the `eqsat` dialect:
 
 Here is Jianyi's attempt:
 
-### 1. Operations without any result
+#### 1. Operations without any result
 
 Here is an example of function that does not have a return value, because the value is stored in a memref.
 
@@ -209,7 +234,7 @@ func.func @test(%x : index, %y : memref<32xindex>) -> () {
 
 Note that a `none` value is not equivalent to another `none` value. This means that the e-class `%m_eq` cannot have more than one e-node.
 
-### 2. Operations with multiple results
+#### 2. Operations with multiple results
 
 The following example returns two values:
 
@@ -240,7 +265,7 @@ func.func @test(%x : index) -> (index) {
 }
 ```
 
-### 3. Multiple expressions
+#### 3. Multiple expressions
 
 A more interesting case is where we may have multiple expressions. A common case is when we have memory statements.
 
@@ -284,15 +309,15 @@ func.func @test(%x : index, %y : memref<32xindex>) -> () {
 Question:
 The `seq` op seems a list of non-return operations, but I am not sure if this covers all the cases?
 
-## How does the e-graph handle functions?
+### How does the e-graph handle functions?
 
 TODO
 
-## How does the e-graph control flow ops, such as loops?
+### How does the e-graph control flow ops, such as loops?
 
 TODO
 
-## How does the e-graph handle blocks?
+### How does the e-graph handle blocks?
 
 TODO
 
