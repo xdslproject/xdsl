@@ -416,6 +416,14 @@ class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
         """
         raise NotImplementedError()
 
+    @property
+    @abstractmethod
+    def packed_size(self) -> int:
+        """
+        Contiguous memory footprint of packed value in bytes.
+        """
+        raise NotImplementedError()
+
 
 class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
     """
@@ -446,6 +454,10 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
     def pack(self, values: Sequence[_PyT]) -> bytes:
         fmt = self.format[0] + str(len(values)) + self.format[1:]
         return struct.pack(fmt, *values)
+
+    @property
+    def packed_size(self) -> int:
+        return struct.calcsize(self.format)
 
 
 @irdl_attr_definition
