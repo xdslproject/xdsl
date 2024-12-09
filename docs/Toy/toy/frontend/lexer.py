@@ -1,11 +1,10 @@
 import re
 from enum import Enum, auto
-from pathlib import Path
 from string import hexdigits
 from typing import TypeAlias, cast
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Input, Lexer, Position, Span, Token
+from xdsl.utils.lexer import Lexer, Position, Span, Token
 
 
 class ToyTokenKind(Enum):
@@ -179,18 +178,3 @@ class ToyLexer(Lexer[ToyTokenKind]):
         if match is not None:
             return self._form_token(ToyTokenKind.NUMBER, start_pos)
         return self._form_token(ToyTokenKind.NUMBER, start_pos)
-
-
-def tokenize(file: Path, program: str | None = None):
-    if program is None:
-        with open(file) as f:
-            program = f.read()
-
-    toy_lexer = ToyLexer(Input(program, str(file)))
-
-    tokens = [toy_lexer.lex()]
-
-    while tokens[-1].kind != ToyTokenKind.EOF:
-        tokens.append(toy_lexer.lex())
-
-    return tokens
