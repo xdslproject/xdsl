@@ -29,7 +29,7 @@ def test_parse_ast():
     parsed_module_ast = parser.parseModule()
 
     def loc(line: int, col: int) -> Location:
-        return Location(ast_toy, line, col)
+        return Location(str(ast_toy), line, col)
 
     module_ast = ModuleAST(
         (
@@ -193,7 +193,7 @@ def test_parse_scalar():
     parsed_module_ast = parser.parseModule()
 
     def loc(line: int, col: int) -> Location:
-        return Location(ast_toy, line, col)
+        return Location(str(ast_toy), line, col)
 
     module_ast = ModuleAST(
         (
