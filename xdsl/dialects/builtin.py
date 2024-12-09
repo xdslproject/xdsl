@@ -590,10 +590,6 @@ class IndexType(ParametrizedAttribute, StructPackableType[int]):
         # index types are always packable as int64
         return "<q"
 
-    @property
-    def bitwidth(self) -> int:
-        raise RuntimeError("IndexType bitwidth not known at compile-time")
-
 
 IndexTypeConstr = BaseAttr(IndexType)
 

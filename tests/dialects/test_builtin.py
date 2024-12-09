@@ -83,11 +83,6 @@ def test_IndexType_formats():
     assert IndexType().format == "<q"
 
 
-def test_IndexType_bitwidth():
-    with pytest.raises(RuntimeError):
-        IndexType().bitwidth
-
-
 def test_FloatType_packing():
     nums = (-128, -1, 0, 1, 127)
     buffer = f32.pack(nums)
