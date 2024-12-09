@@ -47,7 +47,7 @@ class SwapInputs(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter, /):
         assert len(op.result.uses) == 1, "Each op result must be in a single eclass"
 
         eclass = tuple(op.result.uses)[0].operation
@@ -60,12 +60,12 @@ class SwapInputs(RewritePattern):
         #     # Skip the current op
         #     if arg.op == op:
         #         continue
-        #     if isinstance(arg.op, arith.Addi):
+        #     if isinstance(arg.op, arith.AddiOp):
         #         if arg.op.rhs == op.lhs and arg.op.lhs == op.rhs:
         #             return
 
         # Create a new expression
-        new_op = arith.Addi(op.rhs, op.lhs)
+        new_op = arith.AddiOp(op.rhs, op.lhs)
 
         new_eclass_operands = tuple(eclass.operands) + (new_op.result,)
         new_eclass_op = eqsat.EClassOp(*new_eclass_operands)
@@ -110,13 +110,13 @@ def swap_arguments_input():
     @Builder.implicit_region
     def ir_module():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
-            x = arith.Constant.from_int_and_width(4, 32).result
-            y = arith.Constant.from_int_and_width(2, 32).result
+            x = arith.ConstantOp.from_int_and_width(4, 32).result
+            y = arith.ConstantOp.from_int_and_width(2, 32).result
             x_eq = eqsat.EClassOp(x).result
             y_eq = eqsat.EClassOp(y).result
-            x_y = arith.Addi(x_eq, y_eq).result
+            x_y = arith.AddiOp(x_eq, y_eq).result
             x_y_eq = eqsat.EClassOp(x_y).result
-            func.Return(x_y_eq)
+            func.ReturnOp(x_y_eq)
 
     return ir_module
 
@@ -126,14 +126,14 @@ def swap_arguments_output():
     @Builder.implicit_region
     def ir_module():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
-            x = arith.Constant.from_int_and_width(4, 32).result
-            y = arith.Constant.from_int_and_width(2, 32).result
+            x = arith.ConstantOp.from_int_and_width(4, 32).result
+            y = arith.ConstantOp.from_int_and_width(2, 32).result
             x_eq = eqsat.EClassOp(x).result
             y_eq = eqsat.EClassOp(y).result
-            x_y = arith.Addi(x_eq, y_eq).result
-            y_x = arith.Addi(y_eq, x_eq).result
+            x_y = arith.AddiOp(x_eq, y_eq).result
+            y_x = arith.AddiOp(y_eq, x_eq).result
             x_y_eq = eqsat.EClassOp(x_y, y_x).result
-            func.Return(x_y_eq)
+            func.ReturnOp(x_y_eq)
 
     return ir_module
 
