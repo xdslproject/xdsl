@@ -346,7 +346,6 @@ class StencilInliningPattern(RewritePattern):
                     producer, consumer
                 ):
                     return self.inline_producer(producer, consumer, rewriter)
-        pass
 
 
 @dataclass(frozen=True)
