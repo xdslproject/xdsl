@@ -94,6 +94,7 @@ class ApplyOpBufferize(RewritePattern):
         # convert args
         buf_args: list[SSAValue] = []
         to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
+        # in case of subsequent apply ops accessing this accumulator, replace uses with `bufferization.to_memref`
         op.accumulator.replace_by_if(
             buf_iter_arg.memref, lambda use: use.operation != buf_iter_arg
         )

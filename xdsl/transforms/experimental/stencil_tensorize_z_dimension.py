@@ -85,7 +85,7 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
                 )
             ):
                 assert is_tensor(use.operation.source.type)
-                # inserting a 1d tensor into a 2d array should not require the input tensor to also be 2d
+                # inserting an (n-1)d tensor into an (n)d tensor should not require the input tensor to also be (n)d
                 # instead, drop the first `dimdiff` dimensions
                 dimdiff = len(static_sizes) - len(use.operation.source.type.shape)
                 return TensorType(
