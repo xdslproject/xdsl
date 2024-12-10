@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     IntegerType,
+    PackableType,
     UnrealizedConversionCastOp,
 )
 from xdsl.interpreter import (
@@ -24,7 +25,7 @@ from xdsl.utils.hints import isa
 
 def xtype_for_el_type(
     el_type: Attribute, index_bitwidth: Literal[32, 64]
-) -> ptr.XType[Any]:
+) -> PackableType[Any]:
     match el_type:
         case builtin.i32:
             return ptr.int32

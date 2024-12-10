@@ -1,10 +1,17 @@
-from typing import Any, cast
+from typing import Any, cast, overload
 
 import numpy as np
 import numpy.typing as npt
 
 from xdsl.dialects import onnx
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import (
+    Float32Type,
+    Float64Type,
+    IntAttr,
+    IntegerType,
+    PackableType,
+    TensorType,
+)
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -19,24 +26,24 @@ from xdsl.utils.exceptions import InterpretationError
 
 
 def to_dtype(
-    xtype: ptr.XType[int] | ptr.XType[float],
+    xtype: PackableType[int] | PackableType[float],
 ) -> type[np.int32] | type[np.int64] | type[np.float32] | type[np.float64]:
-    match xtype.format:
-        case "<i":
+    match xtype:
+        case IntegerType(width=IntAttr(data=32)):
             return np.int32
-        case "<I":
+        case IntegerType(width=IntAttr(data=64)):
             return np.int64
-        case "<f":
+        case Float32Type():
             return np.float32
-        case "<d":
+        case Float64Type():
             return np.float64
         case _:
             raise NotImplementedError()
 
 
 def from_dtype(
-    dtype: npt.DTypeLike,
-) -> ptr.XType[float] | ptr.XType[int]:
+    dtype: np.dtype[np.float32 | np.float64 | np.int32 | np.int64],
+) -> PackableType[float] | PackableType[int]:
     if dtype == np.float32:
         return ptr.float32
     elif dtype == np.float64:
@@ -49,6 +56,18 @@ def from_dtype(
         raise NotImplementedError()
 
 
+@overload
+def to_ndarray(
+    shaped_array: ShapedArray[float],
+) -> npt.NDArray[np.float32 | np.float64]: ...
+
+
+@overload
+def to_ndarray(
+    shaped_array: ShapedArray[int],
+) -> npt.NDArray[np.int32 | np.int64]: ...
+
+
 def to_ndarray(
     shaped_array: ShapedArray[int] | ShapedArray[float],
 ) -> npt.NDArray[np.float32 | np.float64 | np.int32 | np.int64]:
@@ -59,13 +78,16 @@ def to_ndarray(
 
 
 def from_ndarray(
-    ndarray: npt.NDArray[np.number[Any]],
+    ndarray: npt.NDArray[np.float32 | np.float64 | np.int32 | np.int64],
 ) -> ShapedArray[float] | ShapedArray[int]:
+    xtype = from_dtype(np.dtype(ndarray.dtype))
+    # TypedPtr's generic parameter is invariant, so ambiguous here
+    typed_ptr: ptr.TypedPtr[float] | ptr.TypedPtr[int] = ptr.TypedPtr(
+        ptr.RawPtr(bytearray(ndarray.data)),
+        xtype=xtype,  # pyright: ignore[reportArgumentType]
+    )
     return ShapedArray(
-        ptr.TypedPtr(
-            ptr.RawPtr(bytearray(ndarray.data)),
-            xtype=from_dtype(np.dtype(ndarray.dtype)),
-        ),
+        typed_ptr,
         list(ndarray.shape),
     )
 

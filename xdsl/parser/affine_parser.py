@@ -7,9 +7,11 @@ from xdsl.ir.affine import (
     AffineMap,
     AffineSet,
 )
-from xdsl.parser.base_parser import BaseParser, ParserState
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Token
+from xdsl.utils.mlir_lexer import MLIRToken, MLIRTokenKind
+
+from .base_parser import BaseParser  # noqa: TID251
+from .generic_parser import ParserState  # noqa: TID251
 
 
 class AffineParser(BaseParser):
@@ -22,7 +24,7 @@ class AffineParser(BaseParser):
         "mod": 20,
     }
 
-    def __init__(self, state: ParserState) -> None:
+    def __init__(self, state: ParserState[MLIRTokenKind]) -> None:
         self._resume_from(state)
 
     def _parse_primary(self, dims: list[str], syms: list[str]) -> AffineExpr:
@@ -33,12 +35,12 @@ class AffineParser(BaseParser):
                   | `-` primary
         """
         # Handle parentheses
-        if self._parse_optional_token(Token.Kind.L_PAREN):
+        if self._parse_optional_token(MLIRTokenKind.L_PAREN):
             expr = self._parse_affine_expr(dims, syms)
-            self._parse_token(Token.Kind.R_PAREN, "Expected closing parenthesis")
+            self._parse_token(MLIRTokenKind.R_PAREN, "Expected closing parenthesis")
             return expr
         # Handle bare id
-        if bare_id := self._parse_optional_token(Token.Kind.BARE_IDENT):
+        if bare_id := self._parse_optional_token(MLIRTokenKind.BARE_IDENT):
             if bare_id.text in dims:
                 return AffineExpr.dimension(dims.index(bare_id.text))
             elif bare_id.text in syms:
@@ -48,10 +50,10 @@ class AffineParser(BaseParser):
                     bare_id.span, f"Identifier not in space {bare_id.text}"
                 )
         # Handle integer literal
-        if int_lit := self._parse_optional_token(Token.Kind.INTEGER_LIT):
-            return AffineExpr.constant(int_lit.get_int_value())
+        if int_lit := self._parse_optional_token(MLIRTokenKind.INTEGER_LIT):
+            return AffineExpr.constant(int_lit.kind.get_int_value(int_lit.span))
         # Handle negative primary
-        if self._parse_optional_token(Token.Kind.MINUS):
+        if self._parse_optional_token(MLIRTokenKind.MINUS):
             return -self._parse_primary(dims, syms)
 
         raise ParseError(self._current_token.span, "Expected primary expression")
@@ -60,7 +62,7 @@ class AffineParser(BaseParser):
         return self._BINOP_PRECEDENCE.get(self._current_token.text, -1)
 
     def _create_binop_expr(
-        self, lhs: AffineExpr, rhs: AffineExpr, binop: Token
+        self, lhs: AffineExpr, rhs: AffineExpr, binop: MLIRToken
     ) -> AffineExpr:
         match binop.text:
             case "+":
@@ -175,12 +177,14 @@ class AffineParser(BaseParser):
         """
 
         def parse_id() -> str:
-            return self._parse_token(Token.Kind.BARE_IDENT, "Expected identifier").text
+            return self._parse_token(
+                MLIRTokenKind.BARE_IDENT, "Expected identifier"
+            ).text
 
         # Parse dimensions
         dims = self.parse_comma_separated_list(self.Delimiter.PAREN, parse_id)
         # Parse optional symbols
-        if self._current_token.kind != Token.Kind.L_SQUARE:
+        if self._current_token.kind != MLIRTokenKind.L_SQUARE:
             syms = []
         else:
             syms = self.parse_comma_separated_list(self.Delimiter.SQUARE, parse_id)
@@ -195,7 +199,7 @@ class AffineParser(BaseParser):
         # Parse affine space
         dims, syms = self._parse_affine_space()
         # Parse : delimiter
-        self._parse_token(Token.Kind.ARROW, "Expected `->`")
+        self._parse_token(MLIRTokenKind.ARROW, "Expected `->`")
         # Parse list of affine expressions
         exprs = self._parse_multi_affine_expr(dims, syms)
         # Create map and return.
@@ -209,7 +213,7 @@ class AffineParser(BaseParser):
         # Parse affine space
         dims, syms = self._parse_affine_space()
         # Parse : delimiter
-        self._parse_token(Token.Kind.COLON, "Expected `:`")
+        self._parse_token(MLIRTokenKind.COLON, "Expected `:`")
         # Parse list of affine expressions
         constraints = self._parse_multi_affine_constaint(dims, syms)
         # Create map and return.

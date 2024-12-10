@@ -179,6 +179,7 @@ class InputApp(App[None]):
         self.output_text_area = OutputTextArea(id="output")
         self.selected_passes_list_view = ListView(id="selected_passes_list_view")
         self.passes_tree = Tree(label=".", id="passes_tree")
+        self.passes_tree.auto_expand = False
         self.input_operation_count_datatable = DataTable(
             id="input_operation_count_datatable"
         )
