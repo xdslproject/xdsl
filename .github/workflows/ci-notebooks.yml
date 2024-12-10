@@ -34,17 +34,13 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install the project
-      run: |
-        cd xdsl
-        make venv
+      run: make venv
 
     - name: Run examples/tutorials
       run: |
         # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
-        cd xdsl
         uv run pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
 
     - name: Test marimo notebooks
       run: |
-        cd xdsl
         make tests-marimo

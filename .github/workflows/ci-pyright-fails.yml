@@ -35,7 +35,6 @@ jobs:
 
       - name: Install the project and activate its virtual environment
         run: |
-          cd xdsl
           make venv
           source venv/bin/activate
           echo "$PWD/venv/bin" >> $GITHUB_PATH
