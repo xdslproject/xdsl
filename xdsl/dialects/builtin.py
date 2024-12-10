@@ -349,7 +349,23 @@ class SignednessAttr(Data[Signedness]):
                 raise ValueError(f"Invalid signedness {data}")
 
 
-class FixedBitwidthType(TypeAttribute, ABC):
+class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
+    """
+    A type attribute whose runtime bitwidth is fixed, but may be target-dependent.
+    """
+
+    name = "abstract.compile_time_fixed_bitwidth_type"
+
+    @property
+    @abstractmethod
+    def compile_time_size(self) -> int:
+        """
+        Contiguous memory footprint of the value during compilation.
+        """
+        raise NotImplementedError()
+
+
+class FixedBitwidthType(CompileTimeFixedBitwidthType, ABC):
     """
     A type attribute whose runtime bitwidth is target-independent.
     """
@@ -375,7 +391,7 @@ class FixedBitwidthType(TypeAttribute, ABC):
 _PyT = TypeVar("_PyT")
 
 
-class PackableType(Generic[_PyT], FixedBitwidthType, ABC):
+class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
     """
     Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
     """
@@ -439,9 +455,13 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         fmt = self.format[0] + str(len(values)) + self.format[1:]
         return struct.pack(fmt, *values)
 
+    @property
+    def compile_time_size(self) -> int:
+        return struct.calcsize(self.format)
+
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, StructPackableType[int]):
+class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthType):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -556,7 +576,7 @@ class LocationAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IndexType(ParametrizedAttribute):
+class IndexType(ParametrizedAttribute, StructPackableType[int]):
     name = "index"
 
     def print_value_without_type(self, value: int, printer: Printer):
@@ -564,6 +584,11 @@ class IndexType(ParametrizedAttribute):
         Prints the value.
         """
         printer.print_string(f"{value}")
+
+    @property
+    def format(self) -> str:
+        # index types are always packable as int64
+        return "<q"
 
 
 IndexTypeConstr = BaseAttr(IndexType)
@@ -669,7 +694,7 @@ AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], ABC):
+class _FloatType(StructPackableType[float], FixedBitwidthType, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
