@@ -202,7 +202,7 @@ def test_IntegerType_packing():
         i8.pack((255,))
     with pytest.raises(
         Exception,
-        match="format requires (-32768)|(\\(-0x7fff - 1\\)) <= number <= (32767)|(0x7fff)",
+        match="format requires (-32768)|(\\(-0x7fff - 1\\)|(-32767 -1)) <= number <= (32767)|(0x7fff)",
     ):
         i16.pack((32768,))
     with pytest.raises(
