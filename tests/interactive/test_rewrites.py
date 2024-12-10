@@ -45,7 +45,7 @@ def test_get_all_possible_rewrite():
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
-    expected_res = (
+    expected_res = [
         (
             IndexedIndividualRewrite(
                 1, IndividualRewrite(operation="test.op", pattern="TestRewrite")
@@ -57,7 +57,7 @@ def test_get_all_possible_rewrite():
                 rewrite=IndividualRewrite(operation="test.op", pattern="TestRewrite"),
             )
         ),
-    )
+    ]
 
     res = get_all_possible_rewrites(module, {"test.op": {"TestRewrite": Rewrite()}})
     assert res == expected_res

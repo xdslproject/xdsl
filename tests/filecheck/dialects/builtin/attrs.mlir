@@ -17,7 +17,7 @@
     %x6 = "arith.constant"() {"value" = 0 : i64, "test" = false} : () -> i64
     // CHECK:  "test" = array<i32: 2, 3, 4>
     %x7 = "arith.constant"() {"value" = 0 : i64, "test" = array<i32: 2, 3, 4>} : () -> i64
-    // CHECK:  "test" = array<f32: 2.1, 3.2, 4.3>
+    // CHECK:  "test" = array<f32: 2.0999999046325684, 3.200000047683716, 4.300000190734863>
     %x8 = "arith.constant"() {"value" = 0 : i64, "test" = array<f32: 2.1, 3.2, 4.3>} : () -> i64
     // CHECK:  "test" = #builtin.signedness<signless>
     %x9 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<signless>} : () -> i64
@@ -37,6 +37,8 @@
     %x16 = "arith.constant"() {"value" = 0 : i64, "test" = none} : () -> i64
     // CHECK:  "test" = 0 : i0
     %x17 = "arith.constant"() {"value" = 0 : i64, "test" = 0 : i0} : () -> i64
+    // CHECK:  %x18 = arith.constant {"array" = array<i8: -1>, "dense" = dense<-1> : vector<i8>, "test" = -1 : i8} -1 : i8
+    %x18 = arith.constant {"array" = array<i8: 255>, "dense" = dense<255> : vector<i8>, "test" = 255 : i8} -1 : i8
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
   "test.op"() {"value"= {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()

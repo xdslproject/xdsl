@@ -9,6 +9,8 @@
 
 %tensor1 = "test.op"() : () -> tensor<2x2xf64>
 %tensor2 = "test.op"() : () -> tensor<2x2xf64>
+%memref = "test.op"() : () -> memref<2x2xf64>
+bufferization.materialize_in_destination %tensor1 in writable %memref : (tensor<2x2xf64>, memref<2x2xf64>) -> ()
 %b = bufferization.materialize_in_destination %tensor1 in %tensor2 : (tensor<2x2xf64>, tensor<2x2xf64>) -> tensor<2x2xf64>
 
 
@@ -20,5 +22,7 @@
 // CHECK-NEXT:    %4 = bufferization.clone %1 : memref<30x20x10xf32> to memref<30x20x10xf32>
 // CHECK-NEXT:    %5 = "test.op"() : () -> tensor<2x2xf64>
 // CHECK-NEXT:    %6 = "test.op"() : () -> tensor<2x2xf64>
-// CHECK-NEXT:    %7 = bufferization.materialize_in_destination %5 in %6 : (tensor<2x2xf64>, tensor<2x2xf64>) -> tensor<2x2xf64>
+// CHECK-NEXT:    %7 = "test.op"() : () -> memref<2x2xf64>
+// CHECK-NEXT:    bufferization.materialize_in_destination %5 in writable %7 : (tensor<2x2xf64>, memref<2x2xf64>) -> ()
+// CHECK-NEXT:    %8 = bufferization.materialize_in_destination %5 in %6 : (tensor<2x2xf64>, tensor<2x2xf64>) -> tensor<2x2xf64>
 // CHECK-NEXT:  }

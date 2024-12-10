@@ -24,18 +24,18 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.9.30",
+    "marimo==0.9.33",
     "pre-commit==4.0.1",
-    "ruff==0.8.1",
+    "ruff==0.8.2",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.24.0",
-    "pyright==1.1.389",
+    "pyright==1.1.390",
 ]
-gui = ["textual==0.88.1", "pyclip==0.7"]
-jax = ["jax==0.4.35", "numpy==2.1.3"]
-onnx = ["onnx==1.17.0", "numpy==2.1.3"]
+gui = ["textual==0.89.1", "pyclip==0.7"]
+jax = ["jax==0.4.37", "numpy==2.2.0"]
+onnx = ["onnx==1.17.0", "numpy==2.2.0"]
 riscv = ["riscemu==2.2.7"]
 wgpu = ["wgpu==0.19.2"]
 
@@ -67,7 +67,9 @@ build-backend = "setuptools.build_meta"
 reportImportCycles = false
 reportMissingModuleSource = false
 enableTypeIgnoreComments = false
+enableExperimentalFeatures = true
 typeCheckingMode = "strict"
+extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
     "tests/dialects/test_memref.py",
@@ -121,7 +123,9 @@ max-line-length = 300
 "xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
 "xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
+"xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
+"xdsl.parser.generic_parser".msg = "Use xdsl.parser instead."
 
 
 [tool.ruff.lint.per-file-ignores]

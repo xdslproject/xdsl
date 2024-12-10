@@ -13,6 +13,7 @@ from typing_extensions import deprecated
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
+    AnyFloat,
     AnyFloatAttr,
     AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
@@ -73,7 +74,7 @@ from xdsl.utils.bitwise_casts import (
     convert_f64_to_u64,
 )
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.lexer import Lexer
+from xdsl.utils.mlir_lexer import MLIRLexer
 
 indentNumSpaces = 2
 
@@ -446,7 +447,7 @@ class Printer:
         Prints the provided string as an identifier if it is one,
         and as a string literal otherwise.
         """
-        if Lexer.bare_identifier_regex.fullmatch(string) is None:
+        if MLIRLexer.bare_identifier_regex.fullmatch(string) is None:
             self.print_string_literal(string)
             return
         self.print_string(string)
@@ -463,26 +464,28 @@ class Printer:
                     self.print_string(chr(byte))
         self.print_string('"')
 
-    def print_float(self, attribute: AnyFloatAttr):
-        value = attribute.value
-        if math.isnan(value.data) or math.isinf(value.data):
-            if isinstance(attribute.type, Float16Type):
-                self.print_string(f"{hex(convert_f16_to_u16(value.data))}")
-            elif isinstance(attribute.type, Float32Type):
-                self.print_string(f"{hex(convert_f32_to_u32(value.data))}")
-            elif isinstance(attribute.type, Float64Type):
-                self.print_string(f"{hex(convert_f64_to_u64(value.data))}")
+    def print_float_attr(self, attribute: AnyFloatAttr):
+        self.print_float(attribute.value.data, attribute.type)
+
+    def print_float(self, value: float, type: AnyFloat):
+        if math.isnan(value) or math.isinf(value):
+            if isinstance(type, Float16Type):
+                self.print_string(f"{hex(convert_f16_to_u16(value))}")
+            elif isinstance(type, Float32Type):
+                self.print_string(f"{hex(convert_f32_to_u32(value))}")
+            elif isinstance(type, Float64Type):
+                self.print_string(f"{hex(convert_f64_to_u64(value))}")
             else:
                 raise NotImplementedError(
-                    f"Cannot print '{value.data}' value for float type {str(attribute.type)}"
+                    f"Cannot print '{value}' value for float type {str(type)}"
                 )
         else:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
-            float_str = f"{value.data:.6e}"
-            if float(float_str) == value.data:
+            float_str = f"{value:.6e}"
+            if float(float_str) == value:
                 self.print_string(float_str)
             else:
-                self.print_string(f"{repr(value.data)}")
+                self.print_string(f"{repr(value)}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):

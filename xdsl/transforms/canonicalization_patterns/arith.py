@@ -1,5 +1,5 @@
 from xdsl.dialects import arith, builtin
-from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import BoolAttr, IndexType, IntegerType
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -9,15 +9,30 @@ from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_opera
 from xdsl.utils.hints import isa
 
 
-class AddImmediateZero(RewritePattern):
+class AddiIdentityRight(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.lhs.owner, arith.ConstantOp)
-            and isinstance(value := op.lhs.owner.value, IntegerAttr)
-            and value.value.data == 0
-        ):
-            rewriter.replace_matched_op([], [op.rhs])
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            return
+        if rhs != 0:
+            return
+        rewriter.replace_matched_op((), (op.lhs,))
+
+
+class AddiConstantProp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter):
+        if (lhs := const_evaluate_operand(op.lhs)) is None:
+            return
+        if (rhs := const_evaluate_operand(op.rhs)) is None:
+            # Swap inputs if lhs is constant and rhs is not
+            rewriter.replace_matched_op(arith.AddiOp(op.rhs, op.lhs))
+            return
+
+        assert isinstance(op.result.type, IntegerType | IndexType)
+        rewriter.replace_matched_op(
+            arith.ConstantOp.from_int_and_width(lhs + rhs, op.result.type)
+        )
 
 
 def _fold_const_operation(
@@ -118,15 +133,13 @@ class SelectConstPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
-        if not isinstance(condition := op.cond.owner, arith.ConstantOp):
+        const_value = const_evaluate_operand(op.cond)
+
+        if const_value is None:
             return
 
-        assert isinstance(const_cond := condition.value, IntegerAttr)
-
-        if const_cond.value.data == 1:
-            rewriter.replace_matched_op((), (op.lhs,))
-        if const_cond.value.data == 0:
-            rewriter.replace_matched_op((), (op.rhs,))
+        new_results = (op.lhs,) if const_value else (op.rhs,)
+        rewriter.replace_matched_op((), new_results)
 
 
 class SelectTrueFalsePattern(RewritePattern):
@@ -140,19 +153,16 @@ class SelectTrueFalsePattern(RewritePattern):
         if op.result.type != IntegerType(1):
             return
 
-        if not isinstance(lhs := op.lhs.owner, arith.ConstantOp) or not isinstance(
-            rhs := op.rhs.owner, arith.ConstantOp
-        ):
+        if (lhs := const_evaluate_operand(op.lhs)) is None or (
+            rhs := const_evaluate_operand(op.rhs)
+        ) is None:
             return
 
-        assert isinstance(lhs_value := lhs.value, IntegerAttr)
-        assert isinstance(rhs_value := rhs.value, IntegerAttr)
-
-        if lhs_value.value.data == 1 and rhs_value.value.data == 0:
+        if lhs and not rhs:
             rewriter.replace_matched_op((), (op.cond,))
 
-        if lhs_value.value.data == 0 and rhs_value.value.data == 1:
-            rewriter.replace_matched_op(arith.XOrIOp(op.cond, rhs))
+        if not lhs and rhs:
+            rewriter.replace_matched_op(arith.XOrIOp(op.cond, op.rhs))
 
 
 class SelectSamePattern(RewritePattern):

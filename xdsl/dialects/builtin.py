@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import struct
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -74,8 +75,10 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.comparisons import (
+    signed_upper_bound,
     signed_value_range,
     signless_value_range,
+    unsigned_upper_bound,
     unsigned_value_range,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
@@ -83,8 +86,11 @@ from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
+    from _typeshed import ReadableBuffer, WriteableBuffer
+
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
+
 
 DYNAMIC_INDEX = -1
 """
@@ -345,10 +351,10 @@ class SignednessAttr(Data[Signedness]):
 
 class FixedBitwidthType(TypeAttribute, ABC):
     """
-    A type attribute with a defined bitwidth
+    A type attribute whose runtime bitwidth is target-independent.
     """
 
-    name = "abstract.bitwidth_type"
+    name = "abstract.fixed_bitwidth_type"
 
     @property
     @abstractmethod
@@ -366,8 +372,76 @@ class FixedBitwidthType(TypeAttribute, ABC):
         return (self.bitwidth + 7) >> 3
 
 
+_PyT = TypeVar("_PyT")
+
+
+class PackableType(Generic[_PyT], FixedBitwidthType, ABC):
+    """
+    Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
+    """
+
+    @abstractmethod
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
+        """
+        Yields unpacked values one at a time, starting at the beginning of the buffer.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
+        """
+        Unpack `num` values from the beginning of the buffer.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
+        """
+        Pack a value at a given offset into a buffer.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def pack(self, values: Sequence[_PyT]) -> bytes:
+        """
+        Create a new buffer containing the input `values`.
+        """
+        raise NotImplementedError()
+
+
+class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
+    """
+    Abstract base class for xDSL types that can be packed and unpacked using Python's
+    `struct` package, using a format string.
+    """
+
+    @property
+    @abstractmethod
+    def format(self) -> str:
+        """
+        Format to be used when decoding and encoding bytes.
+
+        https://docs.python.org/3/library/struct.html
+        """
+        raise NotImplementedError()
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[_PyT]:
+        return (values[0] for values in struct.iter_unpack(self.format, buffer))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[_PyT, ...]:
+        fmt = self.format[0] + str(num) + self.format[1:]
+        return struct.unpack(fmt, buffer)
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: _PyT) -> None:
+        struct.pack_into(self.format, buffer, offset, value)
+
+    def pack(self, values: Sequence[_PyT]) -> bytes:
+        fmt = self.format[0] + str(len(values)) + self.format[1:]
+        return struct.pack(fmt, *values)
+
+
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, FixedBitwidthType):
+class IntegerType(ParametrizedAttribute, StructPackableType[int]):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -395,18 +469,54 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
                 f"values in the range [{min_value}, {max_value})"
             )
 
+    def normalized_value(self, value: IntAttr) -> IntAttr | None:
+        """
+        Signless values can represent integers from both the signed and unsigned ranges
+        for a given bitwidth.
+        We choose to normalize values that are not in the intersection of the two ranges
+        to the signed version (meaning ambiguous values will always be negative).
+        For example, the bitpattern of all ones will always be represented as `-1` at
+        runtime.
+        If the input value is outside of the valid range, return `None`.
+        """
+        min_value, max_value = self.value_range()
+        if not (min_value <= value.data < max_value):
+            return None
+
+        if self.signedness.data == Signedness.SIGNLESS:
+            signed_ub = signed_upper_bound(self.bitwidth)
+            unsigned_ub = unsigned_upper_bound(self.bitwidth)
+            if signed_ub <= value.data:
+                return IntAttr(value.data - unsigned_ub)
+
+        return value
+
     @property
     def bitwidth(self) -> int:
         return self.width.data
 
     def print_value_without_type(self, value: int, printer: Printer):
         """
-        Prints the value, printing `true` or `false` if self.width == 1.
+        Prints the value, printing `true` or `false` if `self.width.data == 1`.
         """
         if self.width.data == 1:
             printer.print_string("true" if value else "false", indent=0)
         else:
             printer.print_string(f"{value}")
+
+    @property
+    def format(self) -> str:
+        match self.bitwidth:
+            case 1 | 8:
+                return "<b"
+            case 16:
+                return "<h"
+            case 32:
+                return "<i"
+            case 64:
+                return "<q"
+            case _:
+                raise NotImplementedError(f"Format not implemented for {self}")
 
 
 i64 = IntegerType(64)
@@ -495,10 +605,14 @@ class IntegerAttr(
     def __init__(
         self, value: int | IntAttr, value_type: int | IntegerType | IndexType
     ) -> None:
-        if isinstance(value, int):
-            value = IntAttr(value)
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
+        if isinstance(value, int):
+            value = IntAttr(value)
+        if not isinstance(value_type, IndexType):
+            normalized_value = value_type.normalized_value(value)
+            if normalized_value is not None:
+                value = normalized_value
         super().__init__([value, value_type])
 
     @staticmethod
@@ -555,7 +669,7 @@ AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(ABC):
+class _FloatType(StructPackableType[float], ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
@@ -563,57 +677,81 @@ class _FloatType(ABC):
 
 
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class BFloat16Type(ParametrizedAttribute, _FloatType):
     name = "bf16"
 
     @property
     def bitwidth(self) -> int:
         return 16
 
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float16Type(ParametrizedAttribute, _FloatType):
     name = "f16"
 
     @property
     def bitwidth(self) -> int:
         return 16
 
+    @property
+    def format(self) -> str:
+        return "<e"
+
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float32Type(ParametrizedAttribute, _FloatType):
     name = "f32"
 
     @property
     def bitwidth(self) -> int:
         return 32
 
+    @property
+    def format(self) -> str:
+        return "<f"
+
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float64Type(ParametrizedAttribute, _FloatType):
     name = "f64"
 
     @property
     def bitwidth(self) -> int:
         return 64
 
+    @property
+    def format(self) -> str:
+        return "<d"
+
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float80Type(ParametrizedAttribute, _FloatType):
     name = "f80"
 
     @property
     def bitwidth(self) -> int:
         return 80
 
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
+
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
+class Float128Type(ParametrizedAttribute, _FloatType):
     name = "f128"
 
     @property
     def bitwidth(self) -> int:
         return 128
+
+    @property
+    def format(self) -> str:
+        raise NotImplementedError()
 
 
 AnyFloat: TypeAlias = (
@@ -698,7 +836,7 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
         return FloatAttr(parser.parse_float(), type)
 
     def print_without_type(self, printer: Printer):
-        return printer.print_float(self)
+        return printer.print_float_attr(self)
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -969,50 +1107,60 @@ class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
     elt_type: ParameterDef[IntegerType | AnyFloat]
-    data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
+    data: ParameterDef[BytesAttr]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType):
-            for d in self.data.data:
-                if isinstance(d, FloatData):
-                    raise VerifyException(
-                        "dense array of integer element type should only contain "
-                        "integers"
-                    )
-        else:
-            for d in self.data.data:
-                if isinstance(d, IntAttr):
-                    raise VerifyException(
-                        "dense array of float element type should only contain floats"
-                    )
+        data_len = len(self.data.data)
+        elt_size = self.elt_type.size
+        if data_len % elt_size:
+            raise VerifyException(
+                f"Data length of {self.name} ({data_len}) not divisible by element "
+                f"size {elt_size}"
+            )
 
     @staticmethod
     def create_dense_int(
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
-            attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
+            attr_list = tuple(IntAttr(d) for d in cast(Sequence[int], data))
         else:
             attr_list = cast(Sequence[IntAttr], data)
 
-        try:
-            for attr in attr_list:
-                data_type.verify_value(attr.data)
-        except VerifyException as e:
-            raise ValueError(str(e))
+        normalized_values = tuple(
+            data_type.normalized_value(attr) for attr in attr_list
+        )
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        for i, value in enumerate(normalized_values):
+            if value is None:
+                min_value, max_value = data_type.value_range()
+                raise ValueError(
+                    f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
+                    f"values in the range [{min_value}, {max_value})"
+                )
+
+        values = cast(tuple[IntAttr, ...], normalized_values)
+
+        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
+
+        bytes_data = struct.pack(fmt, *(attr.data for attr in values))
+
+        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
     @staticmethod
     def create_dense_float(
         data_type: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int | float):
-            attr_list = [FloatData(float(d)) for d in cast(Sequence[int | float], data)]
+            vals = data
         else:
-            attr_list = cast(Sequence[FloatData], data)
+            vals = tuple(attr.data for attr in cast(Sequence[FloatData], data))
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
+
+        bytes_data = struct.pack(fmt, *vals)
+
+        return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
     @overload
     @staticmethod
@@ -1046,13 +1194,13 @@ class DenseArrayBase(ParametrizedAttribute):
             raise TypeError(f"Unsupported element type {data_type}")
 
     def iter_values(self) -> Iterator[float] | Iterator[int]:
-        return (attr.data for attr in self.data.data)
+        return self.elt_type.iter_unpack(self.data.data)
 
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
-        return tuple(self.iter_values())
+        return self.elt_type.unpack(self.data.data, len(self))
 
     def __len__(self) -> int:
-        return len(self.data.data)
+        return len(self.data.data) // self.elt_type.size
 
 
 @irdl_attr_definition
@@ -1913,7 +2061,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         if isinstance(val, IntegerAttr):
             val.print_without_type(printer)
         elif isinstance(val, FloatAttr):
-            printer.print_float(cast(AnyFloatAttr, val))
+            printer.print_float_attr(cast(AnyFloatAttr, val))
         else:
             raise Exception(
                 "unexpected attribute type "
