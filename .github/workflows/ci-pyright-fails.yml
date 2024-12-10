@@ -32,11 +32,15 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+        run: |
+          pwd
+          ls
+          uv python install ${{ matrix.python-version }}
 
       - name: Install the project and activate its virtual environment
         run: |
-          cd xdsl
+          pwd
+          ls
           make venv
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
