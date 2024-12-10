@@ -356,6 +356,14 @@ class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
 
     name = "abstract.compile_time_fixed_bitwidth_type"
 
+    @property
+    @abstractmethod
+    def compile_time_size(self) -> int:
+        """
+        Contiguous memory footprint of the value during compilation.
+        """
+        raise NotImplementedError()
+
 
 class FixedBitwidthType(CompileTimeFixedBitwidthType, ABC):
     """
@@ -416,14 +424,6 @@ class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
         """
         raise NotImplementedError()
 
-    @property
-    @abstractmethod
-    def packed_size(self) -> int:
-        """
-        Contiguous memory footprint of packed value in bytes.
-        """
-        raise NotImplementedError()
-
 
 class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
     """
@@ -456,7 +456,7 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         return struct.pack(fmt, *values)
 
     @property
-    def packed_size(self) -> int:
+    def compile_time_size(self) -> int:
         return struct.calcsize(self.format)
 
 

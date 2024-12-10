@@ -95,7 +95,7 @@ class TypedPtr(Generic[_T]):
 
     @property
     def size(self) -> int:
-        return self.xtype.packed_size
+        return self.xtype.compile_time_size
 
     def copy(self) -> Self:
         return type(self)(self.raw.copy(), xtype=self.xtype)
@@ -122,7 +122,7 @@ class TypedPtr(Generic[_T]):
 
     @staticmethod
     def zeros(count: int, *, xtype: PackableType[_T]) -> TypedPtr[_T]:
-        size = xtype.packed_size
+        size = xtype.compile_time_size
         return TypedPtr(RawPtr.zeros(size * count), xtype=xtype)
 
     @staticmethod
@@ -130,7 +130,7 @@ class TypedPtr(Generic[_T]):
         """
         Returns a new TypedPtr with the specified els packed into memory.
         """
-        el_size = xtype.packed_size
+        el_size = xtype.compile_time_size
         res = RawPtr.zeros(len(els) * el_size)
         for i, el in enumerate(els):
             xtype.pack_into(res.memory, i * el_size, el)
