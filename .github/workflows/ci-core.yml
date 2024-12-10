@@ -34,7 +34,7 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install the project
-      run: VENV_EXTRAS="--only-dev" make venv
+      run: VENV_EXTRAS="--extra dev" make venv
 
     - name: Run all tests
       run: |
