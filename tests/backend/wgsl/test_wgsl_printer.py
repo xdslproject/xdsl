@@ -1,9 +1,9 @@
 from io import StringIO
 
+from xdsl.backend.wgsl.wgsl_printer import WGSLPrinter
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, gpu, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
-from xdsl.interpreters.wgsl_printer import WGSLPrinter
 from xdsl.parser import Parser
 from xdsl.utils.test_value import TestSSAValue
 
