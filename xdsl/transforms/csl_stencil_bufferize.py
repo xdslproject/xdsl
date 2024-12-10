@@ -388,6 +388,8 @@ class ArithConstBufferize(RewritePattern):
 class InjectApplyOutsIntoLinalgOuts(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        # require bufferized apply (with op.dest specified)
+        # zero-output apply ops may be used for communicate-only, to which this pattern does not apply
         if not op.dest:
             return
 

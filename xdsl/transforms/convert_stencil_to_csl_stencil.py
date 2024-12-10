@@ -615,6 +615,8 @@ class TransformPrefetch(RewritePattern):
                     buf, stencil.IndexAttr.get(*acc_offset), chunk_t
                 )
                 assert isa(ac_op.result.type, AnyTensorType)
+                # inserts 1 (see static_sizes) 1d slice into a 2d tensor at offset (i, `offset`) (see static_offsets)
+                # where the latter offset is provided dynamically (see offsets)
                 dest = tensor.InsertSliceOp.get(
                     source=ac_op.result,
                     dest=dest,
