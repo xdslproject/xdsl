@@ -27,8 +27,8 @@ builtin.module {
 // CHECK-NEXT:   %0 = tensor.empty() : tensor<1x64xf32>
 // CHECK-NEXT:   csl_stencil.apply(%arg1 : !stencil.field<[-1,1]x[-1,1]xtensor<64xf32>>, %0 : tensor<1x64xf32>) -> () <{"swaps" = [#csl_stencil.exchange<to [-1, 0]>], "topo" = #dmp.topo<64x64>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0>}> ({
 // CHECK-NEXT:   ^0(%1 : tensor<1x32xf32>, %2 : index, %3 : tensor<1x64xf32>):
-// CHECK-NEXT:     %4 = csl_stencil.access %3[-1, 0] : tensor<1x64xf32>
-// CHECK-NEXT:     %5 = "tensor.insert_slice"(%4, %3, %2) <{"static_offsets" = array<i64: 0, -9223372036854775808>, "static_sizes" = array<i64: 32>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<32xf32>, tensor<1x64xf32>, index) -> tensor<1x64xf32>
+// CHECK-NEXT:     %4 = csl_stencil.access %1[-1, 0] : tensor<1x32xf32>
+// CHECK-NEXT:     %5 = "tensor.insert_slice"(%4, %3, %2) <{"static_offsets" = array<i64: 0, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<32xf32>, tensor<1x64xf32>, index) -> tensor<1x64xf32>
 // CHECK-NEXT:     csl_stencil.yield %5 : tensor<1x64xf32>
 // CHECK-NEXT:   }, {
 // CHECK-NEXT:   ^1(%6 : !stencil.field<[-1,1]x[-1,1]xtensor<64xf32>>, %7 : tensor<1x64xf32>):

@@ -84,9 +84,11 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
                     tuple[int, ...],
                 )
             ):
+                assert is_tensor(use.operation.source.type)
+                diff = len(static_sizes) - len(use.operation.source.type.shape)
                 return TensorType(
                     use.operation.result.type.get_element_type(),
-                    static_sizes,
+                    static_sizes[diff:],
                 )
             for ret in use.operation.results:
                 if isa(r_type := ret.type, TensorType[Attribute]):

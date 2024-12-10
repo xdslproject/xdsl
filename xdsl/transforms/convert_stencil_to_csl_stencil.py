@@ -608,17 +608,17 @@ class TransformPrefetch(RewritePattern):
         block2 = Block(arg_types=[op.input_stencil.type, op.result.type])
         block2.add_op(csl_stencil.YieldOp(block2.args[1]))
 
-        with ImplicitBuilder(block) as (_, offset, acc):
+        with ImplicitBuilder(block) as (buf, offset, acc):
             dest = acc
             for i, acc_offset in enumerate(offsets):
                 ac_op = csl_stencil.AccessOp(
-                    dest, stencil.IndexAttr.get(*acc_offset), chunk_t
+                    buf, stencil.IndexAttr.get(*acc_offset), chunk_t
                 )
                 assert isa(ac_op.result.type, AnyTensorType)
                 dest = tensor.InsertSliceOp.get(
                     source=ac_op.result,
                     dest=dest,
-                    static_sizes=ac_op.result.type.get_shape(),
+                    static_sizes=[1, *ac_op.result.type.get_shape()],
                     static_offsets=[i, memref.SubviewOp.DYNAMIC_INDEX],
                     offsets=[offset],
                 ).result
