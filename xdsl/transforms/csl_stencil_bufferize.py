@@ -94,6 +94,9 @@ class ApplyOpBufferize(RewritePattern):
         # convert args
         buf_args: list[SSAValue] = []
         to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
+        op.accumulator.replace_by_if(
+            buf_iter_arg.memref, lambda use: use.operation != buf_iter_arg
+        )
         for arg in [*op.args_rchunk, *op.args_dexchng]:
             if isa(arg.type, TensorType[Attribute]):
                 to_memrefs.append(new_arg := to_memref_op(arg))
@@ -385,6 +388,9 @@ class ArithConstBufferize(RewritePattern):
 class InjectApplyOutsIntoLinalgOuts(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        if not op.dest:
+            return
+
         yld = op.done_exchange.block.last_op
         assert isinstance(yld, csl_stencil.YieldOp)
         new_dest: list[SSAValue] = []
