@@ -154,3 +154,8 @@ func.func @test_const_var_const() {
 // CHECK: arith.subi %c2, %a : i32
 %10 = arith.subi %c2, %a : i32
 "test.op"(%10) : (i32) -> ()
+
+// CHECK: %{{.*}} = arith.constant false
+%11 = arith.constant true
+%12 = arith.addi %11, %11 : i1
+"test.op"(%12) : (i1) -> ()
