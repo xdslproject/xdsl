@@ -32,7 +32,7 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install the project
-      run: uv sync --only-dev
+      run: VENV_EXTRAS="--only-dev" make venv
 
     - name: Run all tests
       run: |

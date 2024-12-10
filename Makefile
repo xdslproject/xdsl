@@ -24,12 +24,12 @@ uv-installed:
 		echo "https://docs.astral.sh/uv/getting-started/installation/" && false)
 
 # set up the venv with all dependencies for development
-.venv/: uv-installed
+${VENV_DIR}/: uv-installed
 	uv sync ${VENV_EXTRAS}
 
 # make sure `make venv` also works correctly
 .PHONY: venv
-venv: .venv/
+venv: ${VENV_DIR}/
 
 # remove all caches
 .PHONY: clean-caches
