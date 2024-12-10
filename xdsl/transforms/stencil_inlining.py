@@ -102,13 +102,10 @@ def is_rerouting_possible(producer: ApplyOp, consumer: ApplyOp):
     # Perform producer consumer inlining instead
     if has_single_consumer(producer, consumer):
         return False
-    for operand in consumer.operands:
-        if isinstance(operand.owner, Operation):
-            if (operand.owner is not producer) and is_before_in_block(
-                producer, operand.owner
-            ):
-                return False
-    return True
+    return not any(
+        isinstance(operand.owner, Operation) and (operand.owner is not producer) and is_before_in_block(producer, operand.owner)
+        for operand in consumer.operands
+    )
 
 
 def is_inlining_possible(producer: ApplyOp, consumer: ApplyOp):
