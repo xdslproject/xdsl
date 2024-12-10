@@ -15,6 +15,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    env:
+      VENV_DIR: .venv
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13']

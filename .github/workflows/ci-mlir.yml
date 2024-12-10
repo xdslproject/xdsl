@@ -19,6 +19,7 @@ jobs:
         python-version: ['3.10', '3.11', '3.12']
 
     env:
+      VENV_DIR: .venv
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       MLIR-Version: d401987fe349a87c53fe25829215b080b70c0c1a
     steps:
