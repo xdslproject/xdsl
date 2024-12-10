@@ -7,9 +7,6 @@ VENV_DIR ?= venv
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
 
-# use different coverage data file per coverage run, otherwise combine complains
-TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
-
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
 
@@ -19,8 +16,9 @@ LIT_OPTIONS ?= -v --order=smart
 # these targets don't produce files:
 .PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests
 .PHONY: rerun-notebooks precommit-install precommit pyright tests-marimo
-.PHONY: coverage coverage-tests coverage-filecheck-tests
-.PHONY: coverage-report-html coverage-report-md
+.PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report coverage-clean
+.PHONY: pytest-toy-nb
+.PHONY: tests-marimo-onnx
 
 # set up the venv with all dependencies for development
 ${VENV_DIR}/: requirements.txt
@@ -32,9 +30,8 @@ ${VENV_DIR}/: requirements.txt
 venv: ${VENV_DIR}/
 
 # remove all caches
-clean-caches:
-	rm -rf .pytest_cache *.egg-info .coverage.*
-	find . -type f -name "*.cover" -delete
+clean-caches: coverage-clean
+	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
 clean: clean-caches
@@ -62,7 +59,6 @@ filecheck-toy:
 pytest-toy:
 	pytest docs/Toy/toy/tests
 
-.PHONY: pytest-toy-nb
 pytest-toy-nb:
 	@if python -c "import riscemu" > /dev/null 2>&1; then \
 		pytest -W error --nbval -vv docs/Toy --nbval-current-env; \
@@ -83,7 +79,6 @@ tests-marimo:
 	done
 	@echo "All marimo tests passed successfully."
 
-.PHONY: tests-marimo-onnx
 tests-marimo-onnx:
 	@if python -c "import onnx" > /dev/null 2>&1; then \
 		echo "onnx is installed, running tests."; \
@@ -129,8 +124,8 @@ precommit:
 	pre-commit run --all
 
 # run pyright on all files in the current git commit
+# make sure to generate the python typing stubs before running pyright
 pyright:
-    # We make sure to generate the python typing stubs before running pyright
 	xdsl-stubgen
 	pyright $(shell git diff --staged --name-only  -- '*.py')
 
@@ -139,8 +134,9 @@ coverage: coverage-tests coverage-filecheck-tests
 	coverage combine --append
 
 # run coverage over tests
+# use different coverage data file per coverage run, otherwise combine complains
 coverage-tests:
-	COVERAGE_FILE=${TESTS_COVERAGE_FILE} pytest -W error --cov --cov-config=.coveragerc
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" pytest -W error --cov --cov-config=.coveragerc
 
 # run coverage over filecheck tests
 coverage-filecheck-tests:
@@ -150,6 +146,9 @@ coverage-filecheck-tests:
 coverage-report-html:
 	coverage html
 
-# generate markdown coverage report
-coverage-report-md:
-	coverage report --format=markdown
+# generate coverage report
+coverage-report:
+	coverage report
+
+coverage-clean:
+	coverage erase
