@@ -103,7 +103,9 @@ def is_rerouting_possible(producer: ApplyOp, consumer: ApplyOp):
     if has_single_consumer(producer, consumer):
         return False
     return not any(
-        isinstance(operand.owner, Operation) and (operand.owner is not producer) and is_before_in_block(producer, operand.owner)
+        isinstance(operand.owner, Operation)
+        and (operand.owner is not producer)
+        and is_before_in_block(producer, operand.owner)
         for operand in consumer.operands
     )
 
