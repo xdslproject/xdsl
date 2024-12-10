@@ -1,3 +1,4 @@
+import math
 import re
 from collections.abc import Sequence
 
@@ -8,6 +9,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -17,7 +19,7 @@ from xdsl.dialects.builtin import (
     Float80Type,
     Float128Type,
     FloatAttr,
-    FloatData,
+    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -32,8 +34,12 @@ from xdsl.dialects.builtin import (
     VectorBaseTypeConstraint,
     VectorRankConstraint,
     VectorType,
+    f16,
     f32,
+    f64,
+    i1,
     i8,
+    i16,
     i32,
     i64,
 )
@@ -49,6 +55,42 @@ def test_FloatType_bitwidths():
     assert Float64Type().bitwidth == 64
     assert Float80Type().bitwidth == 80
     assert Float128Type().bitwidth == 128
+
+
+def test_FloatType_formats():
+    with pytest.raises(NotImplementedError):
+        BFloat16Type().format
+    assert Float16Type().format == "<e"
+    assert Float32Type().format == "<f"
+    assert Float64Type().format == "<d"
+    with pytest.raises(NotImplementedError):
+        Float80Type().format
+    with pytest.raises(NotImplementedError):
+        Float128Type().format
+
+
+def test_IntegerType_formats():
+    with pytest.raises(NotImplementedError):
+        IntegerType(2).format
+    assert IntegerType(1).format == "<b"
+    assert IntegerType(8).format == "<b"
+    assert IntegerType(16).format == "<h"
+    assert IntegerType(32).format == "<i"
+    assert IntegerType(64).format == "<q"
+
+
+def test_IndexType_formats():
+    assert IndexType().format == "<q"
+
+
+def test_FloatType_packing():
+    nums = (-128, -1, 0, 1, 127)
+    buffer = f32.pack(nums)
+    unpacked = f32.unpack(buffer, len(nums))
+    assert nums == unpacked
+
+    pi = f64.unpack(f64.pack((math.pi,)), 1)[0]
+    assert pi == math.pi
 
 
 def test_IntegerType_size():
@@ -104,6 +146,76 @@ def test_IntegerAttr_normalize():
         IntegerAttr(256, 8)
 
 
+def test_IntegerType_packing():
+    # i1
+    nums_i1 = (0, 1, 0, 1)
+    buffer_i1 = i1.pack(nums_i1)
+    unpacked_i1 = i1.unpack(buffer_i1, len(nums_i1))
+    assert nums_i1 == unpacked_i1
+
+    # i8
+    nums_i8 = (-128, -1, 0, 1, 127)
+    buffer_i8 = i8.pack(nums_i8)
+    unpacked_i8 = i8.unpack(buffer_i8, len(nums_i8))
+    assert nums_i8 == unpacked_i8
+
+    # i16
+    nums_i16 = (-32768, -1, 0, 1, 32767)
+    buffer_i16 = i16.pack(nums_i16)
+    unpacked_i16 = i16.unpack(buffer_i16, len(nums_i16))
+    assert nums_i16 == unpacked_i16
+
+    # i32
+    nums_i32 = (-2147483648, -1, 0, 1, 2147483647)
+    buffer_i32 = i32.pack(nums_i32)
+    unpacked_i32 = i32.unpack(buffer_i32, len(nums_i32))
+    assert nums_i32 == unpacked_i32
+
+    # i64
+    nums_i64 = (-9223372036854775808, -1, 0, 1, 9223372036854775807)
+    buffer_i64 = i64.pack(nums_i64)
+    unpacked_i64 = i64.unpack(buffer_i64, len(nums_i64))
+    assert nums_i64 == unpacked_i64
+
+    # f16
+    nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    buffer_f16 = f16.pack(nums_f16)
+    unpacked_f16 = f16.unpack(buffer_f16, len(nums_f16))
+    assert nums_f16 == unpacked_f16
+
+    # f32
+    nums_f32 = (-3.140000104904175, -1.0, 0.0, 1.0, 3.140000104904175)
+    buffer_f32 = f32.pack(nums_f32)
+    unpacked_f32 = f32.unpack(buffer_f32, len(nums_f32))
+    assert nums_f32 == unpacked_f32
+
+    # f64
+    nums_f64 = (-3.14159265359, -1.0, 0.0, 1.0, 3.14159265359)
+    buffer_f64 = f64.pack(nums_f64)
+    unpacked_f64 = f64.unpack(buffer_f64, len(nums_f64))
+    assert nums_f64 == unpacked_f64
+
+    # Test error cases
+    # Different Python versions have different error messages for these
+    with pytest.raises(Exception, match="format requires -128 <= number <= 127"):
+        # Values must be normalized before packing
+        i8.pack((255,))
+    with pytest.raises(
+        Exception,
+        match="format requires (-32768)|(\\(-0x7fff - 1\\)) <= number <= (32767)|(0x7fff)",
+    ):
+        i16.pack((32768,))
+    with pytest.raises(
+        Exception, match="format requires -2147483648 <= number <= 2147483647"
+    ):
+        i32.pack((2147483648,))
+    with pytest.raises(
+        Exception,
+        match="argument out of range|format requires -9223372036854775808 <= number <= 9223372036854775807",
+    ):
+        i64.pack((9223372036854775808,))
+
+
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [])
 
@@ -135,22 +247,6 @@ def test_DenseIntOrFPElementsAttr_from_list():
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
 
     assert attr.type == AnyTensorType(f32, [])
-
-
-def test_DenseArrayBase_verifier_failure():
-    # Check that a malformed attribute raises a verify error
-
-    with pytest.raises(VerifyException) as err:
-        DenseArrayBase([f32, ArrayAttr([IntAttr(0)])])
-    assert err.value.args[0] == (
-        "dense array of float element type " "should only contain floats"
-    )
-
-    with pytest.raises(VerifyException) as err:
-        DenseArrayBase([i32, ArrayAttr([FloatData(0.0)])])
-    assert err.value.args[0] == (
-        "dense array of integer element type " "should only contain integers"
-    )
 
 
 @pytest.mark.parametrize(
@@ -338,7 +434,7 @@ def test_complex_init():
 
 def test_dense_as_tuple():
     floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
-    assert floats.get_values() == (3.14159, 2.71828)
+    assert floats.get_values() == (3.141590118408203, 2.718280076980591)
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.get_values() == (1, 1, 2, 3, 5, 8)
@@ -352,6 +448,14 @@ def test_create_dense_int():
         ),
     ):
         DenseArrayBase.create_dense_int(i8, (99999999, 255, 256))
+
+
+def test_create_dense_wrong_size():
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("Data length of array (1) not divisible by element size 2"),
+    ):
+        DenseArrayBase((i16, BytesAttr(b"F")))
 
 
 def test_strides():

@@ -14,6 +14,9 @@ VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
 # use different coverage data file per coverage run, otherwise combine complains
 TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 
+# default lit options
+LIT_OPTIONS ?= -v --order=smart
+
 # make tasks run all commands in a single shell
 .ONESHELL:
 
@@ -45,7 +48,7 @@ clean: clean-caches
 # run filecheck tests
 .PHONY: filecheck
 filecheck: uv-installed
-	uv run lit -vv tests/filecheck --order=smart --timeout=20
+	uv run lit $(LIT_OPTIONS) tests/filecheck
 
 # run pytest tests
 .PHONY: pytest
@@ -63,7 +66,7 @@ pytest-nb: uv-installed
 # run tests for Toy tutorial
 .PHONY: filecheck-toy
 filecheck-toy: uv-installed
-	uv run lit -v docs/Toy/examples --order=smart
+	uv run lit $(LIT_OPTIONS) docs/Toy/examples
 
 .PHONY: pytest-toy
 pytest-toy: uv-installed
@@ -162,7 +165,7 @@ coverage-tests: uv-installed
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
 coverage-filecheck-tests: uv-installed
-	uv run lit -v tests/filecheck/ -DCOVERAGE
+	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
 .PHONY: coverage-report-html

@@ -34,7 +34,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.lexer import PunctuationSpelling
+from xdsl.utils.mlir_lexer import PunctuationSpelling
 
 OperandOrResult = Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT]
 

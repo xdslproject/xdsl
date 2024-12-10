@@ -17,7 +17,7 @@
     %x6 = "arith.constant"() {"value" = 0 : i64, "test" = false} : () -> i64
     // CHECK:  "test" = array<i32: 2, 3, 4>
     %x7 = "arith.constant"() {"value" = 0 : i64, "test" = array<i32: 2, 3, 4>} : () -> i64
-    // CHECK:  "test" = array<f32: 2.1, 3.2, 4.3>
+    // CHECK:  "test" = array<f32: 2.0999999046325684, 3.200000047683716, 4.300000190734863>
     %x8 = "arith.constant"() {"value" = 0 : i64, "test" = array<f32: 2.1, 3.2, 4.3>} : () -> i64
     // CHECK:  "test" = #builtin.signedness<signless>
     %x9 = "arith.constant"() {"value" = 0 : i64, "test" = #builtin.signedness<signless>} : () -> i64
