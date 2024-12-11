@@ -37,7 +37,7 @@ gui = ["textual==0.89.1", "pyclip==0.7"]
 jax = ["jax==0.4.37", "numpy==2.2.0"]
 onnx = ["onnx==1.17.0", "numpy==2.2.0"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.19.2"]
+wgpu = ["wgpu==0.19.3"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
