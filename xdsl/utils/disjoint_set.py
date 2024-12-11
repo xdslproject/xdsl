@@ -50,7 +50,7 @@ class IntDisjointSet:
         self._count.append(1)
         return res
 
-    def find(self, value: int) -> int:
+    def __getitem__(self, value: int) -> int:
         """
         Returns the root/representative value of this set.
         Uses path compression - updates parent pointers to point directly to the root
@@ -81,8 +81,8 @@ class IntDisjointSet:
         Uses union by size - the smaller tree is attached to the larger tree's root
         to maintain balance. This ensures the maximum tree height is O(log n).
         """
-        lhs_root = self.find(lhs)
-        rhs_root = self.find(rhs)
+        lhs_root = self[lhs]
+        rhs_root = self[rhs]
         if lhs_root == rhs_root:
             return False
 
@@ -97,8 +97,8 @@ class IntDisjointSet:
         # Note: We don't need to update _count[new_child] since it's no longer a root
         return True
 
-    def are_connected(self, lhs: int, rhs: int) -> bool:
-        return self.find(lhs) == self.find(rhs)
+    def connected(self, lhs: int, rhs: int) -> bool:
+        return self[lhs] == self[rhs]
 
 
 _T = TypeVar("_T", bound=Hashable)
@@ -126,6 +126,9 @@ class DisjointSet(Generic[_T]):
         self._index_by_value = {v: i for i, v in enumerate(self._values)}
         self._base = IntDisjointSet(size=len(self._values))
 
+    def __len__(self):
+        return len(self._values)
+
     def add(self, value: _T):
         """
         Add a new value to the disjoint set in its own singleton set.
@@ -146,7 +149,7 @@ class DisjointSet(Generic[_T]):
         Raises:
             KeyError: If the value is not in the disjoint set
         """
-        index = self._base.find(self._index_by_value[value])
+        index = self._base[self._index_by_value[value]]
         return self._values[index]
 
     def union(self, lhs: _T, rhs: _T) -> bool:
@@ -160,13 +163,13 @@ class DisjointSet(Generic[_T]):
         """
         return self._base.union(self._index_by_value[lhs], self._index_by_value[rhs])
 
-    def are_connected(self, lhs: _T, rhs: _T) -> bool:
+    def connected(self, lhs: _T, rhs: _T) -> bool:
         """
         Returns `True` if the values are in the same set.
 
         Raises:
             KeyError: If either value is not in the disjoint set
         """
-        return self._base.are_connected(
+        return self._base.connected(
             self._index_by_value[lhs], self._index_by_value[rhs]
         )
