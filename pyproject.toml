@@ -73,7 +73,7 @@ extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
     "tests/dialects/test_memref.py",
-    "tests/frontend/onnx/test_build_ir.py",
+    "tests/frontend/onnx/test_build_onnx_ir.py",
     "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",

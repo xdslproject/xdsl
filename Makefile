@@ -1,11 +1,15 @@
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-builtin-variables
 
-# allow overriding the name of the venv directory
-VENV_DIR ?= venv
-
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
+
+# allow overriding the name of the venv directory
+VENV_DIR ?= venv
+export UV_PROJECT_ENVIRONMENT=${VENV_DIR}
+
+# allow overriding which extras are installed
+VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -13,14 +17,18 @@ LIT_OPTIONS ?= -v --order=smart
 # make tasks run all commands in a single shell
 .ONESHELL:
 
+.PHONY: uv-installed
+uv-installed:
+	@command -v uv &> /dev/null ||\
+		(echo "UV doesn't seem to be installed, try the following instructions:" &&\
+		echo "https://docs.astral.sh/uv/getting-started/installation/" && false)
+
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
-${VENV_DIR}/: requirements.txt
-	python3 -m venv ${VENV_DIR}
-	. ${VENV_DIR}/bin/activate
-	python3 -m pip --require-virtualenv install -r requirements.txt
+${VENV_DIR}/: uv-installed
+	uv sync ${VENV_EXTRAS}
 
-# make sure `make venv` always works no matter what $VENV_DIR is
+# make sure `make venv` also works correctly
 venv: ${VENV_DIR}/
 
 # remove all caches
@@ -35,35 +43,35 @@ clean: clean-caches
 
 # run filecheck tests
 .PHONY: filecheck
-filecheck:
-	lit $(LIT_OPTIONS) tests/filecheck
+filecheck: uv-installed
+	uv run lit $(LIT_OPTIONS) tests/filecheck
 
 # run pytest tests
 .PHONY: pytest
-pytest:
-	pytest tests -W error -vv
+pytest: uv-installed
+	uv run pytest tests -W error -vv
 
 # run pytest on notebooks
 .PHONY: pytest-nb
-pytest-nb:
-	pytest -W error --nbval -vv docs \
+pytest-nb: uv-installed
+	uv run pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
 		--ignore=docs/Toy \
 		--nbval-current-env
 
 # run tests for Toy tutorial
 .PHONY: filecheck-toy
-filecheck-toy:
-	lit $(LIT_OPTIONS) docs/Toy/examples
+filecheck-toy: uv-installed
+	uv run lit $(LIT_OPTIONS) docs/Toy/examples
 
 .PHONY: pytest-toy
-pytest-toy:
-	pytest docs/Toy/toy/tests
+pytest-toy: uv-installed
+	uv run pytest docs/Toy/toy/tests
 
 .PHONY: pytest-toy-nb
 pytest-toy-nb:
-	@if python -c "import riscemu" > /dev/null 2>&1; then \
-		pytest -W error --nbval -vv docs/Toy --nbval-current-env; \
+	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
+		uv run pytest -W error --nbval -vv docs/Toy --nbval-current-env; \
 	else \
 		echo "riscemu is not installed, skipping tests."; \
 	fi
@@ -72,10 +80,10 @@ pytest-toy-nb:
 tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
 .PHONY: tests-marimo
-tests-marimo:
+tests-marimo: uv-installed
 	@for file in docs/marimo/*.py; do \
 		echo "Running $$file"; \
-		error_message=$$(python3 "$$file" 2>&1) || { \
+		error_message=$$(uv run python3 "$$file" 2>&1) || { \
 			echo "Error running $$file"; \
 			echo "$$error_message"; \
 			exit 1; \
@@ -84,8 +92,8 @@ tests-marimo:
 	@echo "All marimo tests passed successfully."
 
 .PHONY: tests-marimo-onnx
-tests-marimo-onnx:
-	@if python -c "import onnx" > /dev/null 2>&1; then \
+tests-marimo-onnx: uv-installed
+	@if uv run python -c "import onnx" > /dev/null 2>&1; then \
 		echo "onnx is installed, running tests."; \
 		if ! command -v mlir-opt > /dev/null 2>&1; then \
 			echo "MLIR is not installed, skipping tests."; \
@@ -93,7 +101,7 @@ tests-marimo-onnx:
 		fi; \
 		for file in docs/marimo/onnx/*.py; do \
 			echo "Running $$file"; \
-			error_message=$$(python3 "$$file" 2>&1) || { \
+			error_message=$$(uv run python3 "$$file" 2>&1) || { \
 				echo "Error running $$file"; \
 				echo "$$error_message"; \
 				exit 1; \
@@ -116,8 +124,8 @@ tests: tests-functional pyright
 
 # re-generate the output from all jupyter notebooks in the docs directory
 .PHONY: rerun-notebooks
-rerun-notebooks:
-	jupyter nbconvert \
+rerun-notebooks: uv-installed
+	uv run jupyter nbconvert \
 		--ClearMetadataPreprocessor.enabled=True \
 		--inplace \
 		--to notebook \
@@ -125,47 +133,46 @@ rerun-notebooks:
 
 # set up all precommit hooks
 .PHONY: precommit-install
-precommit-install:
-	pre-commit install
+precommit-install: uv-installed
+	uv run pre-commit install
 
 # run all precommit hooks and apply them
 .PHONY: precommit
-precommit:
-	pre-commit run --all
+precommit: uv-installed
+	uv run pre-commit run --all
 
 # run pyright on all files in the current git commit
 # make sure to generate the python typing stubs before running pyright
 .PHONY: pyright
-pyright:
-	xdsl-stubgen
-	pyright $(shell git diff --staged --name-only  -- '*.py')
+pyright: uv-installed
+	uv run xdsl-stubgen
+	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run coverage over all tests and combine data files
 .PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests
-	coverage combine --append
+	uv run coverage combine --append
 
-# run coverage over tests
 # use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
-coverage-tests:
-	COVERAGE_FILE="${COVERAGE_FILE}.$@" pytest -W error --cov --cov-config=.coveragerc
+coverage-tests: uv-installed
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov --cov-config=.coveragerc
 
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
-coverage-filecheck-tests:
-	lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
+coverage-filecheck-tests: uv-installed
+	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
 .PHONY: coverage-report-html
-coverage-report-html:
-	coverage html
+coverage-report-html: uv-installed
+	uv run coverage html
 
 # generate coverage report
 .PHONY: coverage-report
-coverage-report:
-	coverage report
+coverage-report: uv-installed
+	uv run coverage report
 
 .PHONY: coverage-clean
-coverage-clean:
-	coverage erase
+coverage-clean: uv-installed
+	uv run coverage erase

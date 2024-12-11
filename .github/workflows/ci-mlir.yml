@@ -19,6 +19,7 @@ jobs:
         python-version: ['3.10', '3.11', '3.12']
 
     env:
+      VENV_DIR: .venv
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       MLIR-Version: d401987fe349a87c53fe25829215b080b70c0c1a
     steps:
@@ -33,24 +34,23 @@ jobs:
         packages: mesa-vulkan-drivers
         version: 1.0
 
-    - name: Python Setup
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip' # caching pip dependencies
-        cache-dependency-path: |
-          setup.py
-          requirements.txt
+        enable-cache: true
+        cache-dependency-glob: "xdsl/uv.lock"
 
-    - name: Upgrade pip
+    - name: Set up Python ${{ matrix.python-version }}
       run: |
-        pip install --upgrade pip
+        # Change directory so that xdsl-opt can be found during installation.
+        cd xdsl
+        uv python install ${{ matrix.python-version }}
 
     - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        pip install -r requirements.txt
+        make venv
 
     - name: Cache binaries
       id: cache-binary
@@ -99,36 +99,36 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        pytest -W error --cov --cov-config=.coveragerc .
+        uv run pytest -W error --cov --cov-config=.coveragerc .
 
     - name: Execute lit tests
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        lit -v tests/filecheck/ -DCOVERAGE
-        lit -v docs/Toy/examples/ -DCOVERAGE
+        uv run lit -v tests/filecheck/ -DCOVERAGE
+        uv run lit -v docs/Toy/examples/ -DCOVERAGE
 
     - name: Test MLIR dependent examples/tutorials
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
+        uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
     - name: Test ONNX-dependent marimo notebooks
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        make tests-marimo-onnx
+        uv run make tests-marimo-onnx
 
     - name: Combine coverage data
       run: |
         cd xdsl
-        coverage combine --append
-        coverage report
-        coverage xml
+        uv run coverage combine --append
+        uv run coverage report
+        uv run coverage xml
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
