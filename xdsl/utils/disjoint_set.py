@@ -40,13 +40,6 @@ class IntDisjointSet:
         """Number of nodes in this structure."""
         return len(self._parent)
 
-    def set_count(self) -> int:
-        """
-        Number of sets in this structure.
-        Note: This is O(n) as it needs to scan all parents.
-        """
-        return len(set(self._parent))
-
     def add(self) -> int:
         """
         Add a new element to this set as a singleton.

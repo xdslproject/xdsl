@@ -6,7 +6,6 @@ from xdsl.utils.disjoint_set import DisjointSet, IntDisjointSet
 def test_disjoint_set_init():
     ds = IntDisjointSet(size=5)
     assert ds.value_count() == 5
-    assert ds.set_count() == 5
     # Each element should start in its own set
     for i in range(5):
         assert ds.find(i) == i
@@ -37,13 +36,11 @@ def test_disjoint_set_union():
     assert ds.union(0, 1)
     root = ds.find(0)
     assert ds.find(1) == root
-    assert ds.set_count() == 3
 
     # Union 2 and 3
     assert ds.union(2, 3)
     root2 = ds.find(2)
     assert ds.find(3) == root2
-    assert ds.set_count() == 2
 
     # Union already connected elements
     assert not ds.union(0, 1)
@@ -54,7 +51,6 @@ def test_disjoint_set_union():
     assert ds.find(1) == final_root
     assert ds.find(2) == final_root
     assert ds.find(3) == final_root
-    assert ds.set_count() == 1
 
 
 def test_disjoint_set_path_compression():
