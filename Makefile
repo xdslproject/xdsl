@@ -11,9 +11,6 @@ export UV_PROJECT_ENVIRONMENT=${VENV_DIR}
 # allow overriding which extras are installed
 VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
 
-# use different coverage data file per coverage run, otherwise combine complains
-TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
-
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
 
@@ -27,6 +24,7 @@ uv-installed:
 		echo "https://docs.astral.sh/uv/getting-started/installation/" && false)
 
 # set up the venv with all dependencies for development
+.PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
 	uv sync ${VENV_EXTRAS}
 
@@ -36,9 +34,8 @@ venv: ${VENV_DIR}/
 
 # remove all caches
 .PHONY: clean-caches
-clean-caches:
-	rm -rf .pytest_cache *.egg-info .coverage.*
-	find . -type f -name "*.cover" -delete
+clean-caches: coverage-clean
+	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
 .PHONY: clean
@@ -176,3 +173,7 @@ coverage-report-html: uv-installed
 .PHONY: coverage-report-html
 coverage-report-md: uv-installed
 	uv run coverage report --format=markdown
+
+.PHONY: coverage-clean
+coverage-clean: uv-installed
+	coverage erase
