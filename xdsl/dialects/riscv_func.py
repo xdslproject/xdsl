@@ -80,7 +80,9 @@ class CallOp(riscv.RISCVInstruction):
     callee = attr_def(SymbolRefAttr)
     ress = var_result_def(riscv.RISCVRegisterType)
 
-    assembly_format = "$callee `(` $args`)` attr-dict `:` functional-type($args, $ress)"
+    assembly_format = (
+        "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
+    )
 
     def __init__(
         self,
