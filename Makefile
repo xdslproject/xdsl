@@ -29,7 +29,6 @@ ${VENV_DIR}/: uv-installed
 	uv sync ${VENV_EXTRAS}
 
 # make sure `make venv` also works correctly
-.PHONY: venv
 venv: ${VENV_DIR}/
 
 # remove all caches
@@ -143,9 +142,9 @@ precommit: uv-installed
 	uv run pre-commit run --all
 
 # run pyright on all files in the current git commit
+# make sure to generate the python typing stubs before running pyright
 .PHONY: pyright
 pyright: uv-installed
-    # We make sure to generate the python typing stubs before running pyright
 	uv run xdsl-stubgen
 	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
 
