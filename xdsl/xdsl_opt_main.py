@@ -78,12 +78,14 @@ class xDSLOptMain(CommandLineTool):
         except ShrinkException:
             assert self.args.shrink
             print("Success, can shrink")
+            # Exit with value 0 to let shrinkray know that it can shrink
             exit(0)
         finally:
             if output_stream is not sys.stdout:
                 output_stream.close()
         if self.args.shrink:
             print("Failure, can't shrink")
+            # Exit with non-0 value to let shrinkray know that it cannot shrink
             exit(1)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
