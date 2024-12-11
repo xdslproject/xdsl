@@ -152,28 +152,28 @@ pyright: uv-installed
 # run coverage over all tests and combine data files
 .PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests
-	coverage combine --append
+	uv run coverage combine --append
 
 # use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
 coverage-tests: uv-installed
-	COVERAGE_FILE="${COVERAGE_FILE}.$@" pytest -W error --cov --cov-config=.coveragerc
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov --cov-config=.coveragerc
 
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
 coverage-filecheck-tests: uv-installed
-	lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
+	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
 .PHONY: coverage-report-html
 coverage-report-html: uv-installed
-	coverage html
+	uv run coverage html
 
 # generate coverage report
 .PHONY: coverage-report
 coverage-report: uv-installed
-	coverage report
+	uv run coverage report
 
 .PHONY: coverage-clean
 coverage-clean: uv-installed
-	coverage erase
+	uv run coverage erase
