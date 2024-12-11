@@ -7,22 +7,14 @@ VENV_DIR ?= venv
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
 
-# use different coverage data file per coverage run, otherwise combine complains
-TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
-
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
 
 # make tasks run all commands in a single shell
 .ONESHELL:
 
-# these targets don't produce files:
-.PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests
-.PHONY: rerun-notebooks precommit-install precommit pyright tests-marimo
-.PHONY: coverage coverage-tests coverage-filecheck-tests
-.PHONY: coverage-report-html coverage-report-md
-
 # set up the venv with all dependencies for development
+.PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: requirements.txt
 	python3 -m venv ${VENV_DIR}
 	. ${VENV_DIR}/bin/activate
@@ -32,23 +24,27 @@ ${VENV_DIR}/: requirements.txt
 venv: ${VENV_DIR}/
 
 # remove all caches
-clean-caches:
-	rm -rf .pytest_cache *.egg-info .coverage.*
-	find . -type f -name "*.cover" -delete
+.PHONY: clean-caches
+clean-caches: coverage-clean
+	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
+.PHONY: clean
 clean: clean-caches
 	rm -rf ${VENV_DIR}
 
 # run filecheck tests
+.PHONY: filecheck
 filecheck:
 	lit $(LIT_OPTIONS) tests/filecheck
 
 # run pytest tests
+.PHONY: pytest
 pytest:
 	pytest tests -W error -vv
 
 # run pytest on notebooks
+.PHONY: pytest-nb
 pytest-nb:
 	pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
@@ -56,9 +52,11 @@ pytest-nb:
 		--nbval-current-env
 
 # run tests for Toy tutorial
+.PHONY: filecheck-toy
 filecheck-toy:
 	lit $(LIT_OPTIONS) docs/Toy/examples
 
+.PHONY: pytest-toy
 pytest-toy:
 	pytest docs/Toy/toy/tests
 
@@ -70,8 +68,10 @@ pytest-toy-nb:
 		echo "riscemu is not installed, skipping tests."; \
 	fi
 
+.PHONY: tests-toy
 tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
+.PHONY: tests-marimo
 tests-marimo:
 	@for file in docs/marimo/*.py; do \
 		echo "Running $$file"; \
@@ -105,14 +105,17 @@ tests-marimo-onnx:
 	fi
 
 # run all tests
+.PHONY: tests-functional
 tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx
 	@echo All functional tests done.
 
 # run all tests
+.PHONY: tests
 tests: tests-functional pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory
+.PHONY: rerun-notebooks
 rerun-notebooks:
 	jupyter nbconvert \
 		--ClearMetadataPreprocessor.enabled=True \
@@ -121,35 +124,48 @@ rerun-notebooks:
 		--execute docs/*.ipynb docs/Toy/*.ipynb
 
 # set up all precommit hooks
+.PHONY: precommit-install
 precommit-install:
 	pre-commit install
 
 # run all precommit hooks and apply them
+.PHONY: precommit
 precommit:
 	pre-commit run --all
 
 # run pyright on all files in the current git commit
+# make sure to generate the python typing stubs before running pyright
+.PHONY: pyright
 pyright:
-    # We make sure to generate the python typing stubs before running pyright
 	xdsl-stubgen
 	pyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run coverage over all tests and combine data files
+.PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests
 	coverage combine --append
 
 # run coverage over tests
+# use different coverage data file per coverage run, otherwise combine complains
+.PHONY: coverage-tests
 coverage-tests:
-	COVERAGE_FILE=${TESTS_COVERAGE_FILE} pytest -W error --cov --cov-config=.coveragerc
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" pytest -W error --cov --cov-config=.coveragerc
 
 # run coverage over filecheck tests
+.PHONY: coverage-filecheck-tests
 coverage-filecheck-tests:
 	lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
+.PHONY: coverage-report-html
 coverage-report-html:
 	coverage html
 
-# generate markdown coverage report
-coverage-report-md:
-	coverage report --format=markdown
+# generate coverage report
+.PHONY: coverage-report
+coverage-report:
+	coverage report
+
+.PHONY: coverage-clean
+coverage-clean:
+	coverage erase

@@ -10,8 +10,6 @@ source =
     tests/
     docs/
 
-
-
 [report]
 # Regexes for lines to exclude from consideration
 exclude_lines =
@@ -23,3 +21,5 @@ exclude_lines =
     raise ValueError
     raise TypeError
     raise RuntimeError
+format = markdown
+ignore_errors = True
