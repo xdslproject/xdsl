@@ -883,7 +883,7 @@ wheels = [
 
 [[package]]
 name = "marimo"
-version = "0.9.33"
+version = "0.9.34"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -904,9 +904,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/39/9e/a2d89863eb8949d2a48d9e2cc70edde8f165b6ab300dc9ca2aad5e0d320c/marimo-0.9.33.tar.gz", hash = "sha256:4a28c4211dde44a2e041040b741a8db44603421a4e7c36e1fd0241d90017507a", size = 11780612 }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/3e/a0c40078c426a435a40f12286202ce21c7940780b923381435b7bfecd837/marimo-0.9.34.tar.gz", hash = "sha256:50968e0906335be54e17873f4ad5893fdf73c970df112e147768ee8fd956084c", size = 11780947 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ad/21/4da6b94bb6cd584ee3930f8b266521e33ee6de5f48b526f2ac7660893d31/marimo-0.9.33-py3-none-any.whl", hash = "sha256:6ac6f3673797454b6382c52066247d0c02d961cd714b031139edbde38de68f59", size = 12075721 },
+    { url = "https://files.pythonhosted.org/packages/f0/58/97a950c7f36c4e46c26b268fa6f8010f262f382d779256c4b61f94c4ce2a/marimo-0.9.34-py3-none-any.whl", hash = "sha256:f36b8bcb787f354d4708dd5cf38ee8febc96a3cd63498c234b7e4ce7c97807e9", size = 12075947 },
 ]
 
 [[package]]
@@ -2370,26 +2370,27 @@ wheels = [
 
 [[package]]
 name = "wgpu"
-version = "0.19.2"
+version = "0.19.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
     { name = "rubicon-objc", marker = "sys_platform == 'darwin'" },
+    { name = "sniffio" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/25/1e83241e18bda860e2d6e20411f38f125798fe50dc7d487e380d3a0c9a98/wgpu-0.19.2.tar.gz", hash = "sha256:157483bed854c2ebb7988fc62d3d7e22568d5fc51627765ad5fde798b4a45c97", size = 147995 }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/04/fb169ed24f1aaeb022621975328a140d1be226a6766876e37ccebd04a50e/wgpu-0.19.3.tar.gz", hash = "sha256:1b5bb2b86b82fa89a8de4d624801929abe033bc639363d59897e3f3752ad6957", size = 148504 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/b4/942e0b1677247545a8feb10fde80d0627612ad43dd04f67a34196f90f068/wgpu-0.19.2-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:c0696db320e66268b5798e3e309c0a164d336674d7aaefdf4c911f8400fad5fa", size = 2304512 },
-    { url = "https://files.pythonhosted.org/packages/d9/ad/9e630c8ce67c27d9ede9b09db78bf4bc937a058e793420993e0c09f1a2c7/wgpu-0.19.2-py3-none-macosx_11_0_arm64.whl", hash = "sha256:96962a5973be46f55f66d4353b7547f5ea9d2ea3a7f7841069037727065151d1", size = 2217918 },
-    { url = "https://files.pythonhosted.org/packages/f6/52/c824c28b6c40b0cc1425b77f71de68ccabfe4dd8f8b42745f313e4ef5ce2/wgpu-0.19.2-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:176b9418eb8dad552659a1767a4c4ac65ef7fdacca31065cdef0931bd175182c", size = 3196992 },
-    { url = "https://files.pythonhosted.org/packages/dc/a2/7c845d58b743dc7ff62e3845a6b3df4a4ffc9d13db38e27c0a14cc8adb22/wgpu-0.19.2-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:4335aebc556a2007f3cabd122f13a1430ef6a9c16558f4b1a215b3c6b55c77c6", size = 3135266 },
-    { url = "https://files.pythonhosted.org/packages/da/1c/b13a499a6aed8f23d12d9f27b4850b0409ec7cc3f42e1aa4b578e5b224e1/wgpu-0.19.2-py3-none-win32.whl", hash = "sha256:41723ca87ccbb970fc95df4b605d462b49379d61c9e6cc57b96e040eb2ed5071", size = 2888862 },
-    { url = "https://files.pythonhosted.org/packages/49/61/6ae9252288c53e53ed18410cb0656e659dc86127dd7646dd6b442010dbac/wgpu-0.19.2-py3-none-win_amd64.whl", hash = "sha256:5c52550a300c031a0b24ca6f25d5b699c5594d9ababce93bc3cb0ddef8c1bf97", size = 3175554 },
-    { url = "https://files.pythonhosted.org/packages/3c/0e/f999bb333585b37f12812595ce3b2c31911a493f511534a43fa187cd2778/wgpu-0.19.2-py3-none-win_arm64.whl", hash = "sha256:d55b51a44da5d65fe56f01c1d7a359c507b6278c10ffbaf4791a120418f81e36", size = 2971561 },
+    { url = "https://files.pythonhosted.org/packages/9a/90/fc5c4efe777b9fd448b3efbd0235a0f82cdf402e392f8c9dd74f26fde496/wgpu-0.19.3-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:8cc0d77f290531efb95645fd776112ad5dec6dc9118c4b6c887bf5cac57b0085", size = 2304998 },
+    { url = "https://files.pythonhosted.org/packages/5e/16/841e0e20d46c74a109bb9e1fe9d96e84bd4a5ff54b603588477354830277/wgpu-0.19.3-py3-none-macosx_11_0_arm64.whl", hash = "sha256:f14d35a05d66ef98a678c5580922ba495825ccd739da5772c41885d01be07b3a", size = 2218403 },
+    { url = "https://files.pythonhosted.org/packages/c0/7d/e27d96106d7312b8bd96686e6b640f91f9d176dac578352de8741a8968d7/wgpu-0.19.3-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:59c5ea03fd22b8ac0222decde1a2f999392c947af5afcf5e63a99e8ce621336a", size = 3197478 },
+    { url = "https://files.pythonhosted.org/packages/2f/df/50fc057ec275da8e661e492ba8288b2ef1adc8651e09fb03dfe431775688/wgpu-0.19.3-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:fd69d8bb5b1280d150023391ca4c49b764e2d8b65cfcc60c770b65ef59c0b219", size = 3135751 },
+    { url = "https://files.pythonhosted.org/packages/cf/f0/38ad733d70d47f303db6eedb1dc6e563145fd88418014aeb80d85ea36c4a/wgpu-0.19.3-py3-none-win32.whl", hash = "sha256:cb65335e4a250c62cbea2f27a170c8c3a3f7c3120210d71740c822af64bdfdee", size = 2889349 },
+    { url = "https://files.pythonhosted.org/packages/01/a6/a4138aee44e8bf2659a1aba5798251d34b5b32d6eb18c4132b37b3309d29/wgpu-0.19.3-py3-none-win_amd64.whl", hash = "sha256:ae9b3e947e7f3bc0567c7a3846bbab2d3f42664ab32b71ab090c8f3c6877f6b0", size = 3176038 },
+    { url = "https://files.pythonhosted.org/packages/d5/af/4e8d84c746eb4d7f66665404fe5710454d3b5c93efe9bb73884034752d60/wgpu-0.19.3-py3-none-win_arm64.whl", hash = "sha256:327b6e7dc02f518e3c77a000e59758670d4effdb7d23e8c8da7d5e3b58441e57", size = 2972046 },
 ]
 
 [[package]]
 name = "xdsl"
-version = "0+untagged.3098.gebffd2a.dirty"
+version = "0.25.0+89.gb85bb1a8"
 source = { editable = "." }
 dependencies = [
     { name = "immutabledict" },
@@ -2445,7 +2446,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.4.37" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.9.33" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.9.34" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.0" },
@@ -2465,7 +2466,7 @@ requires-dist = [
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
-    { name = "wgpu", marker = "extra == 'wgpu'", specifier = "==0.19.2" },
+    { name = "wgpu", marker = "extra == 'wgpu'", specifier = "==0.19.3" },
 ]
 
 [[package]]
