@@ -106,17 +106,17 @@ def test_IntegerType_normalized():
     si8 = IntegerType(8, Signedness.SIGNED)
     ui8 = IntegerType(8, Signedness.UNSIGNED)
 
-    assert i8.normalized_value(IntAttr(-1)) == IntAttr(-1)
-    assert i8.normalized_value(IntAttr(1)) == IntAttr(1)
-    assert i8.normalized_value(IntAttr(255)) == IntAttr(-1)
+    assert i8.normalized_value(-1) == -1
+    assert i8.normalized_value(1) == 1
+    assert i8.normalized_value(255) == -1
 
-    assert si8.normalized_value(IntAttr(-1)) == IntAttr(-1)
-    assert si8.normalized_value(IntAttr(1)) == IntAttr(1)
-    assert si8.normalized_value(IntAttr(255)) is None
+    assert si8.normalized_value(-1) == -1
+    assert si8.normalized_value(1) == 1
+    assert si8.normalized_value(255) is None
 
-    assert ui8.normalized_value(IntAttr(-1)) is None
-    assert ui8.normalized_value(IntAttr(1)) == IntAttr(1)
-    assert ui8.normalized_value(IntAttr(255)) == IntAttr(255)
+    assert ui8.normalized_value(-1) is None
+    assert ui8.normalized_value(1) == 1
+    assert ui8.normalized_value(255) == 255
 
 
 def test_IntegerAttr_normalize():
