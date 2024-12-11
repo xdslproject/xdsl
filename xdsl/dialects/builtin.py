@@ -489,7 +489,7 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
                 f"values in the range [{min_value}, {max_value})"
             )
 
-    def normalized_value(self, value: IntAttr) -> IntAttr | None:
+    def normalized_value(self, value: int) -> int | None:
         """
         Signless values can represent integers from both the signed and unsigned ranges
         for a given bitwidth.
@@ -500,14 +500,14 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
         If the input value is outside of the valid range, return `None`.
         """
         min_value, max_value = self.value_range()
-        if not (min_value <= value.data < max_value):
+        if not (min_value <= value < max_value):
             return None
 
         if self.signedness.data == Signedness.SIGNLESS:
             signed_ub = signed_upper_bound(self.bitwidth)
             unsigned_ub = unsigned_upper_bound(self.bitwidth)
-            if signed_ub <= value.data:
-                return IntAttr(value.data - unsigned_ub)
+            if signed_ub <= value:
+                return value - unsigned_ub
 
         return value
 
@@ -632,13 +632,13 @@ class IntegerAttr(
     ) -> None:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        if isinstance(value, int):
-            value = IntAttr(value)
+        if isinstance(value, IntAttr):
+            value = value.data
         if not isinstance(value_type, IndexType):
             normalized_value = value_type.normalized_value(value)
             if normalized_value is not None:
                 value = normalized_value
-        super().__init__([value, value_type])
+        super().__init__([IntAttr(value), value_type])
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -1147,28 +1147,26 @@ class DenseArrayBase(ParametrizedAttribute):
     def create_dense_int(
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
-        if len(data) and isinstance(data[0], int):
-            attr_list = tuple(IntAttr(d) for d in cast(Sequence[int], data))
+        if len(data) and isinstance(data[0], IntAttr):
+            value_list = tuple(d.data for d in cast(Sequence[IntAttr], data))
         else:
-            attr_list = cast(Sequence[IntAttr], data)
+            value_list = cast(Sequence[int], data)
 
         normalized_values = tuple(
-            data_type.normalized_value(attr) for attr in attr_list
+            data_type.normalized_value(value) for value in value_list
         )
 
         for i, value in enumerate(normalized_values):
             if value is None:
                 min_value, max_value = data_type.value_range()
                 raise ValueError(
-                    f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
+                    f"Integer value {value_list[i]} is out of range for type {data_type} which supports "
                     f"values in the range [{min_value}, {max_value})"
                 )
 
-        values = cast(tuple[IntAttr, ...], normalized_values)
+        normalized_values = cast(Sequence[int], normalized_values)
 
-        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
-
-        bytes_data = struct.pack(fmt, *(attr.data for attr in values))
+        bytes_data = data_type.pack(normalized_values)
 
         return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
