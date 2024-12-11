@@ -5,12 +5,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Any, TypeVar
 
-indentNumSpaces = 2
-
 
 @dataclass(eq=False, repr=False)
 class BasePrinter:
     stream: IO[str] | None = field(default=None)
+    indent_num_spaces: int = field(default=2, kw_only=True)
     _indent: int = field(default=0, init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
@@ -78,7 +77,7 @@ class BasePrinter:
             for callback in self._next_line_callback:
                 callback()
             self._next_line_callback = []
-        num_spaces = indent * indentNumSpaces
+        num_spaces = indent * self.indent_num_spaces
         # Prints indentation, bypassing the `print_string` method
         print(" " * num_spaces, end="", file=self.stream)
         self._current_column = num_spaces
@@ -116,7 +115,7 @@ class BasePrinter:
         The span of the message to be underlined is represented as [begin_pos, end_pos).
         """
         indent = self._indent if indent is None else indent
-        indent_size = indent * indentNumSpaces
+        indent_size = indent * self.indent_num_spaces
         self.print_string(" " * indent_size)
         message_end_pos = max(map(len, message.split("\n"))) + indent_size + 2
         first_line = (
