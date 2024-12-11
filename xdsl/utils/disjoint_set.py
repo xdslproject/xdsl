@@ -97,6 +97,9 @@ class IntDisjointSet:
         # Note: We don't need to update _count[new_child] since it's no longer a root
         return True
 
+    def are_connected(self, lhs: int, rhs: int) -> bool:
+        return self.find(lhs) == self.find(rhs)
+
 
 _T = TypeVar("_T", bound=Hashable)
 
@@ -138,10 +141,8 @@ class DisjointSet(Generic[_T]):
         """
         Find the representative value for the set containing the given value.
 
-        Args:
-            value: The value to find the set representative for
-        Returns:
-            The representative value for the set
+        Returns the representative value for the set.
+
         Raises:
             KeyError: If the value is not in the disjoint set
         """
@@ -152,12 +153,20 @@ class DisjointSet(Generic[_T]):
         """
         Merge the sets containing the two given values if they are different.
 
-        Args:
-            lhs: First value
-            rhs: Second value
-        Returns:
-            True if the sets were merged, False if they were already the same set
+        Returns `True` if the sets were merged, `False` if they were already the same set.
+
         Raises:
             KeyError: If either value is not in the disjoint set
         """
         return self._base.union(self._index_by_value[lhs], self._index_by_value[rhs])
+
+    def are_connected(self, lhs: _T, rhs: _T) -> bool:
+        """
+        Returns `True` if the values are in the same set.
+
+        Raises:
+            KeyError: If either value is not in the disjoint set
+        """
+        return self._base.are_connected(
+            self._index_by_value[lhs], self._index_by_value[rhs]
+        )

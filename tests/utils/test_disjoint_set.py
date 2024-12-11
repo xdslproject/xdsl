@@ -36,14 +36,19 @@ def test_disjoint_set_union():
     assert ds.union(0, 1)
     root = ds.find(0)
     assert ds.find(1) == root
+    assert ds.are_connected(0, 1)
+    assert not ds.are_connected(0, 2)
 
     # Union 2 and 3
     assert ds.union(2, 3)
     root2 = ds.find(2)
     assert ds.find(3) == root2
+    assert ds.are_connected(2, 3)
+    assert not ds.are_connected(1, 2)
 
     # Union already connected elements
     assert not ds.union(0, 1)
+    assert ds.are_connected(0, 1)
 
     # Union two sets
     assert ds.union(1, 2)
@@ -51,6 +56,11 @@ def test_disjoint_set_union():
     assert ds.find(1) == final_root
     assert ds.find(2) == final_root
     assert ds.find(3) == final_root
+    # After unioning all elements, they should all be connected
+    assert ds.are_connected(0, 1)
+    assert ds.are_connected(1, 2)
+    assert ds.are_connected(2, 3)
+    assert ds.are_connected(0, 3)
 
 
 def test_disjoint_set_path_compression():
@@ -76,14 +86,19 @@ def test_generic_disjoint_set():
     assert ds.union("a", "b")
     root = ds.find("a")
     assert ds.find("b") == root
+    assert ds.are_connected("a", "b")
+    assert not ds.are_connected("a", "c")
 
     # Union c and d
     assert ds.union("c", "d")
     root2 = ds.find("c")
     assert ds.find("d") == root2
+    assert ds.are_connected("c", "d")
+    assert not ds.are_connected("b", "c")
 
     # Union already connected elements
     assert not ds.union("a", "b")
+    assert ds.are_connected("a", "b")
 
     # Union two sets
     assert ds.union("b", "c")
@@ -91,6 +106,11 @@ def test_generic_disjoint_set():
     assert ds.find("b") == final_root
     assert ds.find("c") == final_root
     assert ds.find("d") == final_root
+    # After unioning all elements, they should all be connected
+    assert ds.are_connected("a", "b")
+    assert ds.are_connected("b", "c")
+    assert ds.are_connected("c", "d")
+    assert ds.are_connected("a", "d")
 
 
 def test_generic_disjoint_set_add():
