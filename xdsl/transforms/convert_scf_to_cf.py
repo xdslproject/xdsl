@@ -209,7 +209,9 @@ class SwitchLowering(RewritePattern):
                 case_value,
                 default_block,
                 (),
-                DenseIntOrFPElementsAttr.vector_from_list(case_values, i32),
+                DenseIntOrFPElementsAttr.vector_from_list(
+                    case_values, i32, [len(case_values)]
+                ),
                 case_successors,
                 case_operands,
             ),

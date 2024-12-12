@@ -35,7 +35,7 @@ def test_ml_program_global_load_constant():
     interpreter.register_implementations(MLProgramFunctions())
 
     (result,) = interpreter.run_op(fetch, ())
-    assert result == ShapedArray(TypedPtr.new_int32([4]), [4])
+    assert result == ShapedArray(TypedPtr.new_int32([4] * 4), [4])
 
 
 def test_ml_program_global_load_constant_ex2():
