@@ -35,6 +35,12 @@ class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
         super().__init__(operands=[operands])
 
 
+def print_for_op_like(
+    printer: Printer,
+):
+    pass
+
+
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
