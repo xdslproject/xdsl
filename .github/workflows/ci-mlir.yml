@@ -50,7 +50,7 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        UV_PROJECT_ENVIRONMENT=venv uv sync --extra gui --extra dev --extra jax --extra riscv --extra wgpu --extra onnx
+        UV_PROJECT_ENVIRONMENT=.venv uv sync --extra gui --extra dev --extra jax --extra riscv --extra wgpu --extra onnx
 
     - name: Cache binaries
       id: cache-binary
