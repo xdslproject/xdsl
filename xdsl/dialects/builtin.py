@@ -833,10 +833,6 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
-        if isinstance(data, FloatData):
-            data_attr = data
-        else:
-            data_attr = FloatData(data)
         if isinstance(type, int):
             if type == 16:
                 type = Float16Type()
@@ -850,6 +846,15 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
                 type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
+
+        value: float = data.data if isinstance(data, FloatData) else data
+        # for supported types, constrain value to precision of floating point type
+        # else, allow full python float precision
+        if isinstance(type, Float64Type | Float32Type | Float16Type):
+            value = type.unpack(type.pack((value,)), 1)[0]
+
+        data_attr = FloatData(value)
+
         super().__init__([data_attr, type])
 
     @staticmethod

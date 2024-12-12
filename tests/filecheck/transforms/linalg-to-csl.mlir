@@ -40,7 +40,7 @@ builtin.module {
 //CHECK-NEXT:   "csl.fadds"(%0, %0, %11) : (memref<16xf32>, memref<16xf32>, f32) -> ()
 //CHECK-NEXT:   %12 = arith.constant 1.123400e-01 : f32
 //CHECK-NEXT:   "csl.fmuls"(%0, %12, %0) : (memref<16xf32>, f32, memref<16xf32>) -> ()
-//CHECK-NEXT:   %c = arith.constant dense<299792458.0> : memref<16xf32>
-//CHECK-NEXT:   %13 = arith.constant 299792458.0 : f32
+//CHECK-NEXT:   %c = arith.constant dense<0x4D8EF3C2> : memref<16xf32>
+//CHECK-NEXT:   %13 = arith.constant 0x4D8EF3C2 : f32
 //CHECK-NEXT:   "csl.fmacs"(%0, %2, %0, %13) : (memref<16xf32>, memref<16xf32>, memref<16xf32>, f32) -> ()
 //CHECK-NEXT: }
