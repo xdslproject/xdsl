@@ -6,7 +6,7 @@ builtin.module {
         %zero = riscv.li 0 : !riscv.reg<a2>
         %step = riscv.li 4 : !riscv.reg<a3>
         %forty = riscv.li 40 : !riscv.reg<a4>
-        riscv_scf.for %offset : !riscv.reg<a5> = %zero to %forty step %step {
+        riscv_scf.for %offset = %zero to %forty step %step : !riscv.reg<a5> {
             %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
             %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
             %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
@@ -47,7 +47,7 @@ builtin.module {
     riscv_func.func @sum_range(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
         %2 = riscv.li 1 : !riscv.reg<a2>
         %3 = riscv.li 0 : !riscv.reg<a3>
-        %4 = riscv_scf.for %5 : !riscv.reg<a4> = %0 to %1 step %2 iter_args(%6 = %3) -> (!riscv.reg<a3>) {
+        %4 = riscv_scf.for %5 = %0 to %1 step %2 iter_args(%6 = %3) -> (!riscv.reg<a3>) : !riscv.reg<a4> {
             %7 = riscv.add %5, %6 : (!riscv.reg<a4>, !riscv.reg<a3>) -> !riscv.reg<a3>
             riscv_scf.yield %7 : !riscv.reg<a3>
         }
@@ -81,10 +81,10 @@ builtin.module {
         %0 = riscv.li 0 : !riscv.reg<a1>
         %1 = riscv.li 0 : !riscv.reg<a2>
         %2 = riscv.li 1 : !riscv.reg<a3>
-        %3 = riscv_scf.for %arg1 : !riscv.reg<a2> = %1 to %arg0 step %2 iter_args(%arg2 = %0) -> (!riscv.reg<a1>) {
+        %3 = riscv_scf.for %arg1 = %1 to %arg0 step %2 iter_args(%arg2 = %0) -> (!riscv.reg<a1>) : !riscv.reg<a2> {
             %4 = riscv.li 0 : !riscv.reg<a4>
             %5 = riscv.li 1 : !riscv.reg<a5>
-            %6 = riscv_scf.for %arg3 : !riscv.reg<a4> = %4 to %arg0 step %5 iter_args(%arg4 = %arg2) -> (!riscv.reg<a1>) {
+            %6 = riscv_scf.for %arg3 = %4 to %arg0 step %5 iter_args(%arg4 = %arg2) -> (!riscv.reg<a1>) : !riscv.reg<a4> {
                 %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
                 %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
                 riscv_scf.yield %8 : !riscv.reg<a1>

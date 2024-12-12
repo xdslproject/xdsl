@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FunctionType,
+    IndexType,
     StringAttr,
 )
 from xdsl.ir import (
@@ -15,6 +16,7 @@ from xdsl.ir import (
     Operation,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
@@ -35,6 +37,117 @@ class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
         super().__init__(operands=[operands])
 
 
+def print_for_op_like(
+    printer: Printer,
+    lower_bound: SSAValue,
+    upper_bound: SSAValue,
+    step: SSAValue,
+    iter_args: Sequence[SSAValue],
+    body: Region,
+    bound_words: Sequence[str] = ["to"],
+    default_indvar_type: type[TypeAttribute] | None = None,
+):
+    """
+    Prints the loop bounds, step, iteration arguments, and body.
+
+    Users can provide specific human-readable words for bounds (default: "to") and a
+    default induction variable type that is not printed if it matches the given as
+    argument type.
+    """
+    block = body.block
+    indvar, *block_iter_args = block.args
+
+    printer.print_string(" ")
+    printer.print_ssa_value(indvar)
+    printer.print_string(" = ")
+    printer.print_ssa_value(lower_bound)
+
+    for word in bound_words:
+        printer.print_string(f" {word} ")
+
+    printer.print_ssa_value(upper_bound)
+    printer.print_string(" step ")
+    printer.print_ssa_value(step)
+    printer.print_string(" ")
+    if block_iter_args:
+        printer.print_string("iter_args(")
+        printer.print_list(
+            zip(block_iter_args, iter_args),
+            lambda pair: print_assignment(printer, *pair),
+        )
+        printer.print_string(") -> (")
+        printer.print_list((a.type for a in block_iter_args), printer.print_attribute)
+        printer.print_string(") ")
+    if not default_indvar_type or not isinstance(indvar.type, default_indvar_type):
+        printer.print_string(": ")
+        printer.print_attribute(indvar.type)
+        printer.print_string(" ")
+    printer.print_region(
+        body,
+        print_entry_block_args=False,
+        print_empty_block=False,
+        print_block_terminators=bool(iter_args),
+    )
+
+
+def parse_for_op_like(
+    parser: Parser,
+    bound_words: Sequence[str] = ["to"],
+) -> tuple[SSAValue, SSAValue, SSAValue, Sequence[SSAValue], Region]:
+    """
+    Returns the loop bounds, step, iteration arguments, and body.
+
+    Users can provide specific human-readable words for bounds (default: "to").
+    """
+    # parse bounds
+    unresolved_indvar = parser.parse_argument(expect_type=False)
+    parser.parse_characters("=")
+    lower_bound = parser.parse_operand()
+
+    for word in bound_words:
+        parser.parse_characters(word)
+
+    upper_bound = parser.parse_operand()
+    parser.parse_characters("step")
+    step = parser.parse_operand()
+
+    # parse iteration arguments
+    pos = parser.pos
+    unresolved_iter_args: list[Parser.UnresolvedArgument] = []
+    iter_arg_unresolved_operands: list[UnresolvedOperand] = []
+    iter_arg_types: list[Attribute] = []
+    if parser.parse_optional_characters("iter_args"):
+        for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
+        ):
+            unresolved_iter_args.append(iter_arg)
+            iter_arg_unresolved_operands.append(iter_arg_operand)
+        parser.parse_characters("->")
+        iter_arg_types = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, parser.parse_attribute
+        )
+
+    iter_arg_operands = parser.resolve_operands(
+        iter_arg_unresolved_operands, iter_arg_types, pos
+    )
+
+    # set block argument types
+    iter_args = [
+        u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
+    ]
+
+    # set induction variable type
+    indvar_type = (
+        parser.parse_type() if parser.parse_optional_characters(":") else IndexType()
+    )
+    indvar = unresolved_indvar.resolve(indvar_type)
+
+    # parse body
+    body = parser.parse_region((indvar, *iter_args))
+
+    return lower_bound, upper_bound, step, iter_arg_operands, body
+
+
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
@@ -46,6 +159,10 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
+    """
+    Prints the function name, argument types, return types, body, extra args, and
+    arg_attrs.
+    """
     printer.print(f" @{sym_name.data}")
     if body.blocks:
         printer.print("(")

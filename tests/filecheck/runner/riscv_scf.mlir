@@ -6,7 +6,7 @@ builtin.module {
     %1 = riscv.li 0 : !riscv.reg
     %2 = riscv.li 1 : !riscv.reg
     %3 = riscv.li 0 : !riscv.reg
-    %4 = riscv_scf.for %5 : !riscv.reg = %1 to %0 step %2 iter_args(%6 = %3) -> (!riscv.reg) {
+    %4 = riscv_scf.for %5 = %1 to %0 step %2 iter_args(%6 = %3) -> (!riscv.reg) : !riscv.reg {
       %7 = riscv.add %5, %6 : (!riscv.reg, !riscv.reg) -> !riscv.reg
       riscv_scf.yield %7 : !riscv.reg
     }
