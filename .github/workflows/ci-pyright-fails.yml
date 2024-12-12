@@ -19,7 +19,6 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
 
     env:
-      VENV_DIR: .venv
       PYRIGHT_VERSION: 1.0
 
     steps:
