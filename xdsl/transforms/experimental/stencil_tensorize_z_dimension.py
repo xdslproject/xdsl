@@ -193,7 +193,7 @@ class ArithOpTensorize(RewritePattern):
     @staticmethod
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
-        dest_typ: TensorType[AnyFloat],
+        dest_typ: TensorType[IndexType | IntegerType | AnyFloat],
         op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
@@ -267,7 +267,9 @@ def is_tensorized(
     return len(typ.get_shape()) == 2 and isinstance(typ.get_element_type(), TensorType)
 
 
-def is_tensor(typ: Attribute) -> TypeGuard[TensorType[Attribute]]:
+def is_tensor(
+    typ: Attribute,
+) -> TypeGuard[TensorType[IndexType | IntegerType | AnyFloat]]:
     return isinstance(typ, TensorType)
 
 
