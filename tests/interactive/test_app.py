@@ -291,7 +291,7 @@ async def test_buttons():
         assert app.condense_mode is True
         rewrites = get_all_possible_rewrites(
             expected_module,
-            individual_rewrite.REWRITE_BY_NAMES,
+            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
         assert app.available_pass_list == get_condensed_pass_list(
             expected_module, app.all_passes

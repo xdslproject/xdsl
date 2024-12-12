@@ -266,7 +266,7 @@ class InputApp(App[None]):
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
-                    individual_rewrite.REWRITE_BY_NAMES,
+                    individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
                 )
 
     def watch_available_pass_list(
@@ -509,7 +509,7 @@ class InputApp(App[None]):
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
-            individual_rewrite.REWRITE_BY_NAMES,
+            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
 
         self.expand_node(expanded_node, child_pass_list)
