@@ -57,7 +57,9 @@ Extra rewrite patterns available to ApplyIndividualRewritePass
 """
 
 
-def _get_pattern(op: Operation, pattern_name: str) -> RewritePattern | None:
+def _get_canonicalization_pattern(
+    op: Operation, pattern_name: str
+) -> RewritePattern | None:
     if (trait := op.get_trait(HasCanonicalizationPatternsTrait)) is None:
         return None
 
@@ -102,7 +104,9 @@ class ApplyIndividualRewritePass(ModulePass):
             )
         ) is not None and (p := individual_rewrites.get(self.pattern_name)) is not None:
             pattern = p
-        elif (p := _get_pattern(matched_operation, self.pattern_name)) is not None:
+        elif (
+            p := _get_canonicalization_pattern(matched_operation, self.pattern_name)
+        ) is not None:
             pattern = p
         else:
             raise ValueError(
