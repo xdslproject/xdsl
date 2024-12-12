@@ -44,7 +44,7 @@ class SignlessIntegerBinaryOperationConstantProp(RewritePattern):
         assert isinstance(op.result.type, IntegerType | IndexType)
 
         rewriter.replace_matched_op(
-            arith.ConstantOp.from_int_and_width(res, op.result.type)
+            arith.ConstantOp.from_int_and_width(res, op.result.type, truncate_bits=True)
         )
 
 
