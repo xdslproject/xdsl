@@ -1928,6 +1928,10 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         return self.type.get_element_type()
 
     @property
+    def nb_elements(self) -> int:
+        return prod(self.get_shape())
+
+    @property
     def shape_is_complete(self) -> bool:
         shape = self.get_shape()
 
@@ -1939,7 +1943,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             n *= dim
 
         # Product of dimensions needs to equal length
-        return n == len(self.get_values())
+        return n == self.nb_elements
 
     @staticmethod
     def create_dense_index(
@@ -2036,6 +2040,12 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         ),
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
+        # zero rank type should only hold 1 value
+        if not type.get_shape() and len(data) != 1:
+            raise ValueError(
+                f"A zero-rank {type.name} can only hold 1 value but {len(data)} were given."
+            )
+
         # splat value given
         if len(data) == 1 and prod(type.get_shape()) != 1:
             new_data = (data[0],) * prod(type.get_shape())
@@ -2063,8 +2073,9 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
+        shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        t = VectorType(data_type, [len(data)])
+        t = VectorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
@@ -2079,8 +2090,6 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        if not len(shape):
-            shape = [len(data)]
         t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
@@ -2088,7 +2097,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return self.type.element_type.unpack(self.data.data, prod(self.get_shape()))
+        return self.type.element_type.unpack(self.data.data, self.nb_elements)
 
     def get_attrs(self) -> Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]:
         """

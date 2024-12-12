@@ -319,7 +319,9 @@ def drop_case_helper(
                 op.default_block,
                 op.default_operands,
                 DenseIntOrFPElementsAttr.vector_from_list(
-                    new_case_values, case_values.get_element_type()
+                    new_case_values,
+                    case_values.get_element_type(),
+                    [len(new_case_values)],
                 ),
                 new_case_blocks,
                 new_case_operands,
