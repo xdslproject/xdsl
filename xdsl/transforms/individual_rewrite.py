@@ -44,29 +44,16 @@ class DivisionOfSameVariableToOne(RewritePattern):
             rewriter.replace_matched_op([], [mul_op.lhs])
 
 
-INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS: dict[
-    type[Operation], dict[str, RewritePattern]
-] = {
-    arith.AddiOp: {
+INDIVIDUAL_REWRITE_PATTERNS_BY_NAME: dict[str, dict[str, RewritePattern]] = {
+    arith.AddiOp.name: {
         AdditionOfSameVariablesToMultiplyByTwo.__name__: AdditionOfSameVariablesToMultiplyByTwo()
     },
-    arith.DivUIOp: {
+    arith.DivUIOp.name: {
         DivisionOfSameVariableToOne.__name__: DivisionOfSameVariableToOne()
     },
 }
 """
-Dictionary where the key is an Operation and the value is a tuple of rewrite pattern(s) associated with that operation. These are rewrite patterns defined in this class.
-"""
-
-REWRITE_BY_NAMES: dict[str, dict[str, RewritePattern]] = {
-    op.name: INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS.get(op, {})
-    for op in set(INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS)
-}
-"""
-Returns a dictionary representing all possible rewrites. Keys are operation names, and
-values are dictionaries. In the inner dictionary, the keys are names of patterns
-associated with each operation, and the values are the corresponding RewritePattern
-instances.
+Extra rewrite patterns available to ApplyIndividualRewritePass
 """
 
 
@@ -110,8 +97,8 @@ class ApplyIndividualRewritePass(ModulePass):
 
         # Check individual rewrites first
         if (
-            individual_rewrites := INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS.get(
-                type(matched_operation)
+            individual_rewrites := INDIVIDUAL_REWRITE_PATTERNS_BY_NAME.get(
+                self.operation_name
             )
         ) is not None and (p := individual_rewrites.get(self.pattern_name)) is not None:
             pattern = p
