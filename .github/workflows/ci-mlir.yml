@@ -49,7 +49,7 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        make venv
+        VENV_EXTRAS="--all-extras" make venv
 
     - name: Cache binaries
       id: cache-binary
