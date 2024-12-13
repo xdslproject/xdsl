@@ -33,11 +33,6 @@ jobs:
 
     - name: Install the package locally and check for lockfile mismatch
       run: |
-        pwd
-        ls
-        cd xdsl
-        pwd
-        ls
         # Install all default extras.
         # Fail if the lockfile is out of date with pyproject.toml.
         uv sync --extra gui --extra dev --extra jax --extra riscv --locked --verbose
