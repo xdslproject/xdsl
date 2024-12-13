@@ -2390,7 +2390,7 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0.25.0+50.g582ac851"
+version = "0+dynamic"
 source = { editable = "." }
 dependencies = [
     { name = "immutabledict" },
