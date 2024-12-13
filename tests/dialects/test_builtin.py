@@ -7,6 +7,7 @@ import pytest
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     AnyTensorType,
+    AnyVectorType,
     ArrayAttr,
     BFloat16Type,
     BytesAttr,
@@ -289,6 +290,11 @@ def test_DenseIntOrFPElementsAttr_from_list():
     attr = DenseIntOrFPElementsAttr.tensor_from_list([4], f32, [4])
     assert attr.type == AnyTensorType(f32, [4])
     assert tuple(attr.get_values()) == (4, 4, 4, 4)
+    assert len(attr) == 4
+
+    # vector with inferred shape
+    attr = DenseIntOrFPElementsAttr.vector_from_list([1,2,3,4], f32)
+    assert attr.type == AnyVectorType(f32, [4])
     assert len(attr) == 4
 
 
