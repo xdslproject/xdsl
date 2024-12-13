@@ -32,4 +32,4 @@ jobs:
       run: |
         # Install all default extras.
         # Fail if the lockfile is out of date with pyproject.toml.
-        uv sync --extra gui --extra dev --extra jax --extra riscv --locked
+        uv sync --extra gui --extra dev --extra jax --extra riscv --locked --verbose
