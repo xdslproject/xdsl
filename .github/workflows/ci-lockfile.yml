@@ -35,4 +35,4 @@ jobs:
       run: |
         # Install all default extras.
         # Fail if the lockfile dependencies are out of date with pyproject.toml.
-        XDSL_VERSION_OVERRIDE="0+dynamic" uv sync --extra gui --extra dev --extra jax --extra riscv --locked --verbose
+        XDSL_VERSION_OVERRIDE="0+dynamic" uv sync --extra gui --extra dev --extra jax --extra riscv --locked
