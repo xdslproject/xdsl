@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     ModuleOp,
-    RankedStructure,
     ShapedType,
     TensorType,
 )
@@ -435,15 +434,8 @@ class ConstOpUpdateShape(RewritePattern):
             if typ := get_required_result_type(op):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
-                    dense_type = cast(
-                        RankedStructure[IntegerType | IndexType | AnyFloat], typ
-                    )
                     rewriter.replace_matched_op(
-                        ConstantOp(
-                            DenseIntOrFPElementsAttr.from_list(
-                                dense_type, [op.value.get_values()[0]]
-                            )
-                        )
+                        ConstantOp(DenseIntOrFPElementsAttr([typ, op.value.data]))
                     )
 
 
