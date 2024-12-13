@@ -1945,7 +1945,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         return self.type.get_element_type()
 
     def __len__(self) -> int:
-        return prod(self.get_shape())
+        return len(self.data)
 
     @property
     def shape_is_complete(self) -> bool:
