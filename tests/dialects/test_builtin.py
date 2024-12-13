@@ -267,6 +267,7 @@ def test_DenseIntOrFPElementsAttr_from_list():
     # legal zero-rank tensor
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
     assert attr.type == AnyTensorType(f32, [])
+    assert len(attr) == 1
 
     # illegal zero-rank tensor
     with pytest.raises(
@@ -277,15 +278,18 @@ def test_DenseIntOrFPElementsAttr_from_list():
     # legal 1 element tensor
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [1])
     assert attr.type == AnyTensorType(f32, [1])
+    assert len(attr) == 1
 
     # legal normal tensor
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [2])
     assert attr.type == AnyTensorType(f32, [2])
+    assert len(attr) == 2
 
     # splat initialization
     attr = DenseIntOrFPElementsAttr.tensor_from_list([4], f32, [4])
     assert attr.type == AnyTensorType(f32, [4])
     assert tuple(attr.get_values()) == (4, 4, 4, 4)
+    assert len(attr) == 4
 
 
 @pytest.mark.parametrize(
