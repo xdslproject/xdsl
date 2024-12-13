@@ -26,7 +26,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	uv sync ${VENV_EXTRAS}
+	XDSL_VERSION_OVERRIDE="0+dynamic" uv sync ${VENV_EXTRAS}
 
 # make sure `make venv` also works correctly
 .PHONY: venv

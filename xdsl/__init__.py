@@ -9,9 +9,14 @@ class LazyVersion:
 
     def __str__(self):
         if self._version is None:
-            from . import _version
+            import os
 
-            self._version = _version.get_versions()["version"]
+            if "XDSL_VERSION_OVERRIDE" in os.environ:
+                self._version = os.environ["XDSL_VERSION_OVERRIDE"]
+            else:
+                from . import _version
+
+                self._version = _version.get_versions()["version"]
         return self._version
 
 
