@@ -49,7 +49,9 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        VENV_EXTRAS="--all-extras" make venv
+        # Install all extras.
+        # Fail if the lockfile is out of date with pyproject.toml.
+        asv sync --all-extras --locked
 
     - name: Cache binaries
       id: cache-binary
