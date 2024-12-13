@@ -51,7 +51,7 @@ jobs:
         cd xdsl
         # Install all extras.
         # Fail if the lockfile is out of date with pyproject.toml.
-        asv sync --all-extras --locked
+        uv sync --all-extras --locked
 
     - name: Cache binaries
       id: cache-binary
