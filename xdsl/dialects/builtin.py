@@ -1944,6 +1944,9 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
         return self.type.get_element_type()
 
+    def __len__(self) -> int:
+        return prod(self.get_shape())
+
     @property
     def shape_is_complete(self) -> bool:
         shape = self.get_shape()
@@ -2040,17 +2043,33 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         ),
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
+        # zero rank type should only hold 1 value
+        if not type.get_shape() and len(data) != 1:
+            raise ValueError(
+                f"A zero-rank {type.name} can only hold 1 value but {len(data)} were given."
+            )
+
+        # splat value given
+        if len(data) == 1 and prod(type.get_shape()) != 1:
+            new_data = (data[0],) * prod(type.get_shape())
+        else:
+            new_data = data
+
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
-            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            new_data = cast(
+                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
+            )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
         elif isinstance(type.element_type, IntegerType):
             new_type = cast(RankedStructure[IntegerType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
+            new_data = cast(
+                Sequence[int] | Sequence[IntegerAttr[IntegerType]], new_data
+            )
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         else:
             new_type = cast(RankedStructure[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
             return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
 
     @staticmethod

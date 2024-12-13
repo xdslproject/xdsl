@@ -237,7 +237,7 @@ def test_IntegerType_packing():
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
-    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [])
+    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [2])
 
     value1 = check1.get_attrs()[0].value.data
     value2 = check1.get_attrs()[1].value.data
@@ -251,7 +251,7 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     t1 = FloatAttr(4.0, f32)
     t2 = FloatAttr(5.0, f32)
 
-    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [])
+    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [2])
 
     value3 = check2.get_attrs()[0].value.data
     value4 = check2.get_attrs()[1].value.data
@@ -264,9 +264,28 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 
 
 def test_DenseIntOrFPElementsAttr_from_list():
+    # legal zero-rank tensor
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
-
     assert attr.type == AnyTensorType(f32, [])
+
+    # illegal zero-rank tensor
+    with pytest.raises(
+        ValueError, match="A zero-rank tensor can only hold 1 value but 2 were given."
+    ):
+        DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [])
+
+    # legal 1 element tensor
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [1])
+    assert attr.type == AnyTensorType(f32, [1])
+
+    # legal normal tensor
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [2])
+    assert attr.type == AnyTensorType(f32, [2])
+
+    # splat initialization
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([4], f32, [4])
+    assert attr.type == AnyTensorType(f32, [4])
+    assert tuple(attr.get_values()) == (4, 4, 4, 4)
 
 
 @pytest.mark.parametrize(
