@@ -2076,7 +2076,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
-        shape: Sequence[int] | None = None
+        shape: Sequence[int] | None = None,
     ) -> DenseIntOrFPElementsAttr:
         if not shape:
             shape = [len(data)]

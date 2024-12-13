@@ -293,7 +293,7 @@ def test_DenseIntOrFPElementsAttr_from_list():
     assert len(attr) == 4
 
     # vector with inferred shape
-    attr = DenseIntOrFPElementsAttr.vector_from_list([1,2,3,4], f32)
+    attr = DenseIntOrFPElementsAttr.vector_from_list([1, 2, 3, 4], f32)
     assert attr.type == AnyVectorType(f32, [4])
     assert len(attr) == 4
 
