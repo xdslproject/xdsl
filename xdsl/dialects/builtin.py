@@ -1248,10 +1248,10 @@ class DenseArrayBase(ParametrizedAttribute):
         return len(self.data.data) // self.elt_type.size
 
 
-DenseI64ArrayConstraint = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
+DenseI64ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
 """Type constraint for DenseArrays containing integers of i64 integers."""
 
-DenseI64ArrayType: TypeAlias = Annotated[DenseArrayBase, DenseI64ArrayConstraint]
+DenseI64Array: TypeAlias = Annotated[DenseArrayBase, DenseI64ArrayConstr]
 """Type alias constrained to dense array of i64 integers."""
 
 
