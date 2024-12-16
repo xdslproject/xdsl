@@ -48,16 +48,9 @@ class ShrinkException(Exception):
     version of a case that has some behavior you are interested in, raise this exception
     on the line of code you want to hit, and pass the `--shrink` argument to `xdsl-opt`.
 
-    Shrinkray currently requires the executable passed in to take no arguments, so to
-    shrink a test case like this one that raises a ShrinkException when you call it like
-    this: `xdsl-opt input_file.mlir -p my,pass,pipeline`, you need to create a new
-    executable `.sh` file with the following contents:
-
-    ```sh
-    xdsl-opt -p my,pass,pipeline --shrink
-    ```
-
-    It can then be invoked with `shrinkray FILENAME.sh input_file.mlir`.
+    To shrink a test case that raises a ShrinkException when called like this:
+    `xdsl-opt input_file.mlir -p my,pass,pipeline`, it needs to be changed to:
+    `shrinkray "xdsl-opt -p my,pass,pipeline --shrink" input_file.mlir`.
     """
 
     pass
