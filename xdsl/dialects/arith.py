@@ -198,6 +198,13 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
     @staticmethod
     def py_operation(lhs: int, rhs: int) -> int | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(lhs, rhs)` is an int, then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `lhs` and `rhs`.
+        """
         return None
 
     @staticmethod
