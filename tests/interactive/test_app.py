@@ -20,10 +20,7 @@ from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
-from xdsl.interactive.rewrites import (
-    convert_indexed_individual_rewrites_to_available_pass,
-    get_all_possible_rewrites,
-)
+from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     get_all_passes,
@@ -295,9 +292,7 @@ async def test_buttons():
         )
         assert app.available_pass_list == get_condensed_pass_list(
             expected_module, app.all_passes
-        ) + convert_indexed_individual_rewrites_to_available_pass(
-            rewrites, expected_module
-        )
+        ) + tuple(rewrites)
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
