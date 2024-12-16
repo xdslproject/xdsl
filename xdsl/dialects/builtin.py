@@ -349,7 +349,23 @@ class SignednessAttr(Data[Signedness]):
                 raise ValueError(f"Invalid signedness {data}")
 
 
-class FixedBitwidthType(TypeAttribute, ABC):
+class CompileTimeFixedBitwidthType(TypeAttribute, ABC):
+    """
+    A type attribute whose runtime bitwidth is fixed, but may be target-dependent.
+    """
+
+    name = "abstract.compile_time_fixed_bitwidth_type"
+
+    @property
+    @abstractmethod
+    def compile_time_size(self) -> int:
+        """
+        Contiguous memory footprint of the value during compilation.
+        """
+        raise NotImplementedError()
+
+
+class FixedBitwidthType(CompileTimeFixedBitwidthType, ABC):
     """
     A type attribute whose runtime bitwidth is target-independent.
     """
@@ -375,7 +391,7 @@ class FixedBitwidthType(TypeAttribute, ABC):
 _PyT = TypeVar("_PyT")
 
 
-class PackableType(Generic[_PyT], FixedBitwidthType, ABC):
+class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
     """
     Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
     """
@@ -439,9 +455,13 @@ class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
         fmt = self.format[0] + str(len(values)) + self.format[1:]
         return struct.pack(fmt, *values)
 
+    @property
+    def compile_time_size(self) -> int:
+        return struct.calcsize(self.format)
+
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, StructPackableType[int]):
+class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthType):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -469,7 +489,9 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int]):
                 f"values in the range [{min_value}, {max_value})"
             )
 
-    def normalized_value(self, value: IntAttr) -> IntAttr | None:
+    def normalized_value(
+        self, value: int, *, truncate_bits: bool = False
+    ) -> int | None:
         """
         Signless values can represent integers from both the signed and unsigned ranges
         for a given bitwidth.
@@ -477,17 +499,20 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int]):
         to the signed version (meaning ambiguous values will always be negative).
         For example, the bitpattern of all ones will always be represented as `-1` at
         runtime.
-        If the input value is outside of the valid range, return `None`.
+        If the input value is outside of the valid range, return `None` if `truncate_bits`
+        is false, otherwise returns a value in range by truncating the bits of the input.
         """
         min_value, max_value = self.value_range()
-        if not (min_value <= value.data < max_value):
-            return None
+        if not (min_value <= value < max_value):
+            if not truncate_bits:
+                return None
+            value = value % (2**self.bitwidth)
 
-        if self.signedness.data == Signedness.SIGNLESS:
+        if self.signedness.data != Signedness.UNSIGNED:
             signed_ub = signed_upper_bound(self.bitwidth)
             unsigned_ub = unsigned_upper_bound(self.bitwidth)
-            if signed_ub <= value.data:
-                return IntAttr(value.data - unsigned_ub)
+            if signed_ub <= value:
+                return value - unsigned_ub
 
         return value
 
@@ -556,7 +581,7 @@ class LocationAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IndexType(ParametrizedAttribute):
+class IndexType(ParametrizedAttribute, StructPackableType[int]):
     name = "index"
 
     def print_value_without_type(self, value: int, printer: Printer):
@@ -564,6 +589,11 @@ class IndexType(ParametrizedAttribute):
         Prints the value.
         """
         printer.print_string(f"{value}")
+
+    @property
+    def format(self) -> str:
+        # index types are always packable as int64
+        return "<q"
 
 
 IndexTypeConstr = BaseAttr(IndexType)
@@ -595,25 +625,37 @@ class IntegerAttr(
         self,
         value: int | IntAttr,
         value_type: _IntegerAttrType,
+        *,
+        truncate_bits: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType], value: int | IntAttr, value_type: int
+        self: IntegerAttr[IntegerType],
+        value: int | IntAttr,
+        value_type: int,
+        *,
+        truncate_bits: bool = False,
     ) -> None: ...
 
     def __init__(
-        self, value: int | IntAttr, value_type: int | IntegerType | IndexType
+        self,
+        value: int | IntAttr,
+        value_type: int | IntegerType | IndexType,
+        *,
+        truncate_bits: bool = False,
     ) -> None:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        if isinstance(value, int):
-            value = IntAttr(value)
+        if isinstance(value, IntAttr):
+            value = value.data
         if not isinstance(value_type, IndexType):
-            normalized_value = value_type.normalized_value(value)
+            normalized_value = value_type.normalized_value(
+                value, truncate_bits=truncate_bits
+            )
             if normalized_value is not None:
                 value = normalized_value
-        super().__init__([value, value_type])
+        super().__init__([IntAttr(value), value_type])
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -669,7 +711,7 @@ AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], ABC):
+class _FloatType(StructPackableType[float], FixedBitwidthType, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
@@ -808,10 +850,6 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
-        if isinstance(data, FloatData):
-            data_attr = data
-        else:
-            data_attr = FloatData(data)
         if isinstance(type, int):
             if type == 16:
                 type = Float16Type()
@@ -825,6 +863,15 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
                 type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
+
+        value: float = data.data if isinstance(data, FloatData) else data
+        # for supported types, constrain value to precision of floating point type
+        # else, allow full python float precision
+        if isinstance(type, Float64Type | Float32Type | Float16Type):
+            value = type.unpack(type.pack((value,)), 1)[0]
+
+        data_attr = FloatData(value)
+
         super().__init__([data_attr, type])
 
     @staticmethod
@@ -1122,28 +1169,26 @@ class DenseArrayBase(ParametrizedAttribute):
     def create_dense_int(
         data_type: IntegerType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
-        if len(data) and isinstance(data[0], int):
-            attr_list = tuple(IntAttr(d) for d in cast(Sequence[int], data))
+        if len(data) and isinstance(data[0], IntAttr):
+            value_list = tuple(d.data for d in cast(Sequence[IntAttr], data))
         else:
-            attr_list = cast(Sequence[IntAttr], data)
+            value_list = cast(Sequence[int], data)
 
         normalized_values = tuple(
-            data_type.normalized_value(attr) for attr in attr_list
+            data_type.normalized_value(value) for value in value_list
         )
 
         for i, value in enumerate(normalized_values):
             if value is None:
                 min_value, max_value = data_type.value_range()
                 raise ValueError(
-                    f"Integer value {attr_list[i].data} is out of range for type {data_type} which supports "
+                    f"Integer value {value_list[i]} is out of range for type {data_type} which supports "
                     f"values in the range [{min_value}, {max_value})"
                 )
 
-        values = cast(tuple[IntAttr, ...], normalized_values)
+        normalized_values = cast(Sequence[int], normalized_values)
 
-        fmt = data_type.format[0] + str(len(data)) + data_type.format[1:]
-
-        bytes_data = struct.pack(fmt, *(attr.data for attr in values))
+        bytes_data = data_type.pack(normalized_values)
 
         return DenseArrayBase([data_type, BytesAttr(bytes_data)])
 
@@ -1899,6 +1944,9 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
     def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
         return self.type.get_element_type()
 
+    def __len__(self) -> int:
+        return len(self.data)
+
     @property
     def shape_is_complete(self) -> bool:
         shape = self.get_shape()
@@ -1995,25 +2043,44 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         ),
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
+        # zero rank type should only hold 1 value
+        if not type.get_shape() and len(data) != 1:
+            raise ValueError(
+                f"A zero-rank {type.name} can only hold 1 value but {len(data)} were given."
+            )
+
+        # splat value given
+        if len(data) == 1 and prod(type.get_shape()) != 1:
+            new_data = (data[0],) * prod(type.get_shape())
+        else:
+            new_data = data
+
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
-            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            new_data = cast(
+                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
+            )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
         elif isinstance(type.element_type, IntegerType):
             new_type = cast(RankedStructure[IntegerType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
+            new_data = cast(
+                Sequence[int] | Sequence[IntegerAttr[IntegerType]], new_data
+            )
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         else:
             new_type = cast(RankedStructure[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
             return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
 
     @staticmethod
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
+        shape: Sequence[int] | None = None,
     ) -> DenseIntOrFPElementsAttr:
-        t = VectorType(data_type, [len(data)])
+        if not shape:
+            shape = [len(data)]
+        t = VectorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod

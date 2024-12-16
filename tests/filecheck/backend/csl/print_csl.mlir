@@ -105,7 +105,7 @@
     %int2 = arith.constant 1 : i32
 
     %float1 = arith.constant 0.0 : f32
-    %float2 = arith.constant 1.1 : f32
+    %float2 = arith.constant 1.5 : f32
 
     %intEq  = arith.cmpi eq,  %int1, %int2 : i32
     %intNe  = arith.cmpi ne,  %int1, %int2 : i32
@@ -204,7 +204,7 @@
   }
 
   "memref.global"() {"sym_name" = "uninit_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value"} : () -> ()
-  "memref.global"() {"sym_name" = "global_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value" = dense<4.2> : tensor<1xf32>} : () -> ()
+  "memref.global"() {"sym_name" = "global_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value" = dense<4.5> : tensor<1xf32>} : () -> ()
   "memref.global"() {"sym_name" = "const_array", "type" = memref<10xi32>, "sym_visibility" = "public", "constant", "initial_value" = dense<10> : tensor<1xi32>} : () -> ()
 
 
@@ -212,8 +212,8 @@
   %global_array = memref.get_global @global_array : memref<10xf32>
   %const_array = memref.get_global @const_array : memref<10xi32>
 
-  %literal_array = arith.constant dense<[1.200000e+00, 2.300000e+00, 3.400000e+00]> : memref<3xf32>
-  %literal_array_w_zeros = arith.constant dense<[1.200000e+00, 0, 3.400000e+00, 0]> : memref<4xf32>
+  %literal_array = arith.constant dense<[1.500000e+00, 2.500000e+00, 3.500000e+00]> : memref<3xf32>
+  %literal_array_w_zeros = arith.constant dense<[1.500000e+00, 0, 3.500000e+00, 0]> : memref<4xf32>
 
   %uninit_ptr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
   %global_ptr = "csl.addressof"(%global_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
@@ -273,8 +273,8 @@ csl.func @initialize() {
   // member access
   %11 = "csl.member_access"(%thing) <{field = "some_field"}> : (!csl.imported_module) -> !csl.comptime_struct
 
-  %0 = arith.constant 3.14 : f32
-  %v0 = arith.constant 2.718 : f16
+  %0 = arith.constant 3.5 : f32
+  %v0 = arith.constant 2.5 : f16
 
   %u32cst = arith.constant 44 : ui32
 
@@ -481,7 +481,7 @@ csl.func @builtins() {
 
 "csl.module"() <{kind=#csl<module_kind layout>}> ({
   %x_dim = "csl.param"() <{param_name = "param_1"}> : () -> i32
-  %init = arith.constant 3.14 : f16
+  %init = arith.constant 3.5 : f16
   %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
 
   csl.layout {
@@ -598,18 +598,18 @@ csl.func @builtins() {
 // CHECK-NEXT:   const intUgt : bool = 0  >  1;
 // CHECK-NEXT:   const intUge : bool = 0  >=  1;
 // CHECK-NEXT:   const floatFalse : bool = false;
-// CHECK-NEXT:   const floatOeq : bool = 0.0  ==  1.1;
-// CHECK-NEXT:   const floatOgt : bool = 0.0  >  1.1;
-// CHECK-NEXT:   const floatOlt : bool = 0.0  <  1.1;
-// CHECK-NEXT:   const floatOle : bool = 0.0  <=  1.1;
-// CHECK-NEXT:   const floatOne : bool = 0.0  !=  1.1;
-// CHECK-NEXT:   const floatUeq : bool = 0.0  ==  1.1;
-// CHECK-NEXT:   const floatUge : bool = 0.0  >=  1.1;
-// CHECK-NEXT:   const floatUlt : bool = 0.0  <  1.1;
-// CHECK-NEXT:   const floatUle : bool = 0.0  <=  1.1;
-// CHECK-NEXT:   const floatUne : bool = 0.0  !=  1.1;
+// CHECK-NEXT:   const floatOeq : bool = 0.0  ==  1.5;
+// CHECK-NEXT:   const floatOgt : bool = 0.0  >  1.5;
+// CHECK-NEXT:   const floatOlt : bool = 0.0  <  1.5;
+// CHECK-NEXT:   const floatOle : bool = 0.0  <=  1.5;
+// CHECK-NEXT:   const floatOne : bool = 0.0  !=  1.5;
+// CHECK-NEXT:   const floatUeq : bool = 0.0  ==  1.5;
+// CHECK-NEXT:   const floatUge : bool = 0.0  >=  1.5;
+// CHECK-NEXT:   const floatUlt : bool = 0.0  <  1.5;
+// CHECK-NEXT:   const floatUle : bool = 0.0  <=  1.5;
+// CHECK-NEXT:   const floatUne : bool = 0.0  !=  1.5;
 // CHECK-NEXT:   const floatTrue : bool = true;
-// CHECK-NEXT:   return (((0  <=  1) or (0.0  >  1.1)) and (0.0  >=  1.1));
+// CHECK-NEXT:   return (((0  <=  1) or (0.0  >  1.5)) and (0.0  >=  1.5));
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn select() mem1d_dsd {
@@ -673,10 +673,10 @@ csl.func @builtins() {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: var uninit_array : [10]f32;
-// CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
+// CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.5);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
-// CHECK-NEXT: const literal_array : [3]f32 = [3]f32 { 1.2, 2.3, 3.4 };
-// CHECK-NEXT: const literal_array_w_zeros : [4]f32 = [4]f32 { 1.2, 0.0, 3.4, 0.0 };
+// CHECK-NEXT: const literal_array : [3]f32 = [3]f32 { 1.5, 2.5, 3.5 };
+// CHECK-NEXT: const literal_array_w_zeros : [4]f32 = [4]f32 { 1.5, 0.0, 3.5, 0.0 };
 // CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
 // CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
@@ -712,8 +712,8 @@ csl.func @builtins() {
 // CHECK-NEXT:   thing.some_func(0, 24);
 // CHECK-NEXT:   const res : i32 = thing.some_func(0, 24);
 // CHECK-NEXT:   const v1 : comptime_struct = thing.some_field;
-// CHECK-NEXT:   const v2 : f32 = 3.14;
-// CHECK-NEXT:   const v0 : f16 = 2.718;
+// CHECK-NEXT:   const v2 : f32 = 3.5;
+// CHECK-NEXT:   const v0 : f16 = 2.5;
 // CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT:   for(@range(i16, 0, 24, 1)) |idx| {
@@ -873,7 +873,7 @@ csl.func @builtins() {
 // CHECK-NEXT: // -----
 // CHECK-NEXT: // FILE: layout.csl
 // CHECK-NEXT: param param_1 : i32;
-// CHECK-NEXT: param param_2 : f16 = 3.14;
+// CHECK-NEXT: param param_2 : f16 = 3.5;
 // CHECK-NEXT: layout {
 // CHECK-NEXT:   @set_rectangle(param_1, 6);
 // CHECK-NEXT:   @set_tile_code(0, 0, "file.csl", );

@@ -645,7 +645,7 @@ builtin.module {
 // CHECK-NEXT:      %north = arith.constant dense<[0.000000e+00, 3.141500e-01]> : memref<2xf32>
 // CHECK-NEXT:      %south = arith.constant dense<[0.000000e+00, 1.000000e+00]> : memref<2xf32>
 // CHECK-NEXT:      %east = arith.constant dense<[0.000000e+00, 1.000000e+00]> : memref<2xf32>
-// CHECK-NEXT:      %west = arith.constant dense<[0.000000e+00, 2.345678e-01]> : memref<2xf32>
+// CHECK-NEXT:      %west = arith.constant dense<[0.000000e+00, 0.234567806]> : memref<2xf32>
 // CHECK-NEXT:      %192 = "csl.addressof"(%east) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:      %193 = "csl.addressof"(%west) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:      %194 = "csl.addressof"(%south) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>

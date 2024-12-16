@@ -24,20 +24,20 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.9.32",
+    "marimo==0.9.34",
     "pre-commit==4.0.1",
-    "ruff==0.8.2",
+    "ruff==0.8.3",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.24.0",
     "pyright==1.1.390",
 ]
-gui = ["textual==0.89.1", "pyclip==0.7"]
-jax = ["jax==0.4.36", "numpy==2.2.0"]
+gui = ["textual==1.0.0", "pyclip==0.7"]
+jax = ["jax==0.4.37", "numpy==2.2.0"]
 onnx = ["onnx==1.17.0", "numpy==2.2.0"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.19.2"]
+wgpu = ["wgpu==0.19.3"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -73,7 +73,7 @@ extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
     "tests/dialects/test_memref.py",
-    "tests/frontend/onnx/test_build_ir.py",
+    "tests/frontend/onnx/test_build_onnx_ir.py",
     "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",

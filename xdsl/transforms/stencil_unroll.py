@@ -42,10 +42,10 @@ def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
                     offset_mapping = list(range(0, len(op.offset)))
                 else:
                     offset_mapping = op.offset_mapping
-
-                new_offset = [o for o in op.offset]
-                for i in offset_mapping:
-                    new_offset[i] += unroll_offset[i]
+                new_offset = [
+                    o + unroll_offset[m]
+                    for o, m in zip(op.offset, offset_mapping, strict=True)
+                ]
 
                 op.offset = IndexAttr.get(*new_offset)
             case DynAccessOp():

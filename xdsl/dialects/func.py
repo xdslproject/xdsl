@@ -11,9 +11,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
 )
 from xdsl.dialects.utils import (
-    parse_call_op_like,
     parse_func_op_like,
-    print_call_op_like,
     print_func_op_like,
 )
 from xdsl.ir import (
@@ -274,6 +272,10 @@ class CallOp(IRDLOperation):
     callee = prop_def(FlatSymbolRefAttrConstr)
     res = var_result_def()
 
+    assembly_format = (
+        "$callee `(` $arguments `)` attr-dict `:` functional-type($arguments, $res)"
+    )
+
     # TODO how do we verify that the types are correct?
     def __init__(
         self,
@@ -288,26 +290,6 @@ class CallOp(IRDLOperation):
             result_types=[return_types],
             properties={"callee": callee},
         )
-
-    def print(self, printer: Printer):
-        print_call_op_like(
-            printer,
-            self,
-            self.callee,
-            self.arguments,
-            self.attributes,
-            reserved_attr_names=("callee",),
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> CallOp:
-        callee, arguments, results, extra_attributes = parse_call_op_like(
-            parser, reserved_attr_names=("callee",)
-        )
-        call = CallOp(callee, arguments, results)
-        if extra_attributes is not None:
-            call.attributes |= extra_attributes.data
-        return call
 
 
 @irdl_op_definition

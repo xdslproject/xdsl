@@ -166,13 +166,18 @@ class ConstantOp(IRDLOperation):
 
     @staticmethod
     def from_int_and_width(
-        value: int | IntAttr, value_type: int | IntegerType | IndexType
+        value: int | IntAttr,
+        value_type: int | IntegerType | IndexType,
+        *,
+        truncate_bits: bool = False,
     ) -> ConstantOp:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
         return ConstantOp.create(
             result_types=[value_type],
-            properties={"value": IntegerAttr(value, value_type)},
+            properties={
+                "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
+            },
         )
 
 

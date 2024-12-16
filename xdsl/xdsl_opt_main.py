@@ -257,18 +257,28 @@ class xDSLOptMain(CommandLineTool):
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 
-        def _print_to_csl(prog: ModuleOp, output: IO[str]):
+        def _output_csl(prog: ModuleOp, output: IO[str]):
             from xdsl.backend.csl.print_csl import print_to_csl
 
             print_to_csl(prog, output)
 
+        def _output_wgsl(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.wgsl.wgsl_printer import WGSLPrinter
+            from xdsl.dialects import gpu
+
+            for op in prog.ops:
+                if isinstance(op, gpu.ModuleOp):
+                    printer = WGSLPrinter()
+                    printer.print(op, output)
+
         self.available_targets["arm-asm"] = _output_arm_asm
+        self.available_targets["csl"] = _output_csl
         self.available_targets["mlir"] = _output_mlir
-        self.available_targets["riscv-asm"] = _output_riscv_asm
-        self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
+        self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["wat"] = _output_wat
-        self.available_targets["csl"] = _print_to_csl
+        self.available_targets["wgsl"] = _output_wgsl
+        self.available_targets["x86-asm"] = _output_x86_asm
 
     def setup_pipeline(self):
         """
