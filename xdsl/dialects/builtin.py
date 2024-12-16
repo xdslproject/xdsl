@@ -1251,9 +1251,6 @@ class DenseArrayBase(ParametrizedAttribute):
 DenseI64ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
 """Type constraint for DenseArrays containing integers of i64 integers."""
 
-DenseI64Array: TypeAlias = Annotated[DenseArrayBase, DenseI64ArrayConstr]
-"""Type alias constrained to dense array of i64 integers."""
-
 
 @irdl_attr_definition
 class FunctionType(ParametrizedAttribute, TypeAttribute):
