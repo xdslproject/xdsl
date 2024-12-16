@@ -1,9 +1,9 @@
 from xdsl.context import MLContext
-from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import (
+    Builtin,
     StringAttr,
 )
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import (
     IndexedIndividualRewrite,
@@ -39,9 +39,10 @@ def test_get_all_possible_rewrite():
     }
     """
 
-    ctx = MLContext(True)
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
+
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
@@ -73,9 +74,9 @@ def test_convert_indexed_individual_rewrites_to_available_pass():
     }
     """
 
-    ctx = MLContext(True)
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
