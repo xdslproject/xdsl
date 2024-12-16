@@ -1,0 +1,41 @@
+name: CI - MLIR-AIE-based Testing
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      MLIR-AIE-Version: 0.0.1.2024121504+aff6da3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Cache MLIR-AIE setup
+      id: cache-binary
+      uses: actions/cache@v4
+      with:
+        path: mlir_aie
+        key: mlir_aie-${{ env.MLIR-AIE-Version }}
+
+    - name: Download and setup MLIR-AIE
+      if: steps.cache-binary.outputs.cache-hit != 'true'
+      run: |
+        wget -q https://github.com/Xilinx/mlir-aie/releases/download/latest-wheels/mlir_aie-${{ env.MLIR-AIE-Version }}-py3-none-manylinux_2_35_x86_64.whl -O mlir_aie.whl
+        unzip -q mlir_aie.whl
+
+    - name: Add MLIR-AIE to PATH
+      run: |
+        echo "$(pwd)/mlir_aie/bin" >> $GITHUB_PATH
+        echo "PATH after adding MLIR-AIE:"
+        echo $PATH
+
+    - name: Test aie-opt version
+      run: |
+        aie-opt --version
