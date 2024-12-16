@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - 'dependabot/**'
+      - 'dependabot/*'
 
 permissions:
   contents: write
@@ -25,15 +26,11 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
-      - name: Update lockfile
+      - name: Install the package locally and update lockfile
         run: |
-          echo "\`\`\`" > uv_output.md
-          XDSL_VERSION_OVERRIDE="0+dynamic" make venv &>> uv_output.md
-          echo "\`\`\`" >> uv_output.md
-      - name: Commit changes
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add uv.lock
-          git commit -m "Update uv lockfile" -F uv_output.md || echo "No changes to commit"
-          git push
+          # Install all default extras.
+          XDSL_VERSION_OVERRIDE="0+dynamic" make venv
+
+      - uses: EndBug/add-and-commit@v9
+        with:
+          add: uv.lock
