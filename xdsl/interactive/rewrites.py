@@ -4,6 +4,7 @@ from typing import NamedTuple
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.passes import AvailablePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
+from xdsl.traits import HasCanonicalizationPatternsTrait
 from xdsl.transforms import individual_rewrite
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
@@ -64,9 +65,14 @@ def get_all_possible_rewrites(
     res: list[IndexedIndividualRewrite] = []
 
     for op_idx, matched_op in enumerate(module.walk()):
-        if matched_op.name not in rewrite_by_name:
-            continue
-        pattern_by_name = rewrite_by_name[matched_op.name]
+        pattern_by_name = rewrite_by_name.get(matched_op.name, {}).copy()
+
+        if (
+            trait := matched_op.get_trait(HasCanonicalizationPatternsTrait)
+        ) is not None:
+            for pattern in trait.get_canonicalization_patterns():
+                pattern_by_name[type(pattern).__name__] = pattern
+
         for pattern_name, pattern in pattern_by_name.items():
             cloned_op = tuple(module.clone().walk())[op_idx]
             rewriter = PatternRewriter(cloned_op)
