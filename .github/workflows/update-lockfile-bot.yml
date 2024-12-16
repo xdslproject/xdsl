@@ -11,7 +11,7 @@ permissions:
 jobs:
   lock:
     if: |
-      github.event.issue.pull_request &&
+      ${{ github.event.issue.pull_request }} &&
       contains(github.event.comment.body, 'please update lockfile') &&
       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
