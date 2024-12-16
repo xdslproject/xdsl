@@ -41,6 +41,8 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     SymbolOpInterface,
+    SymbolTable,
+    SymbolUserOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -60,6 +62,42 @@ class FuncOpCallableInterface(CallableOpInterface):
     def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
         assert isinstance(op, FuncOp)
         return op.function_type.outputs.data
+
+
+class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
+    def verify(self, op: Operation) -> None:
+        assert isinstance(op, CallOp)
+
+        found_callee = SymbolTable.lookup_symbol(op, op.callee)
+        if not found_callee:
+            raise VerifyException(f"'{op.callee}' could not be found in symbol table")
+
+        if not isinstance(found_callee, FuncOp):
+            raise VerifyException(f"'{op.callee}' does not reference a valid function")
+
+        if len(found_callee.function_type.inputs) != len(op.arguments):
+            raise VerifyException("incorrect number of operands for callee")
+
+        if len(found_callee.function_type.outputs) != len(op.result_types):
+            raise VerifyException("incorrect number of results for callee")
+
+        for idx, (found_oprnd, oprnd) in enumerate(
+            zip(found_callee.function_type.inputs, (arg.type for arg in op.arguments))
+        ):
+            if found_oprnd != oprnd:
+                raise VerifyException(
+                    f"operand type mismatch: expected operand type {found_oprnd}, but provided {oprnd} for operand number {idx}"
+                )
+
+        for idx, (found_res, res) in enumerate(
+            zip(found_callee.function_type.outputs, op.result_types)
+        ):
+            if found_res != res:
+                raise VerifyException(
+                    f"result type mismatch: expected result type {found_res}, but provided {res} for result number {idx}"
+                )
+
+        return
 
 
 @irdl_op_definition
@@ -108,7 +146,6 @@ class FuncOp(IRDLOperation):
         if len(self.body.blocks) == 0:
             return
 
-        # TODO: how to verify that there is a terminator?
         entry_block = self.body.blocks.first
         assert entry_block is not None
         block_arg_types = entry_block.arg_types
@@ -272,11 +309,14 @@ class CallOp(IRDLOperation):
     callee = prop_def(FlatSymbolRefAttrConstr)
     res = var_result_def()
 
+    traits = traits_def(
+        CallOpSymbolUserOpInterface(),
+    )
+
     assembly_format = (
         "$callee `(` $arguments `)` attr-dict `:` functional-type($arguments, $res)"
     )
 
-    # TODO how do we verify that the types are correct?
     def __init__(
         self,
         callee: str | SymbolRefAttr,
