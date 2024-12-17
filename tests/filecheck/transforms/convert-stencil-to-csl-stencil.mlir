@@ -243,7 +243,7 @@ builtin.module {
 // CHECK-NEXT:     csl_stencil.yield %5 : tensor<1x64xf32>
 // CHECK-NEXT:   }, {
 // CHECK-NEXT:   ^1(%6 : !stencil.field<[-1,1]x[-1,1]xtensor<64xf32>>, %7 : tensor<1x64xf32>):
-// CHECK-NEXT:     csl_stencil.yield %7 : tensor<1x64xf32>
+// CHECK-NEXT:     csl_stencil.yield
 // CHECK-NEXT:   })
 // CHECK-NEXT:   %1 = tensor.empty() : tensor<64xf32>
 // CHECK-NEXT:   csl_stencil.apply(%arg0 : !stencil.field<[-1,1]x[-1,1]xtensor<64xf32>>, %1 : tensor<64xf32>, %arg1 : !stencil.field<[-1,1]x[-1,1]xtensor<64xf32>>, %0 : tensor<1x64xf32>) outs (%arg4 : !stencil.field<[-1,1]x[-1,1]xtensor<64xf32>>) <{"swaps" = [#csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<64x64>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 2, 1>}> ({
