@@ -606,7 +606,7 @@ class TransformPrefetch(RewritePattern):
 
         block = Block(arg_types=[chunk_buf_t, builtin.IndexType(), op.result.type])
         block2 = Block(arg_types=[op.input_stencil.type, op.result.type])
-        block2.add_op(csl_stencil.YieldOp(block2.args[1]))
+        block2.add_op(csl_stencil.YieldOp())
 
         with ImplicitBuilder(block) as (buf, offset, acc):
             dest = acc
