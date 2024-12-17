@@ -3,8 +3,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
+    I1,
+    AffineMapAttr,
+    ArrayAttr,
+    BoolAttr,
     IndexType,
     MemRefType,
+    TensorOrMemrefOf,
+    TensorType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
     VectorRankConstraint,
@@ -13,9 +19,13 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     irdl_op_definition,
     operand_def,
+    opt_operand_def,
+    opt_prop_def,
+    prop_def,
     result_def,
     traits_def,
     var_operand_def,
@@ -292,6 +302,78 @@ class CreatemaskOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class TransferReadOp(IRDLOperation):
+    name = "vector.transfer_read"
+
+    source = operand_def(TensorOrMemrefOf(Attribute))
+    indices = var_operand_def(IndexType)
+    padding = operand_def(Attribute)
+    mask = opt_operand_def(VectorType[I1])
+
+    permutation_map = prop_def(AffineMapAttr)
+    in_bounds = opt_prop_def(ArrayAttr[BoolAttr])
+
+    result = result_def(VectorType)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def verify_(self):
+        assert isa(self.source.type, MemRefType[Attribute] | TensorType[Attribute])
+        assert isa(self.result.type, VectorType[Attribute])
+        # TODO verify.
+
+    @staticmethod
+    def get(
+        source: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
+        padding: SSAValue | Operation,
+        result_type: Attribute,
+        mask: Sequence[SSAValue | Operation] | None = None,
+        permutation_map: AffineMapAttr | None = None,
+        in_bounds: ArrayAttr[BoolAttr] | None = None,
+    ):
+        return TransferReadOp.build(
+            operands=[source, indices, padding, mask],
+            result_types=[result_type],
+            properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
+        )
+
+
+@irdl_op_definition
+class TransferWriteOp(IRDLOperation):
+    name = "vector.transfer_write"
+
+    vector = operand_def(VectorType[Attribute])
+    source = operand_def(TensorOrMemrefOf(Attribute))
+    indices = var_operand_def(IndexType)
+    mask = opt_operand_def(VectorType[I1])
+
+    in_bounds = prop_def(ArrayAttr[BoolAttr])
+    permutation_map = prop_def(AffineMapAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def verify_(self):
+        assert isa(self.source.type, MemRefType[Attribute] | TensorType[Attribute])
+        assert isa(self.vector.type, VectorType[Attribute])
+        # TODO verify
+
+    @staticmethod
+    def get(
+        vector: SSAValue | Operation,
+        source: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
+        mask: Sequence[SSAValue | Operation] | None = None,
+        permutation_map: AffineMapAttr | None = None,
+        in_bounds: ArrayAttr[BoolAttr] | None = None,
+    ):
+        return TransferWriteOp.build(
+            operands=[vector, source, indices, mask],
+            properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
+        )
+
+
 Vector = Dialect(
     "vector",
     [
@@ -303,6 +385,8 @@ Vector = Dialect(
         MaskedstoreOp,
         PrintOp,
         CreatemaskOp,
+        TransferReadOp,
+        TransferWriteOp,
     ],
     [],
 )

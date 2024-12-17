@@ -1891,8 +1891,8 @@ class TensorOrMemrefOf(
         }
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+        if isinstance(attr, MemRefType) or isinstance(attr, TensorType):
+            attr = cast(MemRefType[Attribute] | TensorType[Attribute], attr)
             self.elem_constr.verify(attr.element_type, constraint_context)
         else:
             raise VerifyException(f"Expected tensor or memref type, got {attr}")
