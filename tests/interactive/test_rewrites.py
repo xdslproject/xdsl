@@ -1,24 +1,19 @@
 from xdsl.context import MLContext
-from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import (
+    Builtin,
     StringAttr,
 )
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.passes import AvailablePass
-from xdsl.interactive.rewrites import (
-    IndexedIndividualRewrite,
-    IndividualRewrite,
-    convert_indexed_individual_rewrites_to_available_pass,
-    get_all_possible_rewrites,
-)
+from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms import individual_rewrite
-from xdsl.utils.parse_pipeline import parse_pipeline
+from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
+from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 class Rewrite(RewritePattern):
@@ -39,82 +34,39 @@ def test_get_all_possible_rewrite():
     }
     """
 
-    ctx = MLContext(True)
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
+
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     expected_res = [
-        (
-            IndexedIndividualRewrite(
-                1, IndividualRewrite(operation="test.op", pattern="TestRewrite")
-            )
+        AvailablePass(
+            display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
+            module_pass=ApplyIndividualRewritePass,
+            pass_spec=PipelinePassSpec(
+                "apply-individual-rewrite",
+                {
+                    "matched_operation_index": (1,),
+                    "operation_name": ("test.op",),
+                    "pattern_name": ("TestRewrite",),
+                },
+            ),
         ),
-        (
-            IndexedIndividualRewrite(
-                operation_index=2,
-                rewrite=IndividualRewrite(operation="test.op", pattern="TestRewrite"),
-            )
+        AvailablePass(
+            display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
+            module_pass=ApplyIndividualRewritePass,
+            pass_spec=PipelinePassSpec(
+                "apply-individual-rewrite",
+                {
+                    "matched_operation_index": (2,),
+                    "operation_name": ("test.op",),
+                    "pattern_name": ("TestRewrite",),
+                },
+            ),
         ),
     ]
 
     res = get_all_possible_rewrites(module, {"test.op": {"TestRewrite": Rewrite()}})
-    assert res == expected_res
-
-
-def test_convert_indexed_individual_rewrites_to_available_pass():
-    # build module
-    prog = """
-    builtin.module {
-    "test.op"() {"label" = "a"} : () -> ()
-    "test.op"() {"label" = "a"} : () -> ()
-    "test.op"() {"label" = "b"} : () -> ()
-    }
-    """
-
-    ctx = MLContext(True)
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
-    parser = Parser(ctx, prog)
-    module = parser.parse_module()
-
-    rewrites = (
-        (
-            IndexedIndividualRewrite(
-                1, IndividualRewrite(operation="test.op", pattern="TestRewrite")
-            )
-        ),
-        (
-            IndexedIndividualRewrite(
-                operation_index=2,
-                rewrite=IndividualRewrite(operation="test.op", pattern="TestRewrite"),
-            )
-        ),
-    )
-
-    expected_res = tuple(
-        (
-            AvailablePass(
-                display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
-                module_pass=individual_rewrite.ApplyIndividualRewritePass,
-                pass_spec=list(
-                    parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=1 operation_name="test.op" pattern_name="TestRewrite"}'
-                    )
-                )[0],
-            ),
-            AvailablePass(
-                display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
-                module_pass=individual_rewrite.ApplyIndividualRewritePass,
-                pass_spec=list(
-                    parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=2 operation_name="test.op" pattern_name="TestRewrite"}'
-                    )
-                )[0],
-            ),
-        )
-    )
-
-    res = convert_indexed_individual_rewrites_to_available_pass(rewrites, module)
     assert res == expected_res

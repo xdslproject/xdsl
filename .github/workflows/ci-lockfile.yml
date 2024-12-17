@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: CI - Python Notebooks
+name: CI - Lockfile
 
 on:
   # Trigger the workflow on push or pull request,
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.12']
 
     steps:
     - uses: actions/checkout@v4
@@ -31,14 +31,8 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       run: uv python install ${{ matrix.python-version }}
 
-    - name: Install the project
-      run: make venv
-
-    - name: Run examples/tutorials
+    - name: Install the package locally and check for lockfile mismatch
       run: |
-        # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
-        uv run pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
-
-    - name: Test marimo notebooks
-      run: |
-        make tests-marimo
+        # Install all default extras.
+        # Fail if the lockfile dependencies are out of date with pyproject.toml.
+        XDSL_VERSION_OVERRIDE="0+dynamic" uv sync --extra gui --extra dev --extra jax --extra riscv --locked

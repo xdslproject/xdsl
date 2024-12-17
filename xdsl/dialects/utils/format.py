@@ -7,7 +7,6 @@ from xdsl.dialects.builtin import (
     DictionaryAttr,
     FunctionType,
     StringAttr,
-    SymbolRefAttr,
 )
 from xdsl.ir import (
     Attribute,
@@ -20,49 +19,6 @@ from xdsl.ir import (
 from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-
-
-def print_call_op_like(
-    printer: Printer,
-    op: Operation,
-    callee: SymbolRefAttr,
-    args: Sequence[SSAValue],
-    attributes: dict[str, Attribute],
-    *,
-    reserved_attr_names: Sequence[str],
-):
-    printer.print_string(" ")
-    printer.print_attribute(callee)
-    printer.print_string("(")
-    printer.print_list(args, printer.print_ssa_value)
-    printer.print_string(")")
-    printer.print_op_attributes(attributes, reserved_attr_names=reserved_attr_names)
-    printer.print_string(" : ")
-    printer.print_operation_type(op)
-
-
-def parse_call_op_like(
-    parser: Parser, *, reserved_attr_names: Sequence[str]
-) -> tuple[
-    SymbolRefAttr, Sequence[SSAValue], Sequence[Attribute], DictionaryAttr | None
-]:
-    callee = parser.parse_symbol_name()
-    unresolved_arguments = parser.parse_op_args_list()
-    extra_attributes = parser.parse_optional_attr_dict_with_reserved_attr_names(
-        reserved_attr_names
-    )
-    parser.parse_characters(":")
-    pos = parser.pos
-    function_type = parser.parse_function_type()
-    arguments = parser.resolve_operands(
-        unresolved_arguments, function_type.inputs.data, pos
-    )
-    return (
-        SymbolRefAttr(callee),
-        arguments,
-        function_type.outputs.data,
-        extra_attributes,
-    )
 
 
 class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
