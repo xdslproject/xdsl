@@ -4,8 +4,9 @@ import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
+from typing import cast
 
-from xdsl.ir.affine import AffineDimExpr, AffineExpr
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
 
@@ -169,6 +170,19 @@ class AffineMap:
             results=results,
         )
 
+    def compose_with_values(self, values: Sequence[int]) -> tuple[int, ...]:
+        """
+        TODO document
+        TODO test
+        Same as SmallVector<int64_t, 4> AffineMap::compose(ArrayRef<int64_t> values) const from AffineMap.cpp
+        """
+        assert self.num_symbols == 0
+        expressions: list[AffineExpr] = []
+        for value in values:
+            expressions.append(AffineExpr.constant(value))
+        result_map = self.compose(AffineMap(0, 0, tuple(expressions)))
+        return tuple(cast(AffineConstantExpr, res).value for res in result_map.results)
+
     def inverse_permutation(self) -> AffineMap | None:
         """
         Returns a map of codomain to domain dimensions such that the first
@@ -244,6 +258,26 @@ class AffineMap:
         return self.replace_dims_and_symbols(
             new_dims, new_symbols, result_num_dims, self.num_symbols
         )
+
+    def is_function_of_dim(self, position: int) -> bool:
+        """
+        TODO document
+        TODO test
+        """
+        return any(result.is_function_of_dim(position) for result in self.results)
+
+    def get_unused_dims(self) -> tuple[bool, ...]:
+        """
+        TODO document
+        TODO test
+        """
+        result: list[bool] = [True for _ in range(self.num_dims)]
+
+        for dim in range(self.num_dims):
+            if self.is_function_of_dim(dim):
+                result[dim] = False
+
+        return tuple(result)
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

@@ -5,9 +5,11 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import (
     I1,
     AffineMapAttr,
+    AnyFloat,
     ArrayAttr,
     BoolAttr,
     IndexType,
+    IntegerType,
     MemRefType,
     TensorOrMemrefOf,
     TensorType,
@@ -18,6 +20,7 @@ from xdsl.dialects.builtin import (
     i1,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -302,6 +305,137 @@ class CreatemaskOp(IRDLOperation):
         )
 
 
+def verify_permutation_map(
+    op: TransferReadOp | TransferWriteOp,
+    permutation_map: AffineMap,
+):
+    """
+    TODO test
+    """
+
+    # This mirrors VectorOps.cpp -> verifyPermutationMap
+    seen: list[bool] = [False for _ in range(permutation_map.num_dims)]
+
+    for expr in permutation_map.results:
+        if isa(expr, AffineConstantExpr):
+            if expr.value != 0:
+                raise VerifyException(
+                    f'"{op.name}" requires a projected permutation_map (at most one dim or the zero constant can appear in each result)'
+                )
+            continue
+        if not isa(expr, AffineDimExpr):
+            raise VerifyException(
+                f'"{op.name}" requires a projected permutation_map (at most one "dim or the zero constant can appear in each result)'
+            )
+        if seen[expr.position]:
+            raise VerifyException(
+                f'"{op.name}" requires a permutation_map that is a permutation (found one dim used more than once)'
+            )
+        seen[expr.position] = True
+
+
+def verify_transfer_op(
+    op: TransferReadOp | TransferWriteOp,
+    shaped_type: MemRefType[Attribute] | TensorType[Attribute],
+    vector_type: VectorType[Attribute],
+    mask_type: VectorType[I1],
+    inferred_mask_type: VectorType[I1],
+    permutation_map: AffineMap,
+    in_bounds: ArrayAttr[BoolAttr],
+):
+    """
+    TODO test
+    """
+
+    # This mirrors VectorOps.cpp -> verifyTransferOp from MLIR
+    element_type = shaped_type.element_type
+    vector_element_type = vector_type.element_type
+
+    if isa(element_type, VectorType[Attribute]):
+        # Memref or tensor has vector element type
+        # TODO verify vector element type
+        pass
+    else:
+        # Memref of tensor has scalar element type
+        if isa(vector_element_type, IndexType) and not isa(element_type, IndexType):
+            raise VerifyException(
+                "Element type of source is index, expected element type of vector also to be index"
+            )
+        assert isa(vector_element_type, IntegerType | AnyFloat)
+        assert isa(element_type, IntegerType | AnyFloat)
+
+        minor_size = (
+            1 if vector_type.get_num_dims() == 0 else vector_type.get_shape()[-1]
+        )
+        result_vec_size = vector_element_type.bitwidth * minor_size
+        if result_vec_size % element_type.bitwidth != 0:
+            raise VerifyException(
+                f'"{op.name}" requires the bitwidth of the minor 1-D vector to be an integral multiple of the bitwidth of the source element type'
+            )
+
+    # Check that permutation map results match rank of vector type.
+    if len(permutation_map.results) != vector_type.get_num_dims():
+        raise VerifyException(
+            f'"{op.name}" requires a permutation_map with result dims of the same rank as the vector type'
+        )
+
+    if permutation_map.num_symbols != 0:
+        raise VerifyException(f'"{op.name}" requires permutation_map without symbols')
+
+    if permutation_map.num_dims != shaped_type.get_num_dims():
+        raise VerifyException(
+            f'"{op.name}" requires a permutation_map with input dims of the same rank as the source type'
+        )
+
+    if mask_type is not None:
+        if mask_type != inferred_mask_type:
+            raise VerifyException(
+                f'"{op.name}" inferred mask type ({inferred_mask_type}) and mask operand type ({mask_type}) don\'t match'
+            )
+
+    if in_bounds is not None:
+        if len(in_bounds) != len(permutation_map.results):
+            raise VerifyException(
+                f'"{op.name}" expects the optional in_bounds attr of same rank as permutation_map results: {str(permutation_map)} vs in_bounds of of size {len(in_bounds)}'
+            )
+
+        for i in range(len(permutation_map.results)):
+            if (
+                isa(permutation_map.results[i], AffineConstantExpr)
+                and not in_bounds.data[i].value.data
+            ):
+                raise VerifyException(
+                    f'"{op.name}" requires broadcast dimensions to be in-bounds'
+                )
+
+
+def infer_transfer_op_mask_type(
+    vector_type: VectorType[Attribute],
+    affine_map: AffineMap,
+):
+    """
+    TODO test
+    """
+    inverse_permutation_map = affine_map.compress_dims(
+        affine_map.get_unused_dims()
+    ).inverse_permutation()
+
+    assert inverse_permutation_map is not None
+
+    mask_shape = inverse_permutation_map.compose_with_values(vector_type.get_shape())
+
+    scalable_dims = inverse_permutation_map.eval(
+        [1 if dim_scalable else 0 for dim_scalable in vector_type.get_scalable_dims()],
+        [],
+    )
+
+    return VectorType(
+        i1,
+        mask_shape,
+        [dim_scalable == 1 for dim_scalable in scalable_dims],
+    )
+
+
 @irdl_op_definition
 class TransferReadOp(IRDLOperation):
     name = "vector.transfer_read"
@@ -321,10 +455,9 @@ class TransferReadOp(IRDLOperation):
     def verify_(self):
         assert isa(self.source.type, MemRefType[Attribute] | TensorType[Attribute])
         assert isa(self.result.type, VectorType[Attribute])
-        # TODO verify.
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         source: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
         padding: SSAValue | Operation,
@@ -333,7 +466,7 @@ class TransferReadOp(IRDLOperation):
         permutation_map: AffineMapAttr | None = None,
         in_bounds: ArrayAttr[BoolAttr] | None = None,
     ):
-        return TransferReadOp.build(
+        super().__init__(
             operands=[source, indices, padding, mask],
             result_types=[result_type],
             properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
@@ -357,10 +490,9 @@ class TransferWriteOp(IRDLOperation):
     def verify_(self):
         assert isa(self.source.type, MemRefType[Attribute] | TensorType[Attribute])
         assert isa(self.vector.type, VectorType[Attribute])
-        # TODO verify
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         vector: SSAValue | Operation,
         source: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
@@ -368,7 +500,7 @@ class TransferWriteOp(IRDLOperation):
         permutation_map: AffineMapAttr | None = None,
         in_bounds: ArrayAttr[BoolAttr] | None = None,
     ):
-        return TransferWriteOp.build(
+        super().__init__(
             operands=[vector, source, indices, mask],
             properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
         )

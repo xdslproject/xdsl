@@ -942,26 +942,33 @@ class VectorType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[AttributeCovT]
-    num_scalable_dims: ParameterDef[IntAttr]
+    scalable_dims: ParameterDef[ArrayAttr[BoolAttr]]
 
     def __init__(
         self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
-        num_scalable_dims: int | IntAttr = 0,
+        scalable_dims: Sequence[bool] | ArrayAttr[BoolAttr] = [],
     ) -> None:
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        if isinstance(num_scalable_dims, int):
-            num_scalable_dims = IntAttr(num_scalable_dims)
-        super().__init__([shape, element_type, num_scalable_dims])
+
+        if not isa(scalable_dims, ArrayAttr[BoolAttr]):
+            assert isa(scalable_dims, Sequence[bool])
+            scalable_dims = ArrayAttr(
+                [IntegerAttr.from_bool(value) for value in scalable_dims]
+            )
+        super().__init__([shape, element_type, scalable_dims])
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_num_scalable_dims(self) -> int:
-        return self.num_scalable_dims.data
+        return len(self.scalable_dims)
+
+    def get_scalable_dims(self) -> tuple[bool, ...]:
+        return tuple(value.value.data == 1 for value in self.scalable_dims.data)
 
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape)
