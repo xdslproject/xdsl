@@ -133,12 +133,15 @@ class LowerSubviewOpPass(RewritePattern):
                 len(scounts) == 1
             ), "1d access into nd memref must specify one size > 1"
             size, counts = scounts.most_common()[0]
+            size = cast(int, size)
             assert (
                 counts == 1
             ), "1d access into nd memref can only specify one size > 1, which can occur only once"
             size_op = arith.ConstantOp.from_int_and_width(size, 16)
             offsets = [
-                IntegerAttr(o, 16 if o != memref.SubviewOp.DYNAMIC_INDEX else 64)
+                IntegerAttr(
+                    cast(int, o), 16 if o != memref.SubviewOp.DYNAMIC_INDEX else 64
+                )
                 for o in op.static_offsets.get_values()
             ]
             dsd_op = csl.GetMemDsdOp(
