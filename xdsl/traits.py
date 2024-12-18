@@ -242,7 +242,7 @@ class IsolatedFromAbove(OpTrait):
 class SymbolUserOpInterface(OpTrait, abc.ABC):
     """
     Used to represent operations that reference Symbol operations. This provides the
-    ability To perform safe and efficient verification of symbol uses, as well as
+    ability to perform safe and efficient verification of symbol uses, as well as
     additional functionality.
 
     https://mlir.llvm.org/docs/Interfaces/#symbolinterfaces
