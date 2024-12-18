@@ -41,7 +41,7 @@ class ApplyRedundantOperands(RewritePattern):
                 continue
             a.replace_by(bbargs[rbargs[i]])
 
-        cse(op.region.block)
+        cse(op.region.block, rewriter)
 
 
 class ApplyUnusedOperands(RewritePattern):
