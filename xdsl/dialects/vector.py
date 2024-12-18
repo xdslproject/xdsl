@@ -320,16 +320,22 @@ class ExtractElementOp(IRDLOperation):
         if self.position is None:
             raise VerifyException("Expected position for 1-D vector.")
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         vector: SSAValue | Operation,
         position: SSAValue | Operation | None = None,
     ):
         vector = SSAValue.get(vector)
         assert isa(vector.type, VectorType[Attribute])
+
+        # Fail fast or rely on verification?
+        assert (vector.type.get_num_dims() == 1 and position is not None) or (
+            vector.type.get_num_dims() == 0 and position is None
+        )
+
         result_type = vector.type.element_type
 
-        return ExtractElementOp.build(
+        super().__init__(
             operands=[vector, position],
             result_types=[result_type],
         )
@@ -365,15 +371,23 @@ class InsertElementOp(IRDLOperation):
         if self.position is None:
             raise VerifyException("Expected position for 1-D vector.")
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         source: SSAValue | Operation,
         dest: SSAValue | Operation,
         position: SSAValue | Operation | None = None,
     ):
+        dest = SSAValue.get(dest)
+        assert isa(dest.type, VectorType[Attribute])
+
         result_type = SSAValue.get(dest).type
 
-        InsertElementOp.build(
+        # Fail fast or rely on verification?
+        assert (dest.type.get_num_dims() == 1 and position is not None) or (
+            dest.type.get_num_dims() == 0 and position is None
+        )
+
+        super().__init__(
             operands=[source, dest, position],
             result_types=[result_type],
         )
