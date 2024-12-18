@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
@@ -13,9 +12,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
 )
 from xdsl.dialects.utils import (
-    parse_call_op_like,
     parse_func_op_like,
-    print_call_op_like,
     print_func_op_like,
 )
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
@@ -83,6 +80,10 @@ class CallOp(riscv.RISCVInstruction):
     callee = attr_def(SymbolRefAttr)
     ress = var_result_def(riscv.RISCVRegisterType)
 
+    assembly_format = (
+        "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
+    )
+
     def __init__(
         self,
         callee: SymbolRefAttr,
@@ -109,27 +110,6 @@ class CallOp(riscv.RISCVInstruction):
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
-
-    def print(self, printer: Printer):
-        print_call_op_like(
-            printer,
-            self,
-            self.callee,
-            self.args,
-            self.attributes,
-            reserved_attr_names=("callee",),
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> CallOp:
-        callee, arguments, results, extra_attributes = parse_call_op_like(
-            parser, reserved_attr_names=("callee",)
-        )
-        ress = cast(tuple[riscv.RISCVRegisterType, ...], results)
-        call = CallOp(callee, arguments, ress)
-        if extra_attributes is not None:
-            call.attributes |= extra_attributes.data
-        return call
 
     def assembly_instruction_name(self) -> str:
         return "jal"

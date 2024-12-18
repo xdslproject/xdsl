@@ -2,8 +2,10 @@ from pathlib import Path
 
 import pytest
 
+from xdsl.utils.exceptions import ParseError
+
 from ..frontend.location import Location
-from ..frontend.parser import ParseError, Parser
+from ..frontend.parser import ToyParser
 from ..frontend.toy_ast import (
     BinaryExprAST,
     CallExprAST,
@@ -24,12 +26,12 @@ def test_parse_ast():
     ast_toy = Path("docs/Toy/examples/ast.toy")
 
     with open(ast_toy) as f:
-        parser = Parser(ast_toy, f.read())
+        parser = ToyParser(ast_toy, f.read())
 
     parsed_module_ast = parser.parseModule()
 
     def loc(line: int, col: int) -> Location:
-        return Location(ast_toy, line, col)
+        return Location(str(ast_toy), line, col)
 
     module_ast = ModuleAST(
         (
@@ -179,8 +181,8 @@ def test_parse_ast():
 
 def test_parse_error():
     program = "def("
-    parser = Parser(Path(), program)
-    with pytest.raises(ParseError):
+    parser = ToyParser(Path(), program)
+    with pytest.raises(ParseError, match="Expected expression"):
         parser.parseIdentifierExpr()
 
 
@@ -188,12 +190,12 @@ def test_parse_scalar():
     ast_toy = Path("docs/Toy/examples/scalar.toy")
 
     with open(ast_toy) as f:
-        parser = Parser(ast_toy, f.read())
+        parser = ToyParser(ast_toy, f.read())
 
     parsed_module_ast = parser.parseModule()
 
     def loc(line: int, col: int) -> Location:
-        return Location(ast_toy, line, col)
+        return Location(str(ast_toy), line, col)
 
     module_ast = ModuleAST(
         (

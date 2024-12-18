@@ -179,6 +179,7 @@ class InputApp(App[None]):
         self.output_text_area = OutputTextArea(id="output")
         self.selected_passes_list_view = ListView(id="selected_passes_list_view")
         self.passes_tree = Tree(label=".", id="passes_tree")
+        self.passes_tree.auto_expand = False
         self.input_operation_count_datatable = DataTable(
             id="input_operation_count_datatable"
         )
@@ -265,7 +266,7 @@ class InputApp(App[None]):
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
-                    individual_rewrite.REWRITE_BY_NAMES,
+                    individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
                 )
 
     def watch_available_pass_list(
@@ -508,7 +509,7 @@ class InputApp(App[None]):
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
-            individual_rewrite.REWRITE_BY_NAMES,
+            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
 
         self.expand_node(expanded_node, child_pass_list)
@@ -635,7 +636,9 @@ class InputApp(App[None]):
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
-        self.dark = not self.dark
+        self.theme = (
+            "textual-dark" if self.theme == "textual-light" else "textual-light"
+        )
 
     def action_quit_app(self) -> None:
         """An action to quit the app."""
