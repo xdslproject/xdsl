@@ -1166,9 +1166,9 @@ class GetMemDsdOp(_GetDsdOp):
             raise VerifyException(
                 "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
             )
-        if self.offsets is not None and len(self.offsets) != len(self.sizes):
+        if self.offsets is not None and len(self.offsets) < len(self.sizes):
             raise VerifyException(
-                "Dimensions of offsets must match dimensions of sizes"
+                "Dimensions of offsets must match (or exceed) dimensions of sizes"
             )
         if self.strides is not None and len(self.strides) != len(self.sizes):
             raise VerifyException(

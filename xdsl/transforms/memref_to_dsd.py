@@ -1,3 +1,4 @@
+import collections
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
@@ -120,6 +121,35 @@ class LowerSubviewOpPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
         assert isa(op.source.type, MemRefType[Attribute])
+        assert isa(op.result.type, MemRefType[Attribute])
+
+        if len(op.result.type.get_shape()) == 1 and len(op.source.type.get_shape()) > 1:
+            # 1d subview onto a nd memref
+            sizes = op.static_sizes.get_values()
+            scounts = collections.Counter(sizes)
+            if 1 in scounts:
+                scounts.pop(1)
+            assert (
+                len(scounts) == 1
+            ), "1d access into nd memref must specify one size > 1"
+            size, counts = scounts.most_common()[0]
+            assert (
+                counts == 1
+            ), "1d access into nd memref can only specify one size > 1, which can occur only once"
+            size_op = arith.ConstantOp.from_int_and_width(size, 16)
+            offsets = [
+                IntegerAttr(o, 16 if o != memref.SubviewOp.DYNAMIC_INDEX else 64)
+                for o in op.static_offsets.get_values()
+            ]
+            dsd_op = csl.GetMemDsdOp(
+                operands=[op.source, [size_op]],
+                properties={"offsets": ArrayAttr(offsets)},
+                result_types=[csl.DsdType(csl.DsdKind.mem1d_dsd)],
+            )
+            offset_ops = self._update_offsets(op, dsd_op) if op.offsets else []
+            rewriter.replace_matched_op([size_op, dsd_op, *offset_ops])
+            return
+
         assert len(op.static_sizes) == 1, "not implemented"
         assert len(op.static_offsets) == 1, "not implemented"
         assert len(op.static_strides) == 1, "not implemented"
@@ -214,7 +244,7 @@ class LowerSubviewOpPass(RewritePattern):
 
         static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
 
-        if static_offsets[0] == memref.SubviewOp.DYNAMIC_INDEX:
+        if subview.offsets:
             ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value))
             ops.append(
                 csl.IncrementDsdOffsetOp.build(

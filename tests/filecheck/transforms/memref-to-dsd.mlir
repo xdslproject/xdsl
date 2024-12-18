@@ -98,27 +98,17 @@ builtin.module {
 // CHECK-NEXT: %26 = "test.op"() : () -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.fadds"(%26, %26, %26) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
-%33 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
-%34 = "csl.load_var"(%33) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-"csl.store_var"(%33, %34) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+%39 = memref.alloc() {"alignment" = 64 : i64} : memref<3x64xf32>
+%40 = "memref.subview"(%39, %0) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: 0, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>}> : (memref<3x64xf32>, index) -> memref<32xf32, strided<[1], offset: ?>>
 
-// CHECK-NEXT: %27 = "csl.variable"() : () -> !csl.var<!csl<dsd mem1d_dsd>>
-// CHECK-NEXT: %28 = "csl.load_var"(%27) : (!csl.var<!csl<dsd mem1d_dsd>>) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: "csl.store_var"(%27, %28) : (!csl.var<!csl<dsd mem1d_dsd>>, !csl<dsd mem1d_dsd>) -> ()
-
-// ensure that pre-existing get_mem_dsd ops access the underlying buffer, not the get_mem_dsd created on top of it
-
-%36 = arith.constant 510 : i16
-%37 = "csl.get_mem_dsd"(%b, %36) : (memref<510xf32>, i16) -> !csl<dsd mem1d_dsd>
-
-// CHECK-NEXT: %29 = arith.constant 510 : i16
-// CHECK-NEXT: %30 = "csl.get_mem_dsd"(%b, %29) : (memref<510xf32>, i16) -> !csl<dsd mem1d_dsd>
-
-%38 = memref.load %b[%28] : memref<510xf32>
-"test.op"(%38) : (f32) -> ()
-
-// CHECK-NEXT: %31 = memref.load %b[%13] : memref<510xf32>
-// CHECK-NEXT: "test.op"(%31) : (f32) -> ()
+// CHECK-NEXT: %27 = "csl.zeros"() : () -> memref<3x64xf32>
+// CHECK-NEXT: %28 = arith.constant 3 : i16
+// CHECK-NEXT: %29 = arith.constant 64 : i16
+// CHECK-NEXT: %30 = "csl.get_mem_dsd"(%27, %28, %29) : (memref<3x64xf32>, i16, i16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT: %31 = arith.constant 32 : i16
+// CHECK-NEXT: %32 = "csl.get_mem_dsd"(%27, %31) <{"offsets" = [0 : i16, -9223372036854775808 : i64]}> : (memref<3x64xf32>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %33 = arith.index_cast %0 : index to si16
+// CHECK-NEXT: %34 = "csl.increment_dsd_offset"(%32, %33) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
 
 }) {sym_name = "program"} :  () -> ()
 }
