@@ -81,12 +81,12 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
         if len(found_callee.function_type.outputs) != len(op.result_types):
             raise VerifyException("incorrect number of results for callee")
 
-        for idx, (found_oprnd, oprnd) in enumerate(
+        for idx, (found_operand, operand) in enumerate(
             zip(found_callee.function_type.inputs, (arg.type for arg in op.arguments))
         ):
-            if found_oprnd != oprnd:
+            if found_operand != operand:
                 raise VerifyException(
-                    f"operand type mismatch: expected operand type {found_oprnd}, but provided {oprnd} for operand number {idx}"
+                    f"operand type mismatch: expected operand type {found_operand}, but provided {operand} for operand number {idx}"
                 )
 
         for idx, (found_res, res) in enumerate(
