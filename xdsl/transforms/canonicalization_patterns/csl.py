@@ -39,10 +39,10 @@ class GetDsdAndOffsetFolding(RewritePattern):
             and isa(cnst.value, AnyIntegerAttr)
         ):
             tensor_access = AffineMap.from_callable(
-                lambda x: (x + cnst.value.value.data,)
+                lambda x: (x + cnst.value.value.data,)  # pyright: ignore [reportOperatorIssue, reportUnknownLambdaType, reportAttributeAccessIssue, reportUnknownMemberType]
             )
             if op.tensor_access:
-                tensor_access.compose(op.tensor_access.data)
+                tensor_access = tensor_access.compose(op.tensor_access.data)
             rewriter.replace_matched_op(
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
@@ -106,7 +106,7 @@ class GetDsdAndStrideFolding(RewritePattern):
             and isattr(cnst.value, AnyIntegerAttrConstr)
         ):
             tensor_access = AffineMap.from_callable(
-                lambda x: (x * cnst.value.value.data,)
+                lambda x: (x * cnst.value.value.data,)  # pyright: ignore [reportOperatorIssue, reportUnknownLambdaType, reportAttributeAccessIssue, reportUnknownMemberType]
             )
             rewriter.replace_matched_op(
                 new_op := csl.GetMemDsdOp.build(
