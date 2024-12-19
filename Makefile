@@ -6,7 +6,9 @@ COVERAGE_FILE ?= .coverage
 
 # allow overriding the name of the venv directory
 VENV_DIR ?= .venv
-UV_PROJECT_ENVIRONMENT=${VENV_DIR}
+
+# use activated venv if any
+export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
 VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
