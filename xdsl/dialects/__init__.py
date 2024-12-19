@@ -18,11 +18,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Affine
 
-    def get_aie():
-        from xdsl.dialects.experimental.aie import AIE
-
-        return AIE
-
     def get_air():
         from xdsl.dialects.experimental.air import AIR
 
@@ -336,7 +331,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     return {
         "accfg": get_accfg,
         "affine": get_affine,
-        "aie": get_aie,
         "air": get_air,
         "arith": get_arith,
         "arm": get_arm,
