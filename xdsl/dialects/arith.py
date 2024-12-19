@@ -437,7 +437,7 @@ class AddUIExtendedOp(IRDLOperation):
             return IntegerType(1)
         if isinstance(input_type, VectorType):
             return VectorType(
-                IntegerType(1), input_type.shape, input_type.scalable_dims
+                IntegerType(1), input_type.shape, input_type.num_scalable_dims
             )
         if isinstance(input_type, UnrankedTensorType):
             return UnrankedTensorType(IntegerType(1))

@@ -321,42 +321,37 @@ def test_array_len_and_iter_attr():
 
 
 @pytest.mark.parametrize(
-    "attr, dims, scalable_dims",
+    "attr, dims, num_scalable_dims",
     [
-        (i32, (1, 2), (False, False)),
-        (i32, (1, 2), (True, False)),
-        (i32, (1, 1, 3), (False, False, False)),
-        (i64, (1, 1, 3), (True, True, False)),
-        (i64, (), ()),
+        (i32, (1, 2), 0),
+        (i32, (1, 2), 1),
+        (i32, (1, 1, 3), 0),
+        (i64, (1, 1, 3), 2),
+        (i64, (), 0),
     ],
 )
-def test_vector_constructor(
-    attr: Attribute, dims: list[int], scalable_dims: list[bool]
-):
-    vec = VectorType(attr, dims, scalable_dims)
+def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims: int):
+    vec = VectorType(attr, dims, num_scalable_dims)
 
     assert vec.get_num_dims() == len(dims)
-    assert vec.get_num_scalable_dims() == len(scalable_dims)
-    assert vec.get_scalable_dims() == ArrayAttr(
-        [IntegerAttr.from_bool(scalable) for scalable in scalable_dims]
-    )
+    assert vec.get_num_scalable_dims() == num_scalable_dims
     assert vec.get_shape() == dims
 
 
 @pytest.mark.parametrize(
-    "dims, scalable_dims",
+    "dims, num_scalable_dims",
     [
         ([], 1),
-        ([1, 2], (True, True, True)),
+        ([1, 2], 3),
         ([1], 2),
     ],
 )
-def test_vector_verifier_fail(dims: list[int], scalable_dims: list[bool]):
+def test_vector_verifier_fail(dims: list[int], num_scalable_dims: int):
     with pytest.raises(VerifyException):
-        VectorType(i32, dims, scalable_dims)
+        VectorType(i32, dims, num_scalable_dims)
 
     with pytest.raises(VerifyException):
-        VectorType(i32, dims, ())
+        VectorType(i32, dims, -1)
 
 
 def test_vector_rank_constraint_verify():

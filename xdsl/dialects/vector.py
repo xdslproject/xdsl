@@ -340,13 +340,15 @@ def verify_transfer_op(
     shaped_type: MemRefType[Attribute] | TensorType[Attribute],
     vector_type: VectorType[Attribute],
     mask_type: VectorType[I1] | None,
-    inferred_mask_type: VectorType[I1],
+    inferred_mask_type: VectorType[I1] | None,
     permutation_map: AffineMap,
     in_bounds: ArrayAttr[BoolAttr],
 ):
     """
     TODO test
     """
+    # WJOG9GVF
+    # TODO fix: remove None type from inferred_mask_type once 7S4F0FZA has been fixed
 
     # This mirrors VectorOps.cpp -> verifyTransferOp from MLIR
     element_type = shaped_type.element_type
@@ -388,11 +390,15 @@ def verify_transfer_op(
             f'"{op.name}" requires a permutation_map with input dims of the same rank as the source type'
         )
 
-    if mask_type is not None:
-        if mask_type != inferred_mask_type:
-            raise VerifyException(
-                f'"{op.name}" inferred mask type ({inferred_mask_type}) and mask operand type ({mask_type}) don\'t match'
-            )
+    # WJOG9GVF
+    # TODO fix: uncomment this when 7S4F0FZA has been fixed
+
+    # See 7S4F0FZA for more information
+    # if mask_type:
+    #     if mask_type != inferred_mask_type:
+    #         raise VerifyException(
+    #             f'"{op.name}" inferred mask type ({inferred_mask_type}) and mask operand type ({mask_type}) don\'t match'
+    #         )
 
     if in_bounds is not None:
         if len(in_bounds) != len(permutation_map.results):
@@ -413,28 +419,35 @@ def verify_transfer_op(
 def infer_transfer_op_mask_type(
     vector_type: VectorType[Attribute],
     affine_map: AffineMap,
-):
+) -> VectorType[I1] | None:
     """
     TODO test
     """
-    inverse_permutation_map = affine_map.compress_dims(
-        affine_map.get_unused_dims()
-    ).inverse_permutation()
 
-    assert inverse_permutation_map is not None
+    # 7S4F0FZA
+    # TODO uncomment and test this once VectorType has been fixed, see issue #3654
+    # When you do this also fix all WJOG9GVF
 
-    mask_shape = inverse_permutation_map.compose_with_values(vector_type.get_shape())
+    # inverse_permutation_map = affine_map.compress_dims(
+    #     affine_map.get_unused_dims()
+    # ).inverse_permutation()
 
-    scalable_dims = inverse_permutation_map.eval(
-        [1 if dim_scalable else 0 for dim_scalable in vector_type.get_scalable_dims()],
-        [],
-    )
+    # assert inverse_permutation_map is not None
 
-    return VectorType(
-        i1,
-        mask_shape,
-        [dim_scalable == 1 for dim_scalable in scalable_dims],
-    )
+    # mask_shape = inverse_permutation_map.compose_with_values(vector_type.get_shape())
+
+    # scalable_dims = inverse_permutation_map.eval(
+    #     [1 if dim_scalable else 0 for dim_scalable in vector_type.get_scalable_dims()],
+    #     [],
+    # )
+
+    # return VectorType(
+    #     i1,
+    #     mask_shape,
+    #     [dim_scalable == 1 for dim_scalable in scalable_dims],
+    # )
+
+    return None
 
 
 class VectorTransferOp(ABC):
