@@ -2,7 +2,6 @@ from xdsl.dialects import arith
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyIntegerAttr,
-    AnyIntegerAttrConstr,
 )
 from xdsl.dialects.csl import csl
 from xdsl.ir import OpResult
@@ -13,7 +12,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr
 
 
 class GetDsdAndOffsetFolding(RewritePattern):
@@ -36,10 +34,10 @@ class GetDsdAndOffsetFolding(RewritePattern):
         if (
             isinstance(offset_op.offset, OpResult)
             and isinstance(cnst := offset_op.offset.op, arith.ConstantOp)
-            and isa(cnst.value, AnyIntegerAttr)
+            and isa(attr_val := cnst.value, AnyIntegerAttr)
         ):
             tensor_access = AffineMap.from_callable(
-                lambda x: (x + cnst.value.value.data,)  # pyright: ignore [reportOperatorIssue, reportUnknownLambdaType, reportAttributeAccessIssue, reportUnknownMemberType]
+                lambda x: (x + attr_val.value.data,)
             )
             if op.tensor_access:
                 tensor_access = tensor_access.compose(op.tensor_access.data)
@@ -103,10 +101,10 @@ class GetDsdAndStrideFolding(RewritePattern):
         if (
             isinstance(stride_op.stride, OpResult)
             and isinstance(cnst := stride_op.stride.op, arith.ConstantOp)
-            and isattr(cnst.value, AnyIntegerAttrConstr)
+            and isa(attr_val := cnst.value, AnyIntegerAttr)
         ):
             tensor_access = AffineMap.from_callable(
-                lambda x: (x * cnst.value.value.data,)  # pyright: ignore [reportOperatorIssue, reportUnknownLambdaType, reportAttributeAccessIssue, reportUnknownMemberType]
+                lambda x: (x * attr_val.value.data,)
             )
             rewriter.replace_matched_op(
                 new_op := csl.GetMemDsdOp.build(
