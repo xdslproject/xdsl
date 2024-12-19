@@ -715,10 +715,12 @@ class TransferWriteOp(IRDLOperation, VectorTransferOp):
         mask: Sequence[SSAValue | Operation] | None = None,
         permutation_map: AffineMapAttr | None = None,
         in_bounds: ArrayAttr[BoolAttr] | None = None,
+        result_type: TensorType[Attribute] | None = None
     ):
         super().__init__(
             operands=[vector, source, indices, mask],
             properties={"permutation_map": permutation_map, "in_bounds": in_bounds},
+            result_types=[result_type]
         )
 
     # override
