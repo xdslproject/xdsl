@@ -260,24 +260,20 @@ class AffineMap:
         )
 
     def is_function_of_dim(self, position: int) -> bool:
-        """
-        TODO document
-        TODO test
-        """
-        return any(result.is_function_of_dim(position) for result in self.results)
+        return position in self.used_dims()
 
-    def get_unused_dims(self) -> tuple[bool, ...]:
-        """
-        TODO document
-        TODO test
-        """
-        result: list[bool] = [True for _ in range(self.num_dims)]
+    def used_dims(self) -> set[int]:
+        result: set[int] = set()
 
-        for dim in range(self.num_dims):
-            if self.is_function_of_dim(dim):
-                result[dim] = False
+        for expr in self.results:
+            result = result.union(expr.used_dims())
 
-        return tuple(result)
+        return result
+
+    def unused_dims(self) -> set[int]:
+        dims = {i for i in range(self.num_dims)}
+
+        return dims.difference(self.used_dims())
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

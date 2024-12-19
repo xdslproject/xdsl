@@ -110,17 +110,6 @@ class AffineExpr:
 
         raise ValueError("Unreachable")
 
-    def is_function_of_dim(self, position: int) -> bool:
-        if isinstance(self, AffineDimExpr):
-            return self.position == position
-
-        if isinstance(self, AffineBinaryOpExpr):
-            return self.lhs.is_function_of_dim(position) or self.rhs.is_function_of_dim(
-                position
-            )
-
-        return False
-
     def _try_fold_constant(
         self, other: AffineExpr, kind: AffineBinaryOpKind
     ) -> AffineExpr | None:
@@ -281,6 +270,9 @@ class AffineExpr:
 
     def used_dims(self) -> set[int]:
         return {expr.position for expr in self.dfs() if isinstance(expr, AffineDimExpr)}
+
+    def is_function_of_dim(self, position: int) -> bool:
+        return position in self.used_dims()
 
 
 class AffineBinaryOpKind(Enum):
