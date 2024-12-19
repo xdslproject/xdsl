@@ -252,3 +252,9 @@ def test_affine_map_unused_dims():
     assert AffineMap.from_callable(lambda i, j: (i, j)).unused_dims() == set()
     assert AffineMap.from_callable(lambda i, j, _: (i + j,)).unused_dims() == {2}
     assert AffineMap.from_callable(lambda i, _, k: (i, k)).unused_dims() == {1}
+
+
+def test_unused_dims_bit_vector():
+    assert AffineMap.from_callable(lambda i, j: (i, j)).unused_dims_bit_vector() == (False, False)
+    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).unused_dims_bit_vector() == (False, False, True)
+    assert AffineMap.from_callable(lambda i, _, k: (i, k)).unused_dims_bit_vector() == (False, True, False)

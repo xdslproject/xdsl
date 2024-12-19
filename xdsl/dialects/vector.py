@@ -417,7 +417,6 @@ def verify_transfer_op(
                     f'"{op.name}" requires broadcast dimensions to be in-bounds'
                 )
 
-
 def infer_transfer_op_mask_type(
     vector_type: VectorType[Attribute],
     affine_map: AffineMap,
@@ -431,7 +430,7 @@ def infer_transfer_op_mask_type(
     # When you do this also fix all WJOG9GVF
 
     # inverse_permutation_map = affine_map.compress_dims(
-    #     affine_map.get_unused_dims()
+    #     affine_map.unused_dims_bit_vector()
     # ).inverse_permutation()
 
     # assert inverse_permutation_map

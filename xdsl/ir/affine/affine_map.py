@@ -275,6 +275,10 @@ class AffineMap:
 
         return dims.difference(self.used_dims())
 
+    def unused_dims_bit_vector(self) -> tuple[bool, ...]:
+        unused_dims = self.unused_dims()
+        return tuple(True if position in unused_dims else False for position in range(self.num_dims))
+
     def __str__(self) -> str:
         # Create comma seperated list of dims.
         dims = ["d" + str(i) for i in range(self.num_dims)]
