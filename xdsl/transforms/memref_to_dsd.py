@@ -141,6 +141,9 @@ class LowerSubviewOpPass(RewritePattern):
             assert (
                 size_count == 1
             ), "1d access into nd memref can only specify one size > 1, which can occur only once"
+            assert all(
+                stride == 1 for stride in op.static_strides.get_values()
+            ), "All strides must equal 1"
 
             amap: list[AffineExpr] = [
                 AffineConstantExpr(
