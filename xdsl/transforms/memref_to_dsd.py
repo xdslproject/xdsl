@@ -166,7 +166,12 @@ class LowerSubviewOpPass(RewritePattern):
         last_op = stride_ops[-1] if len(stride_ops) > 0 else last_op
         offset_ops = self._update_offsets(op, last_op)
 
-        rewriter.replace_matched_op([*size_ops, *stride_ops, *offset_ops])
+        new_ops = [*size_ops, *stride_ops, *offset_ops]
+        if new_ops:
+            rewriter.replace_matched_op([*size_ops, *stride_ops, *offset_ops])
+        else:
+            # subview has no effect (todo: this could be canonicalized away)
+            rewriter.replace_matched_op([], new_results=[op.source])
 
     @staticmethod
     def _update_sizes(

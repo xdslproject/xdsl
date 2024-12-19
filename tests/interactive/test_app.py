@@ -329,11 +329,11 @@ async def test_rewrites():
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
-            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:AddiIdentityRight",
+            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
             module_pass=individual_rewrite.ApplyIndividualRewritePass,
             pass_spec=list(
                 parse_pipeline(
-                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
+                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
                 )
             )[0],
         )
@@ -354,7 +354,7 @@ async def test_rewrites():
                 individual_rewrite.ApplyIndividualRewritePass,
                 list(
                     parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
+                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
                     )
                 )[0],
             ),
@@ -563,7 +563,7 @@ async def test_apply_individual_rewrite():
                 n.data is not None
                 and n.data[1] is not None
                 and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiConstantProp"}'
+                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationConstantProp"}'
             ):
                 node = n
 
@@ -593,7 +593,7 @@ async def test_apply_individual_rewrite():
                 n.data is not None
                 and n.data[1] is not None
                 and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddiIdentityRight"}'
+                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
             ):
                 node = n
 
