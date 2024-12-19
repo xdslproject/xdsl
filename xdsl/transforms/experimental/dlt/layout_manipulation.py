@@ -8,6 +8,9 @@ T = typing.TypeVar("T", bound=dlt.Layout)
 
 
 class InConsistentLayoutException(Exception):
+
+    def __init__(self):
+        super().__init__()
     pass
 
 
@@ -31,7 +34,6 @@ class ManipulatorMap:
         layout: dlt.Layout,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -41,13 +43,15 @@ class ManipulatorMap:
         Minimal reduction should ensure than all members/dimensions that are not allowable are used in finding the subtree layout. If this is not possible an InconsistantLayout exception is raised
 
         """
-        possible_extents_check = all(
-            e in allowable_extents for e in layout.get_all_init_base_extents()
-        )
-        if not possible_extents_check:
-            raise InConsistentLayoutException(
-                f"layout requires extents that are not made available."
-            )
+        # possible_extents_check = all(
+        #     e in allowable_extents for e in layout.get_all_init_base_extents()
+        # )
+        # if not possible_extents_check:
+        #     raise InConsistentLayoutException(
+        #         f"layout requires extents that are not made available."
+        #     )
+        #
+        extents = layout.get_all_init_base_extents()
 
         must_remove_members = members - allowable_members
         must_remove_dimensions = dimensions - allowable_dimensions
@@ -57,7 +61,6 @@ class ManipulatorMap:
                 layout,
                 members,
                 dimensions,
-                extents,
                 allowable_members,
                 allowable_dimensions,
                 allowable_extents,
@@ -94,12 +97,20 @@ class ManipulatorMap:
         dimensions: set[dlt.DimensionAttr],
         through_index_reducible: bool,
     ) -> tuple[Layout, set[MemberAttr], set[DimensionAttr], bool] | None:
-        initial_type = layout.contents_type.select_members(members).select_dimensions(dimensions)
-        try_result = self.get(layout).try_reduction(layout, set(members), set(dimensions), through_index_reducible)
+        initial_type = layout.contents_type.select_members(members).select_dimensions(
+            dimensions
+        )
+        try_result = self.get(layout).try_reduction(
+            layout, set(members), set(dimensions), through_index_reducible
+        )
         if try_result is not None:
             new_layout, new_members, new_dimensions, new_idx_reduce = try_result
-            new_type = new_layout.contents_type.select_members(new_members).select_dimensions(new_dimensions)
-            assert new_type == initial_type, "try_reduction failed to provide the same resulting type as an answer"
+            new_type = new_layout.contents_type.select_members(
+                new_members
+            ).select_dimensions(new_dimensions)
+            assert (
+                new_type == initial_type
+            ), "try_reduction failed to provide the same resulting type as an answer"
         return try_result
 
     def structural_reduction(
@@ -108,7 +119,9 @@ class ManipulatorMap:
         # this must either return a child of layout if there is a single child that without consuming a member
         # specifier or dimension can select the dlt_type, or None
         if not layout.contents_type.has_selectable_type(dlt_type):
-            raise ValueError(f"Cannot select type {dlt_type} from layout {layout}")
+            raise ValueError(
+                f"Cannot select type {dlt_type} from layout {layout} with type {layout.contents_type}"
+            )
         else:
             result = self.get(layout).structural_reduction(layout, dlt_type)
             assert result is None or result in layout.get_children()
@@ -133,17 +146,13 @@ class ManipulatorMap:
     def can_layout_derive_to(
         self,
         layout: dlt.Layout,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
         through_index_reducible: bool,
     ) -> bool:
 
-        assert starting_point.layout.has_sub_layout(layout)
-        assert end_point.layout == end_layout
         assert layout.contents_type.has_selectable(
             selectable_members, selectable_dimensions
         )
@@ -155,9 +164,7 @@ class ManipulatorMap:
             return True
         result = self.get(layout).can_layout_derive_to(
             layout,
-            starting_point,
             end_layout,
-            end_point,
             selectable_members,
             selectable_dimensions,
             usable_extents,
@@ -172,79 +179,45 @@ class ManipulatorMap:
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         if members or dimensions:
             new_layout = self.get(parent_layout).embed_layout_in(
-                child_layout, parent_layout, members, dimensions, extents
+                child_layout, parent_layout, members, dimensions, extents, child_reduced
             )
             return new_layout
         else:
             if child_layout.contents_type != parent_layout.contents_type:
-                raise InConsistentLayoutException()
+                if not parent_layout.contents_type.has_selectable_type(
+                    child_layout.contents_type
+                ):
+                    raise InConsistentLayoutException()
             if child_layout == parent_layout:
                 return child_layout
             if child_layout.node_matches(parent_layout):
                 assert len(child_layout.get_children()) == len(
                     parent_layout.get_children()
                 )
-                return parent_layout.from_new_children(
+                new_parent = parent_layout.from_new_children(
                     [
-                        self.embed_layout_in(cs_c, ps_c, set(), set(), extents)
+                        self.embed_layout_in(cs_c, ps_c, set(), set(), extents, True)
                         for cs_c, ps_c in zip(
                             child_layout.get_children(), parent_layout.get_children()
                         )
                     ]
                 )
-            if isinstance(parent_layout, dlt.AbstractLayoutAttr):
-                # if the parent side is Abstract then we check that the children layouts of the parent side can have
-                # the minimally reduced children of the child side embbed in them directly. Simply this checks that
-                # the children of the parent side are correctly positioned sub-trees of the new layout (but also
-                # accounts for more possible abstract layouts further down)
-                al = typing.cast(dlt.AbstractLayoutAttr, parent_layout)
-                for a_child in al.children:
-                    abstract_members = set(a_child.member_specifiers)
-                    abstract_dimensions = set(a_child.dimensions)
+                if new_parent != child_layout:
+                    from dtl.visualise import LayoutPlotter
+                    LayoutPlotter.plot_layout({"new_parent": new_parent, "child_layout": child_layout}, view=True)
+                assert new_parent == child_layout
+                return new_parent
+            new_layout = self.get(parent_layout).embed_layout_in(
+                child_layout, parent_layout, members, dimensions, extents, child_reduced
+            )
+            if new_layout.contents_type != parent_layout.contents_type:
+                raise InConsistentLayoutException()
+            return new_layout
 
-                    new_child_layout_sub_tree, ms, ds = self.minimal_reduction(
-                        child_layout,
-                        abstract_members,
-                        abstract_dimensions,
-                        set(),
-                        set(),
-                        set(),
-                        extents,
-                        False,
-                    )
-                    assert len(ms) == 0 and len(ds) == 0
-
-                    embedded_subtree = None
-                    while embedded_subtree is None:
-                        try:
-                            embedded_subtree = self.embed_layout_in(
-                                new_child_layout_sub_tree,
-                                a_child.child,
-                                set(),
-                                set(),
-                                extents,
-                            )
-                        except InConsistentLayoutException:
-                            embedded_subtree = None
-                            new_child_layout_sub_tree = self.structural_reduction(
-                                new_child_layout_sub_tree, a_child.contents_type
-                            )
-                            if new_child_layout_sub_tree is None:
-                                raise InConsistentLayoutException()
-
-                    if embedded_subtree != new_child_layout_sub_tree:
-                        raise InConsistentLayoutException()
-                if isinstance(child_layout, dlt.AbstractLayoutAttr):
-                    return child_layout
-                else:
-                    return dlt.AbstractLayoutAttr(
-                        [dlt.AbstractChildAttr([], [], child_layout)]
-                    )
-
-            raise InConsistentLayoutException()
 
 class LayoutNodeManipulator(abc.ABC, typing.Generic[T]):
 
@@ -257,7 +230,6 @@ class LayoutNodeManipulator(abc.ABC, typing.Generic[T]):
         layout: T,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -297,9 +269,7 @@ class LayoutNodeManipulator(abc.ABC, typing.Generic[T]):
     def can_layout_derive_to(
         self,
         layout: T,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -315,6 +285,7 @@ class LayoutNodeManipulator(abc.ABC, typing.Generic[T]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         raise NotImplementedError
 
@@ -326,7 +297,6 @@ class AbstractManipulator(LayoutNodeManipulator[dlt.AbstractLayoutAttr]):
         layout: dlt.AbstractLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -344,7 +314,6 @@ class AbstractManipulator(LayoutNodeManipulator[dlt.AbstractLayoutAttr]):
             child.child,
             members.difference(child.member_specifiers),
             dimensions.difference(child.dimensions),
-            extents,
             allowable_members,
             allowable_dimensions,
             allowable_extents,
@@ -412,9 +381,7 @@ class AbstractManipulator(LayoutNodeManipulator[dlt.AbstractLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.AbstractLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -423,8 +390,13 @@ class AbstractManipulator(LayoutNodeManipulator[dlt.AbstractLayoutAttr]):
         possible_children = [
             child
             for child in layout.children
-            if child.contents_type.has_selectable(
-                selectable_members, selectable_dimensions
+            # if child.contents_type.has_selectable(
+            #     selectable_members, selectable_dimensions
+            # )
+            if child.contents_type.has_selectable_type(
+                end_layout.contents_type.add_members(selectable_members).add_dimensions(
+                    selectable_dimensions
+                )
             )
         ]
         if len(possible_children) != 1:
@@ -432,9 +404,7 @@ class AbstractManipulator(LayoutNodeManipulator[dlt.AbstractLayoutAttr]):
         child = possible_children[0]
         return self.manipulator.can_layout_derive_to(
             child.child,
-            starting_point,
             end_layout,
-            end_point,
             selectable_members.difference(child.member_specifiers),
             selectable_dimensions.difference(child.dimensions),
             usable_extents,
@@ -448,17 +418,17 @@ class AbstractManipulator(LayoutNodeManipulator[dlt.AbstractLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         children = []
         modified_child = None
         for a_child in parent_layout.children:
-            if (
-                a_child.contents_type.has_selectable(members, dimensions)
-                and a_child.contents_type.with_selection(members, dimensions)
-                == child_layout.contents_type
-            ):
-                if modified_child is not None:
-                    raise InConsistentLayoutException()
+            modi = bool(a_child.contents_type.has_selectable(members, dimensions))
+            # modi &= (members | dimensions)!=set() or bool(set(a_child.contents_type.select(members, dimensions).elements).issuperset(set(child_layout.contents_type.elements)))
+            if modi:
+                modi &= bool(set(a_child.contents_type.select(members, dimensions).elements) & set(child_layout.contents_type.elements))
+            # modi &= bool(child_layout.contents_type.has_selectable_type(a_child.contents_type.select(members, dimensions)))
+            if modi:
                 abstract_members = set(a_child.member_specifiers) - members
                 abstract_dimensions = set(a_child.dimensions) - dimensions
                 new_child_layout_sub_tree, ms, ds = self.manipulator.minimal_reduction(
@@ -467,24 +437,79 @@ class AbstractManipulator(LayoutNodeManipulator[dlt.AbstractLayoutAttr]):
                     abstract_dimensions,
                     set(),
                     set(),
-                    set(),
                     extents,
                     False,
                 )
+                a_child_reduced = child_reduced | (new_child_layout_sub_tree != child_layout)
                 assert len(ms) == 0 and len(ds) == 0
-                embedded_subtree = self.manipulator.embed_layout_in(
-                    new_child_layout_sub_tree, a_child.child, set(), set(), extents
-                )
-                if embedded_subtree != new_child_layout_sub_tree:
+                embedded_subtree = None
+                while embedded_subtree is None:
+                    a_child_reduced |= (new_child_layout_sub_tree != child_layout)
+                    try:
+                        embedded_subtree = self.manipulator.embed_layout_in(
+                            new_child_layout_sub_tree,
+                            a_child.child,
+                            members - set(a_child.member_specifiers),
+                            dimensions - set(a_child.dimensions),
+                            extents,
+                            a_child_reduced,
+                        )
+                    except InConsistentLayoutException:
+                        embedded_subtree = None
+                        if new_child_layout_sub_tree.contents_type.has_selectable_type(
+                            a_child.child.contents_type
+                        ):
+                            new_child_layout_sub_tree = (
+                                self.manipulator.structural_reduction(
+                                    new_child_layout_sub_tree,
+                                    a_child.child.contents_type,
+                                )
+                            )
+                            a_child_reduced = True
+                        else:
+                            raise InConsistentLayoutException()
+                        if new_child_layout_sub_tree is None:
+                            raise InConsistentLayoutException()
+
+                if not self.manipulator.can_layout_derive_to(
+                    embedded_subtree,
+                    new_child_layout_sub_tree,
+                    members - set(a_child.member_specifiers),
+                    dimensions - set(a_child.dimensions),
+                    extents,
+                    False,
+                ):
                     raise InConsistentLayoutException()
-                modified_child = dlt.AbstractChildAttr(
-                    abstract_members, abstract_dimensions, child_layout
+                # embedded_child_layout = self.manipulator.embed_layout_in(embedded_subtree, child_layout, abstract_members, abstract_dimensions, extents, False)
+                new_modified_child = dlt.AbstractChildAttr(
+                    set(a_child.member_specifiers) & members,
+                    set(a_child.dimensions) & dimensions,
+                    # child_layout if abstract_members | abstract_dimensions else embedded_subtree,
+                    # embedded_child_layout,
+                    # child_layout if child_layout.contents_type.has_selectable_type(a_child.child.contents_type.add_members(abstract_members).add_dimensions(abstract_dimensions)) else embedded_subtree,
+                    child_layout if a_child_reduced else embedded_subtree,
                 )
-                children.append(modified_child)
+                if modified_child is None:
+                    modified_child = new_modified_child
+                    children.append(modified_child)
+                elif new_modified_child != modified_child:
+                    raise InConsistentLayoutException()
+                else:
+                    pass  # modified child has joined multiple abstract parts into one abstract part
+
             else:
                 children.append(a_child)
         if modified_child is None:
             raise InConsistentLayoutException()
+        if child_reduced:
+            assert len(members) == 0 and len(dimensions) == 0
+            if dlt.AbstractLayoutAttr(children) == child_layout:
+                return child_layout
+            elif len(children) == 1 and children[0].child == child_layout:
+                assert len(children[0].member_specifiers) == 0 and len(children[0].dimensions) == 0
+                return child_layout
+            else:
+                assert False
         return dlt.AbstractLayoutAttr(children)
 
 
@@ -495,7 +520,6 @@ class PrimitiveManipulator(LayoutNodeManipulator[dlt.PrimitiveLayoutAttr]):
         layout: dlt.PrimitiveLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -536,9 +560,7 @@ class PrimitiveManipulator(LayoutNodeManipulator[dlt.PrimitiveLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.PrimitiveLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -553,6 +575,7 @@ class PrimitiveManipulator(LayoutNodeManipulator[dlt.PrimitiveLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         raise InConsistentLayoutException()
 
@@ -564,7 +587,6 @@ class ConstantManipulator(LayoutNodeManipulator[dlt.ConstantLayoutAttr]):
         layout: dlt.ConstantLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -605,9 +627,7 @@ class ConstantManipulator(LayoutNodeManipulator[dlt.ConstantLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.ConstantLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -622,6 +642,7 @@ class ConstantManipulator(LayoutNodeManipulator[dlt.ConstantLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         raise InConsistentLayoutException()
 
@@ -632,7 +653,6 @@ class MemberManipulator(LayoutNodeManipulator[dlt.MemberLayoutAttr]):
         layout: dlt.MemberLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -645,7 +665,6 @@ class MemberManipulator(LayoutNodeManipulator[dlt.MemberLayoutAttr]):
             child,
             members - {layout.member_specifier},
             dimensions,
-            extents,
             allowable_members,
             allowable_dimensions,
             allowable_extents,
@@ -660,7 +679,12 @@ class MemberManipulator(LayoutNodeManipulator[dlt.MemberLayoutAttr]):
         through_index_reducible: bool,
     ) -> tuple[dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr], bool] | None:
         if layout.member_specifier in members:
-            return layout.child, members - {layout.member_specifier}, dimensions, through_index_reducible,
+            return (
+                layout.child,
+                members - {layout.member_specifier},
+                dimensions,
+                through_index_reducible,
+            )
         return None
 
     def structural_reduction(
@@ -687,9 +711,7 @@ class MemberManipulator(LayoutNodeManipulator[dlt.MemberLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.MemberLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -699,9 +721,7 @@ class MemberManipulator(LayoutNodeManipulator[dlt.MemberLayoutAttr]):
             return False
         return self.manipulator.can_layout_derive_to(
             layout.child,
-            starting_point,
             end_layout,
-            end_point,
             selectable_members - {layout.member_specifier},
             selectable_dimensions,
             usable_extents,
@@ -715,6 +735,7 @@ class MemberManipulator(LayoutNodeManipulator[dlt.MemberLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         if parent_layout.member_specifier not in members:
             raise InConsistentLayoutException()
@@ -726,6 +747,7 @@ class MemberManipulator(LayoutNodeManipulator[dlt.MemberLayoutAttr]):
                     members - {parent_layout.member_specifier},
                     dimensions,
                     extents,
+                    child_reduced,
                 )
             ],
         )
@@ -738,7 +760,6 @@ class DenseManipulator(LayoutNodeManipulator[dlt.DenseLayoutAttr]):
         layout: dlt.DenseLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -750,7 +771,6 @@ class DenseManipulator(LayoutNodeManipulator[dlt.DenseLayoutAttr]):
             layout.child,
             members,
             dimensions - {layout.dimension},
-            extents,
             allowable_members,
             allowable_dimensions,
             allowable_extents,
@@ -765,7 +785,12 @@ class DenseManipulator(LayoutNodeManipulator[dlt.DenseLayoutAttr]):
         through_index_reducible: bool,
     ) -> tuple[dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr], bool] | None:
         if layout.dimension in dimensions:
-            return layout.child, members, dimensions - {layout.dimension}, through_index_reducible
+            return (
+                layout.child,
+                members,
+                dimensions - {layout.dimension},
+                through_index_reducible,
+            )
         return None
 
     def structural_reduction(
@@ -792,9 +817,7 @@ class DenseManipulator(LayoutNodeManipulator[dlt.DenseLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.DenseLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -804,9 +827,7 @@ class DenseManipulator(LayoutNodeManipulator[dlt.DenseLayoutAttr]):
             return False
         return self.manipulator.can_layout_derive_to(
             layout.child,
-            starting_point,
             end_layout,
-            end_point,
             selectable_members,
             selectable_dimensions - {layout.dimension},
             usable_extents,
@@ -820,6 +841,7 @@ class DenseManipulator(LayoutNodeManipulator[dlt.DenseLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         if parent_layout.dimension not in dimensions:
             raise InConsistentLayoutException()
@@ -831,6 +853,7 @@ class DenseManipulator(LayoutNodeManipulator[dlt.DenseLayoutAttr]):
                     members,
                     dimensions - {parent_layout.dimension},
                     extents,
+                    child_reduced,
                 )
             ]
         )
@@ -843,7 +866,6 @@ class StructManipulator(LayoutNodeManipulator[dlt.StructLayoutAttr]):
         layout: dlt.StructLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -861,7 +883,6 @@ class StructManipulator(LayoutNodeManipulator[dlt.StructLayoutAttr]):
             child,
             members,
             dimensions,
-            extents,
             allowable_members,
             allowable_dimensions,
             allowable_extents,
@@ -923,9 +944,7 @@ class StructManipulator(LayoutNodeManipulator[dlt.StructLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.StructLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -943,9 +962,7 @@ class StructManipulator(LayoutNodeManipulator[dlt.StructLayoutAttr]):
         child = possible_children[0]
         return self.manipulator.can_layout_derive_to(
             child,
-            starting_point,
             end_layout,
-            end_point,
             selectable_members,
             selectable_dimensions,
             usable_extents,
@@ -959,6 +976,7 @@ class StructManipulator(LayoutNodeManipulator[dlt.StructLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         children = []
         modified_child = None
@@ -971,7 +989,7 @@ class StructManipulator(LayoutNodeManipulator[dlt.StructLayoutAttr]):
                 if modified_child is not None:
                     raise InConsistentLayoutException()
                 modified_child = self.manipulator.embed_layout_in(
-                    child_layout, child, members, dimensions, extents
+                    child_layout, child, members, dimensions, extents, child_reduced
                 )
                 children.append(modified_child)
             else:
@@ -988,7 +1006,6 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
         layout: dlt.ArithDropLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1000,7 +1017,6 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
             layout.child,
             members,
             dimensions - {layout.dimension},
-            extents,
             allowable_members,
             allowable_dimensions,
             allowable_extents,
@@ -1015,7 +1031,12 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
         through_index_reducible: bool,
     ) -> tuple[dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr], bool] | None:
         if layout.dimension in dimensions:
-            return layout.child, members, dimensions - {layout.dimension}, through_index_reducible
+            return (
+                layout.child,
+                members,
+                dimensions - {layout.dimension},
+                through_index_reducible,
+            )
         return None
 
     def structural_reduction(
@@ -1042,9 +1063,7 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.ArithDropLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1054,9 +1073,7 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
             return False
         return self.manipulator.can_layout_derive_to(
             layout.child,
-            starting_point,
             end_layout,
-            end_point,
             selectable_members,
             selectable_dimensions - {layout.dimension},
             usable_extents,
@@ -1070,6 +1087,7 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         if parent_layout.dimension not in dimensions:
             raise InConsistentLayoutException()
@@ -1081,6 +1099,7 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
                     members,
                     dimensions - {parent_layout.dimension},
                     extents,
+                    child_reduced,
                 )
             ]
         )
@@ -1093,7 +1112,6 @@ class ArithReplaceManipulator(LayoutNodeManipulator[dlt.ArithReplaceLayoutAttr])
         layout: dlt.ArithReplaceLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1123,7 +1141,6 @@ class ArithReplaceManipulator(LayoutNodeManipulator[dlt.ArithReplaceLayoutAttr])
             layout.child,
             new_members,
             new_dimensions,
-            extents,
             allowable_members,
             allowable_dimensions,
             allowable_extents,
@@ -1187,9 +1204,7 @@ class ArithReplaceManipulator(LayoutNodeManipulator[dlt.ArithReplaceLayoutAttr])
     def can_layout_derive_to(
         self,
         layout: dlt.ArithReplaceLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1202,9 +1217,7 @@ class ArithReplaceManipulator(LayoutNodeManipulator[dlt.ArithReplaceLayoutAttr])
 
         return self.manipulator.can_layout_derive_to(
             layout.child,
-            starting_point,
             end_layout,
-            end_point,
             selectable_members | {replacement.inner_member},
             (selectable_dimensions - {replacement.outer_dimension})
             | {replacement.inner_dimension},
@@ -1219,6 +1232,7 @@ class ArithReplaceManipulator(LayoutNodeManipulator[dlt.ArithReplaceLayoutAttr])
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         dims = parent_layout.outer_dimensions() & dimensions
         if len(dims) != 1:
@@ -1251,6 +1265,7 @@ class ArithReplaceManipulator(LayoutNodeManipulator[dlt.ArithReplaceLayoutAttr])
                     new_members,
                     new_dimensions,
                     extents,
+                    child_reduced,
                 )
             ]
         )
@@ -1263,7 +1278,6 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
         layout: dlt.IndexingLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1275,12 +1289,14 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
             )
         else:
             dir_mems = (
-                    members & layout.directChild.contents_type.all_member_attributes()
+                members & layout.directChild.contents_type.all_member_attributes()
             )
             dir_dims = (
-                    dimensions & layout.directChild.contents_type.all_dimension_attributes()
+                dimensions & layout.directChild.contents_type.all_dimension_attributes()
             )
-            dir_type = TypeType([(dir_mems, dir_dims, layout.indexedChild.indexed_by())])
+            dir_type = TypeType(
+                [(dir_mems, dir_dims, layout.indexedChild.indexed_by())]
+            )
 
             selections = layout.directChild.contents_type.has_selectable_type(dir_type)
             if (dlt.SetAttr([]), dlt.SetAttr([])) not in selections:
@@ -1289,7 +1305,6 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
                 layout.indexedChild,
                 members - dir_mems,
                 dimensions - dir_dims,
-                extents,
                 allowable_members,
                 allowable_dimensions,
                 allowable_extents,
@@ -1309,12 +1324,14 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
             return None
         else:
             dir_mems = (
-                    members & layout.directChild.contents_type.all_member_attributes()
+                members & layout.directChild.contents_type.all_member_attributes()
             )
             dir_dims = (
-                    dimensions & layout.directChild.contents_type.all_dimension_attributes()
+                dimensions & layout.directChild.contents_type.all_dimension_attributes()
             )
-            dir_type = TypeType([(dir_mems, dir_dims, layout.indexedChild.indexed_by())])
+            dir_type = TypeType(
+                [(dir_mems, dir_dims, layout.indexedChild.indexed_by())]
+            )
             selections = layout.directChild.contents_type.has_selectable_type(dir_type)
             if (dlt.SetAttr([]), dlt.SetAttr([])) not in selections:
                 return None
@@ -1363,9 +1380,7 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
     def can_layout_derive_to(
         self,
         layout: dlt.IndexingLayoutAttr,
-        starting_point: dlt.PtrType,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1375,20 +1390,22 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
             return False
         else:
             dir_mems = (
-                    selectable_members & layout.directChild.contents_type.all_member_attributes()
+                selectable_members
+                & layout.directChild.contents_type.all_member_attributes()
             )
             dir_dims = (
-                    selectable_dimensions & layout.directChild.contents_type.all_dimension_attributes()
+                selectable_dimensions
+                & layout.directChild.contents_type.all_dimension_attributes()
             )
-            dir_type = TypeType([(dir_mems, dir_dims, layout.indexedChild.indexed_by())])
+            dir_type = TypeType(
+                [(dir_mems, dir_dims, layout.indexedChild.indexed_by())]
+            )
             selections = layout.directChild.contents_type.has_selectable_type(dir_type)
             if (dlt.SetAttr([]), dlt.SetAttr([])) not in selections:
                 return False
             child = self.manipulator.get(layout.indexedChild).can_layout_derive_to(
                 layout.indexedChild,
-                starting_point,
                 end_layout,
-                end_point,
                 selectable_members - dir_mems,
                 selectable_dimensions - dir_dims,
                 usable_extents,
@@ -1403,6 +1420,7 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         direct_type = parent_layout.directChild.contents_type
         if (
@@ -1411,12 +1429,21 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
             == child_layout.contents_type
         ):
             new_direct_child = self.manipulator.embed_layout_in(
-                child_layout, parent_layout.directChild, members, dimensions, extents
+                child_layout,
+                parent_layout.directChild,
+                members,
+                dimensions,
+                extents,
+                child_reduced,
             )
             return parent_layout.from_new_children(
                 [new_direct_child, parent_layout.indexedChild]
             )
         else:
+            if not members.issuperset(
+                direct_type.all_member_attributes()
+            ) or not dimensions.issuperset(direct_type.all_dimension_attributes()):
+                raise InConsistentLayoutException()
             index_members = members - direct_type.all_member_attributes()
             index_dimensions = dimensions - direct_type.all_dimension_attributes()
             new_index_child = self.manipulator.embed_layout_in(
@@ -1425,20 +1452,22 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
                 index_members,
                 index_dimensions,
                 extents,
+                child_reduced,
             )
             return parent_layout.from_new_children(
                 [parent_layout.directChild, new_index_child]
             )
 
 
-class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr]):
+class COOManipulator(
+    LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr]
+):
 
     def minimal_reduction(
         self,
-        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
+        layout: dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
-        extents: set[dlt.InitDefinedExtentAttr],
         allowable_members: set[dlt.MemberAttr],
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1455,7 +1484,6 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
                 layout.child,
                 members,
                 dimensions - {d for d in layout.dimensions},
-                extents,
                 allowable_members,
                 allowable_dimensions,
                 allowable_extents,
@@ -1464,7 +1492,7 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
 
     def try_reduction(
         self,
-        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
+        layout: dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         through_index_reducible: bool,
@@ -1474,7 +1502,12 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
         else:
             if not all(d in dimensions for d in layout.dimensions):
                 return None
-            return layout.child, members, dimensions - {d for d in layout.dimensions}, through_index_reducible
+            return (
+                layout.child,
+                members,
+                dimensions - {d for d in layout.dimensions},
+                through_index_reducible,
+            )
 
     def structural_reduction(
         self, layout: T, dlt_type: dlt.TypeType
@@ -1483,7 +1516,7 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
 
     def reduce_to_terminal(
         self,
-        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
+        layout: dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr,
         members_to_select: set[dlt.MemberAttr],
         dimensions_to_select: set[dlt.DimensionAttr],
         base_type: dlt.AcceptedTypes,
@@ -1499,10 +1532,8 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
 
     def can_layout_derive_to(
         self,
-        layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
-        starting_point: dlt.PtrType,
+        layout: dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr,
         end_layout: dlt.Layout,
-        end_point: dlt.PtrType,
         selectable_members: set[dlt.MemberAttr],
         selectable_dimensions: set[dlt.DimensionAttr],
         usable_extents: set[dlt.InitDefinedExtentAttr],
@@ -1515,9 +1546,7 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
                 return False
             return self.manipulator.can_layout_derive_to(
                 layout.child,
-                starting_point,
                 end_layout,
-                end_point,
                 selectable_members,
                 selectable_dimensions - {d for d in layout.dimensions},
                 usable_extents,
@@ -1527,10 +1556,11 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
     def embed_layout_in(
         self,
         child_layout: dlt.Layout,
-        parent_layout: dlt.UnpackedCOOLayoutAttr|dlt.SeparatedCOOLayoutAttr,
+        parent_layout: dlt.UnpackedCOOLayoutAttr | dlt.SeparatedCOOLayoutAttr,
         members: set[dlt.MemberAttr],
         dimensions: set[dlt.DimensionAttr],
         extents: set[dlt.InitDefinedExtentAttr],
+        child_reduced: bool,
     ) -> dlt.Layout:
         if any(dim not in dimensions for dim in parent_layout.dimensions):
             raise InConsistentLayoutException()
@@ -1542,6 +1572,7 @@ class COOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr | dlt.Separ
                     members,
                     dimensions - set(parent_layout.dimensions),
                     extents,
+                    child_reduced,
                 )
             ]
         )

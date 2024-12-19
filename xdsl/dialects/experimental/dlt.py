@@ -825,10 +825,11 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         #     "Elements in the type must be sorted"
         if len(self.elements) < 1:
             raise VerifyException("TypeType must have at least one element")
-        elems = [
-            (elem.member_specifiers.data, elem.dimensions.data)
-            for elem in self.elements
-        ]
+        # elems = [
+        #     (elem.member_specifiers.data, elem.dimensions.data)
+        #     for elem in self.elements
+        # ]
+        elems = [elem for elem in self.elements]
         if len(elems) != len(set(elems)):
             raise VerifyException(
                 "Each element in the type must have a unique sets of memberSpecifiers"
@@ -865,6 +866,9 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
 
     def select_dimension(self, dimension: DimensionAttr) -> TypeType:
         return self.select_dimensions([dimension])
+
+    def select(self, members: Iterable[MemberAttr], dimensions: Iterable[DimensionAttr]) -> TypeType:
+        return self.select_members(members).select_dimensions(dimensions)
 
     def add_dimensions(self, dimensions: Iterable[DimensionAttr]) -> TypeType:
         return TypeType([e.add_dimensions(dimensions) for e in self.elements])
@@ -1364,11 +1368,11 @@ class AbstractLayoutAttr(Layout):
         return (
             isinstance(other, AbstractLayoutAttr)
             and len(self.children) == len(other.children)
-            and [
-                c.member_specifers == o.member_specifiers
+            and all([
+                c.member_specifiers == o.member_specifiers
                 and c.dimensions == o.dimensions
                 for c, o in zip(self.children, other.children)
-            ]
+            ])
         )
 
     def common_abstract_dimensions(self) -> set[DimensionAttr]:

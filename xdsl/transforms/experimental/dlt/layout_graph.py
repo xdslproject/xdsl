@@ -541,24 +541,17 @@ class LayoutGraph:
         dimensions = set(start.filled_dimensions) | set(edge.dimensions)
         extents = set(start.filled_extents)
         new_layout, members_to_select, dimensions_to_select = (
-            Manipulator.minimal_reduction(
-                start.layout,
-                members,
-                dimensions,
-                extents,
-                allowable_members,
-                allowable_dimensions,
-                allowable_extents,
-                existing.identification in non_zero_reducible_ptrs,
-            )
+            Manipulator.minimal_reduction(start.layout, members, dimensions, allowable_members, allowable_dimensions, allowable_extents,
+                                          existing.identification in non_zero_reducible_ptrs)
         )
+        extents_in_result = new_layout.get_all_init_base_extents()
         new_filled_dims = ArrayAttr(
             [d for d in existing.filled_dimensions if d in dimensions_to_select]
             + list(dimensions_to_select - set(existing.filled_dimensions))
         )
         new_filled_extents = ArrayAttr(
-            [e for e in existing.filled_extents if e in allowable_extents]
-            + list(allowable_extents - set(existing.filled_extents))
+            [e for e in existing.filled_extents if e in extents_in_result]
+            + list(extents_in_result - set(existing.filled_extents))
         )
         new_end_type = dlt.PtrType(
             existing.contents_type,
@@ -590,6 +583,7 @@ class LayoutGraph:
             members,
             dimensions,
             set(existing.filled_extents),
+            False,
         )
         new_start_type = existing.with_new_layout(new_layout, preserve_ident=True)
         return new_start_type
@@ -638,14 +632,9 @@ def ptr_can_derive_to(
     members_to_select = set(members).union(starting_point.filled_members)
     dimensions_to_select = set(dimensions).union(starting_point.filled_dimensions)
     extents_to_use = set(starting_point.filled_extents)
-    check = Manipulator.can_layout_derive_to(
-        starting_point.layout,
-        starting_point,
-        end_point.layout,
-        end_point,
-        members_to_select,
-        dimensions_to_select,
-        extents_to_use,
-        end_point_ident in non_zero_reducible_ptrs,
-    )
+    check = Manipulator.can_layout_derive_to(starting_point.layout, end_point.layout, members_to_select, dimensions_to_select, extents_to_use,
+                                             end_point_ident in non_zero_reducible_ptrs)
+    check &= set(end_point.filled_members).issubset(members_to_select)
+    check &= set(end_point.filled_dimensions).issubset(dimensions_to_select)
+    check &= set(end_point.filled_extents).issubset(extents_to_use)
     return check
