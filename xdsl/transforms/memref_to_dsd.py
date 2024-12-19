@@ -129,17 +129,17 @@ class LowerSubviewOpPass(RewritePattern):
         if len(op.result.type.get_shape()) == 1 and len(op.source.type.get_shape()) > 1:
             # 1d subview onto a nd memref
             sizes = op.static_sizes.get_values()
-            size_counts = collections.Counter(sizes)
-            if 1 in size_counts:
-                size_counts.pop(1)
+            counter_sizes = collections.Counter(sizes)
+            if 1 in counter_sizes:
+                counter_sizes.pop(1)
             assert (
-                len(size_counts) == 1
+                len(counter_sizes) == 1
             ), "1d access into nd memref must specify one size > 1"
-            size, counts = size_counts.most_common()[0]
+            size, size_count = counter_sizes.most_common()[0]
             size = cast(int, size)
 
             assert (
-                counts == 1
+                size_count == 1
             ), "1d access into nd memref can only specify one size > 1, which can occur only once"
 
             amap: list[AffineExpr] = [
