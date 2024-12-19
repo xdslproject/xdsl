@@ -7,6 +7,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyMemRefType,
     ArrayAttr,
     Float16Type,
     Float32Type,
@@ -122,8 +123,8 @@ class LowerSubviewOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
-        assert isa(op.source.type, MemRefType[Attribute])
-        assert isa(op.result.type, MemRefType[Attribute])
+        assert isa(op.source.type, AnyMemRefType)
+        assert isa(op.result.type, AnyMemRefType)
 
         if len(op.result.type.get_shape()) == 1 and len(op.source.type.get_shape()) > 1:
             # 1d subview onto a nd memref
