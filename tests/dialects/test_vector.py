@@ -527,6 +527,7 @@ def test_vector_transfer_write_construction():
     x = AffineExpr.dimension(0)
     vector_type = VectorType(IndexType(), [3])
     memref_type = MemRefType(IndexType(), [3, 3])
+    # (x, y) -> x
     permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
 
     vector = TestSSAValue(vector_type)
@@ -534,12 +535,17 @@ def test_vector_transfer_write_construction():
     index = TestSSAValue(IndexType())
 
     transfer_write = TransferWriteOp(
-        vector, source, [index], permutation_map=permutation_map
+        vector,
+        source,
+        [index, index],
+        permutation_map=permutation_map,
     )
+
+    transfer_write.verify()
 
     assert transfer_write.vector is vector
     assert transfer_write.source is source
-    assert len(transfer_write.indices) == 1
+    assert len(transfer_write.indices) == 2
     assert transfer_write.indices[0] is index
     assert transfer_write.permutation_map is permutation_map
 
@@ -556,13 +562,15 @@ def test_vector_transfer_read_construction():
 
     transfer_read = TransferReadOp(
         source,
-        [index],
+        [index, index],
         padding,
         vector_type,
         permutation_map=permutation_map,
     )
 
+    transfer_read.verify()
+
     assert transfer_read.source is source
-    assert len(transfer_read.indices) == 1
+    assert len(transfer_read.indices) == 2
     assert transfer_read.indices[0] is index
     assert transfer_read.permutation_map is permutation_map

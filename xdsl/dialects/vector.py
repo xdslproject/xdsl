@@ -342,7 +342,7 @@ def verify_transfer_op(
     mask_type: VectorType[I1] | None,
     inferred_mask_type: VectorType[I1] | None,
     permutation_map: AffineMap,
-    in_bounds: ArrayAttr[BoolAttr],
+    in_bounds: ArrayAttr[BoolAttr] | None,
 ):
     """
     TODO test
@@ -360,21 +360,23 @@ def verify_transfer_op(
         pass
     else:
         # Memref of tensor has scalar element type
-        if isa(vector_element_type, IndexType) and not isa(element_type, IndexType):
-            raise VerifyException(
-                "Element type of source is index, expected element type of vector also to be index"
-            )
-        assert isa(vector_element_type, IntegerType | AnyFloat)
-        assert isa(element_type, IntegerType | AnyFloat)
+        if isa(vector_element_type, IndexType):
+            if not isa(element_type, IndexType):
+                raise VerifyException(
+                    "Element type of source is index, expected element type of vector also to be index"
+                )
+        else:
+            assert isa(vector_element_type, IntegerType | AnyFloat)
+            assert isa(element_type, IntegerType | AnyFloat)
 
-        minor_size = (
-            1 if vector_type.get_num_dims() == 0 else vector_type.get_shape()[-1]
-        )
-        result_vec_size = vector_element_type.bitwidth * minor_size
-        if result_vec_size % element_type.bitwidth != 0:
-            raise VerifyException(
-                f'"{op.name}" requires the bitwidth of the minor 1-D vector to be an integral multiple of the bitwidth of the source element type'
+            minor_size = (
+                1 if vector_type.get_num_dims() == 0 else vector_type.get_shape()[-1]
             )
+            result_vec_size = vector_element_type.bitwidth * minor_size
+            if result_vec_size % element_type.bitwidth != 0:
+                raise VerifyException(
+                    f'"{op.name}" requires the bitwidth of the minor 1-D vector to be an integral multiple of the bitwidth of the source element type'
+                )
 
     # Check that permutation map results match rank of vector type.
     if len(permutation_map.results) != vector_type.get_num_dims():
@@ -400,7 +402,7 @@ def verify_transfer_op(
     #             f'"{op.name}" inferred mask type ({inferred_mask_type}) and mask operand type ({mask_type}) don\'t match'
     #         )
 
-    if in_bounds is not None:
+    if in_bounds:
         if len(in_bounds) != len(permutation_map.results):
             raise VerifyException(
                 f'"{op.name}" expects the optional in_bounds attr of same rank as permutation_map results: {str(permutation_map)} vs in_bounds of of size {len(in_bounds)}'
@@ -432,7 +434,7 @@ def infer_transfer_op_mask_type(
     #     affine_map.get_unused_dims()
     # ).inverse_permutation()
 
-    # assert inverse_permutation_map is not None
+    # assert inverse_permutation_map
 
     # mask_shape = inverse_permutation_map.compose_with_values(vector_type.get_shape())
 
@@ -518,7 +520,7 @@ class TransferReadOp(IRDLOperation, VectorTransferOp):
             mask_type,
             inferred_mask_type,
             self.permutation_map.data,
-            self.in_bounds if self.in_bounds else ArrayAttr([]),
+            self.in_bounds,
         )
 
         if isa(self.source.type.element_type, VectorType[Attribute]):
@@ -567,7 +569,7 @@ class TransferWriteOp(IRDLOperation, VectorTransferOp):
     indices = var_operand_def(IndexType)
     mask = opt_operand_def(VectorType[I1])
 
-    in_bounds = prop_def(ArrayAttr[BoolAttr])
+    in_bounds = opt_prop_def(ArrayAttr[BoolAttr])
     permutation_map = prop_def(AffineMapAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
