@@ -27,10 +27,12 @@ from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    opt_result_def,
     prop_def,
     result_def,
     traits_def,
@@ -416,7 +418,7 @@ def verify_permutation_map(
             continue
         if not isa(expr, AffineDimExpr):
             raise VerifyException(
-                f'"{op.name}" requires a projected permutation_map (at most one "dim or the zero constant can appear in each result)'
+                f'"{op.name}" requires a projected permutation_map (at most one dim or the zero constant can appear in each result)'
             )
         if seen[expr.position]:
             raise VerifyException(
@@ -584,7 +586,9 @@ class TransferReadOp(IRDLOperation, VectorTransferOp):
 
     result = result_def(VectorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    # assembly_format = "$source `[` $indices `]` `,` $padding  ( `,` $mask^ )? attr-dict `:`  type($source) `,` type($result)"
 
     def verify_(self):
         assert isa(self.source.type, MemRefType[Attribute] | TensorType[Attribute])
@@ -662,7 +666,9 @@ class TransferWriteOp(IRDLOperation, VectorTransferOp):
     in_bounds = opt_prop_def(ArrayAttr[BoolAttr])
     permutation_map = prop_def(AffineMapAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    result = opt_result_def(TensorType[Attribute])
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
     def verify_(self):
         assert isa(self.source.type, MemRefType[Attribute] | TensorType[Attribute])
