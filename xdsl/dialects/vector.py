@@ -10,8 +10,10 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     IndexType,
+    IndexTypeConstr,
     IntegerType,
     MemRefType,
+    SignlessIntegerConstraint,
     TensorOrMemrefOf,
     TensorType,
     VectorBaseTypeAndRankConstraint,
@@ -306,6 +308,94 @@ class CreatemaskOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ExtractElementOp(IRDLOperation):
+    name = "vector.extractelement"
+    vector = operand_def(VectorType)
+    position = opt_operand_def(IndexTypeConstr | SignlessIntegerConstraint)
+    result = result_def(Attribute)
+    traits = traits_def(Pure())
+
+    def verify_(self):
+        assert isa(self.vector.type, VectorType[Attribute])
+
+        if self.result.type != self.vector.type.element_type:
+            raise VerifyException(
+                "Expected result type to match element type of vector operand."
+            )
+
+        if self.vector.type.get_num_dims() == 0:
+            if self.position is not None:
+                raise VerifyException("Expected position to be empty with 0-D vector.")
+            return
+        if self.vector.type.get_num_dims() != 1:
+            raise VerifyException("Unexpected >1 vector rank.")
+        if self.position is None:
+            raise VerifyException("Expected position for 1-D vector.")
+
+    def __init__(
+        self,
+        vector: SSAValue | Operation,
+        position: SSAValue | Operation | None = None,
+    ):
+        vector = SSAValue.get(vector)
+        assert isa(vector.type, VectorType[Attribute])
+
+        result_type = vector.type.element_type
+
+        super().__init__(
+            operands=[vector, position],
+            result_types=[result_type],
+        )
+
+
+@irdl_op_definition
+class InsertElementOp(IRDLOperation):
+    name = "vector.insertelement"
+    source = operand_def(Attribute)
+    dest = operand_def(VectorType)
+    position = opt_operand_def(IndexTypeConstr | SignlessIntegerConstraint)
+    result = result_def(VectorType)
+    traits = traits_def(Pure())
+
+    def verify_(self):
+        assert isa(self.dest.type, VectorType[Attribute])
+
+        if self.result.type != self.dest.type:
+            raise VerifyException(
+                "Expected dest operand and result to have matching types."
+            )
+        if self.source.type != self.dest.type.element_type:
+            raise VerifyException(
+                "Expected source operand type to match element type of dest operand."
+            )
+
+        if self.dest.type.get_num_dims() == 0:
+            if self.position is not None:
+                raise VerifyException("Expected position to be empty with 0-D vector.")
+            return
+        if self.dest.type.get_num_dims() != 1:
+            raise VerifyException("Unexpected >1 vector rank.")
+        if self.position is None:
+            raise VerifyException("Expected position for 1-D vector.")
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        position: SSAValue | Operation | None = None,
+    ):
+        dest = SSAValue.get(dest)
+        assert isa(dest.type, VectorType[Attribute])
+
+        result_type = SSAValue.get(dest).type
+
+        super().__init__(
+            operands=[source, dest, position],
+            result_types=[result_type],
+        )
+
+
 def verify_permutation_map(
     op: TransferReadOp | TransferWriteOp,
     permutation_map: AffineMap,
@@ -416,6 +506,7 @@ def verify_transfer_op(
                 raise VerifyException(
                     f'"{op.name}" requires broadcast dimensions to be in-bounds'
                 )
+
 
 def infer_transfer_op_mask_type(
     vector_type: VectorType[Attribute],
@@ -640,6 +731,8 @@ Vector = Dialect(
         MaskedstoreOp,
         PrintOp,
         CreatemaskOp,
+        ExtractElementOp,
+        InsertElementOp,
         TransferReadOp,
         TransferWriteOp,
     ],
