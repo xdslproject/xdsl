@@ -428,7 +428,7 @@ csl.func @builtins() {
 
   %zero_stride_dsd = "csl.get_mem_dsd"(%A, %i16_value, %i16_value, %i16_value) <{"tensor_access" = affine_map<(d0, d1, d2) -> (d2)>}> : (memref<24xf32>, si16, si16, si16) -> !csl<dsd mem4d_dsd>
   %B = memref.get_global @B : memref<3x64xf32>
-  %two_dim_into_one_dim = "csl.get_mem_dsd"(%B, %i16_value) <{"tensor_access" = affine_map<(d0) -> (1, d0)>}> : (memref<3x64xf32>, si16) -> !csl<dsd mem1d_dsd>
+  %oned_access_into_twod = "csl.get_mem_dsd"(%B, %i16_value) <{"tensor_access" = affine_map<(d0) -> (1, d0)>}> : (memref<3x64xf32>, si16) -> !csl<dsd mem1d_dsd>
 
   "csl.add16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.addc16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
@@ -827,7 +827,7 @@ csl.func @builtins() {
 // CHECK-NEXT:   const zero_stride_dsd : mem4d_dsd = @get_dsd( mem4d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0, d1, d2 | { i16_value, i16_value, i16_value } -> A[ d2 ]
 // CHECK-NEXT:   });
-// CHECK-NEXT:   const two_dim_into_one_dim : mem1d_dsd = @get_dsd( mem1d_dsd, .{
+// CHECK-NEXT:   const oned_access_into_twod : mem1d_dsd = @get_dsd( mem1d_dsd, .{
 // CHECK-NEXT:     .tensor_access = | d0 | { i16_value } -> B[ 1, d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   @add16(dest_dsd, src_dsd1, src_dsd2);
