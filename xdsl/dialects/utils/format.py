@@ -85,9 +85,10 @@ def parse_func_op_like(
     Region,
     DictionaryAttr | None,
     ArrayAttr[DictionaryAttr] | None,
+    ArrayAttr[DictionaryAttr] | None,
 ]:
     """
-    Returns the function name, argument types, return types, body, extra args, and arg_attrs.
+    Returns the function name, argument types, return types, body, extra args, arg_attrs and res_attrs.
     """
     # Parse function name
     name = parser.parse_symbol_name().data
@@ -102,6 +103,13 @@ def parse_func_op_like(
             arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
             ret = (arg, arg_attr_dict)
         return ret
+
+    def parse_fun_output() -> tuple[Attribute, dict[str, Attribute]]:
+        arg_type = parser.parse_optional_type()
+        if arg_type is None:
+            parser.raise_error("Return type should be specified")
+        arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+        return (arg_type, arg_attr_dict)
 
     # Parse function arguments
     args = parser.parse_comma_separated_list(
@@ -135,14 +143,23 @@ def parse_func_op_like(
         arg_attrs = None
 
     # Parse return type
+    return_types: list[Attribute] = []
+    res_attrs_raw: list[dict[str, Attribute]] = []
     if parser.parse_optional_punctuation("->"):
-        return_types = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_type
+        return_attributes = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.PAREN, parse_fun_output
         )
-        if return_types is None:
-            return_types = [parser.parse_type()]
+        if return_attributes is None:
+            return_attributes = [
+                (parser.parse_type(), parser.parse_optional_dictionary_attr_dict())
+            ]
+
+        return_types, res_attrs_raw = zip(*return_attributes)
+
+    if any(res_attrs_raw):
+        res_attrs = ArrayAttr(DictionaryAttr(attrs) for attrs in res_attrs_raw)
     else:
-        return_types = []
+        res_attrs = None
 
     extra_attributes = parser.parse_optional_attr_dict_with_keyword(reserved_attr_names)
 
@@ -151,7 +168,15 @@ def parse_func_op_like(
     if region is None:
         region = Region()
 
-    return name, input_types, return_types, region, extra_attributes, arg_attrs
+    return (
+        name,
+        input_types,
+        return_types,
+        region,
+        extra_attributes,
+        arg_attrs,
+        res_attrs,
+    )
 
 
 def print_func_argument(

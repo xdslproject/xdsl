@@ -2,10 +2,12 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.ir import Block, Region
+from xdsl.parser import Parser
 from xdsl.traits import CallableOpInterface
 from xdsl.utils.exceptions import VerifyException
 
@@ -279,3 +281,23 @@ def test_external_func_def():
     assert len(ext.regions) == 1
     assert len(ext.regions[0].blocks) == 0
     assert ext.sym_name.data == "testname"
+
+
+def test_output_attribute_parsing():
+    ctx = MLContext()
+    ctx.load_op(FuncOp)
+    parser = Parser(
+        ctx,
+        "func.func @test(%arg0: f32 {a = 0 : i32}) -> (f32 {a = 0 : i32}, f32 {a = 0 : i32}) {}",
+    )
+    for func_str in [
+        "func.func @test() -> (f32 {a = 0 : i32}, f32 {a = 0 : i32}) {}",
+        "func.func @test() -> f32 {a = 0 : i32} {}",
+    ]:
+        parser = Parser(ctx, func_str)
+        op = parser.parse_op()
+        print(op)
+        assert isinstance(op, FuncOp)
+        assert op.res_attrs is not None
+        for attr in op.res_attrs:
+            assert str(attr.data["a"]) == "0 : i32"
