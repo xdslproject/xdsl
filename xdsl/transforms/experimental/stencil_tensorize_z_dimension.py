@@ -17,7 +17,10 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
+    IndexType,
     IntAttr,
+    IntegerType,
     ModuleOp,
     ShapedType,
     TensorType,
@@ -193,7 +196,7 @@ class ArithOpTensorize(RewritePattern):
     @staticmethod
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
-        dest_typ: TensorType[Attribute],
+        dest_typ: TensorType[IndexType | IntegerType | AnyFloat],
         op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
@@ -203,8 +206,10 @@ class ArithOpTensorize(RewritePattern):
         If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
         """
         if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, ConstantOp):
+            assert isinstance(float_attr := scalar_op.op.value, FloatAttr)
+            scalar_value = float_attr.value.data
             tens_const = ConstantOp(
-                DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
+                DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result
@@ -265,7 +270,9 @@ def is_tensorized(
     return len(typ.get_shape()) == 2 and isinstance(typ.get_element_type(), TensorType)
 
 
-def is_tensor(typ: Attribute) -> TypeGuard[TensorType[Attribute]]:
+def is_tensor(
+    typ: Attribute,
+) -> TypeGuard[TensorType[IndexType | IntegerType | AnyFloat]]:
     return isinstance(typ, TensorType)
 
 
