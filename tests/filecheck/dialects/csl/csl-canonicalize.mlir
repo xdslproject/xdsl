@@ -21,7 +21,7 @@ builtin.module {
 
 // CHECK-NEXT:  %0 = "csl.zeros"() : () -> memref<512xf32>
 // CHECK-NEXT:  %1 = arith.constant 510 : ui16
-// CHECK-NEXT:  %2 = "csl.get_mem_dsd"(%0, %1) <{"offsets" = [1 : si16], "strides" = [1 : si8]}> : (memref<512xf32>, ui16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:  %2 = "csl.get_mem_dsd"(%0, %1) <{"tensor_access" = affine_map<(d0) -> ((d0 + 1))>}> : (memref<512xf32>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:  "test.op"(%2) : (!csl<dsd mem1d_dsd>) -> ()
 
 

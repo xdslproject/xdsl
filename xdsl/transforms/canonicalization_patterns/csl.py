@@ -1,12 +1,18 @@
 from xdsl.dialects import arith
-from xdsl.dialects.builtin import AnyIntegerAttrConstr, ArrayAttr
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    AnyIntegerAttr,
+    AnyIntegerAttrConstr,
+)
 from xdsl.dialects.csl import csl
 from xdsl.ir import OpResult
+from xdsl.ir.affine import AffineMap
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 
@@ -23,20 +29,28 @@ class GetDsdAndOffsetFolding(RewritePattern):
         ):
             return
         # only works on 1d
-        if op.offsets and len(op.offsets) > 1:
+        if len(op.sizes) > 1:
             return
 
         # check if we can promote arith.const to property
         if (
             isinstance(offset_op.offset, OpResult)
             and isinstance(cnst := offset_op.offset.op, arith.ConstantOp)
-            and isattr(cnst.value, AnyIntegerAttrConstr)
+            and isa(cnst.value, AnyIntegerAttr)
         ):
+            tensor_access = AffineMap.from_callable(
+                lambda x: (x + cnst.value.value.data,)
+            )
+            if op.tensor_access:
+                tensor_access.compose(op.tensor_access.data)
             rewriter.replace_matched_op(
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
                     result_types=op.result_types,
-                    properties={**op.properties, "offsets": ArrayAttr([cnst.value])},
+                    properties={
+                        **op.properties,
+                        "tensor_access": AffineMapAttr(tensor_access),
+                    },
                 )
             )
             rewriter.replace_op(offset_op, [], new_results=[new_op.result])
@@ -81,8 +95,8 @@ class GetDsdAndStrideFolding(RewritePattern):
             stride_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp
         ):
             return
-        # only works on 1d
-        if op.offsets and len(op.offsets) > 1:
+        # only works on 1d and default (unspecified) tensor_access
+        if len(op.sizes) > 1 or op.tensor_access:
             return
 
         # check if we can promote arith.const to property
@@ -91,11 +105,17 @@ class GetDsdAndStrideFolding(RewritePattern):
             and isinstance(cnst := stride_op.stride.op, arith.ConstantOp)
             and isattr(cnst.value, AnyIntegerAttrConstr)
         ):
+            tensor_access = AffineMap.from_callable(
+                lambda x: (x * cnst.value.value.data,)
+            )
             rewriter.replace_matched_op(
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
                     result_types=op.result_types,
-                    properties={**op.properties, "strides": ArrayAttr([cnst.value])},
+                    properties={
+                        **op.properties,
+                        "tensor_access": AffineMapAttr(tensor_access),
+                    },
                 )
             )
             rewriter.replace_op(stride_op, [], new_results=[new_op.result])
