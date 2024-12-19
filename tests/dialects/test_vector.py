@@ -1,6 +1,7 @@
 import pytest
 
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     IndexType,
     IntAttr,
     MemRefType,
@@ -20,8 +21,11 @@ from xdsl.dialects.vector import (
     MaskedstoreOp,
     PrintOp,
     StoreOp,
+    TransferReadOp,
+    TransferWriteOp,
 )
 from xdsl.ir import Attribute, OpResult
+from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -653,3 +657,56 @@ def test_vector_insert_element_0d_verify_empty_position():
         match="Expected position to be empty with 0-D vector.",
     ):
         insert_element.verify()
+
+
+def test_vector_transfer_write_construction():
+    x = AffineExpr.dimension(0)
+    vector_type = VectorType(IndexType(), [3])
+    memref_type = MemRefType(IndexType(), [3, 3])
+    # (x, y) -> x
+    permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
+
+    vector = TestSSAValue(vector_type)
+    source = TestSSAValue(memref_type)
+    index = TestSSAValue(IndexType())
+
+    transfer_write = TransferWriteOp(
+        vector,
+        source,
+        [index, index],
+        permutation_map=permutation_map,
+    )
+
+    transfer_write.verify()
+
+    assert transfer_write.vector is vector
+    assert transfer_write.source is source
+    assert len(transfer_write.indices) == 2
+    assert transfer_write.indices[0] is index
+    assert transfer_write.permutation_map is permutation_map
+
+
+def test_vector_transfer_read_construction():
+    x = AffineExpr.dimension(0)
+    vector_type = VectorType(IndexType(), [3])
+    memref_type = MemRefType(IndexType(), [3, 3])
+    permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
+
+    source = TestSSAValue(memref_type)
+    index = TestSSAValue(IndexType())
+    padding = TestSSAValue(IndexType())
+
+    transfer_read = TransferReadOp(
+        source,
+        [index, index],
+        padding,
+        vector_type,
+        permutation_map=permutation_map,
+    )
+
+    transfer_read.verify()
+
+    assert transfer_read.source is source
+    assert len(transfer_read.indices) == 2
+    assert transfer_read.indices[0] is index
+    assert transfer_read.permutation_map is permutation_map

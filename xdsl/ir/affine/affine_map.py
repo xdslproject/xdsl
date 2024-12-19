@@ -4,8 +4,9 @@ import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
+from typing import cast
 
-from xdsl.ir.affine import AffineDimExpr, AffineExpr
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
 
@@ -169,6 +170,19 @@ class AffineMap:
             results=results,
         )
 
+    def compose_with_values(self, values: Sequence[int]) -> tuple[int, ...]:
+        """
+        TODO document
+        TODO test
+        Same as SmallVector<int64_t, 4> AffineMap::compose(ArrayRef<int64_t> values) const from AffineMap.cpp
+        """
+        assert self.num_symbols == 0
+        expressions: list[AffineExpr] = []
+        for value in values:
+            expressions.append(AffineExpr.constant(value))
+        result_map = self.compose(AffineMap(0, 0, tuple(expressions)))
+        return tuple(cast(AffineConstantExpr, res).value for res in result_map.results)
+
     def inverse_permutation(self) -> AffineMap | None:
         """
         Returns a map of codomain to domain dimensions such that the first
@@ -243,6 +257,29 @@ class AffineMap:
 
         return self.replace_dims_and_symbols(
             new_dims, new_symbols, result_num_dims, self.num_symbols
+        )
+
+    def is_function_of_dim(self, position: int) -> bool:
+        return position in self.used_dims()
+
+    def used_dims(self) -> set[int]:
+        result: set[int] = set()
+
+        for expr in self.results:
+            result = result.union(expr.used_dims())
+
+        return result
+
+    def unused_dims(self) -> set[int]:
+        dims = {i for i in range(self.num_dims)}
+
+        return dims.difference(self.used_dims())
+
+    def unused_dims_bit_vector(self) -> tuple[bool, ...]:
+        unused_dims = self.unused_dims()
+        return tuple(
+            True if position in unused_dims else False
+            for position in range(self.num_dims)
         )
 
     def __str__(self) -> str:
