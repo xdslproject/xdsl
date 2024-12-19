@@ -328,11 +328,6 @@ class ExtractElementOp(IRDLOperation):
         vector = SSAValue.get(vector)
         assert isa(vector.type, VectorType[Attribute])
 
-        # Fail fast or rely on verification?
-        assert (vector.type.get_num_dims() == 1 and position is not None) or (
-            vector.type.get_num_dims() == 0 and position is None
-        )
-
         result_type = vector.type.element_type
 
         super().__init__(
@@ -381,11 +376,6 @@ class InsertElementOp(IRDLOperation):
         assert isa(dest.type, VectorType[Attribute])
 
         result_type = SSAValue.get(dest).type
-
-        # Fail fast or rely on verification?
-        assert (dest.type.get_num_dims() == 1 and position is not None) or (
-            dest.type.get_num_dims() == 0 and position is None
-        )
 
         super().__init__(
             operands=[source, dest, position],
