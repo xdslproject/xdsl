@@ -121,14 +121,14 @@ builtin.module {
 // CHECK-NEXT: "test.op"(%31) : (f32) -> ()
 
 %39 = memref.alloc() {"alignment" = 64 : i64} : memref<3x64xf32>
-%40 = "memref.subview"(%39, %0) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: 0, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>}> : (memref<3x64xf32>, index) -> memref<32xf32, strided<[1], offset: ?>>
+%40 = "memref.subview"(%39, %0) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: 2, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>}> : (memref<3x64xf32>, index) -> memref<32xf32, strided<[1], offset: ?>>
 
 // CHECK-NEXT: %32 = "csl.zeros"() : () -> memref<3x64xf32>
 // CHECK-NEXT: %33 = arith.constant 3 : i16
 // CHECK-NEXT: %34 = arith.constant 64 : i16
 // CHECK-NEXT: %35 = "csl.get_mem_dsd"(%32, %33, %34) : (memref<3x64xf32>, i16, i16) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT: %36 = arith.constant 32 : i16
-// CHECK-NEXT: %37 = "csl.get_mem_dsd"(%32, %36) <{"offsets" = [0 : i16, -9223372036854775808 : i64]}> : (memref<3x64xf32>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %37 = "csl.get_mem_dsd"(%32, %36) <{"tensor_access" = affine_map<(d0) -> (2, d0)>}> : (memref<3x64xf32>, i16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: %38 = arith.index_cast %0 : index to si16
 // CHECK-NEXT: %39 = "csl.increment_dsd_offset"(%37, %38) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
 

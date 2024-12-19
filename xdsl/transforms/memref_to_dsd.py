@@ -6,6 +6,7 @@ from typing import cast
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     Float16Type,
     Float32Type,
@@ -20,6 +21,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -126,27 +128,33 @@ class LowerSubviewOpPass(RewritePattern):
         if len(op.result.type.get_shape()) == 1 and len(op.source.type.get_shape()) > 1:
             # 1d subview onto a nd memref
             sizes = op.static_sizes.get_values()
-            scounts = collections.Counter(sizes)
-            if 1 in scounts:
-                scounts.pop(1)
+            size_counts = collections.Counter(sizes)
+            if 1 in size_counts:
+                size_counts.pop(1)
             assert (
-                len(scounts) == 1
+                len(size_counts) == 1
             ), "1d access into nd memref must specify one size > 1"
-            size, counts = scounts.most_common()[0]
+            size, counts = size_counts.most_common()[0]
             size = cast(int, size)
+
             assert (
                 counts == 1
             ), "1d access into nd memref can only specify one size > 1, which can occur only once"
-            size_op = arith.ConstantOp.from_int_and_width(size, 16)
-            offsets = [
-                IntegerAttr(
-                    cast(int, o), 16 if o != memref.SubviewOp.DYNAMIC_INDEX else 64
+
+            amap: list[AffineExpr] = [
+                AffineConstantExpr(
+                    cast(int, o) if o != memref.SubviewOp.DYNAMIC_INDEX else 0
                 )
                 for o in op.static_offsets.get_values()
             ]
+            amap[sizes.index(size)] += AffineDimExpr(0)
+
+            size_op = arith.ConstantOp.from_int_and_width(size, 16)
             dsd_op = csl.GetMemDsdOp(
                 operands=[op.source, [size_op]],
-                properties={"offsets": ArrayAttr(offsets)},
+                properties={
+                    "tensor_access": AffineMapAttr(AffineMap(1, 0, tuple(amap)))
+                },
                 result_types=[csl.DsdType(csl.DsdKind.mem1d_dsd)],
             )
             offset_ops = self._update_offsets(op, dsd_op) if op.offsets else []
