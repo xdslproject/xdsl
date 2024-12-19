@@ -1,6 +1,7 @@
 import math
 import re
 from collections.abc import Sequence
+from typing import TypeVar
 
 import pytest
 
@@ -9,9 +10,11 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     AnyVectorType,
     ArrayAttr,
+    ArrayOfConstraint,
     BFloat16Type,
     BytesAttr,
     ComplexType,
+    ContainerOf,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -44,8 +47,13 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute
-from xdsl.irdl import ConstraintContext
+from xdsl.ir import Attribute, Data
+from xdsl.irdl import (
+    BaseAttr,
+    ConstraintContext,
+    TypeVarConstraint,
+    irdl_attr_definition,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -514,3 +522,45 @@ def test_strides():
     assert ShapedType.strides_for_shape((1,), factor=2) == (2,)
     assert ShapedType.strides_for_shape((2, 3)) == (3, 1)
     assert ShapedType.strides_for_shape((4, 5, 6), factor=2) == (60, 12, 2)
+
+
+################################################################################
+# Mapping Type Var
+################################################################################
+
+
+@irdl_attr_definition
+class A(Data[int]):
+    name = "a"
+
+
+@irdl_attr_definition
+class B(Data[int]):
+    name = "b"
+
+
+_A = TypeVar("_A", bound=Attribute)
+_B = TypeVar("_B", bound=Attribute)
+
+
+def test_array_of_constraint():
+    """Test mapping type variables in ArrayOfConstraint."""
+    array_constraint = ArrayOfConstraint(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert array_constraint.mapping_type_vars({}) == ArrayOfConstraint(BaseAttr(A))
+    assert array_constraint.mapping_type_vars({_B: BaseAttr(B)}) == ArrayOfConstraint(
+        BaseAttr(A)
+    )
+    assert array_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ArrayOfConstraint(
+        BaseAttr(B)
+    )
+
+    container_constraint = ContainerOf(TypeVarConstraint(_A, BaseAttr(A)))
+
+    assert container_constraint.mapping_type_vars({}) == ContainerOf(BaseAttr(A))
+    assert container_constraint.mapping_type_vars({_B: BaseAttr(B)}) == ContainerOf(
+        BaseAttr(A)
+    )
+    assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
+        BaseAttr(B)
+    )
