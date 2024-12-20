@@ -289,10 +289,18 @@ class AccessOpBufferize(RewritePattern):
             rewriter.replace_matched_op(to_tensor_op(op.op))
             return
 
+        # accesses to buffers passed in additional args can read directly from memref underlying `to_tensor`
+        source = (
+            op.op.op.memref
+            if isinstance(op.op, OpResult)
+            and isinstance(op.op.op, bufferization.ToTensorOp)
+            else op.op
+        )
+
         rewriter.replace_matched_op(
             [
                 access := csl_stencil.AccessOp(
-                    op.op,
+                    source,
                     op.offset,
                     r_type,
                     op.offset_mapping,
