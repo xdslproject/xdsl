@@ -779,15 +779,11 @@ class FuncOp(_FuncBase):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        (
-            name,
-            input_types,
-            return_types,
-            region,
-            extra_attrs,
-            arg_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, _) = (
+            parse_func_op_like(
+                parser,
+                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            )
         )
 
         assert (
