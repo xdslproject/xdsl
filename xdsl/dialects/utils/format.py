@@ -153,18 +153,21 @@ def parse_func_op_like(
 
     # Parse return type
     return_types: list[Attribute] = []
-    res_attrs_raw: list[dict[str, Attribute]] = []
+    res_attrs_raw: list[dict[str, Attribute]] | None = []
     if parser.parse_optional_punctuation("->"):
         return_attributes = parser.parse_optional_comma_separated_list(
             parser.Delimiter.PAREN, parse_fun_output
         )
         if return_attributes is None:
             # output attributes are supported only if return results are enclosed in brackets (...)
-            return_attributes = [(parser.parse_type(), None)]
+            return_types, res_attrs_raw = [parser.parse_type()], None
+        else:
+            return_types, res_attrs_raw = (
+                [el[0] for el in return_attributes],
+                [el[1] for el in return_attributes],
+            )
 
-        return_types, res_attrs_raw = zip(*return_attributes)
-
-    if any(res_attrs_raw):
+    if res_attrs_raw is not None and any(res_attrs_raw):
         res_attrs = ArrayAttr(DictionaryAttr(attrs) for attrs in res_attrs_raw)
     else:
         res_attrs = None
