@@ -30,10 +30,10 @@ builtin.module {
    // CHECK-NEXT:   func.return
    // CHECK-NEXT: }
 
-  // problem func.func @arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
-  //  %1 = func.call @arg_rec(%0) : (!test.type<"int">) -> !test.type<"int">
-  //  func.return %1 : !test.type<"int">
-  //}
+  func.func @arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
+    %1 = func.call @arg_rec(%0) : (!test.type<"int">) -> !test.type<"int">
+    func.return %1 : !test.type<"int">
+  }
 
    // CHECK: func.func @arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
    // CHECK-NEXT:   %{{.*}} = func.call @arg_rec(%{{.*}}) : (!test.type<"int">) -> !test.type<"int">
@@ -72,7 +72,13 @@ builtin.module {
   // CHECK-NEXT:      return %{{.*}} : tensor<8x8xf64>
   // CHECK-NEXT:  }
 
-  func.func @output_attributes() -> (f32 {a = 0 : i32}, f32 {b = 0 : i32, c = 1 : f64}) {
-    func.return
+  func.func @output_attributes() -> (f32 {a = 0 : i32}, f32 {b = 0 : i32, c = 1 : i64}) {
+    %r1, %r2 = "test.op"() : () -> (f32, f32)
+    return %r1, %r2 : f32, f32
   }
+
+  // CHECK:       func.func @output_attributes() -> (f32 {"a" = 0 : i32}, f32 {"b" = 0 : i32, "c" = 1 : i64}) {
+  // CHECK-NEXT:    %r1, %r2 = "test.op"() : () -> (f32, f32)
+  // CHECK-NEXT:    func.return %r1, %r2 : f32, f32
+  // CHECK-NEXT:  }
 }

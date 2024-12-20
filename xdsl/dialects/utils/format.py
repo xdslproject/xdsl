@@ -159,9 +159,8 @@ def parse_func_op_like(
             parser.Delimiter.PAREN, parse_fun_output
         )
         if return_attributes is None:
-            return_attributes = [
-                (parser.parse_type(), parser.parse_optional_dictionary_attr_dict())
-            ]
+            # output attributes are supported only if return results are enclosed in brackets (...)
+            return_attributes = [(parser.parse_type(), None)]
 
         return_types, res_attrs_raw = zip(*return_attributes)
 
