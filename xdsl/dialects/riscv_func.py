@@ -174,7 +174,7 @@ class FuncOp(riscv.RISCVAsmOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, _) = (
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
             parse_func_op_like(
                 parser,
                 reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
@@ -182,6 +182,8 @@ class FuncOp(riscv.RISCVAsmOperation):
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in riscv_func")
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in riscv_func")
         func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data

@@ -779,12 +779,15 @@ class FuncOp(_FuncBase):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, _) = (
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
             parse_func_op_like(
                 parser,
                 reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
             )
         )
+
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in csl FuncOp")
 
         assert (
             len(return_types) <= 1
@@ -885,12 +888,14 @@ class TaskOp(_FuncBase):
     @classmethod
     def parse(cls, parser: Parser) -> TaskOp:
         pos = parser.pos
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, _) = (
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
             parse_func_op_like(
                 parser,
                 reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
             )
         )
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in csl TaskOp")
         if (
             extra_attrs is None
             or "kind" not in extra_attrs.data
