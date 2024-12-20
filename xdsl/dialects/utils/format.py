@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FunctionType,
-    IndexType,
     StringAttr,
 )
 from xdsl.ir import (
@@ -46,6 +45,7 @@ def print_for_op_like(
     body: Region,
     bound_words: Sequence[str] = ["to"],
     default_indvar_type: type[TypeAttribute] | None = None,
+    uniform_loop_var_types: bool = True,
 ):
     """
     Prints the loop bounds, step, iteration arguments, and body.
@@ -58,6 +58,16 @@ def print_for_op_like(
     indvar, *block_iter_args = block.args
 
     printer.print_string(" ")
+
+    def print_indvar_type():
+        if not default_indvar_type or not isinstance(indvar.type, default_indvar_type):
+            printer.print_string(": ")
+            printer.print_attribute(indvar.type)
+            printer.print_string(" ")
+
+    if not uniform_loop_var_types:
+        print_indvar_type()
+
     printer.print_ssa_value(indvar)
     printer.print_string(" = ")
     printer.print_ssa_value(lower_bound)
@@ -78,10 +88,10 @@ def print_for_op_like(
         printer.print_string(") -> (")
         printer.print_list((a.type for a in block_iter_args), printer.print_attribute)
         printer.print_string(") ")
-    if not default_indvar_type or not isinstance(indvar.type, default_indvar_type):
-        printer.print_string(": ")
-        printer.print_attribute(indvar.type)
-        printer.print_string(" ")
+
+    if not uniform_loop_var_types:
+        print_indvar_type()
+
     printer.print_region(
         body,
         print_entry_block_args=False,
@@ -93,14 +103,24 @@ def print_for_op_like(
 def parse_for_op_like(
     parser: Parser,
     bound_words: Sequence[str] = ["to"],
+    uniform_loop_var_types: bool = True,
 ) -> tuple[SSAValue, SSAValue, SSAValue, Sequence[SSAValue], Region]:
     """
     Returns the loop bounds, step, iteration arguments, and body.
 
     Users can provide specific human-readable words for bounds (default: "to").
     """
-    # parse bounds
+
+    def parse_indvar_type() -> Attribute | None:
+        return parser.parse_type() if parser.parse_optional_characters(":") else None
+
     unresolved_indvar = parser.parse_argument(expect_type=False)
+
+    indvar_type = None
+
+    if not uniform_loop_var_types:
+        indvar_type = parse_indvar_type()
+
     parser.parse_characters("=")
     lower_bound = parser.parse_operand()
 
@@ -136,13 +156,12 @@ def parse_for_op_like(
         u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
     ]
 
+    if uniform_loop_var_types:
+        indvar_type = parse_indvar_type()
+
     # set induction variable type
-    indvar_type = (
-        parser.parse_type() if parser.parse_optional_characters(":") else IndexType()
-    )
     indvar = unresolved_indvar.resolve(indvar_type)
 
-    # parse body
     body = parser.parse_region((indvar, *iter_args))
 
     return lower_bound, upper_bound, step, iter_arg_operands, body
@@ -159,10 +178,6 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
-    """
-    Prints the function name, argument types, return types, body, extra args, and
-    arg_attrs.
-    """
     printer.print(f" @{sym_name.data}")
     if body.blocks:
         printer.print("(")
