@@ -202,24 +202,25 @@ class LowerApplyOp(RewritePattern):
         # ensure we send only core data
         assert isa(op.accumulator.type, memref.MemRefType[Attribute])
         assert isa(op.field.type, memref.MemRefType[Attribute])
+        # the accumulator might have additional dims when used for holding prefetched data
+        send_buf_shape = op.accumulator.type.get_shape()[
+            -len(op.field.type.get_shape()) :
+        ]
         send_buf = memref.SubviewOp.get(
             op.field,
             [
                 (d - s) // 2  # symmetric offset
-                for s, d in zip(
-                    op.accumulator.type.get_shape(), op.field.type.get_shape()
-                )
+                for s, d in zip(send_buf_shape, op.field.type.get_shape(), strict=True)
             ],
-            op.accumulator.type.get_shape(),
-            len(op.accumulator.type.get_shape()) * [1],
-            op.accumulator.type,
+            send_buf_shape,
+            len(send_buf_shape) * [1],
+            memref.MemRefType(op.field.type.get_element_type(), send_buf_shape),
         )
 
         # add api call
         num_chunks = arith.ConstantOp(IntegerAttr(op.num_chunks.value, i16))
         chunk_ref = csl.AddressOfFnOp(chunk_fn)
         done_ref = csl.AddressOfFnOp(done_fn)
-        # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
         api_call = csl.MemberCallOp(
             "communicate",
             None,
