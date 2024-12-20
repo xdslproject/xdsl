@@ -30,8 +30,10 @@ from xdsl.irdl import (
     opt_prop_def,
     opt_result_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
+from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -164,6 +166,8 @@ class ToTensorOp(IRDLOperation):
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
 
+    traits = traits_def(Pure())
+
     assembly_format = "$memref (`restrict` $restrict^)? (`writable` $writable^)? attr-dict `:` type($memref)"
 
     def __init__(
@@ -203,6 +207,8 @@ class ToMemrefOp(IRDLOperation):
     read_only = opt_prop_def(UnitAttr)
 
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($memref)"
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
