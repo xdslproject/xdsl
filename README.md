@@ -106,6 +106,7 @@ To make a custom mlir-opt available in the virtual environment, set the `XDSL_ML
 ``` bash
 XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
 ```
+Alternatively, create a `.env` file with the `XDSL_MLIR_OPT_PATH` variable set as in `.env.example`.
 
 #### If you can't use `uv`
 

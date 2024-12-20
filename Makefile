@@ -1,6 +1,11 @@
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-builtin-variables
 
+# Load local environment variables if .env exists
+ifneq (,$(wildcard .env))
+    include .env
+endif
+
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
 
