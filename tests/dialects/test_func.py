@@ -6,6 +6,7 @@ from xdsl.context import MLContext
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
+from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 from xdsl.traits import CallableOpInterface
@@ -286,13 +287,14 @@ def test_external_func_def():
 def test_output_attribute_parsing():
     ctx = MLContext()
     ctx.load_op(FuncOp)
+    ctx.load_op(TestOp)
     parser = Parser(
         ctx,
         "func.func @test(%arg0: f32 {a = 0 : i32}) -> (f32 {a = 0 : i32}, f32 {a = 0 : i32}) {}",
     )
     for func_str in [
-        "func.func @test() -> (f32 {a = 0 : i32}, f32 {a = 0 : i32}) {}",
-        "func.func @test() -> f32 {a = 0 : i32} {}",
+        'func.func @test() -> (f32 {a = 0 : i32}, f32 {a = 0 : i32}) {"test.op"() : () -> ()}',
+        'func.func @test(%a : f32 {a = 0 : i32}) -> f32 {a = 0 : i32} {"test.op"() : () -> ()}',
     ]:
         parser = Parser(ctx, func_str)
         op = parser.parse_op()

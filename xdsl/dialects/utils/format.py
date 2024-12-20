@@ -43,6 +43,7 @@ def print_func_op_like(
     attributes: dict[str, Attribute],
     *,
     arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+    res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
     printer.print(f" @{sym_name.data}")
@@ -62,7 +63,15 @@ def print_func_op_like(
             printer.print("-> ")
             if len(function_type.outputs) > 1:
                 printer.print("(")
-            printer.print_list(function_type.outputs, printer.print_attribute)
+            if res_attrs is not None:
+                printer.print_list(
+                    zip(function_type.outputs, res_attrs),
+                    lambda arg_with_attrs: print_func_output(
+                        printer, arg_with_attrs[0], arg_with_attrs[1]
+                    ),
+                )
+            else:
+                printer.print_list(function_type.outputs, printer.print_attribute)
             if len(function_type.outputs) > 1:
                 printer.print(")")
             printer.print(" ")
@@ -183,6 +192,14 @@ def print_func_argument(
     printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None
 ):
     printer.print_block_argument(arg)
+    if attrs is not None and attrs.data:
+        printer.print_op_attributes(attrs.data)
+
+
+def print_func_output(
+    printer: Printer, out_type: Attribute, attrs: DictionaryAttr | None
+):
+    printer.print_attribute(out_type)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)
 

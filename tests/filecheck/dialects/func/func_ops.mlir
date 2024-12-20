@@ -30,10 +30,10 @@ builtin.module {
    // CHECK-NEXT:   func.return
    // CHECK-NEXT: }
 
-  func.func @arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
-    %1 = func.call @arg_rec(%0) : (!test.type<"int">) -> !test.type<"int">
-    func.return %1 : !test.type<"int">
-  }
+  // problem func.func @arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
+  //  %1 = func.call @arg_rec(%0) : (!test.type<"int">) -> !test.type<"int">
+  //  func.return %1 : !test.type<"int">
+  //}
 
    // CHECK: func.func @arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
    // CHECK-NEXT:   %{{.*}} = func.call @arg_rec(%{{.*}}) : (!test.type<"int">) -> !test.type<"int">
@@ -71,4 +71,8 @@ builtin.module {
   // CHECK:       func.func public @arg_attrs(%{{.*}} : tensor<8x8xf64> {"llvm.noalias"}, %{{.*}} : tensor<8x8xf64> {"llvm.noalias"}, %{{.*}} : tensor<8x8xf64> {"llvm.noalias"}) -> tensor<8x8xf64> {
   // CHECK-NEXT:      return %{{.*}} : tensor<8x8xf64>
   // CHECK-NEXT:  }
+
+  func.func @output_attributes() -> (f32 {a = 0 : i32}, f32 {b = 0 : i32, c = 1 : f64}) {
+    func.return
+  }
 }

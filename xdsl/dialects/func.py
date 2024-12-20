@@ -157,6 +157,7 @@ class FuncOp(IRDLOperation):
             self.body,
             self.attributes,
             arg_attrs=self.arg_attrs,
+            res_attrs=self.res_attrs,
             reserved_attr_names=(
                 "sym_name",
                 "function_type",
