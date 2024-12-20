@@ -72,12 +72,12 @@ builtin.module {
   // CHECK-NEXT:      return %{{.*}} : tensor<8x8xf64>
   // CHECK-NEXT:  }
 
-  func.func @output_attributes() -> (f32 {a = 0 : i32}, f32 {b = 0 : i32, c = 1 : i64}) {
+  func.func @output_attributes() -> (f32 {dialect.a = 0 : i32}, f32 {dialect.b = 0 : i32, dialect.c = 1 : i64}) {
     %r1, %r2 = "test.op"() : () -> (f32, f32)
     return %r1, %r2 : f32, f32
   }
 
-  // CHECK:       func.func @output_attributes() -> (f32 {"a" = 0 : i32}, f32 {"b" = 0 : i32, "c" = 1 : i64}) {
+  // CHECK:       func.func @output_attributes() -> (f32 {"dialect.a" = 0 : i32}, f32 {"dialect.b" = 0 : i32, "dialect.c" = 1 : i64}) {
   // CHECK-NEXT:    %r1, %r2 = "test.op"() : () -> (f32, f32)
   // CHECK-NEXT:    func.return %r1, %r2 : f32, f32
   // CHECK-NEXT:  }
