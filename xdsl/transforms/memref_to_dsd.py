@@ -130,8 +130,7 @@ class LowerSubviewOpPass(RewritePattern):
             # 1d subview onto a nd memref
             sizes = op.static_sizes.get_values()
             counter_sizes = collections.Counter(sizes)
-            if 1 in counter_sizes:
-                counter_sizes.pop(1)
+            counter_sizes.pop(1, None)
             assert (
                 len(counter_sizes) == 1
             ), "1d access into nd memref must specify one size > 1"
