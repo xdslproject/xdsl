@@ -212,8 +212,58 @@ def test_compress_dims():
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
 
 
-def test_used_dims():
+def test_affine_expr_used_dims():
     assert AffineExpr.dimension(1).used_dims() == {1}
     assert (AffineExpr.dimension(2) + AffineExpr.dimension(3)).used_dims() == {2, 3}
     assert AffineExpr.symbol(4).used_dims() == set()
     assert AffineExpr.constant(5).used_dims() == set()
+
+
+def test_affine_expr_is_function_of_dim():
+    assert AffineExpr.dimension(0).is_function_of_dim(0)
+    assert not AffineExpr.dimension(1).is_function_of_dim(0)
+    assert not AffineExpr.constant(0).is_function_of_dim(0)
+    assert not AffineExpr.symbol(0).is_function_of_dim(0)
+    assert AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(0)
+    assert not (
+        AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(1)
+    )
+    assert (
+        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(0)
+    )
+    assert (
+        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(1)
+    )
+
+
+def test_affine_map_is_function_of_dim():
+    assert AffineMap.from_callable(lambda i, j: (i, j)).is_function_of_dim(0)
+    assert AffineMap.from_callable(lambda i, j: (i, j)).is_function_of_dim(1)
+    assert not AffineMap.from_callable(lambda i, j, _: (i, j)).is_function_of_dim(2)
+
+
+def test_affine_map_used_dims():
+    assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims() == {0, 1}
+    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims() == {0, 1}
+    assert AffineMap.from_callable(lambda i, _, k: (i, k)).used_dims() == {0, 2}
+
+
+def test_affine_map_unused_dims():
+    assert AffineMap.from_callable(lambda i, j: (i, j)).unused_dims() == set()
+    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).unused_dims() == {2}
+    assert AffineMap.from_callable(lambda i, _, k: (i, k)).unused_dims() == {1}
+
+
+def test_unused_dims_bit_vector():
+    assert AffineMap.from_callable(lambda i, j: (i, j)).unused_dims_bit_vector() == (
+        False,
+        False,
+    )
+    assert AffineMap.from_callable(
+        lambda i, j, _: (i + j,)
+    ).unused_dims_bit_vector() == (False, False, True)
+    assert AffineMap.from_callable(lambda i, _, k: (i, k)).unused_dims_bit_vector() == (
+        False,
+        True,
+        False,
+    )
