@@ -60,7 +60,7 @@ def print_for_op_like(
     iter_args: Sequence[SSAValue],
     body: Region,
     bound_words: Sequence[str] = ["to"],
-    indvar_type: type[TypeAttribute] | None = None,
+    default_indvar_type: type[TypeAttribute] | None = None,
 ):
     """
     Prints the loop bounds, step, iteration arguments, and body.
@@ -93,7 +93,7 @@ def print_for_op_like(
         printer.print_string(") -> (")
         printer.print_list((a.type for a in block_iter_args), printer.print_attribute)
         printer.print_string(") ")
-    if not indvar_type or not isinstance(indvar.type, indvar_type):
+    if not default_indvar_type or not isinstance(indvar.type, default_indvar_type):
         printer.print_string(": ")
         printer.print_attribute(indvar.type)
         printer.print_string(" ")

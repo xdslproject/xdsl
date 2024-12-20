@@ -372,7 +372,7 @@ class ForOp(IRDLOperation):
             self.step,
             self.iter_args,
             self.body,
-            indvar_type=IndexType,
+            default_indvar_type=IndexType,
         )
 
     @classmethod
