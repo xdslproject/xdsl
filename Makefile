@@ -1,11 +1,6 @@
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-builtin-variables
 
-# Load local environment variables if .env exists
-ifneq (,$(wildcard .env))
-    include .env
-endif
-
 # use a default prefix for coverage data files
 COVERAGE_FILE ?= .coverage
 
@@ -34,8 +29,8 @@ uv-installed:
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
 	XDSL_VERSION_OVERRIDE="0+dynamic" uv sync ${VENV_EXTRAS}
-	@if [ ! -z "$(XDSL_MLIR_OPT)" ]; then \
-		ln -sf $(XDSL_MLIR_OPT) ${VENV_DIR}/bin/mlir-opt; \
+	@if [ ! -z "$(XDSL_MLIR_BIN)" ]; then \
+		ln -sf $(XDSL_MLIR_BIN)/mlir-opt ${VENV_DIR}/bin/mlir-opt; \
 	fi
 
 # make sure `make venv` also works correctly
