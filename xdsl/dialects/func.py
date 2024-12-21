@@ -166,6 +166,7 @@ class FuncOp(IRDLOperation):
             region,
             extra_attrs,
             arg_attrs,
+            res_attrs,
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
@@ -175,6 +176,7 @@ class FuncOp(IRDLOperation):
             region=region,
             visibility=visibility,
             arg_attrs=arg_attrs,
+            res_attrs=res_attrs,
         )
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
@@ -192,6 +194,7 @@ class FuncOp(IRDLOperation):
             self.body,
             self.attributes,
             arg_attrs=self.arg_attrs,
+            res_attrs=self.res_attrs,
             reserved_attr_names=(
                 "sym_name",
                 "function_type",
