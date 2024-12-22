@@ -378,15 +378,13 @@ class MLIRApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        if self.current_file_path == "":
-            query = "-p "
-        else:
-            query = self.current_file_path + " -p "
+        query = self.current_file_path 
 
         if self.pass_pipeline:
             query += " ".join(val for 
                val in self.pass_pipeline
             )
+        
         return f"mlir-opt {query}"
 
     def action_toggle_dark(self) -> None:
