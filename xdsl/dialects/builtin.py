@@ -1658,9 +1658,17 @@ class ModuleOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ModuleOp:
+        module_name = parser.parse_optional_symbol_name()
+
         attributes = parser.parse_optional_attr_dict_with_keyword()
         if attributes is not None:
             attributes = attributes.data
+
+        if module_name is not None:
+            if attributes is None:
+                attributes = {}
+            attributes["sym_name"] = module_name
+
         region = parser.parse_region()
 
         # Add a block if the region is empty
@@ -1670,9 +1678,19 @@ class ModuleOp(IRDLOperation):
         return ModuleOp(region, attributes)
 
     def print(self, printer: Printer) -> None:
-        if len(self.attributes) != 0:
+        attrs = self.attributes.copy()
+        module_name: StringAttr | None = None
+
+        if "sym_name" in attrs and isinstance(attrs["sym_name"], StringAttr):
+            module_name = attrs["sym_name"]
+            del attrs["sym_name"]
+
+        if module_name is not None:
+            printer.print(f" @{module_name.data}")
+
+        if len(attrs) != 0:
             printer.print(" attributes ")
-            printer.print_op_attributes(self.attributes)
+            printer.print_op_attributes(attrs)
 
         if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block

@@ -8,5 +8,8 @@ builtin.module {
     builtin.module attributes {a = "foo", b = "bar", unit} {}
     // CHECK-NEXT: builtin.module attributes {"a" = "foo", "b" = "bar", "unit"} {
     // CHECK-NEXT: }
+    builtin.module @moduleName {}
+    // CHECK-NEXT: builtin.module @moduleName {
+    // CHECK-NEXT: }
 }
 // CHECK: }
