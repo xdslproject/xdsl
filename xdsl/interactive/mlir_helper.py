@@ -1,17 +1,12 @@
 from collections.abc import Callable
-from typing import NamedTuple
 
 from xdsl.context import MLContext
-from xdsl.dialects import builtin, get_all_dialects
+from xdsl.dialects import builtin
 from xdsl.ir import Dialect
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass
 from xdsl.transforms.mlir_opt import MLIROptPass
-from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
-from xdsl.parser import Parser
-from xdsl.dialects import get_all_dialects
+from xdsl.utils.parse_pipeline import PipelinePassSpec
 
-
-import os
 import subprocess
 
 def iterate_and_extract_options() -> list[str]:
