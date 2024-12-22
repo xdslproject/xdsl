@@ -53,13 +53,13 @@ async def test_inputs():
         await pilot.pause()
         assert (
             app.output_text_area.text
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     unregistered operation dkjfd!\n"
         )
 
         assert isinstance(app.current_module, ParseError)
         assert (
             str(app.current_module)
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     unregistered operation dkjfd!\n"
         )
 
         # Test corect input
