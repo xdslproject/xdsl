@@ -1680,7 +1680,7 @@ class ModuleOp(IRDLOperation):
         if "sym_name" in self.properties and isinstance(
             self.properties["sym_name"], StringAttr
         ):
-            printer.print(f" @{self.properties["sym_name"].data}")
+            printer.print(f" @{self.properties['sym_name'].data}")
 
         if len(self.attributes) != 0:
             printer.print(" attributes ")
