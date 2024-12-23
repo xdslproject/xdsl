@@ -671,7 +671,7 @@ def test_missing_custom_format():
     ctx = MLContext()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
-    ctx.load_op(PlusCustomFormatOp)
+    ctx.load_op(NoCustomFormatOp)
 
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError):

@@ -744,16 +744,11 @@ class Parser(AttrParser):
         Raises an error if the operation is not registered, and if unregistered
         dialects are not allowed.
         """
-        op_type = self.ctx.get_optional_op(name)
-        if op_type is not None:
+        if op_type := self.ctx.get_optional_op(
+            name, dialect_stack=self._parser_state.dialect_stack
+        ):
             return op_type
-
-        for dialect_name in reversed(self._parser_state.dialect_stack):
-            op_type = self.ctx.get_optional_op(f"{dialect_name}.{name}")
-            if op_type is not None:
-                return op_type
-
-        self.raise_error(f"unregistered operation {name}!")
+        self.raise_error(f"Operation {name} is not registered")
 
     def _parse_op_result(self) -> tuple[Span, int]:
         """
