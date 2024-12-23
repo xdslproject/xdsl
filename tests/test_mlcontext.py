@@ -60,6 +60,40 @@ def test_get_op_unregistered():
     assert issubclass(ctx.get_op("test.dummy2"), UnregisteredOp)
 
 
+def test_get_op_with_dialect_stack():
+    """Test `get_op` and `get_optional_op` methods."""
+    ctx = MLContext()
+    ctx.load_op(DummyOp)
+
+    assert ctx.get_op("dummy", dialect_stack=("test",)) == DummyOp
+    with pytest.raises(Exception):
+        _ = ctx.get_op("dummy2", dialect_stack=("test",))
+
+    assert ctx.get_optional_op("dummy", dialect_stack=("test",)) == DummyOp
+    assert ctx.get_optional_op("dummy2", dialect_stack=("test",)) is None
+
+
+def test_get_op_unregistered_with_dialect_stack():
+    """
+    Test `get_op` and `get_optional_op`
+    methods with the `allow_unregistered` flag.
+    """
+    ctx = MLContext(allow_unregistered=True)
+    ctx.load_op(DummyOp)
+
+    assert ctx.get_optional_op("dummy", dialect_stack=("test",)) == DummyOp
+    op_type = ctx.get_optional_op("dummy2", dialect_stack=("test",))
+    print(op_type)
+    assert op_type is not None
+    assert issubclass(op_type, UnregisteredOp)
+    assert op_type.create().op_name.data == "dummy2"
+
+    assert ctx.get_op("dummy", dialect_stack=("test",)) == DummyOp
+    op_type = ctx.get_op("dummy2", dialect_stack=("test",))
+    assert issubclass(op_type, UnregisteredOp)
+    assert op_type.create().op_name.data == "dummy2"
+
+
 def test_get_attr():
     """Test `get_attr` and `get_optional_attr` methods."""
     ctx = MLContext()
