@@ -1668,7 +1668,6 @@ class ModuleOp(IRDLOperation):
         attributes = parser.parse_optional_attr_dict_with_keyword()
         if attributes is not None:
             attributes = attributes.data
-
         region = parser.parse_region()
 
         # Add a block if the region is empty
