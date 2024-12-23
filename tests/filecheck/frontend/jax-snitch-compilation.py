@@ -7,6 +7,8 @@ from jaxlib.mlir.dialects import stablehlo
 from jaxlib.mlir.ir import Context, Module
 from jaxlib.mlir.passmanager import PassManager
 
+jax.config.update("jax_enable_x64", True)
+
 
 def get_linalg_str(func_jit, args):
     lowered = func_jit.lower(*args)
@@ -37,50 +39,23 @@ def get_linalg_str(func_jit, args):
 key = jax.random.key(42)
 
 
-def scale(x: jnp.ndarray, alpha: float):
-    return x * alpha
+def matadd(A: jnp.ndarray, B: jnp.ndarray, C: jnp.ndarray):
+    return A + B
 
 
-# print(get_linalg_str(jax.jit(scale), (jax.random.uniform(key, [10]), 0.1)))
-
-original = """
-#map = affine_map<(d0) -> ()>
-#map1 = affine_map<(d0) -> (d0)>
-module @jit_scale attributes {mhlo.num_partitions = 1 : i32, mhlo.num_replicas = 1 : i32} {
-  func.func public @main(%arg0: tensor<10xf32>, %arg1: tensor<f32>) -> (tensor<10xf32> {jax.result_info = ""}) {
-    %0 = tensor.empty() : tensor<10xf32>
-    %1 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel"]} ins(%arg1 : tensor<f32>) outs(%0 : tensor<10xf32>) {
-    ^bb0(%in: f32, %out: f32):
-      linalg.yield %in : f32
-    } -> tensor<10xf32>
-    %2 = tensor.empty() : tensor<10xf32>
-    %3 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel"]} ins(%arg0, %1 : tensor<10xf32>, tensor<10xf32>) outs(%2 : tensor<10xf32>) {
-    ^bb0(%in: f32, %in_0: f32, %out: f32):
-      %4 = arith.mulf %in, %in_0 : f32
-      linalg.yield %4 : f32
-    } -> tensor<10xf32>
-    return %3 : tensor<10xf32>
-  }
-}
-"""
+# print(get_linalg_str(jax.jit(matadd, donate_argnames="C", keep_unused=True), (jax.random.uniform(key, [8, 16], dtype=np.float64), jax.random.uniform(key, [8, 16], dtype=np.float64), jax.random.uniform(key, [8, 16], dtype=np.float64))))
 
 changed = """
-#map = affine_map<(d0) -> ()>
-#map1 = affine_map<(d0) -> (d0)>
+#map = affine_map<(d0, d1) -> (d0, d1)>
 module attributes {mhlo.num_partitions = 1 : i32, mhlo.num_replicas = 1 : i32} {
-  func.func public @main(%arg0: tensor<10xf32>, %arg1: tensor<f32>) -> tensor<10xf32> {
-    %0 = tensor.empty() : tensor<10xf32>
-    %1 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel"]} ins(%arg1 : tensor<f32>) outs(%0 : tensor<10xf32>) {
-    ^bb0(%in: f32, %out: f32):
-      linalg.yield %in : f32
-    } -> tensor<10xf32>
-    %2 = tensor.empty() : tensor<10xf32>
-    %3 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel"]} ins(%arg0, %1 : tensor<10xf32>, tensor<10xf32>) outs(%2 : tensor<10xf32>) {
-    ^bb0(%in: f32, %in_0: f32, %out: f32):
-      %4 = arith.mulf %in, %in_0 : f32
-      linalg.yield %4 : f32
-    } -> tensor<10xf32>
-    return %3 : tensor<10xf32>
+  func.func public @main(%arg0: tensor<8x16xf64>, %arg1: tensor<8x16xf64>, %arg2: tensor<8x16xf64> {tf.aliasing_output = 0 : i32}) -> tensor<8x16xf64> {
+    %0 = tensor.empty() : tensor<8x16xf64>
+    %1 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg0, %arg1 : tensor<8x16xf64>, tensor<8x16xf64>) outs(%0 : tensor<8x16xf64>) {
+    ^bb0(%in: f64, %in_0: f64, %out: f64):
+      %2 = arith.addf %in, %in_0 : f64
+      linalg.yield %2 : f64
+    } -> tensor<8x16xf64>
+    return %1 : tensor<8x16xf64>
   }
 }
 """
