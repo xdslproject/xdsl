@@ -1643,16 +1643,15 @@ class ModuleOp(IRDLOperation):
         self,
         ops: list[Operation] | Region,
         attributes: Mapping[str, Attribute] | None = None,
-        properties: dict[str, Attribute] | None = None,
+        sym_name: StringAttr | None = None,
     ):
         if attributes is None:
             attributes = {}
-        if properties is None:
-            properties = {}
         if isinstance(ops, Region):
             region = ops
         else:
             region = Region(Block(ops))
+        properties: dict[str, Attribute | None] = {"sym_name": sym_name}
         super().__init__(regions=[region], attributes=attributes, properties=properties)
 
     @property
@@ -1663,10 +1662,6 @@ class ModuleOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ModuleOp:
         module_name = parser.parse_optional_symbol_name()
 
-        properties: dict[str, Attribute] = {}
-        if module_name is not None:
-            properties["sym_name"] = module_name
-
         attributes = parser.parse_optional_attr_dict_with_keyword()
         if attributes is not None:
             attributes = attributes.data
@@ -1676,7 +1671,7 @@ class ModuleOp(IRDLOperation):
         if not region.blocks:
             region.add_block(Block())
 
-        return ModuleOp(region, attributes, properties)
+        return ModuleOp(region, attributes, module_name)
 
     def print(self, printer: Printer) -> None:
         if "sym_name" in self.properties and isinstance(
