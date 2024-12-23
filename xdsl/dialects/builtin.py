@@ -61,7 +61,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
-    opt_attr_def,
+    opt_prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -1628,7 +1628,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
-    sym_name = opt_attr_def(StringAttr)
+    sym_name = opt_prop_def(StringAttr)
 
     body = region_def("single_block")
 
@@ -1642,6 +1642,7 @@ class ModuleOp(IRDLOperation):
     def __init__(
         self,
         ops: list[Operation] | Region,
+        properties: dict[str, Attribute],
         attributes: Mapping[str, Attribute] | None = None,
     ):
         if attributes is None:
@@ -1650,7 +1651,7 @@ class ModuleOp(IRDLOperation):
             region = ops
         else:
             region = Region(Block(ops))
-        super().__init__(regions=[region], attributes=attributes)
+        super().__init__(regions=[region], attributes=attributes, properties=properties)
 
     @property
     def ops(self) -> BlockOps:
@@ -1660,14 +1661,13 @@ class ModuleOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ModuleOp:
         module_name = parser.parse_optional_symbol_name()
 
+        properties: dict[str, Attribute] = {}
+        if module_name is not None:
+            properties["sym_name"] = module_name
+
         attributes = parser.parse_optional_attr_dict_with_keyword()
         if attributes is not None:
             attributes = attributes.data
-
-        if module_name is not None:
-            if attributes is None:
-                attributes = {}
-            attributes["sym_name"] = module_name
 
         region = parser.parse_region()
 
@@ -1675,22 +1675,17 @@ class ModuleOp(IRDLOperation):
         if not region.blocks:
             region.add_block(Block())
 
-        return ModuleOp(region, attributes)
+        return ModuleOp(region, properties, attributes)
 
     def print(self, printer: Printer) -> None:
-        attrs = self.attributes.copy()
-        module_name: StringAttr | None = None
+        if "sym_name" in self.properties and isinstance(
+            self.properties["sym_name"], StringAttr
+        ):
+            printer.print(f" @{self.properties["sym_name"].data}")
 
-        if "sym_name" in attrs and isinstance(attrs["sym_name"], StringAttr):
-            module_name = attrs["sym_name"]
-            del attrs["sym_name"]
-
-        if module_name is not None:
-            printer.print(f" @{module_name.data}")
-
-        if len(attrs) != 0:
+        if len(self.attributes) != 0:
             printer.print(" attributes ")
-            printer.print_op_attributes(attrs)
+            printer.print_op_attributes(self.attributes)
 
         if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block
