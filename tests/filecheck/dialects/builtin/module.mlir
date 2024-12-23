@@ -11,5 +11,8 @@ builtin.module {
     builtin.module @moduleName {}
     // CHECK-NEXT: builtin.module @moduleName {
     // CHECK-NEXT: }
+    builtin.module @otherModule attributes {dialect.attr} {}
+    // CHECK-NEXT: builtin.module @otherModule attributes  {"dialect.attr"} {
+    // CHECK-NEXT: }
 }
 // CHECK: }
