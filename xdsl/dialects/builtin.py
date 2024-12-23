@@ -1642,11 +1642,13 @@ class ModuleOp(IRDLOperation):
     def __init__(
         self,
         ops: list[Operation] | Region,
-        properties: dict[str, Attribute],
         attributes: Mapping[str, Attribute] | None = None,
+        properties: dict[str, Attribute] | None = None,
     ):
         if attributes is None:
             attributes = {}
+        if properties is None:
+            properties = {}
         if isinstance(ops, Region):
             region = ops
         else:
@@ -1674,7 +1676,7 @@ class ModuleOp(IRDLOperation):
         if not region.blocks:
             region.add_block(Block())
 
-        return ModuleOp(region, properties, attributes)
+        return ModuleOp(region, attributes, properties)
 
     def print(self, printer: Printer) -> None:
         if "sym_name" in self.properties and isinstance(
