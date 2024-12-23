@@ -12,7 +12,9 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.vector import (
     BroadcastOp,
     CreatemaskOp,
+    ExtractElementOp,
     FMAOp,
+    InsertElementOp,
     LoadOp,
     MaskedloadOp,
     MaskedstoreOp,
@@ -517,3 +519,137 @@ def test_vector_create_mask_verify_indexing_exception():
         match="Expected an operand value for each dimension of resultant mask.",
     ):
         create_mask.verify()
+
+
+def test_vector_extract_element_verify_vector_rank_0_or_1():
+    vector_type = VectorType(IndexType(), [3, 3])
+
+    vector = TestSSAValue(vector_type)
+    position = TestSSAValue(IndexType())
+    extract_element = ExtractElementOp(vector, position)
+
+    with pytest.raises(Exception, match="Unexpected >1 vector rank."):
+        extract_element.verify()
+
+
+def test_vector_extract_element_construction_1d():
+    vector_type = VectorType(IndexType(), [3])
+
+    vector = TestSSAValue(vector_type)
+    position = TestSSAValue(IndexType())
+
+    extract_element = ExtractElementOp(vector, position)
+
+    assert extract_element.vector is vector
+    assert extract_element.position is position
+    assert extract_element.result.type == vector_type.element_type
+
+
+def test_vector_extract_element_1d_verify_non_empty_position():
+    vector_type = VectorType(IndexType(), [3])
+
+    vector = TestSSAValue(vector_type)
+
+    extract_element = ExtractElementOp(vector)
+
+    with pytest.raises(Exception, match="Expected position for 1-D vector."):
+        extract_element.verify()
+
+
+def test_vector_extract_element_construction_0d():
+    vector_type = VectorType(IndexType(), [])
+
+    vector = TestSSAValue(vector_type)
+
+    extract_element = ExtractElementOp(vector)
+
+    assert extract_element.vector is vector
+    assert extract_element.position is None
+    assert extract_element.result.type == vector_type.element_type
+
+
+def test_vector_extract_element_0d_verify_empty_position():
+    vector_type = VectorType(IndexType(), [])
+
+    vector = TestSSAValue(vector_type)
+    position = TestSSAValue(IndexType())
+
+    extract_element = ExtractElementOp(vector, position)
+
+    with pytest.raises(
+        Exception, match="Expected position to be empty with 0-D vector."
+    ):
+        extract_element.verify()
+
+
+def test_vector_insert_element_verify_vector_rank_0_or_1():
+    vector_type = VectorType(IndexType(), [3, 3])
+
+    source = TestSSAValue(IndexType())
+    dest = TestSSAValue(vector_type)
+    position = TestSSAValue(IndexType())
+
+    insert_element = InsertElementOp(source, dest, position)
+
+    with pytest.raises(Exception, match="Unexpected >1 vector rank."):
+        insert_element.verify()
+
+
+def test_vector_insert_element_construction_1d():
+    vector_type = VectorType(IndexType(), [3])
+
+    source = TestSSAValue(IndexType())
+    dest = TestSSAValue(vector_type)
+    position = TestSSAValue(IndexType())
+
+    insert_element = InsertElementOp(source, dest, position)
+
+    assert insert_element.source is source
+    assert insert_element.dest is dest
+    assert insert_element.position is position
+    assert insert_element.result.type == vector_type
+
+
+def test_vector_insert_element_1d_verify_non_empty_position():
+    vector_type = VectorType(IndexType(), [3])
+
+    source = TestSSAValue(IndexType())
+    dest = TestSSAValue(vector_type)
+
+    insert_element = InsertElementOp(source, dest)
+
+    with pytest.raises(
+        Exception,
+        match="Expected position for 1-D vector.",
+    ):
+        insert_element.verify()
+
+
+def test_vector_insert_element_construction_0d():
+    vector_type = VectorType(IndexType(), [])
+
+    source = TestSSAValue(IndexType())
+    dest = TestSSAValue(vector_type)
+
+    insert_element = InsertElementOp(source, dest)
+
+    assert insert_element.source is source
+    assert insert_element.dest is dest
+    assert insert_element.position is None
+    assert insert_element.result.type == vector_type
+
+
+def test_vector_insert_element_0d_verify_empty_position():
+    vector_type = VectorType(IndexType(), [])
+
+    source = TestSSAValue(IndexType())
+    dest = TestSSAValue(vector_type)
+    position = TestSSAValue(IndexType())
+
+    insert_element = InsertElementOp(source, dest, position)
+
+    with pytest.raises(
+        Exception,
+        match="Expected position to be empty with 0-D vector.",
+    ):
+        insert_element.verify()

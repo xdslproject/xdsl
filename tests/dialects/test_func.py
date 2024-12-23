@@ -3,10 +3,23 @@ from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects.arith import AddiOp, ConstantOp
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    i32,
+    i64,
+)
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.ir import Block, Region
-from xdsl.traits import CallableOpInterface
+from xdsl.irdl import (
+    IRDLOperation,
+    attr_def,
+    irdl_op_definition,
+    traits_def,
+)
+from xdsl.traits import CallableOpInterface, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -259,6 +272,30 @@ def test_call_II():
     assert len(func0.operands) == 0
 
     assert_print_op(mod, expected, None)
+
+
+def test_call_III():
+    """Call a symbol that is not func.func"""
+
+    @irdl_op_definition
+    class SymbolOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = attr_def(StringAttr)
+
+        traits = traits_def(SymbolOpInterface())
+
+        def __init__(self, name: str):
+            return super().__init__(attributes={"sym_name": StringAttr(name)})
+
+    symop = SymbolOp("foo")
+    call0 = CallOp("foo", [], [])
+    mod = ModuleOp([symop, call0])
+
+    with pytest.raises(
+        VerifyException, match="'@foo' does not reference a valid function"
+    ):
+        mod.verify()
 
 
 def test_return():
