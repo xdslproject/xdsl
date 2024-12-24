@@ -1674,10 +1674,8 @@ class ModuleOp(IRDLOperation):
         return ModuleOp(region, attributes, module_name)
 
     def print(self, printer: Printer) -> None:
-        if "sym_name" in self.properties and isinstance(
-            self.properties["sym_name"], StringAttr
-        ):
-            printer.print(f" @{self.properties['sym_name'].data}")
+        if self.sym_name is not None:
+            printer.print(f" @{self.sym_name.data}")
 
         if len(self.attributes) != 0:
             printer.print(" attributes ")
