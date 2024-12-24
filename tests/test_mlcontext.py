@@ -83,7 +83,6 @@ def test_get_op_unregistered_with_dialect_stack():
 
     assert ctx.get_optional_op("dummy", dialect_stack=("test",)) == DummyOp
     op_type = ctx.get_optional_op("dummy2", dialect_stack=("test",))
-    print(op_type)
     assert op_type is not None
     assert issubclass(op_type, UnregisteredOp)
     assert op_type.create().op_name.data == "dummy2"
