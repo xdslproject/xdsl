@@ -61,7 +61,7 @@ def print_func_op_like(
         printer.print(") ")
         if function_type.outputs:
             printer.print("-> ")
-            if len(function_type.outputs) > 1:
+            if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print("(")
             if res_attrs is not None:
                 printer.print_list(
@@ -72,7 +72,7 @@ def print_func_op_like(
                 )
             else:
                 printer.print_list(function_type.outputs, printer.print_attribute)
-            if len(function_type.outputs) > 1:
+            if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print(")")
             printer.print(" ")
     else:

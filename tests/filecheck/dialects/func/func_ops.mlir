@@ -81,4 +81,14 @@ builtin.module {
   // CHECK-NEXT:    %r1, %r2 = "test.op"() : () -> (f32, f32)
   // CHECK-NEXT:    func.return %r1, %r2 : f32, f32
   // CHECK-NEXT:  }
+
+  func.func @output_attribute_single() -> (f32 {dialect.a = 0 : i32}) {
+    %r1 = "test.op"() : () -> (f32)
+    return %r1: f32
+  }
+
+  // CHECK:       func.func @output_attribute_single() -> (f32 {"dialect.a" = 0 : i32}) {
+  // CHECK-NEXT:    %r1 = "test.op"() : () -> f32
+  // CHECK-NEXT:    func.return %r1 : f32
+  // CHECK-NEXT:  }
 }
