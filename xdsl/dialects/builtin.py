@@ -1658,6 +1658,7 @@ class ModuleOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ModuleOp:
+        _ = parser.parse_optional_symbol_name()
         attributes = parser.parse_optional_attr_dict_with_keyword()
         if attributes is not None:
             attributes = attributes.data
