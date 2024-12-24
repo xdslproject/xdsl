@@ -59,12 +59,10 @@ def iter_condensed_passes(
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    selections: list[AvailablePass] = []
     for _, value in all_passes:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            selections.append(AvailablePass(value.name, value, None))
-            continue
+            yield AvailablePass(value.name, value, None), None
         try:
             cloned_module = input.clone()
             cloned_ctx = ctx.clone()
