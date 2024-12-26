@@ -182,7 +182,7 @@ class MLIRApp(App[None]):
         for pass_name in self.all_passes:
             self.passes_tree.root.add(
                 label=pass_name,
-                data=pass_name,
+                data=(pass_name, None),
             )
 
         # initialize GUI with either specified input text or default example
@@ -202,7 +202,7 @@ class MLIRApp(App[None]):
         for pass_name in child_pass_list:
             expanded_pass.add(
                 label=pass_name,
-                data=pass_name,
+                data=(pass_name, None),
             )
 
     def update_root_of_passes_tree(self) -> None:
@@ -218,7 +218,7 @@ class MLIRApp(App[None]):
             value = self.pass_pipeline[-1]
             self.passes_tree.reset(
                 label=str(value),
-                data=value,
+                data=(value, None),
             )
         # expand the node
         self.expand_node(self.passes_tree.root, self.all_passes)
@@ -353,7 +353,7 @@ class MLIRApp(App[None]):
             return
 
         # get instance
-        selected_pass_value = selected_pass.data
+        selected_pass_value, selected_pass_spec = selected_pass.data
 
         if "=" in selected_pass_value:
             # Add pass with arguments to pass pipeline
