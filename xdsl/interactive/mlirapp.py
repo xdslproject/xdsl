@@ -221,7 +221,7 @@ class MLIRApp(App[None]):
                 data=value,
             )
         # expand the node
-        self.expand_node(self.passes_tree.root, sorted(self.all_passes))
+        self.expand_node(self.passes_tree.root, self.all_passes)
 
     def update_selected_passes_list_view(self) -> None:
         """
@@ -450,7 +450,7 @@ def main():
         "input_file", type=str, nargs="?", help="path to input file"
     )
 
-    available_passes = ",".join([name for name in sorted(get_mlir_pass_list())])
+    available_passes = ",".join([name for name in get_mlir_pass_list()])
     arg_parser.add_argument(
         "-p",
         "--passes",
@@ -470,7 +470,7 @@ def main():
         file_contents = None
 
     pass_spec_pipeline = list(parse_pipeline(args.passes))
-    pass_list = sorted(get_mlir_pass_list())
+    pass_list = get_mlir_pass_list()
     pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
 
     return MLIRApp(

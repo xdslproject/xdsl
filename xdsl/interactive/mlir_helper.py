@@ -43,7 +43,7 @@ def iterate_and_extract_options() -> list[str]:
             ]  # Extract the word directly after `--`
             options.append(option)
 
-    return options
+    return sorted(options)
 
 
 def get_mlir_pass_list() -> tuple[str, ...]:
