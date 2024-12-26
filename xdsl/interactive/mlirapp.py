@@ -111,16 +111,18 @@ class MLIRApp(App[None]):
     
     pre_loaded_input_text: str
     current_file_path: str
+    pre_loaded_pass_pipeline: tuple[str, ...]
 
     def __init__(
         self,
-        # all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
-        # all_passes: tuple[str, ...],
+        all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
+        all_passes: tuple[str, ...],
         file_path: str | None = None,
         input_text: str | None = None,
+        pass_pipeline: tuple[str, ...] = (),
     ):
-        self.all_dialects = tuple(get_all_dialects().items())
-        self.all_passes = sorted(get_mlir_pass_list())
+        self.all_dialects = all_dialects
+        self.all_passes = all_passes
                 
         if file_path is None:
             self.current_file_path = ""
@@ -131,6 +133,9 @@ class MLIRApp(App[None]):
             self.pre_loaded_input_text = MLIRApp.INITIAL_IR_TEXT
         else:
             self.pre_loaded_input_text = input_text
+
+        self.pre_loaded_pass_pipeline = pass_pipeline
+
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -458,8 +463,42 @@ class MLIRApp(App[None]):
 
 
 def main():
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument(
+        "input_file", type=str, nargs="?", help="path to input file"
+    )
+
+    available_passes = ",".join([name for name in sorted(get_mlir_pass_list())])
+    arg_parser.add_argument(
+        "-p",
+        "--passes",
+        required=False,
+        help="Delimited list of passes." f" Available passes are: {available_passes}",
+        type=str,
+        default="",
+    )
+    args = arg_parser.parse_args()
+
+    file_path = args.input_file
+    if file_path is not None:
+        # Open the file and read its contents
+        with open(file_path) as file:
+            file_contents = file.read()
+    else:
+        file_contents = None
+
+    pass_spec_pipeline = list(parse_pipeline(args.passes))
+    pass_list = sorted(get_mlir_pass_list())
+    pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
+
+
     return MLIRApp(
-        None, None).run()
+        tuple(get_all_dialects().items()),
+        sorted(get_mlir_pass_list()),
+        file_path,
+        file_contents,
+        pipeline,
+    ).run()
 
 
 if __name__ == "__main__":

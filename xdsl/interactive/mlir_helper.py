@@ -60,7 +60,7 @@ def get_new_registered_context(
     """
     Generates a new MLContext, registers it and returns it.
     """
-    ctx = MLContext()
+    ctx = MLContext(True)
     for dialect_name, dialect_factory in all_dialects:
         ctx.register_dialect(dialect_name, dialect_factory)
     return ctx
