@@ -34,7 +34,7 @@ class SubstituteDonatedTensors(RewritePattern):
             if isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data
         ]
 
-        if len(donated_inputs) == 0:
+        if not donated_inputs:
             return
 
         new_ops: list[Operation] = []
