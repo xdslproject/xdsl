@@ -17,9 +17,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
-def map_outputs_to_inputs(
-    donated_inputs: list[BlockArgument], outputs: VarOperand
-) -> list[int | None]:
+def map_outputs_to_inputs(donated_inputs: list[BlockArgument], outputs: VarOperand):
     used_inputs_idx: set[int] = set()
     output_input_mapping: list[int | None] = [None for _ in range(len(outputs))]
 
