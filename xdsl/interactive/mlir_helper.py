@@ -6,7 +6,6 @@ from xdsl.dialects import builtin
 from xdsl.ir import Dialect
 from xdsl.passes import ModulePass
 from xdsl.transforms.mlir_opt import MLIROptPass
-from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 def iterate_and_extract_options() -> list[str]:
@@ -16,6 +15,7 @@ def iterate_and_extract_options() -> list[str]:
     Returns:
         list: A list of strings containing the extracted options.
     """
+    options: list[str]
     options = []
 
     # Step 1: Call `mlir-opt --help` and capture the output
@@ -67,7 +67,7 @@ def get_new_registered_context(
     return ctx
 
 
-def generate_mlir_pass_spec(args: tuple[str, ...]) -> PipelinePassSpec | None:
+def generate_mlir_pass(args: tuple[str, ...]) -> MLIROptPass:
     return MLIROptPass("mlir-opt", arguments=args)
 
 

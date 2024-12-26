@@ -35,7 +35,7 @@ from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.mlir_helper import (
     apply_mlir_pass_with_args_to_module,
-    generate_mlir_pass_spec,
+    generate_mlir_pass,
     get_mlir_pass_list,
     get_new_registered_context,
 )
@@ -182,7 +182,7 @@ class MLIRApp(App[None]):
         for pass_name in self.all_passes:
             self.passes_tree.root.add(
                 label=pass_name,
-                data=(pass_name, None),
+                data=pass_name,
             )
 
         # initialize GUI with either specified input text or default example
@@ -202,7 +202,7 @@ class MLIRApp(App[None]):
         for pass_name in child_pass_list:
             expanded_pass.add(
                 label=pass_name,
-                data=(pass_name, None),
+                data=pass_name,
             )
 
     def update_root_of_passes_tree(self) -> None:
@@ -218,7 +218,7 @@ class MLIRApp(App[None]):
             value = self.pass_pipeline[-1]
             self.passes_tree.reset(
                 label=str(value),
-                data=(value, None),
+                data=value,
             )
         # expand the node
         self.expand_node(self.passes_tree.root, sorted(self.all_passes))
@@ -255,12 +255,12 @@ class MLIRApp(App[None]):
             ctx = get_new_registered_context(self.all_dialects)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            current_spec = generate_mlir_pass_spec(self.pass_pipeline)
-            if current_spec is None:
+            current_mlir_opt_pass = generate_mlir_pass(self.pass_pipeline)
+            if current_mlir_opt_pass is None:
                 self.current_module = module  # $
             else:
                 self.current_module = apply_mlir_pass_with_args_to_module(
-                    module, ctx, current_spec
+                    module, ctx, current_mlir_opt_pass
                 )
                 self.current_module = module
         except Exception as e:
@@ -353,7 +353,7 @@ class MLIRApp(App[None]):
             return
 
         # get instance
-        selected_pass_value, selected_pass_spec = selected_pass.data
+        selected_pass_value = selected_pass.data
 
         if "=" in selected_pass_value:
             # Add pass with arguments to pass pipeline
@@ -475,7 +475,7 @@ def main():
 
     return MLIRApp(
         tuple(get_all_dialects().items()),
-        sorted(get_mlir_pass_list()),
+        get_mlir_pass_list(),
         file_path,
         file_contents,
         pipeline,
