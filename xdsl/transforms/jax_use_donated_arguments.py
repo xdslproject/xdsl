@@ -6,7 +6,8 @@ from xdsl.dialects import builtin
 from xdsl.dialects.bufferization import MaterializeInDestinationOp
 from xdsl.dialects.builtin import FunctionType, TensorType
 from xdsl.dialects.func import FuncOp, ReturnOp
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
+from xdsl.irdl import VarOperand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -14,6 +15,59 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+
+
+def map_outputs_to_inputs(
+    donated_inputs: list[BlockArgument], outputs: VarOperand
+) -> list[int | None]:
+    used_inputs_idx: set[int] = set()
+    output_input_mapping: list[int | None] = [None for _ in range(len(outputs))]
+
+    for outputs_idx, output in enumerate(outputs):
+        for input_idx, arg in enumerate(donated_inputs):
+            if arg.type == output.type and input_idx not in used_inputs_idx:
+                output_input_mapping[outputs_idx] = input_idx
+                used_inputs_idx.add(input_idx)
+                break
+
+    return output_input_mapping
+
+
+def construct_new_output_list(
+    donated_inputs: list[BlockArgument],
+    outputs: VarOperand,
+    output_input_mapping: list[int | None],
+):
+    new_outputs: list[SSAValue] = []
+    materialize_ops: list[Operation] = []
+
+    for output_idx, input_idx in enumerate(output_input_mapping):
+        if input_idx is None:
+            new_outputs.append(outputs[output_idx])
+        else:
+            materialize_ops.append(
+                MaterializeInDestinationOp(
+                    operands=[outputs[output_idx], donated_inputs[input_idx]],
+                    result_types=[outputs[output_idx].type],
+                )
+            )
+            new_outputs.append(materialize_ops[-1].results[0])
+
+    return new_outputs, materialize_ops
+
+
+def construct_return(
+    output_list: list[SSAValue],
+    output_types: list[Attribute],
+    output_input_mapping: list[int | None],
+    remove_matched_outputs: bool,
+):
+    if remove_matched_outputs:
+        kept_outputs_mask = [i is None for i in output_input_mapping]
+        output_types = list(itertools.compress(output_types, kept_outputs_mask))
+        output_list = list(itertools.compress(output_list, kept_outputs_mask))
+
+    return ReturnOp(*output_list), output_types
 
 
 @dataclass
@@ -37,36 +91,23 @@ class SubstituteDonatedTensors(RewritePattern):
         if not donated_inputs:
             return
 
-        new_ops: list[Operation] = []
-        new_outputs: list[SSAValue] = []
-        keep_output_param: list[bool] = []
+        output_input_mapping = map_outputs_to_inputs(donated_inputs, op.arguments)
+        if all(map(lambda x: x is None, output_input_mapping)):
+            return
 
-        for output in op.arguments:
-            final_output = output
-            keep_output_param.append(True)
-            for i, arg in enumerate(donated_inputs):
-                if arg.type == output.type:
-                    new_ops.append(
-                        MaterializeInDestinationOp(
-                            operands=[output, donated_inputs.pop(i)],
-                            result_types=[output.type],
-                        )
-                    )
-                    final_output = new_ops[-1].results[0]
-                    keep_output_param[-1] = False
-                    break
-            new_outputs.append(final_output)
-
-        output_types = list(func_op.function_type.outputs.data)
-
-        if self.remove_matched_outputs:
-            output_types = list(itertools.compress(output_types, keep_output_param))
-            new_outputs = list(itertools.compress(new_outputs, keep_output_param))
-
-        func_op.function_type = FunctionType.from_lists(
-            func_op.function_type.inputs.data, output_types
+        new_outputs, new_ops = construct_new_output_list(
+            donated_inputs, op.arguments, output_input_mapping
         )
-        new_ops.append(ReturnOp(*new_outputs))
+        return_op, return_types = construct_return(
+            new_outputs,
+            list(func_op.function_type.outputs.data),
+            output_input_mapping,
+            self.remove_matched_outputs,
+        )
+        new_ops.append(return_op)
+        func_op.function_type = FunctionType.from_lists(
+            func_op.function_type.inputs.data, return_types
+        )
         rewriter.replace_matched_op(new_ops)
 
 
