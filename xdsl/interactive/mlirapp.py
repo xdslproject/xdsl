@@ -256,13 +256,9 @@ class MLIRApp(App[None]):
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             current_mlir_opt_pass = generate_mlir_pass(self.pass_pipeline)
-            if current_mlir_opt_pass is None:
-                self.current_module = module  # $
-            else:
-                self.current_module = apply_mlir_pass_with_args_to_module(
-                    module, ctx, current_mlir_opt_pass
-                )
-                self.current_module = module
+            self.current_module = apply_mlir_pass_with_args_to_module(
+                module, ctx, current_mlir_opt_pass
+            )
         except Exception as e:
             self.current_module = e
 
