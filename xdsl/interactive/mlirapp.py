@@ -10,7 +10,6 @@ be sure to install `textual-dev` to run this command.
 import argparse
 import os
 from collections.abc import Callable
-from dataclasses import fields
 from io import StringIO
 from typing import Any, ClassVar
 
@@ -21,35 +20,34 @@ from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import (
     Button,
-    DataTable,
     Footer,
     Label,
     ListItem,
     ListView,
     TextArea,
     Tree,
-    SelectionList
 )
 from textual.widgets.tree import TreeNode
 
+from xdsl.dialects import get_all_dialects
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.mlir_helper import (
+    apply_mlir_pass_with_args_to_module,
+    generate_mlir_pass_spec,
     get_mlir_pass_list,
     get_new_registered_context,
-    apply_mlir_pass_with_args_to_module,
-    generate_mlir_pass_spec
 )
-from xdsl.dialects import get_all_dialects
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.printer import Printer
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
+from xdsl.utils.exceptions import PassPipelineParseError
+from xdsl.utils.parse_pipeline import parse_pipeline
 
 from ._pasteboard import pyclip_copy
+
 
 class OutputTextArea(TextArea):
     """Used to prevent users from being able to alter the Output TextArea."""
@@ -57,7 +55,8 @@ class OutputTextArea(TextArea):
     async def _on_key(self, event: events.Key) -> None:
         event.prevent_default()
 
-class MLIRApp(App[None]):   
+
+class MLIRApp(App[None]):
     """
     Interactive application for constructing compiler pipelines.
     """
@@ -99,7 +98,6 @@ class MLIRApp(App[None]):
     (i.e. is the Output TextArea).
     """
 
-
     input_text_area: TextArea
     """Input TextArea."""
     output_text_area: OutputTextArea
@@ -108,7 +106,7 @@ class MLIRApp(App[None]):
     """"ListView displaying the selected passes."""
     passes_tree: Tree[str]
     """Tree displaying the passes available to apply."""
-    
+
     pre_loaded_input_text: str
     current_file_path: str
     pre_loaded_pass_pipeline: tuple[str, ...]
@@ -123,7 +121,7 @@ class MLIRApp(App[None]):
     ):
         self.all_dialects = all_dialects
         self.all_passes = all_passes
-                
+
         if file_path is None:
             self.current_file_path = ""
         else:
@@ -170,7 +168,6 @@ class MLIRApp(App[None]):
                     yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
-
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
         # Registers the theme for the Input/Output TextAreas
@@ -180,7 +177,7 @@ class MLIRApp(App[None]):
         # add titles for various widgets
         self.query_one("#input_container").border_title = "Input MLIR IR"
         self.query_one("#output_container").border_title = "Output MLIR IR"
-        
+
         # initialize Tree to contain the pass options
         for pass_name in self.all_passes:
             self.passes_tree.root.add(
@@ -190,7 +187,7 @@ class MLIRApp(App[None]):
 
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
-    
+
     def expand_node(
         self,
         expanded_pass: TreeNode[tuple[str, ...]],
@@ -226,7 +223,6 @@ class MLIRApp(App[None]):
         # expand the node
         self.expand_node(self.passes_tree.root, sorted(self.all_passes))
 
-
     def update_selected_passes_list_view(self) -> None:
         """
         Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
@@ -242,9 +238,8 @@ class MLIRApp(App[None]):
         pass_pipeline = self.pass_pipeline[:-1]
         for pass_value in pass_pipeline:
             self.selected_passes_list_view.append(
-                ListItem(Label(str(pass_value)), name = pass_value)
+                ListItem(Label(str(pass_value)), name=pass_value)
             )
-
 
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
@@ -262,12 +257,12 @@ class MLIRApp(App[None]):
             module = parser.parse_module()
             current_spec = generate_mlir_pass_spec(self.pass_pipeline)
             if current_spec is None:
-                self.current_module = module #$
-            else: 
+                self.current_module = module  # $
+            else:
                 self.current_module = apply_mlir_pass_with_args_to_module(
                     module, ctx, current_spec
                 )
-                self.current_module = module 
+                self.current_module = module
         except Exception as e:
             self.current_module = e
 
@@ -289,7 +284,6 @@ class MLIRApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-
 
     def watch_pass_pipeline(self) -> None:
         """
@@ -323,11 +317,8 @@ class MLIRApp(App[None]):
                 # if screen was dismissed and user 1) cleared the screen 2) made no changes
                 if concatenated_arg_val is None:
                     return
-                
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    concatenated_arg_val
-                )
+
+                self.pass_pipeline = (*self.pass_pipeline, concatenated_arg_val)
                 return
 
             except PassPipelineParseError as e:
@@ -348,9 +339,7 @@ class MLIRApp(App[None]):
         )
 
     @on(Tree.NodeSelected, "#passes_tree")
-    def update_pass_pipeline(
-        self, event: Tree.NodeSelected[tuple[str, ...]]
-    ) -> None:
+    def update_pass_pipeline(self, event: Tree.NodeSelected[tuple[str, ...]]) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
@@ -368,28 +357,21 @@ class MLIRApp(App[None]):
 
         if "=" in selected_pass_value:
             # Add pass with arguments to pass pipeline
-            self.get_pass_arguments(
-                selected_pass_value
-            )
+            self.get_pass_arguments(selected_pass_value)
 
-        else: # Add pass without arguments to pass pipeline
-            self.pass_pipeline = (
-                *self.pass_pipeline,
-                selected_pass_value
-            )
+        else:  # Add pass without arguments to pass pipeline
+            self.pass_pipeline = (*self.pass_pipeline, selected_pass_value)
 
     def get_query_string(self) -> str:
         """
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        query = self.current_file_path 
+        query = self.current_file_path
 
         if self.pass_pipeline:
-            query += " ".join(val for 
-               val in self.pass_pipeline
-            )
-        
+            query += " ".join(val for val in self.pass_pipeline)
+
         return f"mlir-opt {query}"
 
     def action_toggle_dark(self) -> None:
@@ -490,7 +472,6 @@ def main():
     pass_spec_pipeline = list(parse_pipeline(args.passes))
     pass_list = sorted(get_mlir_pass_list())
     pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
-
 
     return MLIRApp(
         tuple(get_all_dialects().items()),
