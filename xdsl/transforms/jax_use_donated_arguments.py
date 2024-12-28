@@ -30,6 +30,11 @@ def map_outputs_to_inputs(
     output_input_mapping: dict[int, int] = {}
 
     for outputs_idx, output in enumerate(outputs):
+        if isinstance(output.owner, MaterializeInDestinationOp) and isinstance(
+            output.owner.dest, BlockArgument
+        ):
+            # the return value is already bufferized in a donated buffer
+            continue
         for input_idx, arg in enumerate(donated_inputs):
             if arg.type == output.type and input_idx not in used_inputs_idx:
                 output_input_mapping[outputs_idx] = input_idx
@@ -65,6 +70,10 @@ def construct_new_output_list(
 
 @dataclass
 class SubstituteDonatedTensors(RewritePattern):
+    """
+    Looks at returned tensors and if they match donated argument tensors ask bufferization to use them as buffers.
+    """
+
     remove_matched_outputs: bool = False
 
     @op_type_rewrite_pattern
