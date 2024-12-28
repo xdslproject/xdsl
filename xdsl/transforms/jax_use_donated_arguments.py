@@ -1,4 +1,5 @@
 import itertools
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
@@ -6,7 +7,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.bufferization import MaterializeInDestinationOp
 from xdsl.dialects.builtin import FunctionType, TensorType
 from xdsl.dialects.func import FuncOp, ReturnOp
-from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
+from xdsl.ir import BlockArgument, Operation, SSAValue
 from xdsl.irdl import VarOperand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -17,9 +18,16 @@ from xdsl.pattern_rewriter import (
 )
 
 
-def map_outputs_to_inputs(donated_inputs: list[BlockArgument], outputs: VarOperand):
+def map_outputs_to_inputs(
+    donated_inputs: Sequence[BlockArgument], outputs: VarOperand
+) -> dict[int, int]:
+    """
+    Find suitable donated buffers for each of returned variables.
+    Each buffer can be used only once.
+    Types of the buffer and the variable should match.
+    """
     used_inputs_idx: set[int] = set()
-    output_input_mapping: list[int | None] = [None for _ in range(len(outputs))]
+    output_input_mapping: dict[int, int] = {}
 
     for outputs_idx, output in enumerate(outputs):
         for input_idx, arg in enumerate(donated_inputs):
@@ -32,40 +40,27 @@ def map_outputs_to_inputs(donated_inputs: list[BlockArgument], outputs: VarOpera
 
 
 def construct_new_output_list(
-    donated_inputs: list[BlockArgument],
+    donated_inputs: Sequence[BlockArgument],
     outputs: VarOperand,
-    output_input_mapping: list[int | None],
-):
-    new_outputs: list[SSAValue] = []
+    output_input_mapping: dict[int, int],
+) -> tuple[Sequence[SSAValue], list[Operation]]:
+    """
+    Create new SSA values of buffers with the needed content, they will be used in the ReturnOp.
+    Also create operations to associate buffers with corresponding return values.
+    """
+    new_outputs: Sequence[SSAValue] = [o for o in outputs]
     materialize_ops: list[Operation] = []
 
-    for output_idx, input_idx in enumerate(output_input_mapping):
-        if input_idx is None:
-            new_outputs.append(outputs[output_idx])
-        else:
-            materialize_ops.append(
-                MaterializeInDestinationOp(
-                    operands=[outputs[output_idx], donated_inputs[input_idx]],
-                    result_types=[outputs[output_idx].type],
-                )
+    for output_idx, input_idx in sorted(output_input_mapping.items()):
+        materialize_ops.append(
+            MaterializeInDestinationOp(
+                operands=[outputs[output_idx], donated_inputs[input_idx]],
+                result_types=[outputs[output_idx].type],
             )
-            new_outputs.append(materialize_ops[-1].results[0])
+        )
+        new_outputs[output_idx] = materialize_ops[-1].results[0]
 
     return new_outputs, materialize_ops
-
-
-def construct_return(
-    output_list: list[SSAValue],
-    output_types: list[Attribute],
-    output_input_mapping: list[int | None],
-    remove_matched_outputs: bool,
-):
-    if remove_matched_outputs:
-        kept_outputs_mask = [i is None for i in output_input_mapping]
-        output_types = list(itertools.compress(output_types, kept_outputs_mask))
-        output_list = list(itertools.compress(output_list, kept_outputs_mask))
-
-    return ReturnOp(*output_list), output_types
 
 
 @dataclass
@@ -80,29 +75,32 @@ class SubstituteDonatedTensors(RewritePattern):
         if func_op.arg_attrs is None:
             return
 
-        donated_inputs = [
+        donated_inputs = tuple(
             inp
             for inp, attr in zip(func_op.args, func_op.arg_attrs, strict=True)
             if isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data
-        ]
+        )
 
         if not donated_inputs:
             return
 
         output_input_mapping = map_outputs_to_inputs(donated_inputs, op.arguments)
-        if all(map(lambda x: x is None, output_input_mapping)):
+        if not output_input_mapping:
             return
 
         new_outputs, new_ops = construct_new_output_list(
             donated_inputs, op.arguments, output_input_mapping
         )
-        return_op, return_types = construct_return(
-            new_outputs,
-            list(func_op.function_type.outputs.data),
-            output_input_mapping,
-            self.remove_matched_outputs,
-        )
-        new_ops.append(return_op)
+
+        return_types = tuple(func_op.function_type.outputs.data)
+        if self.remove_matched_outputs:
+            kept_outputs_mask = [
+                i not in output_input_mapping for i in range(len(op.arguments))
+            ]
+            return_types = list(itertools.compress(return_types, kept_outputs_mask))
+            new_outputs = list(itertools.compress(new_outputs, kept_outputs_mask))
+
+        new_ops.append(ReturnOp(*new_outputs))
         func_op.function_type = FunctionType.from_lists(
             func_op.function_type.inputs.data, return_types
         )
