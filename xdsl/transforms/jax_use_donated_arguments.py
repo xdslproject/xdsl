@@ -72,13 +72,20 @@ class SubstituteDonatedTensors(RewritePattern):
         func_op = op.parent_op()
         assert isinstance(func_op, FuncOp)
 
-        if func_op.arg_attrs is None:
+        if func_op.arg_attrs is None or len(func_op.body.blocks) > 1:
             return
 
-        donated_inputs = tuple(
-            inp
-            for inp, attr in zip(func_op.args, func_op.arg_attrs, strict=True)
-            if isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data
+        donated_inputs_idx: list[int]
+        donated_inputs: Sequence[BlockArgument]
+        donated_inputs_idx, donated_inputs = zip(
+            *[
+                (arg_idx, inp)
+                for arg_idx, (inp, attr) in enumerate(
+                    zip(func_op.args, func_op.arg_attrs, strict=True)
+                )
+                if isinstance(inp.type, TensorType)
+                and "tf.aliasing_output" in attr.data
+            ]
         )
 
         if not donated_inputs:
@@ -94,9 +101,9 @@ class SubstituteDonatedTensors(RewritePattern):
 
         return_types = tuple(func_op.function_type.outputs.data)
         if self.remove_matched_outputs:
-            kept_outputs_mask = [
+            kept_outputs_mask = tuple(
                 i not in output_input_mapping for i in range(len(op.arguments))
-            ]
+            )
             return_types = list(itertools.compress(return_types, kept_outputs_mask))
             new_outputs = list(itertools.compress(new_outputs, kept_outputs_mask))
 
@@ -105,6 +112,12 @@ class SubstituteDonatedTensors(RewritePattern):
             func_op.function_type.inputs.data, return_types
         )
         rewriter.replace_matched_op(new_ops)
+
+        # remove the donation attribute to avoid their reuse if we run the pass multiple times on the same function
+        for input_idx in output_input_mapping.values():
+            del func_op.arg_attrs.data[donated_inputs_idx[input_idx]].data[
+                "tf.aliasing_output"
+            ]
 
 
 @dataclass(frozen=True)
