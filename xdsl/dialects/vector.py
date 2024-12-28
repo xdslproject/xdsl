@@ -31,7 +31,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_operand_def,
-    opt_prop_def,
     opt_result_def,
     prop_def,
     result_def,
@@ -432,17 +431,15 @@ def verify_transfer_op(
     shaped_type: MemRefType[Attribute] | TensorType[Attribute],
     vector_type: VectorType[Attribute],
     mask_type: VectorType[I1] | None,
+    # WJOG9GVF: TODO fix: remove None type from inferred_mask_type once 7S4F0FZA has been fixed
     inferred_mask_type: VectorType[I1] | None,
     permutation_map: AffineMap,
-    in_bounds: ArrayAttr[BoolAttr] | None,
+    in_bounds: ArrayAttr[BoolAttr],
 ):
     """
-    TODO test
+    This mirrors VectorOps.cpp -> verifyTransferOp from MLIR
     """
-    # WJOG9GVF
-    # TODO fix: remove None type from inferred_mask_type once 7S4F0FZA has been fixed
 
-    # This mirrors VectorOps.cpp -> verifyTransferOp from MLIR
     element_type = shaped_type.element_type
     vector_element_type = vector_type.element_type
 
@@ -470,11 +467,11 @@ def verify_transfer_op(
                     f'"{op.name}" requires the bitwidth of the minor 1-D vector to be an integral multiple of the bitwidth of the source element type'
                 )
 
-    # Check that permutation map results match rank of vector type.
-    if len(permutation_map.results) != vector_type.get_num_dims():
-        raise VerifyException(
-            f'"{op.name}" requires a permutation_map with result dims of the same rank as the vector type'
-        )
+        # Check that permutation map results match rank of vector type.
+        if len(permutation_map.results) != vector_type.get_num_dims():
+            raise VerifyException(
+                f'"{op.name}" requires a permutation_map with result dims of the same rank as the vector type'
+            )
 
     if permutation_map.num_symbols != 0:
         raise VerifyException(f'"{op.name}" requires permutation_map without symbols')
@@ -484,30 +481,26 @@ def verify_transfer_op(
             f'"{op.name}" requires a permutation_map with input dims of the same rank as the source type'
         )
 
-    # WJOG9GVF
-    # TODO fix: uncomment this when 7S4F0FZA has been fixed
-
-    # See 7S4F0FZA for more information
+    # WJOG9GVF: TODO fix: uncomment this when 7S4F0FZA has been fixed
     # if mask_type:
     #     if mask_type != inferred_mask_type:
     #         raise VerifyException(
     #             f'"{op.name}" inferred mask type ({inferred_mask_type}) and mask operand type ({mask_type}) don\'t match'
     #         )
 
-    if in_bounds:
-        if len(in_bounds) != len(permutation_map.results):
-            raise VerifyException(
-                f'"{op.name}" expects the optional in_bounds attr of same rank as permutation_map results: {str(permutation_map)} vs in_bounds of of size {len(in_bounds)}'
-            )
+    if len(in_bounds) != len(permutation_map.results):
+        raise VerifyException(
+            f'"{op.name}" expects the optional in_bounds attr of same rank as permutation_map results: {str(permutation_map)} vs in_bounds of of size {len(in_bounds)}'
+        )
 
-        for i in range(len(permutation_map.results)):
-            if (
-                isa(permutation_map.results[i], AffineConstantExpr)
-                and not in_bounds.data[i].value.data
-            ):
-                raise VerifyException(
-                    f'"{op.name}" requires broadcast dimensions to be in-bounds'
-                )
+    for i in range(len(permutation_map.results)):
+        if (
+            isa(permutation_map.results[i], AffineConstantExpr)
+            and not in_bounds.data[i].value.data
+        ):
+            raise VerifyException(
+                f'"{op.name}" requires broadcast dimensions to be in-bounds'
+            )
 
 
 def infer_transfer_op_mask_type(
@@ -582,7 +575,7 @@ class TransferReadOp(IRDLOperation, VectorTransferOp):
     mask = opt_operand_def(VectorType[I1])
 
     permutation_map = prop_def(AffineMapAttr)
-    in_bounds = opt_prop_def(ArrayAttr[BoolAttr])
+    in_bounds = prop_def(ArrayAttr[BoolAttr])
 
     result = result_def(VectorType)
 
@@ -639,9 +632,9 @@ class TransferReadOp(IRDLOperation, VectorTransferOp):
         indices: Sequence[SSAValue | Operation],
         padding: SSAValue | Operation,
         result_type: Attribute,
+        in_bounds: ArrayAttr[BoolAttr],
         mask: Sequence[SSAValue | Operation] | None = None,
         permutation_map: AffineMapAttr | None = None,
-        in_bounds: ArrayAttr[BoolAttr] | None = None,
     ):
         super().__init__(
             operands=[source, indices, padding, mask],
@@ -663,7 +656,7 @@ class TransferWriteOp(IRDLOperation, VectorTransferOp):
     indices = var_operand_def(IndexType)
     mask = opt_operand_def(VectorType[I1])
 
-    in_bounds = opt_prop_def(ArrayAttr[BoolAttr])
+    in_bounds = prop_def(ArrayAttr[BoolAttr])
     permutation_map = prop_def(AffineMapAttr)
 
     result = opt_result_def(TensorType[Attribute])
@@ -712,9 +705,9 @@ class TransferWriteOp(IRDLOperation, VectorTransferOp):
         vector: SSAValue | Operation,
         source: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
+        in_bounds: ArrayAttr[BoolAttr],
         mask: Sequence[SSAValue | Operation] | None = None,
         permutation_map: AffineMapAttr | None = None,
-        in_bounds: ArrayAttr[BoolAttr] | None = None,
         result_type: TensorType[Attribute] | None = None,
     ):
         super().__init__(

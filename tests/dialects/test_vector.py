@@ -2,8 +2,10 @@ import pytest
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    ArrayAttr,
     IndexType,
     IntAttr,
+    IntegerAttr,
     MemRefType,
     VectorType,
     i1,
@@ -665,6 +667,9 @@ def test_vector_transfer_write_construction():
     memref_type = MemRefType(IndexType(), [3, 3])
     # (x, y) -> x
     permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
+    in_bounds = ArrayAttr(
+        [IntegerAttr.from_bool(False) for _ in range(vector_type.get_num_dims())]
+    )
 
     vector = TestSSAValue(vector_type)
     source = TestSSAValue(memref_type)
@@ -674,6 +679,7 @@ def test_vector_transfer_write_construction():
         vector,
         source,
         [index, index],
+        in_bounds,
         permutation_map=permutation_map,
     )
 
@@ -691,6 +697,9 @@ def test_vector_transfer_read_construction():
     vector_type = VectorType(IndexType(), [3])
     memref_type = MemRefType(IndexType(), [3, 3])
     permutation_map = AffineMapAttr(AffineMap(2, 0, (x,)))
+    in_bounds = ArrayAttr(
+        [IntegerAttr.from_bool(False) for _ in range(vector_type.get_num_dims())]
+    )
 
     source = TestSSAValue(memref_type)
     index = TestSSAValue(IndexType())
@@ -701,6 +710,7 @@ def test_vector_transfer_read_construction():
         [index, index],
         padding,
         vector_type,
+        in_bounds,
         permutation_map=permutation_map,
     )
 
