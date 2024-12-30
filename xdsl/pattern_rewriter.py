@@ -726,7 +726,11 @@ class PatternRewriteWalker:
         """Handle removal of an operation."""
         if self.apply_recursively:
             self._add_operands_to_worklist(op.operands)
-        self._worklist.remove(op)
+        if op.regions:
+            for sub_op in op.walk():
+                self._worklist.remove(sub_op)
+        else:
+            self._worklist.remove(op)
 
     def _handle_operation_modification(self, op: Operation) -> None:
         """Handle modification of an operation."""
