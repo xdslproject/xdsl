@@ -1,61 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
 
 from xdsl.ir import Block, Operation, Region, SSAValue
-
-
-@dataclass(frozen=True)
-class InsertPoint:
-    """
-    An insert point.
-    It is either a point before an operation, or at the end of a block.
-
-    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html
-    """
-
-    block: Block
-    """The block where the insertion point is in."""
-
-    insert_before: Operation | None = field(default=None)
-    """
-    The insertion point is right before this operation.
-    If the operation is None, the insertion point is at the end of the block.
-    """
-
-    def __post_init__(self) -> None:
-        # Check that the insertion point is valid.
-        # An insertion point can only be invalid if `insert_before` is an `Operation`,
-        # and its parent is not `block`.
-        if self.insert_before is not None:
-            if self.insert_before.parent is not self.block:
-                raise ValueError("Insertion point must be in the builder's `block`")
-
-    @staticmethod
-    def before(op: Operation) -> InsertPoint:
-        """Gets the insertion point before an operation."""
-        if (block := op.parent_block()) is None:
-            raise ValueError("Operation insertion point must have a parent block")
-        return InsertPoint(block, op)
-
-    @staticmethod
-    def after(op: Operation) -> InsertPoint:
-        """Gets the insertion point after an operation."""
-        block = op.parent_block()
-        if block is None:
-            raise ValueError("Operation insertion point must have a parent block")
-        return InsertPoint(block, op.next_op)
-
-    @staticmethod
-    def at_start(block: Block) -> InsertPoint:
-        """Gets the insertion point at the start of a block."""
-        return InsertPoint(block, block.ops.first)
-
-    @staticmethod
-    def at_end(block: Block) -> InsertPoint:
-        """Gets the insertion point at the end of a block."""
-        return InsertPoint(block)
+from xdsl.builder import InsertPoint
 
 
 class Rewriter:
