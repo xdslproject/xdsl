@@ -1,4 +1,5 @@
 import itertools
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -7,7 +8,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.bufferization import MaterializeInDestinationOp
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, TensorType
 from xdsl.dialects.func import FuncOp, ReturnOp
-from xdsl.ir import BlockArgument, Operation, SSAValue
+from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -26,26 +27,18 @@ def map_donated_input_by_output(
     Types of the buffer and the variable should match.
     """
 
-    donatable_inputs_by_type = {
-        type: tuple(group)
-        for type, group in itertools.groupby(
-            sorted(donatable_inputs, key=lambda i: str(i.type)), lambda i: i.type
-        )
-    }
+    donatable_inputs_by_type: dict[Attribute, list[BlockArgument]] = defaultdict(list)
+    for inp in donatable_inputs:
+        donatable_inputs_by_type[inp.type].append(inp)
 
-    nonbuffered_outputs = filter(
-        lambda out: not (
-            isinstance(out.owner, MaterializeInDestinationOp)
-            and isinstance(out.owner.dest, BlockArgument)
-        ),
-        outputs,
-    )
-    outputs_by_type = {
-        type: tuple(group)
-        for type, group in itertools.groupby(
-            sorted(nonbuffered_outputs, key=lambda i: str(i.type)), lambda i: i.type
-        )
-    }
+    outputs_by_type: dict[Attribute, list[SSAValue]] = defaultdict(list)
+    for out in outputs:
+        if isinstance(out.owner, MaterializeInDestinationOp) and isinstance(
+            out.owner.dest, BlockArgument
+        ):
+            # output has already been buffered
+            continue
+        outputs_by_type[out.type].append(out)
 
     mapping_by_type = {
         k: tuple(zip(donatable_inputs_by_type[k], outputs_by_type[k]))
