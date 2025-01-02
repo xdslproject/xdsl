@@ -110,7 +110,7 @@ class SubstituteDonatedTensors(RewritePattern):
 
         # remove the donation attribute to avoid their reuse if we run the pass multiple times on the same function
         used_donated_arguments = set(donated_input_by_output.values())
-        new_input_attrs = [attr.data.copy() for attr in func_op.arg_attrs]
+        new_input_attrs = [dict(attr.data) for attr in func_op.arg_attrs]
 
         for inp, new_attr in zip(func_op.args, new_input_attrs, strict=True):
             if inp in used_donated_arguments:
