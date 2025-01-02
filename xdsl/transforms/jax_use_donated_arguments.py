@@ -1,4 +1,3 @@
-import copy
 import itertools
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -6,7 +5,7 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.bufferization import MaterializeInDestinationOp
-from xdsl.dialects.builtin import FunctionType, TensorType
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, TensorType
 from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import BlockArgument, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -87,7 +86,7 @@ class SubstituteDonatedTensors(RewritePattern):
         if not donated_input_by_output:
             return
 
-        ordered_buffered_outputs = list(
+        ordered_buffered_outputs = tuple(
             filter(lambda out: out in donated_input_by_output, op.arguments)
         )
         new_ops: list[Operation] = [
@@ -100,7 +99,7 @@ class SubstituteDonatedTensors(RewritePattern):
             out: mater_ops.results[0]
             for out, mater_ops in zip(ordered_buffered_outputs, new_ops, strict=True)
         }
-        new_outputs = [new_output_mapping.get(out, out) for out in op.arguments]
+        new_outputs = tuple(new_output_mapping.get(out, out) for out in op.arguments)
 
         return_types = tuple(func_op.function_type.outputs.data)
         if self.remove_matched_outputs:
@@ -118,13 +117,15 @@ class SubstituteDonatedTensors(RewritePattern):
 
         # remove the donation attribute to avoid their reuse if we run the pass multiple times on the same function
         used_donated_arguments = set(donated_input_by_output.values())
-        new_input_attrs = copy.deepcopy(func_op.arg_attrs)
+        new_input_attrs = [attr.data.copy() for attr in func_op.arg_attrs]
 
         for inp, new_attr in zip(func_op.args, new_input_attrs, strict=True):
             if inp in used_donated_arguments:
-                del new_attr.data["tf.aliasing_output"]
+                del new_attr["tf.aliasing_output"]
 
-        func_op.arg_attrs = new_input_attrs
+        func_op.arg_attrs = ArrayAttr(
+            [DictionaryAttr(attr) for attr in new_input_attrs]
+        )
 
 
 @dataclass(frozen=True)
