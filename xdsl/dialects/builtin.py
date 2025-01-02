@@ -294,6 +294,10 @@ class IntAttr(Data[int]):
         with printer.in_angle_brackets():
             printer.print_string(f"{self.data}")
 
+    def __bool__(self) -> bool:
+        """Returns True if value is non-zero."""
+        return bool(self.data)
+
 
 class Signedness(Enum):
     "Signedness semantics for integer"
@@ -707,7 +711,7 @@ class IntegerAttr(
 
     def __bool__(self) -> bool:
         """Returns True if value is non-zero."""
-        return bool(self.value.data)
+        return bool(self.value)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
