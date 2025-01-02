@@ -101,6 +101,12 @@ cd xdsl
 make venv
 ```
 
+To make a custom mlir-opt available in the virtual environment, set the `XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
+
+``` bash
+XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
+```
+
 #### If you can't use `uv`
 
 For some systems and workflows, changing to a new dependency management system
