@@ -528,12 +528,12 @@ def test_tensor_or_memref_of_constraint_verify():
 def test_tensor_or_memref_of_constraint_attribute_mismatch():
     constraint = TensorOrMemrefOf(i64)
 
-    error_msg = f"Expected tensor or memref type, got {i64}"
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match=f"Expected tensor or memref type, got {i64}"
+    ):
         constraint.verify(i64, ConstraintContext())
-    assert e.value.args[0] == error_msg
 
-    error_msg = f"Expected attribute {i64} but got {i32}"
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match=f"Expected attribute {i64} but got {i32}"
+    ):
         constraint.verify(MemRefType(i32, [1]), ConstraintContext())
-    assert e.value.args[0] == error_msg
