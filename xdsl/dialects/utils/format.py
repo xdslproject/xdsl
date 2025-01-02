@@ -43,6 +43,7 @@ def print_func_op_like(
     attributes: dict[str, Attribute],
     *,
     arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+    res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
     printer.print(f" @{sym_name.data}")
@@ -60,10 +61,18 @@ def print_func_op_like(
         printer.print(") ")
         if function_type.outputs:
             printer.print("-> ")
-            if len(function_type.outputs) > 1:
+            if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print("(")
-            printer.print_list(function_type.outputs, printer.print_attribute)
-            if len(function_type.outputs) > 1:
+            if res_attrs is not None:
+                printer.print_list(
+                    zip(function_type.outputs, res_attrs),
+                    lambda arg_with_attrs: print_func_output(
+                        printer, arg_with_attrs[0], arg_with_attrs[1]
+                    ),
+                )
+            else:
+                printer.print_list(function_type.outputs, printer.print_attribute)
+            if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print(")")
             printer.print(" ")
     else:
@@ -85,9 +94,10 @@ def parse_func_op_like(
     Region,
     DictionaryAttr | None,
     ArrayAttr[DictionaryAttr] | None,
+    ArrayAttr[DictionaryAttr] | None,
 ]:
     """
-    Returns the function name, argument types, return types, body, extra args, and arg_attrs.
+    Returns the function name, argument types, return types, body, extra args, arg_attrs and res_attrs.
     """
     # Parse function name
     name = parser.parse_symbol_name().data
@@ -102,6 +112,13 @@ def parse_func_op_like(
             arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
             ret = (arg, arg_attr_dict)
         return ret
+
+    def parse_fun_output() -> tuple[Attribute, dict[str, Attribute]]:
+        arg_type = parser.parse_optional_type()
+        if arg_type is None:
+            parser.raise_error("Return type should be specified")
+        arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+        return (arg_type, arg_attr_dict)
 
     # Parse function arguments
     args = parser.parse_comma_separated_list(
@@ -135,14 +152,25 @@ def parse_func_op_like(
         arg_attrs = None
 
     # Parse return type
+    return_types: list[Attribute] = []
+    res_attrs_raw: list[dict[str, Attribute]] | None = []
     if parser.parse_optional_punctuation("->"):
-        return_types = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_type
+        return_attributes = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.PAREN, parse_fun_output
         )
-        if return_types is None:
-            return_types = [parser.parse_type()]
+        if return_attributes is None:
+            # output attributes are supported only if return results are enclosed in brackets (...)
+            return_types, res_attrs_raw = [parser.parse_type()], None
+        else:
+            return_types, res_attrs_raw = (
+                [el[0] for el in return_attributes],
+                [el[1] for el in return_attributes],
+            )
+
+    if res_attrs_raw is not None and any(res_attrs_raw):
+        res_attrs = ArrayAttr(DictionaryAttr(attrs) for attrs in res_attrs_raw)
     else:
-        return_types = []
+        res_attrs = None
 
     extra_attributes = parser.parse_optional_attr_dict_with_keyword(reserved_attr_names)
 
@@ -151,13 +179,29 @@ def parse_func_op_like(
     if region is None:
         region = Region()
 
-    return name, input_types, return_types, region, extra_attributes, arg_attrs
+    return (
+        name,
+        input_types,
+        return_types,
+        region,
+        extra_attributes,
+        arg_attrs,
+        res_attrs,
+    )
 
 
 def print_func_argument(
     printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None
 ):
     printer.print_block_argument(arg)
+    if attrs is not None and attrs.data:
+        printer.print_op_attributes(attrs.data)
+
+
+def print_func_output(
+    printer: Printer, out_type: Attribute, attrs: DictionaryAttr | None
+):
+    printer.print_attribute(out_type)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)
 
