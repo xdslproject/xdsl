@@ -705,6 +705,11 @@ class IntegerAttr(
             ),
         )
 
+    def to_bool(self) -> bool:
+        # Do assertion, yes, no?
+        assert self.type == i1
+        return bool(self.value.data)
+
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 AnyIntegerAttrConstr: BaseAttr[AnyIntegerAttr] = BaseAttr(IntegerAttr)

@@ -45,7 +45,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         """
         Parse an (possible negative) integer. The integer can either be
         decimal or hexadecimal.
-        Optionally allow parsing of 'true' or 'false' into 1 and 0.
+        Optionally allow parsing of 'true' or 'false' into -1 and 0.
         """
         # Parse true and false if needed
         if allow_boolean:
@@ -78,7 +78,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         """
         Parse an (possible negative) integer. The integer can
         either be decimal or hexadecimal.
-        Optionally allow parsing of 'true' or 'false' into 1 and 0.
+        Optionally allow parsing of 'true' or 'false' into -1 and 0.
         """
 
         return self.expect(
@@ -121,7 +121,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
     ) -> int | float | None:
         """
         Parse a (possibly negative) integer or float literal, if present.
-        Can optionally parse 'true' or 'false' into 1 and 0.
+        Can optionally parse 'true' or 'false' into -1 and 0.
         """
 
         is_negative = self._parse_optional_token(MLIRTokenKind.MINUS) is not None
@@ -149,7 +149,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
     ) -> int | float:
         """
         Parse a (possibly negative) integer or float literal.
-        Can optionally parse 'true' or 'false' into 1 and 0.
+        Can optionally parse 'true' or 'false' into -1 and 0.
         """
         return self.expect(
             lambda: self.parse_optional_number(allow_boolean=allow_boolean),
