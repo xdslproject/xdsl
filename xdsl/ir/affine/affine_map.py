@@ -172,8 +172,6 @@ class AffineMap:
 
     def compose_with_values(self, values: Sequence[int]) -> tuple[int, ...]:
         """
-        TODO document
-        TODO test
         Same as SmallVector<int64_t, 4> AffineMap::compose(ArrayRef<int64_t> values) const from AffineMap.cpp
         """
         assert self.num_symbols == 0
