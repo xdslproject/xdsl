@@ -534,7 +534,7 @@ class AccessOp(IRDLOperation):
         props = parser.parse_optional_attr_dict_with_keyword(
             {"offset", "offset_mapping"}
         )
-        props = props.data if props else dict[str, Attribute]()
+        props = dict(props.data) if props else {}
         props["offset"] = stencil.IndexAttr.get(*offset)
         if offset_mapping:
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
