@@ -1,8 +1,6 @@
 from collections.abc import Iterable, Sequence
 from typing import Generic
 
-from immutabledict import immutabledict
-
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
@@ -149,9 +147,7 @@ def parse_func_op_like(
         entry_args = None
 
     if any(attrs for _, attrs in entry_arg_tuples):
-        arg_attrs = ArrayAttr(
-            DictionaryAttr(immutabledict(attrs)) for _, attrs in entry_arg_tuples
-        )
+        arg_attrs = ArrayAttr(DictionaryAttr(attrs) for _, attrs in entry_arg_tuples)
     else:
         arg_attrs = None
 
@@ -172,9 +168,7 @@ def parse_func_op_like(
             )
 
     if res_attrs_raw is not None and any(res_attrs_raw):
-        res_attrs = ArrayAttr(
-            DictionaryAttr(immutabledict(attrs)) for attrs in res_attrs_raw
-        )
+        res_attrs = ArrayAttr(DictionaryAttr(attrs) for attrs in res_attrs_raw)
     else:
         res_attrs = None
 

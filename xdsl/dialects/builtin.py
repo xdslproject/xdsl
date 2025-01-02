@@ -904,6 +904,11 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 class DictionaryAttr(GenericData[immutabledict[str, Attribute]]):
     name = "dictionary"
 
+    def __init__(self, value: Mapping[str, Attribute]):
+        if not isinstance(value, immutabledict):
+            value = immutabledict(value)
+        super().__init__(value)
+
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> immutabledict[str, Attribute]:
         return immutabledict(parser.parse_optional_dictionary_attr_dict())

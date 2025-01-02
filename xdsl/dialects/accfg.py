@@ -4,8 +4,6 @@ from collections.abc import Iterable, Sequence
 from enum import Enum
 from typing import cast
 
-from immutabledict import immutabledict
-
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
@@ -393,16 +391,12 @@ class AcceleratorOp(IRDLOperation):
     ):
         if not isinstance(fields, DictionaryAttr):
             fields = DictionaryAttr(
-                immutabledict(
-                    {name: IntegerAttr(val, i32) for name, val in fields.items()}
-                )
+                {name: IntegerAttr(val, i32) for name, val in fields.items()}
             )
 
         if not isinstance(launch_fields, DictionaryAttr):
             launch_fields = DictionaryAttr(
-                immutabledict(
-                    {name: IntegerAttr(val, i32) for name, val in launch_fields.items()}
-                )
+                {name: IntegerAttr(val, i32) for name, val in launch_fields.items()}
             )
 
         super().__init__(

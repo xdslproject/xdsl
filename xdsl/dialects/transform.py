@@ -4,8 +4,6 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 from typing import Annotated, TypeAlias
 
-from immutabledict import immutabledict
-
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
@@ -801,7 +799,7 @@ class MatchOp(IRDLOperation):
             interface = IntegerAttr(interface, IntegerType(32))
 
         if isinstance(op_attrs, Mapping):
-            op_attrs = DictionaryAttr(immutabledict(op_attrs))
+            op_attrs = DictionaryAttr(op_attrs)
         super().__init__(
             properties={
                 "ops": ops,
