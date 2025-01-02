@@ -171,9 +171,6 @@ def test_IntegerAttr_to_bool():
     assert IntegerAttr.from_bool(False).to_bool() is False
     assert IntegerAttr.from_bool(True).to_bool() is True
 
-    with pytest.raises(AssertionError):
-        IntegerAttr(1, i8).to_bool()
-
 
 def test_IntegerType_packing():
     # i1

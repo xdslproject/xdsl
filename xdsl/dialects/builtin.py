@@ -706,8 +706,7 @@ class IntegerAttr(
         )
 
     def to_bool(self) -> bool:
-        # Do assertion, yes, no?
-        assert self.type == i1
+        """Returns True if value is non-zero."""
         return bool(self.value.data)
 
 
