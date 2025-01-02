@@ -3,6 +3,7 @@ from io import StringIO
 from typing import cast
 
 import pytest
+from immutabledict import immutabledict
 
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
@@ -49,7 +50,7 @@ from xdsl.utils.str_enum import StrEnum
         {},
     ],
 )
-def test_dictionary_attr(data: dict[str, Attribute]):
+def test_dictionary_attr(data: immutabledict[str, Attribute]):
     attr = DictionaryAttr(data)
 
     with StringIO() as io:

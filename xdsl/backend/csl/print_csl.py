@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal, cast
 
+from immutabledict import immutabledict
+
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -723,7 +725,7 @@ class CslPrintContext:
                 case csl.ConstStructOp(
                     items=items, ssa_fields=fields, ssa_values=values, res=res
                 ):
-                    items = items or DictionaryAttr({})
+                    items = items or DictionaryAttr(immutabledict())
                     fields = fields or ArrayAttr([])
                     # First print the fields defined by attributes
                     self.print(f"{self._var_use(res)} = .{{")

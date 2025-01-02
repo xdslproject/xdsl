@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from immutabledict import immutabledict
+
 from xdsl.context import MLContext
 from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, StringAttr
@@ -24,13 +26,13 @@ class ArgNamesToArgAttrsPass(RewritePattern):
         arg_attrs = (
             op.arg_attrs.data
             if op.arg_attrs is not None
-            else ((DictionaryAttr({}),) * len(op.args))
+            else ((DictionaryAttr(immutabledict()),) * len(op.args))
         )
 
         new_arg_attrs = ArrayAttr(
             DictionaryAttr(
-                {"llvm.name": StringAttr(arg.name_hint), **arg_attr.data}
-                if arg.name_hint
+                arg_attr.data | {"llvm.name": StringAttr(arg.name_hint)}
+                if arg.name_hint and "llvm.name" not in arg_attr.data
                 else arg_attr.data
             )
             for arg, arg_attr in zip(op.args, arg_attrs, strict=True)

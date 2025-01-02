@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
@@ -694,7 +694,7 @@ class Printer(BasePrinter):
             self.print_string(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
-    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+    def print_attr_dict(self, attr_dict: Mapping[str, Attribute]) -> None:
         self.print_string("{")
         self.print_list(attr_dict.items(), self._print_attr_string)
         self.print_string("}")
@@ -709,7 +709,7 @@ class Printer(BasePrinter):
 
     def print_op_attributes(
         self,
-        attributes: dict[str, Attribute],
+        attributes: Mapping[str, Attribute],
         *,
         reserved_attr_names: Iterable[str] = (),
         print_keyword: bool = False,
