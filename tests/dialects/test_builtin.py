@@ -168,8 +168,8 @@ def test_IntegerAttr_normalize():
 
 
 def test_IntegerAttr_to_bool():
-    assert IntegerAttr.from_bool(False).to_bool() is False
-    assert IntegerAttr.from_bool(True).to_bool() is True
+    assert not IntegerAttr.from_bool(False)
+    assert IntegerAttr.from_bool(True)
 
 
 def test_IntegerType_packing():

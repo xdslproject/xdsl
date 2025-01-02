@@ -705,7 +705,7 @@ class IntegerAttr(
             ),
         )
 
-    def to_bool(self) -> bool:
+    def __bool__(self) -> bool:
         """Returns True if value is non-zero."""
         return bool(self.value.data)
 
