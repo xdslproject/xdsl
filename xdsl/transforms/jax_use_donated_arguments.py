@@ -80,7 +80,7 @@ class SubstituteDonatedTensors(RewritePattern):
             return
 
         ordered_buffered_outputs = tuple(
-            filter(lambda out: out in donated_input_by_output, op.arguments)
+            arg for arg in op.arguments if arg in donated_input_by_output
         )
         new_ops: list[Operation] = [
             MaterializeInDestinationOp(
