@@ -276,6 +276,7 @@ class ReifyConfig():
     force_arith_replace_immediate_use: bool = True
     permute_structure_size_threshold: int = -1 # only try permuting struct pairs if the numbers of dimensions in the content types of the 2 children are both less than this threshold (working on the idea that the order is less important for large sub-layouts that will probably use multiple cache lines anyway)
     members_first: bool = True # do we force that if a member layout node can be injected it is done first and other options are not considered (until the member layout's abstract child is reified)
+    all_sorted_members: bool = True # do we reify all members sorted lexicographically
 
     @property
     def coo(self) -> bool:
@@ -525,7 +526,11 @@ class LayoutGenerator:
 
         # If abstract layout has any common members, these should be delt with first as they do not affect physical data layout (even though they may affect ptr reductions with our naive selection statements)
         if len(common_mems := abstract_layout.common_abstract_members()) > 0:
-            layouts.append(self._reify_members(abstract_layout, common_mems))
+            if config.all_sorted_members:
+                layouts.append(self._reify_all_sorted_members(abstract_layout, common_mems))
+            else:
+                for m in common_mems:
+                    layouts.append(self._reify_all_sorted_members(abstract_layout, {m}))
             if config.members_first:
                 print(("\b" * chars) + f"Forcing common members to be reified first")
                 return layouts
@@ -617,7 +622,7 @@ class LayoutGenerator:
         print(f"new layouts")
         return layouts
 
-    def _reify_members(self, abstract_layout: dlt.AbstractLayoutAttr, mems: set[dlt.MemberAttr]):
+    def _reify_all_sorted_members(self, abstract_layout: dlt.AbstractLayoutAttr, mems: set[dlt.MemberAttr]):
         new_children = [dlt.AbstractChildAttr(c.member_specifiers.remove(mems), c.dimensions, c.child) for c in
                         abstract_layout.children]
         new_layout = dlt.AbstractLayoutAttr(new_children)
@@ -650,13 +655,13 @@ class LayoutGenerator:
                                         -8]
                                     separated_buffer_idx_type_options = config.separated_coo_buffer_index_options if config is not None else [
                                         builtin.i32, builtin.i64]
-                                    if len(separated_buffer_options)==0 or builtin.i64 not in separated_buffer_idx_type_options or len(sparse_perm) > 1:
-                                        unpacked_buffer_options = config.unpacked_coo_buffer_options if config is not None else [0,
-                                                                                                                        2,
-                                                                                                                        8,
-                                                                                                                        -8]
-                                        for buffer_scaler in unpacked_buffer_options:
-                                            layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
+
+                                    unpacked_buffer_options = config.unpacked_coo_buffer_options if config is not None else [0,
+                                                                                                                    2,
+                                                                                                                    8,
+                                                                                                                    -8]
+                                    for buffer_scaler in unpacked_buffer_options:
+                                        layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims), buffer_scalar=buffer_scaler))
 
                                     for buffer_scaler in separated_buffer_options:
 
@@ -798,9 +803,8 @@ class LayoutGenerator:
         new_children = []
         for child in layout.children:
             ds = set(child.dimensions) & set(dims)
-            if len(ds) == 0:
-                assert False
-            outer_dim = sorted(list(ds), key=lambda d: d.dimensionName.data).pop()
+            assert len(ds) == 1
+            outer_dim = ds.pop()
             inner_member = inner_members[outer_dim]
             new_child = dlt.AbstractChildAttr(
                 child.member_specifiers.add([inner_member]),
