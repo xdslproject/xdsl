@@ -1777,3 +1777,32 @@ def test_attr_constr_rewrite_pattern():
         op_replaced=1,
         op_modified=1,
     )
+
+
+def test_pattern_rewriter_erase_op_with_region():
+    """Test that erasing an operation with a region works correctly."""
+    prog = """
+"builtin.module"() ({
+  "test.op"() ({
+    "test.op"() {"error_if_matching"} : () -> ()
+  }): () -> ()
+}) : () -> ()"""
+    expected = """
+"builtin.module"() ({
+^0:
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "error_if_matching" in op.attributes:
+                raise Exception("operation that is supposed to be deleted was matched")
+            assert not op.attributes
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_removed=1,
+    )
