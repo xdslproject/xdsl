@@ -629,7 +629,8 @@ class DLTIterateRewriter(DLTRewritePattern):
                 for d in iterate_op.dimensions.data[sparse_tensor_idx].data[e]
             }
 
-            callback = _IterMakeLoopCallback(iterate_op,
+            callback = _IterMakeLoopCallback(self,
+                                             iterate_op,
                                              extent_resolver,
                                              tensor_map,
                                              iteration_order,
