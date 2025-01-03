@@ -271,6 +271,9 @@ class AffineExpr:
     def used_dims(self) -> set[int]:
         return {expr.position for expr in self.dfs() if isinstance(expr, AffineDimExpr)}
 
+    def is_function_of_dim(self, position: int) -> bool:
+        return position in self.used_dims()
+
 
 class AffineBinaryOpKind(Enum):
     """Enum for the kind of storage node used in AffineExpr."""
