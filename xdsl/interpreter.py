@@ -797,6 +797,23 @@ class OpCounter(Interpreter.Listener):
         self.ops[op.name] += 1
 
 
+@dataclass
+class CombinedListeners(Interpreter.Listener):
+    """
+    Calls the callbacks of the inner listeners.
+    """
+
+    inner: tuple[Interpreter.Listener, ...] = field()
+
+    def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
+        for l in self.inner:
+            l.will_interpret_op(op, args)
+
+    def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
+        for l in self.inner:
+            l.did_interpret_op(op, results)
+
+
 PythonValues: TypeAlias = tuple[Any, ...]
 
 
