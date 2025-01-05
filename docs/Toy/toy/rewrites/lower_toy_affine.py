@@ -31,6 +31,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.builder import InsertPoint
 
 from ..dialects import toy
 
