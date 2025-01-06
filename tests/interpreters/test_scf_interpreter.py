@@ -81,7 +81,7 @@ def test_if():
 
 def test_tracer():
     tracer = OpCounter()
-    interpreter = Interpreter(sum_to_for_op.clone(), listener=tracer)
+    interpreter = Interpreter(sum_to_for_op.clone(), listeners=(tracer,))
     interpreter.register_implementations(ScfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())

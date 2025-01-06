@@ -499,7 +499,7 @@ def _(TypedPtr, a_shape, b_shape, c_shape, ctx, mo, riscv_module):
     riscv_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
     riscv_op_counter = OpCounter()
-    riscv_interpreter = Interpreter(riscv_module, listener=riscv_op_counter)
+    riscv_interpreter = Interpreter(riscv_module, listeners=(riscv_op_counter,))
 
     register_implementations(riscv_interpreter, ctx, include_wgpu=False, include_onnx=False)
 
@@ -549,7 +549,7 @@ def _(
 ):
     snitch_op_counter = OpCounter()
     snitch_interpreter = Interpreter(
-        snitch_stream_module, listener=snitch_op_counter
+        snitch_stream_module, listeners=(snitch_op_counter,)
     )
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)

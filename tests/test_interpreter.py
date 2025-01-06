@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.interpreter import (
-    CombinedListener,
     Interpreter,
     InterpreterFunctions,
     PythonValues,
@@ -270,8 +269,7 @@ def test_combined_listener():
     strings: list[str] = []
     da = DemoListener(strings, "A")
     db = DemoListener(strings, "B")
-    combined = CombinedListener((da, db))
-    interpreter = Interpreter(ModuleOp([]), listener=combined)
+    interpreter = Interpreter(ModuleOp([]), listeners=(da, db))
     interpreter.register_implementations(TestFunctions())
     interpreter.run_op(test.TestOp())
 
