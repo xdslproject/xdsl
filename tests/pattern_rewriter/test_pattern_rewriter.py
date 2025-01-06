@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import pytest
 from conftest import assert_print_op
 
+from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
@@ -14,6 +15,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ModuleOp,
     StringAttr,
+    UnitAttr,
     i32,
     i64,
 )
@@ -1410,6 +1412,44 @@ builtin.module {
     )
 
 
+def test_pattern_rewriter_as_op_builder():
+    """Test that the PatternRewriter works as an OpBuilder."""
+    prog = """
+"builtin.module"() ({
+  "test.op"() : () -> ()
+  "test.op"() {"nomatch"} : () -> ()
+  "test.op"() : () -> ()
+}) : () -> ()"""
+    expected = """
+"builtin.module"() ({
+  "test.op"() {"inserted"} : () -> ()
+  "test.op"() {"replaced"} : () -> ()
+  "test.op"() {"nomatch"} : () -> ()
+  "test.op"() {"inserted"} : () -> ()
+  "test.op"() {"replaced"} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "nomatch" in op.attributes:
+                return
+            with ImplicitBuilder(rewriter):
+                test.TestOp.create(attributes={"inserted": UnitAttr()})
+            rewriter.replace_matched_op(
+                test.TestOp.create(attributes={"replaced": UnitAttr()})
+            )
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=4,
+        op_removed=2,
+        op_replaced=2,
+    )
+
+
 def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\
@@ -1776,4 +1816,33 @@ def test_attr_constr_rewrite_pattern():
         op_removed=1,
         op_replaced=1,
         op_modified=1,
+    )
+
+
+def test_pattern_rewriter_erase_op_with_region():
+    """Test that erasing an operation with a region works correctly."""
+    prog = """
+"builtin.module"() ({
+  "test.op"() ({
+    "test.op"() {"error_if_matching"} : () -> ()
+  }): () -> ()
+}) : () -> ()"""
+    expected = """
+"builtin.module"() ({
+^0:
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "error_if_matching" in op.attributes:
+                raise Exception("operation that is supposed to be deleted was matched")
+            assert not op.attributes
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_removed=1,
     )

@@ -562,7 +562,7 @@ class ApplyOp(IRDLOperation):
         parser.parse_punctuation(")")
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:
-            attrs = attrs.data
+            attrs = dict(attrs.data)
         else:
             attrs = {}
         region = parser.parse_region(args)
@@ -1080,7 +1080,7 @@ class AccessOp(IRDLOperation):
         attrs = parser.parse_optional_attr_dict_with_keyword(
             {"offset", "offset_mapping"}
         )
-        attrs = attrs.data if attrs else dict[str, Attribute]()
+        attrs = dict(attrs.data) if attrs else {}
         attrs["offset"] = IndexAttr.get(*offset)
         if offset_mapping:
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
