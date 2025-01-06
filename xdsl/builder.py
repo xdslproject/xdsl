@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import ClassVar, TypeAlias, overload
 
+from typing_extensions import deprecated
+
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
@@ -75,7 +77,7 @@ class Builder(BuilderListener):
         return op
 
     def create_block(
-        self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute]
+        self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
     ) -> Block:
         """
         Create a block at the given location, and set the operation insertion point
@@ -89,6 +91,9 @@ class Builder(BuilderListener):
         self.handle_block_creation(block)
         return block
 
+    @deprecated(
+        "Use create_block(BlockInsertPoint.before(insert_before), arg_types) instead"
+    )
     def create_block_before(
         self, insert_before: Block, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -98,6 +103,9 @@ class Builder(BuilderListener):
         """
         return self.create_block(BlockInsertPoint.before(insert_before), arg_types)
 
+    @deprecated(
+        "Use create_block(BlockInsertPoint.after(insert_after), arg_types) instead"
+    )
     def create_block_after(
         self, insert_after: Block, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -107,6 +115,9 @@ class Builder(BuilderListener):
         """
         return self.create_block(BlockInsertPoint.after(insert_after), arg_types)
 
+    @deprecated(
+        "Use create_block(BlockInsertPoint.at_start(region), arg_types) instead"
+    )
     def create_block_at_start(
         self, region: Region, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -116,6 +127,7 @@ class Builder(BuilderListener):
         """
         return self.create_block(BlockInsertPoint.at_start(region), arg_types)
 
+    @deprecated("Use create_block(BlockInsertPoint.at_end(region), arg_types) instead")
     def create_block_at_end(
         self, region: Region, arg_types: Iterable[Attribute] = ()
     ) -> Block:

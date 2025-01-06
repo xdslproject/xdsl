@@ -356,18 +356,30 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_region(region, insertion_point)
 
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.before(target))` instead"
+    )
     def inline_region_before(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
         self.inline_region(region, BlockInsertPoint.before(target))
 
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.after(target))` instead"
+    )
     def inline_region_after(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
         self.inline_region(region, BlockInsertPoint.after(target))
 
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.at_start(target))` instead"
+    )
     def inline_region_at_start(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
         self.inline_region(region, BlockInsertPoint.at_start(target))
 
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.at_end(target))` instead"
+    )
     def inline_region_at_end(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
         self.inline_region(region, BlockInsertPoint.at_end(target))
