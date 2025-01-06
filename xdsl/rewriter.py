@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from typing_extensions import deprecated
-
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -179,53 +177,6 @@ class Rewriter:
             parent_region.detach_block(source)
         source.erase()
 
-    @deprecated("Please use `inline_block` instead")
-    @staticmethod
-    def inline_block_at_end(
-        inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations to the end of another block.
-        This block should not be a parent of the block to move to.
-        The block operations should not use the block arguments.
-        """
-        Rewriter.inline_block(
-            inlined_block, InsertPoint.at_end(extended_block), arg_values=arg_values
-        )
-
-    @deprecated("Please use `inline_block` instead")
-    @staticmethod
-    def inline_block_at_start(
-        inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations to the start of another block.
-        This block should not be a parent of the block to move to.
-        The block operations should not use the block arguments.
-        """
-        Rewriter.inline_block(
-            inlined_block, InsertPoint.at_start(extended_block), arg_values=arg_values
-        )
-
-    @deprecated("Please use `inline_block` instead")
-    @staticmethod
-    def inline_block_before(
-        source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
-    ):
-        Rewriter.inline_block(source, InsertPoint.before(op), arg_values=arg_values)
-
-    @deprecated("Please use `inline_block` instead")
-    @staticmethod
-    def inline_block_after(
-        block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations after another operation.
-        The block should not be a parent of the operation.
-        The block operations should not use the block arguments.
-        """
-        Rewriter.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
-
     @staticmethod
     def insert_block_after(block: Block | list[Block], target: Block):
         """
@@ -266,18 +217,6 @@ class Rewriter:
             insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)
         else:
             insertion_point.block.add_ops(ops)
-
-    @deprecated("Please use `insert_op` instead")
-    @staticmethod
-    def insert_op_after(op: Operation, new_op: Operation):
-        """Inserts a new operation after another operation."""
-        Rewriter.insert_op(new_op, InsertPoint.after(op))
-
-    @deprecated("Please use `insert_op` instead")
-    @staticmethod
-    def insert_op_before(op: Operation, new_op: Operation):
-        """Inserts a new operation before another operation."""
-        Rewriter.insert_op(new_op, InsertPoint.before(op))
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:
