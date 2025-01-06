@@ -169,6 +169,16 @@ def test_IntegerAttr_normalize():
         IntegerAttr(256, 8)
 
 
+def test_IntAttr___bool__():
+    assert not IntAttr(0)
+    assert IntAttr(1)
+
+
+def test_IntegerAttr___bool__():
+    assert not IntegerAttr.from_bool(False)
+    assert IntegerAttr.from_bool(True)
+
+
 def test_IntegerType_packing():
     # i1
     nums_i1 = (0, 1, 0, 1)
