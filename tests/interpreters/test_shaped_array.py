@@ -1,5 +1,11 @@
+from xdsl.dialects.builtin import i32
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
+
+
+def test_shaped_array_type():
+    array = ShapedArray(TypedPtr.new_int32([1, 2, 3]), [3])
+    assert array.type == i32
 
 
 def test_shaped_array_offset():
