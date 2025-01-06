@@ -23,7 +23,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import GenericAttrConstraint, base
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
@@ -351,25 +351,26 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         return Rewriter.move_region_contents_to_new_regions(region)
 
+    def inline_region(self, region: Region, insertion_point: BlockInsertPoint) -> None:
+        """Move the region blocks to the specified insertion point."""
+        self.has_done_action = True
+        Rewriter.inline_region(region, insertion_point)
+
     def inline_region_before(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_before(region, target)
+        self.inline_region(region, BlockInsertPoint.before(target))
 
     def inline_region_after(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_after(region, target)
+        self.inline_region(region, BlockInsertPoint.after(target))
 
     def inline_region_at_start(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_at_start(region, target)
+        self.inline_region(region, BlockInsertPoint.at_start(target))
 
     def inline_region_at_end(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_at_end(region, target)
+        self.inline_region(region, BlockInsertPoint.at_end(target))
 
 
 class RewritePattern(ABC):
