@@ -21,6 +21,122 @@ from xdsl.pattern_rewriter import (
 )
 
 
+def unroll_and_jam_bound_index(op: memref_stream.GenericOp) -> int | None:
+    parallel_indices = tuple(
+        index
+        for index, iterator_type in enumerate(op.iterator_types)
+        if iterator_type == memref_stream.IteratorTypeAttr.parallel()
+    )
+    if parallel_indices:
+        return parallel_indices[-1]
+
+
+def unroll_and_jam_interleave_factor(pipeline_depth: int, interleave_bound: int) -> int:
+    interleave_factor = 1
+    # Search factors until the next number divisible by pipeline_depth
+    for potential_factor in range(pipeline_depth, pipeline_depth * 2):
+        if not interleave_bound % potential_factor:
+            # Found a larger factor
+            interleave_factor = potential_factor
+            break
+    if interleave_factor == 1:
+        # No larger perfect factors found, try smaller factors in descending order
+        for potential_factor in range(pipeline_depth - 1, 1, -1):
+            if not interleave_bound % potential_factor:
+                # Found a smaller factor
+                interleave_factor = potential_factor
+                break
+
+    return interleave_factor
+
+
+def unroll_and_jam(
+    op: memref_stream.GenericOp,
+    rewriter: PatternRewriter,
+    iterator_index: int,
+    unroll_factor: int,
+):
+    if unroll_factor == 1:
+        # If unroll factor is 1, rewrite is a no-op
+        return
+
+    old_block = op.body.block
+    new_region = Region(
+        Block(
+            arg_types=(
+                t for arg in old_block.args for t in repeat(arg.type, unroll_factor)
+            )
+        )
+    )
+    with ImplicitBuilder(new_region) as args:
+        # For each interleaved block replica, a mapping from old values to new values
+        value_map: tuple[dict[SSAValue, SSAValue], ...] = tuple(
+            {} for _ in range(unroll_factor)
+        )
+        for arg_index, new_arg in enumerate(args):
+            old_arg = old_block.args[arg_index // unroll_factor]
+            value_map[arg_index % unroll_factor][old_arg] = new_arg
+            new_arg.name_hint = old_arg.name_hint
+        for block_op in old_block.ops:
+            if isinstance(block_op, memref_stream.YieldOp):
+                memref_stream.YieldOp(
+                    *([vm[arg] for vm in value_map for arg in block_op.arguments])
+                )
+            else:
+                for i in range(unroll_factor):
+                    block_op.clone(value_mapper=value_map[i])
+
+    # New maps are the same, except that they have one more dimension and the
+    # dimension that is interleaved is updated to
+    # `dim * interleave_factor + new_dim`.
+    new_indexing_maps = ArrayAttr(
+        AffineMapAttr(
+            m.data.replace_dims_and_symbols(
+                (
+                    tuple(AffineExpr.dimension(i) for i in range(iterator_index))
+                    + (
+                        AffineExpr.dimension(iterator_index) * unroll_factor
+                        + AffineExpr.dimension(m.data.num_dims),
+                    )
+                    + tuple(
+                        AffineExpr.dimension(i)
+                        for i in range(iterator_index + 1, m.data.num_dims + 2)
+                    )
+                ),
+                (),
+                m.data.num_dims + 1,
+                0,
+            )
+        )
+        for m in op.indexing_maps
+    )
+
+    # The new bounds are the same, except there is one more bound
+    new_bounds = list(op.bounds)
+    new_bounds.append(IntegerAttr.from_index_int_value(unroll_factor))
+    iterator_ub = op.bounds.data[iterator_index].value.data
+    new_bounds[iterator_index] = IntegerAttr.from_index_int_value(
+        iterator_ub // unroll_factor
+    )
+
+    rewriter.replace_matched_op(
+        memref_stream.GenericOp(
+            op.inputs,
+            op.outputs,
+            op.inits,
+            new_region,
+            new_indexing_maps,
+            ArrayAttr(
+                op.iterator_types.data + (memref_stream.IteratorTypeAttr.interleaved(),)
+            ),
+            ArrayAttr(new_bounds),
+            op.init_indices,
+            op.doc,
+            op.library_call,
+        )
+    )
+
+
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
     pipeline_depth: int = field()
@@ -37,108 +153,18 @@ class PipelineGenericPattern(RewritePattern):
             # No reduction
             return
 
-        interleave_bound_index = -1
-        interleave_bound = -1
-        for index, (iterator_type, bound) in enumerate(
-            zip(op.iterator_types, op.bounds, strict=True)
-        ):
-            if iterator_type == memref_stream.IteratorTypeAttr.parallel():
-                interleave_bound = bound.value.data
-                interleave_bound_index = index
-        if interleave_bound == -1:
-            # No parallel dimension
+        interleave_bound_index = unroll_and_jam_bound_index(op)
+
+        if interleave_bound_index is None:
             return
 
-        interleave_factor = 1
-        # Search factors until the next number divisible by pipeline_depth
-        for potential_factor in range(1, self.pipeline_depth * 2):
-            if not interleave_bound % potential_factor:
-                # Found a larger factor
-                interleave_factor = potential_factor
+        interleave_bound = op.bounds.data[interleave_bound_index].value.data
 
-        old_block = op.body.block
-        new_region = Region(
-            Block(
-                arg_types=(
-                    t
-                    for arg in old_block.args
-                    for t in repeat(arg.type, interleave_factor)
-                )
-            )
-        )
-        with ImplicitBuilder(new_region) as args:
-            # For each interleaved block replica, a mapping from old values to new values
-            value_map: tuple[dict[SSAValue, SSAValue], ...] = tuple(
-                {} for _ in range(interleave_factor)
-            )
-            for arg_index, new_arg in enumerate(args):
-                old_arg = old_block.args[arg_index // interleave_factor]
-                value_map[arg_index % interleave_factor][old_arg] = new_arg
-                new_arg.name_hint = old_arg.name_hint
-            for block_op in old_block.ops:
-                if isinstance(block_op, memref_stream.YieldOp):
-                    memref_stream.YieldOp(
-                        *([vm[arg] for vm in value_map for arg in block_op.arguments])
-                    )
-                else:
-                    for i in range(interleave_factor):
-                        block_op.clone(value_mapper=value_map[i])
-
-        # New maps are the same, except that they have one more dimension and the
-        # dimension that is interleaved is updated to
-        # `dim * interleave_factor + new_dim`.
-        new_indexing_maps = ArrayAttr(
-            AffineMapAttr(
-                m.data.replace_dims_and_symbols(
-                    (
-                        tuple(
-                            AffineExpr.dimension(i)
-                            for i in range(interleave_bound_index)
-                        )
-                        + (
-                            AffineExpr.dimension(interleave_bound_index)
-                            * interleave_factor
-                            + AffineExpr.dimension(m.data.num_dims),
-                        )
-                        + tuple(
-                            AffineExpr.dimension(i)
-                            for i in range(
-                                interleave_bound_index + 1, m.data.num_dims + 2
-                            )
-                        )
-                    ),
-                    (),
-                    m.data.num_dims + 1,
-                    0,
-                )
-            )
-            for m in op.indexing_maps
+        interleave_factor = unroll_and_jam_interleave_factor(
+            self.pipeline_depth, interleave_bound
         )
 
-        # The new bounds are the same, except there is one more bound
-        new_bounds = list(op.bounds)
-        new_bounds.append(IntegerAttr.from_index_int_value(interleave_factor))
-        new_bounds[interleave_bound_index] = IntegerAttr.from_index_int_value(
-            interleave_bound // interleave_factor
-        )
-
-        rewriter.replace_matched_op(
-            memref_stream.GenericOp(
-                op.inputs,
-                op.outputs,
-                op.inits,
-                new_region,
-                new_indexing_maps,
-                ArrayAttr(
-                    op.iterator_types.data
-                    + (memref_stream.IteratorTypeAttr.interleaved(),)
-                ),
-                ArrayAttr(new_bounds),
-                op.init_indices,
-                op.doc,
-                op.library_call,
-            )
-        )
+        unroll_and_jam(op, rewriter, interleave_bound_index, interleave_factor)
 
 
 @dataclass(frozen=True)
