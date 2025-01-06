@@ -7,7 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
 class LowerRiscvScfForPattern(RewritePattern):
@@ -119,7 +119,7 @@ class LowerRiscvScfForPattern(RewritePattern):
             ),
         )
 
-        rewriter.inline_region_before(op.body, end_block)
+        rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
         # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
