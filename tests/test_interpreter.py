@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.interpreter import (
-    CombinedListeners,
+    CombinedListener,
     Interpreter,
     InterpreterFunctions,
     PythonValues,
@@ -246,7 +246,7 @@ def test_mixed_values():
     assert i.value_for_attribute(IntegerAttr(1, i32), index) == 1
 
 
-def test_combined_listeners():
+def test_combined_listener():
     @dataclass
     class DemoListener(Interpreter.Listener):
         strings: list[str]
@@ -270,7 +270,7 @@ def test_combined_listeners():
     strings: list[str] = []
     da = DemoListener(strings, "A")
     db = DemoListener(strings, "B")
-    combined = CombinedListeners((da, db))
+    combined = CombinedListener((da, db))
     interpreter = Interpreter(ModuleOp([]), listener=combined)
     interpreter.register_implementations(TestFunctions())
     interpreter.run_op(test.TestOp())

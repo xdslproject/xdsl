@@ -798,7 +798,7 @@ class OpCounter(Interpreter.Listener):
 
 
 @dataclass
-class CombinedListeners(Interpreter.Listener):
+class CombinedListener(Interpreter.Listener):
     """
     Calls the callbacks of the inner listeners.
     """
