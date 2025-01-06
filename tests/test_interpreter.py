@@ -243,3 +243,34 @@ def test_mixed_values():
 
     assert i.value_for_attribute(IntegerAttr(1, i32), i32) == 1
     assert i.value_for_attribute(IntegerAttr(1, i32), index) == 1
+
+
+def test_combined_listener():
+    @dataclass
+    class DemoListener(Interpreter.Listener):
+        strings: list[str]
+        key: str
+
+        def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
+            self.strings.append("will " + self.key)
+
+        def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
+            self.strings.append("did " + self.key)
+
+    @dataclass
+    @register_impls
+    class TestFunctions(InterpreterFunctions):
+        @impl(test.TestOp)
+        def run_test(
+            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
+        ) -> PythonValues:
+            return ()
+
+    strings: list[str] = []
+    da = DemoListener(strings, "A")
+    db = DemoListener(strings, "B")
+    interpreter = Interpreter(ModuleOp([]), listeners=(da, db))
+    interpreter.register_implementations(TestFunctions())
+    interpreter.run_op(test.TestOp())
+
+    assert strings == ["will A", "will B", "did A", "did B"]
