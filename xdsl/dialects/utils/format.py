@@ -49,9 +49,14 @@ def print_for_op_like(
     """
     Prints the loop bounds, step, iteration arguments, and body.
 
-    Users can provide specific human-readable words for bounds (default: "to") and a
-    default induction variable type that is not printed if it matches the given as
-    argument type.
+    Users can provide a default induction variable type and specific human-readable
+    words for bounds (default: "to").
+
+    Note that providing a default induction variable type is required to suggest that
+    all loop control variable types (induction, bounds and step) have the same type,
+    hence moving the induction variable type printing to the end of the for expression.
+    The induction variable type printing is ommited when it matches the expected default
+    type (`default_indvar_type`).
     """
 
     block = body.block
@@ -110,7 +115,12 @@ def parse_for_op_like(
     """
     Returns the loop bounds, step, iteration arguments, and body.
 
-    Users can provide specific human-readable words for bounds (default: "to").
+    Users can provide a default induction variable type and specific human-readable
+    words for bounds (default: "to").
+    Note that providing a default induction variable type is required to suggest that
+    all loop control variable types (induction, bounds and step) have the same type,
+    hence the induction variable type is potentially expected at the end of the for
+    expression.
     """
 
     unresolved_indvar = parser.parse_argument(expect_type=False)
