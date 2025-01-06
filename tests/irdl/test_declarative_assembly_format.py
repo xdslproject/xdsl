@@ -2450,7 +2450,7 @@ def test_non_verifying_inference():
 
 def test_variadic_length_inference():
     @irdl_op_definition
-    class RangeVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+    class RangeVarOp(IRDLOperation):
         name = "test.range_var"
         T: ClassVar = RangeVarConstraint("T", RangeOf(AnyAttr()))
         ins = var_operand_def(T)
@@ -2475,7 +2475,7 @@ def test_variadic_length_inference():
 
 def test_range_var_inference():
     @irdl_op_definition
-    class RangeVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+    class RangeVarOp(IRDLOperation):
         name = "test.range_var"
         T: ClassVar = RangeVarConstraint("T", RangeOf(EqAttrConstraint(IndexType())))
         ins = var_operand_def(T)
