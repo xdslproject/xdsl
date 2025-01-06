@@ -29,9 +29,13 @@ jobs:
           add: uv.lock
   ci-core:
     uses: ./.github/workflows/ci-core.yml
+    needs: lock
   ci-mlir:
     uses: ./.github/workflows/ci-mlir.yml
+    needs: lock
   ci-notebooks:
     uses: ./.github/workflows/ci-notebooks.yml
+    needs: lock
   ci-lockfile:
     uses: ./.github/workflows/ci-lockfile.yml
+    needs: lock
