@@ -688,10 +688,14 @@ class Printer(BasePrinter):
         self.print_string("]")
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
-        if isinstance(attr_tuple[1], UnitAttr):
-            self.print_string(f'"{attr_tuple[0]}"')
+        # Print the name without quotes if it is a bare identifier
+        if MLIRLexer.bare_identifier_regex.fullmatch(attr_tuple[0]):
+            self.print_string(attr_tuple[0])
         else:
-            self.print_string(f'"{attr_tuple[0]}" = ')
+            self.print_string(f'"{attr_tuple[0]}"')
+
+        if not isinstance(attr_tuple[1], UnitAttr):
+            self.print_string(" = ")
             self.print_attribute(attr_tuple[1])
 
     def print_attr_dict(self, attr_dict: Mapping[str, Attribute]) -> None:
