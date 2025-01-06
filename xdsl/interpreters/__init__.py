@@ -13,6 +13,7 @@ from xdsl.interpreters import (
     pdl,
     printf,
     riscv,
+    riscv_cf,
     riscv_debug,
     riscv_func,
     riscv_libc,
@@ -42,6 +43,7 @@ def register_implementations(
     interpreter.register_implementations(ml_program.MLProgramFunctions())
     interpreter.register_implementations(pdl.PDLRewriteFunctions(ctx))
     interpreter.register_implementations(printf.PrintfFunctions())
+    interpreter.register_implementations(riscv_cf.RiscvCfFunctions())
     interpreter.register_implementations(riscv_debug.RiscvDebugFunctions())
     interpreter.register_implementations(riscv_func.RiscvFuncFunctions())
     interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
