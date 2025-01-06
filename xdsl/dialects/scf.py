@@ -372,15 +372,12 @@ class ForOp(IRDLOperation):
             self.step,
             self.iter_args,
             self.body,
-            True,
             IndexType,
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(
-            parser, True, IndexType()
-        )
+        lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser, IndexType())
         _, *iter_args = body.block.args
 
         for_op = cls(lb, ub, step, iter_arg_operands, body)

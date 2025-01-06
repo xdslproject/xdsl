@@ -43,7 +43,6 @@ def print_for_op_like(
     step: SSAValue,
     iter_args: Sequence[SSAValue],
     body: Region,
-    uniform_loop_var_types: bool = False,
     default_indvar_type: type[TypeAttribute] | None = None,
     bound_words: Sequence[str] = ["to"],
 ):
@@ -54,11 +53,6 @@ def print_for_op_like(
     default induction variable type that is not printed if it matches the given as
     argument type.
     """
-
-    if default_indvar_type is not None and not uniform_loop_var_types:
-        raise ValueError(
-            "Must only provide a default induction variable type when loop variable types are uniform"
-        )
 
     block = body.block
     indvar, *block_iter_args = block.args
@@ -72,7 +66,7 @@ def print_for_op_like(
 
     printer.print_ssa_value(indvar)
 
-    if not uniform_loop_var_types:
+    if default_indvar_type is None:
         print_indvar_type()
 
     printer.print_string(" = ")
@@ -95,11 +89,10 @@ def print_for_op_like(
         printer.print_list((a.type for a in block_iter_args), printer.print_attribute)
         printer.print_string(") ")
 
-    if uniform_loop_var_types:
-        if default_indvar_type is None or not isinstance(
-            indvar.type, default_indvar_type
-        ):
-            print_indvar_type()
+    if default_indvar_type is not None and not isinstance(
+        indvar.type, default_indvar_type
+    ):
+        print_indvar_type()
 
     printer.print_region(
         body,
@@ -111,7 +104,6 @@ def print_for_op_like(
 
 def parse_for_op_like(
     parser: Parser,
-    uniform_loop_var_types: bool = False,
     default_indvar_type: TypeAttribute | None = None,
     bound_words: Sequence[str] = ["to"],
 ) -> tuple[SSAValue, SSAValue, SSAValue, Sequence[SSAValue], Region]:
@@ -121,16 +113,11 @@ def parse_for_op_like(
     Users can provide specific human-readable words for bounds (default: "to").
     """
 
-    if default_indvar_type is not None and not uniform_loop_var_types:
-        raise ValueError(
-            "Must only provide a default induction variable type when loop variable types are uniform"
-        )
-
     unresolved_indvar = parser.parse_argument(expect_type=False)
 
     indvar_type = None
 
-    if not uniform_loop_var_types:
+    if default_indvar_type is None:
         parser.parse_characters(":")
         indvar_type = parser.parse_type()
 
@@ -169,7 +156,7 @@ def parse_for_op_like(
         u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
     ]
 
-    if uniform_loop_var_types:
+    if default_indvar_type is not None:
         indvar_type = (
             parser.parse_type()
             if parser.parse_optional_characters(":")
