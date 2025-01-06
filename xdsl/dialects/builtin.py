@@ -1291,13 +1291,13 @@ class DenseArrayBase(ParametrizedAttribute):
         return self.elt_type.unpack(self.data.data, len(self))
 
     def iter_attrs(self) -> Iterator[AnyIntegerAttr] | Iterator[AnyFloatAttr]:
-        if isinstance(self.elt_type, IntegerType | IndexType):
+        if isinstance(self.elt_type, IntegerType):
             return IntegerAttr.iter_unpack(self.elt_type, self.data.data)
         else:
             return FloatAttr.iter_unpack(self.elt_type, self.data.data)
 
     def get_attrs(self) -> tuple[AnyIntegerAttr, ...] | tuple[AnyFloatAttr, ...]:
-        if isinstance(self.elt_type, IntegerType | IndexType):
+        if isinstance(self.elt_type, IntegerType):
             return IntegerAttr.unpack(self.elt_type, self.data.data, len(self))
         else:
             return FloatAttr.unpack(self.elt_type, self.data.data, len(self))
