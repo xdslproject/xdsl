@@ -42,6 +42,19 @@ def test_block_insertion_point_constructors():
     assert BlockInsertPoint.at_start(target) != BlockInsertPoint.at_end(target)
 
 
+def test_block_insertion_point_orphan():
+    block = Block()
+    with pytest.raises(
+        ValueError, match="Block insertion point must have a parent region"
+    ):
+        BlockInsertPoint.before(block)
+
+    with pytest.raises(
+        ValueError, match="Block insertion point must have a parent region"
+    ):
+        BlockInsertPoint.after(block)
+
+
 def test_builder():
     target = Block(
         [
