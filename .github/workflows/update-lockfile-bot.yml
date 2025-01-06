@@ -31,10 +31,10 @@ jobs:
         with:
           add: uv.lock
 
-      - uses: ./.github/workflows/ci-core
+      - uses: ./.github/workflows/ci-core.yml
 
-      - uses: ./.github/workflows/ci-mlir
+      - uses: ./.github/workflows/ci-mlir.yml
 
-      - uses: ./.github/workflows/ci-notebooks
+      - uses: ./.github/workflows/ci-notebooks.yml
 
-      - uses: ./.github/workflows/ci-lockfile
+      - uses: ./.github/workflows/ci-lockfile.yml
