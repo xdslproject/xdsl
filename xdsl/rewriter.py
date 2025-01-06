@@ -58,6 +58,56 @@ class InsertPoint:
         return InsertPoint(block)
 
 
+@dataclass(frozen=True)
+class BlockInsertPoint:
+    """
+    An insert point for a block.
+    It is either a point before a block, or after a block.
+    """
+
+    region: Region
+    """The region where the insertion point is in."""
+
+    insert_before: Block | None = field(default=None)
+    """
+    The insertion point is right before this block.
+    If the block is None, the insertion point is at the end of the region.
+    """
+
+    def __post_init__(self) -> None:
+        # Check that the insertion point is valid.
+        # An insertion point can only be invalid if `insert_before` is a `Block`,
+        # and its parent is not `region`.
+        if self.insert_before is not None:
+            if self.insert_before.parent is not self.region:
+                raise ValueError("Insertion point must be in the builder's `region`")
+
+    @staticmethod
+    def before(block: Block) -> BlockInsertPoint:
+        """Gets the insertion point before a block."""
+        if (region := block.parent) is None:
+            raise ValueError("Block insertion point must have a parent region")
+        return BlockInsertPoint(region, block)
+
+    @staticmethod
+    def after(block: Block) -> BlockInsertPoint:
+        """Gets the insertion point after a block."""
+        region = block.parent
+        if region is None:
+            raise ValueError("Block insertion point must have a parent region")
+        return BlockInsertPoint(region, block.next_block)
+
+    @staticmethod
+    def at_start(region: Region) -> BlockInsertPoint:
+        """Gets the insertion point at the start of a region."""
+        return BlockInsertPoint(region, region.first_block)
+
+    @staticmethod
+    def at_end(region: Region) -> BlockInsertPoint:
+        """Gets the insertion point at the end of a region."""
+        return BlockInsertPoint(region)
+
+
 class Rewriter:
     @staticmethod
     def erase_op(op: Operation, safe_erase: bool = True):
