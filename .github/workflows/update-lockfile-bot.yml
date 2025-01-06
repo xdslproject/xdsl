@@ -3,9 +3,6 @@ name: Update Lockfile Bot
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
 
 jobs:
   lock:
