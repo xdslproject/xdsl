@@ -2,6 +2,9 @@ name: Update Lockfile Bot
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      'alexarice/test-branch'
 
 
 jobs:
