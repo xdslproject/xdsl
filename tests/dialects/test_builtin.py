@@ -510,9 +510,35 @@ def test_complex_init():
 def test_dense_as_tuple():
     floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
     assert floats.get_values() == (3.141590118408203, 2.718280076980591)
+    assert tuple(floats.iter_values()) == (3.141590118408203, 2.718280076980591)
+    assert tuple(floats.iter_attrs()) == (
+        FloatAttr(3.141590118408203, f32),
+        FloatAttr(2.718280076980591, f32),
+    )
+    assert floats.get_attrs() == (
+        FloatAttr(3.141590118408203, f32),
+        FloatAttr(2.718280076980591, f32),
+    )
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.get_values() == (1, 1, 2, 3, 5, 8)
+    assert tuple(ints.iter_values()) == (1, 1, 2, 3, 5, 8)
+    assert tuple(ints.iter_attrs()) == (
+        IntegerAttr(1, i32),
+        IntegerAttr(1, i32),
+        IntegerAttr(2, i32),
+        IntegerAttr(3, i32),
+        IntegerAttr(5, i32),
+        IntegerAttr(8, i32),
+    )
+    assert ints.get_attrs() == (
+        IntegerAttr(1, i32),
+        IntegerAttr(1, i32),
+        IntegerAttr(2, i32),
+        IntegerAttr(3, i32),
+        IntegerAttr(5, i32),
+        IntegerAttr(8, i32),
+    )
 
 
 def test_create_dense_int():
