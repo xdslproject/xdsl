@@ -32,12 +32,14 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
     GenericAttrConstraint,
+    IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParameterDef,
@@ -49,6 +51,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -67,8 +70,6 @@ from xdsl.irdl import (
     var_result_def,
     var_successor_def,
 )
-from xdsl.irdl import eq
-from xdsl.irdl.constraints import AnyInt, IntVarConstraint
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     FormatProgram,

@@ -892,7 +892,9 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
         return self.length.get_length_extractors()
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
-        return (length_known or self.length.can_infer(var_constraint_names)) and self.constr.can_infer(var_constraint_names)
+        return (
+            length_known or self.length.can_infer(var_constraint_names)
+        ) and self.constr.can_infer(var_constraint_names)
 
     def infer(
         self,
