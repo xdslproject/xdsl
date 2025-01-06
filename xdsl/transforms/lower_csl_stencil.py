@@ -4,9 +4,9 @@ from typing import cast
 from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     AnyFloatAttr,
     AnyMemRefType,
-    ArrayAttr,
     DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
@@ -28,6 +28,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -458,7 +459,11 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         acc_dsd = csl.GetMemDsdOp.build(
             operands=[alloc, [direction_count, pattern, chunk_size]],
             result_types=[dsd_t],
-            properties={"strides": ArrayAttr([IntegerAttr(i, 16) for i in [0, 0, 1]])},
+            properties={
+                "tensor_access": AffineMapAttr(
+                    AffineMap.from_callable(lambda x, y, z: (z,))
+                )
+            },
         )
         new_acc = acc_dsd
 

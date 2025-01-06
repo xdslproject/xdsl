@@ -373,7 +373,7 @@ class WhileOp(IRDLOperation):
         op = cls(arguments, function_type.outputs.data, before_region, after_region)
 
         if attrs is not None:
-            op.attributes = attrs.data
+            op.attributes |= attrs.data
 
         return op
 

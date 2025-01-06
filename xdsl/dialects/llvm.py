@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
+    DenseI64ArrayConstr,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -1262,7 +1263,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position = prop_def(DenseArrayBase)
+    position = prop_def(DenseI64ArrayConstr)
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
@@ -1292,7 +1293,7 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position = prop_def(DenseArrayBase)
+    position = prop_def(DenseI64ArrayConstr)
     container = operand_def(Attribute)
     value = operand_def(Attribute)
 
