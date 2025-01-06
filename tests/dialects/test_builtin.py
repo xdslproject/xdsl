@@ -175,48 +175,72 @@ def test_IntegerType_packing():
     buffer_i1 = i1.pack(nums_i1)
     unpacked_i1 = i1.unpack(buffer_i1, len(nums_i1))
     assert nums_i1 == unpacked_i1
+    attrs_i1 = IntegerAttr.unpack(i1, buffer_i1, len(nums_i1))
+    assert attrs_i1 == tuple(IntegerAttr(n, i1) for n in nums_i1)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i1, buffer_i1)) == attrs_i1
 
     # i8
     nums_i8 = (-128, -1, 0, 1, 127)
     buffer_i8 = i8.pack(nums_i8)
     unpacked_i8 = i8.unpack(buffer_i8, len(nums_i8))
     assert nums_i8 == unpacked_i8
+    attrs_i8 = IntegerAttr.unpack(i8, buffer_i8, len(nums_i8))
+    assert attrs_i8 == tuple(IntegerAttr(n, i8) for n in nums_i8)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i8, buffer_i8)) == attrs_i8
 
     # i16
     nums_i16 = (-32768, -1, 0, 1, 32767)
     buffer_i16 = i16.pack(nums_i16)
     unpacked_i16 = i16.unpack(buffer_i16, len(nums_i16))
     assert nums_i16 == unpacked_i16
+    attrs_i16 = IntegerAttr.unpack(i16, buffer_i16, len(nums_i16))
+    assert attrs_i16 == tuple(IntegerAttr(n, i16) for n in nums_i16)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i16, buffer_i16)) == attrs_i16
 
     # i32
     nums_i32 = (-2147483648, -1, 0, 1, 2147483647)
     buffer_i32 = i32.pack(nums_i32)
     unpacked_i32 = i32.unpack(buffer_i32, len(nums_i32))
     assert nums_i32 == unpacked_i32
+    attrs_i32 = IntegerAttr.unpack(i32, buffer_i32, len(nums_i32))
+    assert attrs_i32 == tuple(IntegerAttr(n, i32) for n in nums_i32)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i32, buffer_i32)) == attrs_i32
 
     # i64
     nums_i64 = (-9223372036854775808, -1, 0, 1, 9223372036854775807)
     buffer_i64 = i64.pack(nums_i64)
     unpacked_i64 = i64.unpack(buffer_i64, len(nums_i64))
     assert nums_i64 == unpacked_i64
+    attrs_i64 = IntegerAttr.unpack(i64, buffer_i64, len(nums_i64))
+    assert attrs_i64 == tuple(IntegerAttr(n, i64) for n in nums_i64)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i64, buffer_i64)) == attrs_i64
 
     # f16
     nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
     buffer_f16 = f16.pack(nums_f16)
     unpacked_f16 = f16.unpack(buffer_f16, len(nums_f16))
     assert nums_f16 == unpacked_f16
+    attrs_f16 = FloatAttr.unpack(f16, buffer_f16, len(nums_f16))
+    assert attrs_f16 == tuple(FloatAttr(n, f16) for n in nums_f16)
+    assert tuple(attr for attr in FloatAttr.iter_unpack(f16, buffer_f16)) == attrs_f16
 
     # f32
     nums_f32 = (-3.140000104904175, -1.0, 0.0, 1.0, 3.140000104904175)
     buffer_f32 = f32.pack(nums_f32)
     unpacked_f32 = f32.unpack(buffer_f32, len(nums_f32))
     assert nums_f32 == unpacked_f32
+    attrs_f32 = FloatAttr.unpack(f32, buffer_f32, len(nums_f32))
+    assert attrs_f32 == tuple(FloatAttr(n, f32) for n in nums_f32)
+    assert tuple(attr for attr in FloatAttr.iter_unpack(f32, buffer_f32)) == attrs_f32
 
     # f64
     nums_f64 = (-3.14159265359, -1.0, 0.0, 1.0, 3.14159265359)
     buffer_f64 = f64.pack(nums_f64)
     unpacked_f64 = f64.unpack(buffer_f64, len(nums_f64))
     assert nums_f64 == unpacked_f64
+    attrs_f64 = FloatAttr.unpack(f64, buffer_f64, len(nums_f64))
+    assert attrs_f64 == tuple(FloatAttr(n, f64) for n in nums_f64)
+    assert tuple(attr for attr in FloatAttr.iter_unpack(f64, buffer_f64)) == attrs_f64
 
     # Test error cases
     # Different Python versions have different error messages for these

@@ -602,6 +602,7 @@ IndexTypeConstr = BaseAttr(IndexType)
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+_IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 _IntegerAttrTypeConstrT = TypeVar(
     "_IntegerAttrTypeConstrT", bound=IntegerType | IndexType, covariant=True
 )
@@ -705,6 +706,25 @@ class IntegerAttr(
                 type,
             ),
         )
+
+    @staticmethod
+    def iter_unpack(
+        type: _IntegerAttrTypeInvT, buffer: ReadableBuffer, /
+    ) -> Iterator[IntegerAttr[_IntegerAttrTypeInvT]]:
+        """
+        Yields unpacked values one at a time, starting at the beginning of the buffer.
+        """
+        for value in type.iter_unpack(buffer):
+            yield IntegerAttr(value, type)
+
+    @staticmethod
+    def unpack(
+        type: _IntegerAttrTypeInvT, buffer: ReadableBuffer, num: int, /
+    ) -> tuple[IntegerAttr[_IntegerAttrTypeInvT], ...]:
+        """
+        Unpack `num` values from the beginning of the buffer.
+        """
+        return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -833,6 +853,7 @@ class FloatData(Data[float]):
 
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
+_FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
@@ -885,6 +906,25 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
 
     def print_without_type(self, printer: Printer):
         return printer.print_float_attr(self)
+
+    @staticmethod
+    def iter_unpack(
+        type: _FloatAttrTypeInvT, buffer: ReadableBuffer, /
+    ) -> Iterator[FloatAttr[_FloatAttrTypeInvT]]:
+        """
+        Yields unpacked values one at a time, starting at the beginning of the buffer.
+        """
+        for value in type.iter_unpack(buffer):
+            yield FloatAttr(value, type)
+
+    @staticmethod
+    def unpack(
+        type: _FloatAttrTypeInvT, buffer: ReadableBuffer, num: int, /
+    ) -> tuple[FloatAttr[_FloatAttrTypeInvT], ...]:
+        """
+        Unpack `num` values from the beginning of the buffer.
+        """
+        return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -1249,6 +1289,18 @@ class DenseArrayBase(ParametrizedAttribute):
 
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
         return self.elt_type.unpack(self.data.data, len(self))
+
+    def iter_attrs(self) -> Iterator[AnyIntegerAttr] | Iterator[AnyFloatAttr]:
+        if isinstance(self.elt_type, IntegerType | IndexType):
+            return IntegerAttr.iter_unpack(self.elt_type, self.data.data)
+        else:
+            return FloatAttr.iter_unpack(self.elt_type, self.data.data)
+
+    def get_attrs(self) -> tuple[AnyIntegerAttr, ...] | tuple[AnyFloatAttr, ...]:
+        if isinstance(self.elt_type, IntegerType | IndexType):
+            return IntegerAttr.unpack(self.elt_type, self.data.data, len(self))
+        else:
+            return FloatAttr.unpack(self.elt_type, self.data.data, len(self))
 
     def __len__(self) -> int:
         return len(self.data.data) // self.elt_type.size
