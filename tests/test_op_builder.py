@@ -17,22 +17,11 @@ def test_insertion_point_constructors():
     )
 
     assert InsertPoint.at_start(target) == InsertPoint(target, op1)
-    assert Builder.at_start(target).insertion_point == InsertPoint(target, op1)
-
     assert InsertPoint.at_end(target) == InsertPoint(target, None)
-    assert Builder.at_end(target).insertion_point == InsertPoint(target, None)
-
     assert InsertPoint.before(op1) == InsertPoint(target, op1)
-    assert Builder.before(op1).insertion_point == InsertPoint(target, op1)
-
     assert InsertPoint.after(op1) == InsertPoint(target, op2)
-    assert Builder.after(op1).insertion_point == InsertPoint(target, op2)
-
     assert InsertPoint.before(op2) == InsertPoint(target, op2)
-    assert Builder.before(op2).insertion_point == InsertPoint(target, op2)
-
     assert InsertPoint.after(op2) == InsertPoint(target, None)
-    assert Builder.after(op2).insertion_point == InsertPoint(target, None)
 
 
 def test_builder():
@@ -44,7 +33,7 @@ def test_builder():
     )
 
     block = Block()
-    b = Builder.at_end(block)
+    b = Builder(InsertPoint.at_end(block))
 
     x = ConstantOp.from_int_and_width(0, 1)
     y = ConstantOp.from_int_and_width(1, 1)
@@ -65,7 +54,7 @@ def test_builder_insertion_point():
     )
 
     block = Block()
-    b = Builder.at_end(block)
+    b = Builder(InsertPoint.at_end(block))
 
     x = ConstantOp.from_int_and_width(1, 8)
     y = ConstantOp.from_int_and_width(2, 8)
@@ -85,7 +74,7 @@ def test_builder_create_block():
     block1 = Block()
     block2 = Block()
     target = Region([block1, block2])
-    builder = Builder.at_start(block1)
+    builder = Builder(InsertPoint.at_start(block1))
 
     new_block1 = builder.create_block_at_start(target, (i32,))
     assert len(new_block1.args) == 1
@@ -120,7 +109,7 @@ def test_builder_create_block():
 
 def test_builder_listener_op_insert():
     block = Block()
-    b = Builder.at_end(block)
+    b = Builder(InsertPoint.at_end(block))
 
     x = ConstantOp.from_int_and_width(1, 32)
     y = ConstantOp.from_int_and_width(2, 32)
@@ -144,7 +133,7 @@ def test_builder_listener_op_insert():
 def test_builder_listener_block_created():
     block = Block()
     region = Region([block])
-    b = Builder.at_start(block)
+    b = Builder(InsertPoint.at_start(block))
 
     created_blocks: list[Block] = []
 
