@@ -739,15 +739,22 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     def get_variable_extractors(
         self,
     ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
-        return {self.name: IdExtractor[Sequence[AttributeCovT]]()}
+        return merge_extractor_dicts(
+            {self.name: IdExtractor[Sequence[AttributeCovT]]()},
+            self.constraint.get_variable_extractors(),
+        )
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
-        return self.name in var_constraint_names
+        return self.name in var_constraint_names or self.constraint.can_infer(
+            var_constraint_names, length_known=length_known
+        )
 
     def infer(
         self, context: InferenceContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
-        v = context.variables[self.name]
+        v = context.variables.get(self.name)
+        if v is None:
+            return self.constraint.infer(context, length=length)
         return cast(Sequence[AttributeCovT], v)
 
 
