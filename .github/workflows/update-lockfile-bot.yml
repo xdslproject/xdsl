@@ -30,3 +30,11 @@ jobs:
       - uses: EndBug/add-and-commit@v9
         with:
           add: uv.lock
+
+      - uses: ./.github/workflows/ci-core
+
+      - uses: ./.github/workflows/ci-mlir
+
+      - uses: ./.github/workflows/ci-notebooks
+
+      - uses: ./.github/workflows/ci-lockfile
