@@ -9,7 +9,7 @@ from typing import ClassVar, TypeAlias, overload
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
 @dataclass(eq=False)
@@ -74,6 +74,21 @@ class Builder(BuilderListener):
 
         return op
 
+    def create_block(
+        self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute]
+    ) -> Block:
+        """
+        Create a block at the given location, and set the operation insertion point
+        at the end of the inserted block.
+        """
+        block = Block(arg_types=arg_types)
+        Rewriter.insert_block(block, insert_point)
+
+        self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+        return block
+
     def create_block_before(
         self, insert_before: Block, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -81,13 +96,7 @@ class Builder(BuilderListener):
         Create a block before `insert_before`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        Rewriter.insert_block_before(block, insert_before)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
+        return self.create_block(BlockInsertPoint.before(insert_before), arg_types)
 
     def create_block_after(
         self, insert_after: Block, arg_types: Iterable[Attribute] = ()
@@ -96,14 +105,7 @@ class Builder(BuilderListener):
         Create a block after `insert_after`, and set
         the insertion point at the end of the inserted block.
         """
-
-        block = Block(arg_types=arg_types)
-        Rewriter.insert_block_after(block, insert_after)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
+        return self.create_block(BlockInsertPoint.after(insert_after), arg_types)
 
     def create_block_at_start(
         self, region: Region, arg_types: Iterable[Attribute] = ()
@@ -112,13 +114,7 @@ class Builder(BuilderListener):
         Create a block at the start of `region`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        region.insert_block(block, 0)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
+        return self.create_block(BlockInsertPoint.at_start(region), arg_types)
 
     def create_block_at_end(
         self, region: Region, arg_types: Iterable[Attribute] = ()
@@ -127,13 +123,7 @@ class Builder(BuilderListener):
         Create a block at the end of `region`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        region.add_block(block)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
+        return self.create_block(BlockInsertPoint.at_end(region), arg_types)
 
     @staticmethod
     def _region_no_args(func: Callable[[Builder], None]) -> Region:
