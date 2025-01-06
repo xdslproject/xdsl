@@ -43,9 +43,9 @@ def print_for_op_like(
     step: SSAValue,
     iter_args: Sequence[SSAValue],
     body: Region,
-    bound_words: Sequence[str] = ["to"],
+    uniform_loop_var_types: bool = False,
     default_indvar_type: type[TypeAttribute] | None = None,
-    uniform_loop_var_types: bool = True,
+    bound_words: Sequence[str] = ["to"],
 ):
     """
     Prints the loop bounds, step, iteration arguments, and body.
@@ -54,21 +54,27 @@ def print_for_op_like(
     default induction variable type that is not printed if it matches the given as
     argument type.
     """
+
+    if default_indvar_type is not None and not uniform_loop_var_types:
+        raise ValueError(
+            "Must only provide a default induction variable type when loop variable types are uniform"
+        )
+
     block = body.block
     indvar, *block_iter_args = block.args
 
     printer.print_string(" ")
 
     def print_indvar_type():
-        if not default_indvar_type or not isinstance(indvar.type, default_indvar_type):
-            printer.print_string(": ")
-            printer.print_attribute(indvar.type)
-            printer.print_string(" ")
+        printer.print_string(" : ")
+        printer.print_attribute(indvar.type)
+        printer.print_string(" ")
+
+    printer.print_ssa_value(indvar)
 
     if not uniform_loop_var_types:
         print_indvar_type()
 
-    printer.print_ssa_value(indvar)
     printer.print_string(" = ")
     printer.print_ssa_value(lower_bound)
 
@@ -89,8 +95,11 @@ def print_for_op_like(
         printer.print_list((a.type for a in block_iter_args), printer.print_attribute)
         printer.print_string(") ")
 
-    if not uniform_loop_var_types:
-        print_indvar_type()
+    if uniform_loop_var_types:
+        if default_indvar_type is None or not isinstance(
+            indvar.type, default_indvar_type
+        ):
+            print_indvar_type()
 
     printer.print_region(
         body,
@@ -102,8 +111,9 @@ def print_for_op_like(
 
 def parse_for_op_like(
     parser: Parser,
+    uniform_loop_var_types: bool = False,
+    default_indvar_type: TypeAttribute | None = None,
     bound_words: Sequence[str] = ["to"],
-    uniform_loop_var_types: bool = True,
 ) -> tuple[SSAValue, SSAValue, SSAValue, Sequence[SSAValue], Region]:
     """
     Returns the loop bounds, step, iteration arguments, and body.
@@ -111,15 +121,18 @@ def parse_for_op_like(
     Users can provide specific human-readable words for bounds (default: "to").
     """
 
-    def parse_indvar_type() -> Attribute | None:
-        return parser.parse_type() if parser.parse_optional_characters(":") else None
+    if default_indvar_type is not None and not uniform_loop_var_types:
+        raise ValueError(
+            "Must only provide a default induction variable type when loop variable types are uniform"
+        )
 
     unresolved_indvar = parser.parse_argument(expect_type=False)
 
     indvar_type = None
 
     if not uniform_loop_var_types:
-        indvar_type = parse_indvar_type()
+        parser.parse_characters(":")
+        indvar_type = parser.parse_type()
 
     parser.parse_characters("=")
     lower_bound = parser.parse_operand()
@@ -157,7 +170,12 @@ def parse_for_op_like(
     ]
 
     if uniform_loop_var_types:
-        indvar_type = parse_indvar_type()
+        indvar_type = (
+            parser.parse_type()
+            if parser.parse_optional_characters(":")
+            else default_indvar_type
+        )
+    assert indvar_type is not None
 
     # set induction variable type
     indvar = unresolved_indvar.resolve(indvar_type)

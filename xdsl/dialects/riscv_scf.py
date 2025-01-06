@@ -9,7 +9,6 @@ from collections.abc import Sequence
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -130,14 +129,17 @@ class ForOp(ForRofOperation):
 
     def print(self, printer: Printer):
         print_for_op_like(
-            printer, self.lb, self.ub, self.step, self.iter_args, self.body
+            printer,
+            self.lb,
+            self.ub,
+            self.step,
+            self.iter_args,
+            self.body,
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(
-            parser, uniform_loop_var_types=False
-        )
+        lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser)
         _, *iter_args = body.block.args
 
         for_op = cls(lb, ub, step, iter_arg_operands, body)
