@@ -2167,11 +2167,24 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
+    def iter_values(self) -> Iterator[int] | Iterator[float]:
+        """
+        Return an iterator over all the values of the elements in this DenseIntOrFPElementsAttr
+        """
+        return (el.value.data for el in self.data.data)
+
     def get_values(self) -> Sequence[int] | Sequence[float]:
         """
         Return all the values of the elements in this DenseIntOrFPElementsAttr
         """
-        return tuple(el.value.data for el in self.data.data)
+        return tuple(self.iter_values())
+
+    def iter_attrs(self) -> Iterator[AnyIntegerAttr] | Iterator[AnyFloatAttr]:
+        """
+        Return an iterator over all elements of the dense attribute in their relevant
+        attribute representation (IntegerAttr / FloatAttr)
+        """
+        return iter(self.data)
 
     def get_attrs(self) -> Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]:
         """
