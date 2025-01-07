@@ -132,7 +132,7 @@ pytest
 lit tests/filecheck
 ```
 
-### Testing
+### Testing and benchmarking
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
@@ -147,6 +147,12 @@ uv run lit tests/filecheck
 # run all tests using makefile
 make tests
 ```
+
+Benchmarks for the project are tracked in the <https://github.com/xdslproject/xdsl-bench>
+repository. These run automatically every day on the main branch, reporting
+their results to <https://xdsl.dev/xdsl-bench/>. However, they can also be run
+manually by cloning the repository and pointing the submodule at your
+feature branch to benchmark.
 
 ### Formatting and Typechecking
 
