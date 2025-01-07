@@ -41,3 +41,12 @@
 
 "test.op"() {"0name"} : () -> ()
 // CHECK-NEXT: {"0name"}
+
+"test.op"() {"name" = "name"} : () -> ()
+// CHECK-NEXT: {name = "name"}
+
+"test.op"() {"name#" = "name#"} : () -> ()
+// CHECK-NEXT: {"name#" = "name#"}
+
+"test.op"() {"name0" = "name0"} : () -> ()
+// CHECK-NEXT: {name0 = "name0"}
