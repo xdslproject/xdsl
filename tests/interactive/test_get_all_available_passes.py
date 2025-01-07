@@ -96,7 +96,7 @@ def test_get_all_available_passes():
                 pass_spec=None,
             ),
             AvailablePass(
-                display_name='TestOp("test.op"() {"key" = "b"} : () -> ()):test.op:be',
+                display_name='TestOp("test.op"() {key = "b"} : () -> ()):test.op:be',
                 module_pass=ApplyIndividualRewritePass,
                 pass_spec=PipelinePassSpec(
                     "apply-individual-rewrite",

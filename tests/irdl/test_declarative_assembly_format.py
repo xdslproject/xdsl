@@ -242,12 +242,12 @@ class AttrDictWithKeywordOp(IRDLOperation):
         ("test.attr_dict", '"test.attr_dict"() : () -> ()'),
         ("test.attr_dict_with_keyword", '"test.attr_dict_with_keyword"() : () -> ()'),
         (
-            'test.attr_dict {"a" = 2 : i32}',
-            '"test.attr_dict"() {"a" = 2 : i32} : () -> ()',
+            'test.attr_dict {a = 2 : i32}',
+            '"test.attr_dict"() {a = 2 : i32} : () -> ()',
         ),
         (
-            'test.attr_dict_with_keyword attributes {"a" = 2 : i32}',
-            '"test.attr_dict_with_keyword"() {"a" = 2 : i32} : () -> ()',
+            'test.attr_dict_with_keyword attributes {a = 2 : i32}',
+            '"test.attr_dict_with_keyword"() {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -264,10 +264,10 @@ def test_attr_dict(program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ('test.prop {"prop" = true}', '"test.prop"() <{"prop" = true}> : () -> ()'),
+        ('test.prop {prop = true}', '"test.prop"() <{prop = true}> : () -> ()'),
         (
-            'test.prop {"a" = 2 : i32, "prop" = true}',
-            '"test.prop"() <{"prop" = true}> {"a" = 2 : i32} : () -> ()',
+            'test.prop {a = 2 : i32, prop = true}',
+            '"test.prop"() <{prop = true}> {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -302,10 +302,10 @@ class OpWithAttrOp(IRDLOperation):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_attr i32", '"test.one_attr"() {"attr" = i32} : () -> ()'),
+        ("test.one_attr i32", '"test.one_attr"() {attr = i32} : () -> ()'),
         (
-            'test.one_attr i32 {"attr2" = i64}',
-            '"test.one_attr"() {"attr" = i32, "attr2" = i64} : () -> ()',
+            'test.one_attr i32 {attr2 = i64}',
+            '"test.one_attr"() {attr = i32, attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -332,10 +332,10 @@ def test_attr_variable_shadowed():
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_attr i32", '"test.one_attr"() {"irdl" = i32} : () -> ()'),
+        ("test.one_attr i32", '"test.one_attr"() {irdl = i32} : () -> ()'),
         (
-            'test.one_attr i32 {"attr2" = i64}',
-            '"test.one_attr"() {"irdl" = i32, "attr2" = i64} : () -> ()',
+            'test.one_attr i32 {attr2 = i64}',
+            '"test.one_attr"() {irdl = i32, attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -359,15 +359,15 @@ def test_attr_name(program: str, generic_program: str):
     [
         (
             "test.one_attr <5 : i64>",
-            '"test.one_attr"() {"attr" = #test.param<5 : i64>} : () -> ()',
+            '"test.one_attr"() {attr = #test.param<5 : i64>} : () -> ()',
         ),
         (
             'test.one_attr <"hello">',
-            '"test.one_attr"() {"attr" = #test.param<"hello">} : () -> ()',
+            '"test.one_attr"() {attr = #test.param<"hello">} : () -> ()',
         ),
         (
             'test.one_attr <#test.param<"nested">>',
-            '"test.one_attr"() {"attr" = #test.param<#test.param<"nested">>} : () -> ()',
+            '"test.one_attr"() {attr = #test.param<#test.param<"nested">>} : () -> ()',
         ),
     ],
 )
@@ -410,10 +410,10 @@ def test_missing_property_error():
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_prop i32", '"test.one_prop"() <{"prop" = i32}> : () -> ()'),
+        ("test.one_prop i32", '"test.one_prop"() <{prop = i32}> : () -> ()'),
         (
-            'test.one_prop i32 {"attr2" = i64}',
-            '"test.one_prop"() <{"prop" = i32}> {"attr2" = i64} : () -> ()',
+            'test.one_prop i32 {attr2 = i64}',
+            '"test.one_prop"() <{prop = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -435,10 +435,10 @@ def test_standard_prop_directive(program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_prop i32", '"test.one_prop"() <{"irdl" = i32}> : () -> ()'),
+        ("test.one_prop i32", '"test.one_prop"() <{irdl = i32}> : () -> ()'),
         (
-            'test.one_prop i32 {"attr2" = i64}',
-            '"test.one_prop"() <{"irdl" = i32}> {"attr2" = i64} : () -> ()',
+            'test.one_prop i32 {attr2 = i64}',
+            '"test.one_prop"() <{irdl = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -466,7 +466,7 @@ def test_prop_name(program: str, generic_program: str):
         ),
         (
             "test.optional_property prop i32",
-            '"test.optional_property"() <{"prop" = i32}> : () -> ()',
+            '"test.optional_property"() <{prop = i32}> : () -> ()',
         ),
     ],
 )
@@ -497,7 +497,7 @@ def test_optional_property(program: str, generic_program: str):
         ),
         (
             "test.optional_property( prop i32 )",
-            '"test.optional_property"() <{"prop" = i32}> : () -> ()',
+            '"test.optional_property"() <{prop = i32}> : () -> ()',
         ),
     ],
 )
@@ -528,7 +528,7 @@ def test_optional_property_with_whitespace(program: str, generic_program: str):
         ),
         (
             "test.optional_unit_attr_prop unit_attr",
-            '"test.optional_unit_attr_prop"() <{"unit_attr"}> : () -> ()',
+            '"test.optional_unit_attr_prop"() <{unit_attr}> : () -> ()',
         ),
     ],
 )
@@ -559,7 +559,7 @@ def test_optional_unit_attr_property(program: str, generic_program: str):
         ),
         (
             "test.optional_unit_attr unit_attr",
-            '"test.optional_unit_attr"() <{"unit_attr"}> : () -> ()',
+            '"test.optional_unit_attr"() <{unit_attr}> : () -> ()',
         ),
     ],
 )
@@ -590,7 +590,7 @@ def test_optional_unit_attr_attribute(program: str, generic_program: str):
         ),
         (
             "test.optional_attribute attr i32",
-            '"test.optional_attribute"() {"attr" = i32} : () -> ()',
+            '"test.optional_attribute"() {attr = i32} : () -> ()',
         ),
     ],
 )
@@ -617,7 +617,7 @@ def test_optional_attribute(program: str, generic_program: str):
     [
         (
             "test.typed_attr 3 3.000000e+00",
-            '"test.typed_attr"() {"attr" = 3 : i32, "float_attr" = 3.000000e+00 : f64} : () -> ()',
+            '"test.typed_attr"() {attr = 3 : i32, float_attr = 3.000000e+00 : f64} : () -> ()',
         ),
     ],
 )
@@ -1879,13 +1879,13 @@ def test_attr_dict_directly_before_region_variable():
     [
         (
             "$region attr-dict",
-            'test.region_attr_dict {\n} {"a" = 2 : i32}',
-            '"test.region_attr_dict"() ({}) {"a" = 2 : i32} : () -> ()',
+            'test.region_attr_dict {\n} {a = 2 : i32}',
+            '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
         ),
         (
             "attr-dict `,` $region",
-            'test.region_attr_dict {"a" = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
-            '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {"a" = 2 : i32} : () -> ()',
+            'test.region_attr_dict {a = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
+            '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -1922,8 +1922,8 @@ def test_regions_with_attr_dict(format: str, program: str, generic_program: str)
         ),
         (
             "attr-dict-with-keyword $fst $snd",
-            'test.two_regions attributes {"a" = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
-            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {"a" = 2 : i32} : () -> ()',
+            'test.two_regions attributes {a = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -2789,47 +2789,47 @@ class DefaultOp(IRDLOperation):
         (
             "test.default",
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
         (
             "test.default prop false opt_prop true",
             "test.default",
-            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
         ),
         (
-            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
         ),
         (
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
         (
             "test.default prop true opt_prop false",
             "test.default prop true opt_prop false",
-            '"test.default"() <{"prop" = true, "opt_prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = true, opt_prop = false}> {attr = false} : () -> ()',
         ),
         (
             "test.default attr false opt_attr true",
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
         ),
         (
-            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
         ),
         (
             "test.default attr true opt_attr false",
             "test.default attr true opt_attr false",
-            '"test.default"() <{"prop" = false}> {"attr" = true, "opt_attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = true, opt_attr = false} : () -> ()',
         ),
         (
             '"test.default"() : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
     ],
 )
@@ -2871,17 +2871,17 @@ class RenamedPropOp(IRDLOperation):
         (
             "test.renamed",
             "test.renamed",
-            '"test.renamed"() <{"test_prop1" = false}> : () -> ()',
+            '"test.renamed"() <{test_prop1 = false}> : () -> ()',
         ),
         (
             "test.renamed prop1 false prop2 false",
             "test.renamed prop2 false",
-            '"test.renamed"() <{"test_prop1" = false, "test_prop2" = false}> : () -> ()',
+            '"test.renamed"() <{test_prop1 = false, test_prop2 = false}> : () -> ()',
         ),
         (
             "test.renamed prop1 true prop2 true",
             "test.renamed prop1 true prop2 true",
-            '"test.renamed"() <{"test_prop1" = true, "test_prop2" = true}> : () -> ()',
+            '"test.renamed"() <{test_prop1 = true, test_prop2 = true}> : () -> ()',
         ),
     ],
 )
@@ -2914,7 +2914,7 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
         ),
         (
             "%0 = test.opt_constant value 1 : i32 : (i32)",
-            '%0 = "test.opt_constant"() <{"value" = 1 : i32}> : () -> (i32)',
+            '%0 = "test.opt_constant"() <{value = 1 : i32}> : () -> (i32)',
         ),
     ],
 )
@@ -2942,11 +2942,11 @@ def test_optional_property_with_extractor(program: str, generic: str):
     [
         (
             "%0 = test.default_constant",
-            '%0 = "test.default_constant"() <{"value" = true}> : () -> (i1)',
+            '%0 = "test.default_constant"() <{value = true}> : () -> (i1)',
         ),
         (
             "%0 = test.default_constant value 2 : i32",
-            '%0 = "test.default_constant"() <{"value" = 2 : i32}> : () -> (i32)',
+            '%0 = "test.default_constant"() <{value = 2 : i32}> : () -> (i32)',
         ),
     ],
 )
