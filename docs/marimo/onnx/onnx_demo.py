@@ -170,11 +170,13 @@ def _(
     ConvertOnnxToLinalgPass,
     EmptyTensorToAllocTensorPass,
     MLIROptPass,
+    ctx,
     init_module,
     mo,
-    pipeline_accordion,
+    xmo,
 ):
-    bufferized_module, linalg_accordion = pipeline_accordion(
+    bufferized_module, linalg_html = xmo.pipeline_html(
+        ctx,
         (
             (
                 mo.md(
@@ -215,8 +217,8 @@ def _(
         init_module
     )
 
-    linalg_accordion
-    return bufferized_module, linalg_accordion
+    linalg_html
+    return bufferized_module, linalg_html
 
 
 @app.cell
@@ -263,43 +265,6 @@ def _():
 def _():
     import xdsl.utils.marimo as xmo
     return (xmo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    from collections import Counter
-    return (Counter,)
-
-
-@app.cell(hide_code=True)
-def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, xmo):
-    def spec_str(p: ModulePass) -> str:
-        if isinstance(p, PipelinePass):
-            return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
-        else:
-            return str(p.pipeline_pass_spec())
-
-    def pipeline_accordion(passes: tuple[tuple[mo.Html, ModulePass], ...], module: ModuleOp) -> tuple[ModuleOp, mo.Html]:
-        res = module.clone()
-        d = {}
-        total_key_count = Counter(spec_str(p) for _, p in passes)
-        d_key_count = Counter()
-        for text, p in passes:
-            p.apply(ctx, res)
-            spec = spec_str(p)
-            d_key_count[spec] += 1
-            if total_key_count[spec] != 1:
-                header = f"{spec} ({d_key_count[spec]})"
-            else:
-                header = spec
-            html_res = xmo.module_html(res)
-            d[header] = mo.vstack((
-                text,
-                # mo.plain_text(f"Pass: {p.pipeline_pass_spec()}"),
-                html_res
-            ))
-        return (res, mo.accordion(d))
-    return pipeline_accordion, spec_str
 
 
 if __name__ == "__main__":

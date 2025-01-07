@@ -278,9 +278,10 @@ def _(
     convert_linalg_to_loops,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
+    ctx,
     linalg_module,
-    pipeline_accordion,
     reconcile_unrealized_casts,
+    xmo,
 ):
     lower_to_riscv = PipelinePass(
         [
@@ -293,12 +294,12 @@ def _(
         ]
     )
 
-    riscv_module, riscv_accordion = pipeline_accordion(
-        tuple(("", p) for p in lower_to_riscv.passes), linalg_module
+    riscv_module, riscv_html = xmo.pipeline_html(
+        ctx, tuple(("", p) for p in lower_to_riscv.passes), linalg_module
     )
 
-    riscv_accordion
-    return lower_to_riscv, riscv_accordion, riscv_module
+    riscv_html
+    return lower_to_riscv, riscv_html, riscv_module
 
 
 @app.cell
@@ -318,8 +319,9 @@ def _(
     CanonicalizePass,
     PipelinePass,
     RISCVRegisterAllocation,
-    pipeline_accordion,
+    ctx,
     riscv_module,
+    xmo,
 ):
     allocate_registers = PipelinePass(
         [
@@ -328,12 +330,12 @@ def _(
         ]
     )
 
-    regalloc_module, regalloc_accordion = pipeline_accordion(
-        tuple(("", p) for p in allocate_registers.passes), riscv_module
+    regalloc_module, regalloc_html = xmo.pipeline_html(
+        ctx, tuple(("", p) for p in allocate_registers.passes), riscv_module
     )
 
-    regalloc_accordion
-    return allocate_registers, regalloc_accordion, regalloc_module
+    regalloc_html
+    return allocate_registers, regalloc_html, regalloc_module
 
 
 @app.cell
@@ -341,8 +343,9 @@ def _(
     CanonicalizePass,
     ConvertRiscvScfToRiscvCfPass,
     PipelinePass,
-    pipeline_accordion,
+    ctx,
     regalloc_module,
+    xmo,
 ):
     lower_to_asm = PipelinePass(
         [
@@ -351,12 +354,12 @@ def _(
         ]
     )
 
-    riscv_asm_module, assembly_accordion = pipeline_accordion(
-        (("", lower_to_asm),), regalloc_module
+    riscv_asm_module, assembly_html = xmo.pipeline_html(
+        ctx, (("", lower_to_asm),), regalloc_module
     )
 
-    assembly_accordion
-    return assembly_accordion, lower_to_asm, riscv_asm_module
+    assembly_html
+    return assembly_html, lower_to_asm, riscv_asm_module
 
 
 @app.cell
@@ -396,8 +399,9 @@ def _(
     arith_add_fastmath,
     convert_linalg_to_memref_stream,
     convert_riscv_scf_for_to_frep,
+    ctx,
     linalg_module,
-    pipeline_accordion,
+    xmo,
 ):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES, OPTIMISE_MEMREF_STREAM_PASSES
 
@@ -411,16 +415,16 @@ def _(
         ]
     )
 
-    snitch_stream_module, snitch_stream_accordion = pipeline_accordion(
-        tuple(("", p) for p in convert_linalg_to_snitch.passes), linalg_module
+    snitch_stream_module, snitch_stream_html = xmo.pipeline_html(
+        ctx, tuple(("", p) for p in convert_linalg_to_snitch.passes), linalg_module
     )
 
-    snitch_stream_accordion
+    snitch_stream_html
     return (
         LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
         OPTIMISE_MEMREF_STREAM_PASSES,
         convert_linalg_to_snitch,
-        snitch_stream_accordion,
+        snitch_stream_html,
         snitch_stream_module,
     )
 
@@ -432,17 +436,17 @@ def _(mo):
 
 
 @app.cell
-def _(pipeline_accordion, snitch_stream_module):
+def _(ctx, snitch_stream_module, xmo):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_SNITCH_STREAM_TO_ASM_PASSES
 
-    snitch_asm_module, snitch_asm_accordion = pipeline_accordion(
-        tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES), snitch_stream_module
+    snitch_asm_module, snitch_asm_html = xmo.pipeline_html(
+        ctx, tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES), snitch_stream_module
     )
 
-    snitch_asm_accordion
+    snitch_asm_html
     return (
         LOWER_SNITCH_STREAM_TO_ASM_PASSES,
-        snitch_asm_accordion,
+        snitch_asm_html,
         snitch_asm_module,
     )
 
@@ -669,47 +673,6 @@ def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
         sn_val,
         total_diff,
     )
-
-
-@app.cell
-def _():
-    from collections import Counter
-    return (Counter,)
-
-
-@app.cell
-def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, xmo):
-    def spec_str(p: ModulePass) -> str:
-        if isinstance(p, PipelinePass):
-            return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
-        else:
-            return str(p.pipeline_pass_spec())
-
-    def pipeline_accordion(
-        passes: tuple[tuple[mo.Html, ModulePass], ...], module: ModuleOp
-    ) -> tuple[ModuleOp, mo.Html]:
-        res = module.clone()
-        d = []
-        total_key_count = Counter(spec_str(p) for _, p in passes)
-        d_key_count = Counter()
-        for text, p in passes:
-            p.apply(ctx, res)
-            spec = spec_str(p)
-            d_key_count[spec] += 1
-            if total_key_count[spec] != 1:
-                header = f"{spec} ({d_key_count[spec]})"
-            else:
-                header = spec
-            html_res = xmo.module_html(res)
-            d.append(mo.vstack(
-                (
-                    header,
-                    text,
-                    html_res,
-                )
-            ))
-        return (res, mo.carousel(d))
-    return pipeline_accordion, spec_str
 
 
 if __name__ == "__main__":
