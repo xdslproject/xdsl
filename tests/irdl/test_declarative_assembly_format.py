@@ -242,11 +242,11 @@ class AttrDictWithKeywordOp(IRDLOperation):
         ("test.attr_dict", '"test.attr_dict"() : () -> ()'),
         ("test.attr_dict_with_keyword", '"test.attr_dict_with_keyword"() : () -> ()'),
         (
-            'test.attr_dict {a = 2 : i32}',
+            "test.attr_dict {a = 2 : i32}",
             '"test.attr_dict"() {a = 2 : i32} : () -> ()',
         ),
         (
-            'test.attr_dict_with_keyword attributes {a = 2 : i32}',
+            "test.attr_dict_with_keyword attributes {a = 2 : i32}",
             '"test.attr_dict_with_keyword"() {a = 2 : i32} : () -> ()',
         ),
     ],
@@ -264,9 +264,9 @@ def test_attr_dict(program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ('test.prop {prop = true}', '"test.prop"() <{prop = true}> : () -> ()'),
+        ("test.prop {prop = true}", '"test.prop"() <{prop = true}> : () -> ()'),
         (
-            'test.prop {a = 2 : i32, prop = true}',
+            "test.prop {a = 2 : i32, prop = true}",
             '"test.prop"() <{prop = true}> {a = 2 : i32} : () -> ()',
         ),
     ],
@@ -304,7 +304,7 @@ class OpWithAttrOp(IRDLOperation):
     [
         ("test.one_attr i32", '"test.one_attr"() {attr = i32} : () -> ()'),
         (
-            'test.one_attr i32 {attr2 = i64}',
+            "test.one_attr i32 {attr2 = i64}",
             '"test.one_attr"() {attr = i32, attr2 = i64} : () -> ()',
         ),
     ],
@@ -334,7 +334,7 @@ def test_attr_variable_shadowed():
     [
         ("test.one_attr i32", '"test.one_attr"() {irdl = i32} : () -> ()'),
         (
-            'test.one_attr i32 {attr2 = i64}',
+            "test.one_attr i32 {attr2 = i64}",
             '"test.one_attr"() {irdl = i32, attr2 = i64} : () -> ()',
         ),
     ],
@@ -412,7 +412,7 @@ def test_missing_property_error():
     [
         ("test.one_prop i32", '"test.one_prop"() <{prop = i32}> : () -> ()'),
         (
-            'test.one_prop i32 {attr2 = i64}',
+            "test.one_prop i32 {attr2 = i64}",
             '"test.one_prop"() <{prop = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
@@ -437,7 +437,7 @@ def test_standard_prop_directive(program: str, generic_program: str):
     [
         ("test.one_prop i32", '"test.one_prop"() <{irdl = i32}> : () -> ()'),
         (
-            'test.one_prop i32 {attr2 = i64}',
+            "test.one_prop i32 {attr2 = i64}",
             '"test.one_prop"() <{irdl = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
@@ -1879,7 +1879,7 @@ def test_attr_dict_directly_before_region_variable():
     [
         (
             "$region attr-dict",
-            'test.region_attr_dict {\n} {a = 2 : i32}',
+            "test.region_attr_dict {\n} {a = 2 : i32}",
             '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
         ),
         (
