@@ -504,5 +504,42 @@ def _(mo, msg_factors):
     return MemrefStreamUnrollAndJamPass, uaj_passes
 
 
+@app.cell
+def _(MLContext, ModuleOp, ModulePass):
+    def apply(p: ModulePass, ctx: MLContext, op: ModuleOp) -> ModuleOp:
+        op = op.clone()
+        ctx = ctx.clone()
+        p.apply(ctx, op)
+        return op
+    return (apply,)
+
+
+@app.cell
+def _(
+    apply,
+    memref_stream_cost_model,
+    memref_stream_ctx,
+    memref_stream_module,
+    mo,
+    uaj_passes,
+):
+    scores = tuple(
+        memref_stream_cost_model.estimate_cost(apply(p, memref_stream_ctx, memref_stream_module), memref_stream_ctx)
+        for p in uaj_passes
+    )
+
+    mo.md(f"""
+    We can evaluate the impact of each of the passes with our cost model:
+
+    {scores}
+    """)
+    return (scores,)
+
+
+@app.cell
+def _():
+    return
+
+
 if __name__ == "__main__":
     app.run()
