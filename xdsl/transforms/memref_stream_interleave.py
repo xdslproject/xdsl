@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from xdsl.context import MLContext
@@ -10,36 +11,35 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.memref_stream_unroll_and_jam import unroll_and_jam
+from xdsl.transforms.memref_stream_unroll_and_jam import (
+    unroll_and_jam,
+    unroll_and_jam_bound_indices_and_factors,
+)
 
 
-def unroll_and_jam_bound_index(op: memref_stream.GenericOp) -> int | None:
-    parallel_indices = tuple(
-        index
-        for index, iterator_type in enumerate(op.iterator_types)
-        if iterator_type == memref_stream.IteratorTypeAttr.parallel()
+def interleave_index_and_factor(
+    indices_and_factors: Sequence[tuple[int, int]], pipeline_depth: int
+) -> tuple[int, int] | None:
+    if not indices_and_factors:
+        return None
+    # Filter for innermost parallel index
+    max_index = max(index for index, _ in indices_and_factors)
+    indices_and_factors = tuple(
+        (index, factor) for index, factor in indices_and_factors if index == max_index
     )
-    if parallel_indices:
-        return parallel_indices[-1]
 
+    # Reject factors greater than or equal to pipeline_depth * 2
+    indices_and_factors = tuple(
+        (index, factor)
+        for index, factor in indices_and_factors
+        if factor < pipeline_depth * 2
+    )
+    if not indices_and_factors:
+        return None
 
-def unroll_and_jam_interleave_factor(pipeline_depth: int, interleave_bound: int) -> int:
-    interleave_factor = 1
-    # Search factors until the next number divisible by pipeline_depth
-    for potential_factor in range(pipeline_depth, pipeline_depth * 2):
-        if not interleave_bound % potential_factor:
-            # Found a larger factor
-            interleave_factor = potential_factor
-            break
-    if interleave_factor == 1:
-        # No larger perfect factors found, try smaller factors in descending order
-        for potential_factor in range(pipeline_depth - 1, 1, -1):
-            if not interleave_bound % potential_factor:
-                # Found a smaller factor
-                interleave_factor = potential_factor
-                break
+    sorted_indices_and_factors = sorted(indices_and_factors, key=lambda x: x[1])
 
-    return interleave_factor
+    return sorted_indices_and_factors[-1]
 
 
 @dataclass(frozen=True)
@@ -58,18 +58,17 @@ class PipelineGenericPattern(RewritePattern):
             # No reduction
             return
 
-        interleave_bound_index = unroll_and_jam_bound_index(op)
-
-        if interleave_bound_index is None:
+        indices_and_factors = unroll_and_jam_bound_indices_and_factors(op)
+        if not indices_and_factors:
             return
 
-        interleave_bound = op.bounds.data[interleave_bound_index].value.data
+        t = interleave_index_and_factor(indices_and_factors, self.pipeline_depth)
+        if t is None:
+            return
 
-        interleave_factor = unroll_and_jam_interleave_factor(
-            self.pipeline_depth, interleave_bound
-        )
+        index, factor = t
 
-        unroll_and_jam(op, rewriter, interleave_bound_index, interleave_factor)
+        unroll_and_jam(op, rewriter, index, factor)
 
 
 @dataclass(frozen=True)

@@ -13,6 +13,38 @@ from xdsl.rewriter import Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
 
+def factors(num: int) -> tuple[int, ...]:
+    """
+    For all positive integers, returns the n-tuple of all numbers that evenly divide the
+    input, returns an empty tuple for 0 or negative inputs.
+    """
+    if num <= 0:
+        return ()
+
+    if num == 1:
+        return (1,)
+
+    return tuple(factor for factor in range(1, num + 1) if not num % factor)
+
+
+def unroll_and_jam_bound_indices_and_factors(
+    op: memref_stream.GenericOp,
+) -> tuple[tuple[int, int], ...]:
+    parallel_indices = tuple(
+        index
+        for index, iterator_type in enumerate(op.iterator_types)
+        if iterator_type == memref_stream.IteratorTypeAttr.parallel()
+    )
+    parallel_bounds = tuple(
+        op.bounds.data[index].value.data for index in parallel_indices
+    )
+    return tuple(
+        (index, factor)
+        for index, bound in zip(parallel_indices, parallel_bounds)
+        for factor in factors(bound)
+    )
+
+
 def unroll_and_jam(
     op: memref_stream.GenericOp,
     rewriter: PatternRewriter | Rewriter,

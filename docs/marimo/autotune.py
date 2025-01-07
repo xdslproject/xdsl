@@ -464,8 +464,44 @@ def _(memref_stream_ctx, memref_stream_module, mo, xmo):
 
 
 @app.cell
-def _():
-    return
+def _(memref_stream_module, mo):
+    from xdsl.dialects import memref_stream
+    from xdsl.transforms.memref_stream_unroll_and_jam import unroll_and_jam_bound_indices_and_factors
+
+    msg_op = next(child for child in memref_stream_module.walk() if isinstance(child, memref_stream.GenericOp))
+
+    msg_factors = unroll_and_jam_bound_indices_and_factors(msg_op)
+
+    mo.md(f"""
+    We can also find the possible range of indices and factors to unroll-and-jam manually:
+
+    {msg_factors}
+    """)
+    return (
+        memref_stream,
+        msg_factors,
+        msg_op,
+        unroll_and_jam_bound_indices_and_factors,
+    )
+
+
+@app.cell
+def _(mo, msg_factors):
+    from xdsl.transforms.memref_stream_unroll_and_jam import MemrefStreamUnrollAndJamPass
+
+    uaj_passes = tuple(
+        MemrefStreamUnrollAndJamPass(0, index, factor)
+        for index, factor in msg_factors
+    )
+
+    mo.md(f"""
+    We construct passes from these indices:
+
+    ```
+    {"\n".join(str(p.pipeline_pass_spec()) for p in uaj_passes)}
+    ```
+    """)
+    return MemrefStreamUnrollAndJamPass, uaj_passes
 
 
 if __name__ == "__main__":
