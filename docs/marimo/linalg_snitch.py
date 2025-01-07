@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.0"
+__generated_with = "0.10.9"
 app = marimo.App(width="medium")
 
 
@@ -674,12 +674,10 @@ def _(ModuleOp, mo):
         <div style="overflow-y: scroll; height:400px;"><small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small></div>
         """
 
-    def asm_html(asm: str) -> str:
-        return f"""\
-        <div style="overflow-y: scroll; height:400px;">{mo.as_html(mo.ui.code_editor(
-                asm, language="python", disabled=True
-            ))}</div>
-        """
+    def asm_html(asm: str) -> mo.Html:
+        return mo.ui.code_editor(
+            asm, language="python", disabled=True
+        )
     return asm_html, htmllib, module_html
 
 
