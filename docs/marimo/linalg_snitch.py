@@ -257,11 +257,11 @@ def _(mo):
 
 @app.cell
 def _(MLContext, get_all_dialects):
-    ctx = MLContext()
+    linalg_ctx = MLContext()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
-    return ctx, dialect_factory, dialect_name
+        linalg_ctx.register_dialect(dialect_name, dialect_factory)
+    return dialect_factory, dialect_name, linalg_ctx
 
 
 @app.cell
@@ -278,7 +278,7 @@ def _(
     convert_linalg_to_loops,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
-    ctx,
+    linalg_ctx,
     linalg_module,
     reconcile_unrealized_casts,
     xmo,
@@ -294,12 +294,12 @@ def _(
         ]
     )
 
-    riscv_module, riscv_html = xmo.pipeline_html(
-        ctx, tuple(("", p) for p in lower_to_riscv.passes), linalg_module
+    riscv_ctx, riscv_module, riscv_html = xmo.pipeline_html(
+        linalg_ctx, linalg_module, tuple(("", p) for p in lower_to_riscv.passes)
     )
 
     riscv_html
-    return lower_to_riscv, riscv_html, riscv_module
+    return lower_to_riscv, riscv_ctx, riscv_html, riscv_module
 
 
 @app.cell
@@ -319,7 +319,7 @@ def _(
     CanonicalizePass,
     PipelinePass,
     RISCVRegisterAllocation,
-    ctx,
+    riscv_ctx,
     riscv_module,
     xmo,
 ):
@@ -330,12 +330,12 @@ def _(
         ]
     )
 
-    regalloc_module, regalloc_html = xmo.pipeline_html(
-        ctx, tuple(("", p) for p in allocate_registers.passes), riscv_module
+    regalloc_ctx, regalloc_module, regalloc_html = xmo.pipeline_html(
+        riscv_ctx, riscv_module, tuple(("", p) for p in allocate_registers.passes),
     )
 
     regalloc_html
-    return allocate_registers, regalloc_html, regalloc_module
+    return allocate_registers, regalloc_ctx, regalloc_html, regalloc_module
 
 
 @app.cell
@@ -343,7 +343,7 @@ def _(
     CanonicalizePass,
     ConvertRiscvScfToRiscvCfPass,
     PipelinePass,
-    ctx,
+    regalloc_ctx,
     regalloc_module,
     xmo,
 ):
@@ -354,12 +354,12 @@ def _(
         ]
     )
 
-    riscv_asm_module, assembly_html = xmo.pipeline_html(
-        ctx, (("", lower_to_asm),), regalloc_module
+    riscv_asm_ctx, riscv_asm_module, assembly_html = xmo.pipeline_html(
+        regalloc_ctx, regalloc_module, (("", lower_to_asm),),
     )
 
     assembly_html
-    return assembly_html, lower_to_asm, riscv_asm_module
+    return assembly_html, lower_to_asm, riscv_asm_ctx, riscv_asm_module
 
 
 @app.cell
@@ -399,7 +399,7 @@ def _(
     arith_add_fastmath,
     convert_linalg_to_memref_stream,
     convert_riscv_scf_for_to_frep,
-    ctx,
+    linalg_ctx,
     linalg_module,
     xmo,
 ):
@@ -415,8 +415,8 @@ def _(
         ]
     )
 
-    snitch_stream_module, snitch_stream_html = xmo.pipeline_html(
-        ctx, tuple(("", p) for p in convert_linalg_to_snitch.passes), linalg_module
+    snitch_stream_ctx, snitch_stream_module, snitch_stream_html = xmo.pipeline_html(
+        linalg_ctx, linalg_module, tuple(("", p) for p in convert_linalg_to_snitch.passes),
     )
 
     snitch_stream_html
@@ -424,6 +424,7 @@ def _(
         LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
         OPTIMISE_MEMREF_STREAM_PASSES,
         convert_linalg_to_snitch,
+        snitch_stream_ctx,
         snitch_stream_html,
         snitch_stream_module,
     )
@@ -436,16 +437,17 @@ def _(mo):
 
 
 @app.cell
-def _(ctx, snitch_stream_module, xmo):
+def _(snitch_stream_ctx, snitch_stream_module, xmo):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_SNITCH_STREAM_TO_ASM_PASSES
 
-    snitch_asm_module, snitch_asm_html = xmo.pipeline_html(
-        ctx, tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES), snitch_stream_module
+    snitch_asm_ctx, snitch_asm_module, snitch_asm_html = xmo.pipeline_html(
+        snitch_stream_ctx, snitch_stream_module, tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES)
     )
 
     snitch_asm_html
     return (
         LOWER_SNITCH_STREAM_TO_ASM_PASSES,
+        snitch_asm_ctx,
         snitch_asm_html,
         snitch_asm_module,
     )
@@ -493,7 +495,7 @@ def _(mo):
 
 
 @app.cell
-def _(TypedPtr, a_shape, b_shape, c_shape, ctx, mo, riscv_module):
+def _(TypedPtr, a_shape, b_shape, c_shape, mo, riscv_ctx, riscv_module):
     from math import prod
 
     from xdsl.interpreter import Interpreter, OpCounter
@@ -511,7 +513,7 @@ def _(TypedPtr, a_shape, b_shape, c_shape, ctx, mo, riscv_module):
     riscv_op_counter = OpCounter()
     riscv_interpreter = Interpreter(riscv_module, listeners=(riscv_op_counter,))
 
-    register_implementations(riscv_interpreter, ctx, include_wgpu=False, include_onnx=False)
+    register_implementations(riscv_interpreter, riscv_ctx, include_wgpu=False, include_onnx=False)
 
     riscv_interpreter.call_op("matmul", (a_shaped.data_ptr.raw, b_shaped.data_ptr.raw, riscv_c_shaped.data_ptr.raw))
 
@@ -551,10 +553,10 @@ def _(
     b_shaped,
     c_len,
     c_shape,
-    ctx,
     mo,
     register_implementations,
     riscv_c_shaped,
+    snitch_stream_ctx,
     snitch_stream_module,
 ):
     snitch_op_counter = OpCounter()
@@ -564,7 +566,7 @@ def _(
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-    register_implementations(snitch_interpreter, ctx, include_wgpu=False, include_onnx=False)
+    register_implementations(snitch_interpreter, snitch_stream_ctx, include_wgpu=False, include_onnx=False)
 
     snitch_interpreter.call_op(
         "matmul",

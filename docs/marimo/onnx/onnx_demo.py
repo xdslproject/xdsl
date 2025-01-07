@@ -175,8 +175,9 @@ def _(
     mo,
     xmo,
 ):
-    bufferized_module, linalg_html = xmo.pipeline_html(
+    bufferized_ctx, bufferized_module, linalg_html = xmo.pipeline_html(
         ctx,
+        init_module,
         (
             (
                 mo.md(
@@ -213,8 +214,7 @@ def _(
                     ]
                 )
             )
-        ),
-        init_module
+        )
     )
 
     linalg_html

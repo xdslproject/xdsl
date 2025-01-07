@@ -33,8 +33,8 @@ def _spec_str(p: ModulePass) -> str:
 
 
 def pipeline_html(
-    ctx: MLContext, passes: Sequence[tuple[mo.Html, ModulePass]], module: ModuleOp
-) -> tuple[ModuleOp, mo.Html]:
+    ctx: MLContext, module: ModuleOp, passes: Sequence[tuple[mo.Html, ModulePass]]
+) -> tuple[MLContext, ModuleOp, mo.Html]:
     """
     Returns a tuple of the resulting module after applying the passes, and the
     Marimo-optimised representation of the modules throughout compilation.
@@ -64,4 +64,4 @@ def pipeline_html(
                 )
             )
         )
-    return (res, mo.carousel(d))
+    return (ctx, res, mo.carousel(d))
