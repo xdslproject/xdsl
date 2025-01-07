@@ -4670,6 +4670,7 @@ class COOSemantics(IndexedLayoutNodeSemantics[T], abc.ABC, typing.Generic[T]):
                 return [], False
             ops = []
             true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+            ops.append(true_op)
             found = true_op.result
             for dim in dim_map:
                 if dim_map[dim] is not None:
