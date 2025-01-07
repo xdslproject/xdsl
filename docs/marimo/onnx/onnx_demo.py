@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.0"
+__generated_with = "0.10.9"
 app = marimo.App()
 
 
@@ -132,13 +132,13 @@ def _(mo, model_def):
 
 
 @app.cell
-def _(html, init_module, mo):
+def _(init_module, mo, xmo):
     mo.md(f"""
     ### Converting to `linalg`
 
     Here is the xDSL representation of the function, it takes two `tensor` values of our chosen shape, passes them as operands to the `onnx.Add` operation, and returns it:
 
-    {html(init_module)}
+    {xmo.module_html(init_module)}
     """
     )
     return
@@ -260,15 +260,9 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(ModuleOp, mo):
-    import html as htmllib
-
-    def html(module: ModuleOp) -> mo.Html:
-        return f"""\
-        <small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small>
-        """
-        # return mo.as_html(str(module))
-    return html, htmllib
+def _():
+    import xdsl.utils.marimo as xmo
+    return (xmo,)
 
 
 @app.cell(hide_code=True)
@@ -278,7 +272,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
+def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, xmo):
     def spec_str(p: ModulePass) -> str:
         if isinstance(p, PipelinePass):
             return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
@@ -298,11 +292,11 @@ def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
                 header = f"{spec} ({d_key_count[spec]})"
             else:
                 header = spec
-            html_res = html(res)
+            html_res = xmo.module_html(res)
             d[header] = mo.vstack((
                 text,
                 # mo.plain_text(f"Pass: {p.pipeline_pass_spec()}"),
-                mo.md(html_res)
+                html_res
             ))
         return (res, mo.accordion(d))
     return pipeline_accordion, spec_str

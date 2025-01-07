@@ -140,7 +140,7 @@ def _(
     func,
     linalg,
     mo,
-    module_html,
+    xmo,
 ):
     a_type = MemRefType(f64, a_shape)
     b_type = MemRefType(f64, b_shape)
@@ -186,7 +186,7 @@ def _(
 
     Here is matrix multiplication defined in the `linalg` dialect, with the iteration space decoupled from the computation:
 
-    {module_html(linalg_module)}
+    {xmo.module_html(linalg_module)}
     """)
     return (
         a,
@@ -672,24 +672,13 @@ def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
 
 
 @app.cell
-def _(ModuleOp):
-    import html as htmllib
-
-    def module_html(module: ModuleOp) -> str:
-        return f"""\
-        <div style="overflow-y: scroll; height:400px;"><small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small></div>
-        """
-    return htmllib, module_html
-
-
-@app.cell
 def _():
     from collections import Counter
     return (Counter,)
 
 
 @app.cell
-def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, module_html):
+def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, xmo):
     def spec_str(p: ModulePass) -> str:
         if isinstance(p, PipelinePass):
             return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
@@ -711,12 +700,12 @@ def _(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, module_html):
                 header = f"{spec} ({d_key_count[spec]})"
             else:
                 header = spec
-            html_res = module_html(res)
+            html_res = xmo.module_html(res)
             d.append(mo.vstack(
                 (
                     header,
                     text,
-                    mo.md(html_res),
+                    html_res,
                 )
             ))
         return (res, mo.carousel(d))
