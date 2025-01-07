@@ -37,7 +37,7 @@ snitch_stream.streaming_region {
 // CHECK-NEXT:    }
 
 // CHECK-GENERIC:         %X, %Y, %Z = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg)
-// CHECK-GENERIC-NEXT:    "snitch_stream.streaming_region"(%X, %Y, %Z) <{stride_patterns = [#snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
+// CHECK-GENERIC-NEXT:    "snitch_stream.streaming_region"(%X, %Y, %Z) <{stride_patterns = [#snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>], operandSegmentSizes = array<i32: 2, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
 // CHECK-GENERIC-NEXT:      %c5 = "riscv.li"() {immediate = 5 : i32} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_outer"(%c5) ({

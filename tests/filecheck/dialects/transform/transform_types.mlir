@@ -46,7 +46,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 
 
 //CHECK: builtin.module attributes  {transform.with_named_sequence} {
-//CHECK-NEXT: "transform.named_sequence"() <{arg_attrs = [{transform.readonly}], "function_type" = (!transform.any_op) -> (), "sym_name" = "foo"}> ({
+//CHECK-NEXT: "transform.named_sequence"() <{arg_attrs = [{transform.readonly}], function_type = (!transform.any_op) -> (), sym_name = "foo"}> ({
 //CHECK-NEXT:  ^0(%arg0 : !transform.any_op):
 //CHECK-NEXT:    "transform.yield"() : () -> ()
 //CHECK-NEXT:  }) : () -> ()

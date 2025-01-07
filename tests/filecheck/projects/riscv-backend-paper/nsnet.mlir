@@ -13,7 +13,7 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK:       .text
 // CHECK-NEXT:  .globl main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1
 // CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {preallocated_float: ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
 // CHECK-NEXT:  main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1

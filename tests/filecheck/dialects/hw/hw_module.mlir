@@ -29,7 +29,7 @@ hw.module @custom_param<p1: i42, "p2 with wack name": i1>() {
 // CHECK-NEXT: }
 // CHECK-GENERIC: "hw.module"() ({
 // CHECK-GENERIC-NEXT: "hw.output"() : () -> ()
-// CHECK-GENERIC-NEXT: }) {sym_name = "private_module", module_type = !hw.modty<>, parameters = [], "sym_visibility" = "private"} : () -> ()
+// CHECK-GENERIC-NEXT: }) {sym_name = "private_module", module_type = !hw.modty<>, parameters = [], sym_visibility = "private"} : () -> ()
 hw.module private @private_module() {
   hw.output
 }
@@ -51,7 +51,7 @@ hw.module @name_preserve(in %preserve: i8) {
 }
 
 // CHECK: hw.module @more_attrs() attributes {foo} {
-// CHECK-GENERIC: }) {sym_name = "more_attrs", module_type = !hw.modty<>, parameters = [], "foo"} : () -> ()
+// CHECK-GENERIC: }) {sym_name = "more_attrs", module_type = !hw.modty<>, parameters = [], foo} : () -> ()
 hw.module @more_attrs() attributes {"foo"} {
   hw.output
 }

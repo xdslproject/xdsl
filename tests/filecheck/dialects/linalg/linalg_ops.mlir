@@ -75,16 +75,16 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-NEXT:    linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%9 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
 // CHECK-NEXT:    }
 
-// CHECK-GENERIC:       "linalg.generic"(%{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
+// CHECK-GENERIC:       "linalg.generic"(%{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], operandSegmentSizes = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:  ^0(%{{.*}} f32, %{{.*}} f32):
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
 // CHECK-GENERIC-NEXT:  }) : (f32, memref<1x256xf32>) -> ()
-// CHECK-GENERIC-NEXT:  "linalg.generic"(%{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "doc" = "a_docstring", "library_call" = "a_library_call", "operandSegmentSizes" = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:  "linalg.generic"(%{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], doc = "a_docstring", library_call = "a_library_call", operandSegmentSizes = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:  ^1(%{{.*}} : f32, %{{.*}} : f32):
 // CHECK-GENERIC-NEXT:    "linalg.yield"(%{{.*}} : (f32) -> ()
 // CHECK-GENERIC-NEXT:  }) : (f32, memref<1x256xf32>) -> ()
 
-// CHECK-GENERIC:       "linalg.generic"(%{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
+// CHECK-GENERIC:       "linalg.generic"(%{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], operandSegmentSizes = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:  ^{{.*}}(%{{.*}} f32, %{{.*}} f32):
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
 // CHECK-GENERIC-NEXT:  }) {hello = "world"} : (f32, memref<1x256xf32>) -> ()
