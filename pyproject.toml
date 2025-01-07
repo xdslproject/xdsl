@@ -70,7 +70,7 @@ enableTypeIgnoreComments = false
 enableExperimentalFeatures = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests", "bench"]
+"include" = ["docs", "xdsl", "tests"]
 "exclude" = [
     "tests/dialects/test_memref.py",
     "tests/frontend/onnx/test_build_onnx_ir.py",
