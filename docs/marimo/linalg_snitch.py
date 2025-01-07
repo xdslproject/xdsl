@@ -11,6 +11,12 @@ def _():
 
 
 @app.cell
+def _():
+    import xdsl.utils.marimo as xmo
+    return (xmo,)
+
+
+@app.cell
 def _(mo):
     mo.md(
         """
@@ -360,13 +366,13 @@ def _(mo):
 
 
 @app.cell
-def _(asm_html, mo, riscv_asm_module, riscv_code):
+def _(mo, riscv_asm_module, riscv_code, xmo):
     riscv_asm = riscv_code(riscv_asm_module)
 
     mo.md(f"""\
     **RISC-V Assembly:**
 
-    {asm_html(riscv_asm)}
+    {xmo.asm_html(riscv_asm)}
     """
     )
     return (riscv_asm,)
@@ -458,13 +464,13 @@ def _(k, m, mo, n):
 
 
 @app.cell
-def _(asm_html, mo, riscv_code, snitch_asm_module):
+def _(mo, riscv_code, snitch_asm_module, xmo):
     snitch_asm = riscv_code(snitch_asm_module)
 
     mo.md(f"""\
     **Snitch Assembly:**
 
-    {asm_html(snitch_asm)}
+    {xmo.asm_html(snitch_asm)}
     """
     )
     return (snitch_asm,)
@@ -666,19 +672,14 @@ def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
 
 
 @app.cell
-def _(ModuleOp, mo):
+def _(ModuleOp):
     import html as htmllib
 
     def module_html(module: ModuleOp) -> str:
         return f"""\
         <div style="overflow-y: scroll; height:400px;"><small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small></div>
         """
-
-    def asm_html(asm: str) -> mo.Html:
-        return mo.ui.code_editor(
-            asm, language="python", disabled=True
-        )
-    return asm_html, htmllib, module_html
+    return htmllib, module_html
 
 
 @app.cell
