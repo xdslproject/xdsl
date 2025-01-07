@@ -2182,7 +2182,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
 
     def is_splat(self) -> bool:
         """
-        Return whethere or not this dense attribute is defined entirely
+        Return whether or not this dense attribute is defined entirely
         by a single value (splat).
         """
         return self.data.data.count(self.data.data[0]) == len(self.data.data)
