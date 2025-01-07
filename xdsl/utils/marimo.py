@@ -36,10 +36,15 @@ def pipeline_html(
     ctx: MLContext, module: ModuleOp, passes: Sequence[tuple[mo.Html, ModulePass]]
 ) -> tuple[MLContext, ModuleOp, mo.Html]:
     """
-    Returns a tuple of the resulting module after applying the passes, and the
+    Returns a tuple of the resulting context and module after applying the passes, and the
     Marimo-optimised representation of the modules throughout compilation.
 
-    The input is the input MLContext, a sequence of tuples of optional
+    The input is the input MLContext, a sequence of tuples of
+    (pass description, module pass).
+
+    Marimo's reactive mechanism relies on a graph of values defined in one cell and used
+    in another, and cannot detect mutation by reference, hence the new values instead of
+    the usual mutation.
     """
     res = module.clone()
     ctx = ctx.clone()
