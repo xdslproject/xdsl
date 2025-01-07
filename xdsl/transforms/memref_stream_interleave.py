@@ -51,18 +51,10 @@ class PipelineGenericPattern(RewritePattern):
 
         interleave_factor = 1
         # Search factors until the next number divisible by pipeline_depth
-        for potential_factor in range(self.pipeline_depth, self.pipeline_depth * 2):
+        for potential_factor in range(1, self.pipeline_depth * 2):
             if not interleave_bound % potential_factor:
                 # Found a larger factor
                 interleave_factor = potential_factor
-                break
-        if interleave_factor == 1:
-            # No larger perfect factors found, try smaller factors in descending order
-            for potential_factor in range(self.pipeline_depth - 1, 1, -1):
-                if not interleave_bound % potential_factor:
-                    # Found a smaller factor
-                    interleave_factor = potential_factor
-                    break
 
         old_block = op.body.block
         new_region = Region(
@@ -155,8 +147,8 @@ class MemrefStreamInterleavePass(ModulePass):
     Tiles the innermost parallel dimension of a `memref_stream.generic`.
     If specified, the `pipeline-depth` parameter specifies the number of operations in the
     resulting body that should be executed concurrently.
-    The pass will search through possible factors, starting with `pipeline-depth`, going
-    up to `pipeline-depth * 2`, and then down to 1, stopping at the first one.
+    The pass will select the largest factor of the corresponding bound smaller than
+    `pipeline-depth * 2`.
     The search range is bound by `pipeline-depth * 2` as very large interleaving factors
     would cause too much register pressure, potentially running out of registers.
     In the future, it would be good to take the number of available registers into account
