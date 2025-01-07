@@ -536,58 +536,6 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      ret
 
 
-  riscv.assembly_section ".text" {
-    riscv.directive ".globl" "reluf32"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @reluf32(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>) {
-      %X_1 = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg
-      %Y_1 = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg
-      %zero = riscv.get_register : !riscv.reg<zero>
-      %zero_float = riscv.fcvt.d.w %zero : (!riscv.reg<zero>) -> !riscv.freg
-      %zero_vector = riscv_snitch.vfcpka.s.s %zero_float, %zero_float : (!riscv.freg, !riscv.freg) -> !riscv.freg
-      snitch_stream.streaming_region {
-        patterns = [
-          #snitch_stream.stride_pattern<ub = [128], strides = [8]>
-        ]
-      } ins(%X_1 : !riscv.reg) outs(%Y_1 : !riscv.reg) {
-      ^0(%x : !snitch.readable<!riscv.freg<ft0>>, %0 : !snitch.writable<!riscv.freg<ft1>>):
-        %c128 = riscv.li 128 : !riscv.reg
-        %c0 = riscv.li 0 : !riscv.reg
-        %c1 = riscv.li 1 : !riscv.reg
-        riscv_scf.for %i : !riscv.reg = %c0 to %c128 step %c1 {
-          %x_1 = riscv_snitch.read from %x : !riscv.freg<ft0>
-          %y = riscv_snitch.vfmax.s %x_1, %zero_vector : (!riscv.freg<ft0>, !riscv.freg) -> !riscv.freg<ft1>
-          riscv_snitch.write %y to %0 : !riscv.freg<ft1>
-        }
-      }
-      riscv_func.return
-    }
-  }
-
-// CHECK:       .text
-// CHECK-NEXT:  .globl reluf32
-// CHECK-NEXT:  .p2align 2
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "zero"]}
-// CHECK-NEXT:  reluf32:
-// CHECK-NEXT:      mv t1, a0
-// CHECK-NEXT:      mv t0, a1
-// CHECK-NEXT:      fcvt.d.w ft3, zero
-// CHECK-NEXT:      vfcpka.s.s ft3, ft3, ft3
-// CHECK-NEXT:      li t2, 127
-// CHECK-NEXT:      scfgwi t2, 95                                # dm 31 dim 0 bound
-// CHECK-NEXT:      li t2, 8
-// CHECK-NEXT:      scfgwi t2, 223                               # dm 31 dim 0 stride
-// CHECK-NEXT:      scfgwi zero, 63                              # dm 31 repeat
-// CHECK-NEXT:      scfgwi t1, 768                               # dm 0 dim 0 source
-// CHECK-NEXT:      scfgwi t0, 897                               # dm 1 dim 0 destination
-// CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
-// CHECK-NEXT:      li t0, 127
-// CHECK-NEXT:      frep.o t0, 1, 0, 0
-// CHECK-NEXT:      vfmax.s ft1, ft0, ft3
-// CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
-// CHECK-NEXT:      ret
-
-
 // x[ M x K ]
 // y[ K x N ]
 // g[ M x N ]
