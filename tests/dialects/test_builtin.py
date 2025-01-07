@@ -324,6 +324,60 @@ def test_DenseIntOrFPElementsAttr_from_list():
     assert len(attr) == 4
 
 
+def test_DenseIntOrFPElementsAttr_values():
+    int_attr = DenseIntOrFPElementsAttr.tensor_from_list([1, 2, 3, 4], i32, [4])
+    assert tuple(int_attr.get_values()) == (1, 2, 3, 4)
+    assert tuple(int_attr.iter_values()) == (1, 2, 3, 4)
+    assert tuple(int_attr.get_attrs()) == (
+        IntegerAttr(1, i32),
+        IntegerAttr(2, i32),
+        IntegerAttr(3, i32),
+        IntegerAttr(4, i32),
+    )
+    assert tuple(int_attr.iter_attrs()) == (
+        IntegerAttr(1, i32),
+        IntegerAttr(2, i32),
+        IntegerAttr(3, i32),
+        IntegerAttr(4, i32),
+    )
+
+    index_attr = DenseIntOrFPElementsAttr.tensor_from_list(
+        [1, 2, 3, 4], IndexType(), [4]
+    )
+    assert tuple(index_attr.get_values()) == (1, 2, 3, 4)
+    assert tuple(index_attr.iter_values()) == (1, 2, 3, 4)
+    assert tuple(index_attr.get_attrs()) == (
+        IntegerAttr(1, IndexType()),
+        IntegerAttr(2, IndexType()),
+        IntegerAttr(3, IndexType()),
+        IntegerAttr(4, IndexType()),
+    )
+    assert tuple(index_attr.iter_attrs()) == (
+        IntegerAttr(1, IndexType()),
+        IntegerAttr(2, IndexType()),
+        IntegerAttr(3, IndexType()),
+        IntegerAttr(4, IndexType()),
+    )
+
+    float_attr = DenseIntOrFPElementsAttr.tensor_from_list(
+        [1.0, 2.0, 3.0, 4.0], f32, [4]
+    )
+    assert tuple(float_attr.get_values()) == (1.0, 2.0, 3.0, 4.0)
+    assert tuple(float_attr.iter_values()) == (1.0, 2.0, 3.0, 4.0)
+    assert tuple(float_attr.get_attrs()) == (
+        FloatAttr(1.0, f32),
+        FloatAttr(2.0, f32),
+        FloatAttr(3.0, f32),
+        FloatAttr(4.0, f32),
+    )
+    assert tuple(float_attr.iter_attrs()) == (
+        FloatAttr(1.0, f32),
+        FloatAttr(2.0, f32),
+        FloatAttr(3.0, f32),
+        FloatAttr(4.0, f32),
+    )
+
+
 @pytest.mark.parametrize(
     "ref,expected",
     [
