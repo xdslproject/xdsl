@@ -11,10 +11,10 @@
 
 ptr_xdsl.store %v, %p : i32, !ptr_xdsl.ptr
 // CHECK-NEXT:  %v_1 = builtin.unrealized_conversion_cast %v : i32 to !riscv.reg
-// CHECK-NEXT:  riscv.sw %p, %v_1, 0 {"comment" = "store int value to pointer"} : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-NEXT:  riscv.sw %p, %v_1, 0 {comment = "store int value to pointer"} : (!riscv.reg, !riscv.reg) -> ()
 
 %r3 = ptr_xdsl.load %p : !ptr_xdsl.ptr -> i32
-// CHECK-NEXT:  %r3 = riscv.lw %p, 0 {"comment" = "load word from pointer"} : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:  %r3 = riscv.lw %p, 0 {comment = "load word from pointer"} : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:  %r3_1 = builtin.unrealized_conversion_cast %r3 : !riscv.reg to i32
 
 // -----

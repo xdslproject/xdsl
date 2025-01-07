@@ -13,9 +13,9 @@ builtin.module {
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
-  // CHECK-GENERIC:      "func.func"() <{"sym_name" = "assert", "function_type" = () -> (), "sym_visibility" = "private"}> ({
-  // CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{"value" = true}> : () -> i1
-  // CHECK-GENERIC-NEXT:     "cf.assert"(%{{.*}}) {"msg" = "some message"} : (i1) -> ()
+  // CHECK-GENERIC:      "func.func"() <{sym_name = "assert", function_type = () -> (), sym_visibility = "private"}> ({
+  // CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = true}> : () -> i1
+  // CHECK-GENERIC-NEXT:     "cf.assert"(%{{.*}}) {msg = "some message"} : (i1) -> ()
   // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
   // CHECK-GENERIC-NEXT:   }
 
@@ -30,7 +30,7 @@ builtin.module {
   // CHECK-NEXT:   cf.br ^0
   // CHECK-NEXT: }
 
-  // CHECK-GENERIC:      "func.func"() <{"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"}> ({
+  // CHECK-GENERIC:      "func.func"() <{sym_name = "unconditional_br", function_type = () -> (), sym_visibility = "private"}> ({
   // CHECK-GENERIC-NEXT:   "cf.br"() [^{{.*}}] : () -> ()
   // CHECK-GENERIC-NEXT: ^{{.*}}:
   // CHECK-GENERIC-NEXT:   "cf.br"() [^{{.*}}] : () -> ()
@@ -47,7 +47,7 @@ builtin.module {
   // CHECK-NEXT:   cf.br ^0(%1 : i32)
   // CHECK-NEXT: }
 
-  // CHECK-GENERIC:      "func.func"() <{"sym_name" = "br", "function_type" = (i32) -> (), "sym_visibility" = "private"}> ({
+  // CHECK-GENERIC:      "func.func"() <{sym_name = "br", function_type = (i32) -> (), sym_visibility = "private"}> ({
   // CHECK-GENERIC-NEXT: ^{{.*}}(%{{.*}} : i32):
   // CHECK-GENERIC-NEXT:   "cf.br"(%{{.*}}) [^{{.*}}] : (i32) -> ()
   // CHECK-GENERIC-NEXT: ^{{.*}}(%{{.*}} : i32):
@@ -70,11 +70,11 @@ builtin.module {
   // CHECK-NEXT:   func.return %4 : i32
   // CHECK-NEXT: }
 
-  // CHECK-GENERIC:      "func.func"() <{"sym_name" = "cond_br", "function_type" = (i1, i32) -> i32, "sym_visibility" = "private"}> ({
+  // CHECK-GENERIC:      "func.func"() <{sym_name = "cond_br", function_type = (i1, i32) -> i32, sym_visibility = "private"}> ({
   // CHECK-GENERIC-NEXT: ^{{.*}}(%{{.*}} : i1, %{{.*}} : i32):
   // CHECK-GENERIC-NEXT:   "cf.br"(%{{.*}}, %{{.*}}) [^{{.*}}] : (i1, i32) -> ()
   // CHECK-GENERIC-NEXT: ^{{.*}}(%{{.*}} : i1, %{{.*}} : i32):
-  // CHECK-GENERIC-NEXT:   "cf.cond_br"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) [^{{.*}}, ^{{.*}}] <{"operandSegmentSizes" = array<i32: 1, 2, 3>}> : (i1, i1, i32, i32, i32, i32) -> ()
+  // CHECK-GENERIC-NEXT:   "cf.cond_br"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) [^{{.*}}, ^{{.*}}] <{operandSegmentSizes = array<i32: 1, 2, 3>}> : (i1, i1, i32, i32, i32, i32) -> ()
   // CHECK-GENERIC-NEXT: ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
   // CHECK-GENERIC-NEXT:   "func.return"(%{{.*}}) : (i32) -> ()
   // CHECK-GENERIC-NEXT: }
@@ -111,11 +111,11 @@ builtin.module {
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
-  // CHECK-GENERIC:      "func.func"() <{"sym_name" = "switch", "function_type" = (i32) -> ()}> ({
+  // CHECK-GENERIC:      "func.func"() <{sym_name = "switch", function_type = (i32) -> ()}> ({
   // CHECK-GENERIC-NEXT: ^{{.*}}(%flag : i32):
-  // CHECK-GENERIC-NEXT:   %a = "arith.constant"() <{"value" = 0 : i32}> : () -> i32
-  // CHECK-GENERIC-NEXT:   %b = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  // CHECK-GENERIC-NEXT:   "cf.switch"(%flag, %a, %b, %b) [^[[#b0:]], ^[[#b1:]], ^[[#b2:]]] <{"case_operand_segments" = array<i32: 2, 0>, "case_values" = dense<[42, 43]> : vector<2xi32>, "operandSegmentSizes" = array<i32: 1, 1, 2>}> : (i32, i32, i32, i32) -> ()
+  // CHECK-GENERIC-NEXT:   %a = "arith.constant"() <{value = 0 : i32}> : () -> i32
+  // CHECK-GENERIC-NEXT:   %b = "arith.constant"() <{value = 1 : i32}> : () -> i32
+  // CHECK-GENERIC-NEXT:   "cf.switch"(%flag, %a, %b, %b) [^[[#b0:]], ^[[#b1:]], ^[[#b2:]]] <{case_operand_segments = array<i32: 2, 0>, case_values = dense<[42, 43]> : vector<2xi32>, "operandSegmentSizes" = array<i32: 1, 1, 2>}> : (i32, i32, i32, i32) -> ()
   // CHECK-GENERIC-NEXT: ^[[#b0]](%{{.*}} : i32):
   // CHECK-GENERIC-NEXT:   "func.return"() : () -> ()
   // CHECK-GENERIC-NEXT: ^[[#b1]](%{{.*}} : i32, %{{.*}} : i32):

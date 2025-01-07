@@ -17,7 +17,7 @@ func.func public @same_type_donation(%arg0: tensor<2x3xf32> {tf.aliasing_output 
     return %res1, %res2 : tensor<2x3xf32>, tensor<2x3xf32>
 }
 
-// CHECK:       func.func public @same_type_donation(%arg0 : tensor<2x3xf32>, %arg1 : tensor<2x3xf32>, %arg2 : tensor<2x3xf32> {"tf.aliasing_output" = 0 : i32}) {
+// CHECK:       func.func public @same_type_donation(%arg0 : tensor<2x3xf32>, %arg1 : tensor<2x3xf32>, %arg2 : tensor<2x3xf32> {tf.aliasing_output = 0 : i32}) {
 // CHECK-NEXT:    %res1 = "test.op"() : () -> tensor<2x3xf32>
 // CHECK-NEXT:    %res2 = "test.op"() : () -> tensor<2x3xf32>
 // CHECK-NEXT:    %0 = bufferization.materialize_in_destination %res1 in %arg0 : (tensor<2x3xf32>, tensor<2x3xf32>) -> tensor<2x3xf32>

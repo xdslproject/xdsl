@@ -21,7 +21,7 @@ riscv_debug.printf %0, %1, %2, "{}, {}, {}" : (!riscv.reg<a0>, !riscv.reg<a1>, !
 // CHECK-GENERIC-NEXT:   %0 = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-GENERIC-NEXT:   %1 = "riscv.get_register"() : () -> !riscv.reg<a1>
 // CHECK-GENERIC-NEXT:   %2 = "riscv.get_float_register"() : () -> !riscv.freg<fa0>
-// CHECK-GENERIC-NEXT:   "riscv_debug.printf"(%0, %1, %2) {"format_str" = "{}, {}, {}"} : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.freg<fa0>) -> ()
+// CHECK-GENERIC-NEXT:   "riscv_debug.printf"(%0, %1, %2) {format_str = "{}, {}, {}"} : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.freg<fa0>) -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
 
 // CHECK-ASM: printf "{}, {}, {}", a0, a1, fa0

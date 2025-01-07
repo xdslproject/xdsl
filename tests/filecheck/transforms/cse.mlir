@@ -127,7 +127,7 @@ func.func @different_ops() -> (i32, i32) {
   }
 
 // CHECK:      %0 = arith.constant 1 : i32
-// CHECK-NEXT:      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "operandSegmentSizes" = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
+// CHECK-NEXT:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, step = 1 : index, upperBoundMap = affine_map<() -> (4)>}> ({
 // CHECK-NEXT:      ^0(%arg0 : index):
 // CHECK-NEXT:        "foo"(%0, %0) : (i32, i32) -> ()
 // CHECK-NEXT:        "affine.yield"() : () -> ()
@@ -176,7 +176,7 @@ func.func @down_propagate() -> i32 {
     func.return %32 : i32
   }
 
-// CHECK:      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "operandSegmentSizes" = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
+// CHECK:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, operandSegmentSizes = array<i32: 0, 0, 0>, step = 1 : index, upperBoundMap = affine_map<() -> (4)>}> ({
 // CHECK-NEXT:      ^0(%arg0 : index):
 // CHECK-NEXT:        %0 = arith.constant 1 : i32
 // CHECK-NEXT:        "foo"(%0) : (i32) -> ()
@@ -445,7 +445,7 @@ func.func @cse_single_block_ops_identical_bodies(%arg0_8 : tensor<?x?xf32>, %arg
 // CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
 // CHECK-NEXT:      ^0(%arg4 : f32, %arg5 : f32):
 // CHECK-NEXT:        %1 = arith.divf %arg4, %arg5 : f32
-// CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+// CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-NEXT:        %3 = arith.select %arg3, %1, %2 : f32
 // CHECK-NEXT:        "test.region_yield"(%3) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
@@ -475,14 +475,14 @@ func.func @no_cse_single_block_ops_different_bodies(%arg0_9 : tensor<?x?xf32>, %
 // CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
 // CHECK-NEXT:      ^0(%arg4 : f32, %arg5 : f32):
 // CHECK-NEXT:        %1 = arith.divf %arg4, %arg5 : f32
-// CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+// CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-NEXT:        %3 = arith.select %arg3, %1, %2 : f32
 // CHECK-NEXT:        "test.region_yield"(%3) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
 // CHECK-NEXT:      %4 = "test.pureop"(%arg0, %arg1) ({
 // CHECK-NEXT:      ^1(%arg4_1 : f32, %arg5_1 : f32):
 // CHECK-NEXT:        %5 = arith.divf %arg4_1, %arg5_1 : f32
-// CHECK-NEXT:        %6 = "arith.remf"(%arg4_1, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+// CHECK-NEXT:        %6 = "arith.remf"(%arg4_1, %arg2) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-NEXT:        %7 = arith.select %arg3, %6, %5 : f32
 // CHECK-NEXT:        "test.region_yield"(%7) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>

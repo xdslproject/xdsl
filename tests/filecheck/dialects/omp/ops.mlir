@@ -151,39 +151,39 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    func.func @omp_parallel(%arg0 : memref<1xi32>, %arg1 : i1, %arg2 : i32) {
-// CHECK-NEXT:      "omp.parallel"(%arg1, %arg2, %arg0, %arg0) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 1, 0, 0>, "proc_bind_val" = #omp<procbindkind spread>}> ({
-// CHECK-NEXT:        "omp.parallel"(%arg2, %arg0, %arg0) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 0, 0>}> ({
+// CHECK-NEXT:      "omp.parallel"(%arg1, %arg2, %arg0, %arg0) <{operandSegmentSizes = array<i32: 1, 1, 1, 1, 0, 0>, proc_bind_val = #omp<procbindkind spread>}> ({
+// CHECK-NEXT:        "omp.parallel"(%arg2, %arg0, %arg0) <{operandSegmentSizes = array<i32: 0, 1, 1, 1, 0, 0>}> ({
 // CHECK-NEXT:          "omp.terminator"() : () -> ()
 // CHECK-NEXT:        }) : (i32, memref<1xi32>, memref<1xi32>) -> ()
-// CHECK-NEXT:        "omp.parallel"(%arg1, %arg0, %arg0) <{"operandSegmentSizes" = array<i32: 1, 0, 1, 1, 0, 0>}> ({
+// CHECK-NEXT:        "omp.parallel"(%arg1, %arg0, %arg0) <{operandSegmentSizes = array<i32: 1, 0, 1, 1, 0, 0>}> ({
 // CHECK-NEXT:          "omp.terminator"() : () -> ()
 // CHECK-NEXT:        }) : (i1, memref<1xi32>, memref<1xi32>) -> ()
-// CHECK-NEXT:        "omp.parallel"(%arg1, %arg2) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.parallel"(%arg1, %arg2) <{operandSegmentSizes = array<i32: 1, 1, 0, 0, 0, 0>}> ({
 // CHECK-NEXT:          "omp.terminator"() : () -> ()
 // CHECK-NEXT:        }) : (i1, i32) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (i1, i32, memref<1xi32>, memref<1xi32>) -> ()
-// CHECK-NEXT:      "omp.parallel"(%arg0, %arg0) <{"operandSegmentSizes" = array<i32: 0, 0, 1, 1, 0, 0>}> ({
+// CHECK-NEXT:      "omp.parallel"(%arg0, %arg0) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0>}> ({
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, memref<1xi32>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
-// CHECK-NEXT:      "omp.wsloop"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0>, "ordered_val" = 0 : i64}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>, ordered_val = 0 : i64}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^0(%arg7 : i32):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (i32, i32, i32) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0>, "ordered_val" = 1 : i64}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>, ordered_val = 1 : i64}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^1(%arg7_1 : i32):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (i32, i32, i32) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0>, "ordered_val" = 2 : i64}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>, ordered_val = 2 : i64}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^2(%arg7_2 : i32):
 // CHECK-NEXT:          omp.yield
@@ -193,35 +193,35 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_wsloop(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<1xi32>, %arg4 : i32, %arg5 : i32) {
-// CHECK-NEXT:      "omp.wsloop"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0>, "ordered_val" = 1 : i64}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>, ordered_val = 1 : i64}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^0(%arg6 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "schedule_val" = #omp<schedulekind static>}> ({
+// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, schedule_val = #omp<schedulekind static>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^1(%arg6_1 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, i32) -> ()
-// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg3, %arg4, %arg4) <{"operandSegmentSizes" = array<i32: 2, 2, 0, 0>, "schedule_val" = #omp<schedulekind static>}> ({
+// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg3, %arg4, %arg4) <{operandSegmentSizes = array<i32: 2, 2, 0, 0>, schedule_val = #omp<schedulekind static>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^2(%arg6_2 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, memref<1xi32>, i32, i32) -> ()
-// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg5) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "ordered_val" = 2 : i64, "schedule_val" = #omp<schedulekind dynamic>}> ({
+// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg5) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, ordered_val = 2 : i64, schedule_val = #omp<schedulekind dynamic>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^3(%arg6_3 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, i32, i32) -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{"nowait", "operandSegmentSizes" = array<i32: 0, 0, 0, 0>, "schedule_val" = #omp<schedulekind auto>}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0>, schedule_val = #omp<schedulekind auto>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^4(%arg6_4 : index):
 // CHECK-NEXT:          omp.yield
@@ -231,63 +231,63 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_wsloop_pretty(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<1xi32>, %arg4 : i32, %arg5 : i32, %arg6 : i16) {
-// CHECK-NEXT:      "omp.wsloop"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0>, "ordered_val" = 2 : i64}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>, ordered_val = 2 : i64}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^0(%arg7 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "schedule_val" = #omp<schedulekind static>}> ({
+// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, schedule_val = #omp<schedulekind static>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^1(%arg7_1 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, i32) -> ()
-// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg5) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "ordered_val" = 2 : i64, "schedule_val" = #omp<schedulekind static>}> ({
+// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg5) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, ordered_val = 2 : i64, schedule_val = #omp<schedulekind static>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^2(%arg7_2 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, i32, i32) -> ()
-// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg5) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "ordered_val" = 2 : i64, "schedule_modifier" = #omp<sched_mod nonmonotonic>, "schedule_val" = #omp<schedulekind dynamic>}> ({
+// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg5) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, ordered_val = 2 : i64, schedule_modifier = #omp<sched_mod nonmonotonic>, schedule_val = #omp<schedulekind dynamic>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^3(%arg7_3 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, i32, i32) -> ()
-// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg6) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 1>, "ordered_val" = 2 : i64, "schedule_modifier" = #omp<sched_mod monotonic>, "schedule_val" = #omp<schedulekind dynamic>}> ({
+// CHECK-NEXT:      "omp.wsloop"(%arg3, %arg4, %arg6) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, ordered_val = 2 : i64, schedule_modifier = #omp<sched_mod monotonic>, schedule_val = #omp<schedulekind dynamic>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^4(%arg7_4 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : (memref<1xi32>, i32, i16) -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0>}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^5(%arg7_5 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{"inclusive", "operandSegmentSizes" = array<i32: 0, 0, 0, 0>}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{inclusive, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^6(%arg7_6 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{"nowait", "operandSegmentSizes" = array<i32: 0, 0, 0, 0>}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^7(%arg7_7 : index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "omp.wsloop"() <{"nowait", "operandSegmentSizes" = array<i32: 0, 0, 0, 0>, "order_val" = #omp<orderkind concurrent>}> ({
+// CHECK-NEXT:      "omp.wsloop"() <{nowait, operandSegmentSizes = array<i32: 0, 0, 0, 0>, order_val = #omp<orderkind concurrent>}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%arg0, %arg1, %arg2) ({
 // CHECK-NEXT:        ^8(%arg7_8 : index):
 // CHECK-NEXT:          omp.yield
