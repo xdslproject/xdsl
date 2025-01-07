@@ -1,3 +1,4 @@
+import collections
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
@@ -5,6 +6,8 @@ from typing import cast
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    AnyMemRefType,
     ArrayAttr,
     Float16Type,
     Float32Type,
@@ -19,6 +22,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -119,7 +123,47 @@ class LowerSubviewOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
-        assert isa(op.source.type, MemRefType[Attribute])
+        assert isa(op.source.type, AnyMemRefType)
+        assert isa(op.result.type, AnyMemRefType)
+
+        if len(op.result.type.get_shape()) == 1 and len(op.source.type.get_shape()) > 1:
+            # 1d subview onto a nd memref
+            sizes = op.static_sizes.get_values()
+            counter_sizes = collections.Counter(sizes)
+            counter_sizes.pop(1, None)
+            assert (
+                len(counter_sizes) == 1
+            ), "1d access into nd memref must specify one size > 1"
+            size, size_count = counter_sizes.most_common()[0]
+            size = cast(int, size)
+
+            assert (
+                size_count == 1
+            ), "1d access into nd memref can only specify one size > 1, which can occur only once"
+            assert all(
+                stride == 1 for stride in op.static_strides.get_values()
+            ), "All strides must equal 1"
+
+            amap: list[AffineExpr] = [
+                AffineConstantExpr(
+                    cast(int, o) if o != memref.SubviewOp.DYNAMIC_INDEX else 0
+                )
+                for o in op.static_offsets.get_values()
+            ]
+            amap[sizes.index(size)] += AffineDimExpr(0)
+
+            size_op = arith.ConstantOp.from_int_and_width(size, 16)
+            dsd_op = csl.GetMemDsdOp(
+                operands=[op.source, [size_op]],
+                properties={
+                    "tensor_access": AffineMapAttr(AffineMap(1, 0, tuple(amap)))
+                },
+                result_types=[csl.DsdType(csl.DsdKind.mem1d_dsd)],
+            )
+            offset_ops = self._update_offsets(op, dsd_op) if op.offsets else []
+            rewriter.replace_matched_op([size_op, dsd_op, *offset_ops])
+            return
+
         assert len(op.static_sizes) == 1, "not implemented"
         assert len(op.static_offsets) == 1, "not implemented"
         assert len(op.static_strides) == 1, "not implemented"
@@ -133,7 +177,12 @@ class LowerSubviewOpPass(RewritePattern):
         last_op = stride_ops[-1] if len(stride_ops) > 0 else last_op
         offset_ops = self._update_offsets(op, last_op)
 
-        rewriter.replace_matched_op([*size_ops, *stride_ops, *offset_ops])
+        new_ops = [*size_ops, *stride_ops, *offset_ops]
+        if new_ops:
+            rewriter.replace_matched_op([*size_ops, *stride_ops, *offset_ops])
+        else:
+            # subview has no effect (todo: this could be canonicalized away)
+            rewriter.replace_matched_op([], new_results=[op.source])
 
     @staticmethod
     def _update_sizes(
@@ -214,7 +263,7 @@ class LowerSubviewOpPass(RewritePattern):
 
         static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
 
-        if static_offsets[0] == memref.SubviewOp.DYNAMIC_INDEX:
+        if subview.offsets:
             ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value))
             ops.append(
                 csl.IncrementDsdOffsetOp.build(

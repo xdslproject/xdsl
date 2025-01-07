@@ -7,6 +7,7 @@ import pytest
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     AnyTensorType,
+    AnyVectorType,
     ArrayAttr,
     BFloat16Type,
     BytesAttr,
@@ -29,6 +30,8 @@ from xdsl.dialects.builtin import (
     Signedness,
     StridedLayoutAttr,
     SymbolRefAttr,
+    TensorOrMemrefOf,
+    TensorType,
     UnrealizedConversionCastOp,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
@@ -119,6 +122,26 @@ def test_IntegerType_normalized():
     assert ui8.normalized_value(255) == 255
 
 
+def test_IntegerType_truncated():
+    si8 = IntegerType(8, Signedness.SIGNED)
+    ui8 = IntegerType(8, Signedness.UNSIGNED)
+
+    assert i8.normalized_value(-1, truncate_bits=True) == -1
+    assert i8.normalized_value(1, truncate_bits=True) == 1
+    assert i8.normalized_value(255, truncate_bits=True) == -1
+    assert i8.normalized_value(256, truncate_bits=True) == 0
+
+    assert si8.normalized_value(-1, truncate_bits=True) == -1
+    assert si8.normalized_value(1, truncate_bits=True) == 1
+    assert si8.normalized_value(255, truncate_bits=True) == -1
+    assert si8.normalized_value(256, truncate_bits=True) == 0
+
+    assert ui8.normalized_value(-1, truncate_bits=True) == 255
+    assert ui8.normalized_value(1, truncate_bits=True) == 1
+    assert ui8.normalized_value(255, truncate_bits=True) == 255
+    assert ui8.normalized_value(256, truncate_bits=True) == 0
+
+
 def test_IntegerAttr_normalize():
     """
     Test that the value within the accepted signless range is normalized to signed
@@ -152,48 +175,72 @@ def test_IntegerType_packing():
     buffer_i1 = i1.pack(nums_i1)
     unpacked_i1 = i1.unpack(buffer_i1, len(nums_i1))
     assert nums_i1 == unpacked_i1
+    attrs_i1 = IntegerAttr.unpack(i1, buffer_i1, len(nums_i1))
+    assert attrs_i1 == tuple(IntegerAttr(n, i1) for n in nums_i1)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i1, buffer_i1)) == attrs_i1
 
     # i8
     nums_i8 = (-128, -1, 0, 1, 127)
     buffer_i8 = i8.pack(nums_i8)
     unpacked_i8 = i8.unpack(buffer_i8, len(nums_i8))
     assert nums_i8 == unpacked_i8
+    attrs_i8 = IntegerAttr.unpack(i8, buffer_i8, len(nums_i8))
+    assert attrs_i8 == tuple(IntegerAttr(n, i8) for n in nums_i8)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i8, buffer_i8)) == attrs_i8
 
     # i16
     nums_i16 = (-32768, -1, 0, 1, 32767)
     buffer_i16 = i16.pack(nums_i16)
     unpacked_i16 = i16.unpack(buffer_i16, len(nums_i16))
     assert nums_i16 == unpacked_i16
+    attrs_i16 = IntegerAttr.unpack(i16, buffer_i16, len(nums_i16))
+    assert attrs_i16 == tuple(IntegerAttr(n, i16) for n in nums_i16)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i16, buffer_i16)) == attrs_i16
 
     # i32
     nums_i32 = (-2147483648, -1, 0, 1, 2147483647)
     buffer_i32 = i32.pack(nums_i32)
     unpacked_i32 = i32.unpack(buffer_i32, len(nums_i32))
     assert nums_i32 == unpacked_i32
+    attrs_i32 = IntegerAttr.unpack(i32, buffer_i32, len(nums_i32))
+    assert attrs_i32 == tuple(IntegerAttr(n, i32) for n in nums_i32)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i32, buffer_i32)) == attrs_i32
 
     # i64
     nums_i64 = (-9223372036854775808, -1, 0, 1, 9223372036854775807)
     buffer_i64 = i64.pack(nums_i64)
     unpacked_i64 = i64.unpack(buffer_i64, len(nums_i64))
     assert nums_i64 == unpacked_i64
+    attrs_i64 = IntegerAttr.unpack(i64, buffer_i64, len(nums_i64))
+    assert attrs_i64 == tuple(IntegerAttr(n, i64) for n in nums_i64)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i64, buffer_i64)) == attrs_i64
 
     # f16
     nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
     buffer_f16 = f16.pack(nums_f16)
     unpacked_f16 = f16.unpack(buffer_f16, len(nums_f16))
     assert nums_f16 == unpacked_f16
+    attrs_f16 = FloatAttr.unpack(f16, buffer_f16, len(nums_f16))
+    assert attrs_f16 == tuple(FloatAttr(n, f16) for n in nums_f16)
+    assert tuple(attr for attr in FloatAttr.iter_unpack(f16, buffer_f16)) == attrs_f16
 
     # f32
     nums_f32 = (-3.140000104904175, -1.0, 0.0, 1.0, 3.140000104904175)
     buffer_f32 = f32.pack(nums_f32)
     unpacked_f32 = f32.unpack(buffer_f32, len(nums_f32))
     assert nums_f32 == unpacked_f32
+    attrs_f32 = FloatAttr.unpack(f32, buffer_f32, len(nums_f32))
+    assert attrs_f32 == tuple(FloatAttr(n, f32) for n in nums_f32)
+    assert tuple(attr for attr in FloatAttr.iter_unpack(f32, buffer_f32)) == attrs_f32
 
     # f64
     nums_f64 = (-3.14159265359, -1.0, 0.0, 1.0, 3.14159265359)
     buffer_f64 = f64.pack(nums_f64)
     unpacked_f64 = f64.unpack(buffer_f64, len(nums_f64))
     assert nums_f64 == unpacked_f64
+    attrs_f64 = FloatAttr.unpack(f64, buffer_f64, len(nums_f64))
+    assert attrs_f64 == tuple(FloatAttr(n, f64) for n in nums_f64)
+    assert tuple(attr for attr in FloatAttr.iter_unpack(f64, buffer_f64)) == attrs_f64
 
     # Test error cases
     # Different Python versions have different error messages for these
@@ -217,7 +264,7 @@ def test_IntegerType_packing():
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
-    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [])
+    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [2])
 
     value1 = check1.get_attrs()[0].value.data
     value2 = check1.get_attrs()[1].value.data
@@ -231,7 +278,7 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     t1 = FloatAttr(4.0, f32)
     t2 = FloatAttr(5.0, f32)
 
-    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [])
+    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [2])
 
     value3 = check2.get_attrs()[0].value.data
     value4 = check2.get_attrs()[1].value.data
@@ -244,9 +291,37 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 
 
 def test_DenseIntOrFPElementsAttr_from_list():
+    # legal zero-rank tensor
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
-
     assert attr.type == AnyTensorType(f32, [])
+    assert len(attr) == 1
+
+    # illegal zero-rank tensor
+    with pytest.raises(
+        ValueError, match="A zero-rank tensor can only hold 1 value but 2 were given."
+    ):
+        DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [])
+
+    # legal 1 element tensor
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [1])
+    assert attr.type == AnyTensorType(f32, [1])
+    assert len(attr) == 1
+
+    # legal normal tensor
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5, 5.6], f32, [2])
+    assert attr.type == AnyTensorType(f32, [2])
+    assert len(attr) == 2
+
+    # splat initialization
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([4], f32, [4])
+    assert attr.type == AnyTensorType(f32, [4])
+    assert tuple(attr.get_values()) == (4, 4, 4, 4)
+    assert len(attr) == 4
+
+    # vector with inferred shape
+    attr = DenseIntOrFPElementsAttr.vector_from_list([1, 2, 3, 4], f32)
+    assert attr.type == AnyVectorType(f32, [4])
+    assert len(attr) == 4
 
 
 @pytest.mark.parametrize(
@@ -435,9 +510,35 @@ def test_complex_init():
 def test_dense_as_tuple():
     floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
     assert floats.get_values() == (3.141590118408203, 2.718280076980591)
+    assert tuple(floats.iter_values()) == (3.141590118408203, 2.718280076980591)
+    assert tuple(floats.iter_attrs()) == (
+        FloatAttr(3.141590118408203, f32),
+        FloatAttr(2.718280076980591, f32),
+    )
+    assert floats.get_attrs() == (
+        FloatAttr(3.141590118408203, f32),
+        FloatAttr(2.718280076980591, f32),
+    )
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.get_values() == (1, 1, 2, 3, 5, 8)
+    assert tuple(ints.iter_values()) == (1, 1, 2, 3, 5, 8)
+    assert tuple(ints.iter_attrs()) == (
+        IntegerAttr(1, i32),
+        IntegerAttr(1, i32),
+        IntegerAttr(2, i32),
+        IntegerAttr(3, i32),
+        IntegerAttr(5, i32),
+        IntegerAttr(8, i32),
+    )
+    assert ints.get_attrs() == (
+        IntegerAttr(1, i32),
+        IntegerAttr(1, i32),
+        IntegerAttr(2, i32),
+        IntegerAttr(3, i32),
+        IntegerAttr(5, i32),
+        IntegerAttr(8, i32),
+    )
 
 
 def test_create_dense_int():
@@ -465,3 +566,24 @@ def test_strides():
     assert ShapedType.strides_for_shape((1,), factor=2) == (2,)
     assert ShapedType.strides_for_shape((2, 3)) == (3, 1)
     assert ShapedType.strides_for_shape((4, 5, 6), factor=2) == (60, 12, 2)
+
+
+def test_tensor_or_memref_of_constraint_verify():
+    constraint = TensorOrMemrefOf(i64)
+
+    constraint.verify(MemRefType(i64, [1]), ConstraintContext())
+    constraint.verify(TensorType(i64, [1]), ConstraintContext())
+
+
+def test_tensor_or_memref_of_constraint_attribute_mismatch():
+    constraint = TensorOrMemrefOf(i64)
+
+    with pytest.raises(
+        VerifyException, match=f"Expected tensor or memref type, got {i64}"
+    ):
+        constraint.verify(i64, ConstraintContext())
+
+    with pytest.raises(
+        VerifyException, match=f"Expected attribute {i64} but got {i32}"
+    ):
+        constraint.verify(MemRefType(i32, [1]), ConstraintContext())

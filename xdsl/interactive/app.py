@@ -266,7 +266,7 @@ class InputApp(App[None]):
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
-                    individual_rewrite.REWRITE_BY_NAMES,
+                    individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
                 )
 
     def watch_available_pass_list(
@@ -372,7 +372,6 @@ class InputApp(App[None]):
     def get_pass_arguments(
         self,
         selected_pass_value: type[ModulePass],
-        selected_pass_spec: PipelinePassSpec | None,
         root_to_child_pass_list: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
     ) -> None:
         """
@@ -456,9 +455,7 @@ class InputApp(App[None]):
 
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
-            self.get_pass_arguments(
-                selected_pass_value, selected_pass_spec, root_to_child_pass_list
-            )
+            self.get_pass_arguments(selected_pass_value, root_to_child_pass_list)
         else:
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
             if selected_pass_spec is None:
@@ -509,7 +506,7 @@ class InputApp(App[None]):
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
-            individual_rewrite.REWRITE_BY_NAMES,
+            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
 
         self.expand_node(expanded_node, child_pass_list)

@@ -108,7 +108,7 @@ builtin.module {
 // CHECK-NEXT:       %offset_1 = arith.index_cast %offset : i16 to index
 // CHECK-NEXT:       %42 = memref.subview %accumulator[%offset_1] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
 // CHECK-NEXT:       %43 = arith.constant 4 : i16
-// CHECK-NEXT:       %44 = "csl.get_mem_dsd"(%accumulator, %43, %29, %31) <{"strides" = [0 : i16, 0 : i16, 1 : i16]}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:       %44 = "csl.get_mem_dsd"(%accumulator, %43, %29, %31) <{"tensor_access" = affine_map<(d0, d1, d2) -> (d2)>}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %45 = arith.index_cast %offset_1 : index to si16
 // CHECK-NEXT:       %46 = "csl.increment_dsd_offset"(%44, %45) <{"elem_type" = f32}> : (!csl<dsd mem4d_dsd>, si16) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %47 = "csl.member_call"(%34) <{"field" = "getRecvBufDsd"}> : (!csl.imported_module) -> !csl<dsd mem4d_dsd>
@@ -308,7 +308,7 @@ builtin.module {
 // CHECK-NEXT:      %offset_3 = arith.index_cast %offset_2 : i16 to index
 // CHECK-NEXT:      %88 = memref.subview %accumulator_1[%offset_3] [510] [1] : memref<510xf32> to memref<510xf32, strided<[1], offset: ?>>
 // CHECK-NEXT:      %89 = arith.constant 4 : i16
-// CHECK-NEXT:      %90 = "csl.get_mem_dsd"(%accumulator_1, %89, %arg3_1, %arg5_1) <{"strides" = [0 : i16, 0 : i16, 1 : i16]}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:      %90 = "csl.get_mem_dsd"(%accumulator_1, %89, %arg3_1, %arg5_1) <{"tensor_access" = affine_map<(d0, d1, d2) -> (d2)>}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:      %91 = arith.index_cast %offset_3 : index to si16
 // CHECK-NEXT:      %92 = "csl.increment_dsd_offset"(%90, %91) <{"elem_type" = f32}> : (!csl<dsd mem4d_dsd>, si16) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:      %93 = "csl.member_call"(%69) <{"field" = "getRecvBufDsd"}> : (!csl.imported_module) -> !csl<dsd mem4d_dsd>
@@ -645,7 +645,7 @@ builtin.module {
 // CHECK-NEXT:      %north = arith.constant dense<[0.000000e+00, 3.141500e-01]> : memref<2xf32>
 // CHECK-NEXT:      %south = arith.constant dense<[0.000000e+00, 1.000000e+00]> : memref<2xf32>
 // CHECK-NEXT:      %east = arith.constant dense<[0.000000e+00, 1.000000e+00]> : memref<2xf32>
-// CHECK-NEXT:      %west = arith.constant dense<[0.000000e+00, 2.345678e-01]> : memref<2xf32>
+// CHECK-NEXT:      %west = arith.constant dense<[0.000000e+00, 0.234567806]> : memref<2xf32>
 // CHECK-NEXT:      %192 = "csl.addressof"(%east) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:      %193 = "csl.addressof"(%west) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:      %194 = "csl.addressof"(%south) : (memref<2xf32>) -> !csl.ptr<memref<2xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>

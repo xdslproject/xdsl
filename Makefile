@@ -5,8 +5,10 @@ MAKEFLAGS += --no-builtin-variables
 COVERAGE_FILE ?= .coverage
 
 # allow overriding the name of the venv directory
-VENV_DIR ?= venv
-export UV_PROJECT_ENVIRONMENT=${VENV_DIR}
+VENV_DIR ?= .venv
+
+# use activated venv if any
+export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
 VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
@@ -26,9 +28,13 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	uv sync ${VENV_EXTRAS}
+	XDSL_VERSION_OVERRIDE="0+dynamic" uv sync ${VENV_EXTRAS}
+	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
+		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
+	fi
 
 # make sure `make venv` also works correctly
+.PHONY: venv
 venv: ${VENV_DIR}/
 
 # remove all caches

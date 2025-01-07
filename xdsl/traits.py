@@ -239,6 +239,26 @@ class IsolatedFromAbove(OpTrait):
                         regions += child_op.regions
 
 
+class SymbolUserOpInterface(OpTrait, abc.ABC):
+    """
+    Used to represent operations that reference Symbol operations. This provides the
+    ability to perform safe and efficient verification of symbol uses, as well as
+    additional functionality.
+
+    https://mlir.llvm.org/docs/Interfaces/#symbolinterfaces
+    """
+
+    @abc.abstractmethod
+    def verify(self, op: Operation) -> None:
+        """
+        This method should be adapted to the requirements of specific symbol users per
+        operation.
+
+        It corresponds to the verifySymbolUses in upstream MLIR.
+        """
+        raise NotImplementedError()
+
+
 class SymbolTable(OpTrait):
     """
     SymbolTable operations are containers for Symbol operations. They offer lookup
@@ -684,6 +704,12 @@ class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
     In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
     found here.
+    """
+
+
+class Commutative(OpTrait):
+    """
+    A trait that signals that an operation is commutative.
     """
 
 

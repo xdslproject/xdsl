@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, get_all_dialects
+from xdsl.dialects import arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
@@ -17,10 +17,10 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter) -> None:
         if op.lhs == op.rhs:
-            assert isinstance(op.lhs.type, IntegerType | IndexType)
+            assert isinstance(type := op.lhs.type, IntegerType | IndexType)
             rewriter.replace_matched_op(
                 [
-                    li_op := arith.ConstantOp(IntegerAttr(2, op.lhs.type)),
+                    li_op := arith.ConstantOp(IntegerAttr(2, type, truncate_bits=True)),
                     arith.MuliOp(op.lhs, li_op),
                 ]
             )
@@ -44,43 +44,28 @@ class DivisionOfSameVariableToOne(RewritePattern):
             rewriter.replace_matched_op([], [mul_op.lhs])
 
 
-INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS: dict[
-    type[Operation], tuple[RewritePattern, ...]
-] = {
-    arith.AddiOp: (AdditionOfSameVariablesToMultiplyByTwo(),),
-    arith.DivUIOp: (DivisionOfSameVariableToOne(),),
+INDIVIDUAL_REWRITE_PATTERNS_BY_NAME: dict[str, dict[str, RewritePattern]] = {
+    arith.AddiOp.name: {
+        AdditionOfSameVariablesToMultiplyByTwo.__name__: AdditionOfSameVariablesToMultiplyByTwo()
+    },
+    arith.DivUIOp.name: {
+        DivisionOfSameVariableToOne.__name__: DivisionOfSameVariableToOne()
+    },
 }
 """
-Dictionary where the key is an Operation and the value is a tuple of rewrite pattern(s) associated with that operation. These are rewrite patterns defined in this class.
+Extra rewrite patterns available to ApplyIndividualRewritePass
 """
 
-CANONICALIZATION_PATTERNS_BY_OP_CLASS: dict[
-    type[Operation], tuple[RewritePattern, ...]
-] = {
-    op: trait.get_canonicalization_patterns()
-    for dialect in get_all_dialects().values()
-    for op in dialect().operations
-    if (trait := op.get_trait(HasCanonicalizationPatternsTrait)) is not None
-}
-"""
-Dictionary where the key is an Operation and the value is a tuple of rewrite pattern(s) associated with that operation. These are the xdsl canonicalization patterns.
-"""
 
-REWRITE_BY_NAMES: dict[str, dict[str, RewritePattern]] = {
-    op.name: {
-        pattern.__class__.__name__: pattern
-        for pattern in INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS.get(op, ())
-        + CANONICALIZATION_PATTERNS_BY_OP_CLASS.get(op, ())
-    }
-    for op in set(INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS)
-    | set(CANONICALIZATION_PATTERNS_BY_OP_CLASS)
-}
-"""
-Returns a dictionary representing all possible rewrites. Keys are operation names, and
-values are dictionaries. In the inner dictionary, the keys are names of patterns
-associated with each operation, and the values are the corresponding RewritePattern
-instances.
-"""
+def _get_canonicalization_pattern(
+    op: Operation, pattern_name: str
+) -> RewritePattern | None:
+    if (trait := op.get_trait(HasCanonicalizationPatternsTrait)) is None:
+        return None
+
+    for pattern in trait.get_canonicalization_patterns():
+        if type(pattern).__name__ == pattern_name:
+            return pattern
 
 
 @dataclass(frozen=True)
@@ -94,30 +79,36 @@ class ApplyIndividualRewritePass(ModulePass):
 
     name = "apply-individual-rewrite"
 
-    matched_operation_index: int | None = None
-    operation_name: str | None = None
-    pattern_name: str | None = None
+    matched_operation_index: int = field()
+    operation_name: str = field()
+    pattern_name: str = field()
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        assert self.matched_operation_index is not None
-        assert self.operation_name is not None
-        assert self.pattern_name is not None
-
-        matched_operation_list = list(op.walk())
-        if self.matched_operation_index >= len(matched_operation_list):
+        all_ops = list(op.walk())
+        if self.matched_operation_index >= len(all_ops):
             raise ValueError("Matched operation index out of range.")
 
-        matched_operation = list(op.walk())[self.matched_operation_index]
+        matched_operation = all_ops[self.matched_operation_index]
         rewriter = PatternRewriter(matched_operation)
 
-        rewrite_dictionary = REWRITE_BY_NAMES.get(self.operation_name)
-        if rewrite_dictionary is None:
+        if matched_operation.name != self.operation_name:
             raise ValueError(
-                f"Operation name {self.operation_name} not found in the rewrite dictionary."
+                f"Operation {matched_operation.name} at index "
+                f"{self.matched_operation_index} does not match {self.operation_name}"
             )
 
-        pattern = rewrite_dictionary.get(self.pattern_name)
-        if pattern is None:
+        # Check individual rewrites first
+        if (
+            individual_rewrites := INDIVIDUAL_REWRITE_PATTERNS_BY_NAME.get(
+                self.operation_name
+            )
+        ) is not None and (p := individual_rewrites.get(self.pattern_name)) is not None:
+            pattern = p
+        elif (
+            p := _get_canonicalization_pattern(matched_operation, self.pattern_name)
+        ) is not None:
+            pattern = p
+        else:
             raise ValueError(
                 f"Pattern name {self.pattern_name} not found for the provided operation name."
             )

@@ -89,7 +89,7 @@ csl.func @initialize() {
     %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
 
     %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
-    %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
+    %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"tensor_access" = affine_map<(d0, d1) -> (((d0 * 3) + 1), ((d1 * 4) + 2))>}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
     %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
     %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
     %dsd_1d1 = "csl.set_dsd_base_addr"(%dsd_1d, %many_arr_ptr) : (!csl<dsd mem1d_dsd>, !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl<dsd mem1d_dsd>
@@ -392,7 +392,7 @@ csl.func @builtins() {
 // CHECK-NEXT:       %function_ptr = "csl.addressof_fn"() <{"fn_name" = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:       %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"tensor_access" = affine_map<(d0, d1) -> (((d0 * 3) + 1), ((d1 * 4) + 2))>}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %dsd_1d1 = "csl.set_dsd_base_addr"(%dsd_1d, %many_arr_ptr) : (!csl<dsd mem1d_dsd>, !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl<dsd mem1d_dsd>
@@ -571,7 +571,7 @@ csl.func @builtins() {
 // CHECK-NEXT:   }) {"sym_name" = "program"} : () -> ()
 // CHECK-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-NEXT:     %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
-// CHECK-NEXT:     %init = arith.constant 3.140000e+00 : f16
+// CHECK-NEXT:     %init = arith.constant 3.140620e+00 : f16
 // CHECK-NEXT:     %p2 = "csl.param"(%init) <{"param_name" = "param_2"}> : (f16) -> f16
 // CHECK-NEXT:     csl.layout {
 // CHECK-NEXT:       %x_dim, %y_dim = "test.op"() : () -> (i32, i32)
@@ -639,7 +639,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       %function_ptr = "csl.addressof_fn"() <{"fn_name" = @initialize}> : () -> !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-GENERIC-NEXT:       %dir = "csl.get_dir"() <{"dir" = #csl<dir_kind north>}> : () -> !csl.direction
 // CHECK-GENERIC-NEXT:       %dsd_1d = "csl.get_mem_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
-// CHECK-GENERIC-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-GENERIC-NEXT:       %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"tensor_access" = affine_map<(d0, d1) -> (((d0 * 3) + 1), ((d1 * 4) + 2))>}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-GENERIC-NEXT:       %dsd_1d1 = "csl.set_dsd_base_addr"(%dsd_1d, %many_arr_ptr) : (!csl<dsd mem1d_dsd>, !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>) -> !csl<dsd mem1d_dsd>
@@ -818,7 +818,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "program"} : () -> ()
 // CHECK-GENERIC-NEXT:   "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-GENERIC-NEXT:     %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
-// CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{"value" = 3.140000e+00 : f16}> : () -> f16
+// CHECK-GENERIC-NEXT:     %init = "arith.constant"() <{"value" = 3.140620e+00 : f16}> : () -> f16
 // CHECK-GENERIC-NEXT:     %p2 = "csl.param"(%init) <{"param_name" = "param_2"}> : (f16) -> f16
 // CHECK-GENERIC-NEXT:     "csl.layout"() ({
 // CHECK-GENERIC-NEXT:       %x_dim, %y_dim = "test.op"() : () -> (i32, i32)

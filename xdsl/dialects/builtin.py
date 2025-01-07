@@ -18,6 +18,7 @@ from typing import (
     overload,
 )
 
+from immutabledict import immutabledict
 from typing_extensions import Self
 
 from xdsl.ir import (
@@ -61,7 +62,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
-    opt_attr_def,
+    opt_prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -489,7 +490,9 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
                 f"values in the range [{min_value}, {max_value})"
             )
 
-    def normalized_value(self, value: int) -> int | None:
+    def normalized_value(
+        self, value: int, *, truncate_bits: bool = False
+    ) -> int | None:
         """
         Signless values can represent integers from both the signed and unsigned ranges
         for a given bitwidth.
@@ -497,13 +500,16 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
         to the signed version (meaning ambiguous values will always be negative).
         For example, the bitpattern of all ones will always be represented as `-1` at
         runtime.
-        If the input value is outside of the valid range, return `None`.
+        If the input value is outside of the valid range, return `None` if `truncate_bits`
+        is false, otherwise returns a value in range by truncating the bits of the input.
         """
         min_value, max_value = self.value_range()
         if not (min_value <= value < max_value):
-            return None
+            if not truncate_bits:
+                return None
+            value = value % (2**self.bitwidth)
 
-        if self.signedness.data == Signedness.SIGNLESS:
+        if self.signedness.data != Signedness.UNSIGNED:
             signed_ub = signed_upper_bound(self.bitwidth)
             unsigned_ub = unsigned_upper_bound(self.bitwidth)
             if signed_ub <= value:
@@ -596,6 +602,7 @@ IndexTypeConstr = BaseAttr(IndexType)
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+_IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 _IntegerAttrTypeConstrT = TypeVar(
     "_IntegerAttrTypeConstrT", bound=IntegerType | IndexType, covariant=True
 )
@@ -620,22 +627,34 @@ class IntegerAttr(
         self,
         value: int | IntAttr,
         value_type: _IntegerAttrType,
+        *,
+        truncate_bits: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType], value: int | IntAttr, value_type: int
+        self: IntegerAttr[IntegerType],
+        value: int | IntAttr,
+        value_type: int,
+        *,
+        truncate_bits: bool = False,
     ) -> None: ...
 
     def __init__(
-        self, value: int | IntAttr, value_type: int | IntegerType | IndexType
+        self,
+        value: int | IntAttr,
+        value_type: int | IntegerType | IndexType,
+        *,
+        truncate_bits: bool = False,
     ) -> None:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
         if isinstance(value, IntAttr):
             value = value.data
         if not isinstance(value_type, IndexType):
-            normalized_value = value_type.normalized_value(value)
+            normalized_value = value_type.normalized_value(
+                value, truncate_bits=truncate_bits
+            )
             if normalized_value is not None:
                 value = normalized_value
         super().__init__([IntAttr(value), value_type])
@@ -687,6 +706,25 @@ class IntegerAttr(
                 type,
             ),
         )
+
+    @staticmethod
+    def iter_unpack(
+        type: _IntegerAttrTypeInvT, buffer: ReadableBuffer, /
+    ) -> Iterator[IntegerAttr[_IntegerAttrTypeInvT]]:
+        """
+        Yields unpacked values one at a time, starting at the beginning of the buffer.
+        """
+        for value in type.iter_unpack(buffer):
+            yield IntegerAttr(value, type)
+
+    @staticmethod
+    def unpack(
+        type: _IntegerAttrTypeInvT, buffer: ReadableBuffer, num: int, /
+    ) -> tuple[IntegerAttr[_IntegerAttrTypeInvT], ...]:
+        """
+        Unpack `num` values from the beginning of the buffer.
+        """
+        return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -815,6 +853,7 @@ class FloatData(Data[float]):
 
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
+_FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
@@ -833,10 +872,6 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
-        if isinstance(data, FloatData):
-            data_attr = data
-        else:
-            data_attr = FloatData(data)
         if isinstance(type, int):
             if type == 16:
                 type = Float16Type()
@@ -850,6 +885,15 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
                 type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
+
+        value: float = data.data if isinstance(data, FloatData) else data
+        # for supported types, constrain value to precision of floating point type
+        # else, allow full python float precision
+        if isinstance(type, Float64Type | Float32Type | Float16Type):
+            value = type.unpack(type.pack((value,)), 1)[0]
+
+        data_attr = FloatData(value)
+
         super().__init__([data_attr, type])
 
     @staticmethod
@@ -862,6 +906,25 @@ class FloatAttr(Generic[_FloatAttrType], TypedAttribute):
 
     def print_without_type(self, printer: Printer):
         return printer.print_float_attr(self)
+
+    @staticmethod
+    def iter_unpack(
+        type: _FloatAttrTypeInvT, buffer: ReadableBuffer, /
+    ) -> Iterator[FloatAttr[_FloatAttrTypeInvT]]:
+        """
+        Yields unpacked values one at a time, starting at the beginning of the buffer.
+        """
+        for value in type.iter_unpack(buffer):
+            yield FloatAttr(value, type)
+
+    @staticmethod
+    def unpack(
+        type: _FloatAttrTypeInvT, buffer: ReadableBuffer, num: int, /
+    ) -> tuple[FloatAttr[_FloatAttrTypeInvT], ...]:
+        """
+        Unpack `num` values from the beginning of the buffer.
+        """
+        return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -878,12 +941,17 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[str, Attribute]]):
+class DictionaryAttr(GenericData[immutabledict[str, Attribute]]):
     name = "dictionary"
 
+    def __init__(self, value: Mapping[str, Attribute]):
+        if not isinstance(value, immutabledict):
+            value = immutabledict(value)
+        super().__init__(value)
+
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> dict[str, Attribute]:
-        return parser.parse_optional_dictionary_attr_dict()
+    def parse_parameter(cls, parser: AttrParser) -> immutabledict[str, Attribute]:
+        return immutabledict(parser.parse_optional_dictionary_attr_dict())
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_attr_dict(self.data)
@@ -1222,8 +1290,24 @@ class DenseArrayBase(ParametrizedAttribute):
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
         return self.elt_type.unpack(self.data.data, len(self))
 
+    def iter_attrs(self) -> Iterator[AnyIntegerAttr] | Iterator[AnyFloatAttr]:
+        if isinstance(self.elt_type, IntegerType):
+            return IntegerAttr.iter_unpack(self.elt_type, self.data.data)
+        else:
+            return FloatAttr.iter_unpack(self.elt_type, self.data.data)
+
+    def get_attrs(self) -> tuple[AnyIntegerAttr, ...] | tuple[AnyFloatAttr, ...]:
+        if isinstance(self.elt_type, IntegerType):
+            return IntegerAttr.unpack(self.elt_type, self.data.data, len(self))
+        else:
+            return FloatAttr.unpack(self.elt_type, self.data.data, len(self))
+
     def __len__(self) -> int:
         return len(self.data.data) // self.elt_type.size
+
+
+DenseI64ArrayConstr = ParamAttrConstraint(DenseArrayBase, [i64, BytesAttr])
+"""Type constraint for DenseArrays containing integers of i64 integers."""
 
 
 @irdl_attr_definition
@@ -1602,7 +1686,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
-    sym_name = opt_attr_def(StringAttr)
+    sym_name = opt_prop_def(StringAttr)
 
     body = region_def("single_block")
 
@@ -1617,6 +1701,7 @@ class ModuleOp(IRDLOperation):
         self,
         ops: list[Operation] | Region,
         attributes: Mapping[str, Attribute] | None = None,
+        sym_name: StringAttr | None = None,
     ):
         if attributes is None:
             attributes = {}
@@ -1624,7 +1709,8 @@ class ModuleOp(IRDLOperation):
             region = ops
         else:
             region = Region(Block(ops))
-        super().__init__(regions=[region], attributes=attributes)
+        properties: dict[str, Attribute | None] = {"sym_name": sym_name}
+        super().__init__(regions=[region], attributes=attributes, properties=properties)
 
     @property
     def ops(self) -> BlockOps:
@@ -1632,6 +1718,8 @@ class ModuleOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ModuleOp:
+        module_name = parser.parse_optional_symbol_name()
+
         attributes = parser.parse_optional_attr_dict_with_keyword()
         if attributes is not None:
             attributes = attributes.data
@@ -1641,9 +1729,12 @@ class ModuleOp(IRDLOperation):
         if not region.blocks:
             region.add_block(Block())
 
-        return ModuleOp(region, attributes)
+        return ModuleOp(region, attributes, module_name)
 
     def print(self, printer: Printer) -> None:
+        if self.sym_name is not None:
+            printer.print(f" @{self.sym_name.data}")
+
         if len(self.attributes) != 0:
             printer.print(" attributes ")
             printer.print_op_attributes(self.attributes)
@@ -1865,8 +1956,8 @@ class TensorOrMemrefOf(
         }
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+        if isinstance(attr, MemRefType) or isinstance(attr, TensorType):
+            attr = cast(MemRefType[Attribute] | TensorType[Attribute], attr)
             self.elem_constr.verify(attr.element_type, constraint_context)
         else:
             raise VerifyException(f"Expected tensor or memref type, got {attr}")
@@ -1921,6 +2012,9 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
 
     def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
         return self.type.get_element_type()
+
+    def __len__(self) -> int:
+        return len(self.data)
 
     @property
     def shape_is_complete(self) -> bool:
@@ -2018,25 +2112,44 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         ),
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
+        # zero rank type should only hold 1 value
+        if not type.get_shape() and len(data) != 1:
+            raise ValueError(
+                f"A zero-rank {type.name} can only hold 1 value but {len(data)} were given."
+            )
+
+        # splat value given
+        if len(data) == 1 and prod(type.get_shape()) != 1:
+            new_data = (data[0],) * prod(type.get_shape())
+        else:
+            new_data = data
+
         if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedStructure[AnyFloat], type)
-            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            new_data = cast(
+                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], new_data
+            )
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
         elif isinstance(type.element_type, IntegerType):
             new_type = cast(RankedStructure[IntegerType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
+            new_data = cast(
+                Sequence[int] | Sequence[IntegerAttr[IntegerType]], new_data
+            )
             return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         else:
             new_type = cast(RankedStructure[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], new_data)
             return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
 
     @staticmethod
     def vector_from_list(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
+        shape: Sequence[int] | None = None,
     ) -> DenseIntOrFPElementsAttr:
-        t = VectorType(data_type, [len(data)])
+        if not shape:
+            shape = [len(data)]
+        t = VectorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod

@@ -560,7 +560,7 @@ class Interpreter:
     """
     Runtime data associated with an interpreter functions implementation.
     """
-    listener: Listener = field(default=Listener())
+    listeners: tuple[Listener, ...] = field(default=())
 
     @property
     def symbol_table(self) -> dict[str, Operation]:
@@ -622,7 +622,8 @@ class Interpreter:
             raise InterpretationError(
                 f"Number of operands ({operands_count}) doesn't match the number of inputs ({inputs_count})."
             )
-        self.listener.will_interpret_op(op, inputs)
+        for listener in self.listeners:
+            listener.will_interpret_op(op, inputs)
         result = self._impls.run(self, op, inputs)
         if (results_count := len(op.results)) != (
             actual_result_count := len(result.values)
@@ -630,7 +631,8 @@ class Interpreter:
             raise InterpretationError(
                 f"Number of operation results ({results_count}) doesn't match the number of implementation results ({actual_result_count})."
             )
-        self.listener.did_interpret_op(op, result.values)
+        for listener in self.listeners:
+            listener.did_interpret_op(op, result.values)
         return result
 
     def run_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:

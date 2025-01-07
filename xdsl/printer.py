@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
@@ -350,11 +350,32 @@ class Printer(BasePrinter):
                 )
         else:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
-            float_str = f"{value:.6e}"
-            if float(float_str) == value:
+            float_str = f"{value:.5e}"
+            index = float_str.find("e")
+            float_str = float_str[:index] + "0" + float_str[index:]
+
+            parsed_value = type.unpack(type.pack([float(float_str)]), 1)[0]
+
+            if parsed_value == value:
                 self.print_string(float_str)
             else:
-                self.print_string(f"{repr(value)}")
+                if isinstance(type, Float32Type):
+                    # f32 is printed with 9 significant digits
+                    float_str = f"{value:.9g}"
+                    if "." in float_str:
+                        self.print_string(float_str)
+                    else:
+                        self.print_string(f"0x{convert_f32_to_u32(value):X}")
+                elif isinstance(type, Float64Type):
+                    # f64 is printed with 17 significant digits
+                    float_str = f"{value:.17g}"
+                    if "." in float_str:
+                        self.print_string(float_str)
+                    else:
+                        self.print_string(f"0x{convert_f64_to_u64(value):X}")
+                else:
+                    # default to full python precision
+                    self.print_string(f"{repr(value)}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
@@ -673,7 +694,7 @@ class Printer(BasePrinter):
             self.print_string(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
-    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+    def print_attr_dict(self, attr_dict: Mapping[str, Attribute]) -> None:
         self.print_string("{")
         self.print_list(attr_dict.items(), self._print_attr_string)
         self.print_string("}")
@@ -688,7 +709,7 @@ class Printer(BasePrinter):
 
     def print_op_attributes(
         self,
-        attributes: dict[str, Attribute],
+        attributes: Mapping[str, Attribute],
         *,
         reserved_attr_names: Iterable[str] = (),
         print_keyword: bool = False,

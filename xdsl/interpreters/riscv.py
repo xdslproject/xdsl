@@ -613,6 +613,6 @@ class RiscvFunctions(InterpreterFunctions):
                         attr.get_element_type(), interpreter.index_bitwidth
                     ),
                 )
-                return data_ptr
+                return data_ptr.raw
             case _:
                 interpreter.raise_error(f"Unknown value type for int register: {attr}")

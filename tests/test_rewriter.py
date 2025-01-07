@@ -474,6 +474,13 @@ def test_erase_op():
         rewrite_and_compare(prog, expected, transformation_safe)
 
 
+def test_erase_orphan_op():
+    """Test that we can erase an orphan operation."""
+    module = ModuleOp([])
+    rewriter = Rewriter()
+    rewriter.erase_op(module)
+
+
 def test_inline_region_before():
     """Test the insertion of a block in a region."""
     prog = """\

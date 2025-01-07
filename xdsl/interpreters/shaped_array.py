@@ -9,7 +9,7 @@ from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import ShapedType
+from xdsl.dialects.builtin import PackableType, ShapedType
 from xdsl.interpreters.utils.ptr import TypedPtr
 
 _T = TypeVar("_T")
@@ -24,6 +24,10 @@ class ShapedArray(Generic[_T]):
 
     _data: TypedPtr[_T]
     shape: list[int]
+
+    @property
+    def element_type(self) -> PackableType[_T]:
+        return self._data.xtype
 
     @property
     def size(self) -> int:
