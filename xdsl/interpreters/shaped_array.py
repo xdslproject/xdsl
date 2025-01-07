@@ -26,7 +26,7 @@ class ShapedArray(Generic[_T]):
     shape: list[int]
 
     @property
-    def type(self) -> PackableType[_T]:
+    def element_type(self) -> PackableType[_T]:
         return self._data.xtype
 
     @property
