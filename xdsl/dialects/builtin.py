@@ -532,7 +532,7 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
 
     @property
     def format(self) -> str:
-        match math.ceil(self.bitwidth / 8):
+        match -(self.bitwidth // -8):  # ceildiv
             case 1:
                 return "<b"
             case 2:
