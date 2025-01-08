@@ -150,7 +150,7 @@ class MemrefStreamInterleavePass(ModulePass):
     The pass will select the largest factor of the corresponding bound smaller than
     `pipeline-depth * 2`.
     The search range is bound by `pipeline-depth * 2` as very large interleaving factors
-    would cause too much register pressure, potentially running out of registers.
+    can increase register pressure and potentially exhaust all available registers.
     In the future, it would be good to take the number of available registers into account
     when choosing a search range, as well as inspecting the generic body for
     read-after-write dependencies.
