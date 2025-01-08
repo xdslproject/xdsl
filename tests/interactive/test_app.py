@@ -28,7 +28,6 @@ from xdsl.transforms import (
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 @pytest.mark.asyncio
@@ -324,12 +323,9 @@ async def test_rewrites():
 
         addi_pass = AvailablePass(
             display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
-            module_pass=individual_rewrite.ApplyIndividualRewritePass,
-            pass_spec=list(
-                parse_pipeline(
-                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
-                )
-            )[0],
+            module_pass=individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
+            ),
         )
 
         await pilot.pause()

@@ -13,7 +13,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
-from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 class Rewrite(RewritePattern):
@@ -44,27 +43,11 @@ def test_get_all_possible_rewrite():
     expected_res = [
         AvailablePass(
             display_name='TestOp("test.op"() {label = "a"} : () -> ()):test.op:TestRewrite',
-            module_pass=ApplyIndividualRewritePass,
-            pass_spec=PipelinePassSpec(
-                "apply-individual-rewrite",
-                {
-                    "matched_operation_index": (1,),
-                    "operation_name": ("test.op",),
-                    "pattern_name": ("TestRewrite",),
-                },
-            ),
+            module_pass=ApplyIndividualRewritePass(1, "test.op", "TestRewrite"),
         ),
         AvailablePass(
             display_name='TestOp("test.op"() {label = "a"} : () -> ()):test.op:TestRewrite',
-            module_pass=ApplyIndividualRewritePass,
-            pass_spec=PipelinePassSpec(
-                "apply-individual-rewrite",
-                {
-                    "matched_operation_index": (2,),
-                    "operation_name": ("test.op",),
-                    "pattern_name": ("TestRewrite",),
-                },
-            ),
+            module_pass=ApplyIndividualRewritePass(2, "test.op", "TestRewrite"),
         ),
     ]
 
