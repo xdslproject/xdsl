@@ -39,5 +39,5 @@ def get_available_pass_list(
     if condense_mode:
         pass_list = get_condensed_pass_list(current_module, all_passes)
     else:
-        pass_list = tuple(AvailablePass(p.name, p, None) for _, p in all_passes)
+        pass_list = tuple(AvailablePass(p.name, p) for _, p in all_passes)
     return pass_list + tuple(individual_rewrites)
