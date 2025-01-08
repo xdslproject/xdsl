@@ -10,8 +10,8 @@ wasm.module
 // CHECK-GENERIC-NEXT:    "wasm.module"() : () -> ()
 
 wasm.module attributes {"hello" = "world"}
-// CHECK-NEXT:    wasm.module attributes {"hello" = "world"}
-// CHECK-GENERIC-NEXT:    "wasm.module"() {"hello" = "world"} : () -> ()
+// CHECK-NEXT:    wasm.module attributes {hello = "world"}
+// CHECK-GENERIC-NEXT:    "wasm.module"() {hello = "world"} : () -> ()
 
 
 // CHECK-NEXT:  }

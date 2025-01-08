@@ -43,4 +43,4 @@
 // CHECK-NEXT:   2: %fd
 // CHECK-NEXT: ]
 
-// CHECK-GENERIC: %x7 = "varith.switch"(%ia, %fa, %fb, %fc, %fd) <{"case_values" = dense<[0, 1, 2]> : vector<3xi32>}> : (i32, f32, f32, f32, f32) -> f32
+// CHECK-GENERIC: %x7 = "varith.switch"(%ia, %fa, %fb, %fc, %fd) <{case_values = dense<[0, 1, 2]> : vector<3xi32>}> : (i32, f32, f32, f32, f32) -> f32

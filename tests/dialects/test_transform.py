@@ -53,7 +53,7 @@ def test_sequence_init():
             extra_bindings=extra_bindings,
         ),
         """
-        "transform.sequence"() <{"failure_propagation_mode" = 1 : i32, "operandSegmentSizes" = array<i32: 0, 0>}> ({
+        "transform.sequence"() <{failure_propagation_mode = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
 ^0(%0 : !transform.any_value, %1 : !transform.op<"linalg.matmul">):
 }) : () -> ()
         """,
@@ -78,7 +78,7 @@ def test_tileop_init():
             dynamic_sizes=[],
             static_sizes=static_sizes,
         ),
-        """%0, %1, %2 = "transform.structured.tile_using_for"(%3) <{"static_sizes" = array<i32: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",
+        """%0, %1, %2 = "transform.structured.tile_using_for"(%3) <{static_sizes = array<i32: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",
         None,
     )
 
@@ -88,7 +88,7 @@ def test_get_consumer_of_result():
     target = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
     assert_print_op(
         transform.GetConsumersOfResultOp(target=target, result_number=result_number),
-        """%0 = "transform.get_consumers_of_result"(%1) <{"result_number" = 0 : i64}> : (!transform.any_op) -> !transform.any_op""",
+        """%0 = "transform.get_consumers_of_result"(%1) <{result_number = 0 : i64}> : (!transform.any_op) -> !transform.any_op""",
         None,
     )
 
@@ -106,7 +106,7 @@ def test_get_parent_op():
     target = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
     assert_print_op(
         transform.GetParentOp(target=target),
-        """%0 = "transform.get_parent_op"(%1) <{"nth_parent" = 1 : i64}> : (!transform.any_op) -> !transform.any_op""",
+        """%0 = "transform.get_parent_op"(%1) <{nth_parent = 1 : i64}> : (!transform.any_op) -> !transform.any_op""",
         None,
     )
 
@@ -115,7 +115,7 @@ def test_get_producer_of_operand():
     target = test.TestOp(result_types=[transform.AnyValueType()]).results[0]
     assert_print_op(
         transform.GetProducerOfOperandOp(operand_number=0, target=target),
-        """%0 = "transform.get_producer_of_operand"(%1) <{"operand_number" = 0 : i64}> : (!transform.any_value) -> !transform.any_op""",
+        """%0 = "transform.get_producer_of_operand"(%1) <{operand_number = 0 : i64}> : (!transform.any_value) -> !transform.any_op""",
         None,
     )
 
@@ -125,7 +125,7 @@ def test_get_result():
     result_number = 0
     assert_print_op(
         transform.GetResultOp(target=target, raw_position_list=[result_number]),
-        """%0 = "transform.get_result"(%1) <{"raw_position_list" = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value""",
+        """%0 = "transform.get_result"(%1) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value""",
         None,
     )
 
@@ -146,7 +146,7 @@ def test_include():
         transform.IncludeOp(
             target=target, failure_propagation_mode=0, operands_input=operands_input
         ),
-        """%0 = "transform.include"(%1) <{"target" = @foo, "failure_propagation_mode" = false}> : (!transform.any_value) -> !transform.any_value""",
+        """%0 = "transform.include"(%1) <{target = @foo, failure_propagation_mode = false}> : (!transform.any_value) -> !transform.any_value""",
         None,
     )
 
@@ -164,7 +164,7 @@ def test_match_name():
     handle = test.TestOp(result_types=[transform.AnyOpType()]).results[0]
     assert_print_op(
         transform.MatchOperationNameOp(operand_handle=handle, op_names=["foo"]),
-        """ "transform.match.operation_name"(%0) <{"op_names" = ["foo"]}> : (!transform.any_op) -> ()    """,
+        """ "transform.match.operation_name"(%0) <{op_names = ["foo"]}> : (!transform.any_op) -> ()    """,
         None,
     )
 
@@ -177,7 +177,7 @@ def test_match_param():
         transform.MatchParamCmpIOp(
             predicate=predicate, param=param, reference=reference
         ),
-        """ "transform.match.param.cmpi"(%0, %1) <{"predicate" = 0 : i64}> : (!transform.any_param, !transform.any_param) -> () """,
+        """ "transform.match.param.cmpi"(%0, %1) <{predicate = 0 : i64}> : (!transform.any_param, !transform.any_param) -> () """,
         None,
     )
 
@@ -186,7 +186,7 @@ def test_merge_handles():
     handles = [test.TestOp(result_types=[transform.AnyOpType()]).results[0]]
     assert_print_op(
         transform.MergeHandlesOp(handles=handles, deduplicate=True),
-        """%0 = "transform.merge_handles"(%1) <{"deduplicate"}> : (!transform.any_op) -> !transform.any_op    """,
+        """%0 = "transform.merge_handles"(%1) <{deduplicate}> : (!transform.any_op) -> !transform.any_op    """,
         None,
     )
 
@@ -195,7 +195,7 @@ def test_param_const():
     value = IntegerAttr(1, IntegerType(32))
     assert_print_op(
         transform.ParamConstantOp(value=value, param_type=IntegerType(32)),
-        """ %0 = "transform.param.constant"() <{"value" = 1 : i32}> : () -> !transform.param<i32>    """,
+        """ %0 = "transform.param.constant"() <{value = 1 : i32}> : () -> !transform.param<i32>    """,
         None,
     )
 
@@ -210,7 +210,7 @@ def test_split_handle():
             fail_on_payload_too_small=True,
             overflow_result=1,
         ),
-        """ %0, %1 = "transform.split_handle"(%2) <{"pass_through_empty_handle" = true, "fail_on_payload_too_small" = true, "overflow_result" = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op) """,
+        """ %0, %1 = "transform.split_handle"(%2) <{pass_through_empty_handle = true, fail_on_payload_too_small = true, overflow_result = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op) """,
         None,
     )
 
@@ -232,7 +232,7 @@ def test_amount_of_loops():
             dynamic_sizes=[],
             static_sizes=static_sizes,
         ),
-        """%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<i32: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",
+        """%0, %1 = "transform.structured.tile_using_for"(%2) <{static_sizes = array<i32: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",
         None,
     )
 
@@ -245,6 +245,6 @@ def test_structured_match():
             ops=[],
             op_attrs={},
         ),
-        """ %0 = "transform.structured.match"(%1) <{"ops" = [], "op_attrs" = {}}> : (!transform.any_op) -> !transform.any_op """,
+        """ %0 = "transform.structured.match"(%1) <{ops = [], op_attrs = {}}> : (!transform.any_op) -> !transform.any_op """,
         None,
     )

@@ -43,7 +43,7 @@ def test_get_all_possible_rewrite():
 
     expected_res = [
         AvailablePass(
-            display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
+            display_name='TestOp("test.op"() {label = "a"} : () -> ()):test.op:TestRewrite',
             module_pass=ApplyIndividualRewritePass,
             pass_spec=PipelinePassSpec(
                 "apply-individual-rewrite",
@@ -55,7 +55,7 @@ def test_get_all_possible_rewrite():
             ),
         ),
         AvailablePass(
-            display_name='TestOp("test.op"() {"label" = "a"} : () -> ()):test.op:TestRewrite',
+            display_name='TestOp("test.op"() {label = "a"} : () -> ()):test.op:TestRewrite',
             module_pass=ApplyIndividualRewritePass,
             pass_spec=PipelinePassSpec(
                 "apply-individual-rewrite",

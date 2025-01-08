@@ -78,8 +78,8 @@ builtin.module {
 // CHECK:       func.func public @main() {
 // CHECK-NEXT:      %0 = arith.constant 1 : i32
 // CHECK-NEXT:      %1 = "llvm.mlir.undef"() : () -> !llvm.struct<(i32)>
-// CHECK-NEXT:      %2 = "llvm.insertvalue"(%1, %0) <{"position" = array<i64: 0>}> : (!llvm.struct<(i32)>, i32) -> !llvm.struct<(i32)>
-// CHECK-NEXT:      %3 = "llvm.extractvalue"(%2) <{"position" = array<i64: 0>}> : (!llvm.struct<(i32)>) -> i32
+// CHECK-NEXT:      %2 = "llvm.insertvalue"(%1, %0) <{position = array<i64: 0>}> : (!llvm.struct<(i32)>, i32) -> !llvm.struct<(i32)>
+// CHECK-NEXT:      %3 = "llvm.extractvalue"(%2) <{position = array<i64: 0>}> : (!llvm.struct<(i32)>) -> i32
 // CHECK-NEXT:      %4 = llvm.mlir.zero : !llvm.struct<(i32, f32)>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
