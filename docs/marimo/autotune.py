@@ -507,11 +507,13 @@ def _(mo, msg_factors):
         for index, factor in msg_factors
     )
 
+    _passes_str = "\n".join(str(p.pipeline_pass_spec()) for p in uaj_passes)
+
     mo.md(f"""
     We construct passes from these indices:
 
     ```
-    {"\n".join(str(p.pipeline_pass_spec()) for p in uaj_passes)}
+    {_passes_str}
     ```
     """)
     return MemrefStreamUnrollAndJamPass, uaj_passes
