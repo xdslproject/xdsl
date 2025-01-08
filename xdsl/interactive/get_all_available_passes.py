@@ -11,14 +11,13 @@ from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import RewritePattern
-from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 def get_available_pass_list(
     all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
     all_passes: tuple[tuple[str, type[ModulePass]], ...],
     input_text: str,
-    pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
+    pass_pipeline: tuple[ModulePass, ...],
     condense_mode: bool,
     rewrite_by_names_dict: dict[str, dict[str, RewritePattern]],
 ) -> tuple[AvailablePass, ...]:

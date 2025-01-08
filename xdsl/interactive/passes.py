@@ -35,17 +35,13 @@ def get_new_registered_context(
 def apply_passes_to_module(
     module: builtin.ModuleOp,
     ctx: MLContext,
-    pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
+    passes: tuple[ModulePass, ...],
 ) -> builtin.ModuleOp:
     """
-    Function that takes a ModuleOp, an MLContext and a pass_pipeline (consisting of a type[ModulePass] and PipelinePassSpec), applies the pass(es) to the ModuleOp and returns the new ModuleOp.
+    Function that takes a ModuleOp, an MLContext and a pass_pipeline, applies the
+    passes to the ModuleOp and returns the modified ModuleOp.
     """
-    pipeline = PipelinePass(
-        passes=tuple(
-            module_pass.from_pass_spec(pipeline_pass_spec)
-            for module_pass, pipeline_pass_spec in pass_pipeline
-        )
-    )
+    pipeline = PipelinePass(passes=passes)
     pipeline.apply(ctx, module)
     return module
 
