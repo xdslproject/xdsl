@@ -428,6 +428,17 @@ class RiscvFunctions(InterpreterFunctions):
 
     # region D extension
 
+    @impl(riscv.FMAddDOp)
+    def run_fmadd_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMAddDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] * args[1] + args[2],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FAddDOp)
     def run_fadd_d(
         self,

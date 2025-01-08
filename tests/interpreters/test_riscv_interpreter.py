@@ -158,6 +158,16 @@ def test_riscv_interpreter():
     # D extension arithmetic
 
     assert interpreter.run_op(
+        riscv.FMAddDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0, 5.0),
+    ) == (17.0,)
+
+    assert interpreter.run_op(
         riscv.FAddDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
