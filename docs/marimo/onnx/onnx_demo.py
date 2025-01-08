@@ -218,7 +218,7 @@ def _(
     )
 
     linalg_html
-    return bufferized_module, linalg_html
+    return bufferized_ctx, bufferized_module, linalg_html
 
 
 @app.cell
