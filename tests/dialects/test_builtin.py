@@ -41,7 +41,6 @@ from xdsl.dialects.builtin import (
     f32,
     f64,
     i1,
-    i2,
     i8,
     i16,
     i32,
@@ -181,7 +180,8 @@ def test_IntegerType_packing():
     assert attrs_i1 == tuple(IntegerAttr(n, i1) for n in nums_i1)
     assert tuple(attr for attr in IntegerAttr.iter_unpack(i1, buffer_i1)) == attrs_i1
 
-    # i2
+    # custom bitwidths up to 64 can also be packed:
+    i2 = IntegerType(2)
     nums_i2 = (0, 1, 2, 3)
     buffer_i2 = i2.pack(nums_i2)
     unpacked_i2 = i2.unpack(buffer_i2, len(nums_i2))

@@ -549,13 +549,11 @@ i64 = IntegerType(64)
 i32 = IntegerType(32)
 i16 = IntegerType(16)
 i8 = IntegerType(8)
-i2 = IntegerType(2)
 i1 = IntegerType(1)
 I64 = Annotated[IntegerType, i64]
 I32 = Annotated[IntegerType, i32]
 I16 = Annotated[IntegerType, i16]
 I8 = Annotated[IntegerType, i8]
-I2 = Annotated[IntegerType, i2]
 I1 = Annotated[IntegerType, i1]
 
 
