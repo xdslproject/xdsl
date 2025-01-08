@@ -1,9 +1,6 @@
 {
   "name": "Dev container",
   "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "features": {
-    "ghcr.io/dhoeric/features/hadolint:1": {}
-  },
   "customizations": {
     "vscode": {
       "extensions": [
