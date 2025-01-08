@@ -532,14 +532,14 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
 
     @property
     def format(self) -> str:
-        match self.bitwidth:
-            case 1 | 2 | 8:
+        match math.ceil(self.bitwidth / 8):
+            case 1:
                 return "<b"
-            case 16:
+            case 2:
                 return "<h"
-            case 32:
+            case 3 | 4:
                 return "<i"
-            case 64:
+            case 5 | 6 | 7 | 8:
                 return "<q"
             case _:
                 raise NotImplementedError(f"Format not implemented for {self}")

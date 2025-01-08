@@ -74,14 +74,14 @@ def test_FloatType_formats():
 
 
 def test_IntegerType_formats():
-    with pytest.raises(NotImplementedError):
-        IntegerType(3).format
     assert IntegerType(1).format == "<b"
     assert IntegerType(2).format == "<b"
     assert IntegerType(8).format == "<b"
     assert IntegerType(16).format == "<h"
     assert IntegerType(32).format == "<i"
     assert IntegerType(64).format == "<q"
+    with pytest.raises(NotImplementedError):
+        IntegerType(65).format
 
 
 def test_IndexType_formats():
