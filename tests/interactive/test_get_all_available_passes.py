@@ -68,12 +68,7 @@ def test_get_all_available_passes():
         tuple((p.name, p) for p in (ABPass, ACPass, BCPass, BDPass)),
         '"test.op"() {key="a"} : () -> ()',
         # Transforms the above op from "a" to "b" before testing passes
-        (
-            (
-                ABPass,
-                PipelinePassSpec(name="ab", args={}),
-            ),
-        ),
+        (ABPass(),),
         condense_mode=True,
         rewrite_by_names_dict={
             "test.op": {

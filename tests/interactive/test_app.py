@@ -28,7 +28,7 @@ from xdsl.transforms import (
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
+from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 @pytest.mark.asyncio
@@ -167,18 +167,12 @@ async def test_buttons():
         # Select two passes
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
-            ),
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
         )
 
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_arith_to_riscv.ConvertArithToRiscvPass,
-                PipelinePassSpec(name="convert-arith-to-riscv", args={}),
-            ),
+            convert_arith_to_riscv.ConvertArithToRiscvPass(),
         )
 
         # assert that pass selection affected Output Text Area
@@ -350,13 +344,8 @@ async def test_rewrites():
         # Select a rewrite
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                individual_rewrite.ApplyIndividualRewritePass,
-                list(
-                    parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
-                    )
-                )[0],
+            individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
             ),
         )
 
@@ -414,10 +403,7 @@ async def test_passes():
         # Select a pass
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
-            ),
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
         )
         # assert that the Output Text Area has changed accordingly
         await pilot.pause()
