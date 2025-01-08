@@ -1,6 +1,5 @@
 {
   "name": "Dev container",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
   "customizations": {
     "vscode": {
       "extensions": [
