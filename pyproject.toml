@@ -142,6 +142,7 @@ max-line-length = 300
 "docs/irdl.ipynb" = ["ALL"]
 "docs/database_example.ipynb" = ["ALL"]
 "**/{docs/marimo}/*" = ["E501", "I001"]
+"**/__marimo__/*" = ["ALL"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
 
@@ -149,7 +150,12 @@ max-line-length = 300
 max-complexity = 10
 
 [tool.ruff.format]
-exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
+exclude = [
+    "versioneer.py",
+    "xdsl/_version.py",
+    "docs/marimo/**/*.py",
+    "docs/marimo/**/*.ipynb",
+]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]

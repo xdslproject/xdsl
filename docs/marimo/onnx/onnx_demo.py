@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.10.9"
-app = marimo.App()
+app = marimo.App(auto_download=["ipynb"])
 
 
 @app.cell(hide_code=True)
@@ -218,7 +218,7 @@ def _(
     )
 
     linalg_html
-    return bufferized_module, linalg_html
+    return bufferized_ctx, bufferized_module, linalg_html
 
 
 @app.cell
