@@ -73,13 +73,21 @@ def test_FloatType_formats():
 
 
 def test_IntegerType_formats():
-    with pytest.raises(NotImplementedError):
-        IntegerType(2).format
     assert IntegerType(1).format == "<b"
+    assert IntegerType(2).format == "<b"
+    assert IntegerType(7).format == "<b"
     assert IntegerType(8).format == "<b"
+    assert IntegerType(9).format == "<h"
+    assert IntegerType(15).format == "<h"
     assert IntegerType(16).format == "<h"
+    assert IntegerType(17).format == "<i"
+    assert IntegerType(31).format == "<i"
     assert IntegerType(32).format == "<i"
+    assert IntegerType(33).format == "<q"
+    assert IntegerType(63).format == "<q"
     assert IntegerType(64).format == "<q"
+    with pytest.raises(NotImplementedError):
+        IntegerType(65).format
 
 
 def test_IndexType_formats():
@@ -178,6 +186,16 @@ def test_IntegerType_packing():
     attrs_i1 = IntegerAttr.unpack(i1, buffer_i1, len(nums_i1))
     assert attrs_i1 == tuple(IntegerAttr(n, i1) for n in nums_i1)
     assert tuple(attr for attr in IntegerAttr.iter_unpack(i1, buffer_i1)) == attrs_i1
+
+    # custom bitwidths up to 64 can also be packed:
+    i2 = IntegerType(2)
+    nums_i2 = (0, 1, 2, 3)
+    buffer_i2 = i2.pack(nums_i2)
+    unpacked_i2 = i2.unpack(buffer_i2, len(nums_i2))
+    assert nums_i2 == unpacked_i2
+    attrs_i2 = IntegerAttr.unpack(i2, buffer_i2, len(nums_i2))
+    assert attrs_i2 == tuple(IntegerAttr(n, i2) for n in nums_i2)
+    assert tuple(attr for attr in IntegerAttr.iter_unpack(i2, buffer_i2)) == attrs_i2
 
     # i8
     nums_i8 = (-128, -1, 0, 1, 127)
