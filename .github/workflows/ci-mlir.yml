@@ -131,9 +131,9 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
-      uses: Wandalen/wretry.action@v1
+      uses: Wandalen/wretry.action@v3
       with:
-        action: codecov/codecov-action@v4
+        action: codecov/codecov-action@v5
         attempt_delay: 10000
         attempt_limit: 10
         with: |
