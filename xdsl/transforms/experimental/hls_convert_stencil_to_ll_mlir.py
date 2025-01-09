@@ -531,7 +531,10 @@ class ApplyOpToHLS(RewritePattern):
 
         # We replace the temp arguments by HLS streams. Only for the 3D temps
         for k in range(len(apply_clones_lst)):
-            # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing # to external memory # We replace by streams only the 3D temps. The rest should be left as is operand_stream = dict()
+            # Insert the HLS stream operands and their corresponding block arguments for
+            # reading from the shift buffer and writing to external memory.
+            # We replace by streams only the 3D temps.
+            # The rest should be left as is operand_stream = dict()
             current_stream = 0
 
             new_operands_lst: list[OpResult] = []

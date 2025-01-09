@@ -284,7 +284,12 @@ class DmaMemcpyNdOp(IRDLOperation):
             result_types=[AsyncTokenAttr()],
         )
 
-    assembly_format = "(`async` $async_dependencies^)? `(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `,` $src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)`  attr-dict `:` `(` type($dst) `,` type($src) `)`"
+    assembly_format = (
+        "(`async` $async_dependencies^)? "
+        "`(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `,` "
+        "$src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)` "
+        "attr-dict `:` `(` type($dst) `,` type($src) `)`"
+    )
 
 
 @irdl_op_definition
