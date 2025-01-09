@@ -481,8 +481,7 @@ async def test_argument_pass_screen():
 
         for node in root_children:
             assert node.data is not None
-            pass_val, _ = node.data
-            if pass_val.name == stencil_global_to_local.DistributeStencilPass.name:
+            if node.data is stencil_global_to_local.DistributeStencilPass:
                 distribute_stencil_node = node
 
         assert distribute_stencil_node is not None
@@ -541,11 +540,8 @@ async def test_apply_individual_rewrite():
 
         node = None
         for n in app.passes_tree.root.children:
-            if (
-                n.data is not None
-                and n.data[1] is not None
-                and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationConstantProp"}'
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationConstantProp"
             ):
                 node = n
 
@@ -571,11 +567,8 @@ async def test_apply_individual_rewrite():
         # Apply second individual rewrite
         node = None
         for n in app.passes_tree.root.children:
-            if (
-                n.data is not None
-                and n.data[1] is not None
-                and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
             ):
                 node = n
 
