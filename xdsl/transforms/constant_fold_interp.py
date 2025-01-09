@@ -87,8 +87,6 @@ class ConstantFoldInterpPass(ModulePass):
         interpreter = Interpreter(op)
         # Do not call wgpu interpreter functions for this pass
         # Do not call onnx interpreter function for this pass
-        register_implementations(
-            interpreter, ctx, include_wgpu=False, include_onnx=False
-        )
+        register_implementations(interpreter, ctx, include_onnx=False)
         pattern = ConstantFoldInterpPattern(interpreter)
         PatternRewriteWalker(pattern).rewrite_module(op)

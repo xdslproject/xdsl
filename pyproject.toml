@@ -37,7 +37,6 @@ gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.4.38", "numpy==2.2.1"]
 onnx = ["onnx==1.17.0", "numpy==2.2.1"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.19.3"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -79,7 +78,6 @@ extraPaths = ["tests"]
     "tests/test_frontend_python_code_check.py",
     "xdsl/frontend/onnx/ir_builder.py",
     "xdsl/frontend/onnx/type.py",
-    "xdsl/interpreters/wgpu.py",
 ]
 "ignore" = [
     "docs/marimo",

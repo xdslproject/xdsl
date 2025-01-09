@@ -29,7 +29,6 @@ def register_implementations(
     interpreter: Interpreter,
     ctx: MLContext,
     *,
-    include_wgpu: bool = True,
     include_onnx: bool = True,
 ):
     interpreter.register_implementations(affine.AffineFunctions())
@@ -57,8 +56,3 @@ def register_implementations(
         from xdsl.interpreters import onnx
 
         interpreter.register_implementations(onnx.OnnxFunctions())
-
-    if include_wgpu:
-        from xdsl.interpreters import wgpu
-
-        interpreter.register_implementations(wgpu.WGPUFunctions())
