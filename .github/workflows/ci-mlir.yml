@@ -73,7 +73,7 @@ jobs:
 
     - name: Ninja Setup
       if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: lukka/get-cmake@aa1df13
+      uses: lukka/get-cmake@aa1df13cce8c30d2cb58efa871271c5a764623f8
 
     - name: MLIR Build Setup
       if: steps.cache-binary.outputs.cache-hit != 'true'
