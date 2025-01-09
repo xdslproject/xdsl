@@ -85,7 +85,6 @@ class ConstantFoldInterpPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         interpreter = Interpreter(op)
-        # Do not call wgpu interpreter functions for this pass
         # Do not call onnx interpreter function for this pass
         register_implementations(interpreter, ctx, include_onnx=False)
         pattern = ConstantFoldInterpPattern(interpreter)
