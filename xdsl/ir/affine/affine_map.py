@@ -135,9 +135,12 @@ class AffineMap:
         """
         Returns the `AffineMap` resulting from composing `self` with `other`.
 
-        The resulting `AffineMap` has as many dimensions as `other` and as many symbols as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
+        The resulting `AffineMap` has as many dimensions as `other` and as many symbols
+        as the concatenation of `self` and `other` (in which case the symbols of `self`
+        come first).
 
-        Prerequisites: The maps are composable, i.e. that the number of dimensions of `self` matches the number of results of `other`.
+        Prerequisites: The maps are composable, i.e. that the number of dimensions of
+        `self` matches the number of results of `other`.
 
         Example:
         ```
@@ -145,7 +148,7 @@ class AffineMap:
         map2: (d0)[s0] -> (d0 + s0, d0 - s0)
         map1.compose(map2): (d0)[s0, s1, s2] -> (d0 + s1 + s2 + 1, d0 - s0 - s2 - 1)
         ```
-        """
+        """  #
         if self.num_dims != len(other.results):
             raise ValueError(
                 "Cannot compose AffineMaps with mismatching dimensions and results: "

@@ -815,7 +815,7 @@ class CslPrintContext:
                     op=input_dsd, offset=offset, elem_type=elem_type, result=result
                 ):
                     self.print(
-                        f"{self._var_use(result)} = @increment_dsd_offset({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(offset)}, {self.mlir_type_to_csl_type(elem_type)});"
+                        f"{self._var_use(result)} = @increment_dsd_offset({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(offset)}, {self.mlir_type_to_csl_type(elem_type)});"  # noqa: E501
                     )
                 case csl.SetDsdLengthOp(op=input_dsd, length=length, result=result):
                     self.print(

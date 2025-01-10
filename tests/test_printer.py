@@ -735,7 +735,7 @@ def test_dictionary_attr():
 
     prog = """
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}} : () -> ()
-    """
+    """  # noqa: E501
 
     ctx = MLContext()
     ctx.load_dialect(Builtin)
