@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.9"
+__generated_with = "0.10.10"
 app = marimo.App(width="full")
 
 
@@ -553,17 +553,8 @@ def _(
 
 @app.cell
 def _():
-    import numpy as np
-    from numpy.random import Generator as RandomGenerator
-    return RandomGenerator, np
-
-
-@app.cell
-def _(np):
-    rng = np.random.default_rng()
-
-    type(rng)
-    return (rng,)
+    from random import Random
+    return (Random,)
 
 
 @app.cell
@@ -573,28 +564,20 @@ def _():
 
 
 @app.cell
-def _(
-    Attribute,
-    DenseIntOrFPElementsAttr,
-    RandomGenerator,
-    f64,
-    np,
-    to_dtype,
-):
+def _(Attribute, DenseIntOrFPElementsAttr, Random, f64):
     from xdsl.dialects.builtin import FloatAttr, ShapedType, ContainerType, TensorType
 
 
-    def random_attr_of_type(t: Attribute, rng: RandomGenerator) -> Attribute | None:
+    def random_attr_of_type(t: Attribute, rng: Random) -> Attribute | None:
         # if isinstance(type, ShapedType):
         if t == f64:
-            return FloatAttr(rng.random(1, to_dtype(t))[0], f64)
+            return FloatAttr(rng.random(), f64)
         elif isinstance(t, ShapedType) and isinstance(t, ContainerType):
-            values = rng.random(t.element_count(), to_dtype(t.get_element_type()))
             return DenseIntOrFPElementsAttr.from_list(
-                t, values
+                t, tuple(rng.random() for _ in range(t.element_count()))
             )
 
-    _rng = np.random.default_rng()
+    _rng = Random("autotune")
     random_attr_of_type(f64, _rng), random_attr_of_type(TensorType(f64, (2, 3)), _rng)
     return (
         ContainerType,
@@ -612,12 +595,12 @@ def _(
     MemrefStreamUnrollAndJamPass,
     ModuleOp,
     ModulePass,
+    Random,
     SnitchCycleCostModel,
     func,
     memref_stream,
     memref_stream_module,
     msg_factors,
-    np,
     random_attr_of_type,
     riscv_passes,
     uaj_passes,
@@ -652,7 +635,7 @@ def _(
 
             arg_types = func_op.function_type.inputs
 
-            rng = np.random.default_rng()
+            rng = Random("autotune")
             attrs = tuple(random_attr_of_type(t, rng) for t in arg_types)
 
             cost_model = LensCostModel(SnitchCycleCostModel(func_op_name, attrs), riscv_passes.passes)

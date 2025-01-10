@@ -32,7 +32,6 @@ dev = [
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.2",
     "pyright==1.1.391",
-    "numpy==2.2.1",
 ]
 gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.4.38", "numpy==2.2.1"]
