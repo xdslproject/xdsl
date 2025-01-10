@@ -34,7 +34,7 @@ jobs:
         version: 1.0
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      uses: astral-sh/setup-uv@v5
       with:
         enable-cache: true
         cache-dependency-glob: "xdsl/uv.lock"
@@ -73,7 +73,7 @@ jobs:
 
     - name: Ninja Setup
       if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
+      uses: lukka/get-cmake@aa1df13cce8c30d2cb58efa871271c5a764623f8
 
     - name: MLIR Build Setup
       if: steps.cache-binary.outputs.cache-hit != 'true'
@@ -131,7 +131,7 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
-      uses: Wandalen/wretry.action@v1
+      uses: Wandalen/wretry.action@v3
       with:
         action: codecov/codecov-action@v4
         attempt_delay: 10000
