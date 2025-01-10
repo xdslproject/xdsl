@@ -809,7 +809,7 @@ class CslPrintContext:
                     op=input_dsd, base_addr=base_addr, result=result
                 ):
                     self.print(
-                        f"{self._var_use(result)} = @set_dsd_base_addr({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(base_addr)});"
+                        f"{self._var_use(result)} = @set_dsd_base_addr({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(base_addr)});"  # noqa: E501
                     )
                 case csl.IncrementDsdOffsetOp(
                     op=input_dsd, offset=offset, elem_type=elem_type, result=result

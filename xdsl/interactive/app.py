@@ -393,7 +393,8 @@ class InputApp(App[None]):
                     result,
                 )
 
-        # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
+        # generates a string containing the concatenated_arg_val and types of the
+        # selected pass and initializes the AddArguments Screen to contain the string
         self.push_screen(
             AddArguments(selected_pass_value),
             on_exit,

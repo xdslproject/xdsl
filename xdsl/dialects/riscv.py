@@ -3531,7 +3531,8 @@ class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 @irdl_op_definition
 class FClassSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
-    Examines the value in floating-point register rs1 and writes to integer register rd a 10-bit mask that indicates the class of the floating-point number.
+    Examines the value in floating-point register rs1 and writes to integer register rd
+    a 10-bit mask that indicates the class of the floating-point number.
     The format of the mask is described in [classify table]_.
     The corresponding bit in rd will be set if the property is true and clear otherwise.
     All other bits in rd are cleared. Note that exactly one bit in rd will be set.
@@ -3562,7 +3563,8 @@ class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 @irdl_op_definition
 class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
-    Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point number in floating-point register rd.
+    Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point
+    number in floating-point register rd.
 
     ```C
     f[rd] = f32_{u32}(x[rs1])
@@ -3577,7 +3579,8 @@ class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 @irdl_op_definition
 class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
-    Move the single-precision value encoded in IEEE 754-2008 standard encoding from the lower 32 bits of integer register rs1 to the floating-point register rd.
+    Move the single-precision value encoded in IEEE 754-2008 standard encoding from the
+    lower 32 bits of integer register rs1 to the floating-point register rd.
 
     ```C
     f[rd] = x[rs1][31:0]

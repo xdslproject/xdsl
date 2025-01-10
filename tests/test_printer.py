@@ -890,11 +890,11 @@ def test_print_properties_as_attributes_safeguard():
 
     prog = """
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private"}> {extra_attr, sym_name = "this should be overriden by the property"} : () -> ()
-    """
+    """  # noqa: E501
 
     retro_prog = """
 "func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
-    """
+    """  # noqa: E501
 
     ctx = MLContext()
     ctx.load_dialect(Builtin)

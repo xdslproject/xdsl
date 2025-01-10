@@ -227,9 +227,10 @@ def test_allof_verify_multiple_failures():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(IntData(7), ConstraintContext())
-    assert (
-        e.value.args[0]
-        == f"The following constraints were not satisfied:\n{IntData(7)} should hold a value less than 5\n{IntData(7)} should hold a value greater than 8"
+    assert e.value.args[0] == (
+        f"The following constraints were not satisfied:\n{IntData(7)} "
+        f"should hold a value less than 5\n{IntData(7)} "
+        "should hold a value greater than 8"
     )
 
 

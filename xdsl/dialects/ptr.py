@@ -63,7 +63,7 @@ class StoreOp(IRDLOperation):
     syncscope = opt_prop_def(UnitAttr)
     ordering = opt_prop_def(UnitAttr)
 
-    assembly_format = "(`volatile` $volatile^)? $value `,` $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? attr-dict `:` type($value) `,` type($addr)"
+    assembly_format = "(`volatile` $volatile^)? $value `,` $addr (`atomic` (`syncscope` `(` $syncscope^ `)`)? $ordering^)? attr-dict `:` type($value) `,` type($addr)"  # noqa: E501
 
 
 @irdl_op_definition
