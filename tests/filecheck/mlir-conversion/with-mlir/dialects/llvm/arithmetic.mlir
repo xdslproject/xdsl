@@ -7,7 +7,7 @@ builtin.module {
     // CHECK: %{{.*}} = llvm.add %{{.*}}, %{{.*}} : i32
 
     %add2 = llvm.add %arg0, %arg1 {"nsw"} : i32
-    // CHECK: %{{.*}} = llvm.add %{{.*}}, %{{.*}} {"nsw"} : i32
+    // CHECK: %{{.*}} = llvm.add %{{.*}}, %{{.*}} {nsw} : i32
 
     %sub = llvm.sub %arg0, %arg1 : i32
     // CHECK: %{{.*}} = llvm.sub %{{.*}}, %{{.*}} : i32

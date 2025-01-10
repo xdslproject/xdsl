@@ -101,6 +101,12 @@ cd xdsl
 make venv
 ```
 
+To make a custom mlir-opt available in the virtual environment, set the `XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
+
+``` bash
+XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
+```
+
 #### If you can't use `uv`
 
 For some systems and workflows, changing to a new dependency management system
@@ -126,7 +132,7 @@ pytest
 lit tests/filecheck
 ```
 
-### Testing
+### Testing and benchmarking
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
@@ -141,6 +147,12 @@ uv run lit tests/filecheck
 # run all tests using makefile
 make tests
 ```
+
+Benchmarks for the project are tracked in the <https://github.com/xdslproject/xdsl-bench>
+repository. These run automatically every day on the main branch, reporting
+their results to <https://xdsl.dev/xdsl-bench/>. However, they can also be run
+manually by cloning the repository and pointing the submodule at your
+feature branch to benchmark.
 
 ### Formatting and Typechecking
 

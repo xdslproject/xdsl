@@ -220,9 +220,9 @@ class ConvertMemrefStoreOp(RewritePattern):
 class ConvertMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
-        assert isinstance(
-            op_memref_type := op.memref.type, memref.MemRefType
-        ), f"{op.memref.type}"
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
+            f"{op.memref.type}"
+        )
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         mem, *indices = cast_operands_to_regs(rewriter)

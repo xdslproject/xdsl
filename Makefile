@@ -6,7 +6,9 @@ COVERAGE_FILE ?= .coverage
 
 # allow overriding the name of the venv directory
 VENV_DIR ?= .venv
-UV_PROJECT_ENVIRONMENT=${VENV_DIR}
+
+# use activated venv if any
+export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
 VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
@@ -27,6 +29,9 @@ uv-installed:
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
 	XDSL_VERSION_OVERRIDE="0+dynamic" uv sync ${VENV_EXTRAS}
+	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
+		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
+	fi
 
 # make sure `make venv` also works correctly
 .PHONY: venv
@@ -58,6 +63,7 @@ pytest-nb: uv-installed
 	uv run pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
 		--ignore=docs/Toy \
+		--ignore-glob=**/__marimo__/*.ipynb \
 		--nbval-current-env
 
 # run tests for Toy tutorial

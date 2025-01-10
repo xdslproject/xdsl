@@ -4,9 +4,9 @@ from typing import cast
 from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     AnyFloatAttr,
     AnyMemRefType,
-    ArrayAttr,
     DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
@@ -28,6 +28,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -53,9 +54,9 @@ def get_dir_and_distance(
     if isinstance(offset, stencil.IndexAttr):
         offset = tuple(offset)
     assert len(offset) == 2, "Expecting 2-dimensional access"
-    assert (offset[0] == 0) != (
-        offset[1] == 0
-    ), "Expecting neighbour access in a star-shape pattern"
+    assert (offset[0] == 0) != (offset[1] == 0), (
+        "Expecting neighbour access in a star-shape pattern"
+    )
     if offset[0] < 0:
         d = csl.Direction.EAST
     elif offset[0] > 0:
@@ -146,9 +147,9 @@ class LowerApplyOp(RewritePattern):
             ):
                 break
             parent_func = op.parent_op()
-        assert (
-            parent_func
-        ), "Expected csl_stencil.apply to be inside a func.func or csl.func"
+        assert parent_func, (
+            "Expected csl_stencil.apply to be inside a func.func or csl.func"
+        )
 
         # set up csl funcs
         chunk_fn = csl.FuncOp(
@@ -201,24 +202,25 @@ class LowerApplyOp(RewritePattern):
         # ensure we send only core data
         assert isa(op.accumulator.type, memref.MemRefType[Attribute])
         assert isa(op.field.type, memref.MemRefType[Attribute])
+        # the accumulator might have additional dims when used for holding prefetched data
+        send_buf_shape = op.accumulator.type.get_shape()[
+            -len(op.field.type.get_shape()) :
+        ]
         send_buf = memref.SubviewOp.get(
             op.field,
             [
                 (d - s) // 2  # symmetric offset
-                for s, d in zip(
-                    op.accumulator.type.get_shape(), op.field.type.get_shape()
-                )
+                for s, d in zip(send_buf_shape, op.field.type.get_shape(), strict=True)
             ],
-            op.accumulator.type.get_shape(),
-            len(op.accumulator.type.get_shape()) * [1],
-            op.accumulator.type,
+            send_buf_shape,
+            len(send_buf_shape) * [1],
+            memref.MemRefType(op.field.type.get_element_type(), send_buf_shape),
         )
 
         # add api call
         num_chunks = arith.ConstantOp(IntegerAttr(op.num_chunks.value, i16))
         chunk_ref = csl.AddressOfFnOp(chunk_fn)
         done_ref = csl.AddressOfFnOp(done_fn)
-        # send_buf = memref.Subview.get(op.field, [], op.accumulator.type.get_shape(), )
         api_call = csl.MemberCallOp(
             "communicate",
             None,
@@ -458,7 +460,11 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         acc_dsd = csl.GetMemDsdOp.build(
             operands=[alloc, [direction_count, pattern, chunk_size]],
             result_types=[dsd_t],
-            properties={"strides": ArrayAttr([IntegerAttr(i, 16) for i in [0, 0, 1]])},
+            properties={
+                "tensor_access": AffineMapAttr(
+                    AffineMap.from_callable(lambda x, y, z: (z,))
+                )
+            },
         )
         new_acc = acc_dsd
 

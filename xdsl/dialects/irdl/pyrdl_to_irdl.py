@@ -1,4 +1,4 @@
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.irdl import AnyOp
 from xdsl.dialects.irdl.irdl import (
     AttributeOp,
@@ -37,7 +37,7 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     op_def = op.get_irdl_definition()
 
     block = Block()
-    builder = Builder.at_end(block)
+    builder = Builder(InsertPoint.at_end(block))
 
     # Operands
     operand_values: list[SSAValue] = []
@@ -63,7 +63,7 @@ def attr_def_to_irdl(
     attr_def = attr.get_irdl_definition()
 
     block = Block()
-    builder = Builder.at_end(block)
+    builder = Builder(InsertPoint.at_end(block))
 
     # Parameters
     param_values: list[SSAValue] = []
@@ -77,7 +77,7 @@ def attr_def_to_irdl(
 def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:
     """Convert a dialect definition to an IRDL dialect definition."""
     block = Block()
-    builder = Builder.at_end(block)
+    builder = Builder(InsertPoint.at_end(block))
 
     for attribute in dialect.attributes:
         if not issubclass(attribute, ParametrizedAttribute):

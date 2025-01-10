@@ -116,7 +116,7 @@ class xDSLOptMain(CommandLineTool):
             "-p",
             "--passes",
             required=False,
-            help="Delimited list of passes." f" Available passes are: {pass_names}",
+            help=f"Delimited list of passes. Available passes are: {pass_names}",
             type=str,
             default="",
         )
@@ -268,8 +268,8 @@ class xDSLOptMain(CommandLineTool):
 
             for op in prog.ops:
                 if isinstance(op, gpu.ModuleOp):
-                    printer = WGSLPrinter()
-                    printer.print(op, output)
+                    printer = WGSLPrinter(stream=output)
+                    printer.print(op)
 
         self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["csl"] = _output_csl

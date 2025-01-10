@@ -104,7 +104,7 @@ class BitwidthSumLessThanTrait(OpTrait):
 
         if sum_bitwidth >= self.max_sum:
             raise VerifyException(
-                "Operation has a bitwidth sum " f"greater or equal to {self.max_sum}."
+                f"Operation has a bitwidth sum greater or equal to {self.max_sum}."
             )
 
 

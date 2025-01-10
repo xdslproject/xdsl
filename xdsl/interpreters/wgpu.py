@@ -77,9 +77,9 @@ class WGPUFunctions(InterpreterFunctions):
         Compile a gpu.func if not already done.
         """
         if op not in self.shader_modules:
-            wgsl_printer = WGSLPrinter()
-            wgsl_source = StringIO("")
-            wgsl_printer.print(op, wgsl_source)
+            wgsl_source = StringIO()
+            wgsl_printer = WGSLPrinter(stream=wgsl_source)
+            wgsl_printer.print(op)
             self.shader_modules[op] = cast(
                 wgpu.GPUShaderModule,
                 self.device.create_shader_module(  # pyright: ignore

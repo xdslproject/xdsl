@@ -16,6 +16,7 @@ from typing import Annotated, ClassVar, TypeAlias
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     AnyFloatAttr,
     AnyFloatAttrConstr,
     AnyIntegerAttr,
@@ -779,20 +780,19 @@ class FuncOp(_FuncBase):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        (
-            name,
-            input_types,
-            return_types,
-            region,
-            extra_attrs,
-            arg_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
+            parse_func_op_like(
+                parser,
+                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            )
         )
 
-        assert (
-            len(return_types) <= 1
-        ), f"{cls.name} can't have more than one result type!"
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in csl FuncOp")
+
+        assert len(return_types) <= 1, (
+            f"{cls.name} can't have more than one result type!"
+        )
 
         func = cls(
             name=name,
@@ -848,9 +848,9 @@ class TaskOp(_FuncBase):
                 id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
             )
         if id is not None:
-            assert (
-                id.type.width.data == task_kind.get_color_bits()
-            ), f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+            assert id.type.width.data == task_kind.get_color_bits(), (
+                f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+            )
 
         properties |= {
             "kind": task_kind,
@@ -889,20 +889,18 @@ class TaskOp(_FuncBase):
     @classmethod
     def parse(cls, parser: Parser) -> TaskOp:
         pos = parser.pos
-        (
-            name,
-            input_types,
-            return_types,
-            region,
-            extra_attrs,
-            arg_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
+            parse_func_op_like(
+                parser,
+                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            )
         )
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in csl TaskOp")
         if (
             extra_attrs is None
             or "kind" not in extra_attrs.data
-            or not isinstance(extra_attrs.data["kind"], TaskKindAttr)
+            or not isinstance(kind := extra_attrs.data["kind"], TaskKindAttr)
         ):
             parser.raise_error(f"{cls.name} expected kind attribute")
         id = extra_attrs.data.get("id")
@@ -913,16 +911,16 @@ class TaskOp(_FuncBase):
                 parser.pos,
             )
 
-        assert (
-            len(return_types) <= 1
-        ), f"{cls.name} can't have more than one result type!"
+        assert len(return_types) <= 1, (
+            f"{cls.name} can't have more than one result type!"
+        )
 
         task = cls(
             name=name,
             function_type=(input_types, return_types[0] if return_types else None),
             region=region,
             arg_attrs=arg_attrs,
-            task_kind=extra_attrs.data["kind"],
+            task_kind=kind,
             id=id,
         )
         return task
@@ -1143,8 +1141,7 @@ class GetMemDsdOp(_GetDsdOp):
 
     name = "csl.get_mem_dsd"
     base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
-    offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
-    strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+    tensor_access = opt_prop_def(AffineMapAttr)
 
     traits = traits_def(
         Pure(),
@@ -1166,14 +1163,13 @@ class GetMemDsdOp(_GetDsdOp):
             raise VerifyException(
                 "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
             )
-        if self.offsets is not None and len(self.offsets) != len(self.sizes):
-            raise VerifyException(
-                "Dimensions of offsets must match dimensions of sizes"
-            )
-        if self.strides is not None and len(self.strides) != len(self.sizes):
-            raise VerifyException(
-                "Dimensions of strides must match dimensions of sizes"
-            )
+        if self.tensor_access:
+            if len(self.sizes) != self.tensor_access.data.num_dims:
+                raise VerifyException(
+                    "Dsd must have sizes specified for each dimension of the affine map"
+                )
+            if self.tensor_access.data.num_symbols != 0:
+                raise VerifyException("Symbols on affine map not supported")
 
 
 @irdl_op_definition

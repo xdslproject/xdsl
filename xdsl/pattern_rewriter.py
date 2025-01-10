@@ -10,7 +10,7 @@ from typing import TypeVar, Union, final, get_args, get_origin
 
 from typing_extensions import deprecated
 
-from xdsl.builder import BuilderListener
+from xdsl.builder import Builder, BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -77,8 +77,8 @@ class PatternRewriterListener(BuilderListener):
             )
 
 
-@dataclass(eq=False)
-class PatternRewriter(PatternRewriterListener):
+@dataclass(eq=False, init=False)
+class PatternRewriter(Builder, PatternRewriterListener):
     """
     A rewriter used during pattern matching.
     Once an operation is matched, this rewriter is used to apply
@@ -90,6 +90,11 @@ class PatternRewriter(PatternRewriterListener):
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
+
+    def __init__(self, current_operation: Operation):
+        PatternRewriterListener.__init__(self)
+        self.current_operation = current_operation
+        Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
         self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
@@ -726,7 +731,11 @@ class PatternRewriteWalker:
         """Handle removal of an operation."""
         if self.apply_recursively:
             self._add_operands_to_worklist(op.operands)
-        self._worklist.remove(op)
+        if op.regions:
+            for sub_op in op.walk():
+                self._worklist.remove(sub_op)
+        else:
+            self._worklist.remove(op)
 
     def _handle_operation_modification(self, op: Operation) -> None:
         """Handle modification of an operation."""
@@ -829,6 +838,7 @@ class PatternRewriteWalker:
             # Reset the rewriter on `op`
             rewriter.has_done_action = False
             rewriter.current_operation = op
+            rewriter.insertion_point = InsertPoint.before(op)
 
             # Apply the pattern on the operation
             try:

@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.17"
-app = marimo.App()
+__generated_with = "0.10.9"
+app = marimo.App(auto_download=["ipynb"])
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # ONNX to Snitch
@@ -17,7 +17,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     rank = mo.ui.slider(1, 4, value=2, label="Rank")
 
     mo.md(
@@ -31,7 +31,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo, rank):
+def _(mo, rank):
     shape = tuple(range(2, 2 + rank.value))
 
     mo.md(
@@ -49,7 +49,7 @@ def __(mo, rank):
 
 
 @app.cell(hide_code=True)
-def __(mo, shape):
+def _(mo, shape):
     mo.md(
         f"""
         ### The ONNX model
@@ -61,7 +61,7 @@ def __(mo, shape):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import onnx
     from onnx import AttributeProto, GraphProto, TensorProto, ValueInfoProto, helper
     return (
@@ -75,7 +75,7 @@ def __():
 
 
 @app.cell
-def __(TensorProto, helper, onnx, shape):
+def _(TensorProto, helper, onnx, shape):
     # Create one input (ValueInfoProto)
     X1 = helper.make_tensor_value_info("X1", TensorProto.DOUBLE, shape)
     X2 = helper.make_tensor_value_info("X2", TensorProto.DOUBLE, shape)
@@ -111,7 +111,7 @@ def __(TensorProto, helper, onnx, shape):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ONNX uses a serialized binary format for neural networks, but can also print a string format, which can be useful for debugging.
@@ -122,7 +122,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo, model_def):
+def _(mo, model_def):
     mo.accordion(
         {
             "ONNX Graph": mo.plain_text(f"{model_def}"),
@@ -132,26 +132,26 @@ def __(mo, model_def):
 
 
 @app.cell
-def __(html, init_module, mo):
+def _(init_module, mo, xmo):
     mo.md(f"""
     ### Converting to `linalg`
 
     Here is the xDSL representation of the function, it takes two `tensor` values of our chosen shape, passes them as operands to the `onnx.Add` operation, and returns it:
 
-    {html(init_module)}
+    {xmo.module_html(init_module)}
     """
     )
     return
 
 
 @app.cell
-def __(build_module, model_def):
+def _(build_module, model_def):
     init_module = build_module(model_def.graph)
     return (init_module,)
 
 
 @app.cell(hide_code=True)
-def __(MLContext, get_all_dialects):
+def _(MLContext, get_all_dialects):
     ctx = MLContext()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
@@ -160,21 +160,24 @@ def __(MLContext, get_all_dialects):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""xDSL seamlessly interoperates with MLIR, we the `mlir-opt` tool to compile the input to a form that we want to process:""")
     return
 
 
 @app.cell
-def __(
+def _(
     ConvertOnnxToLinalgPass,
     EmptyTensorToAllocTensorPass,
     MLIROptPass,
+    ctx,
     init_module,
     mo,
-    pipeline_accordion,
+    xmo,
 ):
-    bufferized_module, linalg_accordion = pipeline_accordion(
+    bufferized_ctx, bufferized_module, linalg_html = xmo.pipeline_html(
+        ctx,
+        init_module,
         (
             (
                 mo.md(
@@ -211,16 +214,15 @@ def __(
                     ]
                 )
             )
-        ),
-        init_module
+        )
     )
 
-    linalg_accordion
-    return bufferized_module, linalg_accordion
+    linalg_html
+    return bufferized_ctx, bufferized_module, linalg_html
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         From here we can use a number of backends to generate executable code, like LLVM, or RISC-V assembly directly.
@@ -231,7 +233,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     from xdsl.context import MLContext
     from xdsl.frontend.onnx.ir_builder import build_module
     from xdsl.ir import Attribute, SSAValue
@@ -254,58 +256,15 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(ModuleOp, mo):
-    import html as htmllib
-
-    def html(module: ModuleOp) -> mo.Html:
-        return f"""\
-        <small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small>
-        """
-        # return mo.as_html(str(module))
-    return html, htmllib
-
-
-@app.cell(hide_code=True)
-def __():
-    from collections import Counter
-    return (Counter,)
-
-
-@app.cell(hide_code=True)
-def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
-    def spec_str(p: ModulePass) -> str:
-        if isinstance(p, PipelinePass):
-            return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
-        else:
-            return str(p.pipeline_pass_spec())
-
-    def pipeline_accordion(passes: tuple[tuple[mo.Html, ModulePass], ...], module: ModuleOp) -> tuple[ModuleOp, mo.Html]:
-        res = module.clone()
-        d = {}
-        total_key_count = Counter(spec_str(p) for _, p in passes)
-        d_key_count = Counter()
-        for text, p in passes:
-            p.apply(ctx, res)
-            spec = spec_str(p)
-            d_key_count[spec] += 1
-            if total_key_count[spec] != 1:
-                header = f"{spec} ({d_key_count[spec]})"
-            else:
-                header = spec
-            html_res = html(res)
-            d[header] = mo.vstack((
-                text,
-                # mo.plain_text(f"Pass: {p.pipeline_pass_spec()}"),
-                mo.md(html_res)
-            ))
-        return (res, mo.accordion(d))
-    return pipeline_accordion, spec_str
+def _():
+    import xdsl.utils.marimo as xmo
+    return (xmo,)
 
 
 if __name__ == "__main__":

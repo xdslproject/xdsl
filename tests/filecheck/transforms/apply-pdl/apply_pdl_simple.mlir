@@ -13,7 +13,7 @@ pdl.pattern : benefit(1) {
 }
 
 //CHECK:         builtin.module {
-// CHECK-NEXT:      "test.op"() {"attr" = 1 : i64} : () -> ()
+// CHECK-NEXT:      "test.op"() {attr = 1 : i64} : () -> ()
 // CHECK-NEXT:      pdl.pattern : benefit(1) {
 // CHECK-NEXT:         %zero_attr = pdl.attribute = 0 : i64
 // CHECK-NEXT:         %root = pdl.operation "test.op" {"attr" = %zero_attr}

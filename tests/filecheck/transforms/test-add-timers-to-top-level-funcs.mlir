@@ -7,7 +7,7 @@ builtin.module {
   // CHECK-NEXT:     %start = func.call @timer_start() : () -> f64
   // CHECK-NEXT:     "test.op"() : () -> ()
   // CHECK-NEXT:     %end = func.call @timer_end(%start) : (f64) -> f64
-  // CHECK-NEXT:     "llvm.store"(%end, %timers) <{"ordering" = 0 : i64}> : (f64, !llvm.ptr) -> ()
+  // CHECK-NEXT:     "llvm.store"(%end, %timers) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
   // CHECK-NEXT:     func.return %arg0 : i32
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.func private @timer_start() -> f64
@@ -34,7 +34,7 @@ builtin.module {
   // CHECK-NEXT:     %timestamp = func.call @timer_start() : () -> f64
   // CHECK-NEXT:     %res = arith.addi %arg0, %arg1 : i32
   // CHECK-NEXT:     %timediff = func.call @timer_end(%timestamp) : (f64) -> f64
-  // CHECK-NEXT:     "llvm.store"(%timediff, %timers) <{"ordering" = 0 : i64}> : (f64, !llvm.ptr) -> ()
+  // CHECK-NEXT:     "llvm.store"(%timediff, %timers) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
   // CHECK-NEXT:     func.return %res : i32
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.func @also_has_no_timers(%timers : !llvm.ptr) {
@@ -44,7 +44,7 @@ builtin.module {
   // CHECK-NEXT:     }
   // CHECK-NEXT:     "test.op"() : () -> ()
   // CHECK-NEXT:     %timediff = func.call @timer_end(%timestamp) : (f64) -> f64
-  // CHECK-NEXT:     "llvm.store"(%timediff, %timers) <{"ordering" = 0 : i64}> : (f64, !llvm.ptr) -> ()
+  // CHECK-NEXT:     "llvm.store"(%timediff, %timers) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
   // CHECK-NEXT:     func.return
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.func private @timer_start() -> f64
