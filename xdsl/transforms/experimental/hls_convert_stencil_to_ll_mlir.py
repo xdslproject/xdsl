@@ -1054,7 +1054,8 @@ class PackData(RewritePattern):
         if op.attributes["inout"].data == OUT or (
             op.attributes["inout"].data == IN and ndims == 3
         ):
-            # TODO: this should be generalised by packaging the original type instead of f64. We would need intrinsics to deal with the different types
+            # TODO: this should be generalised by packaging the original type instead of
+            # f64. We would need intrinsics to deal with the different types
             packed_type = LLVMPointerType.typed(
                 LLVMStructType.from_type_list(
                     [LLVMArrayType.from_size_and_type(8, f64)]
