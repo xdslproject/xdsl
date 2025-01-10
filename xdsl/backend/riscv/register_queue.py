@@ -81,9 +81,9 @@ class RegisterQueue:
         else:
             reg = reg_type(f"j{self._idx}")
             self._idx += 1
-        assert (
-            reg not in self.reserved_registers
-        ), f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
+        assert reg not in self.reserved_registers, (
+            f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
+        )
         return reg
 
     @contextmanager

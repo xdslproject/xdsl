@@ -83,7 +83,7 @@ class ForRofOperation(IRDLOperation, ABC):
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
             raise VerifyException(
-                f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
+                f"Wrong number of block arguments, expected {len(self.iter_args) + 1}, got "
                 f"{len(self.body.block.args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments."
             )

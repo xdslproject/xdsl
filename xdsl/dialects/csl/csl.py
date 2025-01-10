@@ -790,9 +790,9 @@ class FuncOp(_FuncBase):
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in csl FuncOp")
 
-        assert (
-            len(return_types) <= 1
-        ), f"{cls.name} can't have more than one result type!"
+        assert len(return_types) <= 1, (
+            f"{cls.name} can't have more than one result type!"
+        )
 
         func = cls(
             name=name,
@@ -848,9 +848,9 @@ class TaskOp(_FuncBase):
                 id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
             )
         if id is not None:
-            assert (
-                id.type.width.data == task_kind.get_color_bits()
-            ), f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+            assert id.type.width.data == task_kind.get_color_bits(), (
+                f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+            )
 
         properties |= {
             "kind": task_kind,
@@ -911,9 +911,9 @@ class TaskOp(_FuncBase):
                 parser.pos,
             )
 
-        assert (
-            len(return_types) <= 1
-        ), f"{cls.name} can't have more than one result type!"
+        assert len(return_types) <= 1, (
+            f"{cls.name} can't have more than one result type!"
+        )
 
         task = cls(
             name=name,

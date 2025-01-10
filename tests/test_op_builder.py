@@ -305,5 +305,5 @@ def test_build_implicit_region_fail():
 
         _ = region
     assert e.value.args[0] == (
-        "Cannot insert operation explicitly when an implicit" " builder exists."
+        "Cannot insert operation explicitly when an implicit builder exists."
     )

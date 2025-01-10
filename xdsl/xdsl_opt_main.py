@@ -107,7 +107,7 @@ class xDSLOptMain(CommandLineTool):
             "-p",
             "--passes",
             required=False,
-            help="Delimited list of passes." f" Available passes are: {pass_names}",
+            help=f"Delimited list of passes. Available passes are: {pass_names}",
             type=str,
             default="",
         )

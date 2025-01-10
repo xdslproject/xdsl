@@ -252,9 +252,9 @@ class CslPrintContext:
                 return ""
             case DenseIntOrFPElementsAttr():
                 data = init.get_attrs()
-                assert (
-                    len(data) == 1
-                ), f"Memref global initialiser has to have 1 value, got {len(data)}"
+                assert len(data) == 1, (
+                    f"Memref global initialiser has to have 1 value, got {len(data)}"
+                )
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:
                 return f"<unknown memref.global init type {other}>"
@@ -344,9 +344,9 @@ class CslPrintContext:
         """
         type = val.type
         assert isa(type, MemRefType[Attribute])
-        assert isinstance(
-            val, OpResult
-        ), "The value provided to _memref_type_to_string must be an op result"
+        assert isinstance(val, OpResult), (
+            "The value provided to _memref_type_to_string must be an op result"
+        )
         dims: list[str] = []
         idx = 0
         for dim in type.get_shape():
@@ -716,7 +716,7 @@ class CslPrintContext:
                     if init is None:
                         init = ""
                     else:
-                        init = f" = { self._get_variable_name_for(init)}"
+                        init = f" = {self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.variables[res] = name.data
                     self.print(f"param {name.data} : {ty}{init};")

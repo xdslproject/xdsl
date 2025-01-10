@@ -54,9 +54,9 @@ def get_dir_and_distance(
     if isinstance(offset, stencil.IndexAttr):
         offset = tuple(offset)
     assert len(offset) == 2, "Expecting 2-dimensional access"
-    assert (offset[0] == 0) != (
-        offset[1] == 0
-    ), "Expecting neighbour access in a star-shape pattern"
+    assert (offset[0] == 0) != (offset[1] == 0), (
+        "Expecting neighbour access in a star-shape pattern"
+    )
     if offset[0] < 0:
         d = csl.Direction.EAST
     elif offset[0] > 0:
@@ -147,9 +147,9 @@ class LowerApplyOp(RewritePattern):
             ):
                 break
             parent_func = op.parent_op()
-        assert (
-            parent_func
-        ), "Expected csl_stencil.apply to be inside a func.func or csl.func"
+        assert parent_func, (
+            "Expected csl_stencil.apply to be inside a func.func or csl.func"
+        )
 
         # set up csl funcs
         chunk_fn = csl.FuncOp(

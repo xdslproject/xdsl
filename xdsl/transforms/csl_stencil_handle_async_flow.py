@@ -120,9 +120,9 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         # limitation: can yield iter_args in any order, but they cannot be modified in the loop body
         terminator = op.body.block.last_op
         assert isinstance(terminator, scf.YieldOp)
-        assert all(
-            arg in op.body.block.args for arg in terminator.arguments
-        ), "Can only yield unmodified iter_args (in any order)"
+        assert all(arg in op.body.block.args for arg in terminator.arguments), (
+            "Can only yield unmodified iter_args (in any order)"
+        )
 
         # limitation: currently only loops built from arith.constant are supported
         assert isinstance(op.lb, OpResult)
