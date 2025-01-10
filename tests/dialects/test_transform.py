@@ -210,7 +210,7 @@ def test_split_handle():
             fail_on_payload_too_small=True,
             overflow_result=1,
         ),
-        """ %0, %1 = "transform.split_handle"(%2) <{pass_through_empty_handle = true, fail_on_payload_too_small = true, overflow_result = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op) """,
+        """ %0, %1 = "transform.split_handle"(%2) <{pass_through_empty_handle = true, fail_on_payload_too_small = true, overflow_result = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op) """,  # noqa: E501
         None,
     )
 

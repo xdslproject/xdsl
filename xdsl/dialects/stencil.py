@@ -804,7 +804,7 @@ class CombineOp(IRDLOperation):
                └────────┼─────────┘     └────────┼─────────┘
                         │                        │
     ```
-    """
+    """  # noqa: E501
 
     name = "stencil.combine"
 

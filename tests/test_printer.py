@@ -752,7 +752,7 @@ def test_densearray_attr():
 
     prog = """
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 0.3400000035762787>} : () -> ()
-    """
+    """  # noqa: E501
 
     ctx = MLContext()
     ctx.load_dialect(Builtin)
