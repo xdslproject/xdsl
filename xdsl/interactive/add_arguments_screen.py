@@ -7,7 +7,7 @@ from textual.widgets import Button, TextArea
 
 from xdsl.passes import ModulePass, get_pass_argument_names_and_types
 from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
+from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 class AddArguments(Screen[ModulePass | None]):
@@ -46,6 +46,8 @@ class AddArguments(Screen[ModulePass | None]):
         ).border_title = "Provide arguments to apply to selected pass."
         # Initialize parsed pass
         self.update_selected_pass_value()
+        # Initialize enter button
+        self.watch_selected_pass_value()
 
     @on(TextArea.Changed, "#argument_text_area")
     def update_selected_pass_value(self) -> None:
@@ -76,7 +78,7 @@ class AddArguments(Screen[ModulePass | None]):
         except ValueError:
             self.selected_pass_value = None
 
-    def watch_selected_pass_value(self, new_value: PipelinePassSpec | None):
+    def watch_selected_pass_value(self):
         self.enter_button.disabled = self.selected_pass_value is None
 
     @on(Button.Pressed, "#quit_screen_button")
