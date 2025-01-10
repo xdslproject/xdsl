@@ -737,7 +737,7 @@ def main():
         "-p",
         "--passes",
         required=False,
-        help="Delimited list of passes." f" Available passes are: {available_passes}",
+        help=f"Delimited list of passes. Available passes are: {available_passes}",
         type=str,
         default="",
     )

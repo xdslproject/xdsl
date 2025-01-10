@@ -419,9 +419,9 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         The first character is expected to have already been parsed.
         """
-        assert (
-            self.pos != 0
-        ), "First prefixed identifier character must have been parsed"
+        assert self.pos != 0, (
+            "First prefixed identifier character must have been parsed"
+        )
         first_char = self.input.at(self.pos - 1)
         if first_char == "#":
             kind = MLIRTokenKind.HASH_IDENT
@@ -430,9 +430,9 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         elif first_char == "^":
             kind = MLIRTokenKind.CARET_IDENT
         else:
-            assert (
-                first_char == "%"
-            ), "First prefixed identifier character must have been parsed correctly"
+            assert first_char == "%", (
+                "First prefixed identifier character must have been parsed correctly"
+            )
             kind = MLIRTokenKind.PERCENT_IDENT
 
         match = self._consume_regex(self._suffix_id)

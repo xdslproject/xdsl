@@ -30,9 +30,9 @@ def check_emitted_function_signature(
     for arg, arg_type in zip(call.arguments, types):
         # check that the argument type is correct (if constraint present)
         if arg_type is not None:
-            assert isinstance(
-                arg.type, arg_type
-            ), f"Expected argument to be of type {arg_type} (got {arg.type} instead)"
+            assert isinstance(arg.type, arg_type), (
+                f"Expected argument to be of type {arg_type} (got {arg.type} instead)"
+            )
 
 
 @irdl_op_definition

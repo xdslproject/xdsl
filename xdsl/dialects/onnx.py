@@ -1019,9 +1019,9 @@ class SqueezeOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(
-            input_tensor_type := self.input_tensor.type, TensorType
-        ), "onnx elementwise operation operands and result must be of type TensorType"
+        assert isinstance(input_tensor_type := self.input_tensor.type, TensorType), (
+            "onnx elementwise operation operands and result must be of type TensorType"
+        )
 
         input_tensor_shape = input_tensor_type.get_shape()
 

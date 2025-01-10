@@ -87,12 +87,12 @@ def build_affine_for(
     `body_builder_fn` is used to build the body of affine.for.
     """
 
-    assert (
-        len(lb_operands) == lb_map.num_dims
-    ), "lower bound operand count does not match the affine map"
-    assert (
-        len(ub_operands) == ub_map.num_dims
-    ), "upper bound operand count does not match the affine map"
+    assert len(lb_operands) == lb_map.num_dims, (
+        "lower bound operand count does not match the affine map"
+    )
+    assert len(ub_operands) == ub_map.num_dims, (
+        "upper bound operand count does not match the affine map"
+    )
     assert step > 0, "step has to be a positive integer constant"
 
     # Create a region and a block for the body.
@@ -440,9 +440,9 @@ class PrintOpLowering(RewritePattern):
 class ReturnOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.ReturnOp, rewriter: PatternRewriter):
-        assert (
-            op.input is None
-        ), "During this lowering, we expect that all function calls have been inlined."
+        assert op.input is None, (
+            "During this lowering, we expect that all function calls have been inlined."
+        )
 
         rewriter.replace_matched_op(func.ReturnOp())
 
