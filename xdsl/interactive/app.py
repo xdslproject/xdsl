@@ -48,10 +48,9 @@ from xdsl.interactive.passes import (
 )
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.transforms import get_all_passes, individual_rewrite
-from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 from ._pasteboard import pyclip_copy
@@ -379,55 +378,25 @@ class InputApp(App[None]):
         screen dismissal and appends the pass to the pass_pipeline variable.
         """
 
-        def add_pass_with_arguments_to_pass_pipeline(
-            concatenated_arg_val: str | None,
+        def on_exit(
+            result: ModulePass | None,
         ) -> None:
             """
-            Called when AddArguments Screen is dismissed. This function attempts to parse
-            the returned string, and if successful, adds it to the pass_pipeline variable.
-            In case of parsing failure, the AddArguments Screen is pushed, revealing the
-            Parse Error.
+            Called when AddArguments Screen is dismissed. This function attempts to
+            parse the returned string, and if successful, adds it to the pass_pipeline
+            variable.
             """
-            try:
-                # if screen was dismissed and user 1) cleared the screen 2) made no changes
-                if concatenated_arg_val is None:
-                    return
-
-                new_pass_with_arguments = list(
-                    parse_pipeline(
-                        f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
-                    )
-                )[0]
-
-                missing_fields = selected_pass_value.required_fields().difference(
-                    new_pass_with_arguments.args.keys()
+            if result is not None:
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
+                    *root_to_child_pass_list,
+                    result,
                 )
-
-                if missing_fields:
-                    error = f"Missing required fields: {missing_fields}"
-                else:
-                    self.pass_pipeline = (
-                        *self.pass_pipeline,
-                        *root_to_child_pass_list,
-                        selected_pass_value.from_pass_spec(new_pass_with_arguments),
-                    )
-                    return
-
-            except PassPipelineParseError as e:
-                error = f"PassPipelineParseError: {e}"
-
-            screen = AddArguments(TextArea(error, id="argument_text_area"))
-            self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
         # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
         self.push_screen(
-            AddArguments(
-                TextArea(
-                    get_pass_argument_names_and_types(selected_pass_value),
-                    id="argument_text_area",
-                )
-            ),
-            add_pass_with_arguments_to_pass_pipeline,
+            AddArguments(selected_pass_value),
+            on_exit,
         )
 
     @on(Tree.NodeSelected, "#passes_tree")
