@@ -769,15 +769,13 @@ def test_operands_duplicated_type():
     [
         (
             "$lhs $rhs type($lhs) type($rhs) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.two_operands %0 %1 i32 i64",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %0 %1 i32 i64',
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
         ),
         (
             "$rhs $lhs type($rhs) type($lhs) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.two_operands %1 %0 i64 i32",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %1 %0 i64 i32',
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
         ),
@@ -814,14 +812,13 @@ def test_operands(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand",
-            '%0 = "test.op"() : () -> i32\n' '"test.variadic_operand"() : () -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operand',
+            '%0 = "test.op"() : () -> i32\n"test.variadic_operand"() : () -> ()',
         ),
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand %0 i32",
-            '%0 = "test.op"() : () -> i32\n'
-            '"test.variadic_operand"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operand %0 i32',
+            '%0 = "test.op"() : () -> i32\n"test.variadic_operand"(%0) : (i32) -> ()',
         ),
         (
             "$args type($args) attr-dict",
@@ -862,14 +859,13 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.optional_operand",
-            '%0 = "test.op"() : () -> i32\n' '"test.optional_operand"() : () -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_operand',
+            '%0 = "test.op"() : () -> i32\n"test.optional_operand"() : () -> ()',
         ),
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.optional_operand %0 i32",
-            '%0 = "test.op"() : () -> i32\n'
-            '"test.optional_operand"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_operand %0 i32',
+            '%0 = "test.op"() : () -> i32\n"test.optional_operand"(%0) : (i32) -> ()',
         ),
     ],
 )
@@ -895,15 +891,13 @@ def test_optional_operand(format: str, program: str, generic_program: str):
     "program, generic_program, as_property",
     [
         (
-            '%0 = "test.op"() : () -> i32\n'
-            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
             False,
         ),
         (
-            '%0 = "test.op"() : () -> i32\n'
-            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operands"(%0, %0) <{operandSegmentSizes = array<i32:1,1>}> : (i32,i32) -> ()',
             True,
@@ -957,8 +951,7 @@ def test_multiple_variadic_operands(
             '"test.optional_operands"() {operandSegmentSizes = array<i32:0,0>} : () -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i32\n'
-            "test.optional_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\ntest.optional_operands(%0 : i32) [%0 : i32]',
             '%0 = "test.op"() : () -> i32\n'
             '"test.optional_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
         ),
@@ -2559,8 +2552,8 @@ def test_chained_variadic_operands_safeguard(
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> i32\n' "test.optional_group(%0 : i32)",
-            '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_group(%0 : i32)',
+            '%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
         ),
         (
             "test.optional_group",
@@ -2598,8 +2591,8 @@ def test_optional_group_optional_operand_anchor(
             '"test.optional_group"(%0, %1) : (i32, i64) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i32\n' "test.optional_group %0 : i32",
-            '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_group %0 : i32',
+            '%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
         ),
         (
             "test.optional_group",
@@ -2737,17 +2730,17 @@ def test_optional_group_checkers(format: str, error: str):
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0()",
+            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0()',
             '%0 = "test.op"() : () -> !test.type<"index">\n'
             '"test.mixed"(%0) : (!test.type<"index">) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0)',
             '%0 = "test.op"() : () -> !test.type<"index">\n'
             '"test.mixed"(%0, %0) : (!test.type<"index">, !test.type<"index">) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0, %0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0, %0)',
             '%0 = "test.op"() : () -> !test.type<"index">\n'
             '"test.mixed"(%0, %0, %0) : (!test.type<"index">, !test.type<"index">, !test.type<"index">) -> ()',
         ),

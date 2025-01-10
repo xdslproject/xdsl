@@ -249,9 +249,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.allocate(live_in)
 
         yield_op = loop.body.block.last_op
-        assert (
-            yield_op is not None
-        ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+        assert yield_op is not None, (
+            "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+        )
         block_args = loop.body.block.args
 
         # The loop-carried variables are trickier

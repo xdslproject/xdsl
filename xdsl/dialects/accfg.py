@@ -328,9 +328,9 @@ class SetupOp(IRDLOperation):
             val = parser.parse_operand(f'expected value for field "{name}"')
             parser.parse_punctuation(":")
             typ = parser.parse_type()
-            assert (
-                val.type == typ
-            ), f"ssa value type mismatch! Expected {typ}, got {val.type}"
+            assert val.type == typ, (
+                f"ssa value type mismatch! Expected {typ}, got {val.type}"
+            )
             return name, val
 
         args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(

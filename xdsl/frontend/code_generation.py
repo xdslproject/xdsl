@@ -190,7 +190,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                "Expected a single comparator, but found " f"{len(node.comparators)}.",
+                f"Expected a single comparator, but found {len(node.comparators)}.",
             )
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__name__

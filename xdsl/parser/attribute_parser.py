@@ -458,13 +458,12 @@ class AttrParser(BaseParser):
         """
         if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             self.raise_error(
-                "Expected 'x' in shape delimiter, got "
-                f"{self._current_token.kind.name}"
+                f"Expected 'x' in shape delimiter, got {self._current_token.kind.name}"
             )
 
         if self._current_token.text[0] != "x":
             self.raise_error(
-                "Expected 'x' in shape delimiter, got " f"{self._current_token.text}"
+                f"Expected 'x' in shape delimiter, got {self._current_token.text}"
             )
 
         # Move the lexer to the position after 'x'.

@@ -632,8 +632,8 @@ class IndexSwitchOp(IRDLOperation):
 
         if yield_op.operand_types != self.result_types:
             raise VerifyException(
-                f'region {name} returns values of types ({", ".join(str(x) for x in yield_op.operand_types)})'
-                f' but expected ({", ".join(str(x) for x in self.result_types)})'
+                f"region {name} returns values of types ({', '.join(str(x) for x in yield_op.operand_types)})"
+                f" but expected ({', '.join(str(x) for x in self.result_types)})"
             )
 
     def verify_(self) -> None:

@@ -187,8 +187,7 @@ class CheckStructure:
                 self.file,
                 stmt.lineno,
                 stmt.col_offset,
-                "Frontend program must consist of functions or constant "
-                "expressions.",
+                "Frontend program must consist of functions or constant expressions.",
             )
 
         # Check structure of all functions and if necessary populate the map
@@ -459,8 +458,7 @@ class ConstantInliner(ast.NodeTransformer):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Constant '{self.name}' is already defined and cannot be "
-                "assigned to.",
+                f"Constant '{self.name}' is already defined and cannot be assigned to.",
             )
         node.value = self.visit(node.value)
         return node
