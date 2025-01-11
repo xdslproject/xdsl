@@ -98,30 +98,10 @@ tests-marimo: uv-installed
 	done
 	@echo "All marimo tests passed successfully."
 
-.PHONY: tests-marimo-onnx
-tests-marimo-onnx: uv-installed
-	@if uv run python -c "import onnx" > /dev/null 2>&1; then \
-		echo "onnx is installed, running tests."; \
-		if ! command -v mlir-opt > /dev/null 2>&1; then \
-			echo "MLIR is not installed, skipping tests."; \
-			exit 0; \
-		fi; \
-		for file in docs/marimo/onnx/*.py; do \
-			echo "Running $$file"; \
-			error_message=$$(uv run python3 "$$file" 2>&1) || { \
-				echo "Error running $$file"; \
-				echo "$$error_message"; \
-				exit 1; \
-			}; \
-		done; \
-		echo "All marimo onnx tests passed successfully."; \
-	else \
-		echo "onnx is not installed, skipping tests."; \
-	fi
 
 # run all tests
 .PHONY: tests-functional
-tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx
+tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo
 	@echo All functional tests done.
 
 # run all tests

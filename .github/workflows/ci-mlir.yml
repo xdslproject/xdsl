@@ -115,13 +115,6 @@ jobs:
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
-    - name: Test ONNX-dependent marimo notebooks
-      run: |
-        cd xdsl
-        # Add mlir-opt to the path
-        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        uv run make tests-marimo-onnx
-
     - name: Combine coverage data
       run: |
         cd xdsl

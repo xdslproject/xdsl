@@ -98,11 +98,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemrefPass
 
-    def get_convert_onnx_to_linalg():
-        from xdsl.transforms import convert_onnx_to_linalg
-
-        return convert_onnx_to_linalg.ConvertOnnxToLinalgPass
-
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -514,7 +509,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
-        "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
         "convert-qref-to-qssa": get_convert_qref_to_qssa,

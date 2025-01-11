@@ -42,12 +42,6 @@ class xDSLRunMain(CommandLineTool):
             help="Enable the WGPU JIT-compilation interpreter.",
         )
         arg_parser.add_argument(
-            "--onnx",
-            default=False,
-            action="store_true",
-            help="Enable the onnx-compilation interpreter.",
-        )
-        arg_parser.add_argument(
             "--verbose",
             default=False,
             action="store_true",
@@ -81,7 +75,6 @@ class xDSLRunMain(CommandLineTool):
             interpreter,
             self.ctx,
             include_wgpu=self.args.wgpu,
-            include_onnx=self.args.onnx,
         )
 
     def run(self):
