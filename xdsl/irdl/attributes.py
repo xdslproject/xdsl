@@ -344,7 +344,7 @@ def irdl_to_attr_constraint(
             if irdl in type_var_mapping:
                 return type_var_mapping[irdl]
         if irdl.__bound__ is None:
-            raise Exception("Type variables used in IRDL are expected to" " be bound.")
+            raise Exception("Type variables used in IRDL are expected to be bound.")
         # We do not allow nested type variables.
         return irdl_to_attr_constraint(irdl.__bound__)
 

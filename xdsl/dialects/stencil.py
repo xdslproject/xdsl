@@ -104,7 +104,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         printer.print(">")
 
     def print_nested_parameters(self, printer: Printer) -> None:
-        printer.print(f'[{", ".join(str(e) for e in self)}]')
+        printer.print(f"[{', '.join(str(e) for e in self)}]")
 
     def verify(self) -> None:
         l = len(self)

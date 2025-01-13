@@ -255,9 +255,9 @@ class FuncOp(IRDLOperation):
         block argument types or return statement arguments.
         """
         # Refuse to work with external function definitions, as they don't have block args
-        assert (
-            not self.is_declaration
-        ), "update_function_type does not work with function declarations!"
+        assert not self.is_declaration, (
+            "update_function_type does not work with function declarations!"
+        )
         return_op = self.get_return_op()
         return_type = self.function_type.outputs.data
 
@@ -288,9 +288,9 @@ class FuncOp(IRDLOperation):
         """
         A helper to quickly get access to the block arguments of the function
         """
-        assert (
-            not self.is_declaration
-        ), "Function declarations don't have BlockArguments!"
+        assert not self.is_declaration, (
+            "Function declarations don't have BlockArguments!"
+        )
 
         block = self.body.blocks.first
         assert block is not None

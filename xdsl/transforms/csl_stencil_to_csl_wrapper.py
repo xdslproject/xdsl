@@ -167,9 +167,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # replace func.return by unblock_cmd_stream and csl.return
         func_return = main_func.body.block.last_op
         assert isinstance(func_return, func.ReturnOp)
-        assert (
-            len(func_return.arguments) == 0
-        ), "Non-empty returns currently not supported"
+        assert len(func_return.arguments) == 0, (
+            "Non-empty returns currently not supported"
+        )
         memcpy = module_op.get_program_import("<memcpy/memcpy>")
         unblock_call = csl.MemberCallOp(
             struct=memcpy, fname="unblock_cmd_stream", params=[], result_type=None

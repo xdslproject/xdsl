@@ -142,15 +142,15 @@ class FormatProgram:
         for uo, ot in zip(unresolved_operands, operand_types, strict=True):
             assert uo is not None
             if isinstance(uo, UnresolvedOperand):
-                assert isinstance(
-                    ot, Attribute
-                ), "Something went wrong with the declarative assembly format parser."
+                assert isinstance(ot, Attribute), (
+                    "Something went wrong with the declarative assembly format parser."
+                )
                 "Single operand has no type or variadic/optional type"
                 operands.append(parser.resolve_operand(uo, ot))
             else:
-                assert isinstance(
-                    ot, Sequence
-                ), f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
+                assert isinstance(ot, Sequence), (
+                    f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
+                )
                 "Variadic or optional operand has no type or a single type "
                 operands.append(parser.resolve_operands(uo, ot, parser.pos))
 

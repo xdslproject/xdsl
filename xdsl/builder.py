@@ -61,7 +61,7 @@ class Builder(BuilderListener):
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
-                "Cannot insert operation explicitly when an implicit " "builder exists."
+                "Cannot insert operation explicitly when an implicit builder exists."
             )
 
         block = self.insertion_point.block

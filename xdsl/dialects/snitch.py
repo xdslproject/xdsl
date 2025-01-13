@@ -142,7 +142,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     def verify_(self) -> None:
         if self.dimension.data >= SnitchResources.dimensions:
             raise VerifyException(
-                f"dimension attribute out of range [0..{SnitchResources.dimensions-1}], "
+                f"dimension attribute out of range [0..{SnitchResources.dimensions - 1}], "
                 f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer"
             )
 

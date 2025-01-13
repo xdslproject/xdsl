@@ -606,8 +606,7 @@ class FormatParser(BaseParser):
                 )
 
         self.raise_error(
-            "expected variable to refer to an operand, "
-            "attribute, region, or successor"
+            "expected variable to refer to an operand, attribute, region, or successor"
         )
 
     def parse_type_directive(self) -> FormatDirective:

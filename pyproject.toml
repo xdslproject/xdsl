@@ -24,13 +24,13 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.10.9",
+    "marimo==0.10.10",
     "pre-commit==4.0.1",
-    "ruff==0.8.6",
+    "ruff==0.9.0",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==0.25.1",
+    "pytest-asyncio==0.25.2",
     "pyright==1.1.391",
 ]
 gui = ["textual==1.0.0", "pyclip==0.7"]
@@ -69,7 +69,7 @@ enableTypeIgnoreComments = false
 enableExperimentalFeatures = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests", "bench"]
+"include" = ["docs", "xdsl", "tests"]
 "exclude" = [
     "tests/dialects/test_memref.py",
     "tests/frontend/onnx/test_build_onnx_ir.py",
