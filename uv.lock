@@ -900,7 +900,7 @@ wheels = [
 
 [[package]]
 name = "marimo"
-version = "0.10.12"
+version = "0.10.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -922,9 +922,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7e/e0/e8f6a5a71495972f723dac82a0b45503968e389171c06a6cec6424463a39/marimo-0.10.12.tar.gz", hash = "sha256:ccb6682f7645ac812445bb7e71c7e5c6b94d1bc8505e19c33b542482756768ce", size = 11853043 }
+sdist = { url = "https://files.pythonhosted.org/packages/13/d5/88914b6c8aa6b0f3e139f3056b34c5aee3c50eb62edfd06c92096ed371f8/marimo-0.10.10.tar.gz", hash = "sha256:e680034b3be9b6e7dfe087ecec146030fcb5386edfb0e9cbafc56e33956d72a5", size = 11857428 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/7b/ad89d703508d3393bcabb340785bef352a4e53d65b068c614ee8752a7772/marimo-0.10.12-py3-none-any.whl", hash = "sha256:915ff89dc557a3a7dc9008fbff1efe55ca7caa8dc714e6d784ef55087490fa97", size = 12148616 },
+    { url = "https://files.pythonhosted.org/packages/56/3f/85c58a35f7bb3bb4ced0ec073cc71af59f3bbf5a87a2bf174f577b19ea94/marimo-0.10.10-py3-none-any.whl", hash = "sha256:cb5f913bb081609cae0148820d9ae72cfff00e3dfbaa0582a866a7bf340d0049", size = 12154302 },
 ]
 
 [[package]]
@@ -2585,7 +2585,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.4.38" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.10.12" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.10.10" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.1" },
