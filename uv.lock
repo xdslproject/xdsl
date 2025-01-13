@@ -2095,15 +2095,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rubicon-objc"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d3/13/586c9baa985eae0f718029506b40ca41295d51a546567414b2bcf8ccacef/rubicon_objc-0.5.0.tar.gz", hash = "sha256:18f075649780d95df53d483642068c767d7d2cfbbf075ddef124a44b40b6d92e", size = 173652 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/30/5b2407b8762ed882e5732e19c485b9ea2f07d35462615a3212638bab66c2/rubicon_objc-0.5.0-py3-none-any.whl", hash = "sha256:a9c2a605120d6e5be327d3f42a71b60963125987e116f51846757b5e110854fa", size = 62711 },
-]
-
-[[package]]
 name = "ruff"
 version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2508,26 +2499,6 @@ wheels = [
 ]
 
 [[package]]
-name = "wgpu"
-version = "0.19.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cffi" },
-    { name = "rubicon-objc", marker = "sys_platform == 'darwin'" },
-    { name = "sniffio" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/04/fb169ed24f1aaeb022621975328a140d1be226a6766876e37ccebd04a50e/wgpu-0.19.3.tar.gz", hash = "sha256:1b5bb2b86b82fa89a8de4d624801929abe033bc639363d59897e3f3752ad6957", size = 148504 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/90/fc5c4efe777b9fd448b3efbd0235a0f82cdf402e392f8c9dd74f26fde496/wgpu-0.19.3-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:8cc0d77f290531efb95645fd776112ad5dec6dc9118c4b6c887bf5cac57b0085", size = 2304998 },
-    { url = "https://files.pythonhosted.org/packages/5e/16/841e0e20d46c74a109bb9e1fe9d96e84bd4a5ff54b603588477354830277/wgpu-0.19.3-py3-none-macosx_11_0_arm64.whl", hash = "sha256:f14d35a05d66ef98a678c5580922ba495825ccd739da5772c41885d01be07b3a", size = 2218403 },
-    { url = "https://files.pythonhosted.org/packages/c0/7d/e27d96106d7312b8bd96686e6b640f91f9d176dac578352de8741a8968d7/wgpu-0.19.3-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:59c5ea03fd22b8ac0222decde1a2f999392c947af5afcf5e63a99e8ce621336a", size = 3197478 },
-    { url = "https://files.pythonhosted.org/packages/2f/df/50fc057ec275da8e661e492ba8288b2ef1adc8651e09fb03dfe431775688/wgpu-0.19.3-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:fd69d8bb5b1280d150023391ca4c49b764e2d8b65cfcc60c770b65ef59c0b219", size = 3135751 },
-    { url = "https://files.pythonhosted.org/packages/cf/f0/38ad733d70d47f303db6eedb1dc6e563145fd88418014aeb80d85ea36c4a/wgpu-0.19.3-py3-none-win32.whl", hash = "sha256:cb65335e4a250c62cbea2f27a170c8c3a3f7c3120210d71740c822af64bdfdee", size = 2889349 },
-    { url = "https://files.pythonhosted.org/packages/01/a6/a4138aee44e8bf2659a1aba5798251d34b5b32d6eb18c4132b37b3309d29/wgpu-0.19.3-py3-none-win_amd64.whl", hash = "sha256:ae9b3e947e7f3bc0567c7a3846bbab2d3f42664ab32b71ab090c8f3c6877f6b0", size = 3176038 },
-    { url = "https://files.pythonhosted.org/packages/d5/af/4e8d84c746eb4d7f66665404fe5710454d3b5c93efe9bb73884034752d60/wgpu-0.19.3-py3-none-win_arm64.whl", hash = "sha256:327b6e7dc02f518e3c77a000e59758670d4effdb7d23e8c8da7d5e3b58441e57", size = 2972046 },
-]
-
-[[package]]
 name = "xdsl"
 version = "0+dynamic"
 source = { editable = "." }
@@ -2572,9 +2543,6 @@ onnx = [
 riscv = [
     { name = "riscemu" },
 ]
-wgpu = [
-    { name = "wgpu" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -2605,7 +2573,6 @@ requires-dist = [
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
-    { name = "wgpu", marker = "extra == 'wgpu'", specifier = "==0.19.3" },
 ]
 
 [[package]]
