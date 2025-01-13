@@ -18,9 +18,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv tool install setuptools wheel twine
+        uv pip install setuptools wheel
 
     - name: Build and publish
       run: |
-        python setup.py sdist bdist_wheel
-        twine upload -u __token__ -p ${{ secrets.PYPI_XDSL_TOKEN }} dist/*
+        uv run setup.py sdist bdist_wheel
+        uv tool run twine upload -u __token__ -p ${{ secrets.PYPI_XDSL_TOKEN }} dist/*
