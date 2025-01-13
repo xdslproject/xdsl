@@ -16,6 +16,12 @@ jobs:
     - name: Set up Python
       run: uv python install 3.11
 
+    - name: Create the virtual environment
+      run: |
+        # Change directory so that xdsl-opt can be found during installation.
+        cd xdsl
+        VENV_EXTRAS="--all-extras" make venv
+
     - name: Install dependencies
       run: |
         uv pip install setuptools wheel
