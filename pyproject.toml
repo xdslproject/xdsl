@@ -24,9 +24,9 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.10.10",
+    "marimo==0.10.12",
     "pre-commit==4.0.1",
-    "ruff==0.9.0",
+    "ruff==0.9.1",
     "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
@@ -36,7 +36,6 @@ dev = [
 gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.4.38", "numpy==2.2.1"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.19.3"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -74,7 +73,6 @@ extraPaths = ["tests"]
     "tests/dialects/test_memref.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "xdsl/interpreters/wgpu.py",
 ]
 "ignore" = [
     "docs/marimo",

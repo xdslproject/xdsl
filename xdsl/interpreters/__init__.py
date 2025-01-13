@@ -25,12 +25,7 @@ from xdsl.interpreters import (
 )
 
 
-def register_implementations(
-    interpreter: Interpreter,
-    ctx: MLContext,
-    *,
-    include_wgpu: bool = True,
-):
+def register_implementations(interpreter: Interpreter, ctx: MLContext):
     interpreter.register_implementations(affine.AffineFunctions())
     interpreter.register_implementations(arith.ArithFunctions())
     interpreter.register_implementations(builtin.BuiltinFunctions())
@@ -52,8 +47,3 @@ def register_implementations(
     interpreter.register_implementations(scf.ScfFunctions())
     interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
     interpreter.register_implementations(tensor.TensorFunctions())
-
-    if include_wgpu:
-        from xdsl.interpreters import wgpu
-
-        interpreter.register_implementations(wgpu.WGPUFunctions())
