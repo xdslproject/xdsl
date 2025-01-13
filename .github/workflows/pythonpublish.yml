@@ -16,11 +16,7 @@ jobs:
     - name: Set up Python
       run: uv python install 3.11
 
-    - name: Install dependencies
-      run: |
-        uv pip install setuptools wheel
-
     - name: Build and publish
       run: |
-        uv run setup.py sdist bdist_wheel
-        uv tool run twine upload -u __token__ -p ${{ secrets.PYPI_XDSL_TOKEN }} dist/*
+        uvx --with setuptools --with wheel setup.py sdist bdist_wheel
+        uvx twine upload -u __token__ -p ${{ secrets.PYPI_XDSL_TOKEN }} dist/*
