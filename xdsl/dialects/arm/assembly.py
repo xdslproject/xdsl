@@ -2,29 +2,9 @@ from typing import TypeAlias
 
 from xdsl.dialects.arm.register import ARMRegisterType
 from xdsl.dialects.builtin import StringAttr
-from xdsl.ir import (
-    Data,
-    SSAValue,
-)
-from xdsl.irdl import irdl_attr_definition
-from xdsl.parser import AttrParser
-from xdsl.printer import Printer
+from xdsl.ir import SSAValue
 
 AssemblyInstructionArg: TypeAlias = SSAValue
-
-
-@irdl_attr_definition
-class LabelAttr(Data[str]):
-    name = "arm.label"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        with parser.in_angle_brackets():
-            return parser.parse_str_literal()
-
-    def print_parameter(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string_literal(self.data)
 
 
 def append_comment(line: str, comment: StringAttr | None) -> str:

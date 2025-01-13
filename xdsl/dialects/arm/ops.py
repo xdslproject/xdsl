@@ -11,7 +11,8 @@ from xdsl.irdl import (
     result_def,
 )
 
-from .assembly import AssemblyInstructionArg, LabelAttr, assembly_arg_str, assembly_line
+from .assembly import AssemblyInstructionArg, assembly_arg_str, assembly_line
+from .attrs import LabelAttr
 from .register import IntRegisterType
 
 
