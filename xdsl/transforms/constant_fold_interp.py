@@ -85,7 +85,6 @@ class ConstantFoldInterpPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         interpreter = Interpreter(op)
-        # Do not call onnx interpreter function for this pass
-        register_implementations(interpreter, ctx, include_onnx=False)
+        register_implementations(interpreter, ctx)
         pattern = ConstantFoldInterpPattern(interpreter)
         PatternRewriteWalker(pattern).rewrite_module(op)

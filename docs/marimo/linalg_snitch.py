@@ -513,7 +513,7 @@ def _(TypedPtr, a_shape, b_shape, c_shape, mo, riscv_ctx, riscv_module):
     riscv_op_counter = OpCounter()
     riscv_interpreter = Interpreter(riscv_module, listeners=(riscv_op_counter,))
 
-    register_implementations(riscv_interpreter, riscv_ctx, include_onnx=False)
+    register_implementations(riscv_interpreter, riscv_ctx)
 
     riscv_interpreter.call_op("matmul", (a_shaped.data_ptr.raw, b_shaped.data_ptr.raw, riscv_c_shaped.data_ptr.raw))
 
@@ -566,7 +566,7 @@ def _(
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-    register_implementations(snitch_interpreter, snitch_stream_ctx, include_onnx=False)
+    register_implementations(snitch_interpreter, snitch_stream_ctx)
 
     snitch_interpreter.call_op(
         "matmul",

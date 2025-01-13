@@ -36,12 +36,6 @@ class xDSLRunMain(CommandLineTool):
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         arg_parser.add_argument(
-            "--onnx",
-            default=False,
-            action="store_true",
-            help="Enable the onnx-compilation interpreter.",
-        )
-        arg_parser.add_argument(
             "--verbose",
             default=False,
             action="store_true",
@@ -71,11 +65,7 @@ class xDSLRunMain(CommandLineTool):
         return super().register_all_arguments(arg_parser)
 
     def register_implementations(self, interpreter: Interpreter):
-        register_implementations(
-            interpreter,
-            self.ctx,
-            include_onnx=self.args.onnx,
-        )
+        register_implementations(interpreter, self.ctx)
 
     def run(self):
         input, file_extension = self.get_input_stream()

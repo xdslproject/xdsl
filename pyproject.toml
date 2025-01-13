@@ -35,7 +35,6 @@ dev = [
 ]
 gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.4.38", "numpy==2.2.1"]
-onnx = ["onnx==1.17.0", "numpy==2.2.1"]
 riscv = ["riscemu==2.2.7"]
 
 [project.urls]
@@ -72,12 +71,8 @@ extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests"]
 "exclude" = [
     "tests/dialects/test_memref.py",
-    "tests/frontend/onnx/test_build_onnx_ir.py",
-    "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "xdsl/frontend/onnx/ir_builder.py",
-    "xdsl/frontend/onnx/type.py",
 ]
 "ignore" = [
     "docs/marimo",

@@ -53,7 +53,7 @@ In order to keep the set of dependencies ot a minimum, these extra dependencies 
 specified explicitly. To install these, use:
 
 ``` bash
-pip install xdsl[gui,jax,riscv,onnx]
+pip install xdsl[gui,jax,riscv]
 ```
 
 To install the testing/development dependencies, use:
