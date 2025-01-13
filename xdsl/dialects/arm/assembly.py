@@ -4,9 +4,7 @@ from xdsl.dialects.arm.register import ARMRegisterType
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import SSAValue
 
-from .attrs import LabelAttr
-
-AssemblyInstructionArg: TypeAlias = ARMRegisterType | LabelAttr | SSAValue
+AssemblyInstructionArg: TypeAlias = ARMRegisterType | SSAValue
 
 
 def append_comment(line: str, comment: StringAttr | None) -> str:
@@ -22,9 +20,6 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     if isinstance(arg, ARMRegisterType):
         reg = arg.register_name
         return reg
-    elif isinstance(arg, LabelAttr):
-        label = arg.data
-        return label
     else:  # SSAValue
         if isinstance(arg.type, ARMRegisterType):
             reg = arg.type.register_name
