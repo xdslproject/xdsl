@@ -4,7 +4,7 @@ from xdsl.dialects.arm.register import ARMRegisterType
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import SSAValue
 
-AssemblyInstructionArg: TypeAlias = ARMRegisterType | SSAValue
+AssemblyInstructionArg: TypeAlias = SSAValue
 
 
 def append_comment(line: str, comment: StringAttr | None) -> str:
@@ -17,15 +17,11 @@ def append_comment(line: str, comment: StringAttr | None) -> str:
 
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isinstance(arg, ARMRegisterType):
-        reg = arg.register_name
+    if isinstance(arg.type, ARMRegisterType):
+        reg = arg.type.register_name
         return reg
-    else:  # SSAValue
-        if isinstance(arg.type, ARMRegisterType):
-            reg = arg.type.register_name
-            return reg
-        else:
-            raise ValueError(f"Unexpected argument type {type(arg)}")
+    else:
+        raise ValueError(f"Unexpected register type {arg.type}")
 
 
 def assembly_line(
