@@ -188,8 +188,5 @@ class LabelOp(ARMOperation):
             },
         )
 
-    def assembly_line_args(self):
-        return ()
-
-    def assembly_instruction_name(self) -> str:
-        return self.label.data
+    def assembly_line(self) -> str | None:
+        return append_comment(f"{self.label.data}:", self.comment)
