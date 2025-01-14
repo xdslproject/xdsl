@@ -168,7 +168,7 @@ class LabelOp(ARMOperation):
     name = "arm.label"
     label = prop_def(StringAttr)
 
-    assembly_format = "attr-dict"
+    assembly_format = "$label attr-dict"
 
     def __init__(
         self,
