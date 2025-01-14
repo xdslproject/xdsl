@@ -10,6 +10,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyFloatAttr,
     Builtin,
     FloatAttr,
@@ -19,6 +20,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     SymbolRefAttr,
     UnitAttr,
+    f32,
     i32,
 )
 from xdsl.dialects.func import Func
@@ -56,7 +58,7 @@ def test_simple_forgotten_op():
 
     add.verify()
 
-    expected = """%0 = "arith.addi"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32"""
+    expected = """%0 = "arith.addi"(%1, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32"""
 
     assert_print_op(add, expected, None)
 
@@ -86,7 +88,7 @@ def test_unit_attr():
     """Test that a UnitAttr can be defined and printed"""
 
     expected = """
-"unit_attr_op"() {"parallelize"} : () -> ()
+"unit_attr_op"() {parallelize} : () -> ()
 """
 
     unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
@@ -98,7 +100,7 @@ def test_added_unit_attr():
     """Test that a UnitAttr can be added to an op, even if its not defined as a field."""
 
     expected = """
-"unit_attr_op"() {"parallelize", "vectorize"} : () -> ()
+"unit_attr_op"() {parallelize, vectorize} : () -> ()
 """
     unitop = UnitAttrOp.build(
         attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
@@ -121,17 +123,17 @@ def test_op_message():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message
   ---------------------
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -155,16 +157,16 @@ def test_two_different_op_messages():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
   ---------------------
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
   ^^^^^^^^^^^^^^^^^
   | Test message 2
   -----------------
@@ -190,19 +192,19 @@ def test_two_same_op_messages():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
   ---------------------
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 2
   ---------------------
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -226,7 +228,7 @@ def test_op_message_with_region():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
@@ -234,8 +236,8 @@ def test_op_message_with_region():
 ^^^^^^^^^^^^^^^^
 | Test
 ----------------
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -259,7 +261,7 @@ def test_op_message_with_region_and_overflow():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
@@ -267,8 +269,8 @@ def test_op_message_with_region_and_overflow():
 ^^^^^^^^^^^^^^^^---
 | Test long message
 -------------------
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -291,7 +293,7 @@ def test_diagnostic():
     prog = """\
 "builtin.module"() ({
   %0 = arith.constant 42 : i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -322,14 +324,14 @@ def test_print_custom_name():
     prog = """\
 "builtin.module"() ({
   %i = arith.constant 42 : i32
-  %213 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %213 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %0 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %i = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %0 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -595,7 +597,7 @@ def test_custom_format():
     """
     prog = """\
 builtin.module {
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = test.add %0 + %0 : i32
 }
 """
@@ -631,7 +633,7 @@ def test_custom_format_II():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "test.add"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -669,7 +671,7 @@ def test_missing_custom_format():
     ctx = MLContext()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
-    ctx.load_op(PlusCustomFormatOp)
+    ctx.load_op(NoCustomFormatOp)
 
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError):
@@ -709,13 +711,13 @@ def test_custom_format_attr():
     """
     prog = """\
 "builtin.module"() ({
-  "test.any"() {"attr" = #test.custom<zero>} : () -> ()
+  "test.any"() {attr = #test.custom<zero>} : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  "test.any"() {"attr" = #test.custom<zero>} : () -> ()
+  "test.any"() {attr = #test.custom<zero>} : () -> ()
 }) : () -> ()"""
 
     ctx = MLContext()
@@ -733,7 +735,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"arg_attrs" = {"key_one" = "value_one", "key_two" = "value_two", "key_three" = 72 : i64, "unit_attr"}} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}} : () -> ()
     """
 
     ctx = MLContext()
@@ -750,7 +752,7 @@ def test_densearray_attr():
     """Test that a DenseArrayAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"bool_attrs" = array<i1: false, true>, "int_attr" = array<i32: 19, 23, 55>, "float_attr" = array<f32: 0.34>} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 0.3400000035762787>} : () -> ()
     """
 
     ctx = MLContext()
@@ -761,6 +763,52 @@ def test_densearray_attr():
     parsed = parser.parse_op()
 
     assert_print_op(parsed, prog, None)
+
+
+def test_float():
+    printer = Printer()
+
+    def _test_float_print(expected: str, value: float, type: AnyFloat):
+        value = FloatAttr(value, type).value.data
+        io = StringIO()
+        printer.stream = io
+        printer.print_float(value, type)
+        assert io.getvalue() == expected
+
+    _test_float_print("3.000000e+00", 3, f32)
+    _test_float_print("-3.000000e+00", -3, f32)
+    _test_float_print("3.140000e+00", 3.14, f32)
+    _test_float_print("3.140000e+08", 3.14e8, f32)
+    _test_float_print("3.14285707", 22 / 7, f32)
+    _test_float_print("0x4D95DCF5", 22e8 / 7, f32)
+    _test_float_print("3.14285714e+16", 22e16 / 7, f32)
+    _test_float_print("-3.14285707", -22 / 7, f32)
+
+
+def test_float_attr():
+    printer = Printer()
+
+    def _test_float_attr(value: float, type: AnyFloat):
+        value = FloatAttr(value, type).value.data
+        io_float = StringIO()
+        printer.stream = io_float
+        printer.print_float(value, type)
+
+        io_attr = StringIO()
+        printer.stream = io_attr
+        printer.print_float_attr(FloatAttr(value, type))
+
+        assert io_float.getvalue() == io_attr.getvalue()
+
+    for value in (
+        3,
+        3.14,
+        22 / 7,
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+    ):
+        _test_float_attr(value, f32)
 
 
 def test_float_attr_specials():
@@ -821,11 +869,11 @@ def test_print_properties_as_attributes():
     """Test that properties can be printed as attributes."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"extra_attr"} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private"}> {extra_attr} : () -> ()
     """
 
     retro_prog = """
-"func.func"() {"extra_attr", "sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"} : () -> ()
+"func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
     """
 
     ctx = MLContext()
@@ -842,11 +890,11 @@ def test_print_properties_as_attributes_safeguard():
     """Test that properties can be printed as attributes."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"extra_attr", "sym_name" = "this should be overriden by the property"} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private"}> {extra_attr, sym_name = "this should be overriden by the property"} : () -> ()
     """
 
     retro_prog = """
-"func.func"() {"extra_attr", "sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"} : () -> ()
+"func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
     """
 
     ctx = MLContext()
@@ -907,43 +955,3 @@ def test_get_printed_name():
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)
     assert f"%{picked_name}" == printed.getvalue()
-
-
-def test_indented():
-    output = StringIO()
-    printer = Printer(stream=output)
-    printer.print("\n{")
-    with printer.indented():
-        printer.print("\nhello\nhow are you?")
-        printer.print("\n(")
-        with printer.indented():
-            printer.print("\nfoo,")
-            printer.print("\nbar,")
-            printer.print("\n")
-            printer.print_string("test\nraw print!", indent=0)
-            printer.print_string("\ndifferent indent level", indent=4)
-        printer.print("\n)")
-    printer.print("\n}")
-    printer.print("\n[")
-    with printer.indented(amount=3):
-        printer.print("\nbaz")
-    printer.print("\n]\n")
-
-    EXPECTED = """
-{
-  hello
-  how are you?
-  (
-    foo,
-    bar,
-    test
-raw print!
-        different indent level
-  )
-}
-[
-      baz
-]
-"""
-
-    assert output.getvalue() == EXPECTED

@@ -17,7 +17,10 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
+    IndexType,
     IntAttr,
+    IntegerType,
     ModuleOp,
     ShapedType,
     TensorType,
@@ -79,11 +82,18 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
             if (
                 isinstance(use.operation, InsertSliceOp)
                 and is_tensor(use.operation.result.type)
-                and isa(use.operation.static_sizes.data, ArrayAttr[IntAttr])
+                and isa(
+                    static_sizes := use.operation.static_sizes.get_values(),
+                    tuple[int, ...],
+                )
             ):
+                assert is_tensor(use.operation.source.type)
+                # inserting an (n-1)d tensor into an (n)d tensor should not require the input tensor to also be (n)d
+                # instead, drop the first `dimdiff` dimensions
+                dimdiff = len(static_sizes) - len(use.operation.source.type.shape)
                 return TensorType(
                     use.operation.result.type.get_element_type(),
-                    use.operation.static_sizes.data,
+                    static_sizes[dimdiff:],
                 )
             for ret in use.operation.results:
                 if isa(r_type := ret.type, TensorType[Attribute]):
@@ -186,7 +196,7 @@ class ArithOpTensorize(RewritePattern):
     @staticmethod
     def _rewrite_scalar_operand(
         scalar_op: SSAValue,
-        dest_typ: TensorType[Attribute],
+        dest_typ: TensorType[IndexType | IntegerType | AnyFloat],
         op: FloatingPointLikeBinaryOperation,
         rewriter: PatternRewriter,
     ) -> SSAValue:
@@ -196,8 +206,10 @@ class ArithOpTensorize(RewritePattern):
         If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
         """
         if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, ConstantOp):
+            assert isinstance(float_attr := scalar_op.op.value, FloatAttr)
+            scalar_value = float_attr.value.data
             tens_const = ConstantOp(
-                DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
+                DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result
@@ -258,7 +270,9 @@ def is_tensorized(
     return len(typ.get_shape()) == 2 and isinstance(typ.get_element_type(), TensorType)
 
 
-def is_tensor(typ: Attribute) -> TypeGuard[TensorType[Attribute]]:
+def is_tensor(
+    typ: Attribute,
+) -> TypeGuard[TensorType[IndexType | IntegerType | AnyFloat]]:
     return isinstance(typ, TensorType)
 
 
@@ -355,7 +369,7 @@ class ExtractSliceOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
-                if isa(offsets := op.static_offsets.data.data, Sequence[IntAttr]):
+                if isa(offsets := op.static_offsets.get_values(), Sequence[IntAttr]):
                     new_offsets = [o.data for o in offsets]
                 else:
                     assert isa(offsets, Sequence[int])

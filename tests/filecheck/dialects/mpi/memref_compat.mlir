@@ -7,11 +7,11 @@
 
 
 // CHECK:      "builtin.module"() ({
-// CHECK-NEXT:   %ref = "memref.alloc"() {"alignment" = 32 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
+// CHECK-NEXT:   %ref = "memref.alloc"() {alignment = 32 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
 // CHECK-NEXT:   %buff = "memref.extract_aligned_pointer_as_index"(%ref) : (memref<100x14x14xf64>) -> index
 // CHECK-NEXT:   %buff1 = "arith.index_cast"(%buff) : (index) -> i64
 // CHECK-NEXT:   %buff2 = "llvm.inttoptr"(%buff1) : (i64) -> !llvm.ptr
-// CHECK-NEXT:   %buff3 = "arith.constant"() {"value" = 128 : i32} : () -> i32
-// CHECK-NEXT:   %buff4 = "arith.constant"() {"value" = 1275070475 : i32} : () -> i32
-// CHECK-NEXT:   %0 = "arith.constant"() {"value" = 1275069445 : i32} : () -> i32
+// CHECK-NEXT:   %buff3 = "arith.constant"() {value = 128 : i32} : () -> i32
+// CHECK-NEXT:   %buff4 = "arith.constant"() {value = 1275070475 : i32} : () -> i32
+// CHECK-NEXT:   %0 = "arith.constant"() {value = 1275069445 : i32} : () -> i32
 // CHECK-NEXT: }) : () -> ()

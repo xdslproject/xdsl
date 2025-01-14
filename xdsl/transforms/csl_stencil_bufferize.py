@@ -94,6 +94,10 @@ class ApplyOpBufferize(RewritePattern):
         # convert args
         buf_args: list[SSAValue] = []
         to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
+        # in case of subsequent apply ops accessing this accumulator, replace uses with `bufferization.to_memref`
+        op.accumulator.replace_by_if(
+            buf_iter_arg.memref, lambda use: use.operation != buf_iter_arg
+        )
         for arg in [*op.args_rchunk, *op.args_dexchng]:
             if isa(arg.type, TensorType[Attribute]):
                 to_memrefs.append(new_arg := to_memref_op(arg))
@@ -125,7 +129,7 @@ class ApplyOpBufferize(RewritePattern):
             zip(op.receive_chunk.block.args, buf_apply_op.receive_chunk.block.args)
         ):
             # arg0 has special meaning and does not need a `to_tensor` op
-            if isattr(old_arg.type, TensorType) and idx != 0:
+            if isinstance(old_arg.type, TensorType) and idx != 0:
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 2),
@@ -139,7 +143,7 @@ class ApplyOpBufferize(RewritePattern):
         for idx, (old_arg, arg) in enumerate(
             zip(op.done_exchange.block.args, buf_apply_op.done_exchange.block.args)
         ):
-            if isattr(old_arg.type, TensorType):
+            if isinstance(old_arg.type, TensorType):
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 1),
@@ -285,10 +289,18 @@ class AccessOpBufferize(RewritePattern):
             rewriter.replace_matched_op(to_tensor_op(op.op))
             return
 
+        # accesses to buffers passed in additional args can read directly from memref underlying `to_tensor`
+        source = (
+            op.op.op.memref
+            if isinstance(op.op, OpResult)
+            and isinstance(op.op.op, bufferization.ToTensorOp)
+            else op.op
+        )
+
         rewriter.replace_matched_op(
             [
                 access := csl_stencil.AccessOp(
-                    op.op,
+                    source,
                     op.offset,
                     r_type,
                     op.offset_mapping,
@@ -385,6 +397,11 @@ class ArithConstBufferize(RewritePattern):
 class InjectApplyOutsIntoLinalgOuts(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        # require bufferized apply (with op.dest specified)
+        # zero-output apply ops may be used for communicate-only, to which this pattern does not apply
+        if not op.dest:
+            return
+
         yld = op.done_exchange.block.last_op
         assert isinstance(yld, csl_stencil.YieldOp)
         new_dest: list[SSAValue] = []

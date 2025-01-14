@@ -2,6 +2,7 @@ import types
 from collections.abc import Iterable, Sequence
 from inspect import isclass
 from typing import (
+    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
@@ -17,10 +18,13 @@ from typing import (
 from xdsl.ir import ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 
+if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
 _T = TypeVar("_T")
 
 
-def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
+def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     from xdsl.irdl import ConstraintContext
 
     """

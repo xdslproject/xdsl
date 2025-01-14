@@ -193,7 +193,7 @@ class ConstClockOp(IRDLOperation):
     def parse(cls, parser: Parser) -> "ConstClockOp":
         value = ClockConstAttr(ClockConstAttr.parse_parameter_free_standing(parser))
         attrs = parser.parse_optional_attr_dict_with_reserved_attr_names(("value",))
-        attrs_data = attrs.data if attrs is not None else {}
+        attrs_data = dict(attrs.data) if attrs is not None else {}
         attrs_data["value"] = value
         return ConstClockOp.create(attributes=attrs_data, result_types=[clock])
 

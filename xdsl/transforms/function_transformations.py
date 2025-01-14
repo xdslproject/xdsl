@@ -29,8 +29,8 @@ class ArgNamesToArgAttrsPass(RewritePattern):
 
         new_arg_attrs = ArrayAttr(
             DictionaryAttr(
-                {"llvm.name": StringAttr(arg.name_hint), **arg_attr.data}
-                if arg.name_hint
+                arg_attr.data.set("llvm.name", StringAttr(arg.name_hint))
+                if arg.name_hint and "llvm.name" not in arg_attr.data
                 else arg_attr.data
             )
             for arg, arg_attr in zip(op.args, arg_attrs, strict=True)

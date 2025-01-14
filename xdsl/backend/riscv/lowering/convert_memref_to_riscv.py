@@ -220,9 +220,9 @@ class ConvertMemrefStoreOp(RewritePattern):
 class ConvertMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
-        assert isinstance(
-            op_memref_type := op.memref.type, memref.MemRefType
-        ), f"{op.memref.type}"
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
+            f"{op.memref.type}"
+        )
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         mem, *indices = cast_operands_to_regs(rewriter)
@@ -285,16 +285,16 @@ class ConvertMemrefGlobalOp(RewritePattern):
                     raise DiagnosticException(
                         f"Unsupported memref element type for riscv lowering: {element_type}"
                     )
-                ints = [d.value.data for d in initial_value.data]
+                ints = initial_value.get_values()
                 for i in ints:
                     assert isinstance(i, int)
                 ints = cast(list[int], ints)
                 ptr = TypedPtr.new_int32(ints).raw
             case Float32Type():
-                floats = [d.value.data for d in initial_value.data]
+                floats = initial_value.get_values()
                 ptr = TypedPtr.new_float32(floats).raw
             case Float64Type():
-                floats = [d.value.data for d in initial_value.data]
+                floats = initial_value.get_values()
                 ptr = TypedPtr.new_float64(floats).raw
             case _:
                 raise DiagnosticException(
@@ -387,8 +387,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
             index_ops: list[Operation] = []
 
             dynamic_offset_index = 0
-            for static_offset_attr in op.static_offsets.data:
-                static_offset = static_offset_attr.data
+            for static_offset in op.static_offsets.iter_values():
                 assert isinstance(static_offset, int)
                 if static_offset == memref.SubviewOp.DYNAMIC_INDEX:
                     index_ops.append(

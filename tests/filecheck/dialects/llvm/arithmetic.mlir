@@ -3,7 +3,7 @@
 %arg0, %arg1 = "test.op"() : () -> (i32, i32)
 
 %add_both = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nsw, nuw>} : i32
-// CHECK: %add_both = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nsw,nuw>} : i32
+// CHECK: %add_both = llvm.add %arg0, %arg1 {overflowFlags = #llvm.overflow<nsw,nuw>} : i32
 
 %add_both_pretty = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
 // CHECK: %add_both_pretty = llvm.add %arg0, %arg1 overflow<nsw,nuw> : i32

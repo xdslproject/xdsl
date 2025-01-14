@@ -53,6 +53,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     FloatAttr,
     IndexType,
+    IntegerAttr,
     IntegerType,
     TensorType,
     VectorType,
@@ -122,6 +123,21 @@ class Test_integer_arith_construction:
     )
     def test_Cmpi_from_mnemonic(self, input: str):
         _ = CmpiOp(self.a, self.b, input)
+
+
+@pytest.mark.parametrize(
+    "value, truncated",
+    [
+        (-1, -1),
+        (1, 1),
+        (255, -1),
+        (256, 0),
+    ],
+)
+def test_constant_truncation(value: int, truncated: int):
+    constant = ConstantOp.from_int_and_width(value, 8, truncate_bits=True)
+    assert isinstance(v := constant.value, IntegerAttr)
+    assert v.value.data == truncated
 
 
 @pytest.mark.parametrize(

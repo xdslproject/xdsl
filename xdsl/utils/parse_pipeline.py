@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.lexer import Input, Span, StringLiteral
+from xdsl.utils.lexer import Input, Span
+from xdsl.utils.mlir_lexer import StringLiteral
 
 
 @dataclass
@@ -122,7 +123,7 @@ def _pass_arg_element_type_str(arg: PassArgElementType) -> str:
 
 def _pass_arg_list_type_str(name: str, arg: PassArgListType) -> str:
     if arg:
-        return f'{name}={",".join(_pass_arg_element_type_str(val) for val in arg)}'
+        return f"{name}={','.join(_pass_arg_element_type_str(val) for val in arg)}"
     else:
         return name
 

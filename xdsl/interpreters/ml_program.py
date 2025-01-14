@@ -28,13 +28,9 @@ class MLProgramFunctions(InterpreterFunctions):
         global_value = global_op.value
         assert isinstance(global_value, DenseIntOrFPElementsAttr)
         shape = global_value.get_shape()
-        if shape is None:
-            raise NotImplementedError()
         xtype = xtype_for_el_type(
             global_value.get_element_type(), interpreter.index_bitwidth
         )
-        data = TypedPtr[Any].new(
-            [el.value.data for el in global_value.data], xtype=xtype
-        )
+        data = TypedPtr[Any].new(global_value.get_values(), xtype=xtype)
         shaped_array = ShapedArray(data, list(shape))
         return (shaped_array,)

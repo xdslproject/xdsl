@@ -18,11 +18,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Affine
 
-    def get_aie():
-        from xdsl.dialects.experimental.aie import AIE
-
-        return AIE
-
     def get_air():
         from xdsl.dialects.experimental.air import AIR
 
@@ -37,6 +32,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.arm import ARM
 
         return ARM
+
+    def get_arm_func():
+        from xdsl.dialects.arm_func import ARM_FUNC
+
+        return ARM_FUNC
 
     def get_bufferization():
         from xdsl.dialects.bufferization import Bufferization
@@ -177,11 +177,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.omp import OMP
 
         return OMP
-
-    def get_onnx():
-        from xdsl.dialects.onnx import ONNX
-
-        return ONNX
 
     def get_pdl():
         from xdsl.dialects.pdl import PDL
@@ -331,10 +326,10 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     return {
         "accfg": get_accfg,
         "affine": get_affine,
-        "aie": get_aie,
         "air": get_air,
         "arith": get_arith,
         "arm": get_arm,
+        "arm_func": get_arm_func,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,
@@ -363,7 +358,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "mod_arith": get_mod_arith,
         "mpi": get_mpi,
         "omp": get_omp,
-        "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,

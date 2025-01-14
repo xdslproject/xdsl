@@ -6,6 +6,38 @@
 
 // CHECK:       builtin.module {
 
+func.func @fill_empty_shape(%scalar: memref<f64>) {
+  %zero_float = arith.constant 0.000000e+00 : f64
+  memref_stream.generic {
+    bounds = [],
+    indexing_maps = [
+      affine_map<() -> ()>,
+      affine_map<() -> ()>
+    ],
+    iterator_types = []
+  } ins(%zero_float : f64) outs(%scalar : memref<f64>) {
+  ^bb0(%in: f64, %out: f64):
+    linalg.yield %in : f64
+  }
+  return
+}
+
+// CHECK-NEXT:    func.func @fill_empty_shape(%scalar : memref<f64>) {
+// CHECK-NEXT:      %zero_float = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:      memref_stream.generic {
+// CHECK-NEXT:        bounds = [],
+// CHECK-NEXT:        indexing_maps = [
+// CHECK-NEXT:          affine_map<() -> ()>,
+// CHECK-NEXT:          affine_map<() -> ()>
+// CHECK-NEXT:        ],
+// CHECK-NEXT:        iterator_types = []
+// CHECK-NEXT:      } ins(%zero_float : f64) outs(%scalar : memref<f64>) {
+// CHECK-NEXT:      ^0(%in : f64, %out : f64):
+// CHECK-NEXT:        linalg.yield %in : f64
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+
 func.func public @dsum(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, %arg2 : memref<8x16xf64>) -> memref<8x16xf64> {
     memref_stream.generic {
         bounds = [8, 16],

@@ -1,9 +1,12 @@
 from xdsl.utils.comparisons import (
     signed_lower_bound,
     signed_upper_bound,
+    signed_value_range,
+    signless_value_range,
     to_signed,
     to_unsigned,
     unsigned_upper_bound,
+    unsigned_value_range,
 )
 
 BITWIDTH = 2
@@ -24,6 +27,15 @@ def test_bitwidth_2_values():
     Above calculations are correct for bitwidth 2.
     """
     assert list(SIGNED_RANGE) == [unsigned_to_signed(u) for u in UNSIGNED_RANGE]
+
+
+def test_bitwidth_0_values():
+    """
+    We support 0-width types, where the value is always 0.
+    """
+    assert unsigned_value_range(0) == (0, 1)
+    assert signed_value_range(0) == (0, 1)
+    assert signless_value_range(0) == (0, 1)
 
 
 def test_conversion():

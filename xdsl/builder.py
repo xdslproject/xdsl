@@ -54,26 +54,6 @@ class Builder(BuilderListener):
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
-    @staticmethod
-    def before(op: Operation) -> Builder:
-        """Creates a builder with the insertion point before an operation."""
-        return Builder(InsertPoint.before(op))
-
-    @staticmethod
-    def after(op: Operation) -> Builder:
-        """Creates a builder with the insertion point after an operation."""
-        return Builder(InsertPoint.after(op))
-
-    @staticmethod
-    def at_start(block: Block) -> Builder:
-        """Creates a builder with the insertion point at the start of a block."""
-        return Builder(InsertPoint.at_start(block))
-
-    @staticmethod
-    def at_end(block: Block) -> Builder:
-        """Creates a builder with the insertion point at the end of a block."""
-        return Builder(InsertPoint.at_end(block))
-
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
 
@@ -81,7 +61,7 @@ class Builder(BuilderListener):
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
-                "Cannot insert operation explicitly when an implicit " "builder exists."
+                "Cannot insert operation explicitly when an implicit builder exists."
             )
 
         block = self.insertion_point.block
@@ -161,7 +141,7 @@ class Builder(BuilderListener):
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder.at_end(block)
+        builder = Builder(InsertPoint.at_end(block))
         func(builder)
         return Region(block)
 
@@ -179,7 +159,7 @@ class Builder(BuilderListener):
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
             block = Block(arg_types=input_types)
-            builder = Builder.at_start(block)
+            builder = Builder(InsertPoint.at_start(block))
 
             func(builder, block.args)
 
@@ -372,7 +352,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
         if isinstance(arg, Region):
             arg = arg.block
         if isinstance(arg, Block):
-            arg = Builder.at_end(arg)
+            arg = Builder(InsertPoint.at_end(arg))
         self._builder = arg
 
     def __enter__(self) -> tuple[BlockArgument, ...]:

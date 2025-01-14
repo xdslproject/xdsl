@@ -39,14 +39,15 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
-    AnyTypeableDirective,
     AttrDictDirective,
     AttributeVariable,
     DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
+    FunctionalTypeDirective,
     KeywordDirective,
     OperandOrResult,
+    OperandsDirective,
     OperandVariable,
     OptionalAttributeVariable,
     OptionalGroupDirective,
@@ -55,18 +56,17 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalRegionVariable,
     OptionalResultVariable,
     OptionalSuccessorVariable,
-    OptionalTypeableDirective,
-    OptionalTypeDirective,
     OptionalUnitAttrVariable,
     ParsingState,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
+    ResultsDirective,
     ResultVariable,
     SuccessorVariable,
+    TypeableDirective,
     TypeDirective,
     VariadicLikeFormatDirective,
-    VariadicLikeTypeDirective,
     VariadicOperandDirective,
     VariadicOperandVariable,
     VariadicRegionDirective,
@@ -79,11 +79,12 @@ from xdsl.irdl.declarative_assembly_format import (
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
-from xdsl.utils.lexer import Input, Lexer, Token
+from xdsl.utils.lexer import Input
+from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
 
 
 @dataclass
-class FormatLexer(Lexer):
+class FormatLexer(MLIRLexer):
     """
     A lexer for the declarative assembly format.
     The differences with the MLIR lexer are the following:
@@ -91,7 +92,7 @@ class FormatLexer(Lexer):
     * Bare identifiers may also may contain `-`.
     """
 
-    def lex(self) -> Token:
+    def lex(self) -> MLIRToken:
         """Lex a token from the input, and returns it."""
         # First, skip whitespaces
         self._consume_whitespace()
@@ -101,13 +102,13 @@ class FormatLexer(Lexer):
 
         # Handle end of file
         if current_char is None:
-            return self._form_token(Token.Kind.EOF, start_pos)
+            return self._form_token(MLIRTokenKind.EOF, start_pos)
 
         # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
         if current_char in ("`", "$", "\\", "^"):
             self._consume_chars()
-            return self._form_token(Token.Kind.BARE_IDENT, start_pos)
+            return self._form_token(MLIRTokenKind.BARE_IDENT, start_pos)
         return super().lex()
 
     # Authorize `-` in bare identifier
@@ -167,7 +168,7 @@ class FormatParser(BaseParser):
         unambiguous and refer to all elements exactly once.
         """
         elements: list[FormatDirective] = []
-        while self._current_token.kind != Token.Kind.EOF:
+        while self._current_token.kind != MLIRTokenKind.EOF:
             elements.append(self.parse_format_directive())
 
         self.add_reserved_attrs_to_directive(elements)
@@ -192,7 +193,7 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic directive cannot be followed by a comma literal."
                     )
-                case VariadicLikeTypeDirective(), VariadicLikeTypeDirective():
+                case VariadicTypeDirective(), VariadicTypeDirective():
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
@@ -248,15 +249,24 @@ class FormatParser(BaseParser):
 
     @dataclass(frozen=True)
     class _AttrExtractor(VarExtractor[ParsingState]):
+        """
+        Extracts constraint variables from the attributes/properties of an operation.
+        If the default_value field is None, then the attribute/property must always be
+        present (which is only the case for non-optional attributes/properties with no
+        default value).
+        """
+
         name: str
         is_prop: bool
         inner: VarExtractor[Attribute]
+        default_value: Attribute | None
 
         def extract_var(self, a: ParsingState) -> ConstraintVariableType:
             if self.is_prop:
-                attr = a.properties[self.name]
+                attr = a.properties.get(self.name, self.default_value)
             else:
-                attr = a.attributes[self.name]
+                attr = a.attributes.get(self.name, self.default_value)
+            assert attr is not None
             return self.inner.extract_var(attr)
 
     def extractors_by_name(self) -> dict[str, VarExtractor[ParsingState]]:
@@ -281,16 +291,20 @@ class FormatParser(BaseParser):
                     }
                 )
         for prop_name, prop_def in self.op_def.properties.items():
+            if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
+                continue
             extractor_dicts.append(
                 {
-                    v: self._AttrExtractor(prop_name, True, r)
+                    v: self._AttrExtractor(prop_name, True, r, prop_def.default_value)
                     for v, r in prop_def.constr.get_variable_extractors().items()
                 }
             )
         for attr_name, attr_def in self.op_def.attributes.items():
+            if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
+                continue
             extractor_dicts.append(
                 {
-                    v: self._AttrExtractor(attr_name, False, r)
+                    v: self._AttrExtractor(attr_name, False, r, attr_def.default_value)
                     for v, r in attr_def.constr.get_variable_extractors().items()
                 }
             )
@@ -318,7 +332,9 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format"
                 )
             if not seen_operand_type:
-                if not operand_def.constr.can_infer(var_constraint_names):
+                if not operand_def.constr.can_infer(
+                    var_constraint_names, length_known=True
+                ):
                     self.raise_error(
                         f"type of operand '{operand_name}' cannot be inferred, "
                         f"consider adding a 'type(${operand_name})' directive to the "
@@ -333,7 +349,9 @@ class FormatParser(BaseParser):
             self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
-                if not result_def.constr.can_infer(var_constraint_names):
+                if not result_def.constr.can_infer(
+                    var_constraint_names, length_known=False
+                ):
                     self.raise_error(
                         f"type of result '{result_name}' cannot be inferred, "
                         f"consider adding a 'type(${result_name})' directive to the "
@@ -439,7 +457,7 @@ class FormatParser(BaseParser):
                 case _:
                     return OperandVariable(variable_name, idx)
 
-    def parse_optional_typeable_variable(self) -> AnyTypeableDirective | None:
+    def parse_optional_typeable_variable(self) -> TypeableDirective | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
@@ -588,8 +606,7 @@ class FormatParser(BaseParser):
                 )
 
         self.raise_error(
-            "expected variable to refer to an operand, "
-            "attribute, region, or successor"
+            "expected variable to refer to an operand, attribute, region, or successor"
         )
 
     def parse_type_directive(self) -> FormatDirective:
@@ -603,9 +620,20 @@ class FormatParser(BaseParser):
         self.parse_punctuation(")")
         if isinstance(inner, VariadicTypeableDirective):
             return VariadicTypeDirective(inner)
-        if isinstance(inner, OptionalTypeableDirective):
-            return OptionalTypeDirective(inner)
         return TypeDirective(inner)
+
+    def parse_functional_type_directive(self) -> FormatDirective:
+        """
+        Parse a functional-type directive with the following format
+          functional-type-directive ::= `functional-type` `(` typeable-directive `,` typeable-directive `)`
+        `functional-type` is expected to have already been parsed
+        """
+        self.parse_punctuation("(")
+        operands = self.parse_typeable_directive()
+        self.parse_punctuation(",")
+        results = self.parse_typeable_directive()
+        self.parse_punctuation(")")
+        return FunctionalTypeDirective(operands, results)
 
     def parse_optional_group(self) -> FormatDirective:
         """
@@ -688,7 +716,7 @@ class FormatParser(BaseParser):
         if self._current_token.kind.is_punctuation():
             punctuation = self._consume_token().text
             self.parse_characters("`")
-            assert Token.Kind.is_spelling_of_punctuation(punctuation)
+            assert MLIRTokenKind.is_spelling_of_punctuation(punctuation)
             return PunctuationDirective(punctuation)
 
         # Identifier case
@@ -699,11 +727,15 @@ class FormatParser(BaseParser):
         self.parse_characters("`")
         return KeywordDirective(ident)
 
-    def parse_typeable_directive(self) -> AnyTypeableDirective:
+    def parse_typeable_directive(self) -> TypeableDirective:
         """
         Parse a typeable directive, with the following format:
           directive ::= variable
         """
+        if self.parse_optional_keyword("operands"):
+            return self.create_operands_directive(False)
+        if self.parse_optional_keyword("results"):
+            return self.create_results_directive()
         if variable := self.parse_optional_typeable_variable():
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
@@ -723,6 +755,10 @@ class FormatParser(BaseParser):
             return self.create_attr_dict_directive(True)
         if self.parse_optional_keyword("type"):
             return self.parse_type_directive()
+        if self.parse_optional_keyword("operands"):
+            return self.create_operands_directive(True)
+        if self.parse_optional_keyword("functional-type"):
+            return self.parse_functional_type_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if self.parse_optional_punctuation("("):
@@ -749,3 +785,46 @@ class FormatParser(BaseParser):
             reserved_attr_names=set(),
             print_properties=print_properties,
         )
+
+    def create_operands_directive(self, top_level: bool) -> OperandsDirective:
+        if not self.op_def.operands:
+            self.raise_error("'operands' should not be used when there are no operands")
+        if top_level and any(self.seen_operands):
+            self.raise_error("'operands' cannot be used with other operand directives")
+        if not top_level and any(self.seen_operand_types):
+            self.raise_error(
+                "'operands' cannot be used in a type directive with other operand type directives"
+            )
+        variadics = tuple(
+            (isinstance(o, OptionalDef), i)
+            for i, (_, o) in enumerate(self.op_def.operands)
+            if isinstance(o, VariadicDef)
+        )
+        if len(variadics) > 1:
+            self.raise_error("'operands' is ambiguous with multiple variadic operands")
+        if top_level:
+            self.seen_operands = [True] * len(self.seen_operands)
+        else:
+            self.seen_operand_types = [True] * len(self.seen_operand_types)
+        if not variadics:
+            return OperandsDirective(None)
+        return OperandsDirective(variadics[0])
+
+    def create_results_directive(self) -> ResultsDirective:
+        if not self.op_def.results:
+            self.raise_error("'results' should not be used when there are no results")
+        if any(self.seen_result_types):
+            self.raise_error(
+                "'results' cannot be used in a type directive with other result type directives"
+            )
+        variadics = tuple(
+            (isinstance(o, OptResultDef), i)
+            for i, (_, o) in enumerate(self.op_def.results)
+            if isinstance(o, VarResultDef)
+        )
+        if len(variadics) > 1:
+            self.raise_error("'results' is ambiguous with multiple variadic results")
+        self.seen_result_types = [True] * len(self.seen_result_types)
+        if not variadics:
+            return ResultsDirective(None)
+        return ResultsDirective(variadics[0])

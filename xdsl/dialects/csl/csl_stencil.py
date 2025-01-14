@@ -101,7 +101,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_param.as_tuple()
+        data = self.neighbor_param.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
@@ -140,12 +140,15 @@ class PrefetchOp(IRDLOperation):
 
     topo = prop_def(dmp.RankTopoAttr)
 
+    num_chunks = prop_def(AnyIntegerAttr)
+
     result = result_def(AnyMemRefTypeConstr | AnyTensorTypeConstr)
 
     def __init__(
         self,
         input_stencil: SSAValue | Operation,
         topo: dmp.RankTopoAttr,
+        num_chunks: AnyIntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
         result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
     ):
@@ -154,6 +157,7 @@ class PrefetchOp(IRDLOperation):
             properties={
                 "topo": topo,
                 "swaps": builtin.ArrayAttr(swaps),
+                "num_chunks": num_chunks,
             },
             result_types=[result_type],
         )
@@ -368,7 +372,7 @@ class ApplyOp(IRDLOperation):
                 self.accumulator.type.get_element_type(),
                 (
                     len(self.swaps),
-                    self.accumulator.type.get_shape()[0] // self.num_chunks.value.data,
+                    self.accumulator.type.get_shape()[-1] // self.num_chunks.value.data,
                 ),
             ),
             IndexType(),
@@ -393,16 +397,18 @@ class ApplyOp(IRDLOperation):
                     f"Unexpected block argument type of done_exchange, got {arg.type} != {expected_type} at index {arg.index}"
                 )
 
-        if (len(self.res) == 0) == (len(self.dest) == 0):
+        if (len(self.res) > 0) and (len(self.dest) > 0):
             raise VerifyException(
-                "Expected stencil.apply to have either results or dest specified"
+                "Cannot specify both results and dest on stencil.apply"
             )
 
     def get_rank(self) -> int:
         if self.dest:
             res_type = self.dest[0].type
-        else:
+        elif self.res:
             res_type = self.res[0].type
+        else:
+            return 2
         if isattr(res_type, stencil.StencilTypeConstr):
             return res_type.get_num_dims()
         elif self.bounds:
@@ -528,7 +534,7 @@ class AccessOp(IRDLOperation):
         props = parser.parse_optional_attr_dict_with_keyword(
             {"offset", "offset_mapping"}
         )
-        props = props.data if props else dict[str, Attribute]()
+        props = dict(props.data) if props else {}
         props["offset"] = stencil.IndexAttr.get(*offset)
         if offset_mapping:
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)

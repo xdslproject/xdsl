@@ -7,11 +7,9 @@ from typing import TypeVar
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    ArrayAttr,
     DenseArrayBase,
     FunctionType,
     IndexType,
-    IntegerAttr,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -393,8 +391,8 @@ class FuncOp(IRDLOperation):
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         kernel: bool | None = None,
-        knwown_block_size: Sequence[int] | None = None,
-        knwown_grid_size: Sequence[int] | None = None,
+        known_block_size: Sequence[int] | None = None,
+        known_grid_size: Sequence[int] | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
@@ -405,13 +403,13 @@ class FuncOp(IRDLOperation):
         properties: dict[str, Attribute | None] = {
             "function_type": function_type,
         }
-        if knwown_block_size is not None:
-            attributes["gpu.known_block_size"] = ArrayAttr(
-                IntegerAttr(i, i32) for i in knwown_block_size
+        if known_block_size is not None:
+            attributes["gpu.known_block_size"] = DenseArrayBase.create_dense_int(
+                i32, known_block_size
             )
-        if knwown_grid_size is not None:
-            attributes["gpu.known_grid_size"] = ArrayAttr(
-                IntegerAttr(i, i32) for i in knwown_grid_size
+        if known_grid_size is not None:
+            attributes["gpu.known_grid_size"] = DenseArrayBase.create_dense_int(
+                i32, known_grid_size
             )
         if kernel:
             properties["kernel"] = UnitAttr()

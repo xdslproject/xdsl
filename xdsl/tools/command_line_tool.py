@@ -114,8 +114,8 @@ class CommandLineTool:
             s = e.span
             e.span = Span(s.start, s.end, s.input, start_offset)
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
-                print(e.with_context())
+                print(e)
             else:
-                raise Exception("Failed to parse:\n" + e.with_context()) from e
+                raise
         finally:
             chunk.close()

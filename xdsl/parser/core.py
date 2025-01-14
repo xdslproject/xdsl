@@ -17,9 +17,12 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import IRDLOperation
-from xdsl.parser import AttrParser, ParserState, Position
 from xdsl.utils.exceptions import MultipleSpansParseError
-from xdsl.utils.lexer import Input, Lexer, Span, Token
+from xdsl.utils.lexer import Input, Span
+from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
+
+from .attribute_parser import AttrParser  # noqa: TID251
+from .generic_parser import ParserState, Position  # noqa: TID251
 
 
 @dataclass(eq=False)
@@ -94,7 +97,7 @@ class Parser(AttrParser):
         input: str,
         name: str = "<unknown>",
     ) -> None:
-        super().__init__(ParserState(Lexer(Input(input, name))), ctx)
+        super().__init__(ParserState(MLIRLexer(Input(input, name))), ctx)
         self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
@@ -117,10 +120,10 @@ class Parser(AttrParser):
         else:
             parsed_ops: list[Operation] = []
 
-            while self._current_token.kind != Token.Kind.EOF:
+            while self._current_token.kind != MLIRTokenKind.EOF:
                 if self._current_token.kind in (
-                    Token.Kind.HASH_IDENT,
-                    Token.Kind.EXCLAMATION_IDENT,
+                    MLIRTokenKind.HASH_IDENT,
+                    MLIRTokenKind.EXCLAMATION_IDENT,
                 ):
                     self._parse_alias_def()
                     continue
@@ -158,7 +161,7 @@ class Parser(AttrParser):
         """
         if (
             token := self._parse_optional_token_in(
-                [Token.Kind.EXCLAMATION_IDENT, Token.Kind.HASH_IDENT]
+                [MLIRTokenKind.EXCLAMATION_IDENT, MLIRTokenKind.HASH_IDENT]
             )
         ) is None:
             self.raise_error("expected attribute name")
@@ -190,13 +193,13 @@ class Parser(AttrParser):
             value-id-and-type-list ::= value-id-and-type (`,` ssa-id-and-type)*
             block-arg-list ::= `(` value-id-and-type-list? `)`
         """
-        if self._current_token.kind != Token.Kind.L_PAREN:
+        if self._current_token.kind != MLIRTokenKind.L_PAREN:
             return None
 
         def parse_argument() -> None:
             """Parse a single block argument with its type."""
             arg_name = self._parse_token(
-                Token.Kind.PERCENT_IDENT, "block argument expected"
+                MLIRTokenKind.PERCENT_IDENT, "block argument expected"
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
@@ -225,7 +228,9 @@ class Parser(AttrParser):
           block-id       ::= caret-id
           block-arg-list ::= `(` ssa-id-and-type-list? `)`
         """
-        name_token = self._parse_token(Token.Kind.CARET_IDENT, " in block definition")
+        name_token = self._parse_token(
+            MLIRTokenKind.CARET_IDENT, " in block definition"
+        )
 
         name = name_token.text[1:]
         if name not in self.blocks:
@@ -254,12 +259,12 @@ class Parser(AttrParser):
         Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
         The operand may be forward declared.
         """
-        name_token = self._parse_optional_token(Token.Kind.PERCENT_IDENT)
+        name_token = self._parse_optional_token(MLIRTokenKind.PERCENT_IDENT)
         if name_token is None:
             return None
 
         index = 0
-        index_token = self._parse_optional_token(Token.Kind.HASH_IDENT)
+        index_token = self._parse_optional_token(MLIRTokenKind.HASH_IDENT)
         if index_token is not None:
             if re.fullmatch(self._decimal_integer_regex, index_token.text[1:]) is None:
                 self.raise_error(
@@ -455,7 +460,7 @@ class Parser(AttrParser):
         """
 
         # The argument name
-        name_token = self._parse_optional_token(Token.Kind.PERCENT_IDENT)
+        name_token = self._parse_optional_token(MLIRTokenKind.PERCENT_IDENT)
         if name_token is None:
             return None
 
@@ -527,7 +532,7 @@ class Parser(AttrParser):
             # Check that the entry block has no label.
             # Since a multi-block region block must have a terminator, there isn't a
             # possibility of having an empty entry block, and thus parsing the label directly.
-            if self._current_token.kind == Token.Kind.CARET_IDENT:
+            if self._current_token.kind == MLIRTokenKind.CARET_IDENT:
                 self.raise_error("invalid block name in region with named arguments")
 
             # Set the block arguments in the context
@@ -541,8 +546,8 @@ class Parser(AttrParser):
 
         # If no arguments was provided, parse the entry block if present.
         elif self._current_token.kind not in (
-            Token.Kind.CARET_IDENT,
-            Token.Kind.R_BRACE,
+            MLIRTokenKind.CARET_IDENT,
+            MLIRTokenKind.R_BRACE,
         ):
             block = Block()
             self._parse_block_body(block)
@@ -603,7 +608,7 @@ class Parser(AttrParser):
         Parse a list of regions with format:
            regions-list ::= `(` region (`,` region)* `)`
         """
-        if self._current_token.kind == Token.Kind.L_PAREN:
+        if self._current_token.kind == MLIRTokenKind.L_PAREN:
             return self.parse_comma_separated_list(
                 self.Delimiter.PAREN, self.parse_region, " in operation region list"
             )
@@ -667,9 +672,9 @@ class Parser(AttrParser):
             properties            ::= `<` dictionary-attribute `>`
         """
         if self._current_token.kind not in (
-            Token.Kind.PERCENT_IDENT,
-            Token.Kind.BARE_IDENT,
-            Token.Kind.STRING_LIT,
+            MLIRTokenKind.PERCENT_IDENT,
+            MLIRTokenKind.BARE_IDENT,
+            MLIRTokenKind.STRING_LIT,
         ):
             return None
         return self.parse_operation()
@@ -694,7 +699,9 @@ class Parser(AttrParser):
         op_loc = self._current_token.span
         bound_results = self._parse_op_result_list()
 
-        if (op_name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+        if (
+            op_name := self._parse_optional_token(MLIRTokenKind.BARE_IDENT)
+        ) is not None:
             # Custom operation format
             op_type = self._get_op_by_name(op_name.text)
             dialect_name = op_type.dialect_name()
@@ -737,16 +744,11 @@ class Parser(AttrParser):
         Raises an error if the operation is not registered, and if unregistered
         dialects are not allowed.
         """
-        op_type = self.ctx.get_optional_op(name)
-        if op_type is not None:
+        if op_type := self.ctx.get_optional_op(
+            name, dialect_stack=self._parser_state.dialect_stack
+        ):
             return op_type
-
-        for dialect_name in reversed(self._parser_state.dialect_stack):
-            op_type = self.ctx.get_optional_op(f"{dialect_name}.{name}")
-            if op_type is not None:
-                return op_type
-
-        self.raise_error(f"unregistered operation {name}!")
+        self.raise_error(f"Operation {name} is not registered")
 
     def _parse_op_result(self) -> tuple[Span, int]:
         """
@@ -755,15 +757,15 @@ class Parser(AttrParser):
         value tuple (by default 1).
         """
         value_token = self._parse_token(
-            Token.Kind.PERCENT_IDENT, "Expected result SSA value!"
+            MLIRTokenKind.PERCENT_IDENT, "Expected result SSA value!"
         )
-        if self._parse_optional_token(Token.Kind.COLON) is None:
+        if self._parse_optional_token(MLIRTokenKind.COLON) is None:
             return (value_token.span, 1)
 
         size_token = self._parse_token(
-            Token.Kind.INTEGER_LIT, "Expected SSA value tuple size"
+            MLIRTokenKind.INTEGER_LIT, "Expected SSA value tuple size"
         )
-        size = size_token.get_int_value()
+        size = size_token.kind.get_int_value(size_token.span)
         return (value_token.span, size)
 
     def _parse_op_result_list(self) -> list[tuple[Span, int]]:
@@ -773,7 +775,7 @@ class Parser(AttrParser):
         Each result is a tuple of the span of the SSA value name (including the `%`),
         and the size of the value tuple (by default 1).
         """
-        if self._current_token.kind == Token.Kind.PERCENT_IDENT:
+        if self._current_token.kind == MLIRTokenKind.PERCENT_IDENT:
             res = self.parse_comma_separated_list(
                 self.Delimiter.NONE, self._parse_op_result, " in operation result list"
             )
@@ -889,7 +891,7 @@ class Parser(AttrParser):
         Parse a successor with format:
             successor      ::= caret-id
         """
-        block_token = self._parse_optional_token(Token.Kind.CARET_IDENT)
+        block_token = self._parse_optional_token(MLIRTokenKind.CARET_IDENT)
         if block_token is None:
             return None
         name = block_token.text[1:]
@@ -911,7 +913,7 @@ class Parser(AttrParser):
             successor-list ::= `[` successor (`,` successor)* `]`
             successor      ::= caret-id
         """
-        if self._current_token.kind != Token.Kind.L_SQUARE:
+        if self._current_token.kind != MLIRTokenKind.L_SQUARE:
             return None
         return self.parse_successors()
 

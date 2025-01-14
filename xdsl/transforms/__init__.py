@@ -98,11 +98,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemrefPass
 
-    def get_convert_onnx_to_linalg():
-        from xdsl.transforms import convert_onnx_to_linalg
-
-        return convert_onnx_to_linalg.ConvertOnnxToLinalgPass
-
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -172,6 +167,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import varith_transformations
 
         return varith_transformations.ConvertVarithToArithPass
+
+    def get_jax_use_donated_arguments():
+        from xdsl.transforms import jax_use_donated_arguments
+
+        return jax_use_donated_arguments.JaxUseDonatedArguments
 
     def get_cse():
         from xdsl.transforms import common_subexpression_elimination
@@ -448,6 +448,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_bufferize.StencilBufferize
 
+    def get_stencil_inlining():
+        from xdsl.transforms import stencil_inlining
+
+        return stencil_inlining.StencilInliningPass
+
     def get_stencil_shape_minimize():
         from xdsl.transforms import stencil_shape_minimize
 
@@ -504,7 +509,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
-        "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
         "convert-qref-to-qssa": get_convert_qref_to_qssa,
@@ -519,6 +523,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,
+        "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-handle-async-flow": get_csl_stencil_handle_async_flow,
@@ -574,6 +579,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "shape-inference": get_shape_inference,
         "snitch-allocate-registers": get_snitch_allocate_registers,
         "stencil-bufferize": get_stencil_bufferize,
+        "stencil-inlining": get_stencil_inlining,
         "stencil-shape-minimize": get_stencil_shape_minimize,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,

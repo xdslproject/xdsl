@@ -47,7 +47,7 @@ func.func @control_flow() {
 }
 
 // CHECK-NEXT:   func.func @control_flow() {
-// CHECK-NEXT:      "test.op"() {"before_op"} : () -> ()
+// CHECK-NEXT:      "test.op"() {before_op} : () -> ()
 // CHECK-NEXT:      %cond = "test.op"() : () -> i1
 // CHECK-NEXT:      %0 = arith.constant true
 // CHECK-NEXT:      %1 = arith.cmpi eq, %cond, %0 : i1
@@ -57,23 +57,23 @@ func.func @control_flow() {
                       // inline the rest of the function inside the else statement of the specialization block
                       // (there is no early return in MLIR)
 // CHECK-NEXT:        scf.if %cond {
-// CHECK-NEXT:          "test.op"() {"inside_if"} : () -> ()
+// CHECK-NEXT:          "test.op"() {inside_if} : () -> ()
 // CHECK-NEXT:        } else {
 // CHECK-NEXT:        }
-// CHECK-NEXT:        "test.op"() {"after_op"} : () -> ()
+// CHECK-NEXT:        "test.op"() {after_op} : () -> ()
 // CHECK-NEXT:      }
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
                   // specialized function does not contain operations that happen before the specialized function
-                  // is called ("test.op"() {"before_op"})
+                  // is called ("test.op"() {before_op})
 // CHECK-NEXT:    func.func @control_flow_pinned() {
 // CHECK-NEXT:      %cond = arith.constant true
                     // this scf.if can be constant folded by MLIR later on (not done as part of this pass)
 // CHECK-NEXT:      scf.if %cond {
-// CHECK-NEXT:        "test.op"() {"inside_if"} : () -> ()
+// CHECK-NEXT:        "test.op"() {inside_if} : () -> ()
 // CHECK-NEXT:      } else {
 // CHECK-NEXT:      }
-// CHECK-NEXT:      "test.op"() {"after_op"} : () -> ()
+// CHECK-NEXT:      "test.op"() {after_op} : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -135,10 +135,10 @@ func.func @control_flow_and_function_args(%arg: i32) -> i32 {
 // CHECK-NEXT:       scf.yield %3 : i32
 // CHECK-NEXT:     } else {
 // CHECK-NEXT:       scf.if %cond {
-// CHECK-NEXT:         "test.op"() {"inside_if"} : () -> ()
+// CHECK-NEXT:         "test.op"() {inside_if} : () -> ()
 // CHECK-NEXT:       } else {
 // CHECK-NEXT:       }
-// CHECK-NEXT:       %rval = "test.op"(%arg) {"after_op"} : (i32) -> i32
+// CHECK-NEXT:       %rval = "test.op"(%arg) {after_op} : (i32) -> i32
 // CHECK-NEXT:       scf.yield %rval : i32
 // CHECK-NEXT:     }
 // CHECK-NEXT:     func.return %2 : i32
@@ -146,10 +146,10 @@ func.func @control_flow_and_function_args(%arg: i32) -> i32 {
 // CHECK-NEXT:   func.func @control_flow_and_function_args_pinned(%arg : i32) -> i32 {
 // CHECK-NEXT:     %cond = arith.constant true
 // CHECK-NEXT:     scf.if %cond {
-// CHECK-NEXT:       "test.op"() {"inside_if"} : () -> ()
+// CHECK-NEXT:       "test.op"() {inside_if} : () -> ()
 // CHECK-NEXT:     } else {
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %rval = "test.op"(%arg) {"after_op"} : (i32) -> i32
+// CHECK-NEXT:     %rval = "test.op"(%arg) {after_op} : (i32) -> i32
 // CHECK-NEXT:     func.return %rval : i32
 // CHECK-NEXT:   }
 

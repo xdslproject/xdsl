@@ -30,12 +30,12 @@ builtin.module {
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %vf_reg, %vd_reg, %vi_reg, %mf_reg, %md_reg, %mi_reg = "test.op"() : () -> (!riscv.freg, !riscv.freg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg)
-// CHECK-NEXT:   riscv.fsw %mf_reg, %vf_reg, 12 {"comment" = "store float value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.freg) -> ()
-// CHECK-NEXT:   %xf = riscv.flw %mf_reg, 12 {"comment" = "load float from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
-// CHECK-NEXT:   riscv.fsd %md_reg, %vd_reg, 24 {"comment" = "store double value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.freg) -> ()
-// CHECK-NEXT:   %xd = riscv.fld %md_reg, 24 {"comment" = "load double from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
-// CHECK-NEXT:   riscv.sw %mi_reg, %vi_reg, 12 {"comment" = "store int value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-NEXT:   %xi = riscv.lw %mi_reg, 12 {"comment" = "load word from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   riscv.fsw %mf_reg, %vf_reg, 12 {comment = "store float value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.freg) -> ()
+// CHECK-NEXT:   %xf = riscv.flw %mf_reg, 12 {comment = "load float from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
+// CHECK-NEXT:   riscv.fsd %md_reg, %vd_reg, 24 {comment = "store double value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.freg) -> ()
+// CHECK-NEXT:   %xd = riscv.fld %md_reg, 24 {comment = "load double from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
+// CHECK-NEXT:   riscv.sw %mi_reg, %vi_reg, 12 {comment = "store int value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-NEXT:   %xi = riscv.lw %mi_reg, 12 {comment = "load word from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   "test.op"(%xf) : (!riscv.freg) -> ()
 // CHECK-NEXT:   "test.op"(%xd) : (!riscv.freg) -> ()
 // CHECK-NEXT:   "test.op"(%xi) : (!riscv.reg) -> ()

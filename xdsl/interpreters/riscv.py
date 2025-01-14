@@ -428,6 +428,17 @@ class RiscvFunctions(InterpreterFunctions):
 
     # region D extension
 
+    @impl(riscv.FMAddDOp)
+    def run_fmadd_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMAddDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] * args[1] + args[2],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FAddDOp)
     def run_fadd_d(
         self,
@@ -606,13 +617,13 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
-                data = [el.value.data for el in attr.data]
+                data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
                     xtype=xtype_for_el_type(
                         attr.get_element_type(), interpreter.index_bitwidth
                     ),
                 )
-                return data_ptr
+                return data_ptr.raw
             case _:
                 interpreter.raise_error(f"Unknown value type for int register: {attr}")

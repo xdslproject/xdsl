@@ -4,6 +4,7 @@ import pytest
 
 from xdsl.dialects.bufferization import (
     AllocTensorOp,
+    CloneOp,
     TensorFromMemrefConstraint,
     ToTensorOp,
 )
@@ -162,3 +163,14 @@ def test_alloc_tensor_static():
     assert alloc_tensor.dynamic_sizes == ()
     assert alloc_tensor.copy is None
     assert alloc_tensor.size_hint is None
+
+
+def test_clone():
+    memref_t = MemRefType(f64, [10, 20, 30])
+    memref_v = TestOp(result_types=[memref_t]).res[0]
+
+    clone = CloneOp(memref_v)
+
+    assert clone.input == memref_v
+    assert clone.input.type == memref_t
+    assert clone.output.type == memref_t
