@@ -19,7 +19,7 @@
 
 // CHECK-NEXT: arm.label {"label" = "testlabel", "comment" = "this is a label"}
 // CHECK-ASM: testlabel # this is a label
-arm.label {"label" = "testlabel", "comment" = "this is a label"}
+arm.label "testlabel" {comment = "this is a label"}
 
 // CHECK-GENERIC: %x1 = "arm.get_register"() : () -> !arm.reg<x1>
 // CHECK-GENERIC: %ds_mov = "arm.ds.mov"(%x1) {comment = "move contents of s to d"} : (!arm.reg<x1>) -> !arm.reg<x2>
