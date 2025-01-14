@@ -4,6 +4,12 @@ from xdsl.builder import Builder, InsertPoint
 from xdsl.context import MLContext
 from xdsl.dialects import affine, builtin, func, memref
 from xdsl.dialects.experimental.hida_prim import MemoryKind, MemoryKindAttr
+from xdsl.dialects.experimental.utils import (
+    get_invariant_output_band,
+    get_loop_bands_any_nchildren,
+    hoist_constants,
+    tile_loop,
+)
 from xdsl.dialects.func import FuncOp
 from xdsl.ir import BlockArgument
 from xdsl.passes import ModulePass
@@ -14,6 +20,23 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+
+
+@dataclass
+class PromoteInnerLoopToNode(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, node: FuncOp, rewriter: PatternRewriter):
+        hoist_constants(node, rewriter)
+        bands = get_loop_bands_any_nchildren(node.body.block)
+
+        # print("N. BANDS: ", len(bands))
+
+        # minimum_independent_band = get_minimum_independent_band(bands)
+        # print("MIN IDPNT BAND: \n",minimum_independent_band[0], "\n")
+        invariant_output_band = get_invariant_output_band(bands)
+        # print("INVARIANT OUTPUT BAND: ", invariant_output_band[-1])
+
+        tile_loop(invariant_output_band[0], 0, 2, rewriter, node)
 
 
 @dataclass
@@ -135,7 +158,8 @@ class SplitDataflowNodes(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         split_dataflow_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([HoistLoadsIntoCopyNodes(op)]),
+            # GreedyRewritePatternApplier([HoistLoadsIntoCopyNodes(op)]),
+            GreedyRewritePatternApplier([PromoteInnerLoopToNode()]),
             apply_recursively=False,
             walk_reverse=False,
         )

@@ -316,6 +316,7 @@ def tile_loop(
         parent_node_body,
     )
     rewriter.replace_matched_op(top)
+    top.attributes["TOP"] = builtin.UnitAttr()
 
 
 def is_written(use: Use):

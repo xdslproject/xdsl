@@ -255,6 +255,13 @@ class xDSLOptMain(CommandLineTool):
             print_liveness(prog, output)
             _output_mlir(prog, output)
 
+        def _print_dataflow_opencl(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.experimental.dataflow_opencl_printer import (
+                print_dataflow_opencl,
+            )
+
+            print_dataflow_opencl(prog, output)
+
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
@@ -262,6 +269,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["wat"] = _output_wat
         self.available_targets["csl"] = _print_to_csl
         self.available_targets["liveness"] = _print_liveness
+        self.available_targets["dataflow_opencl"] = _print_dataflow_opencl
 
     def setup_pipeline(self):
         """
