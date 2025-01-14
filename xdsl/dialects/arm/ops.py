@@ -167,7 +167,6 @@ class LabelOp(ARMOperation):
 
     name = "arm.label"
     label = prop_def(StringAttr)
-    comment = opt_attr_def(StringAttr)
 
     assembly_format = "attr-dict"
 
