@@ -30,8 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Operation, OpTrait, OpTraits
-from xdsl.ir.core import SSAValue
+from xdsl.ir import Attribute, Operation, OpTrait, OpTraits, SSAValue
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -46,8 +45,9 @@ from xdsl.irdl import (
     region_def,
     result_def,
     traits_def,
+    var_operand_def,
+    var_result_def,
 )
-from xdsl.irdl.operations import var_operand_def, var_result_def
 from xdsl.traits import (
     AlwaysSpeculatable,
     ConditionallySpeculatable,
