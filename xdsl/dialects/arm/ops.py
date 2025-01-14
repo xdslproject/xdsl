@@ -4,14 +4,19 @@ from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    prop_def,
     result_def,
 )
 
-from .assembly import AssemblyInstructionArg, assembly_arg_str, assembly_line
+from .assembly import (
+    AssemblyInstructionArg,
+    append_comment,
+    assembly_arg_str,
+    assembly_line,
+)
 from .register import IntRegisterType
 
 
@@ -167,6 +172,7 @@ class LabelOp(ARMOperation):
 
     name = "arm.label"
     label = prop_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
 
     assembly_format = "$label attr-dict"
 
