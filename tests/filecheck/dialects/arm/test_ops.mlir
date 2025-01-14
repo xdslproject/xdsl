@@ -17,7 +17,7 @@
 // CHECK-ASM: mul x3, x1, x2 # multiply s1 by s2
 %dss_mul = arm.dss.mul %x1, %x2 {"comment" = "multiply s1 by s2"} : (!arm.reg<x1>, !arm.reg<x2>) -> !arm.reg<x3>
 
-// CHECK-NEXT: arm.label {"label" = "testlabel", "comment" = "this is a label"}
+// CHECK-NEXT: arm.label "testlabel" {"comment" = "this is a label"}
 // CHECK-ASM: testlabel # this is a label
 arm.label "testlabel" {comment = "this is a label"}
 
