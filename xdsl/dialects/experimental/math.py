@@ -1,3 +1,10 @@
+"""
+The math dialect is intended to hold mathematical operations on integer and floating
+types beyond simple arithmetics.
+
+
+See https://mlir.llvm.org/docs/Dialects/MathOps/
+"""
 from __future__ import annotations
 
 from xdsl.dialects.arith import FastMathFlagsAttr
@@ -11,7 +18,7 @@ from xdsl.irdl import (
     result_def,
     traits_def,
 )
-from xdsl.traits import Pure
+from xdsl.traits import Pure, SameOperandsAndResultType
 
 
 @irdl_op_definition
@@ -32,13 +39,13 @@ class AbsFOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
@@ -62,11 +69,11 @@ class AbsIOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return super().__init__(operands=[operand], result_types=[operand.type])
+        super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -98,7 +105,7 @@ class Atan2Op(IRDLOperation):
     rhs = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self,
@@ -107,7 +114,7 @@ class Atan2Op(IRDLOperation):
         fastmath: FastMathFlagsAttr | None = None,
     ):
         attributes = {"fastmath": fastmath}
-        return super().__init__(
+        super().__init__(
             attributes=attributes,
             operands=[lhs, rhs],
             result_types=[SSAValue.get(lhs).type],
@@ -135,13 +142,13 @@ class AtanOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
@@ -168,7 +175,7 @@ class CbrtOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -176,7 +183,7 @@ class CbrtOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -202,13 +209,13 @@ class CeilOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
@@ -238,7 +245,7 @@ class CopySignOp(IRDLOperation):
     rhs = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self,
@@ -248,7 +255,7 @@ class CopySignOp(IRDLOperation):
     ):
         attributes = {"fastmath": fastmath}
 
-        return super().__init__(
+        super().__init__(
             attributes=attributes,
             operands=[lhs, rhs],
             result_types=[SSAValue.get(lhs).type],
@@ -276,7 +283,7 @@ class CosOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -284,7 +291,7 @@ class CosOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -305,11 +312,11 @@ class CountLeadingZerosOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return super().__init__(operands=[operand], result_types=[operand.type])
+        super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -328,11 +335,11 @@ class CountTrailingZerosOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return super().__init__(operands=[operand], result_types=[operand.type])
+        super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -351,11 +358,11 @@ class CtPopOp(IRDLOperation):
     operand = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return super().__init__(operands=[operand], result_types=[operand.type])
+        super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -379,7 +386,7 @@ class ErfOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -387,7 +394,7 @@ class ErfOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -413,7 +420,7 @@ class Exp2Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -421,7 +428,7 @@ class Exp2Op(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -449,7 +456,7 @@ class ExpM1Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -457,7 +464,7 @@ class ExpM1Op(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -483,7 +490,7 @@ class ExpOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -491,7 +498,7 @@ class ExpOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -526,7 +533,7 @@ class FPowIOp(IRDLOperation):
     rhs = operand_def(IntegerType)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self,
@@ -536,7 +543,7 @@ class FPowIOp(IRDLOperation):
     ):
         attributes = {"fastmath": fastmath}
 
-        return super().__init__(
+        super().__init__(
             attributes=attributes,
             operands=[lhs, rhs],
             result_types=[SSAValue.get(lhs).type],
@@ -564,7 +571,7 @@ class FloorOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -572,7 +579,7 @@ class FloorOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -605,7 +612,7 @@ class FmaOp(IRDLOperation):
     c = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self,
@@ -616,7 +623,7 @@ class FmaOp(IRDLOperation):
     ):
         attributes = {"fastmath": fastmath}
 
-        return super().__init__(
+        super().__init__(
             attributes=attributes,
             operands=[a, b, c],
             result_types=[SSAValue.get(a).type],
@@ -643,12 +650,12 @@ class IPowIOp(IRDLOperation):
     rhs = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
 
 
 @irdl_op_definition
@@ -669,7 +676,7 @@ class Log10Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -677,7 +684,7 @@ class Log10Op(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -702,7 +709,7 @@ class Log1pOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -710,7 +717,7 @@ class Log1pOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -733,7 +740,7 @@ class Log2Op(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -741,7 +748,7 @@ class Log2Op(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -764,7 +771,7 @@ class LogOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -772,7 +779,7 @@ class LogOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -799,7 +806,7 @@ class PowFOp(IRDLOperation):
     rhs = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self,
@@ -809,7 +816,7 @@ class PowFOp(IRDLOperation):
     ):
         attributes = {"fastmath": fastmath}
 
-        return super().__init__(
+        super().__init__(
             attributes=attributes,
             operands=[lhs, rhs],
             result_types=[SSAValue.get(lhs).type],
@@ -840,7 +847,7 @@ class RoundEvenOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -848,7 +855,7 @@ class RoundEvenOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -877,7 +884,7 @@ class RoundOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -885,7 +892,7 @@ class RoundOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -907,7 +914,7 @@ class RsqrtOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -915,7 +922,7 @@ class RsqrtOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -941,7 +948,7 @@ class SinOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -949,7 +956,7 @@ class SinOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -971,7 +978,7 @@ class SqrtOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -979,7 +986,7 @@ class SqrtOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -1002,7 +1009,7 @@ class TanOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1010,7 +1017,7 @@ class TanOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -1033,7 +1040,7 @@ class TanhOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1041,7 +1048,7 @@ class TanhOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -1069,7 +1076,7 @@ class TruncOp(IRDLOperation):
     operand = operand_def(AnyFloatConstr)
     result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1077,7 +1084,7 @@ class TruncOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
