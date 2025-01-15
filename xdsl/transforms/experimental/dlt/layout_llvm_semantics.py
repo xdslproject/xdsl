@@ -5763,14 +5763,16 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops.append(llvm.CallOp("free", idx_buffer_ptr))
         if self.semantics.print_memory_calls:
             ops.append(printf.PrintFormatOp("# called free({})", idx_buffer_ptr))
-            ops.append(nullptr := llvm.NullOp())
-            ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+            ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+            ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+            ops.append(llvm.CallOp("fflush", nullptr.output))
 
         ops.append(llvm.CallOp("free", data_buffer_ptr))
         if self.semantics.print_memory_calls:
             ops.append(printf.PrintFormatOp("# called free({})", data_buffer_ptr))
-            ops.append(nullptr := llvm.NullOp())
-            ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+            ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+            ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+            ops.append(llvm.CallOp("fflush", nullptr.output))
 
         return ops
 
@@ -6020,8 +6022,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             idx_buffer_ptr = malloc_idx_buffer.returned
             if self.semantics.print_memory_calls:
                 ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_idx_buffer_bytes_i64, idx_buffer_ptr))
-                ops.append(nullptr := llvm.NullOp())
-                ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                ops.append(llvm.CallOp("fflush", nullptr.output))
         else:
 
             realloc_idx_buffer = llvm.CallOp(
@@ -6034,8 +6037,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             idx_buffer_ptr = realloc_idx_buffer.returned
             if self.semantics.print_memory_calls:
                 ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[0], alloc_idx_buffer_bytes_i64, idx_buffer_ptr))
-                ops.append(nullptr := llvm.NullOp())
-                ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                ops.append(llvm.CallOp("fflush", nullptr.output))
 
         # c_db_ops, (child_size, child_size_debug) = child_size.split_n(2)
         # ops.extend(c_db_ops)
@@ -6061,8 +6065,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             data_buffer_ptr = malloc_data_buffer.returned
             if self.semantics.print_memory_calls:
                 ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_data_buffer_bytes_i64, data_buffer_ptr))
-                ops.append(nullptr := llvm.NullOp())
-                ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                ops.append(llvm.CallOp("fflush", nullptr.output))
         else:
             realloc_data_buffer = llvm.CallOp(
                 "realloc",
@@ -6074,8 +6079,9 @@ class UnpackCOOSemantics(COOSemantics[dlt.UnpackedCOOLayoutAttr]):
             data_buffer_ptr = realloc_data_buffer.returned
             if self.semantics.print_memory_calls:
                 ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[1], alloc_data_buffer_bytes_i64, data_buffer_ptr))
-                ops.append(nullptr := llvm.NullOp())
-                ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                ops.append(llvm.CallOp("fflush", nullptr.output))
 
         # db_ops, (child_size_db_base, child_size_db_extra) = child_size_debug.output()
         # ops.extend(db_ops)
@@ -7808,15 +7814,17 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             ops.append(llvm.CallOp("free", idx_buffer_ptr))
             if self.semantics.print_memory_calls:
                 ops.append(printf.PrintFormatOp("# called free({})", idx_buffer_ptr))
-                ops.append(nullptr := llvm.NullOp())
-                ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                ops.append(llvm.CallOp("fflush", nullptr.output))
         # ops.append(
         #     printf.PrintFormatOp("5207 free data {}", data_buffer_ptr))
         ops.append(llvm.CallOp("free", data_buffer_ptr))
         if self.semantics.print_memory_calls:
             ops.append(printf.PrintFormatOp("# called free({})", data_buffer_ptr))
-            ops.append(nullptr := llvm.NullOp())
-            ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+            ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+            ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+            ops.append(llvm.CallOp("fflush", nullptr.output))
 
         return ops
 
@@ -8645,8 +8653,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 idx_buffers.append(malloc_idx_buffer.returned)
                 if self.semantics.print_memory_calls:
                     ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_idx_buffer_bytes_i64, malloc_idx_buffer.returned))
-                    ops.append(nullptr := llvm.NullOp())
-                    ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                    ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                    ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                    ops.append(llvm.CallOp("fflush", nullptr.output))
                 # ops.append(printf.PrintFormatOp("# malloc idx size: {} -> {}", alloc_idx_buffer_bytes, malloc_idx_buffer.returned))
             else:
                 # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {}", old_buffers[0][i],
@@ -8661,8 +8670,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
                 idx_buffers.append(realloc_idx_buffer.returned)
                 if self.semantics.print_memory_calls:
                     ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[0][i], alloc_idx_buffer_bytes_i64, realloc_idx_buffer.returned))
-                    ops.append(nullptr := llvm.NullOp())
-                    ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                    ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                    ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                    ops.append(llvm.CallOp("fflush", nullptr.output))
                 # ops.append(printf.PrintFormatOp("# Realloc idx: {} to size: {} -> {}", old_buffers[0][i],
                 #                                 alloc_idx_buffer_bytes, realloc_idx_buffer.returned))
 
@@ -8691,8 +8701,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             data_buffer_ptr = malloc_data_buffer.returned
             if self.semantics.print_memory_calls:
                 ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_data_buffer_bytes_i64, data_buffer_ptr))
-                ops.append(nullptr := llvm.NullOp())
-                ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                ops.append(llvm.CallOp("fflush", nullptr.output))
             # ops.append(printf.PrintFormatOp("# malloc data size: {} -> {}", alloc_data_buffer_bytes, data_buffer_ptr))
         else:
             # ops.append(
@@ -8707,8 +8718,9 @@ class SeparatedCOOSemantics(COOSemantics[dlt.SeparatedCOOLayoutAttr]):
             data_buffer_ptr = realloc_data_buffer.returned
             if self.semantics.print_memory_calls:
                 ops.append(printf.PrintFormatOp("# called realloc({}, {}) -> {}", old_buffers[1], alloc_data_buffer_bytes_i64, data_buffer_ptr))
-                ops.append(nullptr := llvm.NullOp())
-                ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+                ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+                ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+                ops.append(llvm.CallOp("fflush", nullptr.output))
             # ops.append(printf.PrintFormatOp("# Realloc data: {} to size: {} -> {}", old_buffers[1], alloc_data_buffer_bytes, data_buffer_ptr))
 
         # db_ops, (child_size_db_base, child_size_db_extra) = child_size_debug.output()

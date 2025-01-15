@@ -347,8 +347,9 @@ class DLTAllocRewriter(DLTRewritePattern):
         )
         if self.semantics.print_memory_calls:
             ops.append(printf.PrintFormatOp("# called malloc({}) -> {}", alloc_bytes, malloc.returned))
-            ops.append(nullptr := llvm.NullOp())
-            ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+            ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+            ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+            ops.append(llvm.CallOp("fflush", nullptr.output))
         buffer = malloc.returned
 
         gen_ops, ptr_struct = self.semantics.generate_ptr_struct(
@@ -427,8 +428,9 @@ class DLTDeallocRewriter(DLTRewritePattern):
         ops.append(free := llvm.CallOp("free", llvm_data_ptr, return_type=None))
         if self.semantics.print_memory_calls:
             ops.append(printf.PrintFormatOp("# called free({})", llvm_data_ptr))
-            ops.append(nullptr := llvm.NullOp())
-            ops.append(llvm.CallOp("fflush", nullptr.nullptr))
+            ops.append(nullptr_zero := arith.Constant(IntegerAttr(0, i64)))
+            ops.append(nullptr := llvm.IntToPtrOp(nullptr_zero.result, llvm.LLVMPointerType.opaque()))
+            ops.append(llvm.CallOp("fflush", nullptr.output))
 
         rewriter.replace_matched_op(ops, [])
 
