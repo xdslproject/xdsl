@@ -306,7 +306,7 @@ class RiscvFunctions(InterpreterFunctions):
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SlliOp)
-    def run_shift_left(
+    def run_shift_left_i(
         self,
         interpreter: Interpreter,
         op: riscv.SlliOp,
@@ -341,6 +341,20 @@ class RiscvFunctions(InterpreterFunctions):
         rhs = to_signed(args[1], self.bitwidth)
 
         results = (lhs * rhs,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.DivOp)
+    def run_div_i(
+        self,
+        interpreter: Interpreter,
+        op: riscv.DivOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        lhs = to_signed(args[0], self.bitwidth)
+        rhs = to_signed(args[1], self.bitwidth)
+
+        results = (lhs / rhs,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SwOp)
