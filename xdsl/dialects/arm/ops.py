@@ -7,10 +7,16 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    prop_def,
     result_def,
 )
 
-from .assembly import AssemblyInstructionArg, assembly_arg_str, assembly_line
+from .assembly import (
+    AssemblyInstructionArg,
+    append_comment,
+    assembly_arg_str,
+    assembly_line,
+)
 from .register import IntRegisterType
 
 
@@ -154,3 +160,39 @@ class DSSMulOp(ARMInstruction):
 
     def assembly_line_args(self):
         return (self.d, self.s1, self.s2)
+
+
+@irdl_op_definition
+class LabelOp(ARMOperation):
+    """
+    The label operation is used to emit text labels (e.g. loop:) that are used
+    as branch, unconditional jump targets and symbol offsets.
+    https://developer.arm.com/documentation/dui0801/l/Symbols--Literals--Expressions--and-Operators/Labels
+    """
+
+    name = "arm.label"
+    label = prop_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$label attr-dict"
+
+    def __init__(
+        self,
+        label: str | StringAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = StringAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        return append_comment(f"{self.label.data}:", self.comment)
