@@ -117,6 +117,54 @@ cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
 
         self.set_kernel_args = self.get_set_kernel_args(test)
 
+    def get_ptr_arith_functions(self):
+        _1D_to_3D = """
+float ***_1D_to_3D(float *array, int D, int R, int C) {
+    // Allocate memory for the 3D pointer-to-pointer structure (D x R x C)
+    float ***ptr_array = (float ***)malloc(D * sizeof(float **));
+
+    // Allocate memory for each slice (2D array)
+    for (int i = 0; i < D; i++) {
+        ptr_array[i] = (float **)malloc(R * sizeof(float *));
+
+        // Allocate memory for each row (1D array of columns)
+        for (int j = 0; j < R; j++) {
+            ptr_array[i][j] = &array[(i * R * C) + (j * C)]; // Point to the correct memory in the 1D array
+        }
+    }
+
+    // Return the 3D pointer structure
+    return ptr_array;
+}
+"""
+
+        _1D_to_4D = """
+float ****_1D_to_4D(float *array, int D, int R, int C, int L) {
+    // Allocate memory for the 4D pointer-to-pointer-to-pointer structure (D x R x C x L)
+    float ****ptr_array = (float ****)malloc(D * sizeof(float ***));
+
+    // Allocate memory for each depth slice (3D array)
+    for (int i = 0; i < D; i++) {
+        ptr_array[i] = (float ***)malloc(R * sizeof(float **));
+
+        // Allocate memory for each row slice (2D array)
+        for (int j = 0; j < R; j++) {
+            ptr_array[i][j] = (float **)malloc(C * sizeof(float *));
+
+            // Allocate memory for each column (1D array)
+            for (int k = 0; k < C; k++) {
+                ptr_array[i][j][k] = &array[(i * R * C * L) + (j * C * L) + (k * L)];
+            }
+        }
+    }
+
+    // Return the 4D pointer structure
+    return ptr_array;
+}
+"""
+
+        return _1D_to_3D, _1D_to_4D
+
     def get_command_queues(self) -> dict:
         opencl_queues = dict()
         for node_func in self.all_node_funcs:
@@ -202,9 +250,9 @@ cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
                 "err = clSetKernelArg(kernel_sub_loop_node_0, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3);",
             ]
             set_kernel_args["sub_loop_node_1"] = [
-                "err = clSetKernelArg(kernel_sub_loop_node_1, 0, sizeof(cl_mem), &buf_sub_loop_node_1_1);",
-                "err = clSetKernelArg(kernel_sub_loop_node_1, 1, sizeof(cl_mem), &buf_sub_loop_node_1_2);",
-                "err = clSetKernelArg(kernel_sub_loop_node_1, 2, sizeof(cl_mem), &buf_sub_loop_node_1_3);",
+                "err = clSetKernelArg(kernel_sub_loop_node_1, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1);",
+                "err = clSetKernelArg(kernel_sub_loop_node_1, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2);",
+                "err = clSetKernelArg(kernel_sub_loop_node_1, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3);",
             ]
         else:
             for node_func in self.all_node_funcs:
@@ -212,6 +260,48 @@ cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
                 set_kernel_args[node_name] = self.get_set_kernel_args_node(node_func)
 
         return set_kernel_args
+
+    def get_verify(test=False):
+        if test:
+            conv = """
+  float *** host_input = _1D_to_3D(host_ptr_sub_loop_node_0_1, 8, 4, 4);
+  float **** host_kernel = _1D_to_4D(host_ptr_sub_loop_node_0_2, 8, 8, 3, 3);
+  float host_output[8][4][4];
+  //float *** _output = _1D_to_3D(host_ptr_sub_loop_node_0_3, 8, 4, 4);
+
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 4; j++) {
+      for (int k = 0; k < 4; k++) {
+        host_output[i][j][k] = 0;
+        for (int l = 0; l < 8; l++) {
+          for (int m = 0; m < 3; m++) {
+            for (int n = 0; n < 3; n++) {
+              int x = j * 2 + m - 1;
+              int y = k * 2 + n - 1;
+              if (x >= 0 && x < 4 && y >= 0 && y < 4) {
+                host_output[i][j][k] += host_input[l][x][y] * host_kernel[i][l][m][n];
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  float *** device_output = _1D_to_3D(host_ptr_sub_loop_node_0_3, 8, 4, 4);
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 4; j++) {
+      for (int k = 0; k < 4; k++) {
+        //printf("host: %f, device: %f\\n", host_output[i][j][k], device_output[i][j][k]);
+        if(host_output[i][j][k] != device_output[i][j][k]) {
+            printf("Read: %f at (%d,%d,%d). Expected: %f\\n", device_output[i][j][k], host_output[i][j][k]);
+            return 1;
+        }
+      }
+    }
+  }
+"""
+        return conv
 
     #####################################################
     # TESTING
@@ -224,9 +314,9 @@ cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
 
         conv_test = f"""
 __kernel void sub_loop_node_{node}(__global float _input[8][4][4],
-                                          __global const float _kernel[8][4][3][3],
+                                          __global const float _kernel[8][8][3][3],
                                           __global float _output[8][4][4]) {{
-  printf("Running node {node}\\n");
+  printf("----> RUNNING NODE {node}\\n");
   for (int i = {start}; i < {end}; i++) {{
     for (int j = 0; j < 4; j++) {{
       for (int k = 0; k < 4; k++) {{
@@ -258,7 +348,7 @@ __kernel void sub_loop_node_{node}(__global float _input[8][4][4],
 #include <stdlib.h>
 #include <CL/cl.h>
 
-#define ARRAY_SIZE 100
+#define ARRAY_SIZE 1000
 
 // Error handling macro
 #define CHECK_ERR(err) if (err != CL_SUCCESS) {{ fprintf(stderr, "OpenCL error: %d\\n", err); exit(1); }}
@@ -279,12 +369,17 @@ unsigned char* read_binary_file(const char* filename, size_t* binary_size) {{
     return binary;
 }}
 
+{self.get_ptr_arith_functions()[0]}
+{self.get_ptr_arith_functions()[1]}
+
 int main() {{
+    srand(42);
+
     // HOST POINTERS
     {';NEWLINE'.join(host_pointer for host_pointer in list(map(lambda x: "cl_float " + x + "[ARRAY_SIZE]", self.host_pointers)))};
 
     for (int i = 0; i < ARRAY_SIZE; i++) {{
-        {'NEWLINE'.join(host_pointer for host_pointer in list(map(lambda x: x + '[i] = 0;', self.host_pointers)))}
+        {'NEWLINE'.join(host_pointer for host_pointer in list(map(lambda x: x + '[i] = rand()%100;', self.host_pointers)))}
     }}
     cl_int err;
     // PLATFORM
@@ -318,7 +413,7 @@ int main() {{
     }};
     omp_init_lock(&tq_{self.all_node_funcs[1].sym_name.data}.lock);
 
-    int n_top_iters = 2;
+    int n_top_iters = 1;
 
     #pragma omp parallel
     {{
@@ -358,11 +453,13 @@ int main() {{
             }}
         }}
         clFinish(queue_{self.all_node_funcs[1].sym_name.data});
-
-        // Read back the result
-        clEnqueueReadBuffer(queue_global, buf_sub_loop_node_1_1, CL_TRUE, 0, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_1_1, 0, NULL, NULL);
-        clFinish(queue_global);
     }}
+
+    // Read back the result
+    clEnqueueReadBuffer(queue_global, buf_sub_loop_node_0_3, CL_TRUE, 0, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_0_3, 0, NULL, NULL);
+    clFinish(queue_global);
+
+    {self.get_verify()}
 
     return 0;
 }}
