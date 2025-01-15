@@ -318,6 +318,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] << imm,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.SllOp)
+    def run_shift_left(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SllOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] << args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.MulOp)
     def run_mul(
         self,
