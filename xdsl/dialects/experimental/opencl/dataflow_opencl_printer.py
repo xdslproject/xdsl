@@ -1,3 +1,4 @@
+import sys
 from typing import IO
 
 from xdsl.dialects import builtin, func
@@ -55,11 +56,18 @@ class OpenCLProgram:
 
     def get_command_queues(self) -> dict:
         opencl_queues = dict()
-        for node_func in self.all_node_funcs:
-            node_name = node_func.sym_name.data
-            opencl_queues[node_name] = (
-                f"cl_command_queue queue_{node_name} = clCreateCommandQueue(context, device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);\n"
-            )
+
+        if self.test:
+            for node_name in ["sub_loop_node_0", "sub_loop_node_1", "sub_loop_node_2"]:
+                opencl_queues[node_name] = (
+                    f"cl_command_queue queue_{node_name} = clCreateCommandQueue(context, device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);\n"
+                )
+        else:
+            for node_func in self.all_node_funcs:
+                node_name = node_func.sym_name.data
+                opencl_queues[node_name] = (
+                    f"cl_command_queue queue_{node_name} = clCreateCommandQueue(context, device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);\n"
+                )
         opencl_queues["global"] = (
             "cl_command_queue queue_global = clCreateCommandQueue(context, device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);\n"
         )
@@ -68,16 +76,20 @@ class OpenCLProgram:
 
     def get_kernels(self) -> dict:
         opencl_kernels = dict()
-        for idx, node_func in enumerate(self.all_node_funcs):
-            node_name = node_func.sym_name.data
-            if self.test:
-                program_name = f"program_{idx}"
-            else:
-                program_name = "program"
+        if self.test:
+            for idx, node_name in enumerate(
+                ["sub_loop_node_0", "sub_loop_node_1", "sub_loop_node_2"]
+            ):
+                opencl_kernels[node_name] = (
+                    f'cl_kernel kernel_{node_name} = clCreateKernel(program_{idx}, "{node_name}", &err);\n'
+                )
+        else:
+            for idx, node_func in enumerate(self.all_node_funcs):
+                node_name = node_func.sym_name.data
 
-            opencl_kernels[node_name] = (
-                f'cl_kernel kernel_{node_name} = clCreateKernel({program_name}, "{node_name}", &err);\n'
-            )
+                opencl_kernels[node_name] = (
+                    f'cl_kernel kernel_{node_name} = clCreateKernel(program, "{node_name}", &err);\n'
+                )
 
         return opencl_kernels
 
@@ -92,6 +104,7 @@ class OpenCLProgram:
         for arg_idx, arg in enumerate(node_func.function_type.inputs):
             if isinstance(arg, builtin.MemRefType):
                 host_pointers.append(f"host_ptr_{node_name}_{arg_idx}")
+                print("HOST POINTER: ", host_pointers[-1], file=sys.stderr)
                 buffer_names.append(f"buf_{node_name}_{arg_idx}")
                 buffer_arrays.append(f"cl_mem {buffer_names[-1]}[{self.n_iters}];")
                 for iter in range(self.n_iters):
@@ -113,6 +126,34 @@ class OpenCLProgram:
             )
             buffer_names += buffer_node_names
 
+        host_pointers += [
+            "host_ptr_sub_loop_node_2_1",
+            "host_ptr_sub_loop_node_2_2",
+            "host_ptr_sub_loop_node_2_3",
+            "host_ptr_sub_loop_node_2_4",
+            "host_ptr_sub_loop_node_2_5",
+        ]
+
+        buffer_arrays["sub_loop_node_2"] = [
+            "cl_mem buf_sub_loop_node_2_1[N_ITERS];\n",
+            "cl_mem buf_sub_loop_node_2_2[N_ITERS];\n",
+            "cl_mem buf_sub_loop_node_2_3[N_ITERS];\n",
+            "cl_mem buf_sub_loop_node_2_4[N_ITERS];\n",
+            "cl_mem buf_sub_loop_node_2_5[N_ITERS];\n",
+        ]
+
+        buffers["sub_loop_node_2"] = [
+            "buf_sub_loop_node_2_1[0] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_1[0], &err);\n",
+            "buf_sub_loop_node_2_1[1] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_1[1], &err);\n",
+            "buf_sub_loop_node_2_2[0] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_2[0], &err);\n",
+            "buf_sub_loop_node_2_2[1] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_2[1], &err);\n",
+            "buf_sub_loop_node_2_3[0] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_3[0], &err);\n",
+            "buf_sub_loop_node_2_3[1] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_3[1], &err);\n",
+            "buf_sub_loop_node_2_4[0] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_4[0], &err);\n",
+            "buf_sub_loop_node_2_4[1] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_4[1], &err);\n",
+            "buf_sub_loop_node_2_5[0] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_5[0], &err);\n",
+            "buf_sub_loop_node_2_5[1] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_2_5[1], &err);\n",
+        ]
         return buffers, buffer_names, buffer_arrays
 
     def get_set_kernel_args_node(self, node_func: func.FuncOp):
@@ -227,6 +268,12 @@ int main() {{
     }};
     omp_init_lock(&tq_{self.all_node_funcs[1].sym_name.data}.lock);
 
+    TokenQueue tq_sub_loop_node_2 = {{
+        .head = 0,
+        .n_elems = 0,
+    }};
+    omp_init_lock(&tq_sub_loop_node_2.lock);
+
     #pragma omp parallel
     {{
         #pragma omp single
@@ -254,6 +301,13 @@ int main() {{
             #pragma omp task
             {{
                 for(int i = 0; i < N_ITERS; i++) {{
+                    Token token_{self.all_node_funcs[1].sym_name.data};
+                    token_{self.all_node_funcs[1].sym_name.data}.tag = i;
+                    //token_{self.all_node_funcs[1].sym_name.data}.start = start;
+                    token_{self.all_node_funcs[1].sym_name.data}.stride = 1;
+                    //token_{self.all_node_funcs[1].sym_name.data}.size = size_per_iter;
+                    token_{self.all_node_funcs[1].sym_name.data}.consumed = false;
+
                     while (is_empty(&tq_{self.all_node_funcs[1].sym_name.data})) {{}}
                     Token token = get_head(&tq_{self.all_node_funcs[1].sym_name.data});
 
@@ -261,16 +315,39 @@ int main() {{
 
                     // Note: the synchronisation queue here allows the processing of the next
                     // token to proceed while the node runs.
-                    clFinish(queue_{self.all_node_funcs[1].sym_name.data});
                     err = clSetKernelArg(kernel_sub_loop_node_1, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1[i]);
                     err = clSetKernelArg(kernel_sub_loop_node_1, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2[i]);
                     err = clSetKernelArg(kernel_sub_loop_node_1, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3[i]);
-                    err = clEnqueueTask(queue_{self.all_node_funcs[1].sym_name.data}, kernel_{self.all_node_funcs[1].sym_name.data}, 1, in_tokens_kernel_{self.all_node_funcs[1].sym_name.data}, NULL);
+                    err = clEnqueueTask(queue_{self.all_node_funcs[1].sym_name.data}, kernel_{self.all_node_funcs[1].sym_name.data}, 1, in_tokens_kernel_{self.all_node_funcs[1].sym_name.data}, &token_{self.all_node_funcs[1].sym_name.data}.event);
+                    CHECK_ERR(err);
+
+                    put(&tq_sub_loop_node_2, &token_{self.all_node_funcs[1].sym_name.data});
+                    clFinish(queue_{self.all_node_funcs[1].sym_name.data});
+                }}
+            }}
+            #pragma omp task
+            {{
+                for(int i = 0; i < N_ITERS; i++) {{
+                    while (is_empty(&tq_sub_loop_node_2)) {{}}
+                    Token token = get_head(&tq_sub_loop_node_2);
+
+                    cl_event in_tokens_kernel_sub_loop_node_2[] = {{token.event}};
+
+                    // Note: the synchronisation queue here allows the processing of the next
+                    // token to proceed while the node runs.
+                    clFinish(queue_sub_loop_node_2);
+                    err = clSetKernelArg(kernel_sub_loop_node_2, 0, sizeof(cl_mem), &buf_sub_loop_node_0_3[0]);
+                    err = clSetKernelArg(kernel_sub_loop_node_2, 1, sizeof(cl_mem), &buf_sub_loop_node_2_1[0]);
+                    err = clSetKernelArg(kernel_sub_loop_node_2, 2, sizeof(cl_mem), &buf_sub_loop_node_2_2[0]);
+                    err = clSetKernelArg(kernel_sub_loop_node_2, 3, sizeof(cl_mem), &buf_sub_loop_node_2_3[0]);
+                    err = clSetKernelArg(kernel_sub_loop_node_2, 4, sizeof(cl_mem), &buf_sub_loop_node_2_4[0]);
+                    err = clSetKernelArg(kernel_sub_loop_node_2, 5, sizeof(cl_mem), &buf_sub_loop_node_2_5[0]);
+                    err = clEnqueueTask(queue_sub_loop_node_2, kernel_sub_loop_node_2, 1, in_tokens_kernel_sub_loop_node_2, NULL);
                     CHECK_ERR(err);
                 }}
             }}
         }}
-        clFinish(queue_{self.all_node_funcs[1].sym_name.data});
+        clFinish(queue_sub_loop_node_2);
     }}
 
     // VERIFY
