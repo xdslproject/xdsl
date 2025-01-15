@@ -728,6 +728,7 @@ class LayoutGenerator:
         extents.sort(key = lambda e: str(e))
 
         layouts = []
+        replacement_options = []
 
         while len(extents) > 0:
             extent, dims = extents.pop()
@@ -741,29 +742,42 @@ class LayoutGenerator:
                     for child in layout.children
                 ], key=lambda t: len(t[0])
             )
+            def search(children_dims: list[set[dlt.DimensionAttr]],
+                       picked_list: set[dlt.DimensionAttr],
+                       ruled_out: set[dlt.DimensionAttr]
+                       ) -> list[set[dlt.DimensionAttr]]:
+                if len(children_dims) == 0:
+                    return [picked_list]
+                output_picked_lists = []
+                for child_i, next_child in enumerate(children_dims):
+                    possible = next_child - ruled_out
+                    if len(possible) == 0:
+                        return []
+                    must_use = possible & picked_list
+                    if len(must_use) == 0:
+                        for picked_dim in possible:
+                            sub_picked_list = picked_list | {picked_dim}
+                            sub_ruled_out = ruled_out | (possible - {picked_dim})
+                            sub_picked_lists = search([c for i, c in enumerate(children_dims) if i != child_i], sub_picked_list, sub_ruled_out)
+                            for sub_picked_list in sub_picked_lists:
+                                if sub_picked_list not in output_picked_lists:
+                                    output_picked_lists.append(sub_picked_list)
+                    elif len(must_use) == 1:
+                        sub_picked_list = picked_list | must_use
+                        sub_ruled_out = ruled_out | (possible - must_use)
+                        sub_picked_lists = search([c for i, c in enumerate(children_dims) if i != child_i],
+                                                  sub_picked_list, sub_ruled_out)
+                        for sub_picked_list in sub_picked_lists:
+                            if sub_picked_list not in output_picked_lists:
+                                output_picked_lists.append(sub_picked_list)
+                    elif len(must_use) > 1:
+                        return []
+                return output_picked_lists
 
-            for possible, child in children:
-                possible = possible - ruled_out
-                if len(possible) == 0:
-                    failed = True
-                    break
-                must_use = possible & picked_list
-                if len(must_use) == 0:
-                    possible_list = sorted(list(possible), key = lambda d: d.dimensionName.data)
-                    picked_dim = possible_list.pop()
-                    possible = possible - {picked_dim}
-                    picked_list |= {picked_dim}
-                    ruled_out |= possible
-                elif len(must_use) == 1:
-                    picked_dim = must_use.pop()
-                    picked_list |= {picked_dim}
-                    possible -= {picked_dim}
-                    ruled_out |= possible
-                elif len(must_use) > 1:
-                    failed = True
-                    break
-            if (not failed) and (len(picked_list) > 1):
-                layouts.extend(self._make_arith_replacement_node(layout, extent, list(picked_list), config=config))
+            possible_picked_lists = search([d for d, c in children], set(), set())
+            for possible_picked_list in possible_picked_lists:
+                if len(possible_picked_list) > 1:
+                    layouts.extend(self._make_arith_replacement_node(layout, extent, list(possible_picked_list), config=config))
 
         return layouts
 
