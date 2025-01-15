@@ -1,6 +1,7 @@
 from typing import IO
 
 from xdsl.dialects import builtin, func
+from xdsl.dialects.experimental.opencl import prod_strings, test_strings, utils
 from xdsl.printer import Printer
 
 
@@ -30,140 +31,23 @@ class OpenCLProgram:
         self.host_pointers = []
 
         self.opencl_queues = self.get_command_queues()
-        # for queue in self.opencl_queues:
-        #    print(self.opencl_queues[queue])
 
         if test:
-            self.program = f"""
-const char *kernel_source_0 = R\"({self.get_conv_test(2, 0)})\";
-const char *kernel_source_1 = R\"({self.get_conv_test(2, 1)})\";
-
-cl_program program_0 = clCreateProgramWithSource(context, 1, &kernel_source_0, NULL, &err);
-cl_program program_1 = clCreateProgramWithSource(context, 1, &kernel_source_1, NULL, &err);
-
-err = clBuildProgram(program_0, 1, &device, NULL, NULL, NULL);
-err = clBuildProgram(program_1, 1, &device, NULL, NULL, NULL);
-            """
+            self.program = test_strings.program
         else:
-            self.program = """
-    // Load kernel binary
-    size_t binary_size;
-    #ifdef SW_EMU
-    unsigned char* binary = read_binary_file("nodes-sw_emu.xclbin", &binary_size);
-    #elif HW_EMU
-    unsigned char* binary = read_binary_file("nodes-hw_emu.xclbin", &binary_size);
-    #endif
+            self.program = prod_strings.program
 
-    cl_program program = clCreateProgramWithBinary(
-            context,
-            1,
-            &device,
-            &binary_size,
-            (const unsigned char**)&binary,
-            NULL,
-            &status
-        );
-"""
-
-        self.platform = """
-cl_platform_id platform;
-clGetPlatformIDs(1, &platform, NULL);
-
-
-char platform_name[1024]; // Buffer to hold the platform name
-
-// Get platform ID
-err = clGetPlatformIDs(1, &platform, NULL);
-if (err != CL_SUCCESS) {
-    printf("Error getting platform ID: %d\\n", err);
-    return 1;
-}
-
-// Get the platform name
-err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(platform_name), platform_name, NULL);
-if (err != CL_SUCCESS) {
-    printf("Error getting platform info: %d\\n", err);
-    return 1;
-}
-
-// Print the platform name
-printf("Platform Name: %s\\n", platform_name);
-"""
+        self.platform = prod_strings.platform
 
         if test:
-            self.device = """
-    cl_device_id device;
-    clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
-    """
+            self.device = test_strings.device
         else:
-            self.device = """
-    cl_device_id device;
-    clGetDeviceIDs(platform, CL_DEVICE_TYPE_ACCELERATOR, 1, &device, NULL);
-    """
+            self.device = prod_strings.device
 
-        self.context = """
-cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
-"""
+        self.context = prod_strings.context
         self.opencl_kernels = self.get_kernels(test)
-        # for kernel in self.opencl_kernels:
-        #    print(self.opencl_kernels[kernel])
-
         self.buffers, self.buffer_names = self.get_all_buffers(self.host_pointers)
-        # for node_func in self.all_node_funcs:
-        #    node_name = node_func.sym_name.data
-        #    node_buffers = self.buffers[node_name]
-        #    for buf in node_buffers:
-        #        print(buf)
-
         self.set_kernel_args = self.get_set_kernel_args(test)
-
-    def get_ptr_arith_functions(self):
-        _1D_to_3D = """
-float ***_1D_to_3D(float *array, int D, int R, int C) {
-    // Allocate memory for the 3D pointer-to-pointer structure (D x R x C)
-    float ***ptr_array = (float ***)malloc(D * sizeof(float **));
-
-    // Allocate memory for each slice (2D array)
-    for (int i = 0; i < D; i++) {
-        ptr_array[i] = (float **)malloc(R * sizeof(float *));
-
-        // Allocate memory for each row (1D array of columns)
-        for (int j = 0; j < R; j++) {
-            ptr_array[i][j] = &array[(i * R * C) + (j * C)]; // Point to the correct memory in the 1D array
-        }
-    }
-
-    // Return the 3D pointer structure
-    return ptr_array;
-}
-"""
-
-        _1D_to_4D = """
-float ****_1D_to_4D(float *array, int D, int R, int C, int L) {
-    // Allocate memory for the 4D pointer-to-pointer-to-pointer structure (D x R x C x L)
-    float ****ptr_array = (float ****)malloc(D * sizeof(float ***));
-
-    // Allocate memory for each depth slice (3D array)
-    for (int i = 0; i < D; i++) {
-        ptr_array[i] = (float ***)malloc(R * sizeof(float **));
-
-        // Allocate memory for each row slice (2D array)
-        for (int j = 0; j < R; j++) {
-            ptr_array[i][j] = (float **)malloc(C * sizeof(float *));
-
-            // Allocate memory for each column (1D array)
-            for (int k = 0; k < C; k++) {
-                ptr_array[i][j][k] = &array[(i * R * C * L) + (j * C * L) + (k * L)];
-            }
-        }
-    }
-
-    // Return the 4D pointer structure
-    return ptr_array;
-}
-"""
-
-        return _1D_to_3D, _1D_to_4D
 
     def get_command_queues(self) -> dict:
         opencl_queues = dict()
@@ -225,7 +109,6 @@ float ****_1D_to_4D(float *array, int D, int R, int C, int L) {
 
     def get_set_kernel_args_node(self, node_func: func.FuncOp):
         node_name = node_func.sym_name.data
-        # iter_buffers = iter(self.buffers[node_name])
 
         set_kernel_args = []
         for arg, arg_idx in enumerate(node_func.function_type.inputs):
@@ -244,16 +127,7 @@ float ****_1D_to_4D(float *array, int D, int R, int C, int L) {
         set_kernel_args = dict()
 
         if test:
-            set_kernel_args["sub_loop_node_0"] = [
-                "err = clSetKernelArg(kernel_sub_loop_node_0, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1);",
-                "err = clSetKernelArg(kernel_sub_loop_node_0, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2);",
-                "err = clSetKernelArg(kernel_sub_loop_node_0, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3);",
-            ]
-            set_kernel_args["sub_loop_node_1"] = [
-                "err = clSetKernelArg(kernel_sub_loop_node_1, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1);",
-                "err = clSetKernelArg(kernel_sub_loop_node_1, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2);",
-                "err = clSetKernelArg(kernel_sub_loop_node_1, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3);",
-            ]
+            set_kernel_args = test_strings.set_kernel_args
         else:
             for node_func in self.all_node_funcs:
                 node_name = node_func.sym_name.data
@@ -263,82 +137,8 @@ float ****_1D_to_4D(float *array, int D, int R, int C, int L) {
 
     def get_verify(test=False):
         if test:
-            conv = """
-  float *** host_input = _1D_to_3D(host_ptr_sub_loop_node_0_1, 8, 4, 4);
-  float **** host_kernel = _1D_to_4D(host_ptr_sub_loop_node_0_2, 8, 8, 3, 3);
-  float host_output[8][4][4];
-  //float *** _output = _1D_to_3D(host_ptr_sub_loop_node_0_3, 8, 4, 4);
-
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 4; j++) {
-      for (int k = 0; k < 4; k++) {
-        host_output[i][j][k] = 0;
-        for (int l = 0; l < 8; l++) {
-          for (int m = 0; m < 3; m++) {
-            for (int n = 0; n < 3; n++) {
-              int x = j * 2 + m - 1;
-              int y = k * 2 + n - 1;
-              if (x >= 0 && x < 4 && y >= 0 && y < 4) {
-                host_output[i][j][k] += host_input[l][x][y] * host_kernel[i][l][m][n];
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  float *** device_output = _1D_to_3D(host_ptr_sub_loop_node_0_3, 8, 4, 4);
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 4; j++) {
-      for (int k = 0; k < 4; k++) {
-        //printf("host: %f, device: %f\\n", host_output[i][j][k], device_output[i][j][k]);
-        if(host_output[i][j][k] != device_output[i][j][k]) {
-            printf("Read: %f at (%d,%d,%d). Expected: %f\\n", device_output[i][j][k], host_output[i][j][k]);
-            return 1;
-        }
-      }
-    }
-  }
-"""
+            conv = test_strings.verify
         return conv
-
-    #####################################################
-    # TESTING
-    #####################################################
-    def get_conv_test(self, factor: int, node: int):
-        outer = 8
-        n_iters = outer / factor
-        start = node * n_iters
-        end = start + n_iters
-
-        conv_test = f"""
-__kernel void sub_loop_node_{node}(__global float _input[8][4][4],
-                                          __global const float _kernel[8][8][3][3],
-                                          __global float _output[8][4][4]) {{
-  printf("----> RUNNING NODE {node}\\n");
-  for (int i = {start}; i < {end}; i++) {{
-    for (int j = 0; j < 4; j++) {{
-      for (int k = 0; k < 4; k++) {{
-        _output[i][j][k] = 0;
-        for (int l = 0; l < 8; l++) {{
-          for (int m = 0; m < 3; m++) {{
-            for (int n = 0; n < 3; n++) {{
-              int x = j * 2 + m - 1;
-              int y = k * 2 + n - 1;
-              if (x >= 0 && x < 4 && y >= 0 && y < 4) {{
-                _output[i][j][k] += _input[l][x][y] * _kernel[i][l][m][n];
-              }}
-            }}
-          }}
-        }}
-      }}
-    }}
-  }}
-}}
-        """
-
-        return conv_test
 
     def get_main(self, test=False):
         main_str = f"""
@@ -369,8 +169,8 @@ unsigned char* read_binary_file(const char* filename, size_t* binary_size) {{
     return binary;
 }}
 
-{self.get_ptr_arith_functions()[0]}
-{self.get_ptr_arith_functions()[1]}
+{utils.get_ptr_arith_functions(3)}
+{utils.get_ptr_arith_functions(4)}
 
 int main() {{
     srand(42);

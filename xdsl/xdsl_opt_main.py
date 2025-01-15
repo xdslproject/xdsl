@@ -256,7 +256,7 @@ class xDSLOptMain(CommandLineTool):
             _output_mlir(prog, output)
 
         def _print_dataflow_opencl(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.experimental.dataflow_opencl_printer import (
+            from xdsl.dialects.experimental.opencl.dataflow_opencl_printer import (
                 print_dataflow_opencl,
             )
 
