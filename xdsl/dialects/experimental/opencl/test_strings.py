@@ -55,55 +55,63 @@ device = """
 
 ####################################################################################################
 
-set_kernel_args = dict()
-set_kernel_args["sub_loop_node_0"] = [
-    "err = clSetKernelArg(kernel_sub_loop_node_0, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1);",
-    "err = clSetKernelArg(kernel_sub_loop_node_0, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2);",
-    "err = clSetKernelArg(kernel_sub_loop_node_0, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3);",
-]
-set_kernel_args["sub_loop_node_1"] = [
-    "err = clSetKernelArg(kernel_sub_loop_node_1, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1);",
-    "err = clSetKernelArg(kernel_sub_loop_node_1, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2);",
-    "err = clSetKernelArg(kernel_sub_loop_node_1, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3);",
-]
+
+def get_set_kernel_args(iter: str):
+    set_kernel_args = dict()
+    set_kernel_args["sub_loop_node_0"] = [
+        f"err = clSetKernelArg(kernel_sub_loop_node_0, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1[{iter}]);",
+        f"err = clSetKernelArg(kernel_sub_loop_node_0, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2[{iter}]);",
+        f"err = clSetKernelArg(kernel_sub_loop_node_0, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3[{iter}]);",
+    ]
+    set_kernel_args["sub_loop_node_1"] = [
+        f"err = clSetKernelArg(kernel_sub_loop_node_1, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1[{iter}]);",
+        f"err = clSetKernelArg(kernel_sub_loop_node_1, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2[{iter}]);",
+        f"err = clSetKernelArg(kernel_sub_loop_node_1, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3[{iter}]);",
+    ]
+
+    return set_kernel_args
+
 
 ####################################################################################################
 
-verify = """
-  float *** host_input = _1D_to_3D(host_ptr_sub_loop_node_0_1, 8, 4, 4);
-  float **** host_kernel = _1D_to_4D(host_ptr_sub_loop_node_0_2, 8, 8, 3, 3);
-  float host_output[8][4][4];
-  //float *** _output = _1D_to_3D(host_ptr_sub_loop_node_0_3, 8, 4, 4);
 
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 4; j++) {
-      for (int k = 0; k < 4; k++) {
+def get_verify(iter_var: str):
+    verify = f"""
+  float *** host_input = _1D_to_3D(host_ptr_sub_loop_node_0_1[{iter_var}], 8, 4, 4);
+  float **** host_kernel = _1D_to_4D(host_ptr_sub_loop_node_0_2[{iter_var}], 8, 8, 3, 3);
+  float host_output[8][4][4];
+  //float *** _output = _1D_to_3D(host_ptr_sub_loop_node_0_3[{iter_var}], 8, 4, 4);
+
+  for (int i = 0; i < 8; i++) {{
+    for (int j = 0; j < 4; j++) {{
+      for (int k = 0; k < 4; k++) {{
         host_output[i][j][k] = 0;
-        for (int l = 0; l < 8; l++) {
-          for (int m = 0; m < 3; m++) {
-            for (int n = 0; n < 3; n++) {
+        for (int l = 0; l < 8; l++) {{
+          for (int m = 0; m < 3; m++) {{
+            for (int n = 0; n < 3; n++) {{
               int x = j * 2 + m - 1;
               int y = k * 2 + n - 1;
-              if (x >= 0 && x < 4 && y >= 0 && y < 4) {
+              if (x >= 0 && x < 4 && y >= 0 && y < 4) {{
                 host_output[i][j][k] += host_input[l][x][y] * host_kernel[i][l][m][n];
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+              }}
+            }}
+          }}
+        }}
+      }}
+    }}
+  }}
 
-  float *** device_output = _1D_to_3D(host_ptr_sub_loop_node_0_3, 8, 4, 4);
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 4; j++) {
-      for (int k = 0; k < 4; k++) {
-        //printf("host: %f, device: %f\\n", host_output[i][j][k], device_output[i][j][k]);
-        if(host_output[i][j][k] != device_output[i][j][k]) {
-            printf("Read: %f at (%d,%d,%d). Expected: %f\\n", device_output[i][j][k], host_output[i][j][k]);
+  float *** device_output = _1D_to_3D(host_ptr_sub_loop_node_0_3[{iter_var}], 8, 4, 4);
+  for (int i = 0; i < 8; i++) {{
+    for (int j = 0; j < 4; j++) {{
+      for (int k = 0; k < 4; k++) {{
+        if(host_output[i][j][k] != device_output[i][j][k]) {{
+            printf("(iter %d) Read: %f at (%d,%d,%d). Expected: %f\\n", {iter_var}, device_output[i][j][k], i, j, k, host_output[i][j][k]);
             return 1;
-        }
-      }
-    }
-  }
+        }}
+      }}
+    }}
+  }}
 """
+
+    return verify

@@ -6,7 +6,9 @@ from xdsl.printer import Printer
 
 
 class OpenCLProgram:
-    def __init__(self, program: builtin.ModuleOp, test=False):
+    def __init__(self, program: builtin.ModuleOp, n_iters: int, test=False):
+        self.n_iters = n_iters
+        self.test = test
         top_func = [
             func_op
             for func_op in program.ops
@@ -32,22 +34,24 @@ class OpenCLProgram:
 
         self.opencl_queues = self.get_command_queues()
 
-        if test:
+        if self.test:
             self.program = test_strings.program
         else:
             self.program = prod_strings.program
 
         self.platform = prod_strings.platform
 
-        if test:
+        if self.test:
             self.device = test_strings.device
         else:
             self.device = prod_strings.device
 
         self.context = prod_strings.context
-        self.opencl_kernels = self.get_kernels(test)
-        self.buffers, self.buffer_names = self.get_all_buffers(self.host_pointers)
-        self.set_kernel_args = self.get_set_kernel_args(test)
+        self.opencl_kernels = self.get_kernels()
+        self.buffers, self.buffer_names, self.buffer_arrays = self.get_all_buffers(
+            self.host_pointers
+        )
+        self.set_kernel_args = self.get_set_kernel_args()
 
     def get_command_queues(self) -> dict:
         opencl_queues = dict()
@@ -62,11 +66,11 @@ class OpenCLProgram:
 
         return opencl_queues
 
-    def get_kernels(self, test=False) -> dict:
+    def get_kernels(self) -> dict:
         opencl_kernels = dict()
         for idx, node_func in enumerate(self.all_node_funcs):
             node_name = node_func.sym_name.data
-            if test:
+            if self.test:
                 program_name = f"program_{idx}"
             else:
                 program_name = "program"
@@ -82,30 +86,34 @@ class OpenCLProgram:
     ) -> list:
         buffers = []
         buffer_names = []
+        buffer_arrays = []
 
         node_name = node_func.sym_name.data
         for arg_idx, arg in enumerate(node_func.function_type.inputs):
             if isinstance(arg, builtin.MemRefType):
                 host_pointers.append(f"host_ptr_{node_name}_{arg_idx}")
                 buffer_names.append(f"buf_{node_name}_{arg_idx}")
-                buffers.append(
-                    f"cl_mem {buffer_names[-1]} = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, {host_pointers[-1]}, &err);\n"
-                )
+                buffer_arrays.append(f"cl_mem {buffer_names[-1]}[{self.n_iters}];")
+                for iter in range(self.n_iters):
+                    buffers.append(
+                        f"{buffer_names[-1]}[{iter}] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * ARRAY_SIZE, {host_pointers[-1]}[{iter}], &err);\n"
+                    )
 
-        return buffers, buffer_names
+        return buffers, buffer_names, buffer_arrays
 
     def get_all_buffers(self, host_pointers: list[str]) -> dict:
         buffers = dict()
         buffer_names = []
+        buffer_arrays = dict()
 
         for node_func in self.all_node_funcs:
             node_name = node_func.sym_name.data
-            buffers[node_name], buffer_node_names = self.get_buffers_node(
-                node_func, host_pointers
+            buffers[node_name], buffer_node_names, buffer_arrays[node_name] = (
+                self.get_buffers_node(node_func, host_pointers)
             )
             buffer_names += buffer_node_names
 
-        return buffers, buffer_names
+        return buffers, buffer_names, buffer_arrays
 
     def get_set_kernel_args_node(self, node_func: func.FuncOp):
         node_name = node_func.sym_name.data
@@ -123,11 +131,11 @@ class OpenCLProgram:
 
         return set_kernel_args
 
-    def get_set_kernel_args(self, test=False) -> dict:
+    def get_set_kernel_args(self) -> dict:
         set_kernel_args = dict()
 
-        if test:
-            set_kernel_args = test_strings.set_kernel_args
+        if self.test:
+            set_kernel_args = test_strings.get_set_kernel_args(iter=0)
         else:
             for node_func in self.all_node_funcs:
                 node_name = node_func.sym_name.data
@@ -135,9 +143,9 @@ class OpenCLProgram:
 
         return set_kernel_args
 
-    def get_verify(test=False):
-        if test:
-            conv = test_strings.verify
+    def get_verify(self, iter_var: str):
+        if self.test:
+            conv = test_strings.get_verify(iter_var=iter_var)
         return conv
 
     def get_main(self, test=False):
@@ -149,6 +157,7 @@ class OpenCLProgram:
 #include <CL/cl.h>
 
 #define ARRAY_SIZE 1000
+#define N_ITERS {self.n_iters}
 
 // Error handling macro
 #define CHECK_ERR(err) if (err != CL_SUCCESS) {{ fprintf(stderr, "OpenCL error: %d\\n", err); exit(1); }}
@@ -176,10 +185,12 @@ int main() {{
     srand(42);
 
     // HOST POINTERS
-    {';NEWLINE'.join(host_pointer for host_pointer in list(map(lambda x: "cl_float " + x + "[ARRAY_SIZE]", self.host_pointers)))};
+    {';NEWLINE'.join(host_pointer for host_pointer in list(map(lambda x: "cl_float " + x + "[N_ITERS][ARRAY_SIZE]", self.host_pointers)))};
 
-    for (int i = 0; i < ARRAY_SIZE; i++) {{
-        {'NEWLINE'.join(host_pointer for host_pointer in list(map(lambda x: x + '[i] = rand()%100;', self.host_pointers)))}
+    for (int iter = 0; iter < N_ITERS; iter++) {{
+        for (int i = 0; i < ARRAY_SIZE; i++) {{
+            {'NEWLINE'.join(host_pointer for host_pointer in list(map(lambda x: x + '[iter][i] = rand()%100;', self.host_pointers)))}
+        }}
     }}
     cl_int err;
     // PLATFORM
@@ -191,6 +202,7 @@ int main() {{
     // QUEUES
     {''.join(queue for queue in self.opencl_queues.values())}
     // BUFFERS
+    {'NEWLINE'.join(buffer_array for node_buffer_arrays in self.buffer_arrays.values() for buffer_array in node_buffer_arrays)}
     {''.join(buffer for node_buffers in self.buffers.values() for buffer in node_buffers)}
     // PROGRAM
     cl_int status;
@@ -201,8 +213,10 @@ int main() {{
     {'NEWLINE'.join(set_kernel_args for node_set_kernel_args in self.set_kernel_args.values() for set_kernel_args in node_set_kernel_args)}
     CHECK_ERR(err);
 
-    cl_mem buffers[] = {{{','.join(self.buffer_names)}}};
-    clEnqueueMigrateMemObjects(queue_global, {len(self.buffer_names)}, buffers, 0, 0, NULL, NULL);
+    for(int iter = 0; iter < N_ITERS; iter++) {{
+        cl_mem buffers[] = {{{','.join(map(lambda x: x + "[iter]", self.buffer_names))}}};
+        clEnqueueMigrateMemObjects(queue_global, {len(self.buffer_names)}, buffers, 0, 0, NULL, NULL);
+    }}
     clFinish(queue_global);
 
     // Each node that has predecessors has a queue per input token. Implementation wise
@@ -213,15 +227,13 @@ int main() {{
     }};
     omp_init_lock(&tq_{self.all_node_funcs[1].sym_name.data}.lock);
 
-    int n_top_iters = 1;
-
     #pragma omp parallel
     {{
         #pragma omp single
         {{
             #pragma omp task
             {{
-                for(int i = 0; i < n_top_iters; i++) {{
+                for(int i = 0; i < N_ITERS; i++) {{
                     Token token_{self.all_node_funcs[0].sym_name.data};
                     token_{self.all_node_funcs[0].sym_name.data}.tag = i;
                     //token_{self.all_node_funcs[0].sym_name.data}.start = start;
@@ -229,6 +241,9 @@ int main() {{
                     //token_{self.all_node_funcs[0].sym_name.data}.size = size_per_iter;
                     token_{self.all_node_funcs[0].sym_name.data}.consumed = false;
 
+                    err = clSetKernelArg(kernel_sub_loop_node_0, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1[i]);
+                    err = clSetKernelArg(kernel_sub_loop_node_0, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2[i]);
+                    err = clSetKernelArg(kernel_sub_loop_node_0, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3[i]);
                     err = clEnqueueTask(queue_{self.all_node_funcs[0].sym_name.data}, kernel_{self.all_node_funcs[0].sym_name.data}, 0, NULL, &token_{self.all_node_funcs[0].sym_name.data}.event);
 
                     put(&tq_{self.all_node_funcs[1].sym_name.data}, &token_{self.all_node_funcs[0].sym_name.data});
@@ -238,7 +253,7 @@ int main() {{
 
             #pragma omp task
             {{
-                for(int i = 0; i < n_top_iters; i++) {{
+                for(int i = 0; i < N_ITERS; i++) {{
                     while (is_empty(&tq_{self.all_node_funcs[1].sym_name.data})) {{}}
                     Token token = get_head(&tq_{self.all_node_funcs[1].sym_name.data});
 
@@ -247,6 +262,9 @@ int main() {{
                     // Note: the synchronisation queue here allows the processing of the next
                     // token to proceed while the node runs.
                     clFinish(queue_{self.all_node_funcs[1].sym_name.data});
+                    err = clSetKernelArg(kernel_sub_loop_node_1, 0, sizeof(cl_mem), &buf_sub_loop_node_0_1[i]);
+                    err = clSetKernelArg(kernel_sub_loop_node_1, 1, sizeof(cl_mem), &buf_sub_loop_node_0_2[i]);
+                    err = clSetKernelArg(kernel_sub_loop_node_1, 2, sizeof(cl_mem), &buf_sub_loop_node_0_3[i]);
                     err = clEnqueueTask(queue_{self.all_node_funcs[1].sym_name.data}, kernel_{self.all_node_funcs[1].sym_name.data}, 1, in_tokens_kernel_{self.all_node_funcs[1].sym_name.data}, NULL);
                     CHECK_ERR(err);
                 }}
@@ -255,11 +273,14 @@ int main() {{
         clFinish(queue_{self.all_node_funcs[1].sym_name.data});
     }}
 
-    // Read back the result
-    clEnqueueReadBuffer(queue_global, buf_sub_loop_node_0_3, CL_TRUE, 0, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_0_3, 0, NULL, NULL);
-    clFinish(queue_global);
+    // VERIFY
+    for (int iter = 0; iter < N_ITERS; iter++) {{
+        // Read back the result
+        clEnqueueReadBuffer(queue_global, buf_sub_loop_node_0_3[iter], CL_TRUE, 0, sizeof(float) * ARRAY_SIZE, host_ptr_sub_loop_node_0_3[iter], 0, NULL, NULL);
+        clFinish(queue_global);
 
-    {self.get_verify()}
+        {self.get_verify("iter")}
+    }}
 
     return 0;
 }}
@@ -273,7 +294,7 @@ def print_dataflow_opencl(program: builtin.ModuleOp, output: IO[str]):
         stream=output,
     )
 
-    opencl_program = OpenCLProgram(program, test=True)
+    opencl_program = OpenCLProgram(program, n_iters=2, test=True)
 
     main_str = opencl_program.get_main()
     printer.print(main_str)
