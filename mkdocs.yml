@@ -5,9 +5,13 @@ theme:
 
 plugins:
 - search
+- gen-files:
+    scripts:
+    - scripts/gen_ref_pages.py
 - mkdocstrings
 
-
+nav:
+  - Code Reference: reference/
 # nav:
 #   - xDSL: index.md
 #   - API Reference:
