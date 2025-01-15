@@ -163,3 +163,13 @@ coverage-report: uv-installed
 .PHONY: coverage-clean
 coverage-clean: uv-installed
 	uv run coverage erase
+
+# docs
+
+.PHONY: docs-serve
+docs-serve: uv-installed
+	uv run mkdocs serve
+
+.PHONY: docs-build
+docs-build: uv-installed
+	uv run mkdocs build
