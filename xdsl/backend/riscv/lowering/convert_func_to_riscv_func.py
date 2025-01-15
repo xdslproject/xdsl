@@ -80,7 +80,7 @@ class LowerFuncCallOp(RewritePattern):
         new_result_types = list(a_regs(op.results))
         new_op = riscv_func.CallOp(op.callee, moved_operands, new_result_types)
         move_result_ops, moved_results = move_to_unallocated_regs(
-            new_op.results, operand_types
+            new_op.results, new_result_types
         )
         cast_result_ops = [
             UnrealizedConversionCastOp.get((moved_result,), (old_result.type,))
