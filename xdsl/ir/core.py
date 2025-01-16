@@ -1002,6 +1002,13 @@ class Operation(IRNode):
         if region_first:
             yield self
 
+    def walk_blocks(self) -> Iterator[Block]:
+        for region in self.regions:
+            for block in region.blocks:
+                assert isinstance(block, Block)
+                yield block
+                yield from block.walk_child_blocks_first()
+
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
         Get a named attribute or property.
@@ -1708,6 +1715,13 @@ class Block(IRNode, IRWithUses):
         """
         for op in reversed(self.ops) if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
+
+    def walk_child_blocks_first(self) -> Iterator[Block]:
+        for op in self.ops:
+            for region in op.regions:
+                for block in region.blocks:
+                    yield block
+                    yield from block.walk_child_blocks_first()
 
     def verify(self) -> None:
         for operation in self.ops:
