@@ -28,6 +28,7 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
+    RangeConstraint,
     VarExtractor,
     VariadicDef,
     VarOperandDef,
@@ -248,6 +249,25 @@ class FormatParser(BaseParser):
             return self.inner.extract_var(types)
 
     @dataclass(frozen=True)
+    class _OperandResultInferenceExtractor(VarExtractor[ParsingState]):
+        idx: int
+        is_operand: bool
+        inner: VarExtractor[Sequence[Attribute]]
+        constr: RangeConstraint
+
+        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
+            if self.is_operand:
+                operand = a.operands[self.idx]
+                range_length = len(operand) if isinstance(operand, Sequence) else 1
+                types = self.constr.infer(InferenceContext(), length=range_length)
+            else:
+                types = self.constr.infer(InferenceContext(), length=None)
+            assert types is not None
+            if isinstance(types, Attribute):
+                types = (types,)
+            return self.inner.extract_var(types)
+
+    @dataclass(frozen=True)
     class _AttrExtractor(VarExtractor[ParsingState]):
         """
         Extracts constraint variables from the attributes/properties of an operation.
@@ -282,11 +302,29 @@ class FormatParser(BaseParser):
                         for v, r in operand_def.constr.get_variable_extractors().items()
                     }
                 )
+            elif operand_def.constr.can_infer(set(), length_known=True):
+                extractor_dicts.append(
+                    {
+                        v: self._OperandResultInferenceExtractor(
+                            i, True, r, operand_def.constr
+                        )
+                        for v, r in operand_def.constr.get_variable_extractors().items()
+                    }
+                )
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
                 extractor_dicts.append(
                     {
                         v: self._OperandResultExtractor(i, False, r)
+                        for v, r in result_def.constr.get_variable_extractors().items()
+                    }
+                )
+            elif result_def.constr.can_infer(set(), length_known=False):
+                extractor_dicts.append(
+                    {
+                        v: self._OperandResultInferenceExtractor(
+                            i, False, r, result_def.constr
+                        )
                         for v, r in result_def.constr.get_variable_extractors().items()
                     }
                 )
