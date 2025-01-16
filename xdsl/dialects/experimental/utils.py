@@ -204,11 +204,15 @@ def get_minimum_independent_band(bands: list[list[affine.For]]):
     return None
 
 
+# A store is invariant in a loop band when it is not modified in any of the iterations. This
+# property holds when the induction variable of the top loop of the band is not the lowermost index
+# of the store.
 def is_store_invariant_in_band(store: affine.Store, band: list[affine.For]):
     innermost_band_loop = band[-1]
-    for st_idx in store.indices:
-        if st_idx == innermost_band_loop.body.block.args[0]:
-            return False
+    lowermost_index = store.indices[-1]
+
+    if lowermost_index == innermost_band_loop.body.block.args[0]:
+        return False
 
     return True
 
@@ -270,7 +274,6 @@ def tile_loop(
     in_types = [livein.type for livein in external_liveins]
 
     for _ in range(n_subloops):
-        print()
         loop_clone = loop.clone()
         sub_region = rewriter.move_region_contents_to_new_regions(loop_clone.body)
 
@@ -293,16 +296,18 @@ def tile_loop(
             builder.insert(func.Return())
 
         sub_loop_node = func.FuncOp(
-            f"sub_loop_node_{sub_loop_idx}",
+            f"sub_node_{parent_node.sym_name.data}_{sub_loop_idx}",
             builtin.FunctionType.from_lists(in_types, []),
             node_body,
         )
         sub_loop_nodes_lst.append(sub_loop_node)
         sub_loop_idx += 1
         sub_loop_node.attributes["top_func"] = builtin.UnitAttr()
+        sub_loop_node.attributes["original_node"] = (
+            parent_node.sym_name
+        )  # builtin.IntegerAttr.from_int_and_width(0, 32)
 
         rewriter.insert_op(sub_loop_node, InsertPoint.before(parent_node))
-        print()
 
     @Builder.region(in_types)
     def parent_node_body(builder: Builder, args: list[BlockArgument, ...]):
