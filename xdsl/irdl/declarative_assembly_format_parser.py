@@ -232,6 +232,15 @@ class FormatParser(BaseParser):
                 return
 
     @dataclass(frozen=True)
+    class _OperandLengthResolver(VarExtractor[ParsingState]):
+        idx: int
+        inner: VarExtractor[int]
+
+        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
+            assert isinstance(ops := a.operands[self.idx], Sequence)
+            return self.inner.extract_var(len(ops))
+
+    @dataclass(frozen=True)
     class _OperandResultExtractor(VarExtractor[ParsingState]):
         idx: int
         is_operand: bool
@@ -275,6 +284,12 @@ class FormatParser(BaseParser):
         """
         extractor_dicts: list[dict[str, VarExtractor[ParsingState]]] = []
         for i, (_, operand_def) in enumerate(self.op_def.operands):
+            extractor_dicts.append(
+                {
+                    v: self._OperandLengthResolver(i, r)
+                    for v, r in operand_def.constr.get_length_extractors().items()
+                }
+            )
             if self.seen_operand_types[i]:
                 extractor_dicts.append(
                     {
