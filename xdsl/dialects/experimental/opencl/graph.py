@@ -1,11 +1,38 @@
+from enum import Enum, auto
+
 from xdsl.dialects import builtin, func
 
 
+class NodeType(Enum):
+    BUF = auto()
+    SCALAR = auto()
+
+
 class Node:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, node_func: func.FuncOp):
+        self.name = node_func.sym_name.data
         self.pred = []
         self.succ = []
+        self.n_args = len(node_func.function_type.inputs)
+
+        self.arg_types = [
+            NodeType.BUF if isinstance(arg, builtin.MemRefType) else NodeType.SCALAR
+            for arg in node_func.function_type.inputs
+        ]
+
+    def get_buf_arg_indices(self):
+        return [
+            idx
+            for idx, arg_type in enumerate(self.arg_types)
+            if arg_type == NodeType.BUF
+        ]
+
+    def get_scalar_arg_indices(self):
+        return [
+            idx
+            for idx, arg_type in enumerate(self.arg_types)
+            if arg_type == NodeType.SCALAR
+        ]
 
 
 class Graph:
@@ -40,9 +67,15 @@ class Graph:
 
         nodes_lst = []
         for node_func in node_funcs:
-            node = Node(node_func.sym_name.data)
+            node = Node(node_func)
             nodes_lst.append(node)
 
         graph = Graph(nodes_lst)
 
         return graph
+
+    def get_subnode_names(self):
+        return [subnode.name for subnode in self.subnodes]
+
+    def get_subnode_by_name(self, name):
+        return [subnode for subnode in self.subnodes if subnode.name == name][0]
