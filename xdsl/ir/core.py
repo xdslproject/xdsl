@@ -287,7 +287,7 @@ class Attribute(ABC):
     def verify(self) -> None:
         """
         Check that the attribute parameters satisfy the expected invariants.
-        Raise an exception otherwise.
+        Raise a VerifyException otherwise.
         """
         pass
 

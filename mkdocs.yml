@@ -1,0 +1,15 @@
+site_name: xDSL
+
+theme:
+  name: "material"
+
+plugins:
+- search
+- mkdocstrings
+
+
+# nav:
+#   - xDSL: index.md
+#   - API Reference:
+#     - API Reference: api/index.md
+#     - Core IR Data Structures: api/ir/index.md
