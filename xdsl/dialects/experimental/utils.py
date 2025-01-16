@@ -296,7 +296,7 @@ def tile_loop(
             builder.insert(func.Return())
 
         sub_loop_node = func.FuncOp(
-            f"sub_node_{parent_node.sym_name.data}_{sub_loop_idx}",
+            f"sub_node_{parent_node.sym_name.data}_SUBNODE{sub_loop_idx}",
             builtin.FunctionType.from_lists(in_types, []),
             node_body,
         )
@@ -306,6 +306,7 @@ def tile_loop(
         sub_loop_node.attributes["original_node"] = (
             parent_node.sym_name
         )  # builtin.IntegerAttr.from_int_and_width(0, 32)
+        sub_loop_node.attributes["sub_node"] = builtin.UnitAttr()
 
         rewriter.insert_op(sub_loop_node, InsertPoint.before(parent_node))
 

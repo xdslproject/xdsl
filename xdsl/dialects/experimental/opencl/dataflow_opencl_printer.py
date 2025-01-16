@@ -1,8 +1,7 @@
-import sys
 from typing import IO
 
 from xdsl.dialects import builtin, func
-from xdsl.dialects.experimental.opencl import prod_strings, test_strings, utils
+from xdsl.dialects.experimental.opencl import graph, prod_strings, test_strings, utils
 from xdsl.printer import Printer
 
 
@@ -10,6 +9,9 @@ class OpenCLProgram:
     def __init__(self, program: builtin.ModuleOp, n_iters: int, test=False):
         self.n_iters = n_iters
         self.test = test
+
+        self.graph = graph.Graph.generate_graph(program)
+
         top_func = [
             func_op
             for func_op in program.ops
@@ -104,7 +106,6 @@ class OpenCLProgram:
         for arg_idx, arg in enumerate(node_func.function_type.inputs):
             if isinstance(arg, builtin.MemRefType):
                 host_pointers.append(f"host_ptr_{node_name}_{arg_idx}")
-                print("HOST POINTER: ", host_pointers[-1], file=sys.stderr)
                 buffer_names.append(f"buf_{node_name}_{arg_idx}")
                 buffer_arrays.append(f"cl_mem {buffer_names[-1]}[{self.n_iters}];")
                 for iter in range(self.n_iters):
