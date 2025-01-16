@@ -28,7 +28,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	XDSL_VERSION_OVERRIDE="0+dynamic" uv sync ${VENV_EXTRAS}
+	uv sync ${VENV_EXTRAS}
 	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi
