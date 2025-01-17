@@ -4,7 +4,13 @@ Type utilities.
 
 from typing import Any, cast
 
-from xdsl.dialects.builtin import DYNAMIC_INDEX, ContainerType, ShapedType
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    ContainerType,
+    ShapedType,
+    NoneAttr,
+    TensorType,
+)
 from xdsl.ir import Attribute
 
 
@@ -13,6 +19,12 @@ def get_element_type_or_self(maybe_shaped_type: Attribute) -> Attribute:
         container_type = cast(ContainerType[Any], maybe_shaped_type)
         return container_type.get_element_type()
     return maybe_shaped_type
+
+
+def get_encoding(maybe_shaped_type: Attribute) -> Attribute:
+    if isinstance(maybe_shaped_type, TensorType):
+        return maybe_shaped_type.encoding
+    return NoneAttr()
 
 
 def have_compatible_shape(lhs_type: Attribute, rhs_type: Attribute) -> bool:

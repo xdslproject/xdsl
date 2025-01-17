@@ -736,8 +736,11 @@ class SameOperandsAndResultType(OpTrait):
     """Constrain the operation to have the same operands and result type."""
 
     def verify(self, op: Operation) -> None:
-        from xdsl.dialects.builtin import NoneAttr, TensorType
-        from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
+        from xdsl.utils.type import (
+            get_encoding,
+            get_element_type_or_self,
+            have_compatible_shape,
+        )
 
         if len(op.results) < 1 or len(op.operands) < 1:
             raise VerifyException(
@@ -745,11 +748,6 @@ class SameOperandsAndResultType(OpTrait):
             )
 
         result_type0 = get_element_type_or_self(op.result_types[0])
-
-        def get_encoding(maybe_shaped_type: Attribute) -> Attribute:
-            if isinstance(maybe_shaped_type, TensorType):
-                return maybe_shaped_type.encoding
-            return NoneAttr()
 
         encoding = get_encoding(op.result_types[0])
 
