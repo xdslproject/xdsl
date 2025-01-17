@@ -778,9 +778,7 @@ class SameOperandsAndResultType(OpTrait):
                     f"'{op.name} requires the same type for all operands and results"
                 )
 
-            elem_encoding = NoneAttr()
-            if isinstance(oprnd_type, TensorType):
-                elem_encoding = oprnd_type.encoding
+            elem_encoding = get_encoding(oprnd_type)
 
             if encoding != elem_encoding:
                 raise VerifyException(
