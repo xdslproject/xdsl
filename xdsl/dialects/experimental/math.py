@@ -5,6 +5,7 @@ types beyond simple arithmetics.
 
 See https://mlir.llvm.org/docs/Dialects/MathOps/
 """
+
 from __future__ import annotations
 
 from xdsl.dialects.arith import FastMathFlagsAttr
