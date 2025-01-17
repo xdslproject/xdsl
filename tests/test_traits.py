@@ -7,6 +7,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 
@@ -682,70 +683,58 @@ def test_same_operands_and_result_type_trait_for_result_element_type_of_shaped_t
 )
 @pytest.mark.parametrize(
     (
-        "operand_element_type",
-        "operand_shape",
-        "result_element_type",
-        "result_shape",
+        "operand_type",
+        "result_type",
     ),
     [
         (
-            test.TestType("foo"),
-            [2, 3],
-            test.TestType("qux"),
-            [2, 3],
+            TensorType(test.TestType("foo"), [2, 3]),
+            TensorType(test.TestType("qux"), [2, 3]),
         ),
         (
-            test.TestType("foo"),
-            [2, 3],
-            test.TestType("foo"),
-            [2, 4],
+            TensorType(test.TestType("foo"), [2, 3]),
+            TensorType(test.TestType("foo"), [2, 4]),
         ),
         (
-            test.TestType("qux"),
-            [2, 3],
-            test.TestType("foo"),
-            [2, 3],
+            TensorType(test.TestType("qux"), [2, 3]),
+            TensorType(test.TestType("foo"), [2, 3]),
         ),
         (
-            test.TestType("foo"),
-            [2, 4],
-            test.TestType("foo"),
-            [2, 3],
+            TensorType(test.TestType("foo"), [2, 4]),
+            TensorType(test.TestType("foo"), [2, 3]),
+        ),
+        (
+            MemRefType(test.TestType("foo"), [2, 3]),
+            MemRefType(test.TestType("qux"), [2, 3]),
+        ),
+        (
+            MemRefType(test.TestType("foo"), [2, 3]),
+            MemRefType(test.TestType("foo"), [2, 4]),
+        ),
+        (
+            MemRefType(test.TestType("qux"), [2, 3]),
+            MemRefType(test.TestType("foo"), [2, 3]),
+        ),
+        (
+            MemRefType(test.TestType("foo"), [2, 4]),
+            MemRefType(test.TestType("foo"), [2, 3]),
         ),
     ],
 )
 def test_same_operands_and_result_type_trait_for_element_type_of_shaped_types(
-    operand_element_type: Attribute,
-    operand_shape: tuple[int],
-    result_element_type: Attribute,
-    result_shape: tuple[int],
+    operand_type: TensorType[Any],
+    result_type: TensorType[Any],
     operands_num: int,
     results_num: int,
 ):
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                TestSSAValue(TensorType(operand_element_type, operand_shape)),
+                TestSSAValue(operand_type),
             ]
             * operands_num,
         ],
-        result_types=[[TensorType(result_element_type, result_shape)] * results_num],
-    )
-
-    with pytest.raises(
-        VerifyException,
-        match="requires the same type for all operands and results",
-    ):
-        op.verify()
-
-    op = SameOperandsAndResultTypeOp(
-        operands=[
-            [
-                TestSSAValue(MemRefType(operand_element_type, operand_shape)),
-            ]
-            * operands_num,
-        ],
-        result_types=[[MemRefType(result_element_type, result_shape)] * results_num],
+        result_types=[[result_type] * results_num],
     )
 
     with pytest.raises(
