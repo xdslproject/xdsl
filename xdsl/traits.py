@@ -744,7 +744,7 @@ class SameOperandsAndResultType(OpTrait):
                 f"'{op.name}' requires at least one result or operand"
             )
 
-        res_type0 = get_element_type_or_self(op.result_types[0])
+        result_type0 = get_element_type_or_self(op.result_types[0])
 
         def get_encoding(maybe_shaped_type: Attribute) -> Attribute:
             if isinstance(maybe_shaped_type, TensorType):
@@ -753,34 +753,34 @@ class SameOperandsAndResultType(OpTrait):
 
         encoding = get_encoding(op.result_types[0])
 
-        for res_type in op.result_types[1:]:
-            res_type_elem = get_element_type_or_self(res_type)
-            if res_type0 != res_type_elem or not have_compatible_shape(
-                op.result_types[0], res_type
+        for result_type in op.result_types[1:]:
+            result_type_elem = get_element_type_or_self(result_type)
+            if result_type0 != result_type_elem or not have_compatible_shape(
+                op.result_types[0], result_type
             ):
                 raise VerifyException(
                     f"'{op.name} requires the same type for all operands and results"
                 )
 
-            elem_encoding = get_encoding(res_type)
+            element_encoding = get_encoding(result_type)
 
-            if encoding != elem_encoding:
+            if encoding != element_encoding:
                 raise VerifyException(
                     f"'{op.name} requires the same encoding for all operands and results"
                 )
 
-        for oprnd_type in op.operand_types:
-            oprnd_type_elem = get_element_type_or_self(oprnd_type)
-            if res_type0 != oprnd_type_elem or not have_compatible_shape(
-                op.result_types[0], oprnd_type
+        for operand_type in op.operand_types:
+            operand_type_elem = get_element_type_or_self(operand_type)
+            if result_type0 != operand_type_elem or not have_compatible_shape(
+                op.result_types[0], operand_type
             ):
                 raise VerifyException(
                     f"'{op.name} requires the same type for all operands and results"
                 )
 
-            elem_encoding = get_encoding(oprnd_type)
+            element_encoding = get_encoding(operand_type)
 
-            if encoding != elem_encoding:
+            if encoding != element_encoding:
                 raise VerifyException(
                     f"'{op.name} requires the same encoding for all operands and results"
                 )
