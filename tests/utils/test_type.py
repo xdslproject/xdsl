@@ -1,6 +1,16 @@
 from xdsl.dialects import test
-from xdsl.dialects.builtin import DYNAMIC_INDEX, TensorType, UnrankedTensorType
-from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    MemRefType,
+    NoneAttr,
+    TensorType,
+    UnrankedTensorType,
+)
+from xdsl.utils.type import (
+    get_encoding,
+    get_element_type_or_self,
+    have_compatible_shape,
+)
 
 
 def test_get_element_type_or_self():
@@ -12,6 +22,24 @@ def test_get_element_type_or_self():
 
     unranked_shaped_type1 = UnrankedTensorType(scalar_type1)
     assert scalar_type1 == get_element_type_or_self(unranked_shaped_type1)
+
+
+def test_get_encoding():
+    scalar_type1 = test.TestType("foo")
+
+    assert get_encoding(scalar_type1) == NoneAttr()
+
+    shaped_type1 = TensorType(scalar_type1, [4])
+
+    assert get_encoding(shaped_type1) == NoneAttr()
+
+    shaped_type2 = TensorType(scalar_type1, [4], scalar_type1)
+
+    assert get_encoding(shaped_type2) == scalar_type1
+
+    shaped_type3 = MemRefType(scalar_type1, [4])
+
+    assert get_encoding(shaped_type3) == NoneAttr()
 
 
 def test_have_compatible_shape():
