@@ -24,7 +24,7 @@ def have_compatible_shape(lhs_type: Attribute, rhs_type: Attribute) -> bool:
         return True
 
     # one is scalar and the other shaped
-    if (is_lhs_shaped and not is_rhs_shaped) or (not is_lhs_shaped and is_rhs_shaped):
+    if is_lhs_shaped != is_rhs_shaped:
         return False
 
     # at least one is unranked
