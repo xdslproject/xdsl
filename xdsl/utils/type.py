@@ -7,8 +7,8 @@ from typing import Any, cast
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ContainerType,
-    ShapedType,
     NoneAttr,
+    ShapedType,
     TensorType,
 )
 from xdsl.ir import Attribute

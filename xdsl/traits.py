@@ -737,8 +737,8 @@ class SameOperandsAndResultType(OpTrait):
 
     def verify(self, op: Operation) -> None:
         from xdsl.utils.type import (
-            get_encoding,
             get_element_type_or_self,
+            get_encoding,
             have_compatible_shape,
         )
 

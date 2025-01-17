@@ -7,8 +7,8 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
 )
 from xdsl.utils.type import (
-    get_encoding,
     get_element_type_or_self,
+    get_encoding,
     have_compatible_shape,
 )
 
