@@ -16,15 +16,15 @@ def get_element_type_or_self(maybe_shaped_type: Attribute) -> Attribute:
 
 
 def have_compatible_shape(lhs_type: Attribute, rhs_type: Attribute) -> bool:
-    is_lhs_shaped = isinstance(lhs_type, ContainerType)
-    is_rhs_shaped = isinstance(rhs_type, ContainerType)
+    is_lhs_container = isinstance(lhs_type, ContainerType)
+    is_rhs_container = isinstance(rhs_type, ContainerType)
 
     # both are scalars
-    if not is_lhs_shaped and not is_rhs_shaped:
+    if not is_lhs_container and not is_rhs_container:
         return True
 
     # one is scalar and the other shaped
-    if is_lhs_shaped != is_rhs_shaped:
+    if is_lhs_container != is_rhs_container:
         return False
 
     # at least one is unranked
