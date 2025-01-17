@@ -100,7 +100,7 @@ class Parser(AttrParser):
         super().__init__(ParserState(MLIRLexer(Input(input, name))), ctx)
         self.ssa_values = dict()
         self.blocks = dict()
-        self.forward_block_references = dict()
+        self.forward_block_references = defaultdict(list)
         self.forward_ssa_references = dict()
 
     def parse_module(self, allow_implicit_module: bool = True) -> ModuleOp:
@@ -145,7 +145,10 @@ class Parser(AttrParser):
             value_names = ", ".join(
                 "%" + name for name in self.forward_ssa_references.keys()
             )
-            self.raise_error(f"values used but not defined: [{value_names}]")
+            if len(self.forward_ssa_references.keys()) > 1:
+                self.raise_error(f"values {value_names} were used but not defined")
+            else:
+                self.raise_error(f"value {value_names} was used but not defined")
 
         return module_op
 
@@ -561,7 +564,7 @@ class Parser(AttrParser):
             region.add_block(block)
 
         # Finally, check that all forward block references have been resolved.
-        if len(self.forward_block_references) > 0:
+        if self.forward_block_references:
             pos = self.lexer.pos
             raise MultipleSpansParseError(
                 Span(pos, pos + 1, self.lexer.input),

@@ -14,3 +14,11 @@ test.op : () -> ()
 // CHECK-NEXT: test.op : () -> ()
 // CHECK-NEXT:         ^
 // CHECK-NEXT:         Operation test.op does not have a custom format.
+
+// -----
+
+module {
+    "test.op"() [^unknown_successor]: () -> ()
+}
+
+// CHECK: Unknown location of span region ends with missing block declarations for block(s) unknown_successor.
