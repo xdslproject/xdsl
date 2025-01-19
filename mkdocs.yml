@@ -14,6 +14,7 @@ plugins:
 - gen-files:
     scripts:
     - scripts/gen_ref_pages.py
+- mkdocs-marimo
 - mkdocstrings:
     handlers:
       python:
@@ -37,6 +38,8 @@ nav:
       - Block: api/ir/block.md
       - Region: api/ir/region.md
       - Dialect: api/ir/dialect.md
+  - Notebooks:
+    - Notebooks: marimo/index.md
   - Code Reference: reference/index.md
   - Guides:
     - MLIR Interoperation: guides/mlir_interoperation.md
