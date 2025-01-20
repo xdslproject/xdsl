@@ -69,59 +69,74 @@ def _(k, m, mo, n):
     return a_shape, b_shape, c_shape
 
 
-@app.cell(hide_code=True)
-def _(a_shape, b_shape, c_shape, mo, xmo):
-    from xdsl.builder import ImplicitBuilder
+@app.cell
+def _():
+    from xdsl.dialects.builtin import MemRefType
     from xdsl.dialects import arith, func, linalg
-    from xdsl.dialects.builtin import (
-        AffineMap,
-        AffineMapAttr,
-        ArrayAttr,
-        MemRefType,
-        ModuleOp,
-        f64,
-    )
-    from xdsl.ir import Block, Region
+    return MemRefType, arith, func, linalg
+
+
+@app.cell
+def _(MemRefType, arith, func, linalg):
+    def build_matmul(_a_type: MemRefType, _b_type: MemRefType, _c_type: MemRefType) -> ModuleOp:
+        from xdsl.builder import ImplicitBuilder
+        from xdsl.dialects.builtin import (
+            AffineMap,
+            AffineMapAttr,
+            ModuleOp,
+            f64,
+        )
+        from xdsl.ir import Block, Region
+
+        kernel_op = func.FuncOp("matmul", ((_a_type, _b_type, _c_type), ()))
+        with ImplicitBuilder(kernel_op.body) as (a, b, c):
+            # Add name hints to make it easier to track how values are lowered
+            a.name_hint = "A"
+            b.name_hint = "B"
+            c.name_hint = "C"
+            body = Region(Block(arg_types=(f64, f64, f64)))
+            linalg.GenericOp(
+                inputs=(a, b),
+                outputs=(c,),
+                body=body,
+                indexing_maps=(
+                    AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (m, k))),
+                    AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (k, n))),
+                    AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (m, n))),
+                ),
+                iterator_types=(
+                    linalg.IteratorTypeAttr.parallel(),
+                    linalg.IteratorTypeAttr.parallel(),
+                    linalg.IteratorTypeAttr.reduction(),
+                ),
+            )
+            with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
+                prod_val = arith.MulfOp(a_val, b_val).result
+                acc_new_val = arith.AddfOp(acc_old_val, prod_val).result
+                linalg.YieldOp(acc_new_val)
+                # Add more name hints to make it easier to track how values are lowered
+                a_val.name_hint = "a"
+                b_val.name_hint = "b"
+                acc_old_val.name_hint = "acc_old"
+                prod_val.name_hint = "prod"
+                acc_new_val.name_hint = "acc_new"
+            func.ReturnOp()
+
+        linalg_module = ModuleOp((kernel_op,))
+
+        return linalg_module
+    return (build_matmul,)
+
+
+@app.cell(hide_code=True)
+def _(MemRefType, a_shape, b_shape, build_matmul, c_shape, mo, xmo):
+    from xdsl.dialects.builtin import f64
 
     a_type = MemRefType(f64, a_shape)
     b_type = MemRefType(f64, b_shape)
     c_type = MemRefType(f64, c_shape)
 
-    kernel_op = func.FuncOp("matmul", ((a_type, b_type, c_type), ()))
-    with ImplicitBuilder(kernel_op.body) as (a, b, c):
-        # Add name hints to make it easier to track how values are lowered
-        a.name_hint = "A"
-        b.name_hint = "B"
-        c.name_hint = "C"
-        body = Region(Block(arg_types=(f64, f64, f64)))
-        linalg.GenericOp(
-            inputs=(a, b),
-            outputs=(c,),
-            body=body,
-            indexing_maps=(
-                AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (m, k))),
-                AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (k, n))),
-                AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (m, n))),
-            ),
-            iterator_types=(
-                linalg.IteratorTypeAttr.parallel(),
-                linalg.IteratorTypeAttr.parallel(),
-                linalg.IteratorTypeAttr.reduction(),
-            ),
-        )
-        with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
-            prod_val = arith.MulfOp(a_val, b_val).result
-            acc_new_val = arith.AddfOp(acc_old_val, prod_val).result
-            linalg.YieldOp(acc_new_val)
-            # Add more name hints to make it easier to track how values are lowered
-            a_val.name_hint = "a"
-            b_val.name_hint = "b"
-            acc_old_val.name_hint = "acc_old"
-            prod_val.name_hint = "prod"
-            acc_new_val.name_hint = "acc_new"
-        func.ReturnOp()
-
-    linalg_module = ModuleOp((kernel_op,))
+    linalg_module = build_matmul(a_type, b_type, c_type)
 
     mo.md(f"""
 
@@ -129,34 +144,7 @@ def _(a_shape, b_shape, c_shape, mo, xmo):
 
     {xmo.module_html(linalg_module)}
     """)
-    return (
-        AffineMap,
-        AffineMapAttr,
-        ArrayAttr,
-        Block,
-        ImplicitBuilder,
-        MemRefType,
-        ModuleOp,
-        Region,
-        a,
-        a_type,
-        a_val,
-        acc_new_val,
-        acc_old_val,
-        arith,
-        b,
-        b_type,
-        b_val,
-        body,
-        c,
-        c_type,
-        f64,
-        func,
-        kernel_op,
-        linalg,
-        linalg_module,
-        prod_val,
-    )
+    return a_type, b_type, c_type, f64, linalg_module
 
 
 @app.cell
@@ -599,7 +587,6 @@ def _(
     SnitchCycleCostModel,
     func,
     memref_stream,
-    memref_stream_module,
     msg_factors,
     random_attr_of_type,
     riscv_passes,
@@ -610,7 +597,7 @@ def _(
         name = "automatic-unroll-and-jam"
 
         def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-            msg_ops = tuple(child for child in memref_stream_module.walk() if isinstance(child, memref_stream.GenericOp))
+            msg_ops = tuple(child for child in op.walk() if isinstance(child, memref_stream.GenericOp))
 
             if not msg_ops:
                 return
@@ -690,6 +677,105 @@ def _(
     {xmo.module_html(automated_module)}
     """)
     return automated_cost, automated_ctx, automated_module
+
+
+@app.cell
+def _():
+    import pandas as pd
+    return (pd,)
+
+
+@app.cell
+def _(
+    AutomaticUnrollAndJamPass,
+    LensCostModel,
+    MemRefType,
+    Random,
+    SnitchCycleCostModel,
+    apply,
+    build_matmul,
+    f64,
+    linalg_ctx,
+    memref_stream_interleave,
+    memref_stream_passes,
+    random_attr_of_type,
+    riscv_passes,
+):
+    keys = []
+    automated_costs = []
+    heuristic_costs = []
+
+    for _n in range(4, 10):
+        _a_shape = (2, 2)
+        _b_shape = (2, _n)
+        _c_shape = (2, _n)
+
+        _a_type = MemRefType(f64, _a_shape)
+        _b_type = MemRefType(f64, _b_shape)
+        _c_type = MemRefType(f64, _c_shape)
+
+        _linalg_ctx = linalg_ctx.clone()
+        _linalg_module = build_matmul(_a_type, _b_type, _c_type)
+
+        _memref_stream_ctx, _memref_stream_module = apply(memref_stream_passes, _linalg_ctx, _linalg_module)
+        # memref_stream_passes.apply(linalg_ctx, _linalg_module)
+
+        # automated
+        _automatex_ctx, _automated_module = apply(AutomaticUnrollAndJamPass(), _memref_stream_ctx, _memref_stream_module)
+
+        _rng = Random("autotune")
+        _attrs = tuple(random_attr_of_type(t, _rng) for t in (_a_type, _b_type, _c_type))
+        _memref_stream_cost_model = LensCostModel(
+            SnitchCycleCostModel("matmul", _attrs), riscv_passes.passes
+        )
+        _automated_cost = _memref_stream_cost_model.estimate_cost(_automated_module, _automatex_ctx)
+
+        # heuristic
+
+        _interleaved_ctx = _memref_stream_ctx.clone()
+        _interleaved_module = _memref_stream_module.clone()
+
+        memref_stream_interleave.MemrefStreamInterleavePass().apply(
+            _interleaved_ctx, _interleaved_module
+        )
+
+        _interleaved_cost = _memref_stream_cost_model.estimate_cost(_interleaved_module, _interleaved_ctx)
+
+        keys.append(f"{_n}")
+        automated_costs.append(_automated_cost)
+        heuristic_costs.append(_interleaved_cost)
+    return automated_costs, heuristic_costs, keys
+
+
+@app.cell
+def _(automated_costs, heuristic_costs, keys, pd):
+    df = pd.DataFrame(index=keys)
+    df["Automated"] = automated_costs
+    df["Heuristic"] = heuristic_costs
+    df
+    return (df,)
+
+
+@app.cell
+def _():
+    from matplotlib import pyplot as plt
+    return (plt,)
+
+
+@app.cell
+def _(df, plt):
+    # plt.xticks(rotation=45, ha='right')
+
+    plt.gcf().set_size_inches(10, 6)
+    plt.tight_layout()
+
+    df.plot(
+        title="Matrix Multiplication 2x2 * 2xN",
+        ylabel='Cycles (Estimate)',
+        xlabel='N',
+        ylim=(0, None),
+    )
+    return
 
 
 if __name__ == "__main__":
