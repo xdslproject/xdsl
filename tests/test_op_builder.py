@@ -116,21 +116,21 @@ def test_builder_create_block():
     target = Region([block1, block2])
     builder = Builder(InsertPoint.at_start(block1))
 
-    new_block1 = builder.create_block_at_start(target, (i32,))
+    new_block1 = builder.create_block(BlockInsertPoint.at_start(target), (i32,))
     assert len(new_block1.args) == 1
     assert new_block1.args[0].type == i32
     assert len(target.blocks) == 3
     assert target.blocks[0] == new_block1
     assert builder.insertion_point == InsertPoint.at_start(new_block1)
 
-    new_block2 = builder.create_block_at_end(target, (i64,))
+    new_block2 = builder.create_block(BlockInsertPoint.at_end(target), (i64,))
     assert len(new_block2.args) == 1
     assert new_block2.args[0].type == i64
     assert len(target.blocks) == 4
     assert target.blocks[3] == new_block2
     assert builder.insertion_point == InsertPoint.at_start(new_block2)
 
-    new_block3 = builder.create_block_before(block2, (i32, i64))
+    new_block3 = builder.create_block(BlockInsertPoint.before(block2), (i32, i64))
     assert len(new_block3.args) == 2
     assert new_block3.args[0].type == i32
     assert new_block3.args[1].type == i64
@@ -138,7 +138,7 @@ def test_builder_create_block():
     assert target.blocks[2] == new_block3
     assert builder.insertion_point == InsertPoint.at_start(new_block3)
 
-    new_block4 = builder.create_block_after(block2, (i64, i32))
+    new_block4 = builder.create_block(BlockInsertPoint.after(block2), (i64, i32))
     assert len(new_block4.args) == 2
     assert new_block4.args[0].type == i64
     assert new_block4.args[1].type == i32
@@ -182,10 +182,10 @@ def test_builder_listener_block_created():
 
     b.block_creation_handler = [add_block_on_create]
 
-    b1 = b.create_block_at_start(region)
-    b2 = b.create_block_at_end(region)
-    b3 = b.create_block_before(block)
-    b4 = b.create_block_after(block)
+    b1 = b.create_block(BlockInsertPoint.at_start(region))
+    b2 = b.create_block(BlockInsertPoint.at_end(region))
+    b3 = b.create_block(BlockInsertPoint.before(block))
+    b4 = b.create_block(BlockInsertPoint.after(block))
 
     assert created_blocks == [b1, b2, b3, b4]
 
