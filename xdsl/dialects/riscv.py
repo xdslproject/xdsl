@@ -1948,7 +1948,7 @@ class JalrOp(RdRsImmJumpOperation):
     """
     Jump to address and place return address in rd.
 
-    ``` C
+    ```C
     t = pc+4
     pc = (x[rs1] + sext(offset)) & ~1
     x[rd] = t
@@ -1981,7 +1981,7 @@ class BeqOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 and rs2 are equal.
 
-    ``` C
+    ```C
     if (x[rs1] == x[rs2]) pc += sext(offset)
     ```
 
@@ -1996,7 +1996,7 @@ class BneOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 and rs2 are not equal.
 
-    ``` C
+    ```C
     if (x[rs1] != x[rs2]) pc += sext(offset)
     ```
 
@@ -2011,7 +2011,7 @@ class BltOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is less than rs2, using signed comparison.
 
-    ``` C
+    ```C
     if (x[rs1] <s x[rs2]) pc += sext(offset)
     ```
 
@@ -2026,7 +2026,7 @@ class BgeOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is greater than or equal to rs2, using signed comparison.
 
-    ``` C
+    ```C
     if (x[rs1] >=s x[rs2]) pc += sext(offset)
     ```
 
@@ -2041,7 +2041,7 @@ class BltuOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is less than rs2, using unsigned comparison.
 
-    ``` C
+    ```C
     if (x[rs1] <u x[rs2]) pc += sext(offset)
     ```
 
@@ -2056,7 +2056,7 @@ class BgeuOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is greater than or equal to rs2, using unsigned comparison.
 
-    ``` C
+    ```C
     if (x[rs1] >=u x[rs2]) pc += sext(offset)
     ```
 
@@ -2077,7 +2077,7 @@ class LbOp(RdRsImmIntegerOperation):
     Loads a 8-bit value from memory and sign-extends this to XLEN bits before
     storing it in register rd.
 
-    ``` C
+    ```C
     x[rd] = sext(M[x[rs1] + sext(offset)][7:0])
     ```
 
@@ -2093,7 +2093,7 @@ class LbuOp(RdRsImmIntegerOperation):
     Loads a 8-bit value from memory and zero-extends this to XLEN bits before
     storing it in register rd.
 
-    ``` C
+    ```C
     x[rd] = M[x[rs1] + sext(offset)][7:0]
     ```
 
@@ -2109,7 +2109,7 @@ class LhOp(RdRsImmIntegerOperation):
     Loads a 16-bit value from memory and sign-extends this to XLEN bits before
     storing it in register rd.
 
-    ``` C
+    ```C
     x[rd] = sext(M[x[rs1] + sext(offset)][15:0])
     ```
 
@@ -2125,7 +2125,7 @@ class LhuOp(RdRsImmIntegerOperation):
     Loads a 16-bit value from memory and zero-extends this to XLEN bits before
     storing it in register rd.
 
-    ``` C
+    ```C
     x[rd] = M[x[rs1] + sext(offset)][15:0]
     ```
 
@@ -2151,7 +2151,7 @@ class LwOp(RdRsImmIntegerOperation):
     Loads a 32-bit value from memory and sign-extends this to XLEN bits before
     storing it in register rd.
 
-    ``` C
+    ```C
     x[rd] = sext(M[x[rs1] + sext(offset)][31:0])
     ```
 
@@ -2177,7 +2177,7 @@ class SbOp(RsRsImmIntegerOperation):
     """
     Store 8-bit, values from the low bits of register rs2 to memory.
 
-    ``` C
+    ```C
     M[x[rs1] + sext(offset)] = x[rs2][7:0]
     ```
 
@@ -2192,7 +2192,7 @@ class ShOp(RsRsImmIntegerOperation):
     """
     Store 16-bit, values from the low bits of register rs2 to memory.
 
-    ``` C
+    ```C
     M[x[rs1] + sext(offset)] = x[rs2][15:0]
     ```
 
@@ -2218,7 +2218,7 @@ class SwOp(RsRsImmIntegerOperation):
     """
     Store 32-bit, values from the low bits of register rs2 to memory.
 
-    ``` C
+    ```C
     M[x[rs1] + sext(offset)] = x[rs2][31:0]
     ```
 
@@ -3223,7 +3223,7 @@ class FMAddSOp(RdRsRsRsFloatOperation):
     """
     Perform single-precision fused multiply addition.
 
-    ``` C
+    ```C
     f[rd] = f[rs1]×f[rs2]+f[rs3]
     ```
 
@@ -3238,7 +3238,7 @@ class FMSubSOp(RdRsRsRsFloatOperation):
     """
     Perform single-precision fused multiply substraction.
 
-    ``` C
+    ```C
     f[rd] = f[rs1]×f[rs2]+f[rs3]
     ```
 
@@ -3253,7 +3253,7 @@ class FNMSubSOp(RdRsRsRsFloatOperation):
     """
     Perform single-precision fused multiply substraction.
 
-    ``` C
+    ```C
     f[rd] = -f[rs1]×f[rs2]+f[rs3]
     ```
 
@@ -3268,7 +3268,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
     """
     Perform single-precision fused multiply addition.
 
-    ``` C
+    ```C
     f[rd] = -f[rs1]×f[rs2]-f[rs3]
     ```
 
@@ -3283,7 +3283,7 @@ class FAddSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point addition.
 
-    ``` C
+    ```C
     f[rd] = f[rs1]+f[rs2]
     ```
 
@@ -3300,7 +3300,7 @@ class FSubSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point substraction.
 
-    ``` C
+    ```C
     f[rd] = f[rs1]-f[rs2]
     ```
 
@@ -3315,7 +3315,7 @@ class FMulSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point multiplication.
 
-    ``` C
+    ```C
     f[rd] = f[rs1]×f[rs2]
     ```
 
@@ -3330,7 +3330,7 @@ class FDivSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point division.
 
-    ``` C
+    ```C
     f[rd] = f[rs1] / f[rs2]
     ```
 
@@ -3345,7 +3345,7 @@ class FSqrtSOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
     """
     Perform single-precision floating-point square root.
 
-    ``` C
+    ```C
     f[rd] = sqrt(f[rs1])
     ```
 
@@ -3363,7 +3363,7 @@ class FSgnJSOp(
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is rs2’s sign bit.
 
-    ``` C
+    ```C
     f[rd] = {f[rs2][31], f[rs1][30:0]}
     ```
 
@@ -3381,7 +3381,7 @@ class FSgnJNSOp(
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is opposite of rs2’s sign bit.
 
-    ``` C
+    ```C
     f[rd] = {~f[rs2][31], f[rs1][30:0]}
     ```
 
@@ -3399,7 +3399,7 @@ class FSgnJXSOp(
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is XOR of sign bit of rs1 and rs2.
 
-    ``` C
+    ```C
     f[rd] = {f[rs1][31] ^ f[rs2][31], f[rs1][30:0]}
     ```
 
@@ -3414,7 +3414,7 @@ class FMinSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of single precision data in rs1 and rs2 to rd.
 
-    ``` C
+    ```C
     f[rd] = min(f[rs1], f[rs2])
     ```
 
@@ -3429,7 +3429,7 @@ class FMaxSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
-    ``` C
+    ```C
     f[rd] = max(f[rs1], f[rs2])
     ```
 
@@ -3444,7 +3444,7 @@ class FCvtWSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in integer register rd.
 
-    ``` C
+    ```C
     x[rd] = sext(s32_{f32}(f[rs1]))
     ```
 
@@ -3459,7 +3459,7 @@ class FCvtWuSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in unsigned integer register rd.
 
-    ``` C
+    ```C
     x[rd] = sext(u32_{f32}(f[rs1]))
     ```
 
@@ -3474,7 +3474,7 @@ class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
     Move the single-precision value in floating-point register rs1 represented in IEEE 754-2008 encoding to the lower 32 bits of integer register rd.
 
-    ``` C
+    ```C
     x[rd] = sext(f[rs1][31:0])
     ```
 
@@ -3550,7 +3550,7 @@ class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
     Converts a 32-bit signed integer, in integer register rs1 into a floating-point number in floating-point register rd.
 
-    ``` C
+    ```C
     f[rd] = f32_{s32}(x[rs1])
     ```
 
@@ -3565,7 +3565,7 @@ class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
     Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point number in floating-point register rd.
 
-    ``` C
+    ```C
     f[rd] = f32_{u32}(x[rs1])
     ```
 
@@ -3580,7 +3580,7 @@ class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
     Move the single-precision value encoded in IEEE 754-2008 standard encoding from the lower 32 bits of integer register rs1 to the floating-point register rd.
 
-    ``` C
+    ```C
     f[rd] = x[rs1][31:0]
     ```
 
@@ -3606,7 +3606,7 @@ class FLwOp(RdRsImmFloatOperation):
     """
     Load a single-precision value from memory into floating-point register rd.
 
-    ``` C
+    ```C
     f[rd] = M[x[rs1] + sext(offset)][31:0]
     ```
 
@@ -3842,7 +3842,7 @@ class FLdOp(RdRsImmFloatOperation):
     """
     Load a double-precision value from memory into floating-point register rd.
 
-    ``` C
+    ```C
     f[rd] = M[x[rs1] + sext(offset)][63:0]
     ```
 
