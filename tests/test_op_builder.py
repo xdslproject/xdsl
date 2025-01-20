@@ -5,7 +5,7 @@ from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, i32, i64
 from xdsl.dialects.scf import IfOp
 from xdsl.ir import Block, BlockArgument, Operation, Region
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
 def test_insertion_point_constructors():
@@ -22,6 +22,46 @@ def test_insertion_point_constructors():
     assert InsertPoint.after(op1) == InsertPoint(target, op2)
     assert InsertPoint.before(op2) == InsertPoint(target, op2)
     assert InsertPoint.after(op2) == InsertPoint(target, None)
+
+
+def test_block_insertion_point_constructors():
+    target = Region(
+        [
+            (block1 := Block()),
+            (block2 := Block()),
+        ]
+    )
+
+    assert BlockInsertPoint.at_start(target) == BlockInsertPoint(target, block1)
+    assert BlockInsertPoint.at_end(target) == BlockInsertPoint(target, None)
+    assert BlockInsertPoint.before(block1) == BlockInsertPoint(target, block1)
+    assert BlockInsertPoint.after(block1) == BlockInsertPoint(target, block2)
+    assert BlockInsertPoint.before(block2) == BlockInsertPoint(target, block2)
+    assert BlockInsertPoint.after(block2) == BlockInsertPoint(target, None)
+
+    assert BlockInsertPoint.at_start(target) != BlockInsertPoint.at_end(target)
+
+
+def test_block_insertion_init_incorrect():
+    region = Region()
+    block = Block()
+    with pytest.raises(
+        ValueError, match="Insertion point must be in the builder's `region`"
+    ):
+        BlockInsertPoint(region, block)
+
+
+def test_block_insertion_point_orphan():
+    block = Block()
+    with pytest.raises(
+        ValueError, match="Block insertion point must have a parent region"
+    ):
+        BlockInsertPoint.before(block)
+
+    with pytest.raises(
+        ValueError, match="Block insertion point must have a parent region"
+    ):
+        BlockInsertPoint.after(block)
 
 
 def test_builder():
