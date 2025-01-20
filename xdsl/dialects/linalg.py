@@ -935,6 +935,8 @@ class QuantizedMatmulOp(NamedOpBase):
                 [
                     AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
                     AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
+                    AffineMapAttr(AffineMap(3, 0, ())),
+                    AffineMapAttr(AffineMap(3, 0, ())),
                     AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
                 ]
             )
