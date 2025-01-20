@@ -374,10 +374,11 @@ class ConvertApplyOpPattern(RewritePattern):
 
     num_chunks: int = 1
     """
-    number of chunks into which communication and computation should be split.
-    Effectively, the number of times `csl_stencil.apply.receive_chunk` will be
-    executed and the tensor sizes it handles. Higher values may increase compute
-    overhead but reduce size of communication buffers when lowered.
+    Number of chunks into which communication and computation should be split.
+    Effectively, the number of times `csl_stencil.apply.receive_chunk` will be executed
+    and the tensor sizes it handles.
+    Higher values may increase compute overhead but reduce size of communication buffers
+    when lowered.
     """
 
     @op_type_rewrite_pattern
