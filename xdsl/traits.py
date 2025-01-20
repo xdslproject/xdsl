@@ -729,3 +729,56 @@ class HasInsnRepresentation(OpTrait, abc.ABC):
         Return the insn representation of the operation for printing.
         """
         raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class SameOperandsAndResultType(OpTrait):
+    """Constrain the operation to have the same operands and result type."""
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.utils.type import (
+            get_element_type_or_self,
+            get_encoding,
+            have_compatible_shape,
+        )
+
+        if len(op.results) < 1 or len(op.operands) < 1:
+            raise VerifyException(
+                f"'{op.name}' requires at least one result or operand"
+            )
+
+        result_type0 = get_element_type_or_self(op.result_types[0])
+
+        encoding = get_encoding(op.result_types[0])
+
+        for result_type in op.result_types[1:]:
+            result_type_elem = get_element_type_or_self(result_type)
+            if result_type0 != result_type_elem or not have_compatible_shape(
+                op.result_types[0], result_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            element_encoding = get_encoding(result_type)
+
+            if encoding != element_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )
+
+        for operand_type in op.operand_types:
+            operand_type_elem = get_element_type_or_self(operand_type)
+            if result_type0 != operand_type_elem or not have_compatible_shape(
+                op.result_types[0], operand_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            element_encoding = get_encoding(operand_type)
+
+            if encoding != element_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )

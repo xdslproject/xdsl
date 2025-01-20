@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
+
+from typing_extensions import deprecated
 
 from xdsl.ir import Block, Operation, Region, SSAValue
 
@@ -56,6 +58,56 @@ class InsertPoint:
     def at_end(block: Block) -> InsertPoint:
         """Gets the insertion point at the end of a block."""
         return InsertPoint(block)
+
+
+@dataclass(frozen=True)
+class BlockInsertPoint:
+    """
+    An insert point for a block.
+    It is either a point before a block, or after a block.
+    """
+
+    region: Region
+    """The region where the insertion point is in."""
+
+    insert_before: Block | None = field(default=None)
+    """
+    The insertion point is right before this block.
+    If the block is None, the insertion point is at the end of the region.
+    """
+
+    def __post_init__(self) -> None:
+        # Check that the insertion point is valid.
+        # An insertion point can only be invalid if `insert_before` is a `Block`,
+        # and its parent is not `region`.
+        if self.insert_before is not None:
+            if self.insert_before.parent is not self.region:
+                raise ValueError("Insertion point must be in the builder's `region`")
+
+    @staticmethod
+    def before(block: Block) -> BlockInsertPoint:
+        """Gets the insertion point before a block."""
+        if (region := block.parent) is None:
+            raise ValueError("Block insertion point must have a parent region")
+        return BlockInsertPoint(region, block)
+
+    @staticmethod
+    def after(block: Block) -> BlockInsertPoint:
+        """Gets the insertion point after a block."""
+        region = block.parent
+        if region is None:
+            raise ValueError("Block insertion point must have a parent region")
+        return BlockInsertPoint(region, block.next_block)
+
+    @staticmethod
+    def at_start(region: Region) -> BlockInsertPoint:
+        """Gets the insertion point at the start of a region."""
+        return BlockInsertPoint(region, region.first_block)
+
+    @staticmethod
+    def at_end(region: Region) -> BlockInsertPoint:
+        """Gets the insertion point at the end of a region."""
+        return BlockInsertPoint(region)
 
 
 class Rewriter:
@@ -178,21 +230,29 @@ class Rewriter:
         source.erase()
 
     @staticmethod
+    def insert_block(block: Block | Iterable[Block], insert_point: BlockInsertPoint):
+        """
+        Insert one or multiple blocks at a given location.
+        The blocks to insert should be detached from any region.
+        The insertion point should not be contained in the block to insert.
+        """
+        region = insert_point.region
+        if insert_point.insert_before is not None:
+            region.insert_block_before(block, insert_point.insert_before)
+        else:
+            region.add_block(block)
+
+    @deprecated("Use `insert_block(block, BlockInsertPoint.after(target))` instead")
+    @staticmethod
     def insert_block_after(block: Block | list[Block], target: Block):
         """
         Insert one or multiple blocks after another block.
         The blocks to insert should be detached from any region.
         The target block should not be contained in the block to insert.
         """
-        if target.parent is None:
-            raise Exception("Cannot move a block after a toplevel op")
-        region = target.parent
-        block_list = block if isinstance(block, list) else [block]
-        if len(block_list) == 0:
-            return
-        pos = region.get_block_index(target)
-        region.insert_block(block_list, pos + 1)
+        Rewriter.insert_block(block, BlockInsertPoint.after(target))
 
+    @deprecated("Use `insert_block(block, BlockInsertPoint.before(target))` instead")
     @staticmethod
     def insert_block_before(block: Block | list[Block], target: Block):
         """
@@ -200,12 +260,7 @@ class Rewriter:
         The blocks to insert should be detached from any region.
         The target block should not be contained in the block to insert.
         """
-        if target.parent is None:
-            raise Exception("Cannot move a block after a toplevel op")
-        region = target.parent
-        block_list = block if isinstance(block, list) else [block]
-        pos = region.get_block_index(target)
-        region.insert_block(block_list, pos)
+        Rewriter.insert_block(block, BlockInsertPoint.before(target))
 
     @staticmethod
     def insert_op(
@@ -226,30 +281,35 @@ class Rewriter:
         return new_region
 
     @staticmethod
+    def inline_region(region: Region, insertion_point: BlockInsertPoint) -> None:
+        """Move the region blocks to a given location."""
+        if insertion_point.insert_before is not None:
+            region.move_blocks_before(insertion_point.insert_before)
+        else:
+            region.move_blocks(insertion_point.region)
+
+    @deprecated("Use `inline_region(region, BlockInsertPoint.before(target))` instead")
+    @staticmethod
     def inline_region_before(region: Region, target: Block) -> None:
         """Move the region blocks to an existing region, before `target`."""
-        region.move_blocks_before(target)
+        Rewriter.inline_region(region, BlockInsertPoint.before(target))
 
+    @deprecated("Use `inline_region(region, BlockInsertPoint.after(target))` instead")
     @staticmethod
     def inline_region_after(region: Region, target: Block) -> None:
         """Move the region blocks to an existing region, after `target`."""
-        if target.next_block is not None:
-            Rewriter.inline_region_before(region, target.next_block)
-        else:
-            parent_region = target.parent
-            if parent_region is None:
-                raise ValueError("Cannot inline region before a block with no parent")
-            region.move_blocks(region)
+        Rewriter.inline_region(region, BlockInsertPoint.after(target))
 
+    @deprecated(
+        "Use `inline_region(region, BlockInsertPoint.at_start(target))` instead"
+    )
     @staticmethod
     def inline_region_at_start(region: Region, target: Region) -> None:
         """Move the region blocks to the start of an existing region."""
-        if target.first_block is not None:
-            Rewriter.inline_region_before(region, target.first_block)
-        else:
-            Rewriter.inline_region_at_end(region, target)
+        Rewriter.inline_region(region, BlockInsertPoint.at_start(target))
 
+    @deprecated("Use `inline_region(region, BlockInsertPoint.at_end(target))` instead")
     @staticmethod
     def inline_region_at_end(region: Region, target: Region) -> None:
         """Move the region blocks to the end of an existing region."""
-        region.move_blocks(target)
+        Rewriter.inline_region(region, BlockInsertPoint.at_end(target))
