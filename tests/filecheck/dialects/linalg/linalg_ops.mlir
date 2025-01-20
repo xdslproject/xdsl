@@ -150,4 +150,4 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-GENERIC-NEXT:         %45 = "arith.muli"(%42, %44) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:         %46 = "arith.addi"(%40, %45) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 //  CHECK-GENERIC-NEXT:        "linalg.yield"(%46) : (i32) -> ()
-// CHECK-GENERIC-NEXT:       }) {linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32, tensor<64x4096xi32>) -> tensor<64x4096xi32>
+// CHECK-GENERIC-NEXT:       }) {linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32, tensor<64x4096xi32>) -> tensor<64x4096xi32>
