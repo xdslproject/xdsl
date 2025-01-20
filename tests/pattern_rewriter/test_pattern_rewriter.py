@@ -33,7 +33,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
 def rewrite_and_compare(
@@ -1225,7 +1225,7 @@ def test_inline_region_before():
             if op.parent is None:
                 return
 
-            rewriter.inline_region_before(op.regions[0], op.parent)
+            rewriter.inline_region(op.regions[0], BlockInsertPoint.before(op.parent))
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1272,7 +1272,7 @@ def test_inline_region_after():
             if op.parent is None:
                 return
 
-            rewriter.inline_region_after(op.regions[0], op.parent)
+            rewriter.inline_region(op.regions[0], BlockInsertPoint.after(op.parent))
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1320,7 +1320,9 @@ def test_inline_region_at_start():
             if parent_region is None:
                 return
 
-            rewriter.inline_region_at_start(op.regions[0], parent_region)
+            rewriter.inline_region(
+                op.regions[0], BlockInsertPoint.at_start(parent_region)
+            )
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1368,7 +1370,9 @@ def test_inline_region_at_end():
             if parent_region is None:
                 return
 
-            rewriter.inline_region_at_end(op.regions[0], parent_region)
+            rewriter.inline_region(
+                op.regions[0], BlockInsertPoint.at_end(parent_region)
+            )
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
