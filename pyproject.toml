@@ -39,7 +39,7 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
 ]
 gui = ["textual==1.0.0", "pyclip==0.7"]
-jax = ["jax==0.4.38", "numpy==2.2.1"]
+jax = ["jax==0.4.38", "numpy==2.2.2"]
 riscv = ["riscemu==2.2.7"]
 
 [project.urls]
