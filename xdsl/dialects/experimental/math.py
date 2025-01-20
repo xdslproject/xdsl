@@ -79,7 +79,7 @@ class UnaryMathOpWithFastMathFlags(
 
 
 @irdl_op_definition
-class AbsFOp(UnaryMathOp[AnyFloat]):
+class AbsFOp(UnaryMathOpWithFastMathFlags[AnyFloat]):
     """
     The absf operation computes the absolute value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result

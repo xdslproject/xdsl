@@ -9,7 +9,7 @@ from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
 def rewrite_and_compare(
@@ -289,7 +289,9 @@ def test_insert_block_before():
 """
 
     def insert_empty_block_before(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block_before(Block(), module.regions[0].blocks[0])
+        rewriter.insert_block(
+            Block(), BlockInsertPoint.before(module.regions[0].blocks[0])
+        )
 
     rewrite_and_compare(prog, expected, insert_empty_block_before)
 
@@ -312,7 +314,9 @@ def test_insert_block_after():
 """
 
     def insert_empty_block_after(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
+        rewriter.insert_block(
+            Block(), BlockInsertPoint.after(module.regions[0].blocks[0])
+        )
 
     rewrite_and_compare(prog, expected, insert_empty_block_after)
 
@@ -510,7 +514,7 @@ def test_inline_region_before():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_before(region, module.body.blocks[1])
+        rewriter.inline_region(region, BlockInsertPoint.before(module.body.blocks[1]))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -544,7 +548,7 @@ def test_inline_region_after():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_after(region, module.body.blocks[0])
+        rewriter.inline_region(region, BlockInsertPoint.after(module.body.blocks[0]))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -578,7 +582,7 @@ def test_inline_region_at_start():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_at_start(region, module.body)
+        rewriter.inline_region(region, BlockInsertPoint.at_start(module.body))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -612,33 +616,22 @@ def test_inline_region_at_end():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_at_end(region, module.body)
+        rewriter.inline_region(region, BlockInsertPoint.at_end(module.body))
 
     rewrite_and_compare(prog, expected, transformation)
 
 
 def test_verify_inline_region():
-    block = Block()
     region = Region(Block())
 
-    with pytest.raises(
-        ValueError, match="Cannot inline region before a block with no parent"
-    ):
-        Rewriter.inline_region_before(region, block)
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region(region, BlockInsertPoint.before(region.block))
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_before(region, region.block)
-
-    with pytest.raises(
-        ValueError, match="Cannot inline region before a block with no parent"
-    ):
-        Rewriter.inline_region_after(region, block)
+        Rewriter.inline_region(region, BlockInsertPoint.after(region.block))
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_after(region, region.block)
+        Rewriter.inline_region(region, BlockInsertPoint.at_start(region))
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_at_start(region, region)
-
-    with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_at_end(region, region)
+        Rewriter.inline_region(region, BlockInsertPoint.at_end(region))
