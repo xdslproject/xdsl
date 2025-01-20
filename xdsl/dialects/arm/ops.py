@@ -7,10 +7,16 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    prop_def,
     result_def,
 )
 
-from .assembly import AssemblyInstructionArg, assembly_arg_str, assembly_line
+from .assembly import (
+    AssemblyInstructionArg,
+    append_comment,
+    assembly_arg_str,
+    assembly_line,
+)
 from .register import IntRegisterType
 
 
@@ -154,3 +160,74 @@ class DSSMulOp(ARMInstruction):
 
     def assembly_line_args(self):
         return (self.d, self.s1, self.s2)
+
+
+@irdl_op_definition
+class LabelOp(ARMOperation):
+    """
+    The label operation is used to emit text labels (e.g. loop:) that are used
+    as branch, unconditional jump targets and symbol offsets.
+    https://developer.arm.com/documentation/dui0801/l/Symbols--Literals--Expressions--and-Operators/Labels
+    """
+
+    name = "arm.label"
+    label = prop_def(StringAttr)
+    comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$label attr-dict"
+
+    def __init__(
+        self,
+        label: str | StringAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = StringAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        return append_comment(f"{self.label.data}:", self.comment)
+
+
+@irdl_op_definition
+class CmpRegOp(ARMInstruction):
+    """
+    Compare (register) subtracts an optionally-shifted register value from a register value.
+    It updates the condition flags based on the result, and discards the result.
+    https://developer.arm.com/documentation/ddi0597/2024-12/Base-Instructions/CMP--register---Compare--register--?lang=en
+    """
+
+    name = "arm.cmp"
+    s1 = operand_def(IntRegisterType)
+    s2 = operand_def(IntRegisterType)
+
+    assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)`"
+
+    def __init__(
+        self,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self):
+        return (self.s1, self.s2)

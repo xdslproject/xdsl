@@ -4,8 +4,8 @@ from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import MaximumfOp
 from xdsl.dialects.builtin import f64
-from xdsl.dialects.experimental.math import AbsFOp, CopySignOp
 from xdsl.dialects.func import CallOp, FuncOp
+from xdsl.dialects.math import AbsFOp, CopySignOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

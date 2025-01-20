@@ -223,7 +223,9 @@ class R_RR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 class RR_AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the registers r1 and r2 and stores the result in r1.
+    ```C
     x[r1] = x[r1] + x[r2]
+    ```
     https://www.felixcloutier.com/x86/add
     """
 
@@ -234,7 +236,9 @@ class RR_AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RR_SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     subtracts r2 from r1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] - x[r2]
+    ```
     https://www.felixcloutier.com/x86/sub
     """
 
@@ -245,7 +249,9 @@ class RR_SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RR_ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the registers r1 and r2 and stores the result in r1.
+    ```C
     x[r1] = x[r1] * x[r2]
+    ```
     https://www.felixcloutier.com/x86/imul
     """
 
@@ -256,7 +262,9 @@ class RR_ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RR_AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r1 and r2, stored in r1
+    ```C
     x[r1] = x[r1] & x[r2]
+    ```
     https://www.felixcloutier.com/x86/and
     """
 
@@ -267,7 +275,9 @@ class RR_AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RR_OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of r1 and r2, stored in r1
+    ```C
     x[r1] = x[r1] | x[r2]
+    ```
     https://www.felixcloutier.com/x86/or
     """
 
@@ -278,7 +288,9 @@ class RR_OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of r1 and r2, stored in r1
+    ```C
     x[r1] = x[r1] ^ x[r2]
+    ```
     https://www.felixcloutier.com/x86/xor
     """
 
@@ -289,7 +301,9 @@ class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of r1 into r2.
+    ```C
     x[r1] = x[r2]
+    ```
     https://www.felixcloutier..com/x86/mov
     """
 
@@ -402,7 +416,9 @@ class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 class R_NegOp(R_R_Operation[GeneralRegisterType]):
     """
     Negates r1 and stores the result in r1.
+    ```C
     x[r1] = -x[r1]
+    ```
     https://www.felixcloutier.com/x86/neg
     """
 
@@ -413,7 +429,9 @@ class R_NegOp(R_R_Operation[GeneralRegisterType]):
 class R_NotOp(R_R_Operation[GeneralRegisterType]):
     """
     bitwise not of r1, stored in r1
+    ```C
     x[r1] = ~x[r1]
+    ```
     https://www.felixcloutier.com/x86/not
     """
 
@@ -424,7 +442,9 @@ class R_NotOp(R_R_Operation[GeneralRegisterType]):
 class R_IncOp(R_R_Operation[GeneralRegisterType]):
     """
     Increments r1 by 1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] + 1
+    ```
     https://www.felixcloutier.com/x86/inc
     """
 
@@ -435,7 +455,9 @@ class R_IncOp(R_R_Operation[GeneralRegisterType]):
 class R_DecOp(R_R_Operation[GeneralRegisterType]):
     """
     Decrements r1 by 1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] - 1
+    ```
     https://www.felixcloutier.com/x86/dec
     """
 
@@ -487,7 +509,9 @@ class R_IDivOp(IRDLOperation, X86Instruction):
 class R_ImulOp(IRDLOperation, X86Instruction):
     """
     The source operand is multiplied by the value in the RAX register and the product is stored in the RDX:RAX registers.
+    ```C
     x[RDX:RAX] = x[RAX] * r1
+    ```
     https://www.felixcloutier.com/x86/imul
     """
 
@@ -583,7 +607,9 @@ class R_RM_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the value from the memory location pointed to by r2 to r1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] + [x[r2]]
+    ```
     https://www.felixcloutier.com/x86/add
     """
 
@@ -594,7 +620,9 @@ class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RM_SubOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Subtracts the value from the memory location pointed to by r2 from r1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] - [x[r2]]
+    ```
     https://www.felixcloutier.com/x86/sub
     """
 
@@ -605,7 +633,9 @@ class RM_SubOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RM_ImulOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the value from the memory location pointed to by r2 with r1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] * [x[r2]]
+    ```
     https://www.felixcloutier.com/x86/imul
     """
 
@@ -616,7 +646,9 @@ class RM_ImulOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RM_AndOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r1 and [r2], stored in r1
+    ```C
     x[r1] = x[r1] & [x[r2]]
+    ```
     https://www.felixcloutier.com/x86/and
     """
 
@@ -627,7 +659,9 @@ class RM_AndOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RM_OrOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of r1 and [r2], stored in r1
+    ```C
     x[r1] = x[r1] | [x[r2]]
+    ```
     https://www.felixcloutier.com/x86/or
     """
 
@@ -638,7 +672,9 @@ class RM_OrOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of r1 and [r2], stored in r1
+    ```C
     x[r1] = x[r1] ^ [x[r2]]
+    ```
     https://www.felixcloutier.com/x86/xor
     """
 
@@ -649,7 +685,9 @@ class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RM_MovOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value from the memory location pointed to by r2 into r1.
+    ```C
     x[r1] = [x[r2]]
+    ```
     https://www.felixcloutier.com/x86/mov
     """
 
@@ -660,7 +698,9 @@ class RM_MovOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 class RM_leaOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Loads the effective address of the memory location pointed to by r2 into r1.
+    ```C
     x[r1] = &x[r2]
+    ```
     https://www.felixcloutier.com/x86/lea
     """
 
@@ -724,7 +764,9 @@ class R_RI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
     """
     Adds the immediate value to r1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] + immediate
+    ```
     https://www.felixcloutier.com/x86/add
     """
 
@@ -735,7 +777,9 @@ class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
 class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
     """
     Subtracts the immediate value from r1 and stores the result in r1.
+    ```C
     x[r1] = x[r1] - immediate
+    ```
     https://www.felixcloutier.com/x86/sub
     """
 
@@ -746,7 +790,9 @@ class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
 class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
     """
     bitwise and of r1 and immediate, stored in r1
+    ```C
     x[r1] = x[r1] & immediate
+    ```
     https://www.felixcloutier.com/x86/and
     """
 
@@ -757,7 +803,9 @@ class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
 class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
     """
     bitwise or of r1 and immediate, stored in r1
+    ```C
     x[r1] = x[r1] | immediate
+    ```
     https://www.felixcloutier.com/x86/or
     """
 
@@ -768,7 +816,9 @@ class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
 class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
     """
     bitwise xor of r1 and immediate, stored in r1
+    ```C
     x[r1] = x[r1] ^ immediate
+    ```
     https://www.felixcloutier.com/x86/xor
     """
 
@@ -779,7 +829,9 @@ class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
 class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
     """
     Copies the immediate value into r1.
+    ```C
     x[r1] = immediate
+    ```
     https://www.felixcloutier.com/x86/mov
     """
 
@@ -842,7 +894,9 @@ class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 class MR_AddOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the value from r2 to the memory location pointed to by r1.
+    ```C
     [x[r1]] = [x[r1]] + x[r2]
+    ```
     https://www.felixcloutier.com/x86/add
     """
 
@@ -993,7 +1047,9 @@ class MI_SubOp(M_MI_Operation[GeneralRegisterType]):
 class MI_AndOp(M_MI_Operation[GeneralRegisterType]):
     """
     bitwise and of immediate and [r1], stored in [r1]
+    ```C
     [x[r1]] = [x[r1]] & immediate
+    ```
     https://www.felixcloutier.com/x86/and
     """
 
@@ -1004,7 +1060,9 @@ class MI_AndOp(M_MI_Operation[GeneralRegisterType]):
 class MI_OrOp(M_MI_Operation[GeneralRegisterType]):
     """
     bitwise or of immediate and [r1], stored in [r1]
+    ```C
     [x[r1]] = [x[r1]] | immediate
+    ```
     https://www.felixcloutier.com/x86/or
     """
 
@@ -1015,7 +1073,9 @@ class MI_OrOp(M_MI_Operation[GeneralRegisterType]):
 class MI_XorOp(M_MI_Operation[GeneralRegisterType]):
     """
     bitwise xor of immediate and [r1], stored in [r1]
+    ```C
     [x[r1]] = [x[r1]] ^ immediate
+    ```
     https://www.felixcloutier.com/x86/xor
     """
 
@@ -1293,7 +1353,8 @@ class M_PopOp(IRDLOperation, X86Instruction):
 
 class M_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
-    A base class for x86 operations with a memory reference that's both a source and a destination
+    A base class for x86 operations with a memory reference that's both a source and a
+    destination
     """
 
     source = operand_def(R1InvT)
@@ -1345,7 +1406,9 @@ class M_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 class M_NegOp(M_M_Operation[GeneralRegisterType]):
     """
     Negates the value at the memory location pointed to by r1.
+    ```C
     [x[r1]] = -[x[r1]]
+    ```
     https://www.felixcloutier.com/x86/neg
     """
 
@@ -1356,7 +1419,9 @@ class M_NegOp(M_M_Operation[GeneralRegisterType]):
 class M_NotOp(M_M_Operation[GeneralRegisterType]):
     """
     bitwise not of [r1], stored in [r1]
+    ```C
     [x[r1]] = ~[x[r1]]
+    ```
     https://www.felixcloutier.com/x86/not
     """
 
