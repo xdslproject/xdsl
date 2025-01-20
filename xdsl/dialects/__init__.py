@@ -144,7 +144,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return LTL
 
     def get_math():
-        from xdsl.dialects.experimental.math import Math
+        from xdsl.dialects.math import Math
 
         return Math
 

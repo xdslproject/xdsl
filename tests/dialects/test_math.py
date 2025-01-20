@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     f32,
     i32,
 )
-from xdsl.dialects.experimental.math import (
+from xdsl.dialects.math import (
     AbsFOp,
     AbsIOp,
     Atan2Op,
