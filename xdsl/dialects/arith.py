@@ -1224,6 +1224,40 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
 
 
 @irdl_op_definition
+class BitcastOp(IRDLOperation):
+    """
+    Reinterpret a value as another type of equal bitwidth without changing
+    the underlying representation.
+    """
+
+    name = "arith.bitcast"
+
+    input = operand_def(IntegerType | Float16Type | Float32Type | Float64Type)
+
+    result = result_def(IntegerType | Float16Type | Float32Type | Float64Type)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
+        super().__init__(operands=[input_arg], result_types=[target_type])
+
+    def verify_(self) -> None:
+        assert isinstance(
+            self.input.type, IntegerType | Float16Type | Float32Type | Float64Type
+        )
+        assert isinstance(
+            self.result.type, IntegerType | Float16Type | Float32Type | Float64Type
+        )
+
+        ibw = self.input.type.width
+        obw = self.result.type.width
+        if ibw == obw:
+            raise VerifyException(
+                f"'arith.bitcast' can only be used on types with equal bitwidths, found {ibw} and {obw}"
+            )
+
+
+@irdl_op_definition
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 

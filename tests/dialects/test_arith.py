@@ -7,6 +7,7 @@ from xdsl.dialects.arith import (
     AddiOp,
     AddUIExtendedOp,
     AndIOp,
+    BitcastOp,
     CeilDivSIOp,
     CeilDivUIOp,
     CmpfOp,
@@ -55,6 +56,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
+    Signedness,
     TensorType,
     VectorType,
     f32,
@@ -247,6 +249,27 @@ def test_select_op():
     # wanting to verify it actually selected the correct operand, but not sure if in correct scope
     assert select_t_op.result.type == t.result.type
     assert select_f_op.result.type == f.result.type
+
+
+def test_bitcast_op():
+    signedness = [Signedness.SIGNED, Signedness.UNSIGNED, Signedness.SIGNLESS]
+
+    for bitwidth in [1, 2, 4, 5, 8, 16, 32, 64, 128]:
+        for from_sign in signedness:
+            for to_sign in signedness:
+                if from_sign == to_sign:
+                    continue
+
+                # here create variable of from type
+                value = 0 if bitwidth in [1, 2] else 5
+                a = ConstantOp(
+                    IntegerAttr(value, IntegerType(bitwidth, signedness=from_sign))
+                )
+                cast = BitcastOp(a, IntegerType(bitwidth, signedness=to_sign))
+
+                assert cast.result.type == IntegerType(bitwidth, signedness=to_sign)
+                assert cast.input.type == IntegerType(bitwidth, signedness=from_sign)
+                assert cast.input.owner == a
 
 
 def test_index_cast_op():
