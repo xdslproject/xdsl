@@ -522,6 +522,7 @@ class AllocaOp(IRDLOperation):
     an optional name.  The allocation may have a dynamic repetition count
     for allocating a sequence of locations for the specified type.
 
+    ```
     %c = ... : i64
     %x = fir.alloca i32
     %y = fir.alloca !fir.array<8 x i64>
@@ -530,6 +531,7 @@ class AllocaOp(IRDLOperation):
     %i = ... : i16
     %j = ... : i32
     %w = fir.alloca !fir.type<PT(len1:i16, len2:i32)> (%i, %j : i16, i32)
+    ```
 
     Note that in the case of '%z', a contiguous block of memory is allocated
     and its size is a runtime multiple of a 32-bit REAL value.
