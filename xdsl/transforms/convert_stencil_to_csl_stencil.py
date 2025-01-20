@@ -366,18 +366,19 @@ class ConvertApplyOpPattern(RewritePattern):
     """
     Fuses a `csl_stencil.prefetch` and a `stencil.apply` to build a `csl_stencil.apply`.
 
-    If there are several candidate prefetch ops, the one with the largest result buffer size is selected.
-    The selection is greedy, and could in the future be expanded into a more global selection optimising for minimal
-    prefetch overhead across multiple apply ops.
-
-    args:
-        num_chunks - number of chunks into which communication and computation should be split.
-                     Effectively, the number of times `csl_stencil.apply.receive_chunk` will be executed and the
-                     tensor sizes it handles. Higher values may increase compute overhead but reduce size of
-                     communication buffers when lowered.
+    If there are several candidate prefetch ops, the one with the largest result buffer
+    size is selected.
+    The selection is greedy, and could in the future be expanded into a more global
+    selection optimising for minimal prefetch overhead across multiple apply ops.
     """
 
     num_chunks: int = 1
+    """
+    number of chunks into which communication and computation should be split.
+    Effectively, the number of times `csl_stencil.apply.receive_chunk` will be
+    executed and the tensor sizes it handles. Higher values may increase compute
+    overhead but reduce size of communication buffers when lowered.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
