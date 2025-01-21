@@ -1,10 +1,10 @@
 version = 1
 requires-python = ">=3.10"
 resolution-markers = [
-    "python_full_version >= '3.13'",
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
     "python_full_version < '3.11'",
+    "python_full_version == '3.11.*'",
+    "python_full_version == '3.12.*'",
+    "python_full_version >= '3.13'",
 ]
 
 [[package]]
@@ -350,7 +350,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -549,6 +549,12 @@ wheels = [
 ]
 
 [[package]]
+name = "flameprof"
+version = "0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/e7/114f6710d31854b694598f577f9eac49d7f38b7fb8a55e86e2d3f848fd1c/flameprof-0.4.tar.gz", hash = "sha256:dbc86d4190cbbba624f1e0a40f44d9db96138e27534d83c8ef42d420857875a3", size = 7865 }
+
+[[package]]
 name = "frozenlist"
 version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -700,7 +706,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "sys_platform == 'darwin'" },
+    { name = "appnope", marker = "platform_system == 'Darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -1081,7 +1087,7 @@ version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
     { name = "ghp-import" },
     { name = "jinja2" },
     { name = "markdown" },
@@ -1523,6 +1529,15 @@ wheels = [
 ]
 
 [[package]]
+name = "objprint"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/b8/c10e96120f1585824a1992655334b49da3924edfb364e84a26cc0ecdb89b/objprint-0.3.0.tar.gz", hash = "sha256:b5d83f9d62db5b95353bb42959106e1cd43010dcaa3eed1ad8d7d0b2df9b2d5a", size = 47481 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/af/572825252f16f36eeecbc8e3b721913d2640d69b984fdb8907aa8b4b0975/objprint-0.3.0-py3-none-any.whl", hash = "sha256:489083bfc8baf0526f8fd6af74673799511532636f0ce4141133255ded773405", size = 41619 },
+]
+
+[[package]]
 name = "opt-einsum"
 version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1760,8 +1775,8 @@ name = "pyclip"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pasteboard", marker = "sys_platform == 'darwin'" },
-    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "pasteboard", marker = "platform_system == 'Darwin'" },
+    { name = "pywin32", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/65/8a/98ed02d81dea4b2211a4746724d7a271264b701c991fed503c246de52864/pyclip-0.7.0.tar.gz", hash = "sha256:57602047a4ceab709bdcd42f3dde6449a3349b95c16154cfdce27376a2072491", size = 13639 }
 wheels = [
@@ -2372,6 +2387,18 @@ wheels = [
 ]
 
 [[package]]
+name = "snakeviz"
+version = "2.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tornado" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/06/82f56563b16d33c2586ac2615a3034a83a4ff1969b84c8d79339e5d07d73/snakeviz-2.2.2.tar.gz", hash = "sha256:08028c6f8e34a032ff14757a38424770abb8662fb2818985aeea0d9bc13a7d83", size = 182039 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/f7/83b00cdf4f114f10750a18b64c27dc34636d0ac990ccac98282f5c0fbb43/snakeviz-2.2.2-py3-none-any.whl", hash = "sha256:77e7b9c82f6152edc330040319b97612351cd9b48c706434c535c2df31d10ac5", size = 183477 },
+]
+
+[[package]]
 name = "sniffio"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2615,6 +2642,52 @@ wheels = [
 ]
 
 [[package]]
+name = "viztracer"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "objprint" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/12/27/b60ba98ca269a35668037314e0e078601b2fa63403e8a08c6a266534c74b/viztracer-1.0.1.tar.gz", hash = "sha256:46ac69ec75288c40bca0966e49b2927c7723043b6e9f8a3ebbb4759d873893d4", size = 14270159 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9a/32/319b54545058a31a3dc285fca72cde72c7d854e2cb134c059c7357d94493/viztracer-1.0.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:35aaea4b2cebec13f2c1b390dc9339d43015639c554e39a98b2636c18b172948", size = 14437004 },
+    { url = "https://files.pythonhosted.org/packages/87/57/30ce5331a2f846b3fb402fe05930bad31c1ca5e1d76939d0e2267fb64c8f/viztracer-1.0.1-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:60f23fbda6bfbd871ab7b7dd64262a86c063c2ab85754f85d397e95490bd1200", size = 14436280 },
+    { url = "https://files.pythonhosted.org/packages/d4/d7/b4a627bd8261cf2edf1c541baaa8463b874b9a473d3b4d8ba96fbfe60451/viztracer-1.0.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8eefeabb05fac88b2868242dc6a2ad5fa36be501e1506c68be9b48ae9ad204e9", size = 14550614 },
+    { url = "https://files.pythonhosted.org/packages/9d/57/9ecc287887fa466c526b2f565dda6c5f600f1d892f1d43200ecde74a56c7/viztracer-1.0.1-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:8058624066f4ed5eef1f266192dae0fd9c4a3ea887b7864056a66b3590bfe12c", size = 14545494 },
+    { url = "https://files.pythonhosted.org/packages/07/d6/c2dedd7cd5673975187d3b499be6691bec5dff16e9775367cec70b3780cf/viztracer-1.0.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:27bd85c5c6044ca2bc3f6c265f73681a0f536dfefd45722e4fc50bac0bc857e4", size = 14555402 },
+    { url = "https://files.pythonhosted.org/packages/25/b1/d085c40019996c057e381e1391bba26766b1eabe71862719e17d02196e99/viztracer-1.0.1-cp310-cp310-win32.whl", hash = "sha256:678619c1c209e9e070a0b1f82e6557ed18f0635dbcaba55528d6e044aebdcd8f", size = 14599632 },
+    { url = "https://files.pythonhosted.org/packages/6d/01/767bb3d2b8230be287222d956c891b82456090807c0567e8c1b0d6d3e3b3/viztracer-1.0.1-cp310-cp310-win_amd64.whl", hash = "sha256:3f1c7e2f5713e72ae4aae612713cd63920c45761fe3ef92ef64b841338c3a553", size = 14602397 },
+    { url = "https://files.pythonhosted.org/packages/28/cb/7451ab94a34ac73486a9e3f8ce844873b7103422c51e9be6e2639e5eaca1/viztracer-1.0.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:7b15ed95a3f2c12d38f6bf357f98b6e08d0f913cd7d8f977f57d73d354f37879", size = 14436764 },
+    { url = "https://files.pythonhosted.org/packages/c8/ed/9488a160426120768bbf764cf9a58de9d57d8b14beea1ae87fea7f403fa4/viztracer-1.0.1-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:94040276c00fc18cbb8ef3e70b4a90bab21d71ad0f0cfbef3c6f47b022541cff", size = 14436100 },
+    { url = "https://files.pythonhosted.org/packages/0d/30/d31295760593fb575b51bedc7c99d038a5a0b37d7d26416bce9e04dcbaa2/viztracer-1.0.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7fc2a55ef98b07e9fcff73b5157d0bba34ae0294d577467607a7089511826846", size = 14549305 },
+    { url = "https://files.pythonhosted.org/packages/f6/1e/10fbd5f0ea95923866535b224955032e00e17610bed68f3c8989ac57fae7/viztracer-1.0.1-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:55d29de643282ada6a0b9fee1d9343eb44301c56b0a4c06dfe781df04d75d317", size = 14544159 },
+    { url = "https://files.pythonhosted.org/packages/61/e6/d106237277910f244b1ade8db601e706985e5b1de104cccaa3e8c943db2d/viztracer-1.0.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0e9369741d3ee128f6565ba692d4adc2c3439d8b3fab0fb2a04f3e338c45640f", size = 14554343 },
+    { url = "https://files.pythonhosted.org/packages/db/29/1f80bc2360d044410163113436c6dd60a17a648f4d0db1b9ed79e133279a/viztracer-1.0.1-cp311-cp311-win32.whl", hash = "sha256:7be7fd6712f950776bdd4a74f42c400645cd25f12eeb789d12ea561fe89b7796", size = 14599488 },
+    { url = "https://files.pythonhosted.org/packages/77/bf/d8b95c259b8b7599b746ad9f6eaa0122baec14b6dcfb7f6b9ca6b6ccfb91/viztracer-1.0.1-cp311-cp311-win_amd64.whl", hash = "sha256:fbde1e3533c6d7cdc95e302b576db2856747a3eb99206e98b0c8357ce8933e1b", size = 14602225 },
+    { url = "https://files.pythonhosted.org/packages/fc/0b/e167cf9f5d795cff45422350286d1a88d513877286cab6d6b70f4511c3cd/viztracer-1.0.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:05e61bea06ced0d5f595fd4cfc398f719f37ce34fe5f0ed9e4e83d5e174ee152", size = 14437012 },
+    { url = "https://files.pythonhosted.org/packages/1e/ae/2f18f54578b99ee60a4365e542ab016f8d60d0cf50fdbb44653babedc772/viztracer-1.0.1-cp312-cp312-macosx_11_0_x86_64.whl", hash = "sha256:a73db66863b2a8f7590d1c661f283ea522281323783a52a58ffe7cebaeb43376", size = 14436870 },
+    { url = "https://files.pythonhosted.org/packages/fc/b4/0426a3e55aa227a7aeddd1390b7e53549feda4327427d145dbf452d91346/viztracer-1.0.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:57d87df6b7e5d9e9cec61e79b42111bda84acd922e215931719111b7e3e85375", size = 14555455 },
+    { url = "https://files.pythonhosted.org/packages/c6/bd/a6bd4019b4bc3be50b9f22b46c670b2b1965749b9006e84a451ec406ae4f/viztracer-1.0.1-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:990e0961bf5ceb9d9dc0f862713491165dceb2b244b7fda7c0d82c55df372d9b", size = 14552178 },
+    { url = "https://files.pythonhosted.org/packages/40/ef/908c165aa6802f1789a57be88bebc83444c8d94e9c656de80dd81a549376/viztracer-1.0.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:65dcaad84103bbd10e141d638df18500096905df6f3ba9530a841a3065d0a786", size = 14563872 },
+    { url = "https://files.pythonhosted.org/packages/88/b1/3dd4450987a6a914e67070af4ad261e425e00c02f04c71e529031c7a5774/viztracer-1.0.1-cp312-cp312-win32.whl", hash = "sha256:0e27ae0ec23c090012d6d91e7fe25f56f2dd57ce4a774aa8848bb827a5d5319b", size = 14600698 },
+    { url = "https://files.pythonhosted.org/packages/27/8a/a5f94785d11622902422d2ed527feaee2ea45090940c1365decdd7352292/viztracer-1.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:0d247d1eea1f3b19aeab83dfda95a97c143a94adffd7c81ac2eb6b0414aa45ad", size = 14603526 },
+    { url = "https://files.pythonhosted.org/packages/97/5f/99f67e0d9258b40b015642c9ad24f4253b2d70562e9a6038e3cbff2bb503/viztracer-1.0.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:7f860c64981f34eb953a2117e81987acff7b86bceeb8659b6f831be331c1b056", size = 14437002 },
+    { url = "https://files.pythonhosted.org/packages/7c/12/482736e62cf48ef2c57dff0d9ea924fc0c760362ccaf15e962f23b03cd89/viztracer-1.0.1-cp313-cp313-macosx_11_0_x86_64.whl", hash = "sha256:f03e60f97bba725347d12bb3c714f9b2ca59aaa10f5c91ed8b160f4c7fb9660b", size = 14436916 },
+    { url = "https://files.pythonhosted.org/packages/e9/44/6d0a69ab54e75cf52780bd2f22c4ad3060fb878bb3d360ec5b61eb390aa0/viztracer-1.0.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:719eea82441cc5d7a46b28120528ea3989b549750553017ac160322593b1bf1e", size = 14555549 },
+    { url = "https://files.pythonhosted.org/packages/de/02/4add830d1da5f15e7920aa690d260db30f38ede2dd1eb1d502bc1a02e1e1/viztracer-1.0.1-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:ba4342bcbbeaba08f699d1f95870171e5a9e499ab0aca19bac688b99e2e5c4e8", size = 14551974 },
+    { url = "https://files.pythonhosted.org/packages/f1/c4/d85c60f32a58ad1751a8f7e3e73dc0a1d793608b4ef7f90837a0d31f64f1/viztracer-1.0.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:27921671cac64ffb5d4c2a6b0fa12a4ef46eff848ce349c5a188eaa2a4789700", size = 14564071 },
+    { url = "https://files.pythonhosted.org/packages/7e/6b/91ab307614f061e97bb81ab4f5d39c4d52f75949e7fa48f17f3201605be0/viztracer-1.0.1-cp313-cp313-win32.whl", hash = "sha256:b4cc333e11cc56642e51814e1d7e0e83de5f343c419191a86196d6da1900300a", size = 14600708 },
+    { url = "https://files.pythonhosted.org/packages/a2/1f/25a543213d61459a0d14df602e3dc1513a2cd94d3a6ca7364bf7827ffe4b/viztracer-1.0.1-cp313-cp313-win_amd64.whl", hash = "sha256:e498a517da6598dc158eb79b578e50329a08aab449a545edd02d036bf2121c87", size = 14603388 },
+    { url = "https://files.pythonhosted.org/packages/92/f8/57aacbb3d59da9e3a7986324f3290434f7d2e6a590247fe60db1aa60cad1/viztracer-1.0.1-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:47a292df03851209de1758f83f51cda0aa8ff875ea44acad25ba8b8e68efe334", size = 14439755 },
+    { url = "https://files.pythonhosted.org/packages/f6/6a/cb09d05458d377bb3db3e8c0a6dd2f340b516ac4297588ed272a0956ce49/viztracer-1.0.1-cp313-cp313t-macosx_11_0_x86_64.whl", hash = "sha256:3263bb0666f4f28438fc52d4ad26b4e6229ae6b64ccbcc43d79f36f23544e3fa", size = 14439575 },
+    { url = "https://files.pythonhosted.org/packages/10/c3/43543fe7087819ad056e6d1d86de9f13eee365c03de3adebfb40473fd1f6/viztracer-1.0.1-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3a479995ea2b253ac9fb7b974e87ebdafc7ead5df870e38839d05222a2ad391f", size = 14603258 },
+    { url = "https://files.pythonhosted.org/packages/f9/61/cae060ec994f2035ee0f1618fd8e1371b06ba1d5368621e32b6f074b9edc/viztracer-1.0.1-cp313-cp313t-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:0468ee783ee01f3a8d5cbe4a81e3562e35b938f087c5b5c2a1efcd865d7e63b6", size = 14594327 },
+    { url = "https://files.pythonhosted.org/packages/10/00/bd48a0940e498c2e8f69f4dbf39ba72eb83511e70942cd20834f18b0510a/viztracer-1.0.1-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8cfa51277d3dca73a28ff4238f0008157c5f324cae1cf2ce8cadde7bf6222e6a", size = 14605768 },
+    { url = "https://files.pythonhosted.org/packages/b3/8c/fc1199f6ffdd6670ca816e87757154eb14dfe97e1d8eeb95f9569c8d5e06/viztracer-1.0.1-cp313-cp313t-win32.whl", hash = "sha256:e40695f2fb0772e6f8e920ae318401581d96ff05d5db66ce86f66dcc038160ff", size = 14604723 },
+    { url = "https://files.pythonhosted.org/packages/2c/b1/c891737247e565f5f8916f5335b874046398b7ace294b0a122b83c2e86b6/viztracer-1.0.1-cp313-cp313t-win_amd64.whl", hash = "sha256:dbb2dbf7e61a5722ac1a48f1bdd4e7e8ecfdb0efa4044b7641a01fde91417066", size = 14607934 },
+]
+
+[[package]]
 name = "watchdog"
 version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2725,6 +2798,7 @@ wheels = [
 
 [[package]]
 name = "xdsl"
+version = "0+untagged.3223.g73437cd.dirty"
 source = { editable = "." }
 dependencies = [
     { name = "immutabledict" },
@@ -2736,6 +2810,7 @@ dependencies = [
 dev = [
     { name = "coverage" },
     { name = "filecheck" },
+    { name = "flameprof" },
     { name = "ipykernel" },
     { name = "lit" },
     { name = "marimo" },
@@ -2747,8 +2822,10 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "snakeviz" },
     { name = "textual-dev" },
     { name = "toml" },
+    { name = "viztracer" },
 ]
 docs = [
     { name = "mkdocs" },
@@ -2772,6 +2849,7 @@ riscv = [
 requires-dist = [
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.1" },
+    { name = "flameprof", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "immutabledict", specifier = "<4.2.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.0" },
@@ -2793,10 +2871,12 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "riscemu", marker = "extra == 'riscv'", specifier = "==2.2.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.9.4" },
+    { name = "snakeviz", marker = "extra == 'dev'", specifier = ">=2.2.2" },
     { name = "textual", marker = "extra == 'gui'", specifier = "==1.0.0" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
+    { name = "viztracer", marker = "extra == 'dev'", specifier = ">=1.0.0" },
 ]
 
 [[package]]

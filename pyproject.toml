@@ -30,6 +30,9 @@ dev = [
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
     "pyright==1.1.393",
+    "viztracer>=1.0.0",
+    "snakeviz>=2.2.2",
+    "flameprof>=0.4",
 ]
 docs = [
     "mkdocs-gen-files>=0.5.0",

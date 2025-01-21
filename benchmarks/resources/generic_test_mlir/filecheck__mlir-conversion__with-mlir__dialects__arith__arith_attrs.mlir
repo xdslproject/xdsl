@@ -1,0 +1,12 @@
+"builtin.module"() ({
+  "test.op"() {fastmath = #arith.fastmath<reassoc>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<nnan>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<ninf>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<nsz>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<arcp>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<contract>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<afn>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<none>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<fast>} : () -> ()
+  "test.op"() {fastmath = #arith.fastmath<nnan,nsz>} : () -> ()
+}) : () -> ()
