@@ -168,8 +168,8 @@ coverage-clean: uv-installed
 
 .PHONY: docs-serve
 docs-serve: uv-installed
-	uv run mkdocs serve
+	uv run sphinx-autobuild docs docs/_build/html
 
 .PHONY: docs-build
 docs-build: uv-installed
-	uv run mkdocs build
+	uv run sphinx-build -b html docs docs/_build/html
