@@ -756,8 +756,10 @@ class VFCpkASSOp(
     Packs two scalar f32 values from rs1 and rs2 and packs the result as two adjacent
     entries into the vectorial 2xf32 rd operand, such as:
 
+    ```C
     f[rd][lo] = f[rs1]
     f[rd][hi] = f[rs2]
+    ```
     """
 
     name = "riscv_snitch.vfcpka.s.s"
@@ -772,8 +774,10 @@ class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
     rs1 and rs2 and stores the results in the corresponding f32 lanes
     into the vectorial 2xf32 rd operand, such as:
 
+    ```C
     f[rd][lo] = f[rs1][lo] * f[rs2][lo]
     f[rd][hi] = f[rs1][hi] * f[rs2][hi]
+    ```
     """
 
     name = "riscv_snitch.vfmul.s"
@@ -788,8 +792,10 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
     rs1 and rs2 and stores the results in the corresponding f32 lanes
     into the vectorial 2xf32 rd operand, such as:
 
+    ```C
     f[rd][lo] = f[rs1][lo] + f[rs2][lo]
     f[rd][hi] = f[rs1][hi] + f[rs2][hi]
+    ```
     """
 
     name = "riscv_snitch.vfadd.s"
@@ -804,10 +810,12 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
     rs1 and rs2 and stores the results in the corresponding f16 lanes
     into the vectorial 4xf16 rd operand, such as:
 
+    ```C
     f[rd][0] = f[rs1][0] + f[rs2][0]
     f[rd][1] = f[rs1][1] + f[rs2][1]
     f[rd][2] = f[rs1][2] + f[rs2][2]
     f[rd][3] = f[rs1][3] + f[rs2][3]
+    ```
     """
 
     name = "riscv_snitch.vfadd.h"
@@ -822,8 +830,10 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     rs1 and rs2 and stores the results in the corresponding f32 lanes
     into the vectorial 2xf32 rd operand, such as:
 
+    ```C
     f[rd][lo] = max(f[rs1][lo], f[rs2][lo])
     f[rd][hi] = max(f[rs1][hi], f[rs2][hi])
+    ```
     """
 
     name = "riscv_snitch.vfmax.s"
@@ -946,8 +956,10 @@ class VFMacSOp(RdRsRsAccumulatingFloatOperationWithFastMath):
     rs1 and rs2 and accumulates the results in the corresponding f32 lanes
     into the vectorial 2xf32 rd operand, such as:
 
+    ```C
     f[rd][lo] = f[rs1][lo] * f[rs2][lo] + f[rd][lo]
     f[rd][hi] = f[rs1][hi] * f[rs2][hi] + f[rd][hi]
+    ```
     """
 
     name = "riscv_snitch.vfmac.s"
@@ -961,7 +973,9 @@ class VFSumSOp(RdRsAccumulatingFloatOperation):
     Performs sum of f32 values from rs and accumulates the result in the lower f32 value
     of the rd operand:
 
+    ```C
     f[rd][lo] = f[rs][hi] + f[rs][lo] + f[rd][lo]
+    ```
     """
 
     name = "riscv_snitch.vfsum.s"
