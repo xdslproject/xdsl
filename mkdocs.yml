@@ -2,6 +2,12 @@ site_name: xDSL
 
 theme:
   name: "material"
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
 
 plugins:
 - search
