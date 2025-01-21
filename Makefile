@@ -173,3 +173,7 @@ docs-serve: uv-installed
 .PHONY: docs-build
 docs-build: uv-installed
 	uv run sphinx-build -b html docs docs/_build/html --doctrees-path docs/_build/doctrees
+
+.PHONY: docs-clean
+docs-clean:
+	rm -r docs/_build docs/reference
