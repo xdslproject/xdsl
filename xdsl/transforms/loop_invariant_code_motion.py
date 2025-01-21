@@ -9,9 +9,16 @@ An operation is loop-invariant if it depends only of values defined outside of t
 LICM moves these operations out of the loop body so that they are not computed more than
 once.
 
-  for i in range(x, N, M):                for i in range(x, N, M):
-    for j in range(0, M, K):    ---->        c[i]= A[1] + b[1]
-      c[i]=A[1]+b[1]
+.. code-block:: python
+
+    # Before
+    for i in range(x, N, M):
+        for j in range(0, M, K):
+            c[i]=A[1]+b[1]
+
+    # After
+    for i in range(x, N, M):
+        c[i]= A[1] + b[1]
 """
 
 from xdsl.ir import Operation, Region
