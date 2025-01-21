@@ -168,7 +168,7 @@ coverage-clean: uv-installed
 
 .PHONY: docs-serve
 docs-serve: uv-installed
-	uv run sphinx-autobuild docs docs/_build/html
+	uv run sphinx-autobuild docs docs/_build/html --watch xdsl
 
 .PHONY: docs-build
 docs-build: uv-installed
