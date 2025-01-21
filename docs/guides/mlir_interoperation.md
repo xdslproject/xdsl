@@ -1,6 +1,6 @@
 ## Generating executables through MLIR
 
-As mentioned previously, xDSL can interoperate with MLIR as its backend. As this
+xDSL can interoperate with MLIR as its backend. As this
 requires an installation, and therefore a compilation, of a lot of the LLVM
 project and MLIR, this functonality is not distributed with xDSL by default. To
 actually leverage from this functionality, first clone and build MLIR. Please
