@@ -33,11 +33,7 @@ dev = [
     "pytest-asyncio==0.25.2",
     "pyright==1.1.392.post0",
 ]
-docs = [
-    "mkdocs>=1.6.1",
-    "mkdocs-material>=9.5.49",
-    "mkdocstrings[python]>=0.27.0",
-]
+docs = ["sphinx>=7.0.0", "sphinx-rtd-theme>=2.0.0", "myst-parser>=2.0.0"]
 gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.5.0", "numpy==2.2.2"]
 riscv = ["riscemu==2.2.7"]
