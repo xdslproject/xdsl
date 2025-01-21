@@ -2,7 +2,7 @@ API Reference
 =============
 
 .. autosummary::
-   :toctree: reference
+   :toctree: _build/reference
    :recursive:
 
    xdsl
