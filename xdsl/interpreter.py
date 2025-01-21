@@ -15,7 +15,7 @@ from typing import (
     TypeVar,
 )
 
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects import builtin
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
@@ -538,7 +538,7 @@ class Interpreter:
         32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
     )
 
-    module: ModuleOp
+    module: builtin.ModuleOp
     index_bitwidth: Literal[32, 64] = field(default=DEFAULT_BITWIDTH)
     """
     Number of bits in the binary representation of the index

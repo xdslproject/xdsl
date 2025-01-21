@@ -166,3 +166,6 @@ docs/ret.xdsl
 # direnv
 .direnv
 .envrc
+
+# docs build folder
+docs/_build/
