@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.15"
+__generated_with = "0.10.14"
 app = marimo.App()
 
 
@@ -15,7 +15,7 @@ def _():
     return Attribute, IndexType, IntegerType, VerifyException, mo
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -50,7 +50,7 @@ def _(IntegerType):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""Each attribute definition defines a set of accepted parameters. `IntegerType` for instance has only a single bitwidth parameter that should be a positive integer. When a set of parameters is invalid, the attribute should return a `VerifyException` upon instantiation."""
@@ -62,12 +62,12 @@ def _(mo):
 def _(IntegerType, VerifyException):
     try:
         print(IntegerType(-1))
-    except VerifyException() as e:
+    except VerifyException as e:
         print(e)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""Given an `Attribute` variable, the python `isinstance` function allows to match a specific attribute:"""

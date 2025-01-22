@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.15"
+__generated_with = "0.10.14"
 app = marimo.App()
 
 
@@ -45,7 +45,6 @@ def _(mo):
         ## Instantiating operations
 
         Each op is encoded as a Python class, and each operation is an instantiation of the class.
-
         """
     )
     return
@@ -71,10 +70,7 @@ def _(AddiOp, IntegerType, Printer, TestSSAValue):
 @app.cell
 def _(mo):
     mo.md(
-        r"""
-        Note that here, a default attribute was created for the `overflowFlags` property.
-
-        """
+        r"""Note that here, a default attribute was created for the `overflowFlags` property."""
     )
     return
 
