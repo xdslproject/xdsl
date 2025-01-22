@@ -84,4 +84,10 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
+  %val = "test.op"() : () -> i32
+
+  %fval = llvm.bitcast %val : i32 to f32
+
+// CHECK:      %val = "test.op"() : () -> i32
+// CHECK-NEXT: %fval = llvm.bitcast %val : i32 to f32
 }
