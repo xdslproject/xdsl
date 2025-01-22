@@ -14,7 +14,7 @@ plugins:
 - gen-files:
     scripts:
     - scripts/gen_ref_pages.py
-- mkdocs-marimo
+- marimo
 - mkdocstrings:
     handlers:
       python:
