@@ -12,7 +12,6 @@ def _():
     from xdsl.dialects.builtin import IntegerType
     from xdsl.printer import Printer
     from xdsl.utils.test_value import TestSSAValue
-
     return AddiOp, IntegerType, Printer, TestSSAValue, mo
 
 
@@ -69,9 +68,7 @@ def _(AddiOp, IntegerType, Printer, TestSSAValue):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Note that here, a default attribute was created for the `overflowFlags` property."""
-    )
+    mo.md(r"""Note that here, a default attribute was created for the `overflowFlags` property.""")
     return
 
 

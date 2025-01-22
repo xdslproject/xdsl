@@ -11,7 +11,6 @@ def _():
     from xdsl.dialects.builtin import IndexType, IntegerType
     from xdsl.ir import Attribute
     from xdsl.utils.exceptions import VerifyException
-
     return Attribute, IndexType, IntegerType, VerifyException, mo
 
 
@@ -52,9 +51,7 @@ def _(IntegerType):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Each attribute definition defines a set of accepted parameters. `IntegerType` for instance has only a single bitwidth parameter that should be a positive integer. When a set of parameters is invalid, the attribute should return a `VerifyException` upon instantiation."""
-    )
+    mo.md(r"""Each attribute definition defines a set of accepted parameters. `IntegerType` for instance has only a single bitwidth parameter that should be a positive integer. When a set of parameters is invalid, the attribute should return a `VerifyException` upon instantiation.""")
     return
 
 
@@ -69,9 +66,7 @@ def _(IntegerType, VerifyException):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Given an `Attribute` variable, the python `isinstance` function allows to match a specific attribute:"""
-    )
+    mo.md(r"""Given an `Attribute` variable, the python `isinstance` function allows to match a specific attribute:""")
     return
 
 
