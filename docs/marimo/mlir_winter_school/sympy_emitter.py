@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.15"
+__generated_with = "0.10.16"
 app = marimo.App(width="medium")
 
 
@@ -158,11 +158,17 @@ def _(
 
             for_op = ForOp(lower_bound, upper_bound, one, [zero.result], Region(Block(arg_types=[IntegerType(64), Float64Type()])))
             builder.insert(for_op)
+            accumulator = for_op.body.block.args[1]
 
             old_insert_point = builder.insertion_point
             builder.insertion_point = InsertPoint.at_end(for_op.body.block)
             res = emit_op(expr.args[0], builder, {**args, expr.args[1][0].name: for_op.body.block.args[0]}, expected_type)
-            builder.insert(YieldOp(res))
+            if isinstance(expected_type, IntegerType):
+                add = AddiOp(res, accumulator)
+            else:
+                add = AddfOp(res, accumulator)
+            builder.insert(add)
+            builder.insert(YieldOp(add.result))
             builder.insertion_point = old_insert_point
 
             return for_op.res[0]
@@ -185,7 +191,6 @@ def _(
     get_type,
     symbols,
 ):
-
     def emit_ir(expr: Expr) -> ModuleOp:
         module = ModuleOp([])
         builder = Builder(InsertPoint.at_end(module.body.block))
