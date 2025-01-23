@@ -441,7 +441,7 @@ class AttrDictDirective(FormatDirective):
             if any(name in op.attributes for name in op.properties):
                 raise ValueError(
                     "Cannot print attributes and properties with the same name "
-                    "in a signle dictionary"
+                    "in a single dictionary"
                 )
             op_def = op.get_irdl_definition()
             dictionary = op.attributes | op.properties
