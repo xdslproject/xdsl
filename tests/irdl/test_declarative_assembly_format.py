@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     ModuleOp,
     UnitAttr,
@@ -31,12 +32,14 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
     GenericAttrConstraint,
+    IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParameterDef,
@@ -48,6 +51,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -2464,6 +2468,32 @@ def test_variadic_length_inference():
     assert isinstance(test_op, test.Operation)
     my_op = parser.parse_optional_operation()
     assert isinstance(my_op, RangeVarOp)
+
+
+def test_int_var_inference():
+    @irdl_op_definition
+    class IntVarOp(IRDLOperation):
+        name = "test.int_var"
+        T: ClassVar = IntVarConstraint("T", AnyInt())
+        ins = var_operand_def(RangeOf(eq(IndexType()), length=T))
+        outs = var_result_def(RangeOf(eq(IntegerType(64)), length=T))
+
+        assembly_format = "$ins attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(IntVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent("""\
+    %in0, %in1 = "test.op"() : () -> (index, index)
+    %out0, %out1 = test.int_var %in0, %in1
+    """)
+
+    parser = Parser(ctx, program)
+    test_op = parser.parse_optional_operation()
+    assert isinstance(test_op, test.Operation)
+    my_op = parser.parse_optional_operation()
+    assert isinstance(my_op, IntVarOp)
+    assert my_op.result_types == (IntegerType(64), IntegerType(64))
 
 
 ################################################################################
