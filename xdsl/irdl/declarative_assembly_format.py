@@ -445,14 +445,13 @@ class AttrDictDirective(FormatDirective):
                 )
             op_def = op.get_irdl_definition()
             dictionary = op.attributes | op.properties
-            default_names = set(
+            reserved_or_default = self.reserved_attr_names.union(
                 name
                 for name, d in (op_def.properties | op_def.attributes).items()
                 if d.default_value is not None
                 and dictionary.get(name) == d.default_value
             )
-            reserved_or_default = self.reserved_attr_names | default_names
-            if not (set(dictionary.keys())) - reserved_or_default:
+            if reserved_or_default.issuperset(dictionary.keys()):
                 return
             printer.print_op_attributes(
                 dictionary,
@@ -461,14 +460,13 @@ class AttrDictDirective(FormatDirective):
             )
         else:
             op_def = op.get_irdl_definition()
-            default_names = set(
+            reserved_or_default = self.reserved_attr_names.union(
                 name
                 for name, d in op_def.attributes.items()
                 if d.default_value is not None
                 and op.attributes.get(name) == d.default_value
             )
-            reserved_or_default = self.reserved_attr_names | default_names
-            if not set(op.attributes.keys()) - reserved_or_default:
+            if reserved_or_default.issuperset(op.attributes.keys()):
                 return
             printer.print_op_attributes(
                 op.attributes,
