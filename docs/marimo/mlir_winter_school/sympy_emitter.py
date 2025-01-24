@@ -8,29 +8,39 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
-    from sympy import S, symbols, Expr, Add, Mul, Pow, Sum, Integer, Float
+    from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational
     from sympy.core.symbol import Symbol
 
     from xdsl.ir import Operation, SSAValue, Region, Block
+    from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern, PatternRewriteWalker, GreedyRewritePatternApplier
+    from xdsl.transforms.dead_code_elimination import region_dce
+    from xdsl.traits import Pure
+    from xdsl.irdl import irdl_op_definition, traits_def
     from xdsl.dialects.builtin import ModuleOp, Float64Type, FloatAttr, IntegerType, IntegerAttr
     from xdsl.dialects.func import FuncOp, ReturnOp
-    from xdsl.dialects.arith import AddfOp, MulfOp, ConstantOp, AddiOp, MuliOp, SIToFPOp
+    from xdsl.dialects.arith import AddfOp, SubfOp, MulfOp, ConstantOp, AddiOp, MuliOp, SIToFPOp, FloatingPointLikeBinaryOperation, DivfOp
     from xdsl.dialects.scf import ForOp, YieldOp
     from xdsl.dialects.experimental.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
     return (
+        Abs,
         Add,
         AddfOp,
         AddiOp,
         Block,
         Builder,
         ConstantOp,
+        DivfOp,
+        E,
         Expr,
         Float,
         Float64Type,
         FloatAttr,
+        FloatingPointLikeBinaryOperation,
         ForOp,
         FuncOp,
+        GreedyRewritePatternApplier,
+        I,
         InsertPoint,
         Integer,
         IntegerAttr,
@@ -40,20 +50,41 @@ def _():
         MulfOp,
         MuliOp,
         Operation,
+        PatternRewriteWalker,
+        PatternRewriter,
         Pow,
         PowFOp,
+        Pure,
+        Rational,
         Region,
         ReturnOp,
+        RewritePattern,
         S,
         SIToFPOp,
         SSAValue,
         SqrtOp,
+        SubfOp,
         Sum,
         Symbol,
         YieldOp,
+        im,
+        irdl_op_definition,
         mo,
+        op_type_rewrite_pattern,
+        re,
+        region_dce,
         symbols,
+        traits_def,
     )
+
+
+@app.cell
+def _(FloatingPointLikeBinaryOperation, irdl_op_definition):
+    @irdl_op_definition
+    class PowfOp(FloatingPointLikeBinaryOperation):
+        name = "arith.powf"
+
+    return (PowfOp,)
 
 
 @app.cell
@@ -82,6 +113,9 @@ def _(
     Mul,
     MulfOp,
     MuliOp,
+    Pow,
+    PowfOp,
+    Rational,
     Region,
     SIToFPOp,
     SSAValue,
@@ -124,6 +158,11 @@ def _(
             builder.insert(constant)
             return constant.result
 
+        if isinstance(expr, Rational):
+            constant = ConstantOp(FloatAttr(expr.p / expr.q, Float64Type()))
+            builder.insert(constant)
+            return constant.result
+
         if expr.func == Add:
             lhs = emit_op(expr.args[0], builder, args, expected_type)
             rhs = emit_op(expr.args[1], builder, args, expected_type)
@@ -143,6 +182,14 @@ def _(
                 add_op = MulfOp(lhs, rhs)
             builder.insert(add_op)
             return add_op.result
+
+        if expr.func == Pow:
+            assert isinstance(expected_type, Float64Type)
+            lhs = emit_op(expr.args[0], builder, args, expected_type)
+            rhs = emit_op(expr.args[1], builder, args, expected_type)
+            pow_op = PowfOp(lhs, rhs)
+            builder.insert(pow_op)
+            return pow_op.result
 
         if expr.func == Sum:
             lower_bound = emit_op(expr.args[1][1], builder, args, IntegerType(64))
@@ -180,13 +227,14 @@ def _(
 
 @app.cell
 def _(
+    Abs,
     Builder,
     Expr,
     FuncOp,
+    I,
     InsertPoint,
     ModuleOp,
     ReturnOp,
-    Sum,
     emit_op,
     get_type,
     symbols,
@@ -219,14 +267,106 @@ def _(
         print(op)
         print("\n" * 3)
 
-    x, y = symbols("x y", real=True)
+    x, y, z, t = symbols("x y z t", real=True)
     a, b = symbols("a b", integer=True)
 
-    test(x * y + y)
-    test(x - y)
-    test(x + x)
-    test(Sum(a * 2, (a, 1 + b, 5)))
-    return a, b, emit_ir, test, x, y
+    # test(x * y + y)
+    # test(x - y)
+    # test(x + x)
+    # test(Sum(a * 2, (a, 1 + b, 5)))
+    test(Abs(x + y*I))
+    test(Abs(x + y*I) * Abs(z + t*I))
+    test(Abs((x + y*I) * (z + t*I)))
+    return a, b, emit_ir, t, test, x, y, z
+
+
+@app.cell
+def _(mo):
+    mo.md("""# Optimizations""")
+    return
+
+
+@app.cell
+def _(
+    Abs,
+    AddfOp,
+    ConstantOp,
+    Expr,
+    Float64Type,
+    FloatAttr,
+    GreedyRewritePatternApplier,
+    I,
+    MulfOp,
+    Operation,
+    PatternRewriteWalker,
+    PatternRewriter,
+    PowfOp,
+    RewritePattern,
+    SIToFPOp,
+    SubfOp,
+    emit_ir,
+    region_dce,
+    t,
+    x,
+    y,
+    z,
+):
+    class SIToFPConstantPattern(RewritePattern):
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+            if not isinstance(op, SIToFPOp):
+                return
+            if not isinstance(op.input.owner, ConstantOp):
+                return
+            new_op = ConstantOp(FloatAttr(op.input.owner.value.value.data, Float64Type()))
+            rewriter.replace_op(op, new_op)
+
+    class AddTimesMinusOnePattern(RewritePattern):
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+            if not isinstance(op, AddfOp):
+                return
+            if not isinstance(mul := op.rhs.owner, MulfOp):
+                return
+            if not isinstance(constant := mul.lhs.owner, ConstantOp):
+                return
+            if constant.value.value.data != -1.0:
+                return
+            rewriter.replace_op(op, SubfOp(op.lhs, mul.rhs))
+
+    class Pow2Pattern(RewritePattern):
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+            if not isinstance(op, PowfOp):
+                return
+            if not isinstance(cst := op.rhs.owner, ConstantOp):
+                return
+            if cst.value.value.data != 2.0:
+                return
+            rewriter.replace_op(op, MulfOp(op.lhs, op.lhs))
+
+    def test_with_opts(expr: Expr):
+        print(expr)
+        op = emit_ir(expr)
+        op.verify()
+        print("Before optimizations:", op)
+        PatternRewriteWalker(GreedyRewritePatternApplier([SIToFPConstantPattern(), AddTimesMinusOnePattern(), Pow2Pattern()])).rewrite_module(op)
+        region_dce(op.body)
+        print("After optimizations:", op)
+        print("\n" * 3)
+
+    test_with_opts(x - y)
+    test_with_opts(Abs(x + y*I))
+    test_with_opts(Abs(x + y*I) * Abs(z + t*I))
+    return (
+        AddTimesMinusOnePattern,
+        Pow2Pattern,
+        SIToFPConstantPattern,
+        test_with_opts,
+    )
+
+
+@app.cell
+def _(mo):
+    mo.md("""# New dialect for complex numbers""")
+    return
 
 
 if __name__ == "__main__":
