@@ -2901,6 +2901,11 @@ riscv = [
     { name = "riscemu" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "xdsl", extra = ["dev", "docs", "gui", "jax", "riscv"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "asv", marker = "extra == 'dev'", specifier = "<0.7" },
@@ -2933,6 +2938,9 @@ requires-dist = [
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "xdsl", extras = ["dev", "docs", "gui", "jax", "riscv"] }]
 
 [[package]]
 name = "yarl"

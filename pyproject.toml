@@ -43,6 +43,9 @@ gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.5.0", "numpy==2.2.2"]
 riscv = ["riscemu==2.2.7"]
 
+[dependency-groups]
+dev = ["xdsl[dev,docs,gui,jax,riscv]"]
+
 [project.urls]
 Homepage = "https://xdsl.dev/"
 "Source Code" = "https://github.com/xdslproject/xdsl"
