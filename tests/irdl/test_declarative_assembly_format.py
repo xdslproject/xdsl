@@ -2965,6 +2965,68 @@ def test_default_property_with_extractor(program: str, generic: str):
     check_equivalence(program, generic, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() <{prop = false}> {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true, prop = true}",
+            '"test.default_attr_dict"() <{prop = true}> {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_property_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        irdl_options = [ParsePropInAttrDict()]
+
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(DefaultAttrDictOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true}",
+            '"test.default_attr_dict"() {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_attr_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(DefaultAttrDictOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
 ################################################################################
 #                                Extractors                                    #
 ################################################################################
