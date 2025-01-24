@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     ModuleOp,
     UnitAttr,
@@ -31,12 +32,14 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
     GenericAttrConstraint,
+    IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParameterDef,
@@ -48,6 +51,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -2466,6 +2470,32 @@ def test_variadic_length_inference():
     assert isinstance(my_op, RangeVarOp)
 
 
+def test_int_var_inference():
+    @irdl_op_definition
+    class IntVarOp(IRDLOperation):
+        name = "test.int_var"
+        T: ClassVar = IntVarConstraint("T", AnyInt())
+        ins = var_operand_def(RangeOf(eq(IndexType()), length=T))
+        outs = var_result_def(RangeOf(eq(IntegerType(64)), length=T))
+
+        assembly_format = "$ins attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(IntVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent("""\
+    %in0, %in1 = "test.op"() : () -> (index, index)
+    %out0, %out1 = test.int_var %in0, %in1
+    """)
+
+    parser = Parser(ctx, program)
+    test_op = parser.parse_optional_operation()
+    assert isinstance(test_op, test.Operation)
+    my_op = parser.parse_optional_operation()
+    assert isinstance(my_op, IntVarOp)
+    assert my_op.result_types == (IntegerType(64), IntegerType(64))
+
+
 ################################################################################
 # Declarative Format Verification                                              #
 ################################################################################
@@ -2960,6 +2990,68 @@ def test_default_property_with_extractor(program: str, generic: str):
 
     ctx = MLContext()
     ctx.load_op(DefaultConstantOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() <{prop = false}> {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true, prop = true}",
+            '"test.default_attr_dict"() <{prop = true}> {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_property_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        irdl_options = [ParsePropInAttrDict()]
+
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(DefaultAttrDictOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true}",
+            '"test.default_attr_dict"() {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_attr_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(DefaultAttrDictOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic, ctx)

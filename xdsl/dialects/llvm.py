@@ -1710,10 +1710,36 @@ class ZeroOp(IRDLOperation):
     res = result_def(LLVMTypeConstr)
 
 
+@irdl_op_definition
+class BitcastOp(IRDLOperation):
+    name = "llvm.bitcast"
+
+    arg = operand_def(Attribute)
+    """
+    LLVM-compatible non-aggregate type
+    """
+
+    result = result_def(Attribute)
+    """
+    LLVM-compatible non-aggregate type
+    """
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$arg attr-dict `:` type($arg) `to` type($result)"
+
+    def __init__(self, val: Operation | SSAValue, res_type: Attribute):
+        super().__init__(
+            operands=[SSAValue.get(val)],
+            result_types=[res_type],
+        )
+
+
 LLVM = Dialect(
     "llvm",
     [
         AddOp,
+        BitcastOp,
         SubOp,
         MulOp,
         UDivOp,
