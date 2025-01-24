@@ -9,6 +9,9 @@ theme:
     - navigation.sections
     - navigation.expand
 
+markdown_extensions:
+- blocks:MarimoBlocksExtension # the marimo mkdocs extension is out of date, this is what they use internally
+
 plugins:
 - search
 - gen-files:
