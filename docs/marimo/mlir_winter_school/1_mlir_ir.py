@@ -167,7 +167,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(builtin, mo):
     _module_op = builtin.ModuleOp([])
     _module_op.attributes = {"my_key": builtin.StringAttr("my_value")}
@@ -179,8 +179,21 @@ def _(builtin, mo):
     ```
     {str(_module_op)}
     ```
+
+    There are two changes here, the added dictionary and the `attributes` keyword, which is added to avoid the ambiguity between the dictionary and the region, which are both delimited with `{{}}`.
     """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## The `func` Dialect""")
+    return
+
+
+@app.cell
+def _():
     return
 
 
