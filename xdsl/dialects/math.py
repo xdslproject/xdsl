@@ -463,13 +463,12 @@ class FPowIOp(IRDLOperation):
 
     name = "math.fpowi"
 
-    T1: ClassVar = VarConstraint("T1", floatingPointLike)
-    T2: ClassVar = VarConstraint("T2", signlessIntegerLike)
+    T: ClassVar = VarConstraint("T1", floatingPointLike)
 
     fastmath = opt_prop_def(FastMathFlagsAttr)
-    lhs = operand_def(T1)
-    rhs = operand_def(T2)
-    result = result_def(T1)
+    lhs = operand_def(T)
+    rhs = operand_def(signlessIntegerLike)
+    result = result_def(T)
 
     traits = traits_def(Pure())
 
