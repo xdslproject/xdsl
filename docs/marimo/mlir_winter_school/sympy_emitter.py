@@ -8,14 +8,14 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
-    from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational
+    from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function
     from sympy.core.symbol import Symbol
 
-    from xdsl.ir import Operation, SSAValue, Region, Block
+    from xdsl.ir import Operation, SSAValue, Region, Block, ParametrizedAttribute
     from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern, PatternRewriteWalker, GreedyRewritePatternApplier
     from xdsl.transforms.dead_code_elimination import region_dce
     from xdsl.traits import Pure
-    from xdsl.irdl import irdl_op_definition, traits_def
+    from xdsl.irdl import irdl_op_definition, traits_def, IRDLOperation, irdl_attr_definition, operand_def, result_def
     from xdsl.dialects.builtin import ModuleOp, Float64Type, FloatAttr, IntegerType, IntegerAttr
     from xdsl.dialects.func import FuncOp, ReturnOp
     from xdsl.dialects.arith import AddfOp, SubfOp, MulfOp, ConstantOp, AddiOp, MuliOp, SIToFPOp, FloatingPointLikeBinaryOperation, DivfOp
@@ -39,8 +39,10 @@ def _():
         FloatingPointLikeBinaryOperation,
         ForOp,
         FuncOp,
+        Function,
         GreedyRewritePatternApplier,
         I,
+        IRDLOperation,
         InsertPoint,
         Integer,
         IntegerAttr,
@@ -50,6 +52,7 @@ def _():
         MulfOp,
         MuliOp,
         Operation,
+        ParametrizedAttribute,
         PatternRewriteWalker,
         PatternRewriter,
         Pow,
@@ -68,11 +71,14 @@ def _():
         Symbol,
         YieldOp,
         im,
+        irdl_attr_definition,
         irdl_op_definition,
         mo,
         op_type_rewrite_pattern,
+        operand_def,
         re,
         region_dce,
+        result_def,
         symbols,
         traits_def,
     )
@@ -95,24 +101,119 @@ def _(mo):
 
 @app.cell
 def _(
+    Float64Type,
+    IRDLOperation,
+    ParametrizedAttribute,
+    SSAValue,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+):
+    @irdl_attr_definition
+    class ComplexType(ParametrizedAttribute):
+        name = "complex.complex"
+
+    @irdl_op_definition
+    class CreateOp(IRDLOperation):
+        name = "complex.create"
+
+        re = operand_def(Float64Type())
+        im = operand_def(Float64Type())
+
+        result = result_def(ComplexType())
+
+        def __init__(self, lhs: SSAValue, rhs: SSAValue):
+            super().__init__(operands=[lhs, rhs], result_types=[ComplexType()])
+
+    @irdl_op_definition
+    class ReOp(IRDLOperation):
+        name = "complex.re"
+
+        arg = operand_def(ComplexType())
+
+        result = result_def(Float64Type())
+
+        def __init__(self, arg: SSAValue):
+            super().__init__(operands=[arg], result_types=[ComplexType()])
+
+    @irdl_op_definition
+    class ImOp(IRDLOperation):
+        name = "complex.im"
+
+        arg = operand_def(ComplexType())
+
+        result = result_def(Float64Type())
+
+        def __init__(self, arg: SSAValue):
+            super().__init__(operands=[arg], result_types=[ComplexType()])
+
+    @irdl_op_definition
+    class AddCOp(IRDLOperation):
+        name = "complex.add"
+
+        lhs = operand_def(ComplexType())
+        rhs = operand_def(ComplexType())
+
+        result = result_def(ComplexType())
+
+        def __init__(self, lhs: SSAValue, rhs: SSAValue):
+            super().__init__(operands=[lhs, rhs], result_types=[ComplexType()])
+
+
+    @irdl_op_definition
+    class MulCOp(IRDLOperation):
+        name = "complex.mul"
+
+        lhs = operand_def(ComplexType())
+        rhs = operand_def(ComplexType())
+
+        result = result_def(ComplexType())
+
+        def __init__(self, lhs: SSAValue, rhs: SSAValue):
+            super().__init__(operands=[lhs, rhs], result_types=[ComplexType()])
+
+    @irdl_op_definition
+    class NormOp(IRDLOperation):
+        name = "complex.norm"
+
+        arg = operand_def(ComplexType())
+
+        result = result_def(Float64Type())
+
+        def __init__(self, arg: SSAValue):
+            super().__init__(operands=[arg], result_types=[Float64Type()])
+
+    return AddCOp, ComplexType, CreateOp, ImOp, MulCOp, NormOp, ReOp
+
+
+@app.cell
+def _(
     Add,
+    AddCOp,
     AddfOp,
     AddiOp,
     Block,
     Builder,
+    ComplexType,
     ConstantOp,
+    CreateOp,
     Expr,
     Float,
     Float64Type,
     FloatAttr,
     ForOp,
+    Function,
+    I,
     InsertPoint,
     Integer,
     IntegerAttr,
     IntegerType,
     Mul,
+    MulCOp,
     MulfOp,
     MuliOp,
+    NormOp,
     Pow,
     PowfOp,
     Rational,
@@ -123,10 +224,17 @@ def _(
     Symbol,
     YieldOp,
 ):
-    def get_type(expr: Expr) -> IntegerType | Float64Type:
-        return IntegerType(64) if expr.is_integer else Float64Type()
+    Norm = Function("Norm", real=True)
 
-    def emit_op(expr: Expr, builder: Builder, args: dict[str, SSAValue], expected_type: IntegerType | Float64Type):
+    def get_type(expr: Expr) -> IntegerType | Float64Type:
+        if expr.is_integer:
+            return IntegerType(64)
+        elif expr.is_real:
+            return Float64Type()
+        else:
+            return ComplexType()
+
+    def emit_op(expr: Expr, builder: Builder, args: dict[str, SSAValue], expected_type: IntegerType | Float64Type | ComplexType):
         # Handle conversions from integer to float
         if isinstance(expected_type, Float64Type) and isinstance(get_type(expr), IntegerType):
             res = emit_op(expr, builder, args, IntegerType(64))
@@ -134,8 +242,25 @@ def _(
             builder.insert(convert_op)
             return convert_op.result
 
+        if isinstance(expected_type, ComplexType) and isinstance(get_type(expr), Float64Type):
+            res = emit_op(expr, builder, args, Float64Type())
+            zero = ConstantOp(FloatAttr(0, Float64Type()))
+            builder.insert(zero)
+            create = CreateOp(res, zero.result)
+            builder.insert(create)
+            return create.result
+
         if expected_type != get_type(expr):
-            raise ValueError("Wrong typing")
+            raise ValueError(f"Wrong typing, expected {expected_type} but got {get_type(expr)} for expression {expr}")
+
+        if expr == I:
+            zero = ConstantOp(FloatAttr(float(0), Float64Type()))
+            one = ConstantOp(FloatAttr(float(1), Float64Type()))
+            builder.insert(zero)
+            builder.insert(one)
+            create = CreateOp(zero.result, one.result)
+            builder.insert(create)
+            return create.result
 
         # Handle symbolic values
         if isinstance(expr, Symbol):
@@ -168,8 +293,10 @@ def _(
             rhs = emit_op(expr.args[1], builder, args, expected_type)
             if isinstance(expected_type, IntegerType):
                 add_op = AddiOp(lhs, rhs)
-            else:
+            elif isinstance(expected_type, Float64Type):
                 add_op = AddfOp(lhs, rhs)
+            else:
+                add_op = AddCOp(lhs, rhs)
             builder.insert(add_op)
             return add_op.result
 
@@ -178,8 +305,10 @@ def _(
             rhs = emit_op(expr.args[1], builder, args, expected_type)
             if isinstance(expected_type, IntegerType):
                 add_op = MuliOp(lhs, rhs)
-            else:
+            elif isinstance(expected_type, Float64Type):
                 add_op = MulfOp(lhs, rhs)
+            else:
+                add_op = MulCOp(lhs, rhs)
             builder.insert(add_op)
             return add_op.result
 
@@ -190,6 +319,13 @@ def _(
             pow_op = PowfOp(lhs, rhs)
             builder.insert(pow_op)
             return pow_op.result
+
+        if expr.func == Norm:
+            assert isinstance(expected_type, Float64Type)
+            arg = emit_op(expr.args[0], builder, args, ComplexType())
+            norm = NormOp(arg)
+            builder.insert(norm)
+            return norm.result
 
         if expr.func == Sum:
             lower_bound = emit_op(expr.args[1][1], builder, args, IntegerType(64))
@@ -222,18 +358,18 @@ def _(
 
 
         raise ValueError(f"No IR emitter for {expr.func}")
-    return emit_op, get_type
+    return Norm, emit_op, get_type
 
 
 @app.cell
 def _(
-    Abs,
     Builder,
     Expr,
     FuncOp,
     I,
     InsertPoint,
     ModuleOp,
+    Norm,
     ReturnOp,
     emit_op,
     get_type,
@@ -274,9 +410,9 @@ def _(
     # test(x - y)
     # test(x + x)
     # test(Sum(a * 2, (a, 1 + b, 5)))
-    test(Abs(x + y*I))
-    test(Abs(x + y*I) * Abs(z + t*I))
-    test(Abs((x + y*I) * (z + t*I)))
+    test(Norm(x + y*I))
+    test(Norm(x + y*I) * Norm(z + t*I))
+    test(Norm((x + y*I) * (z + t*I)))
     return a, b, emit_ir, t, test, x, y, z
 
 
@@ -288,7 +424,6 @@ def _(mo):
 
 @app.cell
 def _(
-    Abs,
     AddfOp,
     ConstantOp,
     Expr,
@@ -297,6 +432,7 @@ def _(
     GreedyRewritePatternApplier,
     I,
     MulfOp,
+    Norm,
     Operation,
     PatternRewriteWalker,
     PatternRewriter,
@@ -353,20 +489,14 @@ def _(
         print("\n" * 3)
 
     test_with_opts(x - y)
-    test_with_opts(Abs(x + y*I))
-    test_with_opts(Abs(x + y*I) * Abs(z + t*I))
+    test_with_opts(Norm(x + y*I) * Norm(z + t*I))
+    test_with_opts(Norm((x + y*I) * (z + t*I)))
     return (
         AddTimesMinusOnePattern,
         Pow2Pattern,
         SIToFPConstantPattern,
         test_with_opts,
     )
-
-
-@app.cell
-def _(mo):
-    mo.md("""# New dialect for complex numbers""")
-    return
 
 
 if __name__ == "__main__":
