@@ -1735,9 +1735,8 @@ class ModuleOp(IRDLOperation):
         if self.sym_name is not None:
             printer.print(f" @{self.sym_name.data}")
 
-        if len(self.attributes) != 0:
-            printer.print(" attributes ")
-            printer.print_op_attributes(self.attributes)
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
 
         if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block
