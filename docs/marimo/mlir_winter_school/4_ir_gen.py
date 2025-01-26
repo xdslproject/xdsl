@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "sympy",
+#     "xdsl",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.10.17"
