@@ -26,7 +26,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        In xDSL, it is conventional to define a custom init when defining operations, that will make it easier for clients to create these operations.
+        In xDSL, it is conventional to define a custom `__init__` function (a Python constructor) when defining operations, which makes it easier for clients to create these operations.
 
         For example, here is the API for creating an `arith.constant` instance:
         """
@@ -58,7 +58,7 @@ def _(c0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API.""")
+    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API. Here is the xDSL generated documentation for the [`arith` dialect](https://xdsl.readthedocs.io/en/latest/reference/xdsl.dialects.arith.html) and the [`scf` dialect](https://xdsl.readthedocs.io/en/latest/reference/xdsl.dialects.scf.html).""")
     return
 
 
