@@ -187,7 +187,7 @@ def _(builtin):
     from xdsl.ir import Dialect
     from collections import defaultdict
 
-    def operations_by_dialect(module: builtin.ModuleOp) -> dict[str, int]:
+    def operations_by_dialect(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
     return Dialect, defaultdict, operations_by_dialect
 
@@ -237,32 +237,62 @@ def _(all_ssa_values, mo):
     return
 
 
-@app.cell
-def _(mo, operations_by_dialect, triangle_module):
+@app.cell(hide_code=True)
+def _(definition_by_use, mo, triangle_module):
     mo.md(
         fr"""
         ### Exercise 4. Definition By Use
 
-        Modify the function below to return the operations by dialect in the module
+        Modify the function below to return the operation that defines the value by the operation that uses it.
+        If the operand is a block argument, use the name of the parent operation.
 
         ```
-        Expected: {{'builtin': ['module'], 'func': ['func', 'return'], 'arith': ['constant', 'constant', 'constant', 'muli', 'addi'], 'scf': ['for', 'yield']}}
-        Result:   {operations_by_dialect(triangle_module)}
+        Expected: {{'scf.for': ['arith.constant', 'func.func', 'arith.constant', 'arith.constant'], 'arith.muli': ['scf.for', 'scf.for'], 'arith.addi': ['scf.for', 'arith.muli'], 'scf.yield': ['arith.addi'], 'func.return': ['scf.for']}}
+        Result:   {definition_by_use(triangle_module)}
         ```
         """
     )
     return
 
 
+@app.cell
+def _(builtin):
+    # These might come in handy
+    from xdsl.ir import OpResult, BlockArgument
+
+    def definition_by_use(module: builtin.ModuleOp) -> dict[str, list[str]]:
+        return {}
+    return BlockArgument, OpResult, definition_by_use
+
+
+@app.cell(hide_code=True)
+def _(mo, triangle_module, uses_by_definition):
+    mo.md(
+        fr"""
+        ### Exercise 5. Uses By Definition
+
+        Modify the function below to return the operations that use the result by the operation that defines it.
+
+        ```
+        Expected: {{'arith.constant': ['scf.for', 'scf.for', 'scf.for'], 'scf.for': ['func.return'], 'arith.muli': ['arith.addi'], 'arith.addi': ['scf.yield']}}
+        Result:   {uses_by_definition(triangle_module)}
+        ```
+        """
+    )
+    return
+
+
+@app.cell
+def _(builtin):
+    def uses_by_definition(module: builtin.ModuleOp) -> dict[str, list[str]]:
+        return {}
+    return (uses_by_definition,)
+
+
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
     return (mo,)
-
-
-@app.cell
-def _():
-    return
 
 
 if __name__ == "__main__":
