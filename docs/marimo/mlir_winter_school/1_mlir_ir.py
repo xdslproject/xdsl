@@ -4,9 +4,10 @@
 #     "xdsl",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.10.14"
+__generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +25,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo, triangle_text):
-    mo.md(fr"""
+    mo.md(
+        rf"""
     MLIR and xDSL use an encoding of the IR as a textual format for debugging, testing, and storing intermediate representations of programs.
     It can be very useful to take a program at some stage of compilation, and inspect it.
     The textual format makes this easy to do.
@@ -63,7 +65,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(builtin, mo):
-    mo.md(fr"""
+    mo.md(
+        rf"""
     A module is a unit of code in xDSL and MLIR.
     It is an operation in the [`builtin` dialect](https://mlir.llvm.org/docs/Dialects/Builtin/), and holds a single _region_.
 
@@ -86,7 +89,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(builtin, mo, print_generic):
-    mo.md(fr"""
+    mo.md(
+        rf"""
     The IRs above are in what's called the _custom format_, a format that allows functions to specify a pretty and concise representation.
     The _generic format_ is a more uniform and verbose representation that unambiguously shows the structure of an operation.
     Here is the above minimal module in generic format:
@@ -137,7 +141,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(builtin, mo):
-    mo.md(fr"""
+    mo.md(
+        rf"""
     Attributes hold compile-time data, such as constants, types, and other information.
     The IR above contains four attributes: `@triangle`, `0`, `1` and `index`.
     `index` is the type of integer values that fit in a register on the target.
@@ -176,7 +181,8 @@ def _(builtin, mo):
     _module_op = builtin.ModuleOp([])
     _module_op.attributes = {"my_key": builtin.StringAttr("my_value")}
 
-    mo.md(fr"""
+    mo.md(
+        rf"""
     Operations can be supplemented with arbitrary information via their attribute dictionary.
 
     Here's a module with some extra information:
@@ -196,8 +202,37 @@ def _(mo):
     return
 
 
-@app.cell
-def _():
+@app.cell(hide_code=True)
+def _(mo):
+    _func_op = None
+    _func_op_with_args = None
+    _func_op_with_return_value = None
+    _func_op_calling_example = None
+
+    mo.md(
+        rf"""
+        The `func` dialect contains building blocks to model functions and function calls. It contains the following important operations:
+
+        - **`func.func`**: This operation is used to model function definition. They contain the symbolic name of the function to be defined, along with an inner region representing the body of the function.
+            ```
+            {str(_func_op)}
+            ```
+            In order to model function parameters, the entry block of the body region has **block arguments** corresponding to each function argument. In the context of `func.func`, these arguments represent values that will be filled by the caller. For readability, the custom format of `func.func` prints them next to the function name.
+            ```
+            {str(_func_op_with_args)}
+            ```
+
+        - **`func.return`**: This operation represents a return statement, taking as parameters the values that should be returned. `func.return` is a terminator, meaning that it must be the last operation in its block.
+            ```
+            {str(_func_op_with_return_value)}
+            ```
+
+        - **`func.call`**: This operation allows calling a function by its symbol name. `func.call` takes as operands the values of the function parameters, and its results are the return values of the function.
+            ```
+            {str(_func_op_calling_example)}
+            ```
+        """
+    )
     return
 
 
@@ -274,9 +309,7 @@ def _(Parser, ctx, first_text_area, run_func):
 
 @app.cell(hide_code=True)
 def _(first_info_text, first_text_area, mo):
-    mo.vstack(
-        (first_text_area, mo.md(first_info_text))
-    )
+    mo.vstack((first_text_area, mo.md(first_info_text)))
     return
 
 
@@ -301,7 +334,9 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo, triangle_text):
     second_input_text = mo.ui.text("5")
-    second_text_area = mo.ui.code_editor(triangle_text.replace("triangle", "second"), language="javascript")
+    second_text_area = mo.ui.code_editor(
+        triangle_text.replace("triangle", "second"), language="javascript"
+    )
     return second_input_text, second_text_area
 
 
@@ -350,7 +385,11 @@ def _(Parser, ctx, run_func, second_input_text, second_text_area):
 @app.cell(hide_code=True)
 def _(mo, second_info_text, second_input_text, second_text_area):
     mo.vstack(
-        (mo.md(f"Input: {second_input_text}"),second_text_area, mo.md(second_info_text))
+        (
+            mo.md(f"Input: {second_input_text}"),
+            second_text_area,
+            mo.md(second_info_text),
+        )
     )
     return
 
@@ -358,6 +397,7 @@ def _(mo, second_info_text, second_input_text, second_text_area):
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -369,6 +409,7 @@ def _(ModuleOp, StringIO):
         io = StringIO()
         Printer(io, print_generic_format=True).print(module)
         return io.getvalue()
+
     return Printer, print_generic
 
 
@@ -428,7 +469,7 @@ def _(ModuleOp):
         from xdsl.interpreter import Interpreter
         from xdsl.interpreters import scf, arith, func
 
-        interpreter =  Interpreter(module)
+        interpreter = Interpreter(module)
         interpreter.register_implementations(scf.ScfFunctions)
         interpreter.register_implementations(arith.ArithFunctions)
         interpreter.register_implementations(func.FuncFunctions)
@@ -439,6 +480,7 @@ def _(ModuleOp):
             res = res[0]
 
         return res
+
     return Any, run_func
 
 
