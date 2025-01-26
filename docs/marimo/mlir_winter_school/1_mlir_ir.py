@@ -203,11 +203,51 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    _func_op = None
-    _func_op_with_args = None
-    _func_op_with_return_value = None
-    _func_op_calling_example = None
+def _(func, mo):
+    from xdsl.ir import Region, Block
+    from xdsl.dialects.builtin import i32
+
+    _func_op = func.FuncOp("hello", ((), ()), Region([Block([func.ReturnOp()])]))
+    _func_op_with_args = func.FuncOp(
+        "hello", ((i32,), ()), Region([Block([func.ReturnOp()], arg_types=[i32])])
+    )
+    _func_op_with_args.body.block.args[0].name_hint = "x"
+    _func_op_with_return_value = func.FuncOp(
+        "swap", ((i32, i32), (i32, i32)), Region([Block([], arg_types=[i32, i32])])
+    )
+    _func_op_with_return_value.body.block.add_op(
+        func.ReturnOp(
+            _func_op_with_return_value.body.block.args[1],
+            _func_op_with_return_value.body.block.args[0],
+        )
+    )
+    _func_op_with_return_value.body.block.args[0].name_hint = "a"
+    _func_op_with_return_value.body.block.args[1].name_hint = "b"
+
+    _func_op_calling_example = func.FuncOp(
+        "uses_swap",
+        ((i32, i32), (i32, i32)),
+        Region([Block([], arg_types=[i32, i32])]),
+    )
+    _call_op = func.CallOp(
+        "swap",
+        [
+            _func_op_calling_example.body.block.args[0],
+            _func_op_calling_example.body.block.args[1],
+        ],
+        [i32, i32],
+    )
+    _func_op_calling_example.body.block.add_op(_call_op)
+    _func_op_calling_example.body.block.add_op(
+        func.ReturnOp(
+            _call_op.results[0],
+            _call_op.results[1],
+        )
+    )
+    _func_op_calling_example.body.block.args[0].name_hint = "a"
+    _func_op_calling_example.body.block.args[1].name_hint = "b"
+    _call_op.results[0].name_hint = "res0"
+    _call_op.results[1].name_hint = "res1"
 
     mo.md(
         rf"""
@@ -215,25 +255,25 @@ def _(mo):
 
         - **`func.func`**: This operation is used to model function definition. They contain the symbolic name of the function to be defined, along with an inner region representing the body of the function.
             ```
-            {str(_func_op)}
+            {str(_func_op).replace("\n", "\n        ")}
             ```
             In order to model function parameters, the entry block of the body region has **block arguments** corresponding to each function argument. In the context of `func.func`, these arguments represent values that will be filled by the caller. For readability, the custom format of `func.func` prints them next to the function name.
             ```
-            {str(_func_op_with_args)}
+            {str(_func_op_with_args).replace("\n", "\n        ")}
             ```
 
         - **`func.return`**: This operation represents a return statement, taking as parameters the values that should be returned. `func.return` is a terminator, meaning that it must be the last operation in its block.
             ```
-            {str(_func_op_with_return_value)}
+            {str(_func_op_with_return_value).replace("\n", "\n        ")}
             ```
 
-        - **`func.call`**: This operation allows calling a function by its symbol name. `func.call` takes as operands the values of the function parameters, and its results are the return values of the function.
+        - **`func.call`**: This operation allows calling a function by its symbol name. `func.call` takes as operands the values of the function parameters, and its results are the return values of the function. Like all operations in MLIR, the operand and result types must be locally inferable from syntax, and thus the call operation makes the function argument and result types explicit.
             ```
-            {str(_func_op_calling_example)}
+            {str(_func_op_calling_example).replace("\n", "\n        ")}
             ```
         """
     )
-    return
+    return Block, Region, i32
 
 
 @app.cell(hide_code=True)
@@ -320,10 +360,56 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    _if_op = None
-    _if_op_with_else = None
-    _if_op_with_yield = None
+def _(Block, Region, arith, func, i32, mo, scf):
+    from xdsl.dialects import test
+    from xdsl.dialects.builtin import i1
+
+    _dummies = test.TestOp(result_types=[i32, i32, i1, i32, i32, i32, i32])
+    _a = _dummies.results[0]
+    _b = _dummies.results[1]
+    _c = _dummies.results[2]
+    _lb = _dummies.results[3]
+    _ub = _dummies.results[4]
+    _step = _dummies.results[5]
+    _zero = _dummies.results[6]
+    _a.name_hint = "a"
+    _b.name_hint = "b"
+    _c.name_hint = "c"
+    _lb.name_hint = "start"
+    _ub.name_hint = "end"
+    _step.name_hint = "step"
+    _zero.name_hint = "zero"
+
+
+    _if_op = scf.IfOp(_c, [], Region([Block([func.CallOp("foo", [], [])])]))
+    _if_op_with_else = scf.IfOp(
+        _c,
+        [],
+        Region([Block([func.CallOp("foo", [], [])])]),
+        Region([Block([func.CallOp("bar", [], [])])]),
+    )
+
+    _if_op_with_yield = scf.IfOp(
+        _c,
+        [i32],
+        Region([Block([scf.YieldOp(_a)])]),
+        Region([Block([scf.YieldOp(_b)])]),
+    )
+    _if_op_with_yield.results[0].name_hint = "res"
+    _yield_op_multiple = scf.YieldOp(_a, _b)
+
+    _for_op = scf.ForOp(_lb, _ub, _step, [], Region([Block([], arg_types=[i32])]))
+    _for_op.body.block.add_op(func.CallOp("foo", [_for_op.body.block.args[0]], []))
+    _for_op.body.block.args[0].name_hint = "i"
+
+    _for_op_with_yield = scf.ForOp(_lb, _ub, _step, [_zero], Region([Block([], arg_types=[i32, i32])]))
+    _add_op = arith.AddiOp(_for_op_with_yield.body.block.args[1], _for_op_with_yield.body.block.args[0])
+    _for_op_with_yield.body.block.add_op(_add_op)
+    _for_op_with_yield.body.block.add_op(scf.YieldOp(_add_op.results[0]))
+    _add_op.results[0].name_hint = "acc_next"
+    _for_op_with_yield.body.block.args[0].name_hint = "i"
+    _for_op_with_yield.body.block.args[1].name_hint = "acc"
+    _for_op_with_yield.results[0].name_hint = "sum"
 
     mo.md(
         rf"""
@@ -331,27 +417,35 @@ def _(mo):
 
         - **`scf.if`**: This operation represents a an if-statement. It takes in a boolean value, and if that value is true, it steps inside its inner region (the "then" region), skipping it otherwise.
             ```
-            {str(_if_op)}
+            {str(_if_op).replace("\n", "\n        ")}
             ```
             An additional region can be added (the "else" region) that is stepped inside only when the boolean value is false.
             ```
-            {str(_if_op_with_else)}
+            {str(_if_op_with_else).replace("\n", "\n        ")}
             ```
             If two regions are specified, `scf.if` can have result values of which the value is defined differently in each region. This feature will be presented with the next operation.
 
         - **`scf.yield`**: This operation is a terminator allowing to yield values from SCF constructs. For example, in the context of an `scf.if`, one may want to declare a single value `%res` that has different content depending on which branch of the `scf.if` is taken. In order to do this, one can add `%res` as a result value to the `scf.if`. Then, `scf.yield` is used in each of the regions to define the content of `%res`.
             ```
-            {str(_if_op_with_yield)}
+            {str(_if_op_with_yield).replace("\n", "\n        ")}
+            ```
+            A single `scf.yield` can yield multiple values.
+            ```
+            {str(_yield_op_multiple).replace("\n", "\n        ")}
+            ```
+            In this example, `%res` will have the content of `%a` if `%c` is true, and of `%b` is `%c` is false.
+
+        - **`scf.for`**: This operation models a for loop over a range of integers. It takes in a start value, an end value, and a step value for the iteration variable, and declares a value as a block argument containing the iteration variable. For readability, the declaration site of the iteration value is printed in the `scf.for` operation itself.
+            ```
+            {str(_for_op).replace("\n", "\n        ")}
+            ```
+            Aditionally, `scf.for` can expose more iteration variables and return them similarly to `scf.if`. Instead of being incremented automatically, these additional iteration variables are initialized to a certain value, updated at the end of the loop body via `scf.yield`, and passed outside of the loop as result values of `scf.for`. In the summation example below, the state of the sum is accumulated in an additional iteration variable `%acc` initialized with `%zero` before being returned as `%sum`.
+            ```
+            {str(_for_op_with_yield).replace("\n", "\n        ")}
             ```
         """
     )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""## Block Arguments""")
-    return
+    return i1, test
 
 
 @app.cell(hide_code=True)
@@ -424,9 +518,104 @@ def _(mo, second_info_text, second_input_text, second_text_area):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## A note on control-flow terminators""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+        It may be tempting to nest control-flow terminators like `func.return` or `scf.yield` within other operations. For example, a typical use case would be to have an early return from within the regions of an `scf.if`, like in the following:
+
+        ```
+        // THIS EXAMPLE DOES NOT COMPILE
+        func.func @swap_or_not(%c : i1, %a : i32, %b : i32) -> (i32, i32) {
+          scf.if %c {
+              func.return %b, %a : i32, i32
+          } else {
+              func.return %a, %b : i32, i32
+          }
+        }
+        ```
+
+        However, **this is not legal in MLIR** with the standard control-flow semantics. Upstream transformations in MLIR assume that when a block is entered, all operations will be executed to the end of the block. If early-return was possible, this expectation would be violated.
+
+        Instead, you must formulate your IR such that those terminators are immediate children of the operation they have an effect on. If you accidentally break this constraint, the IR will not validate and you will receive a compile-time error.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""## Exercise 3: Swap or not""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Fix the example above to create a `@swap_or_not` function that takes in a condition of type `i1`, and two values of type `i32`, and returns the two `i32` values, swapping them if the condition is true.""")
+    return
+
+
+@app.cell
+def _(Parser, ctx, run_func, swap_or_not_text_area):
+    swap_or_not_error_text = ""
+    swap_or_not_results_12_text_swap = ""
+    swap_or_not_results_34_text_swap = ""
+    swap_or_not_results_12_text_noswap = ""
+    swap_or_not_results_34_text_noswap = ""
+    try:
+        swap_or_not_module = Parser(ctx, swap_or_not_text_area.value).parse_module()
+        swap_or_not_results_12 = run_func(swap_or_not_module, "swap_or_not", (1, 2))
+        swap_or_not_results_34 = run_func(swap_or_not_module, "swap_or_not", (3, 4))
+        swap_or_not_results_12_noswap = run_func(swap_or_not_module, "swap_or_not", (0, 1, 2))
+        swap_or_not_results_12_text_noswap = f"swap_or_not(false, 1, 2) = {swap_or_not_results_12_noswap}"
+        swap_or_not_results_12_swap = run_func(swap_or_not_module, "swap_or_not", (1, 1, 2))
+        swap_or_not_results_12_text_swap = f"swap_or_not(true, 1, 2) = {swap_or_not_results_12_swap}"
+        swap_or_not_results_34_text_noswap = f"swap_or_not(false, 3, 4) = {run_func(swap_or_not_module, "swap_or_not", (0, 3, 4))}"
+        swap_or_not_results_34_text_swap = f"swap_or_not(true, 3, 4) = {run_func(swap_or_not_module, "swap_or_not", (1, 3, 4))}"
+    except Exception as e:
+        error_text = str(e)
+    if swap_or_not_error_text:
+        swap_or_not_info_text = f"""
+        Error:
+
+        ```
+        {swap_or_not_error_text}
+        ```
+        """
+    else:
+        swap_or_not_info_text = f"""\
+        Here are a few tests:
+
+        ```
+        {swap_or_not_results_12_text_swap}
+        {swap_or_not_results_34_text_swap}
+
+        {swap_or_not_results_12_text_noswap}
+        {swap_or_not_results_34_text_noswap}
+        ```
+        """
+    return (
+        error_text,
+        swap_or_not_error_text,
+        swap_or_not_info_text,
+        swap_or_not_module,
+        swap_or_not_results_12,
+        swap_or_not_results_12_noswap,
+        swap_or_not_results_12_swap,
+        swap_or_not_results_12_text_noswap,
+        swap_or_not_results_12_text_swap,
+        swap_or_not_results_34,
+        swap_or_not_results_34_text_noswap,
+        swap_or_not_results_34_text_swap,
+    )
+
+
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -438,7 +627,6 @@ def _(ModuleOp, StringIO):
         io = StringIO()
         Printer(io, print_generic_format=True).print(module)
         return io.getvalue()
-
     return Printer, print_generic
 
 
@@ -509,7 +697,6 @@ def _(ModuleOp):
             res = res[0]
 
         return res
-
     return Any, run_func
 
 
