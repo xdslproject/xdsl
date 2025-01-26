@@ -321,6 +321,35 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    _if_op = None
+    _if_op_with_else = None
+    _if_op_with_yield = None
+
+    mo.md(
+        rf"""
+        The `scf` dialect contains building blocks to model Structured Control-Flow (SCF). In contrast to LLVM-like Control-Flow Graphs (CFG), Structured Control-Flow is a model of control-flow based on regions. This model of control-flow is similar in many ways to the ones in imperative languages. It contains the following important operations:
+
+        - **`scf.if`**: This operation represents a an if-statement. It takes in a boolean value, and if that value is true, it steps inside its inner region (the "then" region), skipping it otherwise.
+            ```
+            {str(_if_op)}
+            ```
+            An additional region can be added (the "else" region) that is stepped inside only when the boolean value is false.
+            ```
+            {str(_if_op_with_else)}
+            ```
+            If two regions are specified, `scf.if` can have result values of which the value is defined differently in each region. This feature will be presented with the next operation.
+
+        - **`scf.yield`**: This operation is a terminator allowing to yield values from SCF constructs. For example, in the context of an `scf.if`, one may want to declare a single value `%res` that has different content depending on which branch of the `scf.if` is taken. In order to do this, one can add `%res` as a result value to the `scf.if`. Then, `scf.yield` is used in each of the regions to define the content of `%res`.
+            ```
+            {str(_if_op_with_yield)}
+            ```
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""## Block Arguments""")
     return
 
