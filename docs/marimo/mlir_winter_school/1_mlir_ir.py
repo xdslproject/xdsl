@@ -152,10 +152,10 @@ def _(builtin, mo):
 
     ```
     {builtin.DictionaryAttr({
-        "string": builtin.StringAttr("my_string"),
-        "int": builtin.IntegerAttr(42, builtin.IndexType()),
-        "float": builtin.FloatAttr(3.1415, builtin.f32),
-        "unit": builtin.UnitAttr()
+        "some_string": builtin.StringAttr("my_string"),
+        "some_int": builtin.IntegerAttr(42, builtin.IndexType()),
+        "some_float": builtin.FloatAttr(3.1415, builtin.f32),
+        "a_unit_attr": builtin.UnitAttr()
     })}
     ```
 
