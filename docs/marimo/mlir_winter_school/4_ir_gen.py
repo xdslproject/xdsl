@@ -12,7 +12,7 @@ def _():
 
 @app.cell
 def _():
-    from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function
+    from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function, UnevaluatedExpr
     from sympy.core.symbol import Symbol
 
     from xdsl.ir import Operation, SSAValue, Region, Block, ParametrizedAttribute
@@ -73,6 +73,7 @@ def _():
         SubfOp,
         Sum,
         Symbol,
+        UnevaluatedExpr,
         YieldOp,
         im,
         irdl_attr_definition,
@@ -112,26 +113,23 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Some SymPy examples
-
-        """
-    )
+    mo.md(r"""## Some SymPy examples""")
     return
 
 
 @app.cell
 def _(symbols):
-    # Define 4 variables that can be used in the rest of the notebook
-    x, y, z, t = symbols("x y z t", real=True)
+    # Define variables that can be used in the rest of the notebook
+    # x, y, z, t are non-zere reals, while a, b, c, d are non-zero integers
+    x, y, z, t = symbols("x y z t", real=True, zero=False)
+    a, b, c, d = symbols("a b c d", integer=True, zero=False)
 
     # SymPy uses overloaded Python operators to define expressions.
     # Expressions are automatically simplified by SymPy.
     print('"x + y * z" -> ', x + y * z)
     print('"x + x" -> ', x + x)
     print('"x - x" -> ', x - x)
-    return t, x, y, z
+    return a, b, c, d, t, x, y, z
 
 
 @app.cell(hide_code=True)
@@ -219,15 +217,15 @@ def _(Expr, emit_ir):
         # Converts the SymPy expression to an MLIR `builtin.module` operation
         try:
             op = emit_ir(expr)
+
+            # Check that the operation verifies, and prints the operation
+            op.verify()
+            print(op)
         except Exception as e:
             print("Error while converting expression: ", e)
-            return
 
-        # Check that the operation verifies
-        op.verify()
-
-        # Print the operation
-        print(op, "\n\n")
+        # Print a separator
+        print("\n\n")
     return (print_ir,)
 
 
@@ -238,26 +236,39 @@ def _(mo):
 
 
 @app.cell
+def _(Attribute, Expr, Float64Type, IntegerType):
+    # Get the MLIR type for a SymPy expression
+    def get_type(expr: Expr) -> Attribute:
+        if expr.is_integer:
+            return IntegerType(64)
+        elif expr.is_extended_real:
+            return Float64Type()
+        else:
+            raise Exception(f"Unknown MLIR type for expression {expr}. Please make sure there cannot be a division by zero, or a power of a negative value.")
+    return (get_type,)
+
+
+@app.cell
 def _(
     Builder,
     Expr,
-    Float64Type,
     FuncOp,
     InsertPoint,
     ModuleOp,
     ReturnOp,
     emit_op,
+    get_type,
 ):
     def emit_ir(expr: Expr) -> ModuleOp:
         # Create a module, and create a builder at the beginning of its only block
         module = ModuleOp([])
         builder = Builder(InsertPoint.at_end(module.body.block))
 
-        # Create the MLIR types for each symbol. We use `f64` here.
-        arg_types = [Float64Type() for arg in expr.free_symbols]
+        # Create the MLIR types for each symbol.
+        arg_types = [get_type(arg) for arg in expr.free_symbols]
 
         # Create a new function and inserts it inside the module.
-        func = FuncOp("main", (arg_types, [Float64Type()]))
+        func = FuncOp("main", (arg_types, [get_type(expr)]))
         builder.insert(func)
 
         # Associate each symbol with its MLIR name.
@@ -288,8 +299,6 @@ def _(mo):
 
 @app.cell
 def _(
-    Add,
-    AddfOp,
     Builder,
     ConstantOp,
     Expr,
@@ -297,50 +306,137 @@ def _(
     Float64Type,
     FloatAttr,
     Integer,
+    IntegerAttr,
+    IntegerType,
+    SIToFPOp,
     SSAValue,
     Symbol,
+    get_type,
 ):
     def emit_op(
         expr: Expr,
         builder: Builder,
         args: dict[Symbol, SSAValue],
     ):
+        type = get_type(expr)
+        if isinstance(type, IntegerType):
+            return emit_integer_op(expr, builder, args)
+        elif isinstance(type, Float64Type):
+            return emit_real_op(expr, builder, args)
+        else:
+            raise Exception("Unknown function to emit IR for MLIR type ", type)
+
+    def emit_integer_op(
+        expr: Expr,
+        builder: Builder,
+        args: dict[Symbol, SSAValue],
+    ):
         # Handle symbolic values
         if isinstance(expr, Symbol):
-            # Just return the value associated to the symbol
             return args[expr]
 
         # Handle constants
-        if isinstance(expr, Float) or isinstance(expr, Integer):
-            constant = ConstantOp(FloatAttr(float(expr), Float64Type()))
-            builder.insert(constant)
+        if isinstance(expr, Integer):
+            int_attr = IntegerAttr(int(expr), IntegerType(64))
+            constant = builder.insert(ConstantOp(int_attr))
             return constant.result
 
-        # Here is an example on how to convert a simple operation:
-        if expr.func == Add:
-            lhs = emit_op(expr.args[0], builder, args)
-            rhs = emit_op(expr.args[1], builder, args)
-            add_op = AddfOp(lhs, rhs)
-            builder.insert(add_op)
-            return add_op.result
+        raise ValueError(f"No IR emitter for integer function {expr.func}")
 
-        raise ValueError(f"No IR emitter for {expr.func}")
-    return (emit_op,)
+    def emit_real_op(
+        expr: Expr,
+        builder: Builder,
+        args: dict[Symbol, SSAValue],
+    ):
+        # Handle constants
+        if isinstance(expr, Float):
+            float_attr = FloatAttr(float(expr), Float64Type())
+            constant = builder.insert(ConstantOp(float_attr))
+            return constant.result
+
+        # If the expression is an integer expression, emits it and then convert it
+        # back to a float expression.
+        if expr.is_integer:
+            res = emit_integer_op(expr, builder, args)
+            op = builder.insert(SIToFPOp(res))
+            return op.result
+
+        # Handle symbolic values
+        if isinstance(expr, Symbol):
+            return args[expr]
+
+        raise ValueError(f"No IR emitter for float function {expr.func}")
+    return emit_integer_op, emit_op, emit_real_op
 
 
 @app.cell
-def _():
+def _(mo):
+    mo.md("""Here are a few simple examples that you should support first. For each test, the expression is printed, then either the MLIR code, or an error. Each of the operators used in these tests should only be converted to a single MLIR operation.""")
     return
 
 
 @app.cell
-def _(print_ir, x, y):
-    print_ir(x + y)
+def _(Float, Integer, a, b, print_ir, x, y):
+    print_ir(Float(2))
+    print_ir(Integer(2))
+
+    print_ir(a + b)
+    print_ir(a + b + x)
+    print_ir(x + 2)
     print_ir(x * y)
+    print_ir(a * b + x)
     print_ir(x + x)
     print_ir(x / y)
     print_ir(x - y)
-    print_ir(x ** y)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""The following expression requires to handle the AST node `Abs`. Instead of converting it to `math.absf` operation, we taks you to write it using the formula `x < 0 ? -x : x` using only `arith` operations.""")
+    return
+
+
+@app.cell
+def _(Abs, print_ir, x, y):
+    print_ir(Abs(x + y))
+    print_ir((x ** 2) ** y)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Supporting operations with regions
+
+        Your next task is to handle operations that may have regions.
+
+        As a first step, rewrite the lowering to `Abs` to output an `scf.if` instead of an `arith.select`. Then, as an harder task, support the `Sum` operation using an `scf.for` loop.
+
+        Here are a few examples:
+        """
+    )
+    return
+
+
+@app.cell
+def _(Abs, Sum, UnevaluatedExpr, a, b, c, print_ir, x, y):
+    print_ir(Abs(x + y))
+    print_ir((x ** 2) ** y)
+
+    # The sum of all numbers from 0 to 10 (excluded)
+    print_ir(Sum(x, (x, 0, 10)))
+
+    # The triangle sum from 0 to a (excluded)
+    print_ir(Sum(x*x, (x, 0, a)))
+
+    # The computation of:
+    # for b in range(0, a):
+    #   for c in range(0, b):
+    #      result += 1
+    # We use an UnevaluatedExpr so that SymPy doesn't combine both sums
+    print_ir(Sum(UnevaluatedExpr(Sum(1, (c, 0, b))), (b, 0, a)))
     return
 
 
