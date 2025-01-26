@@ -200,7 +200,7 @@ def _(mo):
         ## Exercise: Emitting MLIR IR from SymPy
 
         Your goal is to convert SymPy AST nodes to MLIR IR, using xDSL.
-        We are giving you most of the boilerplate, so you only have to focus on translating each operation.
+        We are giving you most of the boilerplate, so you only have to focus on emitting IR for each SymPy AST node.
 
         The following function will print an expression, and print the resulting MLIR that you are emitting:
         """
@@ -293,20 +293,17 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(r"""Finally, here is the main function that you should complete. This function converts recursively each SymPy AST node into MLIR operations.""")
+    mo.md(r"""Finally, here are the functions that you should complete. `emit_op` is fully complete, and emits the necessary IR for a SymPy expression. `emit_integer_op` and `emit_float_op` emits the operations for integer and float operations, and are only partially implemented.""")
     return
 
 
 @app.cell
 def _(
     Builder,
-    ConstantOp,
     Expr,
     Float,
     Float64Type,
-    FloatAttr,
     Integer,
-    IntegerAttr,
     IntegerType,
     SIToFPOp,
     SSAValue,
@@ -337,23 +334,16 @@ def _(
 
         # Handle constants
         if isinstance(expr, Integer):
-            int_attr = IntegerAttr(int(expr), IntegerType(64))
-            constant = builder.insert(ConstantOp(int_attr))
-            return constant.result
+            # int(expr) returns the value of the `expr` constant
+            raise NotImplementedError("Constants are not implemented")
 
-        raise ValueError(f"No IR emitter for integer function {expr.func}")
+        raise NotImplementedError(f"No IR emitter for integer function {expr.func}")
 
     def emit_real_op(
         expr: Expr,
         builder: Builder,
         args: dict[Symbol, SSAValue],
     ):
-        # Handle constants
-        if isinstance(expr, Float):
-            float_attr = FloatAttr(float(expr), Float64Type())
-            constant = builder.insert(ConstantOp(float_attr))
-            return constant.result
-
         # If the expression is an integer expression, emits it and then convert it
         # back to a float expression.
         if expr.is_integer:
@@ -361,11 +351,16 @@ def _(
             op = builder.insert(SIToFPOp(res))
             return op.result
 
+        # Handle constants
+        if isinstance(expr, Float):
+            # float(expr) returns the value of the `expr` constant
+            raise NotImplementedError("Constants are not implemented")
+
         # Handle symbolic values
         if isinstance(expr, Symbol):
             return args[expr]
 
-        raise ValueError(f"No IR emitter for float function {expr.func}")
+        raise NotImplementedError(f"No IR emitter for float function {expr.func}")
     return emit_integer_op, emit_op, emit_real_op
 
 
