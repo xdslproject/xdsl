@@ -24,9 +24,7 @@ def _(mo, triangle_text):
     The textual format makes this easy to do.
     Let's look at a representation of a function that sums the first `n` integers:
 
-    ```
-    {triangle_text}
-    ```
+    {mo.ui.code_editor(triangle_text, language="javascript", disabled=True)}
 
     We'll look at it more in detail, but let's take a look at some broad properties:
 
@@ -197,9 +195,157 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    mo.ui.text_area()
+    mo.md(r"""## Properties""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Exercise 1: Your First Function""")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    first_text = """\
+    func.func @first(%arg0: index, %arg1: index) -> index {
+        // Change this to return the second argument instead
+        func.return %arg0 : index
+    }\
+    """
+    return (first_text,)
+
+
+@app.cell(hide_code=True)
+def _(first_text, mo):
+    first_text_area = mo.ui.code_editor(first_text, language="javascript")
+    return (first_text_area,)
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx, first_text_area, run_func):
+    first_error_text = ""
+    first_results_12_text = ""
+    first_results_34_text = ""
+    try:
+        first_module = Parser(ctx, first_text_area.value).parse_module()
+        first_results_12 = run_func(first_module, "first", (1, 2))
+        first_results_34 = run_func(first_module, "first", (3, 4))
+        first_results_12_text = f"first(1, 2) = {first_results_12}"
+        first_results_34_text = f"first(3, 4) = {first_results_34}"
+    except Exception as e:
+        error_text = str(e)
+    if first_error_text:
+        first_info_text = f"""
+        Error:
+
+        ```
+        {first_error_text}
+        ```
+        """
+    else:
+        first_info_text = f"""\
+        Here are the outputs when running the function with inputs (1, 2), and (3, 4):
+
+        ```
+        {first_results_12_text}
+        {first_results_34_text}
+        ```
+        """
+    return (
+        error_text,
+        first_error_text,
+        first_info_text,
+        first_module,
+        first_results_12,
+        first_results_12_text,
+        first_results_34,
+        first_results_34_text,
+    )
+
+
+@app.cell(hide_code=True)
+def _(first_info_text, first_text_area, mo):
+    mo.vstack(
+        (first_text_area, mo.md(first_info_text))
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## The `scf` Dialect""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Block Arguments""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Exercise 2: Factorial Function""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, triangle_text):
+    second_input_text = mo.ui.text("5")
+    second_text_area = mo.ui.code_editor(triangle_text.replace("triangle", "second"), language="javascript")
+    return second_input_text, second_text_area
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx, run_func, second_input_text, second_text_area):
+    second_error_text = ""
+    second_results_text = ""
+    try:
+        second_input = int(second_input_text.value)
+        second_inputs = (second_input,)
+        second_module = Parser(ctx, second_text_area.value).parse_module()
+        second_results = run_func(second_module, "second", second_inputs)
+        second_results_text = f"second({second_input}) = {second_results}"
+    except Exception as e:
+        print("no")
+        second_error_text = str(e)
+
+    if second_error_text:
+        second_info_text = f"""
+        Error:
+
+        ```
+        {second_error_text}
+        ```
+        """
+    else:
+        second_info_text = f"""\
+        Change the definition of `second` to compute the factorial of the input.
+        Assume that the input is non-negative.
+
+        ```
+        {second_results_text}
+        ```
+        """
+    return (
+        second_error_text,
+        second_info_text,
+        second_input,
+        second_inputs,
+        second_module,
+        second_results,
+        second_results_text,
+    )
+
+
+@app.cell(hide_code=True)
+def _(mo, second_info_text, second_input_text, second_text_area):
+    mo.vstack(
+        (mo.md(f"Input: {second_input_text}"),second_text_area, mo.md(second_info_text))
+    )
     return
 
 
@@ -243,14 +389,14 @@ def _():
         %zero = arith.constant 0 : index
         %step = arith.constant 1 : index
         %init = arith.constant 0 : index
-        %res = scf.for %i = %zero to %n step %step iter_args(%acc_in = %step) -> (index) {
+        %res = scf.for %i = %zero to %n step %step iter_args(%acc_in = %init) -> (index) {
           %square = arith.muli %i, %i : index
           %acc_out = arith.addi %acc_in, %square : index
           scf.yield %acc_out : index
         }
         func.return %res : index
       }
-    }
+    }\
     """
     return (triangle_text,)
 
@@ -266,6 +412,28 @@ def _(ctx, triangle_text):
     triangle_module = Parser(ctx, triangle_text, "").parse_module()
     # triangle_module
     return Input, Parser, StringIO, triangle_module
+
+
+@app.cell(hide_code=True)
+def _(ModuleOp):
+    from typing import Any
+
+    def run_func(module: ModuleOp, name: str, args: tuple[Any, ...]):
+        from xdsl.interpreter import Interpreter
+        from xdsl.interpreters import scf, arith, func
+
+        interpreter =  Interpreter(module)
+        interpreter.register_implementations(scf.ScfFunctions)
+        interpreter.register_implementations(arith.ArithFunctions)
+        interpreter.register_implementations(func.FuncFunctions)
+
+        res = interpreter.call_op(name, args)
+
+        if len(res) == 1:
+            res = res[0]
+
+        return res
+    return Any, run_func
 
 
 if __name__ == "__main__":
