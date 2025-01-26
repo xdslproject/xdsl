@@ -119,7 +119,7 @@ def _(builtin, mo, print_generic):
 
     We'll discuss blocks a bit more when we look at the `func.func` and `scf.for` operations.
 
-    The type of the operation is always printed in the generic format, even if is an operation with no operands or results, as in this case:
+    The type of the operation is always printed in the generic format, even if it is an operation with no operands or results, as in this case:
 
     ```
         : () -> ()
