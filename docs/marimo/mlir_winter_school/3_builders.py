@@ -18,6 +18,52 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""## Operation Constructors""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        In xDSL, it is conventional to define a custom init when defining operations, that will make it easier for clients to create these operations.
+
+        For example, here is the API for creating an `arith.constant` instance:
+        """
+    )
+    return
+
+
+@app.cell
+def _(ConstantOp, IntegerAttr):
+    c0 = ConstantOp(IntegerAttr(0, 64))
+    c0
+    return (c0,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Similarly, here is the API for creating an `arith.addi` instance:""")
+    return
+
+
+@app.cell
+def _(c0):
+    from xdsl.dialects.arith import AddiOp
+
+    addi = AddiOp(c0.result, c0.result)
+    addi
+    return AddiOp, addi
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API.""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         r"""
         ## Insertion Point
