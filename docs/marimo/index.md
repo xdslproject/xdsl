@@ -1,4 +1,6 @@
 
 # Test
 
-!marimo_file ./linalg_snitch.py
+/// marimo-embed-file
+    filepath: docs/marimo/linalg_snitch.py
+///

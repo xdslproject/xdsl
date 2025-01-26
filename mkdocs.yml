@@ -10,14 +10,13 @@ theme:
     - navigation.expand
 
 markdown_extensions:
-- blocks:MarimoBlocksExtension # the marimo mkdocs extension is out of date, this is what they use internally
+- docs.blocks:MarimoBlocksExtension # the marimo mkdocs extension is out of date, this is what they use internally
 
 plugins:
 - search
 - gen-files:
     scripts:
     - scripts/gen_ref_pages.py
-- marimo
 - mkdocstrings:
     handlers:
       python:
