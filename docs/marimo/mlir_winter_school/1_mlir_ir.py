@@ -4,6 +4,7 @@
 #     "xdsl",
 # ]
 # ///
+
 import marimo
 
 __generated_with = "0.10.14"
@@ -350,7 +351,11 @@ def _(Parser, ctx, run_func, second_input_text, second_text_area):
 @app.cell(hide_code=True)
 def _(mo, second_info_text, second_input_text, second_text_area):
     mo.vstack(
-        (mo.md(f"Input: {second_input_text}"),second_text_area, mo.md(second_info_text))
+        (
+            mo.md(f"Input: {second_input_text} {mo.ui.button(label="run")}"),
+            second_text_area,
+            mo.md(second_info_text)
+        )
     )
     return
 
