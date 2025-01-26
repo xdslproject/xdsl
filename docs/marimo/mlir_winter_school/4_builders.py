@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.10.14"
 app = marimo.App()
 
 
@@ -29,7 +29,7 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # Builders
+        # 4. Builders
 
         Builders are used to insert new operations in an existing block. While they also exist in MLIR, they work a bit differently in xDSl. In MLIR, builders are used to create operations, while in xDSL builders are used to insert already created operations.
         """
@@ -88,7 +88,7 @@ def _(InsertPoint, module):
     return block, cst0, cst1, cst2
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
