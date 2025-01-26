@@ -4,36 +4,15 @@ __generated_with = "0.10.14"
 app = marimo.App()
 
 
-@app.cell
-def _():
-    import marimo as mo
-
-    from xdsl.builder import Builder, InsertPoint
-
-    from xdsl.dialects.builtin import ModuleOp, IntegerType, IntegerAttr
-    from xdsl.dialects.arith import ConstantOp
-    from xdsl.dialects.scf import IfOp
-    return (
-        Builder,
-        ConstantOp,
-        IfOp,
-        InsertPoint,
-        IntegerAttr,
-        IntegerType,
-        ModuleOp,
-        mo,
-    )
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# 4. Builders""")
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # 4. Builders
-
-        Builders are used to insert new operations in an existing block. While they also exist in MLIR, they work a bit differently in xDSl. In MLIR, builders are used to create operations, while in xDSL builders are used to insert already created operations.
-        """
-    )
+    mo.md(r"""Builders are used to insert new operations in an existing block. While they also exist in MLIR, they work a bit differently in xDSl. In MLIR, builders are used to create operations, while in xDSL builders are used to insert already created operations.""")
     return
 
 
@@ -52,20 +31,24 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(ConstantOp, IntegerAttr, IntegerType, ModuleOp):
+def _(xmo):
+    from xdsl.dialects.builtin import ModuleOp, IntegerType, IntegerAttr
+    from xdsl.dialects.arith import ConstantOp
+
     module = ModuleOp([
         ConstantOp(IntegerAttr(0, IntegerType(64))),
         ConstantOp(IntegerAttr(1, IntegerType(64))),
         ConstantOp(IntegerAttr(2, IntegerType(64))),
     ])
 
-    print("module:\n", end="")
-    print(module)
-    return (module,)
+    xmo.module_html(module)
+    return ConstantOp, IntegerAttr, IntegerType, ModuleOp, module
 
 
 @app.cell
-def _(InsertPoint, module):
+def _(module):
+    from xdsl.builder import Builder, InsertPoint
+
     # The module only block
     block = module.body.block
 
@@ -85,7 +68,7 @@ def _(InsertPoint, module):
 
     # The point at the begining of the block, before cst0
     _ = InsertPoint.at_start(block)
-    return block, cst0, cst1, cst2
+    return Builder, InsertPoint, block, cst0, cst1, cst2
 
 
 @app.cell(hide_code=True)
@@ -101,13 +84,21 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(module):
-    module
+def _(module, xmo):
+    xmo.module_html(module)
     return
 
 
 @app.cell
-def _(Builder, ConstantOp, InsertPoint, IntegerAttr, IntegerType, module):
+def _(
+    Builder,
+    ConstantOp,
+    InsertPoint,
+    IntegerAttr,
+    IntegerType,
+    module,
+    xmo,
+):
     # Clone the module to only do modifications locally.
     # Otherwise this messes up other cells using `module`.
     module_cloned = module.clone()
@@ -130,7 +121,7 @@ def _(Builder, ConstantOp, InsertPoint, IntegerAttr, IntegerType, module):
     # Insert a new operation at the builder location.
     builder.insert(ConstantOp(IntegerAttr(1337, IntegerType(32))))
 
-    print(module_cloned)
+    xmo.module_html(module_cloned)
     return (
         block_cloned,
         builder,
@@ -139,6 +130,18 @@ def _(Builder, ConstantOp, InsertPoint, IntegerAttr, IntegerType, module):
         cst2_cloned,
         module_cloned,
     )
+
+
+@app.cell(hide_code=True)
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
 
 
 if __name__ == "__main__":
