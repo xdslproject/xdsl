@@ -24,7 +24,7 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.10.14",
+    "marimo==0.10.17",
     "pre-commit==4.1.0",
     "ruff==0.9.2",
     "asv<0.7",
@@ -38,6 +38,7 @@ docs = [
     "mkdocs-material>=9.5.49",
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
+    "sympy>=1.13.3",
 ]
 gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.5.0", "numpy==2.2.2"]

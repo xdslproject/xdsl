@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.14"
+__generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
@@ -21,9 +21,8 @@ def _():
     triangle_text = """\
     func.func @triangle(%n: index) -> index {
       %zero = arith.constant 0 : index
-      %step = arith.constant 1 : index
-      %init = arith.constant 0 : index
-      %res = scf.for %i = %zero to %n step %step iter_args(%acc_in = %init) -> (index) {
+      %one = arith.constant 1 : index
+      %res = scf.for %i = %zero to %n step %one iter_args(%acc_in = %zero) -> (index) {
         %square = arith.muli %i, %i : index
         %acc_out = arith.addi %acc_in, %square : index
         scf.yield %acc_out : index
@@ -146,7 +145,7 @@ def _(mo, operation_counts, triangle_module):
         Modify the function below to return the number of instances of the operations in the module.
 
         ```
-        Expected: {{'builtin.module': 1, 'func.func': 1, 'arith.constant': 3, 'scf.for': 1, 'arith.muli': 1, 'arith.addi': 1, 'scf.yield': 1, 'func.return': 1}}
+        Expected: {{'builtin.module': 1, 'func.func': 1, 'arith.constant': 2, 'scf.for': 1, 'arith.muli': 1, 'arith.addi': 1, 'scf.yield': 1, 'func.return': 1}}
         Result:   {operation_counts(triangle_module)}
         ```
         """
@@ -166,6 +165,12 @@ def _(builtin):
 
 @app.cell(hide_code=True)
 def _(mo, operations_by_dialect, triangle_module):
+    _unsorted = operations_by_dialect(triangle_module)
+    _sorted = {
+        k: sorted(_unsorted[k])
+        for k in sorted(_unsorted)
+    }
+
     mo.md(
         fr"""
         ### Exercise 3. Operations By Dialect
@@ -173,8 +178,8 @@ def _(mo, operations_by_dialect, triangle_module):
         Modify the function below to return the operations by dialect in the module
 
         ```
-        Expected: {{'builtin': ['module'], 'func': ['func', 'return'], 'arith': ['constant', 'constant', 'constant', 'muli', 'addi'], 'scf': ['for', 'yield']}}
-        Result:   {operations_by_dialect(triangle_module)}
+        Expected: {{'builtin': ['module'], 'func': ['func', 'return'], 'arith': ['addi', 'constant', 'constant', 'muli'], 'scf': ['for', 'yield']}}
+        Result:   {_sorted}
         ```
         """
     )
@@ -187,7 +192,7 @@ def _(builtin):
     from xdsl.ir import Dialect
     from collections import defaultdict
 
-    def operations_by_dialect(module: builtin.ModuleOp) -> dict[str, int]:
+    def operations_by_dialect(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
     return Dialect, defaultdict, operations_by_dialect
 
@@ -237,32 +242,74 @@ def _(all_ssa_values, mo):
     return
 
 
-@app.cell
-def _(mo, operations_by_dialect, triangle_module):
+@app.cell(hide_code=True)
+def _(definition_by_use, mo, triangle_module):
+    _unsorted = definition_by_use(triangle_module)
+    _sorted = {
+        k: sorted(_unsorted[k])
+        for k in sorted(_unsorted)
+    }
+
     mo.md(
         fr"""
         ### Exercise 4. Definition By Use
 
-        Modify the function below to return the operations by dialect in the module
+        Modify the function below to return the operation that defines the value by the operation that uses it.
+        If the operand is a block argument, use the name of the parent operation.
 
         ```
-        Expected: {{'builtin': ['module'], 'func': ['func', 'return'], 'arith': ['constant', 'constant', 'constant', 'muli', 'addi'], 'scf': ['for', 'yield']}}
-        Result:   {operations_by_dialect(triangle_module)}
+        Expected: {{'scf.for': ['arith.constant, 'arith.constant', 'arith.constant', 'func.func'], 'arith.muli': ['scf.for', 'scf.for'], 'arith.addi': ['arith.muli', 'scf.for'], 'scf.yield': ['arith.addi'], 'func.return': ['scf.for']}}
+        Result:   {_sorted}
         ```
         """
     )
     return
 
 
+@app.cell
+def _(builtin):
+    # These might come in handy
+    from xdsl.ir import OpResult, BlockArgument
+
+    def definition_by_use(module: builtin.ModuleOp) -> dict[str, list[str]]:
+        return {}
+    return BlockArgument, OpResult, definition_by_use
+
+
+@app.cell(hide_code=True)
+def _(mo, triangle_module, uses_by_definition):
+    _unsorted = uses_by_definition(triangle_module)
+    _sorted = {
+        k: sorted(_unsorted[k])
+        for k in sorted(_unsorted)
+    }
+
+    mo.md(
+        fr"""
+        ### Exercise 5. Uses By Definition
+
+        Modify the function below to return the operations that use the result by the operation that defines it.
+
+        ```
+        Expected: {{'arith.constant': ['scf.for', 'scf.for', 'scf.for'], 'scf.for': ['func.return'], 'arith.muli': ['arith.addi'], 'arith.addi': ['scf.yield']}}
+        Result:   {_sorted}
+        ```
+        """
+    )
+    return
+
+
+@app.cell
+def _(builtin):
+    def uses_by_definition(module: builtin.ModuleOp) -> dict[str, list[str]]:
+        return {}
+    return (uses_by_definition,)
+
+
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
     return (mo,)
-
-
-@app.cell
-def _():
-    return
 
 
 if __name__ == "__main__":

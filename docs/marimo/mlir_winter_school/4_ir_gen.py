@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "sympy",
+#     "xdsl",
+# ]
+# ///
+
 import marimo
 
 __generated_with = "0.10.17"
@@ -24,7 +32,7 @@ def _():
     from xdsl.dialects.func import FuncOp, ReturnOp
     from xdsl.dialects.arith import AddfOp, SubfOp, MulfOp, ConstantOp, AddiOp, MuliOp, SIToFPOp, FloatingPointLikeBinaryOperation, DivfOp
     from xdsl.dialects.scf import ForOp, YieldOp
-    from xdsl.dialects.experimental.math import PowFOp, SqrtOp
+    from xdsl.dialects.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
     return (
         Abs,

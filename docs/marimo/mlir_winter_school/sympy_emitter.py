@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.16"
+__generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
@@ -20,7 +20,7 @@ def _():
     from xdsl.dialects.func import FuncOp, ReturnOp
     from xdsl.dialects.arith import AddfOp, SubfOp, MulfOp, ConstantOp, AddiOp, MuliOp, SIToFPOp, FloatingPointLikeBinaryOperation, DivfOp
     from xdsl.dialects.scf import ForOp, YieldOp
-    from xdsl.dialects.experimental.math import PowFOp, SqrtOp
+    from xdsl.dialects.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
     return (
         Abs,
@@ -89,7 +89,6 @@ def _(FloatingPointLikeBinaryOperation, irdl_op_definition):
     @irdl_op_definition
     class PowfOp(FloatingPointLikeBinaryOperation):
         name = "arith.powf"
-
     return (PowfOp,)
 
 
@@ -183,7 +182,6 @@ def _(
 
         def __init__(self, arg: SSAValue):
             super().__init__(operands=[arg], result_types=[Float64Type()])
-
     return AddCOp, ComplexType, CreateOp, ImOp, MulCOp, NormOp, ReOp
 
 

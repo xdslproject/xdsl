@@ -123,7 +123,7 @@ def _(builtin, mo, print_generic):
 
     We'll discuss blocks a bit more when we look at the `func.func` and `scf.for` operations.
 
-    The type of the operation is always printed in the generic format, even if is an operation with no operands or results, as in this case:
+    The type of the operation is always printed in the generic format, even if it is an operation with no operands or results, as in this case:
 
     ```
         : () -> ()
@@ -157,10 +157,10 @@ def _(builtin, mo):
 
     ```
     {builtin.DictionaryAttr({
-        "string": builtin.StringAttr("my_string"),
-        "int": builtin.IntegerAttr(42, builtin.IndexType()),
-        "float": builtin.FloatAttr(3.1415, builtin.f32),
-        "unit": builtin.UnitAttr()
+        "some_string": builtin.StringAttr("my_string"),
+        "some_int": builtin.IntegerAttr(42, builtin.IndexType()),
+        "some_float": builtin.FloatAttr(3.1415, builtin.f32),
+        "a_unit_attr": builtin.UnitAttr()
     })}
     ```
 
@@ -509,9 +509,9 @@ def _(Parser, ctx, run_func, second_input_text, second_text_area):
 def _(mo, second_info_text, second_input_text, second_text_area):
     mo.vstack(
         (
-            mo.md(f"Input: {second_input_text}"),
+            mo.md(f"Input: {second_input_text} {mo.ui.button(label="run")}"),
             second_text_area,
-            mo.md(second_info_text),
+            mo.md(second_info_text)
         )
     )
     return
