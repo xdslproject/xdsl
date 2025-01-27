@@ -319,7 +319,7 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(arith, func, mo, scf):
     from xdsl.dialects import test
     from xdsl.dialects.builtin import i1, i32
@@ -390,19 +390,21 @@ def _(arith, func, mo, scf):
             ```
             {str(_if_op_with_yield).replace("\n", "\n        ")}
             ```
-            A single `scf.yield` can yield multiple values.
-            ```
-            {str(_yield_op_multiple).replace("\n", "\n        ")}
-            ```
             In this example, `%res` will have the content of `%a` if `%c` is true, and of `%b` is `%c` is false.
 
         - **`scf.for`**: This operation models a for loop over a range of integers. It takes in a start value, an end value, and a step value for the iteration variable, and declares a value as a block argument containing the iteration variable. For readability, the declaration site of the iteration value is printed in the `scf.for` operation itself.
             ```
-            {str(_for_op).replace("\n", "\n        ")}
+            %sum = scf.for %i = %start to %end step %step iter_args(%acc = %zero) -> (i32)  : i32 {{
+              %acc_next = arith.addi %acc, %i : i32
+              scf.yield %acc_next : i32
+            }}
             ```
             Aditionally, `scf.for` can expose more iteration variables and return them similarly to `scf.if`. Instead of being incremented automatically, these additional iteration variables are initialized to a certain value, updated at the end of the loop body via `scf.yield`, and passed outside of the loop as result values of `scf.for`. In the summation example below, the state of the sum is accumulated in an additional iteration variable `%acc` initialized with `%zero` before being returned as `%sum`.
             ```
-            {str(_for_op_with_yield).replace("\n", "\n        ")}
+            %sum = scf.for %i = %start to %end step %step iter_args(%acc = %zero) -> (i32)  : i32 {{
+              %acc_next = arith.addi %acc, %i : i32
+              scf.yield %acc_next : i32
+            }}
             ```
         """
     )
