@@ -90,4 +90,12 @@ builtin.module {
 
 // CHECK:      %val = "test.op"() : () -> i32
 // CHECK-NEXT: %fval = llvm.bitcast %val : i32 to f32
+
+  %fval2 = llvm.sitofp %val : i32 to f32
+
+// CHECK-NEXT: %fval2 = llvm.sitofp %val : i32 to f32
+
+  %fval3 = llvm.fpext %fval : f32 to f64
+
+// CHECK-NEXT: %fval3 = llvm.fpext %fval : f32 to f64
 }
