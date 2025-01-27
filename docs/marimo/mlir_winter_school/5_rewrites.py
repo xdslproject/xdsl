@@ -28,9 +28,61 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""# Pattern rewrites""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx):
+    _before_text = """\
+    func.func @my_func(%x : index) -> index {
+      %c0 = arith.constant 0 : index
+      %c2 = arith.constant 2 : index
+      %also_x = arith.addi %c0, %x : index
+      %two_x = arith.muli %also_x, %c2 : index
+      func.return %two_x : index
+    }
+    """
+    before_module = Parser(ctx, _before_text).parse_module()
+    None
+    return (before_module,)
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx):
+    _after_text = """\
+    func.func @my_func(%x : index) -> index {
+      %two_x = arith.addi %x, %x : index
+      func.return %two_x : index
+    }
+    """
+    after_module = Parser(ctx, _after_text).parse_module()
+    None
+    return (after_module,)
+
+
+@app.cell(hide_code=True)
+def _(after_module, before_module, mo, xmo):
+    mo.md(f"""
+    Most of the work in compilers is rewriting IR.
+    While some transformations have to take modules into account, some can be done locally, such as rewriting an addition with zero to just use the non-zero input.
+    These kinds of rewrites are called pattern rewrites, as they apply if some local pattern is matched.
+
+    We can use xDSL's pattern rewriting API to rewrite this function:
+
+    {xmo.module_html(before_module)}
+
+    Into this one:
+
+    {xmo.module_html(after_module)}
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         r"""
-        # Pattern rewrites
 
         ## Rationale
 
@@ -149,6 +201,28 @@ def _(mo):
         """
     )
     return
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.parser import Parser
+    from xdsl.context import MLContext
+
+    from xdsl.dialects.builtin import Builtin
+    from xdsl.dialects.arith import Arith
+    from xdsl.dialects.func import Func
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Func)
+    return Arith, Builtin, Func, MLContext, Parser, ctx
 
 
 if __name__ == "__main__":
