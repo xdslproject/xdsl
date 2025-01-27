@@ -313,81 +313,28 @@ def _(mo, second_info_text, second_input_text, second_text_area):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## `builtin.module`""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(builtin, mo):
-    mo.md(fr"""
-    A module is a unit of code in xDSL and MLIR.
-    It is an operation in the [`builtin` dialect](https://mlir.llvm.org/docs/Dialects/Builtin/), and holds a single _region_.
-
-    The IR structure is a tree, with operations that have an ordered doubly-linked list of regions, each of which has a doubly-linked list of blocks, each of which has a doubly-linked list of operations, and so on.
-    The smallest possible piece of code in MLIR IR is an empty module:
-
-    ```
-    {str(builtin.ModuleOp([]))}
-    ```
-    """
-    )
+    mo.md(r"""## The `builtin` Dialect""")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Generic Format""")
-    return
+    mo.md(
+        r"""
+        The [`builtin` dialect](https://mlir.llvm.org/docs/Dialects/Builtin/) contains the most commonly-used operation in MLIR/xDSL: `builtin.module`
 
+        A module is a unit of code in xDSL and MLIR.
+        It holds a single region.
 
-@app.cell
-def _(Parser, Printer, ctx, swap_text):
-    _swap_module = Parser(ctx, swap_text).parse_module()
-    Printer(print_generic_format=True).print(_swap_module)
-    return
+        The smallest possible piece of code in MLIR IR is an empty module:
 
+        ```
+        builtin.module {
+        }
+        ```
 
-@app.cell(hide_code=True)
-def _(builtin, mo, print_generic):
-    mo.md(fr"""
-    The IRs above are in what's called the _custom format_, a format that allows functions to specify a pretty and concise representation.
-    The _generic format_ is a more uniform and verbose representation that unambiguously shows the structure of an operation.
-    Here is the above minimal module in generic format:
-
-    ```
-    {print_generic(builtin.ModuleOp([]))}
-    ```
-
-    There is a bit more going on.
-
-    First the name of the operation is now in quotes:
-
-    ```
-    "builtin.module"
-    ```
-
-    Next is the list of operands, which is empty:
-
-    ```
-                    ()
-    ```
-
-    Then follows the region (in parentheses), with a single empty block:
-
-    ```
-                       ({{
-    ^0:
-    )}}
-    ```
-
-    We'll discuss blocks a bit more when we look at the `func.func` and `scf.for` operations.
-
-    The type of the operation is always printed in the generic format, even if it is an operation with no operands or results, as in this case:
-
-    ```
-        : () -> ()
-    ```
-    """
+        When the first operation in a file is not a `builtin.module`, it is assumed, as is the case for all the snippets above.
+        """
     )
     return
 
@@ -450,6 +397,37 @@ def _(builtin, mo):
     There are two changes here, the added dictionary and the `attributes` keyword, which is added to avoid the ambiguity between the dictionary and the region, which are both delimited with `{{}}`.
     """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Generic Format""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        The IRs above are in what's called the _custom format_, a format that allows functions to specify a pretty and concise representation.
+        The _generic format_ is a more uniform and verbose representation that unambiguously shows the structure of an operation.
+        Here is the above minimal function in generic format:
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(Parser, Printer, StringIO, ctx, mo, swap_text):
+    _swap_module = Parser(ctx, swap_text).parse_module()
+    _file = StringIO()
+    Printer(print_generic_format=True, stream=_file).print(_swap_module)
+    mo.md(f"""
+    ```
+    {_file.getvalue()}
+    ```
+    """)
     return
 
 
