@@ -515,18 +515,16 @@ def _():
 @app.cell(hide_code=True)
 def _():
     triangle_text = """\
-    builtin.module {
-      func.func @triangle(%n: index) -> index {
-        %zero = arith.constant 0 : index
-        %step = arith.constant 1 : index
-        %init = arith.constant 0 : index
-        %res = scf.for %i = %zero to %n step %step iter_args(%acc_in = %init) -> (index) {
-          %square = arith.muli %i, %i : index
-          %acc_out = arith.addi %acc_in, %square : index
-          scf.yield %acc_out : index
-        }
-        func.return %res : index
+    func.func @triangle(%n: index) -> index {
+      %zero = arith.constant 0 : index
+      %step = arith.constant 1 : index
+      %init = arith.constant 0 : index
+      %res = scf.for %i = %zero to %n step %step iter_args(%acc_in = %init) -> (index) {
+        %square = arith.muli %i, %i : index
+        %acc_out = arith.addi %acc_in, %square : index
+        scf.yield %acc_out : index
       }
+      func.return %res : index
     }\
     """
     return (triangle_text,)
