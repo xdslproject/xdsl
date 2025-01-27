@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "xdsl",
+#     "xdsl==0.27.0",
 # ]
 # ///
 
