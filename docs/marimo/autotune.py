@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.10"
+__generated_with = "0.10.17"
 app = marimo.App(width="full")
 
 
@@ -76,7 +76,7 @@ def _():
     return MemRefType, arith, func, linalg
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(MemRefType, arith, func, linalg):
     def build_matmul(_a_type: MemRefType, _b_type: MemRefType, _c_type: MemRefType) -> ModuleOp:
         from xdsl.builder import ImplicitBuilder
@@ -147,7 +147,7 @@ def _(MemRefType, a_shape, b_shape, build_matmul, c_shape, mo, xmo):
     return a_type, b_type, c_type, f64, linalg_module
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     from xdsl.context import MLContext
     from xdsl.dialects import get_all_dialects
@@ -165,7 +165,7 @@ def _():
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(linalg_ctx, linalg_module, xmo):
     from xdsl.passes import PipelinePass
     from xdsl.transforms import arith_add_fastmath, convert_linalg_to_memref_stream
@@ -233,6 +233,12 @@ def _(PipelinePass, memref_stream_ctx, memref_stream_module, mo, xmo):
     )
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Cycle Estimation""")
+    return
+
+
 @app.cell
 def _():
     from dataclasses import dataclass, field
@@ -284,6 +290,12 @@ def _(Operation, PythonValues, dataclass, field):
         riscv_cf,
         riscv_func,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Cost Model""")
+    return
 
 
 @app.cell
@@ -507,7 +519,7 @@ def _(mo, msg_factors):
     return MemrefStreamUnrollAndJamPass, uaj_passes
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(MLContext, ModuleOp, ModulePass):
     def apply(p: ModulePass, ctx: MLContext, op: ModuleOp) -> ModuleOp:
         op = op.clone()
