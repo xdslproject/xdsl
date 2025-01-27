@@ -12,7 +12,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Builders are used to insert new operations in an existing block. While they also exist in MLIR, they work a bit differently in xDSl. In MLIR, builders are used to create operations, while in xDSL builders are used to insert already created operations.""")
+    mo.md(r"""Builders are used to insert new operations in an existing block. While they also exist in MLIR, they work a bit differently in xDSL. In MLIR, builders are used to create operations, while in xDSL builders are used to insert already created operations.""")
     return
 
 
@@ -26,7 +26,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        In xDSL, it is conventional to define a custom `__init__` function (a Python constructor) when defining operations, which makes it easier for clients to create these operations.
+        In xDSL, ops often define a custom `__init__` function (a Python constructor). This makes it easier for clients to create these operations.
 
         For example, here is the API for creating an `arith.constant` instance:
         """
@@ -70,7 +70,7 @@ def _(mo):
 
         Insertion points are defined by `InsertPoint`, and correspond to a location in a block. They are either pointing to the place before an operation, or at the end of a block. An `InsertPoint` can be created using the static methods `before`, `after`, `at_start`, and `at_end`.
 
-        Here is how to define an `InsertPoint` for the following program:
+        Let's look at the following program:
         """
     )
     return
@@ -89,6 +89,12 @@ def _(xmo):
 
     xmo.module_html(module)
     return ConstantOp, IntegerAttr, IntegerType, ModuleOp, module
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""The following code defines insertion points inside this program:""")
+    return
 
 
 @app.cell
@@ -123,7 +129,7 @@ def _(mo):
         r"""
         # Builders
 
-        Builders insert new operations at their insertion point. Here is an example on how to insert a new operation in a block:
+        Builders insert new operations at their insertion point. Let's look again at our previous program:
         """
     )
     return
@@ -132,6 +138,12 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(module, xmo):
     xmo.module_html(module)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""The following program inserts new operations inside the program using a builder:""")
     return
 
 
