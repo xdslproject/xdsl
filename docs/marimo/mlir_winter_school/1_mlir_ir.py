@@ -25,8 +25,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo, triangle_text):
-    mo.md(
-        rf"""
+    mo.md(fr"""
     MLIR and xDSL use an encoding of the IR as a textual format for debugging, testing, and storing intermediate representations of programs.
     It can be very useful to take a program at some stage of compilation, and inspect it.
     The textual format makes this easy to do.
@@ -65,8 +64,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(builtin, mo):
-    mo.md(
-        rf"""
+    mo.md(fr"""
     A module is a unit of code in xDSL and MLIR.
     It is an operation in the [`builtin` dialect](https://mlir.llvm.org/docs/Dialects/Builtin/), and holds a single _region_.
 
@@ -89,8 +87,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(builtin, mo, print_generic):
-    mo.md(
-        rf"""
+    mo.md(fr"""
     The IRs above are in what's called the _custom format_, a format that allows functions to specify a pretty and concise representation.
     The _generic format_ is a more uniform and verbose representation that unambiguously shows the structure of an operation.
     Here is the above minimal module in generic format:
@@ -141,8 +138,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(builtin, mo):
-    mo.md(
-        rf"""
+    mo.md(fr"""
     Attributes hold compile-time data, such as constants, types, and other information.
     The IR above contains four attributes: `@triangle`, `0`, `1` and `index`.
     `index` is the type of integer values that fit in a register on the target.
@@ -181,8 +177,7 @@ def _(builtin, mo):
     _module_op = builtin.ModuleOp([])
     _module_op.attributes = {"my_key": builtin.StringAttr("my_value")}
 
-    mo.md(
-        rf"""
+    mo.md(fr"""
     Operations can be supplemented with arbitrary information via their attribute dictionary.
 
     Here's a module with some extra information:
