@@ -71,38 +71,24 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _():
+    swap_text = """\
+    func.func @swap(%a : i32, %b : i32) -> (i32, i32) {
+      func.return %b, %a : i32, i32
+    }"""
+    return (swap_text,)
+
+
+@app.cell(hide_code=True)
+def _(mo, swap_text, xmo):
     mo.md(
-        r"""
-        The `func` dialect contains building blocks to model functions and function calls. It contains the following important operations:
+        fr"""
+        The [func dialect](https://mlir.llvm.org/docs/Dialects/Func/) contains building blocks to model functions and function calls.
 
-            - **`func.func`**: This operation is used to model function definition. They contain the symbolic name of the function to be defined, along with an inner region representing the body of the function.
-                ```
-                func.func @hello() {{
-                  func.return
-                }}
-                ```
-                In order to model function parameters, the entry block of the body region has **block arguments** corresponding to each function argument. In the context of `func.func`, these arguments represent values that will be filled by the caller. For readability, the custom format of `func.func` prints them next to the function name.
-                ```
-                func.func @hello(%x : i32) {{
-                  func.return
-                }}
-                ```
+        {xmo.module_html(swap_text)}
 
-            - **`func.return`**: This operation represents a return statement, taking as parameters the values that should be returned. `func.return` is a terminator, meaning that it must be the last operation in its block.
-                ```
-                func.func @swap(%a : i32, %b : i32) -> (i32, i32) {{
-                  func.return %b, %a : i32, i32
-                }}
-                ```
-
-            - **`func.call`**: This operation allows calling a function by its symbol name. `func.call` takes as operands the values of the function parameters, and its results are the return values of the function. Like all operations in MLIR, the operand and result types must be locally inferable from syntax, and thus the call operation makes the function argument and result types explicit.
-                ```
-                func.func @uses_swap(%a : i32, %b : i32) -> (i32, i32) {{
-                  %res0, %res1 = func.call @swap(%a, %b) : (i32, i32) -> (i32, i32)
-                  func.return %res0, %res1 : i32, i32
-                }}
-                ```
+        The above function takes two 32-bit integers, and returns them in the opposite order
+        In this snippet, there are two operations, `func.func` for function definition and `func.return` to specify the returned values.
         """
     )
     return
@@ -204,6 +190,13 @@ def _(builtin, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""## Generic Format""")
+    return
+
+
+@app.cell
+def _(Parser, Printer, ctx, swap_text):
+    _swap_module = Parser(ctx, swap_text).parse_module()
+    Printer(print_generic_format=True).print(_swap_module)
     return
 
 
@@ -484,6 +477,12 @@ def _(mo, second_info_text, second_input_text, second_text_area):
 def _():
     import marimo as mo
     return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
 
 
 @app.cell(hide_code=True)
