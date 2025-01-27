@@ -96,7 +96,7 @@ def _(mo, swap_text, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Exercise 1: Your First Function""")
+    mo.md(r"""### Exercise 1: Your First Function""")
     return
 
 
