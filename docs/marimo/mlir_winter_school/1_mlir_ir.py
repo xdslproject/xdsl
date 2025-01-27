@@ -319,7 +319,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(arith, func, mo, scf):
     from xdsl.dialects import test
     from xdsl.dialects.builtin import i1, i32
