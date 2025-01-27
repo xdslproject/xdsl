@@ -312,7 +312,7 @@ def _(Parser, ctx, first_text_area, run_func):
         first_results_12_text = f"first(1, 2) = {first_results_12}"
         first_results_34_text = f"first(3, 4) = {first_results_34}"
     except Exception as e:
-        error_text = str(e)
+        first_error_text = str(e)
     if first_error_text:
         first_info_text = f"""
         Error:
@@ -331,7 +331,6 @@ def _(Parser, ctx, first_text_area, run_func):
         ```
         """
     return (
-        error_text,
         first_error_text,
         first_info_text,
         first_module,
