@@ -32,27 +32,149 @@ def _(mo, triangle_text):
     Let's look at a representation of a function that sums the first `n` integers:
 
     {mo.ui.code_editor(triangle_text, language="javascript", disabled=True)}
-
-    We'll look at it more in detail, but let's take a look at some broad properties:
-
-    1. The IR is "structured".
-
-    There are curly braces (`{{}}`) with indented code in them, a bit like the C family languages.
-
-    2. There are assignments with `=`
-
-    One important detail is that each value is assigned to exactly once.
-    MLIR IR is in [SSA form](https://en.wikipedia.org/wiki/Static_single-assignment_form), a property that makes it easier to determine the contents of a value when reasoning about code.
-
-    3. The things immediately to the right of the assignments are in the form `first.second`
-
-    These things are the names of operations.
-    These operations are the core building blocks of MLIR IR, and their structure and meaning is indicated by this name.
-    The names are all in two parts, where the first part is the name of a dialect, a kind of namespace for related concepts, and the second makes the operation name unique within the dialect.
-
-    With this in mind, let's zoom in to the first operation.
     """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        We'll look at it more in detail, but let's take a look at some broad properties:
+
+        1. The IR is "structured".
+
+        There are curly braces (`{{}}`) with indented code in them, a bit like the C family languages.
+
+        2. There are assignments with `=`
+
+        One important detail is that each value is assigned to exactly once.
+        MLIR IR is in [SSA form](https://en.wikipedia.org/wiki/Static_single-assignment_form), a property that makes it easier to determine the contents of a value when reasoning about code.
+
+        3. The things immediately to the right of the assignments are in the form `first.second`
+
+        These things are the names of operations.
+        These operations are the core building blocks of MLIR IR, and their structure and meaning is indicated by this name.
+        The names are all in two parts, where the first part is the name of a dialect, a kind of namespace for related concepts, and the second makes the operation name unique within the dialect.
+
+        With this in mind, let's zoom in to the first operation.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## The `func` Dialect""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        The `func` dialect contains building blocks to model functions and function calls. It contains the following important operations:
+
+            - **`func.func`**: This operation is used to model function definition. They contain the symbolic name of the function to be defined, along with an inner region representing the body of the function.
+                ```
+                func.func @hello() {{
+                  func.return
+                }}
+                ```
+                In order to model function parameters, the entry block of the body region has **block arguments** corresponding to each function argument. In the context of `func.func`, these arguments represent values that will be filled by the caller. For readability, the custom format of `func.func` prints them next to the function name.
+                ```
+                func.func @hello(%x : i32) {{
+                  func.return
+                }}
+                ```
+
+            - **`func.return`**: This operation represents a return statement, taking as parameters the values that should be returned. `func.return` is a terminator, meaning that it must be the last operation in its block.
+                ```
+                func.func @swap(%a : i32, %b : i32) -> (i32, i32) {{
+                  func.return %b, %a : i32, i32
+                }}
+                ```
+
+            - **`func.call`**: This operation allows calling a function by its symbol name. `func.call` takes as operands the values of the function parameters, and its results are the return values of the function. Like all operations in MLIR, the operand and result types must be locally inferable from syntax, and thus the call operation makes the function argument and result types explicit.
+                ```
+                func.func @uses_swap(%a : i32, %b : i32) -> (i32, i32) {{
+                  %res0, %res1 = func.call @swap(%a, %b) : (i32, i32) -> (i32, i32)
+                  func.return %res0, %res1 : i32, i32
+                }}
+                ```
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Exercise 1: Your First Function""")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    first_text = """\
+    func.func @first(%arg0: index, %arg1: index) -> index {
+        // Change this to return the second argument instead
+        func.return %arg0 : index
+    }\
+    """
+    return (first_text,)
+
+
+@app.cell(hide_code=True)
+def _(first_text, mo):
+    first_text_area = mo.ui.code_editor(first_text, language="javascript")
+    return (first_text_area,)
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx, first_text_area, run_func):
+    first_error_text = ""
+    first_results_12_text = ""
+    first_results_34_text = ""
+    try:
+        first_module = Parser(ctx, first_text_area.value).parse_module()
+        first_results_12 = run_func(first_module, "first", (1, 2))
+        first_results_34 = run_func(first_module, "first", (3, 4))
+        first_results_12_text = f"first(1, 2) = {first_results_12}"
+        first_results_34_text = f"first(3, 4) = {first_results_34}"
+    except Exception as e:
+        first_error_text = str(e)
+    if first_error_text:
+        first_info_text = f"""
+        Error:
+
+        ```
+        {first_error_text}
+        ```
+        """
+    else:
+        first_info_text = f"""\
+        Here are the outputs when running the function with inputs (1, 2), and (3, 4):
+
+        ```
+        {first_results_12_text}
+        {first_results_34_text}
+        ```
+        """
+    return (
+        first_error_text,
+        first_info_text,
+        first_module,
+        first_results_12,
+        first_results_12_text,
+        first_results_34,
+        first_results_34_text,
+    )
+
+
+@app.cell(hide_code=True)
+def _(first_info_text, first_text_area, mo):
+    mo.vstack((first_text_area, mo.md(first_info_text)))
     return
 
 
@@ -193,170 +315,15 @@ def _(builtin, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## The `func` Dialect""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(func, mo):
-    from xdsl.ir import Region, Block
-    from xdsl.dialects.builtin import i32
-
-    _func_op = func.FuncOp("hello", ((), ()), Region([Block([func.ReturnOp()])]))
-    _func_op_with_args = func.FuncOp(
-        "hello", ((i32,), ()), Region([Block([func.ReturnOp()], arg_types=[i32])])
-    )
-    _func_op_with_args.body.block.args[0].name_hint = "x"
-    _func_op_with_return_value = func.FuncOp(
-        "swap", ((i32, i32), (i32, i32)), Region([Block([], arg_types=[i32, i32])])
-    )
-    _func_op_with_return_value.body.block.add_op(
-        func.ReturnOp(
-            _func_op_with_return_value.body.block.args[1],
-            _func_op_with_return_value.body.block.args[0],
-        )
-    )
-    _func_op_with_return_value.body.block.args[0].name_hint = "a"
-    _func_op_with_return_value.body.block.args[1].name_hint = "b"
-
-    _func_op_calling_example = func.FuncOp(
-        "uses_swap",
-        ((i32, i32), (i32, i32)),
-        Region([Block([], arg_types=[i32, i32])]),
-    )
-    _call_op = func.CallOp(
-        "swap",
-        [
-            _func_op_calling_example.body.block.args[0],
-            _func_op_calling_example.body.block.args[1],
-        ],
-        [i32, i32],
-    )
-    _func_op_calling_example.body.block.add_op(_call_op)
-    _func_op_calling_example.body.block.add_op(
-        func.ReturnOp(
-            _call_op.results[0],
-            _call_op.results[1],
-        )
-    )
-    _func_op_calling_example.body.block.args[0].name_hint = "a"
-    _func_op_calling_example.body.block.args[1].name_hint = "b"
-    _call_op.results[0].name_hint = "res0"
-    _call_op.results[1].name_hint = "res1"
-
-    mo.md(
-        rf"""
-        The `func` dialect contains building blocks to model functions and function calls. It contains the following important operations:
-
-        - **`func.func`**: This operation is used to model function definition. They contain the symbolic name of the function to be defined, along with an inner region representing the body of the function.
-            ```
-            {str(_func_op).replace("\n", "\n        ")}
-            ```
-            In order to model function parameters, the entry block of the body region has **block arguments** corresponding to each function argument. In the context of `func.func`, these arguments represent values that will be filled by the caller. For readability, the custom format of `func.func` prints them next to the function name.
-            ```
-            {str(_func_op_with_args).replace("\n", "\n        ")}
-            ```
-
-        - **`func.return`**: This operation represents a return statement, taking as parameters the values that should be returned. `func.return` is a terminator, meaning that it must be the last operation in its block.
-            ```
-            {str(_func_op_with_return_value).replace("\n", "\n        ")}
-            ```
-
-        - **`func.call`**: This operation allows calling a function by its symbol name. `func.call` takes as operands the values of the function parameters, and its results are the return values of the function. Like all operations in MLIR, the operand and result types must be locally inferable from syntax, and thus the call operation makes the function argument and result types explicit.
-            ```
-            {str(_func_op_calling_example).replace("\n", "\n        ")}
-            ```
-        """
-    )
-    return Block, Region, i32
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""## Properties""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""## Exercise 1: Your First Function""")
-    return
-
-
-@app.cell(hide_code=True)
-def _():
-    first_text = """\
-    func.func @first(%arg0: index, %arg1: index) -> index {
-        // Change this to return the second argument instead
-        func.return %arg0 : index
-    }\
-    """
-    return (first_text,)
-
-
-@app.cell(hide_code=True)
-def _(first_text, mo):
-    first_text_area = mo.ui.code_editor(first_text, language="javascript")
-    return (first_text_area,)
-
-
-@app.cell(hide_code=True)
-def _(Parser, ctx, first_text_area, run_func):
-    first_error_text = ""
-    first_results_12_text = ""
-    first_results_34_text = ""
-    try:
-        first_module = Parser(ctx, first_text_area.value).parse_module()
-        first_results_12 = run_func(first_module, "first", (1, 2))
-        first_results_34 = run_func(first_module, "first", (3, 4))
-        first_results_12_text = f"first(1, 2) = {first_results_12}"
-        first_results_34_text = f"first(3, 4) = {first_results_34}"
-    except Exception as e:
-        first_error_text = str(e)
-    if first_error_text:
-        first_info_text = f"""
-        Error:
-
-        ```
-        {first_error_text}
-        ```
-        """
-    else:
-        first_info_text = f"""\
-        Here are the outputs when running the function with inputs (1, 2), and (3, 4):
-
-        ```
-        {first_results_12_text}
-        {first_results_34_text}
-        ```
-        """
-    return (
-        first_error_text,
-        first_info_text,
-        first_module,
-        first_results_12,
-        first_results_12_text,
-        first_results_34,
-        first_results_34_text,
-    )
-
-
-@app.cell(hide_code=True)
-def _(first_info_text, first_text_area, mo):
-    mo.vstack((first_text_area, mo.md(first_info_text)))
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""## The `scf` Dialect""")
     return
 
 
 @app.cell(hide_code=True)
-def _(Block, Region, arith, func, i32, mo, scf):
+def _(arith, func, mo, scf):
     from xdsl.dialects import test
-    from xdsl.dialects.builtin import i1
+    from xdsl.dialects.builtin import i1, i32
+    from xdsl.ir import Region, Block
 
     _dummies = test.TestOp(result_types=[i32, i32, i1, i32, i32, i32, i32])
     _a = _dummies.results[0]
@@ -439,7 +406,7 @@ def _(Block, Region, arith, func, i32, mo, scf):
             ```
         """
     )
-    return i1, test
+    return Block, Region, i1, i32, test
 
 
 @app.cell(hide_code=True)
