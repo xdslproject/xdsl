@@ -26,7 +26,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        In xDSL, ops often define a custom `__init__` function (a Python constructor). This makes it easier for clients to create these operations.
+        In xDSL, ops often define a custom `__init__` constructor to make operation creation easier.
 
         For example, here is the API for creating an `arith.constant` instance:
         """
@@ -64,11 +64,17 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""## Using the `Builder`""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         r"""
-        ## Insertion Point
+        A `Builder` insert new operations at a given insertion point (A position before an operation, or at the end of a block). Whenever a builder inserts a new operation, it updates its insertion point to be after the inserted operation.
 
-        Insertion points are defined by `InsertPoint`, and correspond to a location in a block. They are either pointing to the place before an operation, or at the end of a block. An `InsertPoint` can be created using the static methods `before`, `after`, `at_start`, and `at_end`.
+        The `Builder` constructor takes a single argument, which is an `InsertPoint`. An `InsertPoint` can be created using the static methods `before`, `after`, `at_start`, and `at_end`.
 
         Let's look at the following program:
         """
@@ -93,101 +99,84 @@ def _(xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""The following code defines insertion points inside this program:""")
+    mo.md("""The following code inserts the constant `3` and `4` in the IR using the builders.""")
     return
 
 
 @app.cell
-def _(module):
+def _(ConstantOp, IntegerAttr, IntegerType, module):
     from xdsl.builder import Builder, InsertPoint
 
-    # The module only block
-    block = module.body.block
-
-    # The three constant operations
-    cst0 = module.body.ops.first
-    cst1 = cst0.next_op
-    cst2 = cst1.next_op
-
-    # The point between cst0 and cst1
-    _ = InsertPoint.before(cst1)
-
-    # The point between cst1 and cst2
-    _ = InsertPoint.after(cst1)
-
-    # The point at the end of the block, after cst2
-    _ = InsertPoint.at_end(block)
-
-    # The point at the begining of the block, before cst0
-    _ = InsertPoint.at_start(block)
-    return Builder, InsertPoint, block, cst0, cst1, cst2
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-        # Builders
-
-        Builders insert new operations at their insertion point. Let's look again at our previous program:
-        """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(module, xmo):
-    xmo.module_html(module)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md("""The following program inserts new operations inside the program using a builder:""")
-    return
-
-
-@app.cell
-def _(
-    Builder,
-    ConstantOp,
-    InsertPoint,
-    IntegerAttr,
-    IntegerType,
-    module,
-    xmo,
-):
     # Clone the module to only do modifications locally.
     # Otherwise this messes up other cells using `module`.
     module_cloned = module.clone()
     block_cloned = module_cloned.body.block
     cst0_cloned = module_cloned.body.ops.first
     cst1_cloned = cst0_cloned.next_op
-    cst2_cloned = cst1_cloned.next_op
 
+    # Insert 3 between 0 and 1
+    builder1 = Builder(InsertPoint.before(cst1_cloned))
+    builder1.insert(ConstantOp(IntegerAttr(3, IntegerType(64))))
 
-    # Create a new builder at the location before the constant 1.
-    builder = Builder(InsertPoint.before(cst1_cloned))
+    # Insert 4 and 5 at the end of the block
+    builder2 = Builder(InsertPoint.at_end(block_cloned))
+    builder2.insert(ConstantOp(IntegerAttr(4, IntegerType(64))))
+    builder2.insert(ConstantOp(IntegerAttr(5, IntegerType(64))))
 
-    # Insert a new operation at the builder location.
-    builder.insert(ConstantOp(IntegerAttr(42, IntegerType(32))))
-
-    # Change the builder insertion point.
-    # This is done by modifying the `insertion_point` field.
-    builder.insertion_point = InsertPoint.at_end(block_cloned)
-
-    # Insert a new operation at the builder location.
-    builder.insert(ConstantOp(IntegerAttr(1337, IntegerType(32))))
-
-    xmo.module_html(module_cloned)
+    None
     return (
+        Builder,
+        InsertPoint,
         block_cloned,
-        builder,
+        builder1,
+        builder2,
         cst0_cloned,
         cst1_cloned,
-        cst2_cloned,
         module_cloned,
     )
+
+
+@app.cell
+def _(module_cloned):
+    module_cloned
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        ## Small exercise
+
+        As a simple task, insert the program so the operations are read in order `0, 1, 2, 3, 4, 5, 6, 7`
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(ConstantOp, IntegerAttr, IntegerType, ModuleOp, xmo):
+    module2 = ModuleOp([
+        ConstantOp(IntegerAttr(1, IntegerType(64))),
+        ConstantOp(IntegerAttr(4, IntegerType(64))),
+        ConstantOp(IntegerAttr(6, IntegerType(64))),
+    ])
+
+    xmo.module_html(module2)
+    return (module2,)
+
+
+@app.cell
+def _(module2):
+    module2_cloned = module2.clone()
+
+    block = module2_cloned.body.block
+    cst1 = block.first_op
+    cst4 = cst1.next_op
+    cst6 = cst4.next_op
+
+    # Use the builder here
+    return block, cst1, cst4, cst6, module2_cloned
 
 
 @app.cell(hide_code=True)

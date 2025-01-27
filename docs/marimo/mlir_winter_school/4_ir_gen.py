@@ -232,8 +232,12 @@ def _(Expr, emit_ir):
         # Print the SymPy expression
         print(expr)
 
-        # Converts the SymPy expression to an MLIR `builtin.module` operation
-        op = emit_ir(expr)
+        try:
+            # Converts the SymPy expression to an MLIR `builtin.module` operation
+            op = emit_ir(expr)
+        except NotImplementedError as e:
+            print(e, "\n\n")
+            return
 
         # Check that the operation verifies, and prints the operation
         op.verify()

@@ -26,7 +26,7 @@ def _():
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -106,7 +106,7 @@ def _(
     return AddZeroPattern, MulTwoPattern
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -139,7 +139,7 @@ def _(
     return (apply_all_rewrites,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
