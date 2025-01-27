@@ -164,13 +164,12 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     fma_text = """\
     func.func @fused_multiply_add(%a : i32, %b : i32, %c : i32) -> (i32) {
-      %prod = arith.muli %a, %b : i32
-      %sum = arith.addi %prod, %c : i32
-      func.return %sum : i32
+      // Change this to return a * b + c instead
+      func.return %a : i32
     }"""
     return (fma_text,)
 
@@ -179,6 +178,13 @@ def _():
 def _(fma_text, mo):
     fma_text_area = mo.ui.code_editor(fma_text, language="javascript")
     return (fma_text_area,)
+
+
+@app.cell(hide_code=True)
+def _(exercise_text, fma_text_area, mo):
+    _fma_info_text = exercise_text(fma_text_area.value, "fused_multiply_add", ((1, 2, 3), (4, 5, 6)), ("first(1, 2, 3) = ", "first(4, 5, 6) = "))
+    mo.vstack((fma_text_area, mo.md(_fma_info_text)))
+    return
 
 
 @app.cell(hide_code=True)
