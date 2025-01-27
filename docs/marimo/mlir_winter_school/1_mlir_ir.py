@@ -118,50 +118,67 @@ def _(first_text, mo):
 
 
 @app.cell(hide_code=True)
-def _(Parser, ctx, first_text_area, run_func):
-    first_error_text = ""
-    first_results_12_text = ""
-    first_results_34_text = ""
-    try:
-        first_module = Parser(ctx, first_text_area.value).parse_module()
-        first_results_12 = run_func(first_module, "first", (1, 2))
-        first_results_34 = run_func(first_module, "first", (3, 4))
-        first_results_12_text = f"first(1, 2) = {first_results_12}"
-        first_results_34_text = f"first(3, 4) = {first_results_34}"
-    except Exception as e:
-        first_error_text = str(e)
-    if first_error_text:
-        first_info_text = f"""
-        Error:
-
-        ```
-        {first_error_text}
-        ```
-        """
-    else:
-        first_info_text = f"""\
-        Here are the outputs when running the function with inputs (1, 2), and (3, 4):
-
-        ```
-        {first_results_12_text}
-        {first_results_34_text}
-        ```
-        """
-    return (
-        first_error_text,
-        first_info_text,
-        first_module,
-        first_results_12,
-        first_results_12_text,
-        first_results_34,
-        first_results_34_text,
-    )
+def _(exercise_text, first_text_area, mo):
+    _first_info_text = exercise_text(first_text_area.value, "first", ((1, 2), (3, 4)), ("first(1, 2) = ", "first(3, 4) = "))
+    mo.vstack((first_text_area, mo.md(_first_info_text)))
+    return
 
 
 @app.cell(hide_code=True)
-def _(first_info_text, first_text_area, mo):
-    mo.vstack((first_text_area, mo.md(first_info_text)))
+def _(mo):
+    mo.md(r"""## The Arith Dialect""")
     return
+
+
+@app.cell(hide_code=True)
+def _():
+    l1_dist_text = """\
+    func.func @l1_dist(%a : i32, %b : i32, %c : i32) -> (i32) {
+      %a_minus_b = arith.subi %a, %b : i32
+      %b_minus_a = arith.subi %b, %a : i32
+      %slt = arith.cmpi slt, %lhs, %rhs : i32
+      %res = arith.select %slt, %a_minus_b, %b_minus_a : i32
+      func.return %sum : i32
+    }"""
+    return (l1_dist_text,)
+
+
+@app.cell(hide_code=True)
+def _(l1_dist_text, mo, xmo):
+    mo.md(
+        fr"""
+        The [arith dialect](https://mlir.llvm.org/docs/Dialects/Arith/) contains arithmetic operations on integers, floating-point values, and other numeric constructs.
+
+        {xmo.module_html(l1_dist_text)}
+
+        The `arith.cmpi` operation specifies how it interprets the inputs.
+        Importantly, the signedness of the operands is not specified by the types, and rather by the operation itself.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""### Exercise 2: Fused Multiply-Add""")
+    return
+
+
+@app.cell
+def _():
+    fma_text = """\
+    func.func @fused_multiply_add(%a : i32, %b : i32, %c : i32) -> (i32) {
+      %prod = arith.muli %a, %b : i32
+      %sum = arith.addi %prod, %c : i32
+      func.return %sum : i32
+    }"""
+    return (fma_text,)
+
+
+@app.cell(hide_code=True)
+def _(fma_text, mo):
+    fma_text_area = mo.ui.code_editor(fma_text, language="javascript")
+    return (fma_text_area,)
 
 
 @app.cell(hide_code=True)
@@ -562,6 +579,39 @@ def _(ModuleOp):
 
         return res
     return Any, run_func
+
+
+@app.cell(hide_code=True)
+def _(Any, Parser, ctx, run_func):
+    def exercise_text(module_text: str, function_name: str, inputs: tuple[Any, ...], formats: tuple[str, ...]) -> str:
+        error_text = ""
+        results_text = ""
+        try:
+            module = Parser(ctx, module_text).parse_module()
+            results_text = "\n".join(
+                format + str(run_func(module, function_name, input))
+                for format, input in zip(formats, inputs, strict=True)
+            )
+        except Exception as e:
+            error_text = str(e)
+        if error_text:
+            info_text = f"""
+    Error:
+
+    ```
+    {error_text}
+    ```
+    """
+        else:
+            info_text = f"""
+    Here are the outputs when running the function:
+
+    ```
+    {results_text}
+    ```
+    """
+        return info_text
+    return (exercise_text,)
 
 
 if __name__ == "__main__":
