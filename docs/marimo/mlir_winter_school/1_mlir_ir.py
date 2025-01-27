@@ -136,9 +136,9 @@ def _():
     func.func @l1_dist(%a : i32, %b : i32, %c : i32) -> (i32) {
       %a_minus_b = arith.subi %a, %b : i32
       %b_minus_a = arith.subi %b, %a : i32
-      %slt = arith.cmpi slt, %lhs, %rhs : i32
+      %slt = arith.cmpi slt, %lhs, %rhs : i1
       %res = arith.select %slt, %a_minus_b, %b_minus_a : i32
-      func.return %sum : i32
+      func.return %res : i32
     }"""
     return (l1_dist_text,)
 
