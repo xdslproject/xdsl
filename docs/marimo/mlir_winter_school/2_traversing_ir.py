@@ -102,6 +102,38 @@ def _(mo, triangle_module):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(
+        r"""
+        These helpers will be useful for the exercises below:
+
+        `Operation`:
+
+        * `results: Sequence[OpResult]`
+        * `operands: Sequence[SSAValue]`
+
+        `Block`:
+
+        * `parent_op: Operation | None`
+        * `args: Sequence[BlockArgument]`
+
+        `SSAValue`:
+
+        * `uses: set[Use]`
+        * `owner: Operation | Block`
+
+        `OpResult` and `BlockArgument` are subclasses of `SSAValue`.
+
+        `Use`:
+
+        * `operation: Operation`
+
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""## Exercises""")
     return
 
@@ -257,6 +289,9 @@ def _(definition_by_use, mo, triangle_module):
         Modify the function below to return the operation that defines the value by the operation that uses it.
         If the operand is a block argument, use the name of the parent operation.
 
+        Note: the `SSAValue` class provides a `owner` helper that might be useful.
+
+
         ```
         Expected: {{'scf.for': ['arith.constant, 'arith.constant', 'arith.constant', 'func.func'], 'arith.muli': ['scf.for', 'scf.for'], 'arith.addi': ['arith.muli', 'scf.for'], 'scf.yield': ['arith.addi'], 'func.return': ['scf.for']}}
         Result:   {_sorted}
@@ -289,6 +324,8 @@ def _(mo, triangle_module, uses_by_definition):
         ### Exercise 5. Uses By Definition
 
         Modify the function below to return the operations that use the result by the operation that defines it.
+
+        Note: the `SSAValue` class provides a `uses` helper that might be useful.
 
         ```
         Expected: {{'arith.constant': ['scf.for', 'scf.for', 'scf.for'], 'scf.for': ['func.return'], 'arith.muli': ['arith.addi'], 'arith.addi': ['scf.yield']}}
