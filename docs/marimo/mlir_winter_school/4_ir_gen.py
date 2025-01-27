@@ -19,7 +19,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function, UnevaluatedExpr
     from sympy.core.symbol import Symbol
@@ -341,7 +341,7 @@ def _(
         expr: Expr,
         builder: Builder,
         args: dict[Symbol, SSAValue],
-    ):
+    ) -> SSAValue:
         type = get_mlir_type(expr)
         if isinstance(type, IntegerType):
             return emit_integer_op(expr, builder, args)
@@ -354,7 +354,7 @@ def _(
         expr: Expr,
         builder: Builder,
         args: dict[Symbol, SSAValue],
-    ):
+    ) -> SSAValue:
         # Handle symbolic values
         if isinstance(expr, Symbol):
             return args[expr]
@@ -372,7 +372,7 @@ def _(
         expr: Expr,
         builder: Builder,
         args: dict[Symbol, SSAValue],
-    ):
+    ) -> SSAValue:
         # If the expression is an integer expression, emits it and then convert it
         # back to a float expression.
         if expr.is_integer:
@@ -428,7 +428,7 @@ def _(Float, Integer, a, b, print_ir, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The following expression requires to handle the AST node `Abs`. Instead of converting it to `math.absf` operation, we taks you to write it using the formula `x < 0 ? -x : x` using only `arith` operations. Hint, you should use `arith.select` for expressing the conditional.""")
+    mo.md(r"""The following expression requires to handle the AST node `Abs`. Instead of converting it to `math.absf` operation, we taks you to write it using the formula `x < 0 ? 0-x : x` using only `arith` operations. Hint, you should use `arith.select` for expressing the conditional.""")
     return
 
 
@@ -456,22 +456,16 @@ def _(mo):
 
 
 @app.cell
-def _(Abs, Sum, UnevaluatedExpr, a, b, c, print_ir, x, y):
+def _(Abs, Sum, a, b, print_ir, x, y):
     print_ir(Abs(x + y))
     print_ir((x ** 2) ** y)
 
     # The sum of all numbers from 0 to 10 (excluded)
-    print_ir(Sum(x, (x, 0, 10)))
+    # You can access the Sum arguments with `args[0]`, and `args[1][0]`, `args[1][1]` and `args[1][2]`.
+    print_ir(Sum(a, (a, 0, 10)))
 
     # The triangle sum from 0 to a (excluded)
-    print_ir(Sum(x*x, (x, 0, a)))
-
-    # The computation of:
-    # for b in range(0, a):
-    #   for c in range(0, b):
-    #      result += 1
-    # We use an UnevaluatedExpr so that SymPy doesn't combine both sums
-    print_ir(Sum(UnevaluatedExpr(Sum(x, (c, 0, b))), (b, 0, a)))
+    print_ir(Sum(b+b, (b, 0, a)))
     return
 
 
