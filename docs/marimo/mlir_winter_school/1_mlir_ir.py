@@ -193,7 +193,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     l1_dist_scf_text = """\
     func.func @l1_dist(%a : i32, %b : i32, %c : i32) -> (i32) {
@@ -227,95 +227,88 @@ def _(l1_dist_scf_text, mo, xmo):
 
 
 @app.cell(hide_code=True)
-def _(arith, func, mo, scf):
-    from xdsl.dialects import test
-    from xdsl.dialects.builtin import i1, i32
-    from xdsl.ir import Region, Block
-
-    _dummies = test.TestOp(result_types=[i32, i32, i1, i32, i32, i32, i32])
-    _a = _dummies.results[0]
-    _b = _dummies.results[1]
-    _c = _dummies.results[2]
-    _lb = _dummies.results[3]
-    _ub = _dummies.results[4]
-    _step = _dummies.results[5]
-    _zero = _dummies.results[6]
-    _a.name_hint = "a"
-    _b.name_hint = "b"
-    _c.name_hint = "c"
-    _lb.name_hint = "start"
-    _ub.name_hint = "end"
-    _step.name_hint = "step"
-    _zero.name_hint = "zero"
-
-
-    _if_op = scf.IfOp(_c, [], Region([Block([func.CallOp("foo", [], [])])]))
-    _if_op_with_else = scf.IfOp(
-        _c,
-        [],
-        Region([Block([func.CallOp("foo", [], [])])]),
-        Region([Block([func.CallOp("bar", [], [])])]),
-    )
-
-    _if_op_with_yield = scf.IfOp(
-        _c,
-        [i32],
-        Region([Block([scf.YieldOp(_a)])]),
-        Region([Block([scf.YieldOp(_b)])]),
-    )
-    _if_op_with_yield.results[0].name_hint = "res"
-    _yield_op_multiple = scf.YieldOp(_a, _b)
-
-    _for_op = scf.ForOp(_lb, _ub, _step, [], Region([Block([], arg_types=[i32])]))
-    _for_op.body.block.add_op(func.CallOp("foo", [_for_op.body.block.args[0]], []))
-    _for_op.body.block.args[0].name_hint = "i"
-
-    _for_op_with_yield = scf.ForOp(_lb, _ub, _step, [_zero], Region([Block([], arg_types=[i32, i32])]))
-    _add_op = arith.AddiOp(_for_op_with_yield.body.block.args[1], _for_op_with_yield.body.block.args[0])
-    _for_op_with_yield.body.block.add_op(_add_op)
-    _for_op_with_yield.body.block.add_op(scf.YieldOp(_add_op.results[0]))
-    _add_op.results[0].name_hint = "acc_next"
-    _for_op_with_yield.body.block.args[0].name_hint = "i"
-    _for_op_with_yield.body.block.args[1].name_hint = "acc"
-    _for_op_with_yield.results[0].name_hint = "sum"
-
+def _(mo, triangle_text, xmo):
     mo.md(
-        rf"""
-        The `scf` dialect contains building blocks to model Structured Control-Flow (SCF). In contrast to LLVM-like Control-Flow Graphs (CFG), Structured Control-Flow is a model of control-flow based on regions. This model of control-flow is similar in many ways to the ones in imperative languages. It contains the following important operations:
+        fr"""
+        The `scf` dialect also contains abstractions to represent for loops, allowing us to implement the triangle function 1 + 2 + 3 + ... + n.
 
-        - **`scf.if`**: This operation represents a an if-statement. It takes in a boolean value, and if that value is true, it steps inside its inner region (the "then" region), skipping it otherwise.
-            ```
-            {str(_if_op).replace("\n", "\n        ")}
-            ```
-            An additional region can be added (the "else" region) that is stepped inside only when the boolean value is false.
-            ```
-            {str(_if_op_with_else).replace("\n", "\n        ")}
-            ```
-            If two regions are specified, `scf.if` can have result values of which the value is defined differently in each region. This feature will be presented with the next operation.
+        {xmo.module_html(triangle_text)}
 
-        - **`scf.yield`**: This operation is a terminator allowing to yield values from SCF constructs. For example, in the context of an `scf.if`, one may want to declare a single value `%res` that has different content depending on which branch of the `scf.if` is taken. In order to do this, one can add `%res` as a result value to the `scf.if`. Then, `scf.yield` is used in each of the regions to define the content of `%res`.
-            ```
-            {str(_if_op_with_yield).replace("\n", "\n        ")}
-            ```
-            In this example, `%res` will have the content of `%a` if `%c` is true, and of `%b` is `%c` is false.
-
-        - **`scf.for`**: This operation models a for loop over a range of integers. It takes in a start value, an end value, and a step value for the iteration variable, and declares a value as a block argument containing the iteration variable. For readability, the declaration site of the iteration value is printed in the `scf.for` operation itself.
-            ```
-            %sum = scf.for %i = %start to %end step %step iter_args(%acc = %zero) -> (i32)  : i32 {{
-              %acc_next = arith.addi %acc, %i : i32
-              scf.yield %acc_next : i32
-            }}
-            ```
-            Aditionally, `scf.for` can expose more iteration variables and return them similarly to `scf.if`. Instead of being incremented automatically, these additional iteration variables are initialized to a certain value, updated at the end of the loop body via `scf.yield`, and passed outside of the loop as result values of `scf.for`. In the summation example below, the state of the sum is accumulated in an additional iteration variable `%acc` initialized with `%zero` before being returned as `%sum`.
-            ```
-            %sum = scf.for %i = %start to %end step %step iter_args(%acc = %zero) -> (i32)  : i32 {{
-              %acc_next = arith.addi %acc, %i : i32
-              scf.yield %acc_next : i32
-            }}
-            ```
+        Due to the SSA contract, we cannot accumulate by updating a value.
+        Instead, the loop body takes in some number of immutable values and yields the same number of values to use for the next loop.
+        After all the iterations, these values are returned by the operation.
         """
     )
-    return Block, Region, i1, i32, test
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Exercise 2: Factorial Function""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, triangle_text):
+    second_input_text = mo.ui.text("5")
+    second_text_area = mo.ui.code_editor(
+        triangle_text.replace("triangle", "factorial"), language="javascript"
+    )
+    return second_input_text, second_text_area
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx, run_func, second_input_text, second_text_area):
+    second_error_text = ""
+    second_results_text = ""
+    try:
+        second_input = int(second_input_text.value)
+        second_inputs = (second_input,)
+        second_module = Parser(ctx, second_text_area.value).parse_module()
+        second_results = run_func(second_module, "factorial", second_inputs)
+        second_results_text = f"factorial({second_input}) = {second_results}"
+    except Exception as e:
+        print("no")
+        second_error_text = str(e)
+
+    if second_error_text:
+        second_info_text = f"""
+        Error:
+
+        ```
+        {second_error_text}
+        ```
+        """
+    else:
+        second_info_text = f"""\
+        Change the definition of `second` to compute the factorial of the input.
+        Assume that the input is non-negative.
+
+        ```
+        {second_results_text}
+        ```
+        """
+    return (
+        second_error_text,
+        second_info_text,
+        second_input,
+        second_inputs,
+        second_module,
+        second_results,
+        second_results_text,
+    )
+
+
+@app.cell(hide_code=True)
+def _(mo, second_info_text, second_input_text, second_text_area):
+    mo.vstack(
+        (
+            mo.md(f"Input: {second_input_text} {mo.ui.button(label="run")}"),
+            second_text_area,
+            mo.md(second_info_text)
+        )
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -461,75 +454,6 @@ def _(builtin, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""## Exercise 2: Factorial Function""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo, triangle_text):
-    second_input_text = mo.ui.text("5")
-    second_text_area = mo.ui.code_editor(
-        triangle_text.replace("triangle", "second"), language="javascript"
-    )
-    return second_input_text, second_text_area
-
-
-@app.cell(hide_code=True)
-def _(Parser, ctx, run_func, second_input_text, second_text_area):
-    second_error_text = ""
-    second_results_text = ""
-    try:
-        second_input = int(second_input_text.value)
-        second_inputs = (second_input,)
-        second_module = Parser(ctx, second_text_area.value).parse_module()
-        second_results = run_func(second_module, "second", second_inputs)
-        second_results_text = f"second({second_input}) = {second_results}"
-    except Exception as e:
-        print("no")
-        second_error_text = str(e)
-
-    if second_error_text:
-        second_info_text = f"""
-        Error:
-
-        ```
-        {second_error_text}
-        ```
-        """
-    else:
-        second_info_text = f"""\
-        Change the definition of `second` to compute the factorial of the input.
-        Assume that the input is non-negative.
-
-        ```
-        {second_results_text}
-        ```
-        """
-    return (
-        second_error_text,
-        second_info_text,
-        second_input,
-        second_inputs,
-        second_module,
-        second_results,
-        second_results_text,
-    )
-
-
-@app.cell(hide_code=True)
-def _(mo, second_info_text, second_input_text, second_text_area):
-    mo.vstack(
-        (
-            mo.md(f"Input: {second_input_text} {mo.ui.button(label="run")}"),
-            second_text_area,
-            mo.md(second_info_text)
-        )
-    )
-    return
-
-
-@app.cell(hide_code=True)
 def _():
     import marimo as mo
     return (mo,)
@@ -572,11 +496,10 @@ def _():
     triangle_text = """\
     func.func @triangle(%n: index) -> index {
       %zero = arith.constant 0 : index
-      %step = arith.constant 1 : index
-      %init = arith.constant 0 : index
-      %res = scf.for %i = %zero to %n step %step iter_args(%acc_in = %init) -> (index) {
-        %square = arith.muli %i, %i : index
-        %acc_out = arith.addi %acc_in, %square : index
+      %one = arith.constant 1 : index
+      %n_plus_one = arith.addi %n, %one : index
+      %res = scf.for %i = %one to %n_plus_one step %one iter_args(%acc_in = %zero) -> (index) {
+        %acc_out = arith.addi %acc_in, %i : index
         scf.yield %acc_out : index
       }
       func.return %res : index
