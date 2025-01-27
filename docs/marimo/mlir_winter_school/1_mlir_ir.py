@@ -244,7 +244,7 @@ def _(mo, triangle_text, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Exercise 2: Factorial Function""")
+    mo.md(r"""### Exercise 3: Factorial Function""")
     return
 
 
