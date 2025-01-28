@@ -12,6 +12,13 @@ app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
+def _():
+    import marimo as mo
+    import xdsl
+    return mo, xdsl
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# 1. MLIR IR""")
     return
@@ -429,12 +436,6 @@ def _(Parser, Printer, StringIO, ctx, mo, swap_text):
     ```
     """)
     return
-
-
-@app.cell(hide_code=True)
-def _():
-    import marimo as mo
-    return (mo,)
 
 
 @app.cell(hide_code=True)
