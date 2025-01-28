@@ -101,16 +101,6 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(FloatingPointLikeBinaryOperation, irdl_op_definition):
-    # The Pow function, currently missing from xdsl arith dialect:
-
-    @irdl_op_definition
-    class PowfOp(FloatingPointLikeBinaryOperation):
-        name = "arith.powf"
-    return (PowfOp,)
-
-
-@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -169,7 +159,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""You will have to use the following operations:""")
     return
