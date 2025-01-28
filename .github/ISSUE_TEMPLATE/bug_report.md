@@ -1,6 +1,9 @@
-Thank you for submitting an issue to xDSL!
-
-Please make sure to include the information below *before* you submit this issue!
+---
+name: Bug Report
+about: Report a bug or unexpected behavior
+title: ""
+labels: bug
+assignees: ''
 
 ---
 
