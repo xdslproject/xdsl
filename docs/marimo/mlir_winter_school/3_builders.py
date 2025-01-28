@@ -12,6 +12,18 @@ app = marimo.App()
 
 
 @app.cell(hide_code=True)
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# 3. Builders""")
     return
@@ -184,18 +196,6 @@ def _(module2):
 
     # Use the builder here
     return block, cst1, cst4, cst6, module2_cloned
-
-
-@app.cell(hide_code=True)
-def _():
-    import marimo as mo
-    return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    from xdsl.utils import marimo as xmo
-    return (xmo,)
 
 
 if __name__ == "__main__":
