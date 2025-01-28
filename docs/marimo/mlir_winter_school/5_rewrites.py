@@ -15,32 +15,8 @@ app = marimo.App()
 def _():
     import marimo as mo
 
-    from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, GreedyRewritePatternApplier, PatternRewriteWalker
-    from xdsl.dialects.arith import AddiOp, ConstantOp, MuliOp
-    from xdsl.dialects.builtin import ModuleOp
-    from xdsl.dialects.func import FuncOp
-    return (
-        AddiOp,
-        ConstantOp,
-        FuncOp,
-        GreedyRewritePatternApplier,
-        ModuleOp,
-        MuliOp,
-        PatternRewriteWalker,
-        PatternRewriter,
-        RewritePattern,
-        mo,
-    )
-
-
-@app.cell(hide_code=True)
-def _():
     from xdsl.utils import marimo as xmo
-    return (xmo,)
 
-
-@app.cell(hide_code=True)
-def _():
     from xdsl.parser import Parser
     from xdsl.context import MLContext
 
@@ -48,11 +24,28 @@ def _():
     from xdsl.dialects.arith import Arith
     from xdsl.dialects.func import Func
 
-    ctx = MLContext()
-    ctx.load_dialect(Builtin)
-    ctx.load_dialect(Arith)
-    ctx.load_dialect(Func)
-    return Arith, Builtin, Func, MLContext, Parser, ctx
+    from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, GreedyRewritePatternApplier, PatternRewriteWalker
+    from xdsl.dialects.arith import AddiOp, ConstantOp, MuliOp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.dialects.func import FuncOp
+    return (
+        AddiOp,
+        Arith,
+        Builtin,
+        ConstantOp,
+        Func,
+        FuncOp,
+        GreedyRewritePatternApplier,
+        MLContext,
+        ModuleOp,
+        MuliOp,
+        Parser,
+        PatternRewriteWalker,
+        PatternRewriter,
+        RewritePattern,
+        mo,
+        xmo,
+    )
 
 
 @app.cell(hide_code=True)
@@ -217,6 +210,15 @@ def _(
         walker = PatternRewriteWalker(merged_pattern)
         walker.rewrite_module(module)
     return (apply_all_rewrites,)
+
+
+@app.cell(hide_code=True)
+def _(Arith, Builtin, Func, MLContext):
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Func)
+    return (ctx,)
 
 
 if __name__ == "__main__":

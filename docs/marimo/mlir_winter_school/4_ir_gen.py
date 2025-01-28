@@ -13,14 +13,10 @@ __generated_with = "0.10.17"
 app = marimo.App()
 
 
-@app.cell
-def _():
-    import marimo as mo
-    return (mo,)
-
-
 @app.cell(hide_code=True)
 def _():
+    import marimo as mo
+
     from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function, UnevaluatedExpr
     from sympy.core.symbol import Symbol
 
@@ -90,6 +86,7 @@ def _():
         im,
         irdl_attr_definition,
         irdl_op_definition,
+        mo,
         op_type_rewrite_pattern,
         operand_def,
         re,

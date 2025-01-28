@@ -11,15 +11,9 @@ __generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
-@app.cell
-def _():
-    import marimo as mo
-
-    return (mo,)
-
-
 @app.cell(hide_code=True)
 def _():
+    import marimo as mo
     from sympy import (
         S,
         symbols,
@@ -83,7 +77,6 @@ def _():
     from xdsl.dialects.scf import ForOp, YieldOp, IfOp
     from xdsl.dialects.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
-
     return (
         Abs,
         Add,
@@ -139,6 +132,7 @@ def _():
         im,
         irdl_attr_definition,
         irdl_op_definition,
+        mo,
         op_type_rewrite_pattern,
         operand_def,
         re,
@@ -179,7 +173,6 @@ def _(Expr, emit_ir):
 
         # Print a separator
         print("\n\n")
-
     return (print_ir,)
 
 
@@ -195,7 +188,6 @@ def _(Attribute, Expr, Float64Type, IntegerType):
             raise Exception(
                 f"Unknown MLIR type for expression {expr}. Please make sure there cannot be a division by zero, or a power of a negative value."
             )
-
     return (get_mlir_type,)
 
 
@@ -239,7 +231,6 @@ def _(
         # Insert a return statement at the end of the function.
         builder.insert(ReturnOp(result))
         return module
-
     return (emit_ir,)
 
 
@@ -267,7 +258,6 @@ def _(
             return emit_real_op(expr, builder, args)
         else:
             raise Exception("Unknown function to emit IR for MLIR type ", type)
-
     return (emit_op,)
 
 
@@ -305,7 +295,6 @@ def _(
     Symbol,
     YieldOp,
 ):
-
     def emit_integer_op(
         expr: Expr,
         builder: Builder,
@@ -429,7 +418,6 @@ def _(
         # Hint: Implement here support for Add, Mul, and Pow (and later Abs and Sum)
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
-
     return emit_integer_op, emit_real_op
 
 
@@ -473,11 +461,6 @@ def _(Sum, a, b, print_ir):
 
     # The triangle sum from 0 to a (excluded)
     print_ir(Sum(b + b, (b, 0, a)))
-    return
-
-
-@app.cell
-def _():
     return
 
 
