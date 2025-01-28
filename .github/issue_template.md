@@ -1,0 +1,21 @@
+Thank you for submitting an issue to xDSL!
+
+Please make sure to include the information below *before* you submit this issue!
+
+---
+
+### Description
+A clear and concise description of the issue or bug. 
+
+### Expected vs Actual Behavior
+Include what you expected to happen and what actually happened (e.g., when compared with upstream MLIR).
+
+### Steps to Reproduce and a Minimal Working Example (MWE)
+1. Describe the steps to reproduce the issue (commands, etc.).
+2. If applicable, describe the environment (e.g., operating system, Python version, etc.).
+3. Please provide a **Minimal Working Example (MWE)** that reproduces the issue.  
+An MWE is the smallest possible piece of code that demonstrates the problem.  
+It should be self-contained and easy to run.
+
+### Additional Information
+Any extra information that might help debug the issue.
