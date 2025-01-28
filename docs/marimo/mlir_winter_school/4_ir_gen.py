@@ -174,6 +174,13 @@ def _(mo):
             * Represents the formula `if cond then lhs else rhs`
         * arith.cmpf: CmpfOp("olt", lhs, rhs)
             * Represents `lhs < rhs` with floating points
+        * scf.if: IfOp(cond, region1, region2)
+            * Regions should have a single block, without block arguments. The last operation in the regions should be an `scf.yield` with constructor `YieldOp([result])`
+            * `.results[0]` is used to get the result of `IfOp`
+        * scf.for: ForOp(lower_bound, upper_bound, step, [first_acc], region)
+            * `first_acc` is the initial value of the accumulator
+            * `region` should have a single block with two block arguments. One for the value we iterate on (we use `i64`), and the second for the accumulator (we use `f64` here).
+            * `.results[0]` is used to get the result of `ForOp`
         """
     )
     return
