@@ -133,7 +133,6 @@ def _(mo):
         `Use`:
 
         * `operation: Operation`
-
         """
     )
     return
