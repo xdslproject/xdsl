@@ -22,7 +22,7 @@ def _():
 def _(mo):
     mo.md(
         """
-        # 5. Rewrites
+        # 6. Pattern Rewrite Exercises
 
         In the previous exercise, the code we emitted had a few optimization opportunities.
         We task you here to write two of them here, to get a feeling how rewrites work in xDSL.
