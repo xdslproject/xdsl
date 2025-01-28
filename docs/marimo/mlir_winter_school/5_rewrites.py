@@ -83,7 +83,6 @@ def _(after_module, before_module, mo, xmo):
 def _(mo):
     mo.md(
         r"""
-
         ## Rationale
 
         A pattern rewrite is a compiler transformation that matches a DAG in the IR, and replace it with another DAG. For instance, simplifying `x + 0` to `x` is a common optimization that is represented as a pattern rewrite.
@@ -189,18 +188,6 @@ def _(
         walker = PatternRewriteWalker(merged_pattern)
         walker.rewrite_module(module)
     return (apply_all_rewrites,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-        ## Before/After applying rewrite patterns
-
-        Here are some examples of programs before and after applying optimzation rewrite patterns:
-        """
-    )
-    return
 
 
 @app.cell(hide_code=True)
