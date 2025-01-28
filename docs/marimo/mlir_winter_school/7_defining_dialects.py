@@ -14,7 +14,8 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
-    return (mo,)
+    import xdsl
+    return mo, xdsl
 
 
 @app.cell(hide_code=True)
@@ -111,7 +112,7 @@ def _(Function):
 def _(mo):
     mo.md(
         """
-        # Exercise: Add a `complex` dialect
+        # 7. Exercise: Add a `complex` dialect
 
         Your task is to:
 
@@ -208,7 +209,6 @@ def _(
         traits = traits_def(Pure())
 
         # Name the fields arg and result
-
     return AddcOp, ComplexType, CreateOp, ImOp, MulcOp, NormOp, ReOp
 
 
@@ -639,7 +639,6 @@ def _(
             # Implement the lowering of norm
             # The formula is `norm(z) = (re(z) * re(z) + im(z) * im(z)) ^ 0.5`
             return
-
     return (
         FoldImCreateOp,
         FoldReCreateOp,
