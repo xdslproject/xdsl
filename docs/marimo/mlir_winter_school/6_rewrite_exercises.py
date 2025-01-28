@@ -11,11 +11,131 @@ __generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
-    import xdsl
-    return mo, xdsl
+    from sympy import (
+        S,
+        symbols,
+        Expr,
+        Add,
+        Mul,
+        Sum,
+        Integer,
+        Float,
+        E,
+        I,
+        re,
+        im,
+        Abs,
+        Pow,
+        Rational,
+        Function,
+        UnevaluatedExpr,
+    )
+    from sympy.core.symbol import Symbol
+
+    from xdsl.ir import Operation, SSAValue, Region, Block, ParametrizedAttribute
+    from xdsl.pattern_rewriter import (
+        PatternRewriter,
+        RewritePattern,
+        op_type_rewrite_pattern,
+        PatternRewriteWalker,
+        GreedyRewritePatternApplier,
+    )
+    from xdsl.transforms.dead_code_elimination import region_dce
+    from xdsl.traits import Pure
+    from xdsl.irdl import (
+        irdl_op_definition,
+        traits_def,
+        IRDLOperation,
+        irdl_attr_definition,
+        operand_def,
+        result_def,
+    )
+    from xdsl.dialects.builtin import (
+        ModuleOp,
+        Float64Type,
+        FloatAttr,
+        IntegerType,
+        IntegerAttr,
+    )
+    from xdsl.dialects.func import FuncOp, ReturnOp
+    from xdsl.dialects.arith import (
+        AddfOp,
+        SubfOp,
+        MulfOp,
+        ConstantOp,
+        AddiOp,
+        MuliOp,
+        SIToFPOp,
+        FloatingPointLikeBinaryOperation,
+        DivfOp,
+    )
+    from xdsl.dialects.scf import ForOp, YieldOp
+    from xdsl.dialects.math import PowFOp, SqrtOp
+    from xdsl.builder import Builder, InsertPoint
+    return (
+        Abs,
+        Add,
+        AddfOp,
+        AddiOp,
+        Block,
+        Builder,
+        ConstantOp,
+        DivfOp,
+        E,
+        Expr,
+        Float,
+        Float64Type,
+        FloatAttr,
+        FloatingPointLikeBinaryOperation,
+        ForOp,
+        FuncOp,
+        Function,
+        GreedyRewritePatternApplier,
+        I,
+        IRDLOperation,
+        InsertPoint,
+        Integer,
+        IntegerAttr,
+        IntegerType,
+        ModuleOp,
+        Mul,
+        MulfOp,
+        MuliOp,
+        Operation,
+        ParametrizedAttribute,
+        PatternRewriteWalker,
+        PatternRewriter,
+        Pow,
+        PowFOp,
+        Pure,
+        Rational,
+        Region,
+        ReturnOp,
+        RewritePattern,
+        S,
+        SIToFPOp,
+        SSAValue,
+        SqrtOp,
+        SubfOp,
+        Sum,
+        Symbol,
+        UnevaluatedExpr,
+        YieldOp,
+        im,
+        irdl_attr_definition,
+        irdl_op_definition,
+        mo,
+        op_type_rewrite_pattern,
+        operand_def,
+        re,
+        region_dce,
+        result_def,
+        symbols,
+        traits_def,
+    )
 
 
 @app.cell(hide_code=True)

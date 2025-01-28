@@ -14,12 +14,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
-    import xdsl
-    return mo, xdsl
 
-
-@app.cell(hide_code=True)
-def _():
     from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function
     from sympy.core.symbol import Symbol
 
@@ -92,6 +87,7 @@ def _():
         im,
         irdl_attr_definition,
         irdl_op_definition,
+        mo,
         op_type_rewrite_pattern,
         operand_def,
         re,
@@ -769,11 +765,6 @@ def _(
 @app.cell
 def _(I, Norm, print_ir_with_pipeline, t, x, y, z):
     print_ir_with_pipeline(Norm(x + I*y) * Norm(z + I*t))
-    return
-
-
-@app.cell
-def _():
     return
 
 
