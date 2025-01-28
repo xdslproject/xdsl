@@ -14,11 +14,13 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    import xdsl
+
+    from xdsl.context import MLContext
+    from xdsl.dialects import builtin, arith, func, scf
     from xdsl.utils import marimo as xmo
     from xdsl.printer import Printer
     from typing import Any
-    return Any, Printer, mo, xdsl, xmo
+    return Any, MLContext, Printer, arith, builtin, func, mo, scf, xmo
 
 
 @app.cell(hide_code=True)
@@ -451,18 +453,13 @@ def _(ModuleOp, Printer, StringIO):
 
 
 @app.cell(hide_code=True)
-def _():
-    # import relevant dialects and load them in context
-
-    from xdsl.context import MLContext
-    from xdsl.dialects import builtin, func, scf, arith
-
+def _(MLContext, arith, builtin, func, scf):
     ctx = MLContext()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(func.Func)
     ctx.load_dialect(scf.Scf)
     ctx.load_dialect(arith.Arith)
-    return MLContext, arith, builtin, ctx, func, scf
+    return (ctx,)
 
 
 @app.cell(hide_code=True)
