@@ -12,6 +12,50 @@ app = marimo.App()
 
 
 @app.cell(hide_code=True)
+def _():
+    import marimo as mo
+
+    from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, GreedyRewritePatternApplier, PatternRewriteWalker
+    from xdsl.dialects.arith import AddiOp, ConstantOp, MuliOp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.dialects.func import FuncOp
+    return (
+        AddiOp,
+        ConstantOp,
+        FuncOp,
+        GreedyRewritePatternApplier,
+        ModuleOp,
+        MuliOp,
+        PatternRewriteWalker,
+        PatternRewriter,
+        RewritePattern,
+        mo,
+    )
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.utils import marimo as xmo
+    return (xmo,)
+
+
+@app.cell(hide_code=True)
+def _():
+    from xdsl.parser import Parser
+    from xdsl.context import MLContext
+
+    from xdsl.dialects.builtin import Builtin
+    from xdsl.dialects.arith import Arith
+    from xdsl.dialects.func import Func
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Func)
+    return Arith, Builtin, Func, MLContext, Parser, ctx
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# 5. Pattern Rewrites""")
     return
@@ -173,50 +217,6 @@ def _(
         walker = PatternRewriteWalker(merged_pattern)
         walker.rewrite_module(module)
     return (apply_all_rewrites,)
-
-
-@app.cell(hide_code=True)
-def _():
-    from xdsl.utils import marimo as xmo
-    return (xmo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    from xdsl.parser import Parser
-    from xdsl.context import MLContext
-
-    from xdsl.dialects.builtin import Builtin
-    from xdsl.dialects.arith import Arith
-    from xdsl.dialects.func import Func
-
-    ctx = MLContext()
-    ctx.load_dialect(Builtin)
-    ctx.load_dialect(Arith)
-    ctx.load_dialect(Func)
-    return Arith, Builtin, Func, MLContext, Parser, ctx
-
-
-@app.cell(hide_code=True)
-def _():
-    import marimo as mo
-
-    from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, GreedyRewritePatternApplier, PatternRewriteWalker
-    from xdsl.dialects.arith import AddiOp, ConstantOp, MuliOp
-    from xdsl.dialects.builtin import ModuleOp
-    from xdsl.dialects.func import FuncOp
-    return (
-        AddiOp,
-        ConstantOp,
-        FuncOp,
-        GreedyRewritePatternApplier,
-        ModuleOp,
-        MuliOp,
-        PatternRewriteWalker,
-        PatternRewriter,
-        RewritePattern,
-        mo,
-    )
 
 
 if __name__ == "__main__":
