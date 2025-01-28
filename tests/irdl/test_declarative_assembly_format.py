@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     Float64Type,
     FloatAttr,
     IndexType,
+    IntAttrConstraint,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -3155,3 +3156,155 @@ def test_multiple_operand_extraction_fails():
         "Possible values are: {i32, index}",
     ):
         parser.parse_operation()
+
+
+################################################################################
+#                                  IntAttr                                     #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    ["%0 = test.int_attr_extract 1", "%0, %1 = test.int_attr_extract 2"],
+)
+def test_int_attr_extraction(program: str):
+    @irdl_op_definition
+    class IntAttrExtractOp(IRDLOperation):
+        name = "test.int_attr_extract"
+
+        _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+        prop = prop_def(
+            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+        )
+
+        outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
+
+        assembly_format = "$prop attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(IntAttrExtractOp)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, error",
+    [
+        (
+            "%0 = test.int_attr_extract 2",
+            "Operation has 2 results, but was given 1 to bind",
+        ),
+        (
+            "%0, %1 = test.int_attr_extract 1",
+            "Operation has 1 results, but was given 2 to bind",
+        ),
+    ],
+)
+def test_int_attr_extraction_errors(program: str, error: str):
+    @irdl_op_definition
+    class IntAttrExtractOp(IRDLOperation):
+        name = "test.int_attr_extract"
+
+        _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+        prop = prop_def(
+            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+        )
+
+        outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
+
+        assembly_format = "$prop attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(IntAttrExtractOp)
+    parser = Parser(ctx, program)
+    with pytest.raises(ParseError, match=error):
+        parser.parse_optional_operation()
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.int_attr_verify 1, %0",
+        "test.int_attr_verify 2, %0, %1",
+        "test.int_attr_verify 1 and 1, %0",
+        "test.int_attr_verify 2 and 2, %0, %1",
+    ],
+)
+def test_int_attr_verify(program: str):
+    @irdl_op_definition
+    class IntAttrExtractOp(IRDLOperation):
+        name = "test.int_attr_verify"
+
+        _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+        prop = prop_def(
+            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+        )
+
+        prop2 = opt_prop_def(
+            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+        )
+
+        ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
+
+        assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(IntAttrExtractOp)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, error_type, error",
+    [
+        (
+            "test.int_attr_verify 1, %0, %1",
+            ValueError,
+            "Value of variable I could not be uniquely extracted",
+        ),
+        (
+            "test.int_attr_verify 1 and 2, %0",
+            VerifyException,
+            "integer 1 expected from int variable 'I', but got 2",
+        ),
+        (
+            "test.int_attr_verify 2, %0",
+            ValueError,
+            "Value of variable I could not be uniquely extracted",
+        ),
+        (
+            "test.int_attr_verify 2 and 1, %0, %1",
+            VerifyException,
+            "integer 2 expected from int variable 'I', but got 1",
+        ),
+    ],
+)
+def test_int_attr_verify_errors(program: str, error_type: type[Exception], error: str):
+    @irdl_op_definition
+    class IntAttrExtractOp(IRDLOperation):
+        name = "test.int_attr_verify"
+
+        _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+        prop = prop_def(
+            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+        )
+
+        prop2 = opt_prop_def(
+            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+        )
+
+        ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
+
+        assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(IntAttrExtractOp)
+
+    parser = Parser(ctx, program)
+    with pytest.raises(error_type, match=error):
+        op = parser.parse_operation()
+        op.verify()
