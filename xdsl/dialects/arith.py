@@ -8,7 +8,6 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
     AnyIntegerAttr,
-    AnyIntegerAttrConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -16,9 +15,11 @@ from xdsl.dialects.builtin import (
     Float64Type,
     FloatAttr,
     IndexType,
+    IndexTypeConstr,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    SignlessIntegerConstraint,
     TensorType,
     UnrankedTensorType,
     VectorType,
@@ -132,7 +133,8 @@ class ConstantOp(IRDLOperation):
     result = result_def(_T)
     value = prop_def(
         TypedAttributeConstraint(
-            AnyIntegerAttrConstr
+            IntegerAttr.constr(type=IndexTypeConstr)
+            | IntegerAttr.constr(type=SignlessIntegerConstraint)
             | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
             | BaseAttr(DenseIntOrFPElementsAttr),
             _T,
