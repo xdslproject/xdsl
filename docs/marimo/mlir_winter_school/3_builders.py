@@ -14,13 +14,22 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
+    from xdsl.builder import Builder, InsertPoint
     from xdsl.utils import marimo as xmo
-    return (xmo,)
+    from xdsl.dialects.arith import AddiOp
+    from xdsl.dialects.builtin import ModuleOp, IntegerType, IntegerAttr
+    from xdsl.dialects.arith import ConstantOp
+    return (
+        AddiOp,
+        Builder,
+        ConstantOp,
+        InsertPoint,
+        IntegerAttr,
+        IntegerType,
+        ModuleOp,
+        mo,
+        xmo,
+    )
 
 
 @app.cell(hide_code=True)
@@ -67,12 +76,10 @@ def _(mo):
 
 
 @app.cell
-def _(c0):
-    from xdsl.dialects.arith import AddiOp
-
+def _(AddiOp, c0):
     addi = AddiOp(c0.result, c0.result)
     addi
-    return AddiOp, addi
+    return (addi,)
 
 
 @app.cell(hide_code=True)
@@ -102,10 +109,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(xmo):
-    from xdsl.dialects.builtin import ModuleOp, IntegerType, IntegerAttr
-    from xdsl.dialects.arith import ConstantOp
-
+def _(ConstantOp, IntegerAttr, IntegerType, ModuleOp, xmo):
     module = ModuleOp([
         ConstantOp(IntegerAttr(0, IntegerType(64))),
         ConstantOp(IntegerAttr(1, IntegerType(64))),
@@ -113,7 +117,7 @@ def _(xmo):
     ])
 
     xmo.module_html(module)
-    return ConstantOp, IntegerAttr, IntegerType, ModuleOp, module
+    return (module,)
 
 
 @app.cell(hide_code=True)
@@ -123,9 +127,7 @@ def _(mo):
 
 
 @app.cell
-def _(ConstantOp, IntegerAttr, IntegerType, module):
-    from xdsl.builder import Builder, InsertPoint
-
+def _(Builder, ConstantOp, InsertPoint, IntegerAttr, IntegerType, module):
     # Clone the module to only do modifications locally.
     # Otherwise this messes up other cells using `module`.
     module_cloned = module.clone()
@@ -144,8 +146,6 @@ def _(ConstantOp, IntegerAttr, IntegerType, module):
 
     None
     return (
-        Builder,
-        InsertPoint,
         block_cloned,
         builder1,
         builder2,
