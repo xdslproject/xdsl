@@ -156,8 +156,23 @@ def _(
         name = "complex.complex"
 
     @irdl_op_definition
+    class CreateOp(IRDLOperation):
+        name = "complex.create"
+
+        traits = traits_def(Pure())
+
+        re = operand_def(Float64Type())
+        im = operand_def(Float64Type())
+
+        result = result_def(ComplexType())
+
+        def __init__(self, re: SSAValue, im: SSAValue):
+            super().__init__(operands=[re, im], result_types=[ComplexType()])
+
+    @irdl_op_definition
     class ReOp(IRDLOperation):
         name = "complex.re"
+
         traits = traits_def(Pure())
 
         arg = operand_def(ComplexType())
@@ -170,38 +185,57 @@ def _(
     @irdl_op_definition
     class ImOp(IRDLOperation):
         name = "complex.im"
+
         traits = traits_def(Pure())
 
-        # Name the fields arg and result
+        arg = operand_def(ComplexType())
 
-    @irdl_op_definition
-    class CreateOp(IRDLOperation):
-        name = "complex.create"
-        traits = traits_def(Pure())
+        result = result_def(Float64Type())
 
-        # Name the fields re, im, and result
+        def __init__(self, arg: SSAValue):
+            super().__init__(operands=[arg], result_types=[Float64Type()])
 
     @irdl_op_definition
     class AddcOp(IRDLOperation):
         name = "complex.add"
+
         traits = traits_def(Pure())
 
-        # Name the fields lhs, rhs, and result
+        lhs = operand_def(ComplexType())
+        rhs = operand_def(ComplexType())
+
+        result = result_def(ComplexType())
+
+        def __init__(self, lhs: SSAValue, rhs: SSAValue):
+            super().__init__(operands=[lhs, rhs], result_types=[ComplexType()])
+
 
     @irdl_op_definition
     class MulcOp(IRDLOperation):
         name = "complex.mul"
+
         traits = traits_def(Pure())
 
-        # Name the fields lhs, rhs, and result
+        lhs = operand_def(ComplexType())
+        rhs = operand_def(ComplexType())
+
+        result = result_def(ComplexType())
+
+        def __init__(self, lhs: SSAValue, rhs: SSAValue):
+            super().__init__(operands=[lhs, rhs], result_types=[ComplexType()])
 
     @irdl_op_definition
     class NormOp(IRDLOperation):
         name = "complex.norm"
+
         traits = traits_def(Pure())
 
-        # Name the fields arg and result
+        arg = operand_def(ComplexType())
 
+        result = result_def(Float64Type())
+
+        def __init__(self, arg: SSAValue):
+            super().__init__(operands=[arg], result_types=[Float64Type()])
     return AddcOp, ComplexType, CreateOp, ImOp, MulcOp, NormOp, ReOp
 
 
@@ -548,7 +582,7 @@ def _(mo):
         * Write the patterns `re(create(x, y)) -> x` and `im(create(x, y))`
         * Write patterns to rewrite `complex.add`, `complex.mul`, and `complex.norm` into `arith` and `complex.create`, `complex.re`, and `complex.im` ops. For instance, `add(x, y)` should be rewritten to `create(re(x) + re(y), im(x) + im(y))`.
 
-        This will effectively lower the `complex` dialect, as all these patterns will be applied until convergence. We give you the pattern `re(create(x, y)) -> x` and the lowering of `complex.mul`
+        This will effectively lower the `complex` dialect, as all these patterns will be applied until convergence. We give you already the pattern `re(create(x, y)) -> x`
         """
     )
     return
@@ -556,15 +590,21 @@ def _(mo):
 
 @app.cell
 def _(
+    AddcOp,
     AddfOp,
+    ConstantOp,
     CreateOp,
+    Float64Type,
+    FloatAttr,
     GreedyRewritePatternApplier,
     ImOp,
     MulcOp,
     MulfOp,
+    NormOp,
     Operation,
     PatternRewriteWalker,
     PatternRewriter,
+    PowFOp,
     ReOp,
     RewritePattern,
     SubfOp,
@@ -595,15 +635,29 @@ def _(
 
     class FoldImCreateOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            # Implement im(create(x, y)) -> y
-            return
+            if not isinstance(op, ImOp):
+                return
+
+            if not isinstance(create := op.arg.owner, CreateOp):
+                return
+
+            rewriter.replace_matched_op([], new_results=[create.im])
 
 
     class LowerAddOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            # Implement the lowering of add
-            # The formula is `add(x, y) = (re(x) + re(y)) + i * (im(x) + im(y))
-            return
+            if not isinstance(op, AddcOp):
+                return
+
+            re_lhs = rewriter.insert(ReOp(op.lhs)).result
+            re_rhs = rewriter.insert(ReOp(op.rhs)).result
+            im_lhs = rewriter.insert(ImOp(op.lhs)).result
+            im_rhs = rewriter.insert(ImOp(op.rhs)).result
+            new_re = rewriter.insert(AddfOp(re_lhs, re_rhs)).result
+            new_im = rewriter.insert(AddfOp(im_lhs, im_rhs)).result
+            create = rewriter.insert(CreateOp(new_re, new_im)).result
+
+            rewriter.replace_matched_op([], new_results=[create])
 
     class LowerMulOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -629,9 +683,21 @@ def _(
 
     class LowerNormOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            # Implement the lowering of norm
-            # The formula is `norm(z) = (re(z) * re(z) + im(z) * im(z)) ^ 0.5`
-            return
+            if not isinstance(op, NormOp):
+                return
+
+            re = rewriter.insert(ReOp(op.arg)).result
+            im = rewriter.insert(ImOp(op.arg)).result
+
+            re_2 = rewriter.insert(MulfOp(re, re)).result
+            im_2 = rewriter.insert(MulfOp(im, im)).result
+
+            add = rewriter.insert(AddfOp(re_2, im_2)).result
+
+            half = rewriter.insert(ConstantOp(FloatAttr(0.5, Float64Type()))).result
+            pow = rewriter.insert(PowFOp(add, half)).result
+
+            rewriter.replace_matched_op([], new_results=[pow])
 
     return (
         FoldImCreateOp,
@@ -763,11 +829,6 @@ def _(
 @app.cell
 def _(I, Norm, print_ir_with_pipeline, t, x, y, z):
     print_ir_with_pipeline(Norm(x + I*y) * Norm(z + I*t))
-    return
-
-
-@app.cell
-def _():
     return
 
 
