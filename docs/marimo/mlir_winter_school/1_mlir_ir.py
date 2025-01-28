@@ -15,7 +15,10 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import xdsl
-    return mo, xdsl
+    from xdsl.utils import marimo as xmo
+    from xdsl.printer import Printer
+    from typing import Any
+    return Any, Printer, mo, xdsl, xmo
 
 
 @app.cell(hide_code=True)
@@ -439,20 +442,12 @@ def _(Parser, Printer, StringIO, ctx, mo, swap_text):
 
 
 @app.cell(hide_code=True)
-def _():
-    from xdsl.utils import marimo as xmo
-    return (xmo,)
-
-
-@app.cell(hide_code=True)
-def _(ModuleOp, StringIO):
-    from xdsl.printer import Printer
-
+def _(ModuleOp, Printer, StringIO):
     def print_generic(module: ModuleOp) -> str:
         io = StringIO()
         Printer(io, print_generic_format=True).print(module)
         return io.getvalue()
-    return Printer, print_generic
+    return (print_generic,)
 
 
 @app.cell(hide_code=True)
@@ -501,9 +496,7 @@ def _(ctx, triangle_text):
 
 
 @app.cell(hide_code=True)
-def _(ModuleOp):
-    from typing import Any
-
+def _(Any, ModuleOp):
     def run_func(module: ModuleOp, name: str, args: tuple[Any, ...]):
         from xdsl.interpreter import Interpreter
         from xdsl.interpreters import scf, arith, func
@@ -519,7 +512,7 @@ def _(ModuleOp):
             res = res[0]
 
         return res
-    return Any, run_func
+    return (run_func,)
 
 
 @app.cell(hide_code=True)

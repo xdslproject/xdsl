@@ -11,6 +11,34 @@ __generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
+@app.cell
+def _():
+    import marimo as mo
+    from xdsl.ir import Dialect
+    from collections import defaultdict
+    from xdsl.dialects import builtin, func, arith, scf
+    from xdsl.context import MLContext
+    from xdsl.parser import Parser
+    from xdsl.utils import marimo as xmo
+    from collections import Counter
+    from xdsl.ir import OpResult, BlockArgument
+    return (
+        BlockArgument,
+        Counter,
+        Dialect,
+        MLContext,
+        OpResult,
+        Parser,
+        arith,
+        builtin,
+        defaultdict,
+        func,
+        mo,
+        scf,
+        xmo,
+    )
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# 2. Traversing IR""")
@@ -52,35 +80,23 @@ def _(mo, triangle_text):
 
 
 @app.cell
-def _():
-    # Our module contains operations from the following dialects
-    from xdsl.dialects import builtin, func, arith, scf
-    return arith, builtin, func, scf
-
-
-@app.cell
-def _(arith, builtin, func, scf):
+def _(MLContext, arith, builtin, func, scf):
     # The context stores the available abstractions
-    from xdsl.context import MLContext
-
     ctx = MLContext()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(func.Func)
     ctx.load_dialect(arith.Arith)
     ctx.load_dialect(scf.Scf)
-    return MLContext, ctx
+    return (ctx,)
 
 
 @app.cell
-def _(ctx, triangle_text):
-    from xdsl.parser import Parser
-    from xdsl.utils import marimo as xmo
-
+def _(Parser, ctx, triangle_text, xmo):
     triangle_module = Parser(ctx, triangle_text).parse_module()
 
     # We can then parse and reprint the same module
     xmo.module_html(triangle_module)
-    return Parser, triangle_module, xmo
+    return (triangle_module,)
 
 
 @app.cell(hide_code=True)
@@ -193,12 +209,11 @@ def _(mo, operation_counts, triangle_module):
 
 @app.cell
 def _(builtin):
-    # This might come in handy
-    from collections import Counter
+    # `Counter` might come in handy
 
     def operation_counts(module: builtin.ModuleOp) -> dict[str, int]:
         return {}
-    return Counter, operation_counts
+    return (operation_counts,)
 
 
 @app.cell(hide_code=True)
@@ -226,13 +241,11 @@ def _(mo, operations_by_dialect, triangle_module):
 
 @app.cell
 def _(builtin):
-    # These might come in handy
-    from xdsl.ir import Dialect
-    from collections import defaultdict
+    # `defaultdict` might come in handy
 
     def operations_by_dialect(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
-    return Dialect, defaultdict, operations_by_dialect
+    return (operations_by_dialect,)
 
 
 @app.cell(hide_code=True)
@@ -309,12 +322,9 @@ def _(definition_by_use, mo, triangle_module):
 
 @app.cell
 def _(builtin):
-    # These might come in handy
-    from xdsl.ir import OpResult, BlockArgument
-
     def definition_by_use(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
-    return BlockArgument, OpResult, definition_by_use
+    return (definition_by_use,)
 
 
 @app.cell(hide_code=True)
@@ -347,12 +357,6 @@ def _(builtin):
     def uses_by_definition(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
     return (uses_by_definition,)
-
-
-@app.cell(hide_code=True)
-def _():
-    import marimo as mo
-    return (mo,)
 
 
 if __name__ == "__main__":
