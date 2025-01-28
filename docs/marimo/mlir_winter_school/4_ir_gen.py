@@ -141,9 +141,7 @@ def _(mo):
         ## Expected MLIR output
 
         Here is an example of SymPy code, and its expected MLIR output.
-        We want to only output code from the `arith` dialect, which deals with arithmetic.
-
-        For this exercise, we will only use the following operations: arith.constant, arith.addf, arith.mulf, arith.powf. Their MLIR documentation can be found [here](https://mlir.llvm.org/docs/Dialects/ArithOps/).
+        We want to only output code from the `arith` dialect (and `math.powf`), which deals with arithmetic.
 
         Here is the expected MLIR output for the expression `x + x`:
         ```
@@ -161,7 +159,23 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""You will have to use the following operations:""")
+    mo.md(
+        """
+        The operations you will have to use have the following constructors.:
+
+        * arith.constant: ConstantOp(IntegerAttr(int_cst, IntegerType(64)))
+        * arith.constant: ConstantOp(FloatAttr(float_cst, Float64Type()))
+        * arith.addi: AddiOp(lhs, rhs)
+        * arith.muli: MuliOp(lhs, rhs)
+        * arith.addf: AddfOp(lhs, rhs)
+        * arith.mulf: MulfOp(lhs, rhs)
+        * math.powf: PowFOp(lhs, rhs)
+        * arith.select: SelectOp(cond, lhs, rhs)
+            * Represents the formula `if cond then lhs else rhs`
+        * arith.cmpf: CmpfOp("olt", lhs, rhs)
+            * Represents `lhs < rhs` with floating points
+        """
+    )
     return
 
 
