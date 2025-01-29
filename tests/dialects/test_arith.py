@@ -286,7 +286,7 @@ def test_bitcast_op(in_type: Attribute, out_type: Attribute, should_verify: bool
         return
 
     # expecting test to fail
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(VerifyException) as e:
         cast.verify_()
 
     err_msg1 = "Expected operand and result types to be signless-integer-or-float-like"

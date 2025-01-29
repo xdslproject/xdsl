@@ -1246,7 +1246,7 @@ class BitcastOp(IRDLOperation):
 
         if isinstance(in_type, ShapedType) and isinstance(res_type, ShapedType):
             if in_type.get_shape() != res_type.get_shape():
-                raise TypeError(
+                raise VerifyException(
                     "'arith.bitcast' operand and result types must have the same shape"
                 )
 
@@ -1255,18 +1255,18 @@ class BitcastOp(IRDLOperation):
             if BitcastOp._equal_bitwidths(t1, t2):
                 return
 
-            raise TypeError(
+            raise VerifyException(
                 "'arith.bitcast' operand and result type elements must have equal bitwidths"
             )
 
         if isinstance(in_type, ContainerType) or isinstance(res_type, ContainerType):
-            raise TypeError(
+            raise VerifyException(
                 "'arith.bitcast' operand and result must both be containers or scalars"
             )
 
         # at this point we know we have two scalar types
         if not BitcastOp._equal_bitwidths(in_type, res_type):
-            raise TypeError(
+            raise VerifyException(
                 "'arith.bitcast' operand and result types must have equal bitwidths"
             )
 
@@ -1280,7 +1280,7 @@ class BitcastOp(IRDLOperation):
         ):
             return type_a.bitwidth == type_b.bitwidth
 
-        raise TypeError(
+        raise VerifyException(
             "Expected operand and result types to be signless-integer-or-float-like"
         )
 
