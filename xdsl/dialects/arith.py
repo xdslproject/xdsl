@@ -133,8 +133,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(_T)
     value = prop_def(
         TypedAttributeConstraint(
-            IntegerAttr.constr(type=IndexTypeConstr)
-            | IntegerAttr.constr(type=SignlessIntegerConstraint)
+            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
             | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
             | BaseAttr(DenseIntOrFPElementsAttr),
             _T,
