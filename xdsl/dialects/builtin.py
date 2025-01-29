@@ -1932,9 +1932,9 @@ class TensorOrMemrefOf(
 
     def __init__(
         self,
-        elem_constr: (
-            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
-        ),
+        elem_constr: AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT],
     ) -> None:
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
