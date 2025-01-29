@@ -34,7 +34,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 
-integerOrFloatLike: ContainerOf = ContainerOf(
+integerOrFloatLike = ContainerOf(
     AnyOf(
         [
             IntegerType,
