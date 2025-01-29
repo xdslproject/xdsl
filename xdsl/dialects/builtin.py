@@ -1094,13 +1094,21 @@ AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType
 
 
 @dataclass(frozen=True, init=False)
-class ContainerOf(AttrConstraint):
+class ContainerOf(
+    Generic[AttributeCovT],
+    GenericAttrConstraint[
+        AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
+    ],
+):
     """A type constraint that can be nested once in a vector or a tensor."""
 
-    elem_constr: AttrConstraint
+    elem_constr: GenericAttrConstraint[AttributeCovT]
 
     def __init__(
-        self, elem_constr: Attribute | type[Attribute] | AttrConstraint
+        self,
+        elem_constr: Attribute
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT],
     ) -> None:
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
