@@ -478,6 +478,12 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
             signedness = SignednessAttr(signedness)
         super().__init__([data, signedness])
 
+    def verify(self):
+        if self.width.data < 0:
+            raise VerifyException(
+                f"integer type bitwidth should be nonnegative (got {self.width.data})"
+            )
+
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
 
