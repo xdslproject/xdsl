@@ -1,17 +1,10 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "xdsl==0.27.0",
-# ]
-# ///
-
 import marimo
 
 __generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     from xdsl.ir import Dialect
@@ -41,7 +34,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# 2. Traversing IR""")
+    mo.md(r"""# Traversing IR""")
     return
 
 
@@ -118,8 +111,8 @@ def _(mo):
 
 
 @app.cell
-def _(mo, triangle_module):
-    mo.md(str([op.name for op in triangle_module.walk()]))
+def _(triangle_module):
+    print([op.name for op in triangle_module.walk()])
     return
 
 
@@ -168,6 +161,12 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo, triangle_module, unique_operations):
+    try:
+        _sorted = "{" + ", ".join(sorted(unique_operations(triangle_module))) + "}"
+        _res = str(_sorted)
+    except Exception as e:
+        _res = f"{type(e).__name__}: {e}"
+
     mo.md(
         fr"""
         ### Exercise 1. Unique Operations
@@ -176,7 +175,7 @@ def _(mo, triangle_module, unique_operations):
 
         ```
         Expected: {{arith.addi, arith.constant, arith.muli, builtin.module, func.func, func.return, scf.for, scf.yield}}
-        Result:   {{{', '.join(sorted(unique_operations(triangle_module)))}}}
+        Result:   {_res}
         ```
         """
     )
@@ -191,7 +190,21 @@ def _(builtin):
 
 
 @app.cell(hide_code=True)
+def _(builtin):
+    # Solution
+
+    def _unique_operations(module: builtin.ModuleOp) -> set[str]:
+        return {op.name for op in module.walk()}
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo, operation_counts, triangle_module):
+    try:
+        _res = str(operation_counts(triangle_module))
+    except Exception as e:
+        _res = f"{type(e).__name__}: {e}"
+
     mo.md(
         fr"""
         ### Exercise 2. Operation Counter
@@ -200,7 +213,7 @@ def _(mo, operation_counts, triangle_module):
 
         ```
         Expected: {{'builtin.module': 1, 'func.func': 1, 'arith.constant': 2, 'scf.for': 1, 'arith.muli': 1, 'arith.addi': 1, 'scf.yield': 1, 'func.return': 1}}
-        Result:   {operation_counts(triangle_module)}
+        Result:   {_res}
         ```
         """
     )
@@ -217,12 +230,25 @@ def _(builtin):
 
 
 @app.cell(hide_code=True)
+def _(Counter, builtin):
+    # solution
+
+    def _operation_counts(module: builtin.ModuleOp) -> dict[str, int]:
+        return dict(Counter(op.name for op in module.walk()))
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo, operations_by_dialect, triangle_module):
-    _unsorted = operations_by_dialect(triangle_module)
-    _sorted = {
-        k: sorted(_unsorted[k])
-        for k in sorted(_unsorted)
-    }
+    try:
+        _unsorted = operations_by_dialect(triangle_module)
+        _sorted = {
+            k: sorted(_unsorted[k])
+            for k in sorted(_unsorted)
+        }
+        _res = str(_sorted)
+    except Exception as e:
+        _res = f"{type(e).__name__}: {e}"
 
     mo.md(
         fr"""
@@ -231,8 +257,8 @@ def _(mo, operations_by_dialect, triangle_module):
         Modify the function below to return the operations by dialect in the module
 
         ```
-        Expected: {{'builtin': ['module'], 'func': ['func', 'return'], 'arith': ['addi', 'constant', 'constant', 'muli'], 'scf': ['for', 'yield']}}
-        Result:   {_sorted}
+        Expected: {{'arith': ['addi', 'constant', 'constant', 'muli'], 'builtin': ['module'], 'func': ['func', 'return'], 'scf': ['for', 'yield']}}
+        Result:   {_res}
         ```
         """
     )
@@ -246,6 +272,20 @@ def _(builtin):
     def operations_by_dialect(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
     return (operations_by_dialect,)
+
+
+@app.cell(hide_code=True)
+def _(Dialect, builtin, defaultdict):
+    # solution
+
+    def _operations_by_dialect(module: builtin.ModuleOp) -> dict[str, list[str]]:
+        res = defaultdict(list)
+
+        for op in module.walk():
+            d, o = Dialect.split_name(op.name)
+            res[d].append(o)
+        return dict(res)
+    return
 
 
 @app.cell(hide_code=True)
@@ -295,11 +335,15 @@ def _(all_ssa_values, mo):
 
 @app.cell(hide_code=True)
 def _(definition_by_use, mo, triangle_module):
-    _unsorted = definition_by_use(triangle_module)
-    _sorted = {
-        k: sorted(_unsorted[k])
-        for k in sorted(_unsorted)
-    }
+    try:
+        _unsorted = definition_by_use(triangle_module)
+        _sorted = {
+            k: sorted(_unsorted[k])
+            for k in sorted(_unsorted)
+        }
+        _res = str(_sorted)
+    except Exception as e:
+        _res = f"{type(e).__name__}: {e}"
 
     mo.md(
         fr"""
@@ -312,8 +356,8 @@ def _(definition_by_use, mo, triangle_module):
 
 
         ```
-        Expected: {{'scf.for': ['arith.constant, 'arith.constant', 'arith.constant', 'func.func'], 'arith.muli': ['scf.for', 'scf.for'], 'arith.addi': ['arith.muli', 'scf.for'], 'scf.yield': ['arith.addi'], 'func.return': ['scf.for']}}
-        Result:   {_sorted}
+        Expected: {{'arith.addi': ['arith.muli', 'scf.for'], 'arith.muli': ['scf.for', 'scf.for'], 'func.return': ['scf.for'], 'scf.for': ['arith.constant', 'arith.constant', 'arith.constant', 'func.func'], 'scf.yield': ['arith.addi']}}
+        Result:   {_res}
         ```
         """
     )
@@ -328,12 +372,35 @@ def _(builtin):
 
 
 @app.cell(hide_code=True)
+def _(OpResult, builtin, defaultdict):
+    # Solution
+
+    def _definition_by_use(module: builtin.ModuleOp) -> dict[str, list[str]]:
+        res = defaultdict(list)
+
+        for use_op in module.walk():
+            for operand in use_op.operands:
+                if isinstance(operand, OpResult):
+                    op = operand.op
+                else:
+                    op = operand.block.parent_op()
+
+                res[use_op.name].append(op.name)
+        return dict(res)
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo, triangle_module, uses_by_definition):
-    _unsorted = uses_by_definition(triangle_module)
-    _sorted = {
-        k: sorted(_unsorted[k])
-        for k in sorted(_unsorted)
-    }
+    try:
+        _unsorted = uses_by_definition(triangle_module)
+        _sorted = {
+            k: sorted(_unsorted[k])
+            for k in sorted(_unsorted)
+        }
+        _res = str(_sorted)
+    except Exception as e:
+        _res = f"{type(e).__name__}: {e}"
 
     mo.md(
         fr"""
@@ -344,7 +411,7 @@ def _(mo, triangle_module, uses_by_definition):
         Note: the `SSAValue` class provides a `uses` helper that might be useful.
 
         ```
-        Expected: {{'arith.constant': ['scf.for', 'scf.for', 'scf.for'], 'scf.for': ['func.return'], 'arith.muli': ['arith.addi'], 'arith.addi': ['scf.yield']}}
+        Expected: {{'arith.addi': ['scf.yield'], 'arith.constant': ['scf.for', 'scf.for', 'scf.for'], 'arith.muli': ['arith.addi'], 'scf.for': ['func.return']}}
         Result:   {_sorted}
         ```
         """
@@ -357,6 +424,22 @@ def _(builtin):
     def uses_by_definition(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
     return (uses_by_definition,)
+
+
+@app.cell(hide_code=True)
+def _(builtin, defaultdict):
+    # Solution
+
+    def _uses_by_definition(module: builtin.ModuleOp) -> dict[str, list[str]]:
+        res = defaultdict(list)
+
+        for def_op in module.walk():
+            for result in def_op.results:
+                for use in result.uses:
+                    res[def_op.name].append(use.operation.name)
+
+        return dict(res)
+    return
 
 
 if __name__ == "__main__":
