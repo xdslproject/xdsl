@@ -8,11 +8,21 @@ See https://mlir.llvm.org/docs/Dialects/MathOps/
 
 from __future__ import annotations
 
+import abc
+from typing import ClassVar
+
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import AnyFloatConstr, IntegerType
+from xdsl.dialects.builtin import (
+    AnyFloatConstr,
+    ContainerOf,
+    IndexType,
+    SignlessIntegerConstraint,
+)
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyOf,
     IRDLOperation,
+    VarConstraint,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -21,9 +31,138 @@ from xdsl.irdl import (
 )
 from xdsl.traits import Pure, SameOperandsAndResultType
 
+signlessIntegerLike = ContainerOf(AnyOf([SignlessIntegerConstraint, IndexType]))
+floatingPointLike = ContainerOf(AnyFloatConstr)
+
+
+class SignlessIntegerLikeUnaryMathOperation(IRDLOperation, abc.ABC):
+    """A generic signless integer-like unary math operation."""
+
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
+
+    operand = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$operand attr-dict `:` type($result)"
+
+    def __init__(self, operand: Operation | SSAValue):
+        operand = SSAValue.get(operand)
+        super().__init__(
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
+
+class FloatingPointLikeUnaryMathOperation(IRDLOperation, abc.ABC):
+    """A generic floating-point-like unary math operation."""
+
+    T: ClassVar = VarConstraint("T", floatingPointLike)
+
+    operand = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$operand attr-dict `:` type($result)"
+
+    def __init__(self, operand: Operation | SSAValue):
+        operand = SSAValue.get(operand)
+        super().__init__(
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
+
+class FloatingPointLikeUnaryMathOperationWithFastMath(
+    FloatingPointLikeUnaryMathOperation, abc.ABC
+):
+    """A generic floating-point-like unary math operation with fastmath flags."""
+
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+
+    assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
+
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
+        operand = SSAValue.get(operand)
+        IRDLOperation.__init__(
+            self,
+            attributes={"fastmath": fastmath},
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
+
+class SignlessIntegerLikeBinaryMathOperation(IRDLOperation, abc.ABC):
+    """A generic signless integer-like binary math operation."""
+
+    T: ClassVar = VarConstraint("T", signlessIntegerLike)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+        )
+
+
+class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
+    """A generic floating-point-like binary math operation."""
+
+    T: ClassVar = VarConstraint("T", floatingPointLike)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    result = result_def(T)
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+        )
+
+
+class FloatingPointLikeBinaryMathOperationWithFastMath(
+    FloatingPointLikeBinaryMathOperation, abc.ABC
+):
+    """A generic floating-point-like binary math operation with fastmath flags."""
+
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+
+    assembly_format = (
+        "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
+    )
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fastmath: FastMathFlagsAttr | None = None,
+    ):
+        IRDLOperation.__init__(
+            self,
+            attributes={"fastmath": fastmath},
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+        )
+
 
 @irdl_op_definition
-class AbsFOp(IRDLOperation):
+class AbsFOp(FloatingPointLikeUnaryMathOperation):
     """
     The absf operation computes the absolute value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -36,25 +175,12 @@ class AbsFOp(IRDLOperation):
     """
 
     name = "math.absf"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes={"fastmath": fastmath},
-            operands=[operand],
-            result_types=[operand.type],
-        )
-
 
 @irdl_op_definition
-class AbsIOp(IRDLOperation):
+class AbsIOp(SignlessIntegerLikeUnaryMathOperation):
     """
     The absi operation computes the absolute value. It takes one operand of
     integer type (i.e., scalar, tensor or vector) and returns one result of the
@@ -67,22 +193,13 @@ class AbsIOp(IRDLOperation):
     """
 
     name = "math.absi"
-    operand = operand_def(IntegerType)
-    result = result_def(IntegerType)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(self, operand: Operation | SSAValue):
-        operand = SSAValue.get(operand)
-        super().__init__(operands=[operand], result_types=[operand.type])
-
 
 @irdl_op_definition
-class Atan2Op(IRDLOperation):
+class Atan2Op(FloatingPointLikeBinaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.atan2` ssa-use `,` ssa-use `:` type
-
     The atan2 operation takes two operands and returns one result, all of
     which must be of the same type.  The operands must be of floating point type
     (i.e., scalar, tensor or vector).
@@ -101,33 +218,13 @@ class Atan2Op(IRDLOperation):
     """
 
     name = "math.atan2"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    lhs = operand_def(AnyFloatConstr)
-    rhs = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
-        fastmath: FastMathFlagsAttr | None = None,
-    ):
-        attributes = {"fastmath": fastmath}
-        super().__init__(
-            attributes=attributes,
-            operands=[lhs, rhs],
-            result_types=[SSAValue.get(lhs).type],
-        )
-
 
 @irdl_op_definition
-class AtanOp(IRDLOperation):
+class AtanOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.atan` ssa-use `:` type
-
     The atan operation computes the arcus tangent of a given value.  It takes
     one operand of floating point type (i.e., scalar, tensor or vector) and returns
     one result of the same type. It has no standard attributes.
@@ -139,25 +236,12 @@ class AtanOp(IRDLOperation):
     """
 
     name = "math.atan"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes={"fastmath": fastmath},
-            operands=[operand],
-            result_types=[operand.type],
-        )
-
 
 @irdl_op_definition
-class CbrtOp(IRDLOperation):
+class CbrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     The cbrt operation computes the cube root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -172,29 +256,13 @@ class CbrtOp(IRDLOperation):
     """
 
     name = "math.cbrt"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class CeilOp(IRDLOperation):
+class CeilOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.ceil` ssa-use `:` type
-
     The ceil operation computes the ceiling of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
     result of the same type.  It has no standard attributes.
@@ -206,29 +274,13 @@ class CeilOp(IRDLOperation):
     """
 
     name = "math.ceil"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes={"fastmath": fastmath},
-            operands=[operand],
-            result_types=[operand.type],
-        )
-
 
 @irdl_op_definition
-class CopySignOp(IRDLOperation):
+class CopySignOp(FloatingPointLikeBinaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.copysign` ssa-use `,` ssa-use `:` type
-
     The copysign returns a value with the magnitude of the first operand and
     the sign of the second operand. It takes two operands and returns one result of
     the same type. The operands must be of floating point type (i.e., scalar,
@@ -241,34 +293,13 @@ class CopySignOp(IRDLOperation):
     """
 
     name = "math.copysign"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    lhs = operand_def(AnyFloatConstr)
-    rhs = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
-        fastmath: FastMathFlagsAttr | None = None,
-    ):
-        attributes = {"fastmath": fastmath}
-
-        super().__init__(
-            attributes=attributes,
-            operands=[lhs, rhs],
-            result_types=[SSAValue.get(lhs).type],
-        )
-
 
 @irdl_op_definition
-class CosOp(IRDLOperation):
+class CosOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.cos` ssa-use `:` type
-
     The `cos` operation computes the cosine of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
     result of the same type.  It has no standard attributes.
@@ -280,25 +311,12 @@ class CosOp(IRDLOperation):
     """
 
     name = "math.cos"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class CountLeadingZerosOp(IRDLOperation):
+class CountLeadingZerosOp(SignlessIntegerLikeUnaryMathOperation):
     """
     The ctlz operation computes the number of leading zeros of an integer value.
     It operates on scalar, tensor or vector.
@@ -310,18 +328,12 @@ class CountLeadingZerosOp(IRDLOperation):
     """
 
     name = "math.ctlz"
-    operand = operand_def(IntegerType)
-    result = result_def(IntegerType)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(self, operand: Operation | SSAValue):
-        operand = SSAValue.get(operand)
-        super().__init__(operands=[operand], result_types=[operand.type])
-
 
 @irdl_op_definition
-class CountTrailingZerosOp(IRDLOperation):
+class CountTrailingZerosOp(SignlessIntegerLikeUnaryMathOperation):
     """
     The cttz operation computes the number of trailing zeros of an integer value.
     It operates on scalar, tensor or vector.
@@ -333,18 +345,12 @@ class CountTrailingZerosOp(IRDLOperation):
     """
 
     name = "math.cttz"
-    operand = operand_def(IntegerType)
-    result = result_def(IntegerType)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(self, operand: Operation | SSAValue):
-        operand = SSAValue.get(operand)
-        super().__init__(operands=[operand], result_types=[operand.type])
-
 
 @irdl_op_definition
-class CtPopOp(IRDLOperation):
+class CtPopOp(SignlessIntegerLikeUnaryMathOperation):
     """
     The ctpop operation computes the number of set bits of an integer value.
     It operates on scalar, tensor or vector.
@@ -356,22 +362,13 @@ class CtPopOp(IRDLOperation):
     """
 
     name = "math.ctpop"
-    operand = operand_def(IntegerType)
-    result = result_def(IntegerType)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(self, operand: Operation | SSAValue):
-        operand = SSAValue.get(operand)
-        super().__init__(operands=[operand], result_types=[operand.type])
-
 
 @irdl_op_definition
-class ErfOp(IRDLOperation):
+class ErfOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.erf` ssa-use `:` type
-
     The erf operation computes the error function. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
     the same type. It has no standard attributes.
@@ -383,29 +380,13 @@ class ErfOp(IRDLOperation):
     """
 
     name = "math.erf"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class Exp2Op(IRDLOperation):
+class Exp2Op(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.exp2` ssa-use `:` type
-
     The exp operation takes one operand of floating point type (i.e., scalar,
     tensor or vector) and returns one result of the same type. It has no standard
     attributes.
@@ -417,29 +398,13 @@ class Exp2Op(IRDLOperation):
     """
 
     name = "math.exp2"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class ExpM1Op(IRDLOperation):
+class ExpM1Op(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.expm1` ssa-use `:` type
-
     expm1(x) := exp(x) - 1
 
     The expm1 operation takes one operand of floating point type (i.e.,
@@ -453,29 +418,13 @@ class ExpM1Op(IRDLOperation):
     """
 
     name = "math.expm1"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class ExpOp(IRDLOperation):
+class ExpOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.exp` ssa-use `:` type
-
     The exp operation takes one operand of floating point type (i.e., scalar,
     tensor or vector) and returns one result of the same type. It has no standard
     attributes.
@@ -487,36 +436,20 @@ class ExpOp(IRDLOperation):
     """
 
     name = "math.exp"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
-
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
 
 
 @irdl_op_definition
 class FPowIOp(IRDLOperation):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.fpowi` ssa-use `,` ssa-use `:` type
-
     The fpowi operation takes a `base` operand of floating point type
     (i.e. scalar, tensor or vector) and a `power` operand of integer type
     (also scalar, tensor or vector) and returns one result of the same type
     as `base`. The result is `base` raised to the power of `power`.
     The operation is elementwise for non-scalars, e.g.:
 
-    %v = math.fpowi %base, %power : vector<2xf32>, vector<2xi32
+    %v = math.fpowi %base, %power : vector<2xf32>, vector<2xi32>
 
     The result is a vector of:
 
@@ -529,12 +462,17 @@ class FPowIOp(IRDLOperation):
     """
 
     name = "math.fpowi"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    lhs = operand_def(AnyFloatConstr)
-    rhs = operand_def(IntegerType)
-    result = result_def(AnyFloatConstr)
 
-    traits = traits_def(Pure(), SameOperandsAndResultType())
+    T: ClassVar = VarConstraint("T1", floatingPointLike)
+
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    lhs = operand_def(T)
+    rhs = operand_def(signlessIntegerLike)
+    result = result_def(T)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($lhs) `,` type($rhs)"
 
     def __init__(
         self,
@@ -543,7 +481,6 @@ class FPowIOp(IRDLOperation):
         fastmath: FastMathFlagsAttr | None = None,
     ):
         attributes = {"fastmath": fastmath}
-
         super().__init__(
             attributes=attributes,
             operands=[lhs, rhs],
@@ -552,11 +489,8 @@ class FPowIOp(IRDLOperation):
 
 
 @irdl_op_definition
-class FloorOp(IRDLOperation):
+class FloorOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.floor` ssa-use `:` type
-
     The floor operation computes the floor of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
     result of the same type.  It has no standard attributes.
@@ -568,29 +502,13 @@ class FloorOp(IRDLOperation):
     """
 
     name = "math.floor"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
-
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
 
 
 @irdl_op_definition
 class FmaOp(IRDLOperation):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.fma` ssa-use `,` ssa-use `,` ssa-use `:` type
-
     The fma operation takes three operands and returns one result, each of
     these is required to be the same type. Operands must be of floating point type
     (i.e., scalar, tensor or vector).
@@ -606,14 +524,21 @@ class FmaOp(IRDLOperation):
     to the `llvm.fma.*` intrinsic.
     """
 
+    T: ClassVar = VarConstraint("T", floatingPointLike)
+
     name = "math.fma"
+
     fastmath = opt_prop_def(FastMathFlagsAttr)
-    a = operand_def(AnyFloatConstr)
-    b = operand_def(AnyFloatConstr)
-    c = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
+    a = operand_def(T)
+    b = operand_def(T)
+    c = operand_def(T)
+    result = result_def(T)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    assembly_format = (
+        "$a `,` $b `,` $c (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
+    )
 
     def __init__(
         self,
@@ -632,11 +557,8 @@ class FmaOp(IRDLOperation):
 
 
 @irdl_op_definition
-class IPowIOp(IRDLOperation):
+class IPowIOp(SignlessIntegerLikeBinaryMathOperation):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.ipowi` ssa-use `,` ssa-use `:` type
-
     The ipowi operation takes two operands of integer type (i.e., scalar,
     tensor or vector) and returns one result of the same type. Operands
     must have the same type.
@@ -647,20 +569,12 @@ class IPowIOp(IRDLOperation):
     """
 
     name = "math.ipowi"
-    lhs = operand_def(IntegerType)
-    rhs = operand_def(IntegerType)
-    result = result_def(IntegerType)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
-        lhs = SSAValue.get(lhs)
-        rhs = SSAValue.get(rhs)
-        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
-
 
 @irdl_op_definition
-class Log10Op(IRDLOperation):
+class Log10Op(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     Computes the base-10 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -673,25 +587,12 @@ class Log10Op(IRDLOperation):
     """
 
     name = "math.log10"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class Log1pOp(IRDLOperation):
+class Log1pOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     Computes the base-e logarithm of one plus the given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -706,25 +607,12 @@ class Log1pOp(IRDLOperation):
     """
 
     name = "math.log1p"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class Log2Op(IRDLOperation):
+class Log2Op(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     Computes the base-2 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -737,25 +625,12 @@ class Log2Op(IRDLOperation):
     """
 
     name = "math.log2"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class LogOp(IRDLOperation):
+class LogOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     Computes the base-e logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -768,29 +643,13 @@ class LogOp(IRDLOperation):
     """
 
     name = "math.log"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class PowFOp(IRDLOperation):
+class PowFOp(FloatingPointLikeBinaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.powf` ssa-use `,` ssa-use `:` type
-
     The powf operation takes two operands of floating point type (i.e.,
     scalar, tensor or vector) and returns one result of the same type. Operands
     must have the same type.
@@ -802,34 +661,13 @@ class PowFOp(IRDLOperation):
     """
 
     name = "math.powf"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    lhs = operand_def(AnyFloatConstr)
-    rhs = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self,
-        lhs: Operation | SSAValue,
-        rhs: Operation | SSAValue,
-        fastmath: FastMathFlagsAttr | None = None,
-    ):
-        attributes = {"fastmath": fastmath}
-
-        super().__init__(
-            attributes=attributes,
-            operands=[lhs, rhs],
-            result_types=[SSAValue.get(lhs).type],
-        )
-
 
 @irdl_op_definition
-class RoundEvenOp(IRDLOperation):
+class RoundEvenOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.roundeven` ssa-use `:` type
-
     The roundeven operation returns the operand rounded to the nearest integer
     value in floating-point format. It takes one operand of floating point type
     (i.e., scalar, tensor or vector) and produces one result of the same type.  The
@@ -844,29 +682,13 @@ class RoundEvenOp(IRDLOperation):
     """
 
     name = "math.roundeven"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class RoundOp(IRDLOperation):
+class RoundOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.round` ssa-use `:` type
-
     The round operation returns the operand rounded to the nearest integer
     value in floating-point format. It takes one operand of floating point type
     (i.e., scalar, tensor or vector) and produces one result of the same type.  The
@@ -881,25 +703,12 @@ class RoundOp(IRDLOperation):
     """
 
     name = "math.round"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class RsqrtOp(IRDLOperation):
+class RsqrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     The rsqrt operation computes the reciprocal of the square root. It takes
     one operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -911,29 +720,13 @@ class RsqrtOp(IRDLOperation):
     """
 
     name = "math.rsqrt"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class SinOp(IRDLOperation):
+class SinOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.sin` ssa-use `:` type
-
     The sin operation computes the sine of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
     result of the same type.  It has no standard attributes.
@@ -945,25 +738,12 @@ class SinOp(IRDLOperation):
     """
 
     name = "math.sin"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class SqrtOp(IRDLOperation):
+class SqrtOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     The sqrt operation computes the square root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -975,25 +755,12 @@ class SqrtOp(IRDLOperation):
     """
 
     name = "math.sqrt"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class TanOp(IRDLOperation):
+class TanOp(FloatingPointLikeUnaryMathOperation):
     """
     The tan operation computes the tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -1006,25 +773,12 @@ class TanOp(IRDLOperation):
     """
 
     name = "math.tan"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class TanhOp(IRDLOperation):
+class TanhOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
     The tanh operation computes the hyperbolic tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -1037,29 +791,13 @@ class TanhOp(IRDLOperation):
     """
 
     name = "math.tanh"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
-
 
 @irdl_op_definition
-class TruncOp(IRDLOperation):
+class TruncOp(FloatingPointLikeUnaryMathOperationWithFastMath):
     """
-    Syntax:
-    operation ::= ssa-id `=` `math.trunc` ssa-use `:` type
-
     The trunc operation returns the operand rounded to the nearest integer
     value in floating-point format. It takes one operand of floating point type
     (i.e., scalar, tensor or vector) and produces one result of the same type.
@@ -1073,21 +811,8 @@ class TruncOp(IRDLOperation):
     """
 
     name = "math.trunc"
-    fastmath = opt_prop_def(FastMathFlagsAttr)
-    operand = operand_def(AnyFloatConstr)
-    result = result_def(AnyFloatConstr)
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
-
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
-        attributes = {"fastmath": fastmath}
-
-        operand = SSAValue.get(operand)
-        super().__init__(
-            attributes=attributes, operands=[operand], result_types=[operand.type]
-        )
 
 
 Math = Dialect(

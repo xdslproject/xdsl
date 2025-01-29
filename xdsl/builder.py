@@ -331,10 +331,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
     ``` python
     from xdsl.dialects import arith
 
-    block = Block()
-    builder = Builder(block)
-
-    with builder.implicit():
+    with ImplicitBuilder(block):
         arith.Constant.from_int_and_width(5, 32)
 
     assert len(block.ops) == 1
