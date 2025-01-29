@@ -5,7 +5,6 @@ from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
-    I1,
     AnyFloat,
     AnyFloatConstr,
     AnyIntegerAttr,
@@ -56,7 +55,7 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
-boolLike = ContainerOf[I1](IntegerType(1))
+boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 

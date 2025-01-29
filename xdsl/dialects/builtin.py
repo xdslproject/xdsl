@@ -1106,7 +1106,7 @@ class ContainerOf(
 
     def __init__(
         self,
-        elem_constr: Attribute
+        elem_constr: AttributeCovT
         | type[AttributeCovT]
         | GenericAttrConstraint[AttributeCovT],
     ) -> None:
