@@ -10,7 +10,9 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyIntegerAttrConstr,
     ContainerOf,
+    ContainerType,
     DenseIntOrFPElementsAttr,
+    FixedBitwidthType,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -19,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    ShapedType,
     TensorType,
     UnrankedTensorType,
     VectorType,
@@ -1224,6 +1227,67 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
 
 
 @irdl_op_definition
+class BitcastOp(IRDLOperation):
+    name = "arith.bitcast"
+
+    input = operand_def(signlessIntegerLike | floatingPointLike)
+    result = result_def(signlessIntegerLike | floatingPointLike)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    def __init__(self, in_arg: SSAValue | Operation, target_type: Attribute):
+        super().__init__(operands=[in_arg], result_types=[target_type])
+
+    def verify_(self) -> None:
+        # check if we have a ContainerType
+        in_type = self.input.type
+        res_type = self.result.type
+
+        if isinstance(in_type, ShapedType) and isinstance(res_type, ShapedType):
+            if in_type.get_shape() != res_type.get_shape():
+                raise TypeError(
+                    "'arith.bitcast' operand and result types must have the same shape"
+                )
+
+            assert isinstance(in_type, ContainerType)
+            assert isinstance(res_type, ContainerType)
+
+            t1: Attribute = in_type.get_element_type()
+            t2: Attribute = res_type.get_element_type()
+            if BitcastOp._equal_bitwidths(t1, t2):
+                return
+
+            raise TypeError(
+                "'arith.bitcast' operand and result type elements must have equal bitwidths"
+            )
+
+        if isinstance(in_type, ContainerType) or isinstance(res_type, ContainerType):
+            raise TypeError(
+                "'arith.bitcast' operand and result must both be containers or scalars"
+            )
+
+        # at this point we know we have two scalar types
+        if not BitcastOp._equal_bitwidths(in_type, res_type):
+            raise TypeError(
+                "'arith.bitcast' operand and result types must have equal bitwidths"
+            )
+
+    @staticmethod
+    def _equal_bitwidths(type_a: Attribute, type_b: Attribute) -> bool:
+        if isinstance(type_a, IndexType) or isinstance(type_b, IndexType):
+            return True
+
+        if isinstance(type_a, FixedBitwidthType) and isinstance(
+            type_b, FixedBitwidthType
+        ):
+            return type_a.bitwidth == type_b.bitwidth
+
+        raise TypeError(
+            "Expected operand and result types to be signless-integer-or-float-like"
+        )
+
+
+@irdl_op_definition
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
@@ -1420,6 +1484,7 @@ Arith = Dialect(
         MaximumfOp,
         MaxnumfOp,
         # Casts
+        BitcastOp,
         IndexCastOp,
         FPToSIOp,
         SIToFPOp,

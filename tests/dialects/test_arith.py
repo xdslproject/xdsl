@@ -7,6 +7,7 @@ from xdsl.dialects.arith import (
     AddiOp,
     AddUIExtendedOp,
     AndIOp,
+    BitcastOp,
     CeilDivSIOp,
     CeilDivUIOp,
     CmpfOp,
@@ -55,6 +56,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
+    Signedness,
     TensorType,
     VectorType,
     f32,
@@ -247,6 +249,54 @@ def test_select_op():
     # wanting to verify it actually selected the correct operand, but not sure if in correct scope
     assert select_t_op.result.type == t.result.type
     assert select_f_op.result.type == f.result.type
+
+
+@pytest.mark.parametrize(
+    "in_type, out_type, should_verify",
+    [
+        (i1, IntegerType(1, signedness=Signedness.UNSIGNED), True),
+        (i32, f32, True),
+        (i64, f64, True),
+        (i32, i32, True),
+        (IndexType(), i1, True),
+        (i1, IndexType(), True),
+        (f32, IndexType(), True),
+        (IndexType(), f64, True),
+        (VectorType(i64, [3]), VectorType(f64, [3]), True),
+        (VectorType(f32, [3]), VectorType(i32, [3]), True),
+        # false cases
+        (i1, i32, False),
+        (i32, i64, False),
+        (i64, i32, False),
+        (f32, i64, False),
+        (f32, f64, False),
+        (VectorType(i32, [5]), i32, False),
+        (i64, VectorType(i64, [5]), False),
+        (VectorType(i32, [5]), VectorType(f32, [6]), False),
+        (VectorType(i32, [5]), VectorType(f64, [5]), False),
+    ],
+)
+def test_bitcast_op(in_type: Attribute, out_type: Attribute, should_verify: bool):
+    in_arg = TestSSAValue(in_type)
+    cast = BitcastOp(in_arg, out_type)
+
+    if should_verify:
+        cast.verify_()
+        assert cast.result.type == out_type
+        return
+
+    # expecting test to fail
+    with pytest.raises(TypeError) as e:
+        cast.verify_()
+
+    err_msg1 = "Expected operand and result types to be signless-integer-or-float-like"
+    err_msg2 = "'arith.bitcast' operand and result types must have equal bitwidths"
+    err_msg3 = "'arith.bitcast' operand and result must both be containers or scalars"
+    err_msg4 = (
+        "'arith.bitcast' operand and result type elements must have equal bitwidths"
+    )
+    err_msg5 = "'arith.bitcast' operand and result types must have the same shape"
+    assert e.value.args[0] in [err_msg1, err_msg2, err_msg3, err_msg4, err_msg5]
 
 
 def test_index_cast_op():
