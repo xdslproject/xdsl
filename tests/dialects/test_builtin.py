@@ -72,6 +72,12 @@ def test_FloatType_formats():
         Float128Type().format
 
 
+def test_IntegerType_verifier():
+    IntegerType(32)
+    with pytest.raises(VerifyException):
+        IntegerType(-1)
+
+
 def test_IntegerType_formats():
     assert IntegerType(1).format == "<b"
     assert IntegerType(2).format == "<b"

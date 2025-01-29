@@ -478,6 +478,12 @@ class IntegerType(ParametrizedAttribute, StructPackableType[int], FixedBitwidthT
             signedness = SignednessAttr(signedness)
         super().__init__([data, signedness])
 
+    def verify(self):
+        if self.width.data < 0:
+            raise VerifyException(
+                f"integer type bitwidth should be nonnegative (got {self.width.data})"
+            )
+
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
 
@@ -1094,13 +1100,21 @@ AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType
 
 
 @dataclass(frozen=True, init=False)
-class ContainerOf(AttrConstraint):
+class ContainerOf(
+    Generic[AttributeCovT],
+    GenericAttrConstraint[
+        AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
+    ],
+):
     """A type constraint that can be nested once in a vector or a tensor."""
 
-    elem_constr: AttrConstraint
+    elem_constr: GenericAttrConstraint[AttributeCovT]
 
     def __init__(
-        self, elem_constr: Attribute | type[Attribute] | AttrConstraint
+        self,
+        elem_constr: AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT],
     ) -> None:
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
