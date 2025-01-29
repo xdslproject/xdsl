@@ -57,6 +57,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
+from xdsl.utils.type import get_element_type_or_self
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -1249,11 +1250,8 @@ class BitcastOp(IRDLOperation):
                     "'arith.bitcast' operand and result types must have the same shape"
                 )
 
-            assert isinstance(in_type, ContainerType)
-            assert isinstance(res_type, ContainerType)
-
-            t1: Attribute = in_type.get_element_type()
-            t2: Attribute = res_type.get_element_type()
+            t1 = get_element_type_or_self(in_type)
+            t2 = get_element_type_or_self(res_type)
             if BitcastOp._equal_bitwidths(t1, t2):
                 return
 
