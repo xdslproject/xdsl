@@ -308,7 +308,7 @@ def _(Parser, ctx, run_func, second_input_text, second_text_area):
 def _(mo, second_info_text, second_input_text, second_text_area):
     mo.vstack(
         (
-            mo.md(f"Input: {second_input_text} {mo.ui.button(label="run")}"),
+            mo.md(f"""Input: {second_input_text} {mo.ui.button(label="run")}"""),
             second_text_area,
             mo.md(second_info_text)
         )
