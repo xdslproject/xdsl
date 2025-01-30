@@ -26,7 +26,6 @@ dev = [
     "marimo==0.10.17",
     "pre-commit==4.1.0",
     "ruff==0.9.3",
-    "asv<0.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
