@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BoolAttr,
     BytesAttr,
     ComplexType,
     DenseArrayBase,
@@ -188,9 +189,9 @@ def test_IntAttr___bool__():
     assert IntAttr(1)
 
 
-def test_IntegerAttr___bool__():
-    assert not IntegerAttr.from_bool(False)
-    assert IntegerAttr.from_bool(True)
+def test_BoolAttr___bool__():
+    assert not BoolAttr.from_bool(False)
+    assert BoolAttr.from_bool(True)
 
 
 def test_IntegerType_packing():
