@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import struct
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence, Set
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -52,6 +52,8 @@ from xdsl.irdl import (
     ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
+    InferenceContext,
+    IntConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -298,6 +300,42 @@ class IntAttr(Data[int]):
     def __bool__(self) -> bool:
         """Returns True if value is non-zero."""
         return bool(self.data)
+
+
+@dataclass(frozen=True)
+class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
+    """
+    Constrains the value of an IntAttr.
+    """
+
+    int_constraint: IntConstraint
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(attr, IntAttr):
+            raise VerifyException(f"attribute {attr} expected to be an IntAttr")
+        self.int_constraint.verify(attr.data, constraint_context)
+
+    @dataclass(frozen=True)
+    class _Extractor(VarExtractor[IntAttr]):
+        inner: VarExtractor[int]
+
+        def extract_var(self, a: IntAttr) -> ConstraintVariableType:
+            return self.inner.extract_var(a.data)
+
+    def get_variable_extractors(self) -> dict[str, VarExtractor[IntAttr]]:
+        return {
+            k: self._Extractor(v)
+            for k, v in self.int_constraint.get_length_extractors().items()
+        }
+
+    def can_infer(self, var_constraint_names: Set[str]) -> bool:
+        return self.int_constraint.can_infer(var_constraint_names)
+
+    def infer(self, context: InferenceContext) -> IntAttr:
+        return IntAttr(self.int_constraint.infer(context))
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return IntAttr
 
 
 class Signedness(Enum):
