@@ -15,4 +15,3 @@
 %i32 = "test.op"() : () -> i32
 %res = "arith.index_cast"(%i32) : (i32) -> i32
 // CHECK: 'arith.index_cast' op operand type 'i32' and result type 'i32' are cast incompatible
-
