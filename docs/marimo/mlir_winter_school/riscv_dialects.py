@@ -8,7 +8,11 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     from xdsl.utils import marimo as xmo
-    return mo, xmo
+    from xdsl.ir import Block
+    from xdsl.builder import Builder, InsertPoint
+    from xdsl.dialects import riscv
+    from xdsl.printer import Printer
+    return Block, Builder, InsertPoint, Printer, mo, riscv, xmo
 
 
 @app.cell(hide_code=True)
@@ -30,7 +34,7 @@ def _(mo):
         * [Cheat Sheet](https://www.cl.cam.ac.uk/teaching/1617/ECAD+Arch/files/docs/RISCVGreenCardv8-20151013.pdf)
         * [Assembly Manual](https://github.com/riscv-non-isa/riscv-asm-manual)
         * [ISA Manual](https://github.com/riscv/riscv-isa-manual)
-        * [Detaieled Instruction Definition](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html)
+        * [Detailed Instruction Definition](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html)
         * [ABI](https://d3s.mff.cuni.cz/files/teaching/nswi200/202324/doc/riscv-abi.pdf)
         * [Formal Specification](https://github.com/riscv/sail-riscv)
         """
@@ -75,7 +79,6 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-
         And their corresponding RISC-V assembly:
 
         ```asm
@@ -121,8 +124,73 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        In order to reason about and represent these assembly-level operations, we define the `riscv` dialect.
+
+        The four kinds of static information in RISC-V assembly are strings, integers, labels, and registers.
+        The `riscv` dialect includes integer and float registers (`IntRegisterType` & `FloatRegisterType`).
+        Both of these register classes encode both the information about the binary encoding of the register (e.g. `x0`, `x11`) and its pretty assembly name (e.g. `zero`, `a1`).
+        """
+    )
+    return
+
+
 @app.cell
-def _():
+def _(riscv):
+    # Explictly constructing registers
+
+    riscv.IntRegisterType("zero"), riscv.IntRegisterType("a1")
+    return
+
+
+@app.cell
+def _(riscv):
+    # Using the Registers helper
+
+    riscv.Registers.ZERO, riscv.Registers.A1
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        We use these registers as the types of the operands and results of operations in the riscv dialect.
+        Let's construct a dummy block with some operations in it:
+        """
+    )
+    return
+
+
+@app.cell
+def _(Block, Builder, InsertPoint, Printer, riscv):
+    block = Block(arg_types=(riscv.Registers.A0, riscv.Registers.A1))
+    a0, a1 = block.args
+    builder = Builder(InsertPoint.at_end(block))
+
+    # Explicitly specify result registers
+    addi_op = builder.insert(riscv.AddiOp(a0, a1, rd=riscv.Registers.A2))
+    sub_op = builder.insert(riscv.SubOp(a0, a1, rd=riscv.Registers.A3))
+
+    # Don't specify result registers
+    mul_op = builder.insert(riscv.MulOp(addi_op.rd, sub_op.rd, rd=riscv.Registers.UNALLOCATED_INT))
+
+    Printer().print_block(block)
+    return a0, a1, addi_op, block, builder, mul_op, sub_op
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Unstructured Control Flow and the `riscv_cf` Dialect""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Structured Control Flow and the `riscv_scf` Dialect""")
     return
 
 
