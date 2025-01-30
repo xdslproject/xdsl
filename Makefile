@@ -106,7 +106,7 @@ tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo
 
 # run all tests
 .PHONY: tests
-tests: tests-functional pyright
+tests: tests-functional typecheck
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory
@@ -128,12 +128,12 @@ precommit-install: uv-installed
 precommit: uv-installed
 	uv run pre-commit run --all
 
-# run pyright on all files in the current git commit
-# make sure to generate the python typing stubs before running pyright
-.PHONY: pyright
-pyright: uv-installed
+# run basedpyright on all files in the current git commit
+# make sure to generate the python typing stubs before running basedpyright
+.PHONY: typecheck
+typecheck: uv-installed
 	uv run xdsl-stubgen
-	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
+	uv run basedpyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run coverage over all tests and combine data files
 .PHONY: coverage

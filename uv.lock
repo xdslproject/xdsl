@@ -180,6 +180,18 @@ wheels = [
 ]
 
 [[package]]
+name = "basedpyright"
+version = "1.26.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nodejs-wheel-binaries" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/18/c2/5685d040d4f2598788d42bfd2db5f808e9aa2eaee77fcae3c2fbe4ea0e7c/basedpyright-1.26.0.tar.gz", hash = "sha256:5e01f6eb9290a09ef39672106cf1a02924fdc8970e521838bc502ccf0676f32f", size = 24932771 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/72/65308f45bb73efc93075426cac5f37eea937ae364aa675785521cb3512c7/basedpyright-1.26.0-py3-none-any.whl", hash = "sha256:5a6a17f2c389ec313dd2c3644f40e8221bc90252164802e626055341c0a37381", size = 11504579 },
+]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.12.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1460,6 +1472,22 @@ wheels = [
 ]
 
 [[package]]
+name = "nodejs-wheel-binaries"
+version = "22.13.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/c5/1af2fc54fcc18f4a99426b46f18832a04f755ee340019e1be536187c1e1c/nodejs_wheel_binaries-22.13.1.tar.gz", hash = "sha256:a0c15213c9c3383541be4400a30959883868ce5da9cebb3d63ddc7fe61459308", size = 8053 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7c/e9/b0dd118e0fd4eabe1ec9c3d9a68df4d811282e8837b811d804f23742e117/nodejs_wheel_binaries-22.13.1-py2.py3-none-macosx_11_0_arm64.whl", hash = "sha256:e4f64d0e26600d51cbdd98a6718a19c2d1b8c7538e9e353e95a634a06a8e1a58", size = 51015650 },
+    { url = "https://files.pythonhosted.org/packages/cc/a6/9ba835f5d4f3f6b1f01191e7ac0874871f9743de5c42a5a9a54e67c2e2a6/nodejs_wheel_binaries-22.13.1-py2.py3-none-macosx_11_0_x86_64.whl", hash = "sha256:afcb40484bb02f23137f838014724604ae183fd767b30da95b0be1510a40c06d", size = 51814957 },
+    { url = "https://files.pythonhosted.org/packages/0d/2e/a430207e5f22bd3dcffb81acbddf57ee4108b9e2b0f99a5578dc2c1ff7fc/nodejs_wheel_binaries-22.13.1-py2.py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4fc88c98eebabfc36b5270a4ab974a2682746931567ca76a5ca49c54482bbb51", size = 57148437 },
+    { url = "https://files.pythonhosted.org/packages/97/f4/5731b6f0c8af434619b4f1b8fd895bc33fca60168cd68133e52841872114/nodejs_wheel_binaries-22.13.1-py2.py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8b9f75ea8f5e3e5416256fcb00a98cbe14c8d3b6dcaf17da29c4ade5723026d8", size = 57634451 },
+    { url = "https://files.pythonhosted.org/packages/49/28/83166f7e39812e9ef99cfa3e722c54e32dd9de6a1290f3216c2e5d1f4957/nodejs_wheel_binaries-22.13.1-py2.py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:94608702ef6c389d32e89ff3b7a925cb5dedaf55b5d98bd0c4fb3450a8b6d1c1", size = 58794510 },
+    { url = "https://files.pythonhosted.org/packages/f7/64/4832ec26d0a7ca7a5574df265d85c6832f9a624024511fc34958227ad740/nodejs_wheel_binaries-22.13.1-py2.py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:53a40d0269689aa2eaf2e261cbe5ec256644bc56aae0201ef344b7d8f40ccc79", size = 59738596 },
+    { url = "https://files.pythonhosted.org/packages/18/cd/def29615dac250cda3d141e1c03b7153b9a027360bde0272a6768c5fae33/nodejs_wheel_binaries-22.13.1-py2.py3-none-win_amd64.whl", hash = "sha256:549371a929a29fbce8d0ab8f1b5410549946d4f1b0376a5ce635b45f6d05298f", size = 40455444 },
+    { url = "https://files.pythonhosted.org/packages/15/d7/6de2bc615203bf590ca437a5cac145b2f86d994ce329489125a0a90ba715/nodejs_wheel_binaries-22.13.1-py2.py3-none-win_arm64.whl", hash = "sha256:cf72d50d755f4e5c0709b0449de01768d96b3b1ec7aa531561415b88f179ad8b", size = 36200929 },
+]
+
+[[package]]
 name = "numpy"
 version = "2.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1859,19 +1887,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e7/24/f7a412dc1630b1a6d7b288e7c736215ce878ee4aad24359f7f67b53bbaa9/pymdown_extensions-10.14.1.tar.gz", hash = "sha256:b65801996a0cd4f42a3110810c306c45b7313c09b0610a6f773730f2a9e3c96b", size = 845243 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/09/fb/79a8d27966e90feeeb686395c8b1bff8221727abcbd80d2485841393a955/pymdown_extensions-10.14.1-py3-none-any.whl", hash = "sha256:637951cbfbe9874ba28134fb3ce4b8bcadd6aca89ac4998ec29dcbafd554ae08", size = 264283 },
-]
-
-[[package]]
-name = "pyright"
-version = "1.1.393"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "nodeenv" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f4/c1/aede6c74e664ab103673e4f1b7fd3d058fef32276be5c43572f4067d4a8e/pyright-1.1.393.tar.gz", hash = "sha256:aeeb7ff4e0364775ef416a80111613f91a05c8e01e58ecfefc370ca0db7aed9c", size = 3790430 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/47/f0dd0f8afce13d92e406421ecac6df0990daee84335fc36717678577d3e0/pyright-1.1.393-py3-none-any.whl", hash = "sha256:8320629bb7a44ca90944ba599390162bf59307f3d9fb6e27da3b7011b8c17ae5", size = 5646057 },
 ]
 
 [[package]]
@@ -2733,6 +2748,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "basedpyright" },
     { name = "coverage" },
     { name = "filecheck" },
     { name = "ipykernel" },
@@ -2741,7 +2757,6 @@ dev = [
     { name = "nbconvert" },
     { name = "nbval" },
     { name = "pre-commit" },
-    { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -2769,6 +2784,7 @@ riscv = [
 
 [package.metadata]
 requires-dist = [
+    { name = "basedpyright", marker = "extra == 'dev'", specifier = "==1.26.0" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.1" },
     { name = "immutabledict", specifier = "<4.2.2" },
@@ -2786,7 +2802,6 @@ requires-dist = [
     { name = "ordered-set", specifier = "==4.1.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = "==4.1.0" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
-    { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.393" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.4" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==0.25.3" },
     { name = "pytest-cov", marker = "extra == 'dev'" },

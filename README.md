@@ -171,9 +171,8 @@ make precommit
 uv run ruff format
 ```
 
-Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)
-without errors. Pyright can be run on all staged files through the
-makefile using `make pyright`.
+Furthermore, all python code must run through [basedpyright](https://github.com/DetachHead/basedpyright) without errors.
+Pyright can be run on all staged files through the makefile using `make typecheck`.
 
 > [!IMPORTANT]
 >
