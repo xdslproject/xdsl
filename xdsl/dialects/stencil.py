@@ -542,9 +542,9 @@ class ApplyOp(IRDLOperation):
         assign_args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_assign_args
         )
-        args: list[Parser.Argument]
-        operands: list[SSAValue]
-        args, operands = zip(*assign_args) if assign_args else ([], [])
+        args: tuple[Parser.Argument, ...]
+        operands: tuple[SSAValue, ...]
+        args, operands = zip(*assign_args) if assign_args else ((), ())
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")

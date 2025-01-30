@@ -103,7 +103,7 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     raise ValueError(f"isa: unsupported type hint '{hint}' {get_origin(hint)}")
 
 
-def assert_isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
+def assert_isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     """
     Check if `arg` is of the type described by `hint`.
     For now, only lists, dictionaries, unions,
