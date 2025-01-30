@@ -909,7 +909,7 @@ class AttrParser(BaseParser):
         """
         Parse an (possible negative) integer. The integer can
         either be decimal or hexadecimal.
-        Optionally allow parsing of 'true' or 'false' into -1 and 0.
+        Optionally allow parsing of 'true' or 'false' into 1 and 0.
         """
 
         pos = self.pos
