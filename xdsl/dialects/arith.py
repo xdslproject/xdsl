@@ -146,8 +146,17 @@ class ConstantOp(IRDLOperation):
     @overload
     def __init__(
         self,
-        value: AnyIntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
         value_type: None = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        value: AnyIntegerAttr,
+        value_type: None = None,
+        *,
+        truncate_bits: bool = False,
     ) -> None: ...
 
     @overload
@@ -157,10 +166,18 @@ class ConstantOp(IRDLOperation):
         self,
         value: AnyIntegerAttr | FloatAttr[AnyFloat] | Attribute,
         value_type: Attribute | None = None,
+        *,
+        truncate_bits: bool = False,
     ):
         if value_type is None:
             value = cast(AnyIntegerAttr | FloatAttr[AnyFloat], value)
             value_type = value.type
+        if isinstance(value, IntegerAttr):
+            value_type = cast(IntegerType, value_type)
+            value = IntegerAttr(value.value, value_type, truncate_bits=truncate_bits)
+        if isinstance(value, FloatAttr):
+            value_type = cast(AnyFloat, value_type)
+            value = FloatAttr(value.value, value_type)
         super().__init__(
             operands=[], result_types=[value_type], properties={"value": value}
         )
