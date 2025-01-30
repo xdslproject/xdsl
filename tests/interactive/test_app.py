@@ -28,7 +28,6 @@ from xdsl.transforms import (
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 
 @pytest.mark.asyncio
@@ -167,18 +166,12 @@ async def test_buttons():
         # Select two passes
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
-            ),
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
         )
 
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_arith_to_riscv.ConvertArithToRiscvPass,
-                PipelinePassSpec(name="convert-arith-to-riscv", args={}),
-            ),
+            convert_arith_to_riscv.ConvertArithToRiscvPass(),
         )
 
         # assert that pass selection affected Output Text Area
@@ -330,12 +323,9 @@ async def test_rewrites():
 
         addi_pass = AvailablePass(
             display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
-            module_pass=individual_rewrite.ApplyIndividualRewritePass,
-            pass_spec=list(
-                parse_pipeline(
-                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
-                )
-            )[0],
+            module_pass=individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
+            ),
         )
 
         await pilot.pause()
@@ -350,13 +340,8 @@ async def test_rewrites():
         # Select a rewrite
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                individual_rewrite.ApplyIndividualRewritePass,
-                list(
-                    parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
-                    )
-                )[0],
+            individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
             ),
         )
 
@@ -414,10 +399,7 @@ async def test_passes():
         # Select a pass
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
-            ),
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
         )
         # assert that the Output Text Area has changed accordingly
         await pilot.pause()
@@ -499,8 +481,7 @@ async def test_argument_pass_screen():
 
         for node in root_children:
             assert node.data is not None
-            pass_val, _ = node.data
-            if pass_val.name == stencil_global_to_local.DistributeStencilPass.name:
+            if node.data is stencil_global_to_local.DistributeStencilPass:
                 distribute_stencil_node = node
 
         assert distribute_stencil_node is not None
@@ -559,11 +540,8 @@ async def test_apply_individual_rewrite():
 
         node = None
         for n in app.passes_tree.root.children:
-            if (
-                n.data is not None
-                and n.data[1] is not None
-                and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationConstantProp"}'
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationConstantProp"
             ):
                 node = n
 
@@ -589,11 +567,8 @@ async def test_apply_individual_rewrite():
         # Apply second individual rewrite
         node = None
         for n in app.passes_tree.root.children:
-            if (
-                n.data is not None
-                and n.data[1] is not None
-                and str(n.data[1])
-                == 'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="SignlessIntegerBinaryOperationZeroOrUnitRight"}'
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
             ):
                 node = n
 

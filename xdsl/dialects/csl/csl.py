@@ -790,9 +790,9 @@ class FuncOp(_FuncBase):
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in csl FuncOp")
 
-        assert (
-            len(return_types) <= 1
-        ), f"{cls.name} can't have more than one result type!"
+        assert len(return_types) <= 1, (
+            f"{cls.name} can't have more than one result type!"
+        )
 
         func = cls(
             name=name,
@@ -848,9 +848,9 @@ class TaskOp(_FuncBase):
                 id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
             )
         if id is not None:
-            assert (
-                id.type.width.data == task_kind.get_color_bits()
-            ), f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+            assert id.type.width.data == task_kind.get_color_bits(), (
+                f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+            )
 
         properties |= {
             "kind": task_kind,
@@ -900,7 +900,7 @@ class TaskOp(_FuncBase):
         if (
             extra_attrs is None
             or "kind" not in extra_attrs.data
-            or not isinstance(extra_attrs.data["kind"], TaskKindAttr)
+            or not isinstance(kind := extra_attrs.data["kind"], TaskKindAttr)
         ):
             parser.raise_error(f"{cls.name} expected kind attribute")
         id = extra_attrs.data.get("id")
@@ -911,16 +911,16 @@ class TaskOp(_FuncBase):
                 parser.pos,
             )
 
-        assert (
-            len(return_types) <= 1
-        ), f"{cls.name} can't have more than one result type!"
+        assert len(return_types) <= 1, (
+            f"{cls.name} can't have more than one result type!"
+        )
 
         task = cls(
             name=name,
             function_type=(input_types, return_types[0] if return_types else None),
             region=region,
             arg_attrs=arg_attrs,
-            task_kind=extra_attrs.data["kind"],
+            task_kind=kind,
             id=id,
         )
         return task

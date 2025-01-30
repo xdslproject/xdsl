@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     ModuleOp,
     UnitAttr,
@@ -31,12 +32,14 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
     GenericAttrConstraint,
+    IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParameterDef,
@@ -48,6 +51,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -242,12 +246,12 @@ class AttrDictWithKeywordOp(IRDLOperation):
         ("test.attr_dict", '"test.attr_dict"() : () -> ()'),
         ("test.attr_dict_with_keyword", '"test.attr_dict_with_keyword"() : () -> ()'),
         (
-            'test.attr_dict {"a" = 2 : i32}',
-            '"test.attr_dict"() {"a" = 2 : i32} : () -> ()',
+            "test.attr_dict {a = 2 : i32}",
+            '"test.attr_dict"() {a = 2 : i32} : () -> ()',
         ),
         (
-            'test.attr_dict_with_keyword attributes {"a" = 2 : i32}',
-            '"test.attr_dict_with_keyword"() {"a" = 2 : i32} : () -> ()',
+            "test.attr_dict_with_keyword attributes {a = 2 : i32}",
+            '"test.attr_dict_with_keyword"() {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -264,10 +268,10 @@ def test_attr_dict(program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ('test.prop {"prop" = true}', '"test.prop"() <{"prop" = true}> : () -> ()'),
+        ("test.prop {prop = true}", '"test.prop"() <{prop = true}> : () -> ()'),
         (
-            'test.prop {"a" = 2 : i32, "prop" = true}',
-            '"test.prop"() <{"prop" = true}> {"a" = 2 : i32} : () -> ()',
+            "test.prop {a = 2 : i32, prop = true}",
+            '"test.prop"() <{prop = true}> {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -302,10 +306,10 @@ class OpWithAttrOp(IRDLOperation):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_attr i32", '"test.one_attr"() {"attr" = i32} : () -> ()'),
+        ("test.one_attr i32", '"test.one_attr"() {attr = i32} : () -> ()'),
         (
-            'test.one_attr i32 {"attr2" = i64}',
-            '"test.one_attr"() {"attr" = i32, "attr2" = i64} : () -> ()',
+            "test.one_attr i32 {attr2 = i64}",
+            '"test.one_attr"() {attr = i32, attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -332,10 +336,10 @@ def test_attr_variable_shadowed():
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_attr i32", '"test.one_attr"() {"irdl" = i32} : () -> ()'),
+        ("test.one_attr i32", '"test.one_attr"() {irdl = i32} : () -> ()'),
         (
-            'test.one_attr i32 {"attr2" = i64}',
-            '"test.one_attr"() {"irdl" = i32, "attr2" = i64} : () -> ()',
+            "test.one_attr i32 {attr2 = i64}",
+            '"test.one_attr"() {irdl = i32, attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -359,15 +363,15 @@ def test_attr_name(program: str, generic_program: str):
     [
         (
             "test.one_attr <5 : i64>",
-            '"test.one_attr"() {"attr" = #test.param<5 : i64>} : () -> ()',
+            '"test.one_attr"() {attr = #test.param<5 : i64>} : () -> ()',
         ),
         (
             'test.one_attr <"hello">',
-            '"test.one_attr"() {"attr" = #test.param<"hello">} : () -> ()',
+            '"test.one_attr"() {attr = #test.param<"hello">} : () -> ()',
         ),
         (
             'test.one_attr <#test.param<"nested">>',
-            '"test.one_attr"() {"attr" = #test.param<#test.param<"nested">>} : () -> ()',
+            '"test.one_attr"() {attr = #test.param<#test.param<"nested">>} : () -> ()',
         ),
     ],
 )
@@ -410,10 +414,10 @@ def test_missing_property_error():
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_prop i32", '"test.one_prop"() <{"prop" = i32}> : () -> ()'),
+        ("test.one_prop i32", '"test.one_prop"() <{prop = i32}> : () -> ()'),
         (
-            'test.one_prop i32 {"attr2" = i64}',
-            '"test.one_prop"() <{"prop" = i32}> {"attr2" = i64} : () -> ()',
+            "test.one_prop i32 {attr2 = i64}",
+            '"test.one_prop"() <{prop = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -435,10 +439,10 @@ def test_standard_prop_directive(program: str, generic_program: str):
 @pytest.mark.parametrize(
     "program, generic_program",
     [
-        ("test.one_prop i32", '"test.one_prop"() <{"irdl" = i32}> : () -> ()'),
+        ("test.one_prop i32", '"test.one_prop"() <{irdl = i32}> : () -> ()'),
         (
-            'test.one_prop i32 {"attr2" = i64}',
-            '"test.one_prop"() <{"irdl" = i32}> {"attr2" = i64} : () -> ()',
+            "test.one_prop i32 {attr2 = i64}",
+            '"test.one_prop"() <{irdl = i32}> {attr2 = i64} : () -> ()',
         ),
     ],
 )
@@ -466,7 +470,7 @@ def test_prop_name(program: str, generic_program: str):
         ),
         (
             "test.optional_property prop i32",
-            '"test.optional_property"() <{"prop" = i32}> : () -> ()',
+            '"test.optional_property"() <{prop = i32}> : () -> ()',
         ),
     ],
 )
@@ -497,7 +501,7 @@ def test_optional_property(program: str, generic_program: str):
         ),
         (
             "test.optional_property( prop i32 )",
-            '"test.optional_property"() <{"prop" = i32}> : () -> ()',
+            '"test.optional_property"() <{prop = i32}> : () -> ()',
         ),
     ],
 )
@@ -528,7 +532,7 @@ def test_optional_property_with_whitespace(program: str, generic_program: str):
         ),
         (
             "test.optional_unit_attr_prop unit_attr",
-            '"test.optional_unit_attr_prop"() <{"unit_attr"}> : () -> ()',
+            '"test.optional_unit_attr_prop"() <{unit_attr}> : () -> ()',
         ),
     ],
 )
@@ -559,7 +563,7 @@ def test_optional_unit_attr_property(program: str, generic_program: str):
         ),
         (
             "test.optional_unit_attr unit_attr",
-            '"test.optional_unit_attr"() <{"unit_attr"}> : () -> ()',
+            '"test.optional_unit_attr"() <{unit_attr}> : () -> ()',
         ),
     ],
 )
@@ -590,7 +594,7 @@ def test_optional_unit_attr_attribute(program: str, generic_program: str):
         ),
         (
             "test.optional_attribute attr i32",
-            '"test.optional_attribute"() {"attr" = i32} : () -> ()',
+            '"test.optional_attribute"() {attr = i32} : () -> ()',
         ),
     ],
 )
@@ -617,7 +621,7 @@ def test_optional_attribute(program: str, generic_program: str):
     [
         (
             "test.typed_attr 3 3.000000e+00",
-            '"test.typed_attr"() {"attr" = 3 : i32, "float_attr" = 3.000000e+00 : f64} : () -> ()',
+            '"test.typed_attr"() {attr = 3 : i32, float_attr = 3.000000e+00 : f64} : () -> ()',
         ),
     ],
 )
@@ -769,15 +773,13 @@ def test_operands_duplicated_type():
     [
         (
             "$lhs $rhs type($lhs) type($rhs) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.two_operands %0 %1 i32 i64",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %0 %1 i32 i64',
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
         ),
         (
             "$rhs $lhs type($rhs) type($lhs) attr-dict",
-            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.two_operands %1 %0 i64 i32",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\ntest.two_operands %1 %0 i64 i32',
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
         ),
@@ -814,14 +816,13 @@ def test_operands(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand",
-            '%0 = "test.op"() : () -> i32\n' '"test.variadic_operand"() : () -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operand',
+            '%0 = "test.op"() : () -> i32\n"test.variadic_operand"() : () -> ()',
         ),
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand %0 i32",
-            '%0 = "test.op"() : () -> i32\n'
-            '"test.variadic_operand"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operand %0 i32',
+            '%0 = "test.op"() : () -> i32\n"test.variadic_operand"(%0) : (i32) -> ()',
         ),
         (
             "$args type($args) attr-dict",
@@ -862,14 +863,13 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.optional_operand",
-            '%0 = "test.op"() : () -> i32\n' '"test.optional_operand"() : () -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_operand',
+            '%0 = "test.op"() : () -> i32\n"test.optional_operand"() : () -> ()',
         ),
         (
             "$args type($args) attr-dict",
-            '%0 = "test.op"() : () -> i32\n' "test.optional_operand %0 i32",
-            '%0 = "test.op"() : () -> i32\n'
-            '"test.optional_operand"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_operand %0 i32',
+            '%0 = "test.op"() : () -> i32\n"test.optional_operand"(%0) : (i32) -> ()',
         ),
     ],
 )
@@ -895,15 +895,13 @@ def test_optional_operand(format: str, program: str, generic_program: str):
     "program, generic_program, as_property",
     [
         (
-            '%0 = "test.op"() : () -> i32\n'
-            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
             False,
         ),
         (
-            '%0 = "test.op"() : () -> i32\n'
-            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\ntest.variadic_operands(%0 : i32) [%0 : i32]',
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operands"(%0, %0) <{operandSegmentSizes = array<i32:1,1>}> : (i32,i32) -> ()',
             True,
@@ -957,8 +955,7 @@ def test_multiple_variadic_operands(
             '"test.optional_operands"() {operandSegmentSizes = array<i32:0,0>} : () -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i32\n'
-            "test.optional_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\ntest.optional_operands(%0 : i32) [%0 : i32]',
             '%0 = "test.op"() : () -> i32\n'
             '"test.optional_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
         ),
@@ -1879,13 +1876,13 @@ def test_attr_dict_directly_before_region_variable():
     [
         (
             "$region attr-dict",
-            'test.region_attr_dict {\n} {"a" = 2 : i32}',
-            '"test.region_attr_dict"() ({}) {"a" = 2 : i32} : () -> ()',
+            "test.region_attr_dict {\n} {a = 2 : i32}",
+            '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
         ),
         (
             "attr-dict `,` $region",
-            'test.region_attr_dict {"a" = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
-            '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {"a" = 2 : i32} : () -> ()',
+            'test.region_attr_dict {a = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
+            '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -1922,8 +1919,8 @@ def test_regions_with_attr_dict(format: str, program: str, generic_program: str)
         ),
         (
             "attr-dict-with-keyword $fst $snd",
-            'test.two_regions attributes {"a" = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
-            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {"a" = 2 : i32} : () -> ()',
+            'test.two_regions attributes {a = 2 : i32} {\n  "test.op"() : () -> ()\n} {\n  "test.op"() : () -> ()\n}',
+            '"test.two_regions"() ({ "test.op"() : () -> ()}, { "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
     ],
 )
@@ -2473,6 +2470,32 @@ def test_variadic_length_inference():
     assert isinstance(my_op, RangeVarOp)
 
 
+def test_int_var_inference():
+    @irdl_op_definition
+    class IntVarOp(IRDLOperation):
+        name = "test.int_var"
+        T: ClassVar = IntVarConstraint("T", AnyInt())
+        ins = var_operand_def(RangeOf(eq(IndexType()), length=T))
+        outs = var_result_def(RangeOf(eq(IntegerType(64)), length=T))
+
+        assembly_format = "$ins attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(IntVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent("""\
+    %in0, %in1 = "test.op"() : () -> (index, index)
+    %out0, %out1 = test.int_var %in0, %in1
+    """)
+
+    parser = Parser(ctx, program)
+    test_op = parser.parse_optional_operation()
+    assert isinstance(test_op, test.Operation)
+    my_op = parser.parse_optional_operation()
+    assert isinstance(my_op, IntVarOp)
+    assert my_op.result_types == (IntegerType(64), IntegerType(64))
+
+
 ################################################################################
 # Declarative Format Verification                                              #
 ################################################################################
@@ -2559,8 +2582,8 @@ def test_chained_variadic_operands_safeguard(
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> i32\n' "test.optional_group(%0 : i32)",
-            '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_group(%0 : i32)',
+            '%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
         ),
         (
             "test.optional_group",
@@ -2598,8 +2621,8 @@ def test_optional_group_optional_operand_anchor(
             '"test.optional_group"(%0, %1) : (i32, i64) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i32\n' "test.optional_group %0 : i32",
-            '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
+            '%0 = "test.op"() : () -> i32\ntest.optional_group %0 : i32',
+            '%0 = "test.op"() : () -> i32\n"test.optional_group"(%0) : (i32) -> ()',
         ),
         (
             "test.optional_group",
@@ -2737,17 +2760,17 @@ def test_optional_group_checkers(format: str, error: str):
     "program, generic_program",
     [
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0()",
+            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0()',
             '%0 = "test.op"() : () -> !test.type<"index">\n'
             '"test.mixed"(%0) : (!test.type<"index">) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0)',
             '%0 = "test.op"() : () -> !test.type<"index">\n'
             '"test.mixed"(%0, %0) : (!test.type<"index">, !test.type<"index">) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0, %0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\ntest.mixed %0(%0, %0)',
             '%0 = "test.op"() : () -> !test.type<"index">\n'
             '"test.mixed"(%0, %0, %0) : (!test.type<"index">, !test.type<"index">, !test.type<"index">) -> ()',
         ),
@@ -2789,47 +2812,47 @@ class DefaultOp(IRDLOperation):
         (
             "test.default",
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
         (
             "test.default prop false opt_prop true",
             "test.default",
-            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
         ),
         (
-            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false, "opt_prop" = true}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false, opt_prop = true}> {attr = false} : () -> ()',
         ),
         (
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
         (
             "test.default prop true opt_prop false",
             "test.default prop true opt_prop false",
-            '"test.default"() <{"prop" = true, "opt_prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = true, opt_prop = false}> {attr = false} : () -> ()',
         ),
         (
             "test.default attr false opt_attr true",
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
         ),
         (
-            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false, "opt_attr" = true} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false, opt_attr = true} : () -> ()',
         ),
         (
             "test.default attr true opt_attr false",
             "test.default attr true opt_attr false",
-            '"test.default"() <{"prop" = false}> {"attr" = true, "opt_attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = true, opt_attr = false} : () -> ()',
         ),
         (
             '"test.default"() : () -> ()',
             "test.default",
-            '"test.default"() <{"prop" = false}> {"attr" = false} : () -> ()',
+            '"test.default"() <{prop = false}> {attr = false} : () -> ()',
         ),
     ],
 )
@@ -2871,17 +2894,17 @@ class RenamedPropOp(IRDLOperation):
         (
             "test.renamed",
             "test.renamed",
-            '"test.renamed"() <{"test_prop1" = false}> : () -> ()',
+            '"test.renamed"() <{test_prop1 = false}> : () -> ()',
         ),
         (
             "test.renamed prop1 false prop2 false",
             "test.renamed prop2 false",
-            '"test.renamed"() <{"test_prop1" = false, "test_prop2" = false}> : () -> ()',
+            '"test.renamed"() <{test_prop1 = false, test_prop2 = false}> : () -> ()',
         ),
         (
             "test.renamed prop1 true prop2 true",
             "test.renamed prop1 true prop2 true",
-            '"test.renamed"() <{"test_prop1" = true, "test_prop2" = true}> : () -> ()',
+            '"test.renamed"() <{test_prop1 = true, test_prop2 = true}> : () -> ()',
         ),
     ],
 )
@@ -2914,7 +2937,7 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
         ),
         (
             "%0 = test.opt_constant value 1 : i32 : (i32)",
-            '%0 = "test.opt_constant"() <{"value" = 1 : i32}> : () -> (i32)',
+            '%0 = "test.opt_constant"() <{value = 1 : i32}> : () -> (i32)',
         ),
     ],
 )
@@ -2942,11 +2965,11 @@ def test_optional_property_with_extractor(program: str, generic: str):
     [
         (
             "%0 = test.default_constant",
-            '%0 = "test.default_constant"() <{"value" = true}> : () -> (i1)',
+            '%0 = "test.default_constant"() <{value = true}> : () -> (i1)',
         ),
         (
             "%0 = test.default_constant value 2 : i32",
-            '%0 = "test.default_constant"() <{"value" = 2 : i32}> : () -> (i32)',
+            '%0 = "test.default_constant"() <{value = 2 : i32}> : () -> (i32)',
         ),
     ],
 )
@@ -2967,6 +2990,68 @@ def test_default_property_with_extractor(program: str, generic: str):
 
     ctx = MLContext()
     ctx.load_op(DefaultConstantOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() <{prop = false}> {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true, prop = true}",
+            '"test.default_attr_dict"() <{prop = true}> {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_property_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        irdl_options = [ParsePropInAttrDict()]
+
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(DefaultAttrDictOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true}",
+            '"test.default_attr_dict"() {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_attr_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(DefaultAttrDictOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic, ctx)

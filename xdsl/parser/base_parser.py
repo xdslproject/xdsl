@@ -255,7 +255,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
         assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), (
-            "'parse_optional_punctuation' must be " "called with a valid punctuation"
+            "'parse_optional_punctuation' must be called with a valid punctuation"
         )
         kind = MLIRTokenKind.get_punctuation_kind_from_spelling(punctuation)
         if self._parse_optional_token(kind) is not None:
@@ -271,9 +271,9 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
-        assert MLIRTokenKind.is_spelling_of_punctuation(
-            punctuation
-        ), "'parse_punctuation' must be called with a valid punctuation"
+        assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), (
+            "'parse_punctuation' must be called with a valid punctuation"
+        )
         kind = MLIRTokenKind.get_punctuation_kind_from_spelling(punctuation)
         self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
         return punctuation

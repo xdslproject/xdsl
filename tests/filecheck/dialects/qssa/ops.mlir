@@ -23,6 +23,6 @@
 
 // CHECK-GENERIC: %q0, %q1 = "qssa.alloc"() : () -> (!qssa.qubit, !qssa.qubit)
 // CHECK-GENERIC-NEXT: %q2 = "qssa.h"(%q0) : (!qssa.qubit) -> !qssa.qubit
-// CHECK-GENERIC-NEXT: %q3 = "qssa.rz"(%q1) <{"angle" = !quantum.angle<pi:2>}> : (!qssa.qubit) -> !qssa.qubit
+// CHECK-GENERIC-NEXT: %q3 = "qssa.rz"(%q1) <{angle = !quantum.angle<pi:2>}> : (!qssa.qubit) -> !qssa.qubit
 // CHECK-GENERIC-NEXT: %q4, %q5 = "qssa.cnot"(%q2, %q3) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
 // CHECK-GENERIC-NEXT: %0 = "qssa.measure"(%q4) : (!qssa.qubit) -> i1

@@ -43,7 +43,7 @@ def test_raises_exception_on_op_with_no_blocks_II():
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_region(empty_region)
     assert err.value.msg == (
-        "Trying to set the insertion point from the region without" " blocks."
+        "Trying to set the insertion point from the region without blocks."
     )
 
 

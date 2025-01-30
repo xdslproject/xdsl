@@ -147,9 +147,9 @@ def generate_func_with_pinned_val(
             for bad_ops in ops_between_op_and_func_start(func_op, op):
                 rewriter.erase_op(bad_ops)
             # then check that we really just have one result (sanity check)
-            assert (
-                len(op.results) == 1
-            ), "Constant pinning only work on single return operations"
+            assert len(op.results) == 1, (
+                "Constant pinning only work on single return operations"
+            )
             # replace op by constant
             rewriter.replace_op(op, arith.ConstantOp(pin, op.results[0].type))
             # don't look at more operations inside the function

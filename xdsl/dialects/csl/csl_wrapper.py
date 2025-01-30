@@ -228,7 +228,9 @@ class ModuleOp(IRDLOperation):
             len(self.program_module.block.args)
             == len(self.layout_module.block.args) - 2
             # minus two as layout_module has additional x and y args
-        ), "program_module block args should only contain args from properties when calling this function"
+        ), (
+            "program_module block args should only contain args from properties when calling this function"
+        )
 
         if yield_args is None:
             yield_args = self.layout_yield_op.items()

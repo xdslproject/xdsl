@@ -15,7 +15,6 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-    "pip<25.0",
     "toml<0.11",
     "pytest-cov",
     "coverage<8.0.0",
@@ -24,20 +23,23 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.9.34",
-    "pre-commit==4.0.1",
-    "ruff==0.8.4",
-    "asv<0.7",
+    "marimo==0.10.17",
+    "pre-commit==4.1.0",
+    "ruff==0.9.3",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==0.25.0",
-    "pyright==1.1.391",
+    "pytest-asyncio==0.25.3",
+    "pyright==1.1.392.post0",
+]
+docs = [
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-material>=9.5.49",
+    "mkdocs>=1.6.1",
+    "mkdocstrings[python]>=0.27.0",
 ]
 gui = ["textual==1.0.0", "pyclip==0.7"]
-jax = ["jax==0.4.38", "numpy==2.2.1"]
-onnx = ["onnx==1.17.0", "numpy==2.2.1"]
+jax = ["jax==0.5.0", "numpy==2.2.2"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.19.3"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -70,16 +72,11 @@ enableTypeIgnoreComments = false
 enableExperimentalFeatures = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests", "bench"]
+"include" = ["docs", "xdsl", "tests"]
 "exclude" = [
     "tests/dialects/test_memref.py",
-    "tests/frontend/onnx/test_build_onnx_ir.py",
-    "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "xdsl/frontend/onnx/ir_builder.py",
-    "xdsl/frontend/onnx/type.py",
-    "xdsl/interpreters/wgpu.py",
 ]
 "ignore" = [
     "docs/marimo",
@@ -142,6 +139,7 @@ max-line-length = 300
 "docs/irdl.ipynb" = ["ALL"]
 "docs/database_example.ipynb" = ["ALL"]
 "**/{docs/marimo}/*" = ["E501", "I001"]
+"**/__marimo__/*" = ["ALL"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
 
@@ -149,7 +147,12 @@ max-line-length = 300
 max-complexity = 10
 
 [tool.ruff.format]
-exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
+exclude = [
+    "versioneer.py",
+    "xdsl/_version.py",
+    "docs/marimo/**/*.py",
+    "docs/marimo/**/*.ipynb",
+]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]

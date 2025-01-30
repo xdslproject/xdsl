@@ -161,19 +161,19 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             rewriter.erase_matched_op(False)
             return
 
-        assert all(
-            len(swap.size) == 3 for swap in op.swaps
-        ), "currently only 3-dimensional stencils are supported"
+        assert all(len(swap.size) == 3 for swap in op.swaps), (
+            "currently only 3-dimensional stencils are supported"
+        )
 
-        assert all(
-            swap.size[:2] == (1, 1) for swap in op.swaps
-        ), "invoke dmp to decompose from (x,y,z) to (1,1,z)"
+        assert all(swap.size[:2] == (1, 1) for swap in op.swaps), (
+            "invoke dmp to decompose from (x,y,z) to (1,1,z)"
+        )
 
         # check that size is uniform
         uniform_size = op.swaps.data[0].size[2]
-        assert all(
-            swap.size[2] == uniform_size for swap in op.swaps
-        ), "all swaps need to be of uniform size"
+        assert all(swap.size[2] == uniform_size for swap in op.swaps), (
+            "all swaps need to be of uniform size"
+        )
 
         assert isattr(
             op.input_stencil.type,
@@ -182,9 +182,9 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
         )
-        assert (
-            op.strategy.comm_layout() is not None
-        ), f"topology on {type(op)} is not given"
+        assert op.strategy.comm_layout() is not None, (
+            f"topology on {type(op)} is not given"
+        )
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
@@ -366,18 +366,20 @@ class ConvertApplyOpPattern(RewritePattern):
     """
     Fuses a `csl_stencil.prefetch` and a `stencil.apply` to build a `csl_stencil.apply`.
 
-    If there are several candidate prefetch ops, the one with the largest result buffer size is selected.
-    The selection is greedy, and could in the future be expanded into a more global selection optimising for minimal
-    prefetch overhead across multiple apply ops.
-
-    args:
-        num_chunks - number of chunks into which communication and computation should be split.
-                     Effectively, the number of times `csl_stencil.apply.receive_chunk` will be executed and the
-                     tensor sizes it handles. Higher values may increase compute overhead but reduce size of
-                     communication buffers when lowered.
+    If there are several candidate prefetch ops, the one with the largest result buffer
+    size is selected.
+    The selection is greedy, and could in the future be expanded into a more global
+    selection optimising for minimal prefetch overhead across multiple apply ops.
     """
 
     num_chunks: int = 1
+    """
+    Number of chunks into which communication and computation should be split.
+    Effectively, the number of times `csl_stencil.apply.receive_chunk` will be executed
+    and the tensor sizes it handles.
+    Higher values may increase compute overhead but reduce size of communication buffers
+    when lowered.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):

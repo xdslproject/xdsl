@@ -23,6 +23,6 @@ qref.cnot %q0, %q1
 
 // CHECK-GENERIC: %q0, %q1 = "qref.alloc"() : () -> (!qref.qubit, !qref.qubit)
 // CHECK-GENERIC-NEXT: "qref.h"(%q0) : (!qref.qubit) -> ()
-// CHECK-GENERIC-NEXT: "qref.rz"(%q1) <{"angle" = !quantum.angle<pi:2>}> : (!qref.qubit) -> ()
+// CHECK-GENERIC-NEXT: "qref.rz"(%q1) <{angle = !quantum.angle<pi:2>}> : (!qref.qubit) -> ()
 // CHECK-GENERIC-NEXT: "qref.cnot"(%q0, %q1) : (!qref.qubit, !qref.qubit) -> ()
 // CHECK-GENERIC-NEXT: %0 = "qref.measure"(%q0) : (!qref.qubit) -> i1

@@ -85,17 +85,6 @@ TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[ModulePass, ...] = (
     *LOWER_SNITCH_STREAM_TO_ASM_PASSES,
 )
 
-LINALG_SNITCH_OPTIMIZATION_PASSES: tuple[ModulePass, ...] = (
-    # + Unroll and Jam (O4)
-    memref_stream_interleave.MemrefStreamInterleavePass(),
-    # + FRep (O3)
-    convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
-    # + Scalar Replacement (O2)
-    memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
-    # + Streams (O1)
-    memref_streamify.MemrefStreamifyPass(),
-)
-
 
 @dataclass(frozen=True)
 class TestLowerLinalgToSnitchPass(ModulePass):

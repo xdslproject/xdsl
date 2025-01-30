@@ -236,15 +236,15 @@ func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.
   func.return
 }
 
-// CHECK:         func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_1", "u_vec", "timers"]}{
-// CHECK-NEXT:      %2 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
+// CHECK:         func.func @apply_kernel(%0 : !stencil.field<[-2,13]x[-2,13]xf32>, %1 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {param_names = ["u_vec_1", "u_vec", "timers"]}{
+// CHECK-NEXT:      %2 = "gpu.alloc"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
 // CHECK-NEXT:      %u_vec = builtin.unrealized_conversion_cast %2 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
 // CHECK-NEXT:      %3 = builtin.unrealized_conversion_cast %1 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
-// CHECK-NEXT:      "gpu.memcpy"(%2, %3) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
-// CHECK-NEXT:      %4 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
+// CHECK-NEXT:      "gpu.memcpy"(%2, %3) {operandSegmentSizes = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+// CHECK-NEXT:      %4 = "gpu.alloc"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
 // CHECK-NEXT:      %u_vec_1 = builtin.unrealized_conversion_cast %4 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
 // CHECK-NEXT:      %5 = builtin.unrealized_conversion_cast %0 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
-// CHECK-NEXT:      "gpu.memcpy"(%4, %5) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+// CHECK-NEXT:      "gpu.memcpy"(%4, %5) {operandSegmentSizes = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
 // CHECK-NEXT:      %time_m = arith.constant 0 : index
 // CHECK-NEXT:      %time_M = arith.constant 10 : index
 // CHECK-NEXT:      %step = arith.constant 1 : index
@@ -359,7 +359,7 @@ func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>,
   func.return
 }
 
-// CHECK:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"}{
+// CHECK:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {stencil.program}{
 // CHECK-NEXT:      stencil.apply(%arg1 = %arg0 : f64) outs (%b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>) {
 // CHECK-NEXT:        %true = "test.pureop"() : () -> i1
 // CHECK-NEXT:        %0, %1 = scf.if %true -> (!stencil.result<f64>, f64) {
@@ -506,11 +506,11 @@ func.func @gauss_seidel_func(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf
 }
 
 // CHECK:      func.func @gauss_seidel_func(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
-// CHECK-NEXT:   "dmp.swap"(%a) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
+// CHECK-NEXT:   "dmp.swap"(%a) {strategy = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, swaps = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
 // CHECK-NEXT:   stencil.apply(%0 = %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) outs (%b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
 // CHECK-NEXT:     %1 = arith.constant dense<1.666600e-01> : tensor<510xf32>
 // CHECK-NEXT:     %2 = stencil.access %0[1, 0] : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
-// CHECK-NEXT:     %3 = "tensor.extract_slice"(%2) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:     %3 = "tensor.extract_slice"(%2) <{static_offsets = array<i64: 1>, static_sizes = array<i64: 510>, static_strides = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
 // CHECK-NEXT:     %4 = arith.addf %1, %3 : tensor<510xf32>
 // CHECK-NEXT:     stencil.return %4 : tensor<510xf32>
 // CHECK-NEXT:   } to <[0, 0], [1, 1]>

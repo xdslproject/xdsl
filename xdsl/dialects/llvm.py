@@ -8,6 +8,7 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     I64,
+    AnyFloatConstr,
     AnyIntegerAttr,
     ArrayAttr,
     ContainerType,
@@ -25,7 +26,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import FastMathAttrBase
+from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -41,6 +42,7 @@ from xdsl.irdl import (
     BaseAttr,
     IRDLOperation,
     ParameterDef,
+    ParsePropInAttrDict,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -57,7 +59,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoMemoryEffect, SymbolOpInterface
+from xdsl.traits import (
+    IsTerminator,
+    NoMemoryEffect,
+    Pure,
+    SameOperandsAndResultType,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
@@ -1710,55 +1718,158 @@ class ZeroOp(IRDLOperation):
     res = result_def(LLVMTypeConstr)
 
 
+class GenericCastOp(IRDLOperation, ABC):
+    arg = operand_def(Attribute)
+    """
+    LLVM-compatible non-aggregate type
+    """
+
+    result = result_def(Attribute)
+    """
+    LLVM-compatible non-aggregate type
+    """
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$arg attr-dict `:` type($arg) `to` type($result)"
+
+    def __init__(self, val: Operation | SSAValue, res_type: Attribute):
+        super().__init__(
+            operands=[SSAValue.get(val)],
+            result_types=[res_type],
+        )
+
+
+class AbstractFloatArithOp(IRDLOperation, ABC):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+
+    irdl_options = [ParsePropInAttrDict(), SameOperandsAndResultType()]
+
+    def __init__(
+        self,
+        lhs: SSAValue | Operation,
+        rhs: SSAValue | Operation,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+        attrs: dict[str, Attribute] | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+            attributes=attrs,
+        )
+
+
+@irdl_op_definition
+class FAddOp(AbstractFloatArithOp):
+    name = "llvm.fadd"
+
+
+@irdl_op_definition
+class FMulOp(AbstractFloatArithOp):
+    name = "llvm.fmul"
+
+
+@irdl_op_definition
+class FDivOp(AbstractFloatArithOp):
+    name = "llvm.fdiv"
+
+
+@irdl_op_definition
+class FSubOp(AbstractFloatArithOp):
+    name = "llvm.fsub"
+
+
+@irdl_op_definition
+class FRemOp(AbstractFloatArithOp):
+    name = "llvm.frem"
+
+
+@irdl_op_definition
+class BitcastOp(GenericCastOp):
+    name = "llvm.bitcast"
+
+
+@irdl_op_definition
+class SIToFPOp(GenericCastOp):
+    name = "llvm.sitofp"
+
+
+@irdl_op_definition
+class FPExtOp(GenericCastOp):
+    name = "llvm.fpext"
+
+
 LLVM = Dialect(
     "llvm",
     [
-        AddOp,
-        SubOp,
-        MulOp,
-        UDivOp,
-        SDivOp,
-        URemOp,
-        SRemOp,
-        AndOp,
-        OrOp,
-        XOrOp,
-        ShlOp,
-        LShrOp,
         AShrOp,
-        TruncOp,
-        ZExtOp,
-        SExtOp,
-        ICmpOp,
-        ExtractValueOp,
-        InsertValueOp,
-        InlineAsmOp,
-        UndefOp,
-        AllocaOp,
-        GEPOp,
-        IntToPtrOp,
-        NullOp,
-        LoadOp,
-        StoreOp,
-        GlobalOp,
+        AddOp,
         AddressOfOp,
-        FuncOp,
-        CallOp,
-        ReturnOp,
-        ConstantOp,
+        AllocaOp,
+        AndOp,
+        BitcastOp,
         CallIntrinsicOp,
+        CallOp,
+        ConstantOp,
+        ExtractValueOp,
+        FAddOp,
+        FDivOp,
+        FMulOp,
+        FPExtOp,
+        FRemOp,
+        FSubOp,
+        FuncOp,
+        GEPOp,
+        GlobalOp,
+        ICmpOp,
+        InlineAsmOp,
+        InsertValueOp,
+        IntToPtrOp,
+        LShrOp,
+        LoadOp,
+        MulOp,
+        NullOp,
+        OrOp,
+        ReturnOp,
+        SDivOp,
+        SExtOp,
+        SIToFPOp,
+        SRemOp,
+        ShlOp,
+        StoreOp,
+        SubOp,
+        TruncOp,
+        UDivOp,
+        URemOp,
+        UndefOp,
+        XOrOp,
+        ZExtOp,
         ZeroOp,
     ],
     [
-        LLVMStructType,
-        LLVMPointerType,
-        LLVMArrayType,
-        LLVMVoidType,
-        LLVMFunctionType,
-        LinkageAttr,
         CallingConventionAttr,
-        TailCallKindAttr,
         FastMathAttr,
+        LLVMArrayType,
+        LLVMFunctionType,
+        LLVMPointerType,
+        LLVMStructType,
+        LLVMVoidType,
+        LinkageAttr,
         OverflowAttr,
+        TailCallKindAttr,
     ],
 )

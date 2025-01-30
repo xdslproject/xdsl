@@ -21,7 +21,7 @@ builtin.module {
 
 // CHECK-NEXT:  %0 = "csl.zeros"() : () -> memref<512xf32>
 // CHECK-NEXT:  %1 = arith.constant 510 : ui16
-// CHECK-NEXT:  %2 = "csl.get_mem_dsd"(%0, %1) <{"tensor_access" = affine_map<(d0) -> (((d0 * 3) + 1))>}> : (memref<512xf32>, ui16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:  %2 = "csl.get_mem_dsd"(%0, %1) <{tensor_access = affine_map<(d0) -> (((d0 * 3) + 1))>}> : (memref<512xf32>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:  "test.op"(%2) : (!csl<dsd mem1d_dsd>) -> ()
 
 
@@ -42,7 +42,7 @@ builtin.module {
 
 // CHECK-NEXT:  %3 = "test.op"() : () -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:  %4 = arith.constant 4 : si16
-// CHECK-NEXT:  %5 = "csl.increment_dsd_offset"(%3, %4) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:  %5 = "csl.increment_dsd_offset"(%3, %4) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:  %6 = arith.constant 511 : ui16
 // CHECK-NEXT:  %7 = "csl.set_dsd_length"(%5, %6) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:  %8 = arith.constant 3 : si8
