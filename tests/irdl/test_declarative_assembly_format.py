@@ -3163,25 +3163,26 @@ def test_multiple_operand_extraction_fails():
 ################################################################################
 
 
+@irdl_op_definition
+class IntAttrExtractOp(IRDLOperation):
+    name = "test.int_attr_extract"
+
+    _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+    prop = prop_def(
+        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+    )
+
+    outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
+
+    assembly_format = "$prop attr-dict"
+
+
 @pytest.mark.parametrize(
     "program",
     ["%0 = test.int_attr_extract 1", "%0, %1 = test.int_attr_extract 2"],
 )
 def test_int_attr_extraction(program: str):
-    @irdl_op_definition
-    class IntAttrExtractOp(IRDLOperation):
-        name = "test.int_attr_extract"
-
-        _I: ClassVar = IntVarConstraint("I", AnyInt())
-
-        prop = prop_def(
-            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-        )
-
-        outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
-
-        assembly_format = "$prop attr-dict"
-
     ctx = MLContext()
     ctx.load_op(IntAttrExtractOp)
 
@@ -3202,25 +3203,30 @@ def test_int_attr_extraction(program: str):
     ],
 )
 def test_int_attr_extraction_errors(program: str, error: str):
-    @irdl_op_definition
-    class IntAttrExtractOp(IRDLOperation):
-        name = "test.int_attr_extract"
-
-        _I: ClassVar = IntVarConstraint("I", AnyInt())
-
-        prop = prop_def(
-            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-        )
-
-        outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
-
-        assembly_format = "$prop attr-dict"
-
     ctx = MLContext()
     ctx.load_op(IntAttrExtractOp)
     parser = Parser(ctx, program)
     with pytest.raises(ParseError, match=error):
         parser.parse_optional_operation()
+
+
+@irdl_op_definition
+class IntAttrVerifyOp(IRDLOperation):
+    name = "test.int_attr_verify"
+
+    _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+    prop = prop_def(
+        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+    )
+
+    prop2 = opt_prop_def(
+        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+    )
+
+    ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
+
+    assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
 
 
 @pytest.mark.parametrize(
@@ -3233,26 +3239,8 @@ def test_int_attr_extraction_errors(program: str, error: str):
     ],
 )
 def test_int_attr_verify(program: str):
-    @irdl_op_definition
-    class IntAttrExtractOp(IRDLOperation):
-        name = "test.int_attr_verify"
-
-        _I: ClassVar = IntVarConstraint("I", AnyInt())
-
-        prop = prop_def(
-            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-        )
-
-        prop2 = opt_prop_def(
-            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-        )
-
-        ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
-
-        assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
-
     ctx = MLContext()
-    ctx.load_op(IntAttrExtractOp)
+    ctx.load_op(IntAttrVerifyOp)
 
     check_roundtrip(program, ctx)
 
@@ -3283,26 +3271,8 @@ def test_int_attr_verify(program: str):
     ],
 )
 def test_int_attr_verify_errors(program: str, error_type: type[Exception], error: str):
-    @irdl_op_definition
-    class IntAttrExtractOp(IRDLOperation):
-        name = "test.int_attr_verify"
-
-        _I: ClassVar = IntVarConstraint("I", AnyInt())
-
-        prop = prop_def(
-            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-        )
-
-        prop2 = opt_prop_def(
-            IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
-        )
-
-        ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
-
-        assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
-
     ctx = MLContext()
-    ctx.load_op(IntAttrExtractOp)
+    ctx.load_op(IntAttrVerifyOp)
 
     parser = Parser(ctx, program)
     with pytest.raises(error_type, match=error):
