@@ -1,41 +1,16 @@
 import marimo
 
-__generated_with = "0.10.9"
+__generated_with = "0.10.18"
 app = marimo.App(width="medium", auto_download=["ipynb"])
 
 
 @app.cell
 def _():
     import marimo as mo
-    return (mo,)
 
-
-@app.cell
-def _():
-    import xdsl.utils.marimo as xmo
-    return (xmo,)
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        """
-        \
-        # Compiling `linalg` to Snitch
-
-        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
-
-        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
-        """
-    )
-    return
-
-
-@app.cell
-def _():
     # Import all the necessary functionality from xDSL for this notebook
     # If you see an error about xdsl not being defined run this cell manually
-
+    import xdsl.utils.marimo as xmo
     from xdsl.backend.riscv.lowering import (
         convert_arith_to_riscv,
         convert_func_to_riscv_func,
@@ -118,9 +93,26 @@ def _():
         loop_hoist_memref,
         lower_affine,
         memref_streamify,
+        mo,
         reconcile_unrealized_casts,
         riscv_code,
+        xmo,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        """
+        \
+        # Compiling `linalg` to Snitch
+
+        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
+
+        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
+        """
+    )
+    return
 
 
 @app.cell
@@ -216,7 +208,7 @@ def _(mo):
     return k, m, max_val, min_val, n
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(k, m, mo, n):
     mo.md(
         f"""
@@ -232,7 +224,7 @@ def _(k, m, mo, n):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(k, m, mo, n):
     a_shape = (m.value, k.value)
     b_shape = (k.value, n.value)
@@ -249,7 +241,7 @@ def _(k, m, mo, n):
     return a_shape, b_shape, c_shape
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""### Compiling to RISC-V""")
     return
@@ -264,7 +256,7 @@ def _(MLContext, get_all_dialects):
     return dialect_factory, dialect_name, linalg_ctx
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""We can take this representation, and lower to RISC-V-specific dialects:""")
     return
@@ -302,7 +294,7 @@ def _(
     return lower_to_riscv, riscv_ctx, riscv_html, riscv_module
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -362,13 +354,13 @@ def _(
     return assembly_html, lower_to_asm, riscv_asm_ctx, riscv_asm_module
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, riscv_asm_module, riscv_code, xmo):
     riscv_asm = riscv_code(riscv_asm_module)
 
@@ -381,7 +373,7 @@ def _(mo, riscv_asm_module, riscv_code, xmo):
     return (riscv_asm,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -430,13 +422,13 @@ def _(
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(snitch_stream_ctx, snitch_stream_module, xmo):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_SNITCH_STREAM_TO_ASM_PASSES
 
@@ -453,7 +445,7 @@ def _(snitch_stream_ctx, snitch_stream_module, xmo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(k, m, mo, n):
     mo.md(
         f"""
@@ -469,7 +461,7 @@ def _(k, m, mo, n):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, riscv_code, snitch_asm_module, xmo):
     snitch_asm = riscv_code(snitch_asm_module)
 
@@ -482,7 +474,7 @@ def _(mo, riscv_code, snitch_asm_module, xmo):
     return (snitch_asm,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
