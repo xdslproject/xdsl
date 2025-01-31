@@ -2754,6 +2754,7 @@ docs = [
     { name = "mkdocs-gen-files" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
+    { name = "pymdown-extensions" },
 ]
 gui = [
     { name = "pyclip" },
@@ -2786,6 +2787,7 @@ requires-dist = [
     { name = "ordered-set", specifier = "==4.1.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = "==4.1.0" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
+    { name = "pymdown-extensions", marker = "extra == 'docs'", specifier = ">=10.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.392.post0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.4" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==0.25.3" },

@@ -9,6 +9,9 @@ theme:
     - navigation.sections
     - navigation.expand
 
+markdown_extensions:
+- docs.blocks:MarimoBlocksExtension # the marimo mkdocs extension is out of date, this is what they use internally
+
 plugins:
 - search
 - gen-files:
@@ -37,6 +40,8 @@ nav:
       - Block: api/ir/block.md
       - Region: api/ir/region.md
       - Dialect: api/ir/dialect.md
+  - Notebooks:
+    - Notebooks: marimo/index.md
   - Code Reference: reference/index.md
   - Guides:
     - MLIR Interoperation: guides/mlir_interoperation.md
