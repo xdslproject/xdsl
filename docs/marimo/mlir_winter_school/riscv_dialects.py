@@ -46,16 +46,25 @@ def _(mo):
         ## RISC-V
 
         The [RISC-V](https://riscv.org/) instruction set is a small, extensible set of instructions that is gaining in popularity in research and industry.
-
-        Here are some resources on the RISC-V ISA and assembly format:
-
-        * [Cheat Sheet](https://www.cl.cam.ac.uk/teaching/1617/ECAD+Arch/files/docs/RISCVGreenCardv8-20151013.pdf)
-        * [Assembly Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc)
-        * [ISA Manual](https://github.com/riscv/riscv-isa-manual)
-        * [Detailed Instruction Definition](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html)
-        * [ABI](https://d3s.mff.cuni.cz/files/teaching/nswi200/202324/doc/riscv-abi.pdf)
-        * [Formal Specification](https://github.com/riscv/sail-riscv)
         """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.accordion(
+        {
+            "Click here for some resources on the RISC-V ISA and assembly format": (
+                """
+    * [Cheat Sheet](https://www.cl.cam.ac.uk/teaching/1617/ECAD+Arch/files/docs/RISCVGreenCardv8-20151013.pdf)
+    * [Assembly Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc)
+    * [ISA Manual](https://github.com/riscv/riscv-isa-manual)
+    * [Detailed Instruction Definition](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html)
+    * [ABI](https://d3s.mff.cuni.cz/files/teaching/nswi200/202324/doc/riscv-abi.pdf)
+    * [Formal Specification](https://github.com/riscv/sail-riscv)"""
+            ),
+        }
     )
     return
 
@@ -120,7 +129,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        In order to reason about and represent these assembly-level constructs, we use the `riscv` dialect.
+        The `risv` dialect contains definitions for static information and operations.
 
         The four kinds of static information in RISC-V assembly are strings, integers, labels, and registers.
         The `riscv` dialect includes integer and float registers (`IntRegisterType` & `FloatRegisterType`).
@@ -291,14 +300,10 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""At the assembly level, the code structure looks much more like the code in `switch2`.""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(
         r"""
+        At the assembly level, the code structure looks much more like the code in `switch2`.
+
         To represent jumps in the assembly, we use blocks and successors.
         For example, the [beq](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq) instruction, which jumps by (or _breaks to_) the specified offset (or to the specified label) if the values in the source registers are equal, is represented with the `riscv.BeqOp` operation:
         """
