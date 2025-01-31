@@ -4,7 +4,7 @@ __generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     from xdsl.utils import marimo as xmo
@@ -72,7 +72,7 @@ def _(mo):
 
         ```C
         int fused_multiply_add(int a, int b, int c) {
-            return a * b + c;
+            return a + b * c;
         }
         ```
 
@@ -81,15 +81,15 @@ def _(mo):
         # Arguments passed in a0, a1, a2 registers
         # Result expected to be stored in a0 register at the end of execution
         fused_multiply_add:
-            # a0 <- a0 * a1
-            mul     a0, a1, a0
-            # a0 <- a0 + a2
-            add     a0, a0, a2
+            # a1 <- a2 * a1
+            mul     a1, a2, a1
+            # a0 <- a0 + a1
+            add     a0, a0, a1
             # Assembly pseudo-operation that jumps to the caller-passed return address
             ret
         ```
 
-        ([Compiler Explorer](https://godbolt.org/z/veWo8rbnK))
+        ([Compiler Explorer](https://godbolt.org/z/E67a877vG))
         """
     )
     return
@@ -118,11 +118,13 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        In order to reason about and represent these assembly-level operations, we define the `riscv` dialect.
+        In order to reason about and represent these assembly-level constructs, we use the `riscv` dialect.
 
         The four kinds of static information in RISC-V assembly are strings, integers, labels, and registers.
         The `riscv` dialect includes integer and float registers (`IntRegisterType` & `FloatRegisterType`).
         Both of these register classes encode both the information about the binary encoding of the register (e.g. `x0`, `x11`) and its pretty assembly name (e.g. `zero`, `a1`).
+
+        The pretty assembly names reflect the RISC-V ABI. The registers `x0` to `x4` are specified to store some system information: `zero` for a register that always has the 0 value, `ra` to store the return address to jump to, `sp` for stack pointer, `gp` for global pointer, `tp` for thread pointer. The `a0-a7` registers are used to pass function arguments and results. The `s0-s11` registers are expected to have the same values before and after function calls. The `t0-t6` registers are temporary registers that are not expected to have the same values before and after function calls.
         """
     )
     return
@@ -132,7 +134,7 @@ def _(mo):
 def _(riscv):
     # Explictly constructing registers
 
-    riscv.IntRegisterType("zero"), riscv.IntRegisterType("a1")
+    riscv.IntRegisterType("zero"), riscv.IntRegisterType("a1"), riscv.IntRegisterType("s2"), riscv.IntRegisterType("t3")
     return
 
 
@@ -140,7 +142,7 @@ def _(riscv):
 def _(riscv):
     # Using the Registers helper
 
-    riscv.Registers.ZERO, riscv.Registers.A1
+    riscv.Registers.ZERO, riscv.Registers.A1, riscv.Registers.S2, riscv.Registers.T3
     return
 
 
@@ -164,8 +166,6 @@ def _(Block, Builder, InsertPoint, Printer, riscv):
     # Explicitly specify result registers
     addi_op = builder.insert(riscv.AddiOp(a0, 42, rd=riscv.Registers.A2))
     sub_op = builder.insert(riscv.SubOp(a0, a1, rd=riscv.Registers.A3))
-
-    # Don't specify result registers
     mul_op = builder.insert(riscv.MulOp(addi_op.rd, sub_op.rd, rd=riscv.Registers.A4))
 
     Printer().print_block(block)
@@ -176,6 +176,9 @@ def _(Block, Builder, InsertPoint, Printer, riscv):
 def _(mo):
     mo.md(
         r"""
+        Note that the _i_ in the `addi` operation above stands for _immediate_, or a constant value in the assembly.
+        These can be integers or labels, in which case the assembler will resolve the immediate to the value referred to by the label.
+
         Almost all the operations in the riscv dialect correspond to the instructions in the RISC-V ISA.
         RISC-V assembly has operations that correspond 1:1 with instructions, as well as pseudo-operations that are syntactic sugar for other operations, such as the `nop` instruction that desugars to `addi x0, x0, 0`.
 
@@ -250,6 +253,107 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""The C programming language allows for both _structured_ control flow with the `if`, `for`, and `while` constructs, and _unstructured_ flow using goto. The two functions below lower to exactly the same assembly:""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        ```C
+        int switch1(int a, int b, int c) {
+            if (a) {
+                return b;
+            } else {
+                return c;
+            }
+        }
+
+        int switch2(int a, int b, int c) {
+            if (!a) {
+                goto c_label;
+            }
+            return b;
+        c_label:
+            return c;
+        }
+        ```
+
+        ([Compiler Explorer](https://godbolt.org/z/Mzh4ojG3r))
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""At the assembly level, the code structure looks much more like the code in `switch2`.""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        To represent jumps in the assembly, we use blocks and successors.
+        For example, the [beq](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq) instruction, which jumps by (or _breaks to_) the specified offset (or to the specified label) if the values in the source registers are equal, is represented with the `riscv.BeqOp` operation:
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(Parser, ctx, xmo):
+    switch_ir = """\
+    riscv_func.func @switch(%a : !riscv.reg<a0>, %b : !riscv.reg<a1>, %c : !riscv.reg<a2>) -> !riscv.reg<a0> {
+      %zero = riscv.get_register : !riscv.reg<zero>
+      riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^2(), ^1()
+    ^1():
+      %res_b = riscv.mv %b : (!riscv.reg<a1>) -> !riscv.reg<a0>
+      riscv_func.return %res_b : !riscv.reg<a0>
+    ^2():
+      riscv.label "c_label"
+      %res_c = riscv.mv %c : (!riscv.reg<a2>) -> !riscv.reg<a0>
+      riscv_func.return %res_c : !riscv.reg<a0>
+    }
+    """
+    switch_module = Parser(ctx, switch_ir).parse_module()
+    switch_module.verify()
+    xmo.module_html(switch_module)
+    return switch_ir, switch_module
+
+
+@app.cell
+def _(riscv, switch_module):
+    # We can print this IR as assembly
+    switch_asm = riscv.riscv_code(switch_module)
+    print(switch_asm)
+    return (switch_asm,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        Note that there are a few discrepancies between the assembly and the IR.
+        While in the IR we specified both the "then" and the "else" successors, in assembly the block implicitly falls through.
+        We represent this by adding a verification method to the jump operations that checks that the "else" block is the one immediately following the conditional jump.
+        The second discrepancy is that the conditional jump in assembly specifies the label to jump to.
+        During assembly printing, the `BeqOp` looks at the first operation in the block and, if it finds a `LabelOperation`, prints the corresponding value.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Exercise: Fib IR""")
+    return
+
+
+@app.cell(hide_code=True)
 def _():
     fib_text = """\
     # The label corresponding to the fib function
@@ -281,74 +385,6 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        To represent jumps in the assembly, we use blocks and successors.
-        For example, the [beq](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq) instruction, which jumps by the specified offset (or to the specified label) if the values in the source registers are equal, is represented with the `riscv.BeqOp` operation:
-        """
-    )
-    return
-
-
-@app.cell
-def _(Block, Builder, InsertPoint, Printer, Region, riscv, riscv_cf):
-    _block0 = Block(arg_types=(riscv.Registers.A0, riscv.Registers.A1, riscv.Registers.A2))
-    _block1 = Block(arg_types=(riscv.Registers.A2,))
-    _block2 = Block(arg_types=(riscv.Registers.A2,))
-    beq_region = Region((_block0, _block1, _block2))
-    _a0, _a1, _a2 = _block0.args
-
-    _builder = Builder(InsertPoint.at_end(_block0))
-    _builder.insert(riscv_cf.BeqOp(_a0, _a1, [_a2], [_a2], _block2, _block1))
-
-    _builder.insertion_point = InsertPoint.at_end(_block1)
-    _builder.insert(riscv.LabelOp("else"))
-    _builder.insert(riscv.AddiOp(_block1.args[0], 42, rd=riscv.Registers.A3))
-
-    _builder.insertion_point = InsertPoint.at_end(_block2)
-    _builder.insert(riscv.LabelOp("then"))
-    _builder.insert(riscv.AddiOp(_block2.args[0], -42, rd=riscv.Registers.A3))
-
-    Printer().print_region(beq_region)
-    return (beq_region,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""We can print this IR as assembly:""")
-    return
-
-
-@app.cell
-def _(beq_region):
-    for _block in beq_region.blocks:
-        for _op in _block.ops:
-            print(_op.assembly_line())
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-        Note that there are a few discrepancies between the assembly and the IR.
-        While in the IR we specified both the "then" and the "else" successors, in assembly the block implicitly falls through.
-        We represent this by adding a verification method to the jump operations that checks that the "else" block is the one immediately following the conditional jump.
-        The second discrepancy is that the conditional jump in assembly specifies the label to jump to.
-        During assembly printing, the `BeqOp` looks at the first operation in the block and, if it finds a `LabelOperation`, prints the corresponding value.
-        """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""## Exercise: Fib IR""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
         In this exercise, we will rewrite the following function to assembly-level IR:
 
         ```C
@@ -372,6 +408,8 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(fib_text, mo):
     mo.md(fr"""
+
+    This is the expected assembly:
 
     ```asm
     {fib_text}
