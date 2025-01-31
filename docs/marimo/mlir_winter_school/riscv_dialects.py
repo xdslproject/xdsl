@@ -14,6 +14,7 @@ def _():
     from xdsl.printer import Printer
     from xdsl.parser import Parser
     from xdsl.context import MLContext
+    import difflib
     return (
         Block,
         Builder,
@@ -23,6 +24,7 @@ def _():
         Printer,
         Region,
         builtin,
+        difflib,
         mo,
         riscv,
         riscv_cf,
@@ -467,13 +469,7 @@ def _(Parser, ctx, difflib, fib_cleaned, fib_editor, mo, riscv):
     return
 
 
-@app.cell
-def _():
-    import difflib
-    return (difflib,)
-
-
-@app.cell
+@app.cell(hide_code=True)
 def _():
     # Solution
 
@@ -492,7 +488,7 @@ def _():
       %temp = riscv.mv %b_in : (!riscv.reg<a3>) -> !riscv.reg<a1>
       %a_next = riscv.mv %b_in : (!riscv.reg<a3>) -> !riscv.reg<a2>
       %b_next = riscv.mv %sum : (!riscv.reg<a4>) -> !riscv.reg<a3>
-      riscv_cf.bne %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^2(), ^3()
+      riscv_cf.bne %zero: !riscv.reg<zero>, %i_next : !riscv.reg<a0>, ^2(%i_next : !riscv.reg<a0>, %a_next : !riscv.reg<a2>, %b_next : !riscv.reg<a3>), ^3()
     ^3():
       %res = riscv.mv %temp : (!riscv.reg<a1>) -> !riscv.reg<a0>
       riscv_func.return %num : !riscv.reg<a0>
