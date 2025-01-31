@@ -435,7 +435,27 @@ def _(comment_only_line, fib_text):
 def _(mo):
     fib_editor = mo.ui.code_editor("""\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
+      %zero = riscv.get_register : !riscv.reg<zero>
+      riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^4(), ^1()
+    ^1():
+      %a_init = riscv.li 1 : !riscv.reg<a2>
+      %b_init = riscv.li 1 : !riscv.reg<a3>
+      riscv_cf.branch ^2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
+    ^2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
+      riscv.label ".LBB1_2"
+      %sum = riscv.li 2 : !riscv.reg<a4>
+      %i_next = riscv.li 3 : !riscv.reg<a0>
+      %temp = riscv.li 4 : !riscv.reg<a1>
+      %a_next = riscv.li 5 : !riscv.reg<a2>
+      %b_next = riscv.li 6 : !riscv.reg<a3>
+      riscv_cf.bne %zero: !riscv.reg<zero>, %i_next : !riscv.reg<a0>, ^2(%i_next : !riscv.reg<a0>, %a_next : !riscv.reg<a2>, %b_next : !riscv.reg<a3>), ^3()
+    ^3():
+      %res = riscv.mv %temp : (!riscv.reg<a1>) -> !riscv.reg<a0>
       riscv_func.return %num : !riscv.reg<a0>
+    ^4():
+      riscv.label ".LBB1_4"
+      %res_early = riscv.li 1 : !riscv.reg<a0>
+      riscv_func.return %res_early : !riscv.reg<a0>
     }""", language="javascript")
     return (fib_editor,)
 
