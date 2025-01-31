@@ -1,10 +1,10 @@
 import marimo
 
-__generated_with = "0.10.18"
+__generated_with = "0.10.17"
 app = marimo.App(width="medium", auto_download=["ipynb"])
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
 
@@ -104,7 +104,6 @@ def _():
 def _(mo):
     mo.md(
         """
-        \
         # Compiling `linalg` to Snitch
 
         This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
@@ -115,7 +114,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     AffineMap,
     AffineMapAttr,
