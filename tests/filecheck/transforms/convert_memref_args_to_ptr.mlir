@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-to-ptr{convert_func_args=true} --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-to-ptr{lower_func=true} --split-input-file --verify-diagnostics %s | filecheck %s
 
 // CHECK:       builtin.module {
 
