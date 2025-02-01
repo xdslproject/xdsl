@@ -3,9 +3,8 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, builtin, memref, ptr, func
-from xdsl.ir import Operation, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.dialects import arith, builtin, func, memref, ptr
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -156,7 +155,7 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass
-class LowerMemrefFuncArgsPattern(RewritePattern):
+class LowerMemrefFuncOpPattern(RewritePattern):
     """
     Rewrites function arguments of MemRefType to PtrType - leaves IR in invalid state(?)
 
@@ -185,24 +184,24 @@ class LowerMemrefFuncArgsPattern(RewritePattern):
         insert_point = InsertPoint.at_start(op.body.blocks[0])
 
         for arg in op.args:
-            if isinstance(arg_type := arg.type, memref.MemRefType):
-                old_type = cast(memref.MemRefType[Attribute], arg_type)
-                arg.type = ptr.PtrType()
+            if not isinstance(arg_type := arg.type, memref.MemRefType):
+                continue
 
-                if not arg.uses:
-                    continue
+            old_type = cast(memref.MemRefType[Attribute], arg_type)
+            arg.type = ptr.PtrType()
 
-                rewriter.insert_op(
-                    cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [arg], [old_type]
-                    ),
-                    insert_point,
-                )
-                arg.replace_by_if(cast_op.results[0], lambda x: x.operation != cast_op)
+            if not arg.uses:
+                continue
+
+            rewriter.insert_op(
+                cast_op := builtin.UnrealizedConversionCastOp.get([arg], [old_type]),
+                insert_point,
+            )
+            arg.replace_by_if(cast_op.results[0], lambda x: x.operation != cast_op)
 
 
 @dataclass
-class LowerMemrefReturnPattern(RewritePattern):
+class LowerMemrefFuncReturnPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter, /):
         if not any(isinstance(arg.type, memref.MemRefType) for arg in op.arguments):
@@ -224,17 +223,53 @@ class LowerMemrefReturnPattern(RewritePattern):
 
 
 @dataclass
-class LowerMemrefCallArgsPattern(RewritePattern):
+class LowerMemrefFuncCallPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter, /):
-        pass
+        if not any(
+            isinstance(arg.type, memref.MemRefType) for arg in op.arguments
+        ) and not any(isinstance(type, memref.MemRefType) for type in op.result_types):
+            return
+
+        new_arguments = [
+            (arg.owner.inputs[0], arg.owner)
+            if isinstance(arg.owner, builtin.UnrealizedConversionCastOp)
+            and isinstance(arg.owner.inputs[0].type, ptr.PtrType)
+            else (arg, None)
+            for arg in op.arguments
+        ]
+        new_return_types = [
+            ptr.PtrType() if isinstance(type, memref.MemRefType) else type
+            for type in op.result_types
+        ]
+        rewriter.replace_matched_op(
+            func.CallOp(
+                op.callee, [arg for (arg, _) in new_arguments], new_return_types
+            )
+        )
+
+        for _, cast_op in new_arguments:
+            if cast_op is not None and not cast_op.results[0].uses:
+                rewriter.erase_op(cast_op)
 
 
-@dataclass
-class LowerMemrefToPtrPattern(RewritePattern):
+class ReconcilePtrCasts(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: builtin.ModuleOp, rewriter: PatternRewriter, /):
-        pass
+    def match_and_rewrite(
+        self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter, /
+    ):
+        if not isinstance(op.inputs[0].type, ptr.PtrType):
+            return
+
+        cast_ops = [use.operation for use in op.outputs[0].uses]
+        if not all(isinstance(op, ptr.ToPtrOp) for op in cast_ops):
+            return
+
+        for cast_op in cast_ops:
+            cast_op.results[0].replace_by(op.inputs[0])
+            rewriter.erase_op(cast_op)
+
+        rewriter.erase_op(op)
 
 
 @dataclass(frozen=True)
@@ -252,10 +287,10 @@ class ConvertMemrefToPtr(ModulePass):
             PatternRewriteWalker(
                 GreedyRewritePatternApplier(
                     [
-                        LowerMemrefFuncArgsPattern(),
-                        LowerMemrefCallArgsPattern(),
-                        LowerMemrefToPtrPattern(),
-                        LowerMemrefReturnPattern(),
+                        LowerMemrefFuncOpPattern(),
+                        LowerMemrefFuncCallPattern(),
+                        LowerMemrefFuncReturnPattern(),
+                        ReconcilePtrCasts(),
                     ]
                 )
             ).rewrite_module(op)

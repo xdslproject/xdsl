@@ -20,10 +20,10 @@ func.func @id(%arg : memref<2x2xf32>) -> memref<2x2xf32> {
     func.return %arg : memref<2x2xf32>
 }
 
-// func.func @id2(%arg : memref<2x2xf32>) -> memref<2x2xf32> {
-//     %res = func.call @id(%arg) : (memref<2x2xf32>) -> memref<2x2xf32>
-//     func.return %res : memref<2x2xf32>
-// }
+func.func @id2(%arg : memref<2x2xf32>) -> memref<2x2xf32> {
+    %res = func.call @id(%arg) : (memref<2x2xf32>) -> memref<2x2xf32>
+    func.return %res : memref<2x2xf32>
+}
 
 
 // CHECK-NEXT:    func.func @first(%arg : !ptr_xdsl.ptr) -> f32 {
