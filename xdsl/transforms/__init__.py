@@ -239,7 +239,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return eqsat_extract.EqsatExtractPass
 
     def get_frontend_desymrefy():
-        from xdsl.frontend.passes.desymref import FrontendDesymrefyPass
+        from xdsl.frontend.pyast.passes.desymref import FrontendDesymrefyPass
 
         return FrontendDesymrefyPass
 

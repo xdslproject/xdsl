@@ -7,11 +7,11 @@ from typing import (
 )
 
 import xdsl.dialects.builtin as xdsl_builtin
-import xdsl.frontend.dialects.builtin as frontend_builtin
-from xdsl.frontend.dialects.builtin import (
+import xdsl.frontend.pyast.dialects.builtin as frontend_builtin
+from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
-from xdsl.frontend.exception import CodeGenerationException
+from xdsl.frontend.pyast.exception import CodeGenerationException
 from xdsl.ir import Attribute
 
 TypeName: TypeAlias = str
