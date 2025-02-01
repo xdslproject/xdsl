@@ -125,6 +125,28 @@ class Test_integer_arith_construction:
         _ = CmpiOp(self.a, self.b, input)
 
 
+def test_constant_construction():
+    cst1 = ConstantOp(IntegerAttr(1, i32))
+    assert isinstance(cst1.value, IntegerAttr)
+    assert cst1.value.type == i32
+    assert cst1.value.value.data == 1
+
+    cst2 = ConstantOp(IntegerAttr(1, i32), i64)
+    assert isinstance(cst2.value, IntegerAttr)
+    assert cst2.value.type == i64
+    assert cst2.value.value.data == 1
+
+    cst3 = ConstantOp(FloatAttr(1.0, f32))
+    assert isinstance(cst3.value, FloatAttr)
+    assert cst3.value.type == f32
+    assert cst3.value.value.data == 1.0
+
+    cst4 = ConstantOp(FloatAttr(1.0, f32), f64)
+    assert isinstance(cst4.value, FloatAttr)
+    assert cst4.value.type == f64
+    assert cst4.value.value.data == 1.0
+
+
 @pytest.mark.parametrize(
     "value, truncated",
     [
