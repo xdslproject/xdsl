@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, builtin, memref, ptr
+from xdsl.dialects import arith, builtin, memref, ptr, func
 from xdsl.ir import Operation, SSAValue
+from xdsl.ir.core import Attribute
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -14,6 +15,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -153,12 +155,107 @@ class ConvertLoadOp(RewritePattern):
         rewriter.replace_matched_op(ops, new_results=[load_result.res])
 
 
+@dataclass
+class LowerMemrefFuncArgsPattern(RewritePattern):
+    """
+    Rewrites function arguments of MemRefType to PtrType - leaves IR in invalid state(?)
+
+    Args:
+        RewritePattern (_type_): _description_
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
+        new_input_types = [
+            ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg
+            for arg in op.function_type.inputs
+        ]
+        new_output_types = [
+            ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg
+            for arg in op.function_type.outputs
+        ]
+        op.function_type = func.FunctionType.from_lists(
+            new_input_types,
+            new_output_types,
+        )
+
+        if op.is_declaration:
+            return
+
+        insert_point = InsertPoint.at_start(op.body.blocks[0])
+
+        for arg in op.args:
+            if isinstance(arg_type := arg.type, memref.MemRefType):
+                old_type = cast(memref.MemRefType[Attribute], arg_type)
+                arg.type = ptr.PtrType()
+
+                if not arg.uses:
+                    continue
+
+                rewriter.insert_op(
+                    cast_op := builtin.UnrealizedConversionCastOp.get(
+                        [arg], [old_type]
+                    ),
+                    insert_point,
+                )
+                arg.replace_by_if(cast_op.results[0], lambda x: x.operation != cast_op)
+
+
+@dataclass
+class LowerMemrefReturnPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter, /):
+        if not any(isinstance(arg.type, memref.MemRefType) for arg in op.arguments):
+            return
+
+        new_arguments = [
+            (arg.owner.inputs[0], arg.owner)
+            if isinstance(arg.owner, builtin.UnrealizedConversionCastOp)
+            and isinstance(arg.owner.inputs[0].type, ptr.PtrType)
+            else (arg, None)
+            for arg in op.arguments
+        ]
+
+        rewriter.replace_matched_op(func.ReturnOp(*(arg for (arg, _) in new_arguments)))
+
+        for _, cast_op in new_arguments:
+            if cast_op is not None and not cast_op.results[0].uses:
+                rewriter.erase_op(cast_op)
+
+
+@dataclass
+class LowerMemrefCallArgsPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter, /):
+        pass
+
+
+@dataclass
+class LowerMemrefToPtrPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: builtin.ModuleOp, rewriter: PatternRewriter, /):
+        pass
+
+
 @dataclass(frozen=True)
 class ConvertMemrefToPtr(ModulePass):
     name = "convert-memref-to-ptr"
 
+    convert_func_args: bool = False
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        the_one_pass = PatternRewriteWalker(
+        PatternRewriteWalker(
             GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
-        )
-        the_one_pass.rewrite_module(op)
+        ).rewrite_module(op)
+
+        if self.convert_func_args:
+            PatternRewriteWalker(
+                GreedyRewritePatternApplier(
+                    [
+                        LowerMemrefFuncArgsPattern(),
+                        LowerMemrefCallArgsPattern(),
+                        LowerMemrefToPtrPattern(),
+                        LowerMemrefReturnPattern(),
+                    ]
+                )
+            ).rewrite_module(op)
