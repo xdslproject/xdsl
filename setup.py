@@ -1,15 +1,8 @@
-from collections.abc import Mapping
-from typing import cast
-
-from setuptools import Command, find_packages, setup
+from setuptools import setup
 
 import versioneer
 
-version = versioneer.get_version()
-
-
 setup(
-    version=version,
-    cmdclass=cast(Mapping[str, type[Command]], versioneer.get_cmdclass()),
-    packages=find_packages(),
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
 )
