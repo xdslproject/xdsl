@@ -165,6 +165,7 @@ class LowerMemrefFuncOpPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
+        # rewrite function declaration
         new_input_types = [
             ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg
             for arg in op.function_type.inputs
@@ -183,6 +184,7 @@ class LowerMemrefFuncOpPattern(RewritePattern):
 
         insert_point = InsertPoint.at_start(op.body.blocks[0])
 
+        # rewrite arguments
         for arg in op.args:
             if not isinstance(arg_type := arg.type, memref.MemRefType):
                 continue
@@ -214,6 +216,7 @@ class LowerMemrefFuncReturnPattern(RewritePattern):
         insert_point = InsertPoint.before(op)
         new_arguments: list[SSAValue] = []
 
+        # insert `memref -> ptr` casts for memref return values
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
                 rewriter.insert_op(
@@ -242,6 +245,7 @@ class LowerMemrefFuncCallPattern(RewritePattern):
         insert_point = InsertPoint.before(op)
         new_arguments: list[SSAValue] = []
 
+        # insert `memref -> ptr` casts for memref arguments values
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
                 rewriter.insert_op(
@@ -257,12 +261,14 @@ class LowerMemrefFuncCallPattern(RewritePattern):
         insert_point = InsertPoint.after(op)
         new_results: list[SSAValue] = []
 
-        # rewrite results
+        #  insert `ptr -> memref` casts for return values
         for result in op.results:
             if isinstance(result.type, memref.MemRefType):
                 rewriter.insert_op(
                     cast_op := builtin.UnrealizedConversionCastOp.get(
-                        [result], [ptr.PtrType()]
+                        [result],
+                        # TODO: annoying pyright warnings - Sasha, pls help
+                        [result.type],  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
                     ),
                     insert_point,
                 )
@@ -282,10 +288,9 @@ class LowerMemrefFuncCallPattern(RewritePattern):
 
 class ReconcileUnrealizedPtrCasts(RewritePattern):
     """
-    Eliminates three variants of unrealized ptr casts:
-    - `ptr_xdsl.ptr -> ptr_xdsl.ptr`;
+    Eliminates two variants of unrealized ptr casts:
     - `ptr_xdsl.ptr -> memref.MemRef -> ptr_xdsl.ptr`;
-    - Casts from `ptr_xdsl.ptr` where all uses are `ToPtrOp` operations.
+    - `ptr_xdsl.ptr -> memref.memref` where all uses are `ToPtrOp` operations.
     """
 
     @op_type_rewrite_pattern
@@ -298,12 +303,6 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
             or len(op.outputs) != 1
             or not isinstance(op.inputs[0].type, ptr.PtrType)
         ):
-            return
-
-        # erase ptr -> ptr casts
-        if isinstance(op.outputs[0].type, ptr.PtrType):
-            op.outputs[0].replace_by(op.inputs[0])
-            rewriter.erase_matched_op()
             return
 
         if not isinstance(op.outputs[0].type, memref.MemRefType):
@@ -320,7 +319,7 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
                 use.operation.outputs[0].replace_by(op.inputs[0])
                 rewriter.erase_op(use.operation)
 
-        # erase this cast entirely if all uses are ToPtrOp
+        # erase this cast entirely if all remaining uses are by ToPtr operations
         cast_ops = [use.operation for use in op.outputs[0].uses]
         if not all(isinstance(op, ptr.ToPtrOp) for op in cast_ops):
             return
