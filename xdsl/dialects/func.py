@@ -302,7 +302,7 @@ class FuncOp(IRDLOperation):
         A helper to identify functions that are external declarations (have an empty
         function body)
         """
-        return len(self.body.blocks) == 0
+        return not self.body.blocks
 
 
 @irdl_op_definition
