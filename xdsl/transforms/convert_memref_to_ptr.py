@@ -335,14 +335,14 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
 class ConvertMemrefToPtr(ModulePass):
     name = "convert-memref-to-ptr"
 
-    convert_func_args: bool = False
+    lower_func: bool = False
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
         ).rewrite_module(op)
 
-        if self.convert_func_args:
+        if self.lower_func:
             PatternRewriteWalker(
                 GreedyRewritePatternApplier(
                     [
