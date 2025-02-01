@@ -16,6 +16,8 @@ class DeclareOp(IRDLOperation):
     name = "symref.declare"
     sym_name = attr_def(StringAttr)
 
+    assembly_format = "$sym_name attr-dict"
+
     @staticmethod
     def get(sym_name: str | StringAttr) -> DeclareOp:
         if isinstance(sym_name, str):
@@ -29,6 +31,8 @@ class FetchOp(IRDLOperation):
     value = result_def()
     symbol = attr_def(SymbolRefAttr)
 
+    assembly_format = "$symbol attr-dict `:` type($value)"
+
     @staticmethod
     def get(symbol: str | SymbolRefAttr, result_type: Attribute) -> FetchOp:
         if isinstance(symbol, str):
@@ -41,6 +45,8 @@ class UpdateOp(IRDLOperation):
     name = "symref.update"
     value = operand_def()
     symbol = attr_def(SymbolRefAttr)
+
+    assembly_format = "$symbol `=` $value attr-dict `:` type($value)"
 
     @staticmethod
     def get(symbol: str | SymbolRefAttr, value: Operation | SSAValue) -> UpdateOp:
