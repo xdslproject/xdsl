@@ -299,12 +299,12 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
             len(op.inputs) != 1
             or len(op.outputs) != 1
             or not isinstance(op.inputs[0].type, ptr.PtrType)
-            or not not isinstance(op.outputs[0].type, memref.MemRefType)
+            or not isinstance(op.outputs[0].type, memref.MemRefType)
         ):
             return
 
         # erase ptr -> memref -> ptr cast pairs
-        uses = (use for use in op.outputs[0].uses)
+        uses = tuple(use for use in op.outputs[0].uses)
         for use in uses:
             if (
                 isinstance(use.operation, builtin.UnrealizedConversionCastOp)
