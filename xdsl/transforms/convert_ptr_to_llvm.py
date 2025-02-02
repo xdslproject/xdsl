@@ -120,7 +120,7 @@ class ConvertCallOp(RewritePattern):
         insert_point = InsertPoint.before(op)
         new_arguments: list[SSAValue] = []
 
-        # insert `memref -> ptr` casts for memref arguments values
+        # insert `ptr_xdsl.ptr -> llvm.ptr` casts for argument values
         for argument in op.arguments:
             if isinstance(argument.type, ptr.PtrType):
                 rewriter.insert_op(
@@ -136,7 +136,7 @@ class ConvertCallOp(RewritePattern):
         insert_point = InsertPoint.after(op)
         new_results: list[SSAValue] = []
 
-        #  insert `ptr -> memref` casts for return values
+        #  insert `llvm.ptr -> ptr_xdsl.ptr` casts for return values
         for result in op.results:
             if isinstance(result.type, ptr.PtrType):
                 rewriter.insert_op(
@@ -168,9 +168,7 @@ class ConvertPtrAddOp(RewritePattern):
 
 class ReconcileUnrealizedPtrCasts(RewritePattern):
     """
-    Eliminates two variants of unrealized ptr casts:
-    - `ptr_xdsl.ptr -> memref.MemRef -> ptr_xdsl.ptr`;
-    - `ptr_xdsl.ptr -> memref.memref` where all uses are `ToPtrOp` operations.
+    Eliminates`llvm.ptr -> ptr_xdsl.ptr -> llvm.ptr` casts.
     """
 
     @op_type_rewrite_pattern
