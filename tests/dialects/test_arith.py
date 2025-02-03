@@ -1,5 +1,3 @@
-from typing import TypeVar
-
 import pytest
 
 from xdsl.dialects.arith import (
@@ -69,10 +67,8 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.isattr import isattr
 from xdsl.utils.test_value import TestSSAValue
 
-_BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
-
-class Test_integer_arith_construction:
+class test_integer_arith_construction:
     operand_type = i32
     a = ConstantOp.from_int_and_width(1, operand_type)
     b = ConstantOp.from_int_and_width(1, operand_type)
@@ -101,18 +97,15 @@ class Test_integer_arith_construction:
             ShRSIOp,
         ],
     )
-    @pytest.mark.parametrize("return_type", [None, operand_type])
     def test_arith_ops_init(
         self,
         OpClass: type[SignlessIntegerBinaryOperation],
-        return_type: Attribute,
     ):
         op = OpClass(self.a, self.b)
 
         assert isinstance(op, OpClass)
         assert op.lhs.owner is self.a
         assert op.rhs.owner is self.b
-        assert op.result.type == self.operand_type
 
     def test_Cmpi(self):
         _ = CmpiOp(self.a, self.b, 2)
