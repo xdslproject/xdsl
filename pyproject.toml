@@ -23,7 +23,7 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.10.18",
+    "marimo==0.10.19",
     "pre-commit==4.1.0",
     "ruff==0.9.4",
     "nbconvert>=7.7.2,<8.0.0",
@@ -57,7 +57,6 @@ xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
-packages = ["xdsl"]
 
 [tool.setuptools.package-data]
 xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
