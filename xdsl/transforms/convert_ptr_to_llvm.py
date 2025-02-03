@@ -18,7 +18,6 @@ from xdsl.rewriter import InsertPoint
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(llvm.StoreOp(op.value, op.addr))
         rewriter.insert_op(
             cast_op := builtin.UnrealizedConversionCastOp.get(
                 [op.addr], [llvm.LLVMPointerType.opaque()]
@@ -160,14 +159,30 @@ class ConvertCallOp(RewritePattern):
         )
 
 
+@dataclass
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
+        # TODO: could be one cast?
         rewriter.insert_op(
-            index_cast := arith.IndexCastOp(op.offset, llvm.LLVMPointerType.opaque()),
+            cast_addr_op := builtin.UnrealizedConversionCastOp.get(
+                [op.addr],
+                [llvm.LLVMPointerType.opaque()],
+            ),
             InsertPoint.before(op),
         )
-        rewriter.replace_matched_op(llvm.AddOp(op.addr, index_cast.result))
+        rewriter.insert_op(
+            cast_offset_op := arith.IndexCastOp(op.offset, builtin.i64),
+            InsertPoint.before(op),
+        )
+        # TODO: pretending all pointees are f32s
+        rewriter.replace_matched_op(
+            llvm.GEPOp.from_mixed_indices(
+                cast_addr_op.results[0],
+                [cast_offset_op.result],
+                pointee_type=builtin.f32,
+            )
+        )
 
 
 class ReconcileUnrealizedPtrCasts(RewritePattern):
@@ -184,8 +199,16 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
             len(op.inputs) != 1
             or len(op.outputs) != 1
             or not isinstance(op.inputs[0].type, llvm.LLVMPointerType)
-            or not isinstance(op.outputs[0].type, ptr.PtrType)
         ):
+            return
+
+        # erase llvm.ptr -> llvm.ptr
+        if isinstance(op.outputs[0].type, llvm.LLVMPointerType):
+            op.outputs[0].replace_by(op.inputs[0])
+            rewriter.erase_matched_op()
+            return
+
+        if not isinstance(op.outputs[0].type, ptr.PtrType):
             return
 
         # erase ptr -> memref -> ptr cast pairs
@@ -206,6 +229,28 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
         rewriter.erase_op(op)
 
 
+@dataclass
+class ConvertTypeOffsetOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ptr.TypeOffsetOp, rewriter: PatternRewriter, /):
+        # TODO: replace with memoized dict lookup
+        if op.elem_type == builtin.f16:
+            size = 2
+        elif op.elem_type == builtin.f32:
+            size = 4
+        elif op.elem_type == builtin.f64:
+            size = 8
+
+        else:
+            raise TypeError("Type", op.elem_type, "does not have a known size.")
+
+        rewriter.replace_matched_op(
+            arith.ConstantOp(builtin.IntegerAttr.from_index_int_value(size)),
+        )
+
+        pass
+
+
 class ConvertPtrToLLVMPass(ModulePass):
     name = "convert-ptr-to-llvm"
 
@@ -215,6 +260,8 @@ class ConvertPtrToLLVMPass(ModulePass):
                 [
                     ConvertStoreOp(),
                     ConvertLoadOp(),
+                    ConvertTypeOffsetOp(),
+                    ConvertPtrAddOp(),
                     ConvertFuncOp(),
                     ConvertReturnOp(),
                     ConvertCallOp(),
