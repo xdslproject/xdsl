@@ -100,6 +100,9 @@ def show(args: Namespace, output_profs: list[Path], tool: str, options: tuple[st
 
 def profile(benchmarks: dict[str, Callable[[], Any]], argv: list[str] | None = None) -> None:
     """Run the selected profiler."""
+    if not benchmarks:
+        raise ValueError("At least one benchmark must be provided to profile!")
+
     args = parse_arguments().parse_args(args=argv)
 
     match args.command:

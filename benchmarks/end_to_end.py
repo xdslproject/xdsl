@@ -31,11 +31,20 @@ def time_end_to_end_opt__constant_folding() -> None:
     runner.run()  # type: ignore[no-untyped-call]
 
 
+def time_end_to_end_opt__constant_folding_unverified() -> None:
+    """Time running a constant folding example."""
+    runner = xDSLOptMain(
+        args=[str(MLIR_FILES["constant_folding"]), "-p", "canonicalize", "--disable-verify"]
+    )
+    runner.run()  # type: ignore[no-untyped-call]
+
+
 if __name__ == "__main__":
     from utils import profile
 
     BENCHMARKS = {
         "time_end_to_end_opt__empty_program": time_end_to_end_opt__empty_program,
         "time_end_to_end_opt__constant_folding": time_end_to_end_opt__constant_folding,
+        "time_end_to_end_opt__constant_folding_unverified": time_end_to_end_opt__constant_folding_unverified,
     }
     profile(BENCHMARKS)
