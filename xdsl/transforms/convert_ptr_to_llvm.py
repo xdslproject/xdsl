@@ -187,7 +187,9 @@ class ConvertPtrAddOp(RewritePattern):
 
 class ReconcileUnrealizedPtrCasts(RewritePattern):
     """
-    Eliminates`llvm.ptr -> ptr_xdsl.ptr -> llvm.ptr` casts.
+    Eliminates two types of unrealized casts:
+    - `llvm.ptr` -> `llvm.ptr`
+    - `llvm.ptr` -> `ptr_xdsl.ptr` -> `llvm.ptr`
     """
 
     @op_type_rewrite_pattern
@@ -211,7 +213,7 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
         if not isinstance(op.outputs[0].type, ptr.PtrType):
             return
 
-        # erase ptr -> memref -> ptr cast pairs
+        # erase llvm.ptr -> ptr_xdsl.ptr -> llvm.ptr cast pairs
         uses = tuple(use for use in op.outputs[0].uses)
         for use in uses:
             if (
@@ -262,6 +264,7 @@ class ConvertPtrToLLVMPass(ModulePass):
                     ConvertLoadOp(),
                     ConvertTypeOffsetOp(),
                     ConvertPtrAddOp(),
+                    # TODO: could maybe use type rewriting?
                     ConvertFuncOp(),
                     ConvertReturnOp(),
                     ConvertCallOp(),
