@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import builtin, func, llvm, ptr
+from xdsl.dialects import arith, builtin, func, llvm, ptr
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -163,7 +163,11 @@ class ConvertCallOp(RewritePattern):
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(llvm.AddOp(op.addr, op.offset))
+        rewriter.insert_op(
+            index_cast := arith.IndexCastOp(op.offset, llvm.LLVMPointerType.opaque()),
+            InsertPoint.before(op),
+        )
+        rewriter.replace_matched_op(llvm.AddOp(op.addr, index_cast.result))
 
 
 class ReconcileUnrealizedPtrCasts(RewritePattern):
