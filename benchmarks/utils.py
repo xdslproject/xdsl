@@ -86,7 +86,7 @@ def viztracer_benchmark(args: Namespace, benchmarks: dict[str, Callable[[], Any]
     return output_profs
 
 
-def show(args: Namespace, output_profs: list[Path], tool: str, options: tuple[str] | None = None) -> None:
+def show(args: Namespace, output_profs: list[Path], tool: str, options: tuple[str, ...] | None = None) -> None:
     """Show the profile using the specified tool."""
     if args.test is None and args.show:
         raise ValueError("Cannot show UI for more than one benchmark")
