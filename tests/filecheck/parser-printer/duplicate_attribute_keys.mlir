@@ -7,4 +7,3 @@
 
 "test.op"() <{key1, key1}> : () -> ()
 // CHECK: Duplicate key 'key1' in properties dictionary 
-
