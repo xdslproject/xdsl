@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyIntegerAttrConstr,
     ContainerOf,
-    ContainerType,
     DenseIntOrFPElementsAttr,
     FixedBitwidthType,
     Float16Type,
@@ -21,7 +20,8 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
-    ShapedType,
+    MemRefType,
+    SignlessIntegerConstraint,
     TensorType,
     UnrankedTensorType,
     VectorType,
@@ -57,7 +57,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
-from xdsl.utils.type import get_element_type_or_self
+from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -1231,8 +1231,16 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
 class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
-    input = operand_def(signlessIntegerLike | floatingPointLike)
-    result = result_def(signlessIntegerLike | floatingPointLike)
+    input = operand_def(
+        signlessIntegerLike
+        | floatingPointLike
+        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
+    )
+    result = result_def(
+        signlessIntegerLike
+        | floatingPointLike
+        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
+    )
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -1240,38 +1248,23 @@ class BitcastOp(IRDLOperation):
         super().__init__(operands=[in_arg], result_types=[target_type])
 
     def verify_(self) -> None:
-        # check if we have a ContainerType
         in_type = self.input.type
         res_type = self.result.type
 
-        if isinstance(in_type, ShapedType) and isinstance(res_type, ShapedType):
-            if in_type.get_shape() != res_type.get_shape():
-                raise VerifyException(
-                    "'arith.bitcast' operand and result types must have the same shape"
-                )
-
-            t1 = get_element_type_or_self(in_type)
-            t2 = get_element_type_or_self(res_type)
-            if BitcastOp._equal_bitwidths(t1, t2):
-                return
-
+        if not have_compatible_shape(in_type, res_type):
             raise VerifyException(
-                "'arith.bitcast' operand and result type elements must have equal bitwidths"
+                "'arith.bitcast' operand and result type must have compatible shape"
             )
 
-        if isinstance(in_type, ContainerType) or isinstance(res_type, ContainerType):
+        t1 = get_element_type_or_self(in_type)
+        t2 = get_element_type_or_self(res_type)
+        if not BitcastOp._types_bitcastable(t1, t2):
             raise VerifyException(
-                "'arith.bitcast' operand and result must both be containers or scalars"
-            )
-
-        # at this point we know we have two scalar types
-        if not BitcastOp._equal_bitwidths(in_type, res_type):
-            raise VerifyException(
-                "'arith.bitcast' operand and result types must have equal bitwidths"
+                "'arith.bitcast' operand and result types must have equal bitwidths or be IndexType"
             )
 
     @staticmethod
-    def _equal_bitwidths(type_a: Attribute, type_b: Attribute) -> bool:
+    def _types_bitcastable(type_a: Attribute, type_b: Attribute) -> bool:
         if isinstance(type_a, IndexType) or isinstance(type_b, IndexType):
             return True
 
@@ -1280,9 +1273,7 @@ class BitcastOp(IRDLOperation):
         ):
             return type_a.bitwidth == type_b.bitwidth
 
-        raise VerifyException(
-            "Expected operand and result types to be signless-integer-or-float-like"
-        )
+        return False
 
 
 @irdl_op_definition
