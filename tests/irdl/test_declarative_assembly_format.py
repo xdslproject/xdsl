@@ -3,9 +3,10 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import MLContext
 from xdsl.dialects import test
@@ -2261,7 +2262,7 @@ def test_optional_successor(program: str, generic_program: str):
 # Inference                                                                   #
 ################################################################################
 
-_T = TypeVar("_T", bound=Attribute, covariant=True)
+_T = TypeVar("_T", bound=Attribute, covariant=True, default=Attribute)
 _ConstrT = TypeVar("_ConstrT", bound=Attribute, covariant=True)
 
 
@@ -2369,12 +2370,12 @@ def test_nested_inference():
             cls,
             *,
             n: GenericAttrConstraint[Attribute] | None = None,
-            p: GenericAttrConstraint[_ConstrT] | None = None,
+            p: GenericAttrConstraint[_T] | None = None,
             q: GenericAttrConstraint[Attribute] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+        ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if n is None and p is None and q is None:
-                return BaseAttr[ParamOne[Attribute]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (n, p, q))
+                return BaseAttr[ParamOne[_T]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (n, p, q))
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
@@ -2414,11 +2415,11 @@ def test_non_verifying_inference():
         def constr(
             cls,
             *,
-            p: GenericAttrConstraint[_ConstrT] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+            p: GenericAttrConstraint[_T] | None = None,
+        ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if p is None:
-                return BaseAttr[ParamOne[Attribute]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (p,))
+                return BaseAttr[ParamOne[_T]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
