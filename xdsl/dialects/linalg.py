@@ -12,7 +12,6 @@ from xdsl.dialects import arith
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
-    AnyMemRefType,
     AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
@@ -729,8 +728,8 @@ class TransposeOp(IRDLOperation):
 
     name = "linalg.transpose"
 
-    input = operand_def(base(AnyMemRefType) | base(AnyTensorType))
-    init = operand_def(base(AnyMemRefType) | base(AnyTensorType))
+    input = operand_def(base(MemRefType) | base(AnyTensorType))
+    init = operand_def(base(MemRefType) | base(AnyTensorType))
     result = var_result_def(AnyTensorType)
 
     permutation = attr_def(DenseArrayBase)
@@ -1062,8 +1061,8 @@ class BroadcastOp(IRDLOperation):
 
     name = "linalg.broadcast"
 
-    input = operand_def(base(AnyMemRefType) | base(AnyTensorType))
-    init = operand_def(base(AnyMemRefType) | base(AnyTensorType))
+    input = operand_def(base(MemRefType) | base(AnyTensorType))
+    init = operand_def(base(MemRefType) | base(AnyTensorType))
     result = var_result_def(AnyTensorType)
 
     dimensions = attr_def(DenseArrayBase)

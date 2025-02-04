@@ -5,7 +5,6 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, llvm, memref, stencil
 from xdsl.dialects.builtin import (
-    AnyMemRefType,
     AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
     ArrayAttr,
@@ -13,6 +12,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ShapedType,
     Signedness,
     StringAttr,
@@ -396,7 +396,7 @@ class LowerTimerFuncCall(RewritePattern):
             or not (isinstance(start_call := end_call.arguments[0].owner, func.CallOp))
             or not start_call.callee.string_value() == TIMER_START
             or not (wrapper := _get_module_wrapper(op))
-            or not isa(op.ptr.type, AnyMemRefType)
+            or not isa(op.ptr.type, MemRefType)
         ):
             return
 
