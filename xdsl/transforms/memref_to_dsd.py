@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     StridedLayoutAttr,
     UnrealizedConversionCastOp,
 )
+from xdsl.dialects.csl.csl import ZerosOpAttr
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
@@ -42,7 +43,7 @@ class LowerAllocOpPass(RewritePattern):
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         assert isattr(
             memref_type := op.memref.type,
-            MemRefType.constr(element_type=csl.ZerosOpAttrConstr),
+            MemRefType[ZerosOpAttr].constr(element_type=csl.ZerosOpAttrConstr),
         )
         zeros_op = csl.ZerosOp(memref_type)
 

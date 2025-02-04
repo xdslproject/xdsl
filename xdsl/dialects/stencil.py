@@ -362,7 +362,7 @@ class StencilType(
         bounds: GenericAttrConstraint[Attribute] | None = None,
         element_type: GenericAttrConstraint[_FieldTypeElement] | None = None,
     ) -> (
-        BaseAttr[StencilType[Attribute]]
+        BaseAttr[StencilType[_FieldTypeElement]]
         | ParamAttrConstraint[StencilType[_FieldTypeElement]]
     ):
         if bounds is None and element_type is None:

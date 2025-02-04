@@ -13,13 +13,12 @@ from typing import (
     Any,
     Generic,
     TypeAlias,
-    TypeVar,
     cast,
     overload,
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.ir import (
     Attribute,
@@ -648,7 +647,10 @@ class IndexType(ParametrizedAttribute, StructPackableType[int]):
 IndexTypeConstr = BaseAttr(IndexType)
 
 _IntegerAttrType = TypeVar(
-    "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
+    "_IntegerAttrType",
+    bound=IntegerType | IndexType,
+    covariant=True,
+    default=IntegerType | IndexType,
 )
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 _IntegerAttrTypeConstrT = TypeVar(
@@ -744,11 +746,11 @@ class IntegerAttr(
         cls,
         *,
         value: AttrConstraint | None = None,
-        type: GenericAttrConstraint[_IntegerAttrTypeConstrT] = IntegerAttrTypeConstr,
-    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrTypeConstrT]]:
+        type: GenericAttrConstraint[_IntegerAttrType] = IntegerAttrTypeConstr,
+    ) -> GenericAttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if value is None and type == AnyAttr():
-            return BaseAttr[IntegerAttr[_IntegerAttrTypeConstrT]](IntegerAttr)
-        return ParamAttrConstraint[IntegerAttr[_IntegerAttrTypeConstrT]](
+            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
+        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
             IntegerAttr,
             (
                 value,
@@ -1816,9 +1818,8 @@ f80 = Float80Type()
 f128 = Float128Type()
 
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute, covariant=True)
-_MemRefTypeElementConstrT = TypeVar(
-    "_MemRefTypeElementConstrT", bound=Attribute, covariant=True
+_MemRefTypeElement = TypeVar(
+    "_MemRefTypeElement", bound=Attribute, covariant=True, default=Attribute
 )
 _UnrankedMemrefTypeElems = TypeVar(
     "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
@@ -1958,18 +1959,18 @@ class MemRefType(
         cls,
         *,
         shape: GenericAttrConstraint[Attribute] | None = None,
-        element_type: GenericAttrConstraint[_MemRefTypeElementConstrT] = AnyAttr(),
+        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
         layout: GenericAttrConstraint[Attribute] | None = None,
         memory_space: GenericAttrConstraint[Attribute] | None = None,
-    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElementConstrT]]:
+    ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
         if (
             shape is None
             and element_type == AnyAttr()
             and layout is None
             and memory_space is None
         ):
-            return BaseAttr[MemRefType[_MemRefTypeElementConstrT]](MemRefType)
-        return ParamAttrConstraint[MemRefType[_MemRefTypeElementConstrT]](
+            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
+        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
             MemRefType, (shape, element_type, layout, memory_space)
         )
 
