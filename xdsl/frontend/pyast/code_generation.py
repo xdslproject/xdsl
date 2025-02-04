@@ -8,12 +8,15 @@ import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
-import xdsl.frontend.symref as symref
-from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
-from xdsl.frontend.op_inserter import OpInserter
-from xdsl.frontend.op_resolver import OpResolver
-from xdsl.frontend.python_code_check import FunctionMap
-from xdsl.frontend.type_conversion import TypeConverter
+import xdsl.frontend.pyast.symref as symref
+from xdsl.frontend.pyast.exception import (
+    CodeGenerationException,
+    FrontendProgramException,
+)
+from xdsl.frontend.pyast.op_inserter import OpInserter
+from xdsl.frontend.pyast.op_resolver import OpResolver
+from xdsl.frontend.pyast.python_code_check import FunctionMap
+from xdsl.frontend.pyast.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue
 
 

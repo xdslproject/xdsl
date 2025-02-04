@@ -24,7 +24,7 @@ Pythonic DSL types.
 # toy.py
 
 from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.context import CodeContext
+from xdsl.frontend.pyast.context import CodeContext
 
 p = FrontendProgram()
 with CodeContext(p):
@@ -38,10 +38,10 @@ Now we are ready to write a first simple program.
 
 ```python
 from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.context import CodeContext
+from xdsl.frontend.pyast.context import CodeContext
 
 # Pythonic DSL imports
-from xdsl.frontend.dialects.builtin import i1, i32
+from xdsl.frontend.pyast.dialects.builtin import i1, i32
 
 p = FrontendProgram()
 with CodeContext(p):

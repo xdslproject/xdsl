@@ -279,7 +279,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Stim
 
     def get_symref():
-        from xdsl.frontend.symref import Symref
+        from xdsl.frontend.pyast.symref import Symref
 
         return Symref
 
