@@ -492,8 +492,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             symbol_name = str(arg.arg)
             block_arg = entry_block.insert_arg(argument_types[i], i)
             self.symbol_table[symbol_name] = argument_types[i]
-            entry_block.add_op(symref.DeclareOp.get(symbol_name))
-            entry_block.add_op(symref.UpdateOp.get(symbol_name, block_arg))
+            entry_block.add_op(symref.DeclareOp(symbol_name))
+            entry_block.add_op(symref.UpdateOp(symbol_name, block_arg))
 
         # Parse function body.
         for stmt in node.body:
@@ -567,7 +567,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(op)
 
     def visit_Name(self, node: ast.Name):
-        fetch_op = symref.FetchOp.get(node.id, self.get_symbol(node))
+        fetch_op = symref.FetchOp(node.id, self.get_symbol(node))
         self.inserter.insert_op(fetch_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
