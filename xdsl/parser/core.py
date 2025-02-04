@@ -565,7 +565,7 @@ class Parser(AttrParser):
 
         # Finally, check that all forward block references have been resolved.
         if self.forward_block_references:
-            pos = self.lexer.pos
+            pos = self.pos
             raise MultipleSpansParseError(
                 Span(pos, pos + 1, self.lexer.input),
                 "region ends with missing block declarations for block(s) {}".format(
