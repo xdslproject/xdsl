@@ -5,10 +5,10 @@ from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
-    AnyMemRefType,
     DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
+    MemRefType,
     ModuleOp,
 )
 from xdsl.dialects.csl import csl
@@ -62,7 +62,7 @@ class ConvertBinaryLinalgOp(RewritePattern):
         f16: type[csl.BuiltinDsdOp],
         f32: type[csl.BuiltinDsdOp],
     ):
-        if not isa(target_t := op.outputs.types[0], AnyMemRefType):
+        if not isa(target_t := op.outputs.types[0], MemRefType):
             return
 
         builtin = match_op_for_precision(target_t.get_element_type(), f16, f32)
@@ -91,7 +91,7 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.GenericOp, rewriter: PatternRewriter, /):
-        if not self.is_fma(op) or not isa(op.outputs.types[0], AnyMemRefType):
+        if not self.is_fma(op) or not isa(op.outputs.types[0], MemRefType):
             return
 
         # one of the factors must be a scalar const, which the csl function signatures require

@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
-    AnyMemRefType,
     AnyTensorType,
     AnyTensorTypeConstr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FunctionType,
+    MemRefType,
     ModuleOp,
     TensorType,
     i64,
@@ -57,7 +57,7 @@ def to_tensor_op(
     op: SSAValue, writable: bool = False, restrict: bool = True
 ) -> bufferization.ToTensorOp:
     """Creates a `bufferization.to_tensor` operation."""
-    assert isa(op.type, AnyMemRefType)
+    assert isa(op.type, MemRefType)
     return bufferization.ToTensorOp(op, restrict, writable)
 
 
@@ -418,8 +418,8 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                     linalg_op := yld_arg.op.tensor.op,
                     linalg.NamedOpBase | linalg.GenericOp,
                 )
-                or not isa(arg_t := arg.type, AnyMemRefType)
-                or not isa(yld_arg.type, AnyMemRefType)
+                or not isa(arg_t := arg.type, MemRefType)
+                or not isa(yld_arg.type, MemRefType)
             ):
                 new_dest.append(arg)
                 new_yield_args.append(yld_arg)

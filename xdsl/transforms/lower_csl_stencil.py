@@ -6,7 +6,6 @@ from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloatAttr,
-    AnyMemRefType,
     DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
@@ -14,6 +13,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
     i16,
@@ -445,7 +445,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         if (
-            not isattr(accumulator.type, AnyMemRefType)
+            not isattr(accumulator.type, MemRefType)
             or not isinstance(op.accumulator, OpResult)
             or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
         ):

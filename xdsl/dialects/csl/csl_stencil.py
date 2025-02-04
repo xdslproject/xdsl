@@ -6,7 +6,6 @@ from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
-    AnyMemRefType,
     AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
     Float16Type,
@@ -554,7 +553,7 @@ class AccessOp(IRDLOperation):
                 ],
                 properties=props,
             )
-        elif isattr(res_type, base(AnyMemRefType)):
+        elif isattr(res_type, base(MemRefType)):
             return cls.build(
                 operands=[temp],
                 result_types=[

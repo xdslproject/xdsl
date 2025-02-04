@@ -1975,7 +1975,6 @@ class MemRefType(
         )
 
 
-AnyMemRefType: TypeAlias = MemRefType[Attribute]
 AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
 
 
