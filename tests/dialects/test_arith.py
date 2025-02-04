@@ -68,7 +68,7 @@ from xdsl.utils.isattr import isattr
 from xdsl.utils.test_value import TestSSAValue
 
 
-class test_integer_arith_construction:
+class TestIntegerArithConstruction:
     operand_type = i32
     a = ConstantOp.from_int_and_width(1, operand_type)
     b = ConstantOp.from_int_and_width(1, operand_type)
