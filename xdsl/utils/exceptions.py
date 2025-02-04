@@ -23,6 +23,10 @@ class VerifyException(DiagnosticException):
     pass
 
 
+class PassFailedException(DiagnosticException):
+    pass
+
+
 class PyRDLError(Exception):
     pass
 
