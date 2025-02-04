@@ -7,12 +7,12 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
-    AnyMemRefTypeConstr,
     AnyTensorType,
     DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     TensorType,
 )
@@ -177,7 +177,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
 
         assert isattr(
             op.input_stencil.type,
-            AnyMemRefTypeConstr | stencil.StencilTypeConstr,
+            MemRefType.constr() | stencil.StencilTypeConstr,
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]

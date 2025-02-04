@@ -1975,9 +1975,6 @@ class MemRefType(
         )
 
 
-AnyMemRefTypeConstr = BaseAttr[MemRefType[Attribute]](MemRefType)
-
-
 @dataclass(frozen=True, init=False)
 class TensorOrMemrefOf(
     GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
