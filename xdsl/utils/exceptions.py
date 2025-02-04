@@ -24,6 +24,11 @@ class VerifyException(DiagnosticException):
 
 
 class PassFailedException(DiagnosticException):
+    """
+    A diagnostic error which can be raised during the execution of a pass, used to
+    signify the the pass did not succeed.
+    """
+
     pass
 
 
