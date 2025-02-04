@@ -1252,19 +1252,17 @@ class BitcastOp(IRDLOperation):
         res_type = self.result.type
 
         if not have_compatible_shape(in_type, res_type):
-            raise VerifyException(
-                "'arith.bitcast' operand and result type must have compatible shape"
-            )
+            raise VerifyException("operand and result type must have compatible shape")
 
         t1 = get_element_type_or_self(in_type)
         t2 = get_element_type_or_self(res_type)
-        if not BitcastOp._types_bitcastable(t1, t2):
+        if not BitcastOp._are_types_bitcastable(t1, t2):
             raise VerifyException(
-                "'arith.bitcast' operand and result types must have equal bitwidths or be IndexType"
+                "operand and result types must have equal bitwidths or be IndexType"
             )
 
     @staticmethod
-    def _types_bitcastable(type_a: Attribute, type_b: Attribute) -> bool:
+    def _are_types_bitcastable(type_a: Attribute, type_b: Attribute) -> bool:
         if isinstance(type_a, IndexType) or isinstance(type_b, IndexType):
             return True
 

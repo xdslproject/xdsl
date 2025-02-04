@@ -252,61 +252,56 @@ def test_select_op():
     assert select_f_op.result.type == f.result.type
 
 
-class Test_bitcast_op:
-    shape_mismatch = (
-        "'arith.bitcast' operand and result type must have compatible shape"
-    )
-    bitwidth_mismatch = "'arith.bitcast' operand and result types must have equal bitwidths or be IndexType"
+@pytest.mark.parametrize(
+    "in_type, out_type",
+    [
+        (i1, IntegerType(1, signedness=Signedness.UNSIGNED)),
+        (i32, f32),
+        (i64, f64),
+        (i32, i32),
+        (IndexType(), i1),
+        (i1, IndexType()),
+        (f32, IndexType()),
+        (IndexType(), f64),
+        (VectorType(i64, [3]), VectorType(f64, [3])),
+        (VectorType(f32, [3]), VectorType(i32, [3])),
+        (MemRefType(i32, [5]), MemRefType(f32, [5])),
+    ],
+)
+def test_bitcast_op(in_type: Attribute, out_type: Attribute):
+    in_arg = TestSSAValue(in_type)
+    cast = BitcastOp(in_arg, out_type)
 
-    @pytest.mark.parametrize(
-        "in_type, out_type",
-        [
-            (i1, IntegerType(1, signedness=Signedness.UNSIGNED)),
-            (i32, f32),
-            (i64, f64),
-            (i32, i32),
-            (IndexType(), i1),
-            (i1, IndexType()),
-            (f32, IndexType()),
-            (IndexType(), f64),
-            (VectorType(i64, [3]), VectorType(f64, [3])),
-            (VectorType(f32, [3]), VectorType(i32, [3])),
-            (MemRefType(i32, [5]), MemRefType(f32, [5])),
-        ],
-    )
-    def test_bitcast_op(self, in_type: Attribute, out_type: Attribute):
-        in_arg = TestSSAValue(in_type)
-        cast = BitcastOp(in_arg, out_type)
+    cast.verify_()
+    assert cast.result.type == out_type
 
+
+SHAPE_MISMATCH = "operand and result type must have compatible shape"
+BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be IndexType"
+
+
+@pytest.mark.parametrize(
+    "in_type, out_type, err_msg",
+    [
+        (i1, i32, BITWIDTH_MISMATCH),
+        (i32, i64, BITWIDTH_MISMATCH),
+        (i64, i32, BITWIDTH_MISMATCH),
+        (f32, i64, BITWIDTH_MISMATCH),
+        (f32, f64, BITWIDTH_MISMATCH),
+        (VectorType(i32, [5]), i32, SHAPE_MISMATCH),
+        (i64, VectorType(i64, [5]), SHAPE_MISMATCH),
+        (VectorType(i32, [5]), VectorType(f32, [6]), SHAPE_MISMATCH),
+        (VectorType(i32, [5]), VectorType(f64, [5]), BITWIDTH_MISMATCH),
+        (MemRefType(i32, [5]), MemRefType(f32, [6]), SHAPE_MISMATCH),
+        (MemRefType(i32, [5]), f32, SHAPE_MISMATCH),
+    ],
+)
+def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
+    in_arg = TestSSAValue(in_type)
+    cast = BitcastOp(in_arg, out_type)
+
+    with pytest.raises(VerifyException, match=err_msg):
         cast.verify_()
-        assert cast.result.type == out_type
-
-    @pytest.mark.parametrize(
-        "in_type, out_type, err_msg",
-        [
-            (i1, i32, bitwidth_mismatch),
-            (i32, i64, bitwidth_mismatch),
-            (i64, i32, bitwidth_mismatch),
-            (f32, i64, bitwidth_mismatch),
-            (f32, f64, bitwidth_mismatch),
-            (VectorType(i32, [5]), i32, shape_mismatch),
-            (i64, VectorType(i64, [5]), shape_mismatch),
-            (VectorType(i32, [5]), VectorType(f32, [6]), shape_mismatch),
-            (VectorType(i32, [5]), VectorType(f64, [5]), bitwidth_mismatch),
-            (MemRefType(i32, [5]), MemRefType(f32, [6]), shape_mismatch),
-            (MemRefType(i32, [5]), f32, shape_mismatch),
-        ],
-    )
-    def test_bitcast_incorrect(
-        self, in_type: Attribute, out_type: Attribute, err_msg: str
-    ):
-        in_arg = TestSSAValue(in_type)
-        cast = BitcastOp(in_arg, out_type)
-
-        with pytest.raises(VerifyException) as e:
-            cast.verify_()
-
-        assert e.value.args[0] == err_msg
 
 
 def test_index_cast_op():
