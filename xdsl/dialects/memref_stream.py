@@ -17,13 +17,13 @@ from typing_extensions import Self, TypeVar
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyMemRefTypeConstr,
     ArrayAttr,
     ContainerType,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     StringAttr,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -463,7 +463,7 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(AnyMemRefTypeConstr | WritableStreamType.constr())
+    outputs = var_operand_def(MemRefType.constr() | WritableStreamType.constr())
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written

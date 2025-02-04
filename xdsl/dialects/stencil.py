@@ -9,11 +9,11 @@ from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
-    AnyMemRefTypeConstr,
     ArrayAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
+    MemRefType,
     TensorType,
 )
 from xdsl.ir import (
@@ -910,7 +910,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | AnyMemRefTypeConstr)
+    result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"

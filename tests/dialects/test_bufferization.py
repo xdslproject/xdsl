@@ -9,7 +9,6 @@ from xdsl.dialects.bufferization import (
     ToTensorOp,
 )
 from xdsl.dialects.builtin import (
-    AnyMemRefTypeConstr,
     AnyUnrankedMemrefTypeConstr,
     IndexType,
     IntegerType,
@@ -34,7 +33,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_tensor_from_memref_inference():
-    constr = TensorFromMemrefConstraint(AnyMemRefTypeConstr)
+    constr = TensorFromMemrefConstraint(MemRefType.constr())
     assert not constr.can_infer(set())
 
     constr2 = TensorFromMemrefConstraint(
@@ -53,7 +52,7 @@ def test_tensor_from_memref_inference():
 @irdl_op_definition
 class TensorFromMemrefOp(IRDLOperation):
     name = "test.tensor_from_memref"
-    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
 
     in_tensor = operand_def(
         TensorFromMemrefConstraint(

@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from xdsl.dialects.builtin import (
-    AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
     AnyUnrankedMemrefTypeConstr,
     AnyUnrankedTensorTypeConstr,
@@ -140,7 +139,7 @@ class AllocTensorOp(IRDLOperation):
 class CloneOp(IRDLOperation):
     name = "bufferization.clone"
 
-    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
 
     input = operand_def(T)
     output = result_def(T)
@@ -156,7 +155,7 @@ class CloneOp(IRDLOperation):
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
-    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
 
     memref = operand_def(T)
     tensor = result_def(TensorFromMemrefConstraint(T))
@@ -196,7 +195,7 @@ class ToTensorOp(IRDLOperation):
 class ToMemrefOp(IRDLOperation):
     name = "bufferization.to_memref"
 
-    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
     tensor = operand_def(TensorFromMemrefConstraint(T))
     memref = result_def(T)
 
@@ -209,7 +208,7 @@ class ToMemrefOp(IRDLOperation):
 class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
-    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
     source = operand_def(TensorFromMemrefConstraint(T))
     dest = operand_def(T | TensorFromMemrefConstraint(T))
     result = opt_result_def(TensorFromMemrefConstraint(T))
