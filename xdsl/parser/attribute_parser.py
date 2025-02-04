@@ -195,12 +195,24 @@ class AttrParser(BaseParser):
 
         return name, self.parse_attribute()
 
+    def _find_duplicated_key(self, attrs: list[tuple[str, Attribute]]) -> str | None:
+        seen_keys: set[str] = set()
+        for key, _ in attrs:
+            if key in seen_keys:
+                return key
+            seen_keys.add(key)
+        return None
+
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
         attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
         if attrs is None:
             return dict()
+
+        if (key := self._find_duplicated_key(attrs)) is not None:
+            self.raise_error(f"Duplicate key '{key}' in dictionary attribute")
+
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_body(
