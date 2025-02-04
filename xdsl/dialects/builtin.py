@@ -739,8 +739,9 @@ class IntegerAttr(
     def get_type(self) -> Attribute:
         return self.type
 
-    @staticmethod
+    @classmethod
     def constr(
+        cls,
         *,
         value: AttrConstraint | None = None,
         type: GenericAttrConstraint[_IntegerAttrTypeConstrT] = IntegerAttrTypeConstr,
@@ -1952,8 +1953,9 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
-    @staticmethod
+    @classmethod
     def constr(
+        cls,
         *,
         shape: GenericAttrConstraint[Attribute] | None = None,
         element_type: GenericAttrConstraint[_MemRefTypeElementConstrT] = AnyAttr(),
