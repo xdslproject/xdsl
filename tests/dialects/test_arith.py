@@ -56,6 +56,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     Signedness,
     TensorType,
     VectorType,
@@ -251,52 +252,61 @@ def test_select_op():
     assert select_f_op.result.type == f.result.type
 
 
-@pytest.mark.parametrize(
-    "in_type, out_type, should_verify",
-    [
-        (i1, IntegerType(1, signedness=Signedness.UNSIGNED), True),
-        (i32, f32, True),
-        (i64, f64, True),
-        (i32, i32, True),
-        (IndexType(), i1, True),
-        (i1, IndexType(), True),
-        (f32, IndexType(), True),
-        (IndexType(), f64, True),
-        (VectorType(i64, [3]), VectorType(f64, [3]), True),
-        (VectorType(f32, [3]), VectorType(i32, [3]), True),
-        # false cases
-        (i1, i32, False),
-        (i32, i64, False),
-        (i64, i32, False),
-        (f32, i64, False),
-        (f32, f64, False),
-        (VectorType(i32, [5]), i32, False),
-        (i64, VectorType(i64, [5]), False),
-        (VectorType(i32, [5]), VectorType(f32, [6]), False),
-        (VectorType(i32, [5]), VectorType(f64, [5]), False),
-    ],
-)
-def test_bitcast_op(in_type: Attribute, out_type: Attribute, should_verify: bool):
-    in_arg = TestSSAValue(in_type)
-    cast = BitcastOp(in_arg, out_type)
+class Test_bitcast_op:
+    shape_mismatch = (
+        "'arith.bitcast' operand and result type must have compatible shape"
+    )
+    bitwidth_mismatch = "'arith.bitcast' operand and result types must have equal bitwidths or be IndexType"
 
-    if should_verify:
+    @pytest.mark.parametrize(
+        "in_type, out_type",
+        [
+            (i1, IntegerType(1, signedness=Signedness.UNSIGNED)),
+            (i32, f32),
+            (i64, f64),
+            (i32, i32),
+            (IndexType(), i1),
+            (i1, IndexType()),
+            (f32, IndexType()),
+            (IndexType(), f64),
+            (VectorType(i64, [3]), VectorType(f64, [3])),
+            (VectorType(f32, [3]), VectorType(i32, [3])),
+            (MemRefType(i32, [5]), MemRefType(f32, [5])),
+        ],
+    )
+    def test_bitcast_op(self, in_type: Attribute, out_type: Attribute):
+        in_arg = TestSSAValue(in_type)
+        cast = BitcastOp(in_arg, out_type)
+
         cast.verify_()
         assert cast.result.type == out_type
-        return
 
-    # expecting test to fail
-    with pytest.raises(VerifyException) as e:
-        cast.verify_()
-
-    err_msg1 = "Expected operand and result types to be signless-integer-or-float-like"
-    err_msg2 = "'arith.bitcast' operand and result types must have equal bitwidths"
-    err_msg3 = "'arith.bitcast' operand and result must both be containers or scalars"
-    err_msg4 = (
-        "'arith.bitcast' operand and result type elements must have equal bitwidths"
+    @pytest.mark.parametrize(
+        "in_type, out_type, err_msg",
+        [
+            (i1, i32, bitwidth_mismatch),
+            (i32, i64, bitwidth_mismatch),
+            (i64, i32, bitwidth_mismatch),
+            (f32, i64, bitwidth_mismatch),
+            (f32, f64, bitwidth_mismatch),
+            (VectorType(i32, [5]), i32, shape_mismatch),
+            (i64, VectorType(i64, [5]), shape_mismatch),
+            (VectorType(i32, [5]), VectorType(f32, [6]), shape_mismatch),
+            (VectorType(i32, [5]), VectorType(f64, [5]), bitwidth_mismatch),
+            (MemRefType(i32, [5]), MemRefType(f32, [6]), shape_mismatch),
+            (MemRefType(i32, [5]), f32, shape_mismatch),
+        ],
     )
-    err_msg5 = "'arith.bitcast' operand and result types must have the same shape"
-    assert e.value.args[0] in [err_msg1, err_msg2, err_msg3, err_msg4, err_msg5]
+    def test_bitcast_incorrect(
+        self, in_type: Attribute, out_type: Attribute, err_msg: str
+    ):
+        in_arg = TestSSAValue(in_type)
+        cast = BitcastOp(in_arg, out_type)
+
+        with pytest.raises(VerifyException) as e:
+            cast.verify_()
+
+        assert e.value.args[0] == err_msg
 
 
 def test_index_cast_op():
