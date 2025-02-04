@@ -2364,8 +2364,9 @@ def test_nested_inference():
         p: ParameterDef[_T]
         q: ParameterDef[Attribute]
 
-        @staticmethod
+        @classmethod
         def constr(
+            cls,
             *,
             n: GenericAttrConstraint[Attribute] | None = None,
             p: GenericAttrConstraint[_ConstrT] | None = None,
@@ -2409,8 +2410,9 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: ParameterDef[_T]
 
-        @staticmethod
+        @classmethod
         def constr(
+            cls,
             *,
             p: GenericAttrConstraint[_ConstrT] | None = None,
         ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
