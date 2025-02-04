@@ -70,7 +70,7 @@ class InferFillPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamInferFillPass(ModulePass):
+class MemRefStreamInferFillPass(ModulePass):
     """
     Detects memref_stream.generic operations that can be represented as
     `memref_stream.fill` ops.

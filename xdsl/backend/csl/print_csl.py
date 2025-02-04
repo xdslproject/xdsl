@@ -253,7 +253,7 @@ class CslPrintContext:
             case DenseIntOrFPElementsAttr():
                 data = init.get_attrs()
                 assert len(data) == 1, (
-                    f"Memref global initialiser has to have 1 value, got {len(data)}"
+                    f"MemRef global initialiser has to have 1 value, got {len(data)}"
                 )
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:

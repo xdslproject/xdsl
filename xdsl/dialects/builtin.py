@@ -1406,7 +1406,7 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
-class MemrefLayoutAttr(Attribute, ABC):
+class MemRefLayoutAttr(Attribute, ABC):
     """
     Interface for any attribute acceptable as a memref layout.
     """
@@ -1438,7 +1438,7 @@ class MemrefLayoutAttr(Attribute, ABC):
 
 
 @irdl_attr_definition
-class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
+class StridedLayoutAttr(MemRefLayoutAttr, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
     See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
@@ -1526,7 +1526,7 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
+class AffineMapAttr(MemRefLayoutAttr, Data[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
@@ -1821,10 +1821,10 @@ f128 = Float128Type()
 _MemRefTypeElement = TypeVar(
     "_MemRefTypeElement", bound=Attribute, covariant=True, default=Attribute
 )
-_UnrankedMemrefTypeElems = TypeVar(
-    "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
+_UnrankedMemRefTypeElems = TypeVar(
+    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True
 )
-_UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit", bound=Attribute)
+_UnrankedMemRefTypeElemsInit = TypeVar("_UnrankedMemRefTypeElemsInit", bound=Attribute)
 
 
 @irdl_attr_definition
@@ -1844,14 +1844,14 @@ class MemRefType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[MemrefLayoutAttr | NoneAttr]
+    layout: ParameterDef[MemRefLayoutAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def __init__(
         self,
         element_type: _MemRefTypeElement,
         shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
-        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
+        layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
         s: ArrayAttr[IntAttr]
@@ -1976,7 +1976,7 @@ class MemRefType(
 
 
 @dataclass(frozen=True, init=False)
-class TensorOrMemrefOf(
+class TensorOrMemRefOf(
     GenericAttrConstraint[TensorType[AttributeCovT] | MemRefType[AttributeCovT]]
 ):
     """A type constraint that can be nested once in a memref or a tensor."""
@@ -2022,30 +2022,30 @@ class TensorOrMemrefOf(
 
 
 @irdl_attr_definition
-class UnrankedMemrefType(
-    Generic[_UnrankedMemrefTypeElems],
+class UnrankedMemRefType(
+    Generic[_UnrankedMemRefTypeElems],
     ParametrizedAttribute,
     TypeAttribute,
-    ContainerType[_UnrankedMemrefTypeElems],
+    ContainerType[_UnrankedMemRefTypeElems],
 ):
     name = "unranked_memref"
 
-    element_type: ParameterDef[_UnrankedMemrefTypeElems]
+    element_type: ParameterDef[_UnrankedMemRefTypeElems]
     memory_space: ParameterDef[Attribute]
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedMemrefTypeElemsInit,
+        referenced_type: _UnrankedMemRefTypeElemsInit,
         memory_space: Attribute = NoneAttr(),
-    ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
-        return UnrankedMemrefType([referenced_type, memory_space])
+    ) -> UnrankedMemRefType[_UnrankedMemRefTypeElemsInit]:
+        return UnrankedMemRefType([referenced_type, memory_space])
 
-    def get_element_type(self) -> _UnrankedMemrefTypeElems:
+    def get_element_type(self) -> _UnrankedMemRefTypeElems:
         return self.element_type
 
 
-AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
-AnyUnrankedMemrefTypeConstr = BaseAttr[AnyUnrankedMemrefType](UnrankedMemrefType)
+AnyUnrankedMemRefType: TypeAlias = UnrankedMemRefType[Attribute]
+AnyUnrankedMemRefTypeConstr = BaseAttr[AnyUnrankedMemRefType](UnrankedMemRefType)
 
 RankedStructure: TypeAlias = (
     VectorType[AttributeCovT] | TensorType[AttributeCovT] | MemRefType[AttributeCovT]
@@ -2369,6 +2369,6 @@ Builtin = Dialect(
         AffineMapAttr,
         AffineSetAttr,
         MemRefType,
-        UnrankedMemrefType,
+        UnrankedMemRefType,
     ],
 )
