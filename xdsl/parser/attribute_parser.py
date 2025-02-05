@@ -779,9 +779,18 @@ class AttrParser(BaseParser):
             data_values = []
         elif isinstance(dense_contents, str):
             # Hex-encoded string case: convert straight to bytes (without the 0x prefix)
-            return DenseIntOrFPElementsAttr(
-                [type, BytesAttr(bytes.fromhex(dense_contents[2:]))]
-            )
+            try:
+                bytes_attr = BytesAttr(bytes.fromhex(dense_contents[2:]))
+            except ValueError:
+                self.raise_error("Hex string in denseAttr is invalid")
+            attr = DenseIntOrFPElementsAttr([type, bytes_attr])
+            if type_num_values != len(attr):
+                self.raise_error(
+                    f"Shape mismatch in dense literal. Expected {type_num_values} "
+                    f"elements from the type, but got {len(attr)} elements."
+                )
+            return attr
+
         else:
             # Tensor literal case
             dense_values, shape = dense_contents
