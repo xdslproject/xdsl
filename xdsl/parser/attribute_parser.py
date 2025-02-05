@@ -780,10 +780,16 @@ class AttrParser(BaseParser):
         elif isinstance(dense_contents, str):
             # Hex-encoded string case: convert straight to bytes (without the 0x prefix)
             try:
-                bytes_attr = BytesAttr(bytes.fromhex(dense_contents[2:]))
+                bytes_values = bytes.fromhex(dense_contents[2:])
             except ValueError:
                 self.raise_error("Hex string in denseAttr is invalid")
-            attr = DenseIntOrFPElementsAttr([type, bytes_attr])
+
+            # Handle splat values given in hex
+            if len(bytes_values) == type.element_type.compile_time_size:
+                bytes_values *= type_num_values
+
+            # Create attribute
+            attr = DenseIntOrFPElementsAttr([type, BytesAttr(bytes_values)])
             if type_num_values != len(attr):
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_num_values} "
