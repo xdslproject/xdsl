@@ -1,4 +1,5 @@
 // RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | mlir-opt --allow-unregistered-dialect | filecheck %s
 
 %0, %1 = "test.op"() : () -> (f32, memref<1x256xf32>)
 
