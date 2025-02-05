@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import math
 import re
-import struct
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
@@ -60,7 +58,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
-from xdsl.irdl import BaseAttr, base
+from xdsl.irdl import base
 from xdsl.utils.bitwise_casts import (
     convert_u16_to_f16,
     convert_u32_to_f32,
@@ -713,77 +711,6 @@ class AttrParser(BaseParser):
         self._consume_token(MLIRTokenKind.BARE_IDENT)
         return parsers[name.text]()
 
-    def _parse_builtin_dense_attr_hex(
-        self,
-        hex_string: str,
-        type: RankedStructure[AnyDenseElement],
-    ) -> tuple[list[int] | list[float], list[int]]:
-        """
-        Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
-        and its flattened shape, based on the parsed type.
-
-        For instance, a dense<"0x82F5AB0182F5AB00"> attribute will return [28046722, 11269506]
-        for a tensor<2xi32> type.
-
-        Only supports integer types that are multiple of 8, f32 and f64.
-        """
-        element_type = type.element_type
-
-        # Strip off "0x" of hex string
-        stripped_string = hex_string[2:]
-
-        # Convert incoming hex to list of bytes
-        try:
-            byte_list = bytes.fromhex(stripped_string)
-        except ValueError:
-            self.raise_error("Hex string in denseAttr is invalid")
-
-        # Use struct builtin package for unpacking f32, f64
-        format_str: str = ""
-        num_chunks = 0
-        match element_type:
-            case Float32Type():
-                chunk_size = 4
-                num_chunks = len(byte_list) // chunk_size
-                format_str = (
-                    f"@{num_chunks}f"  # @ in format string implies native endianess
-                )
-            case Float64Type():
-                chunk_size = 8
-                num_chunks = len(byte_list) // chunk_size
-                format_str = f"@{num_chunks}d"
-            case IntegerType():
-                if element_type.width.data % 8 != 0:
-                    self.raise_error(
-                        "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
-                    )
-                chunk_size = element_type.width.data // 8
-                num_chunks = len(byte_list) // chunk_size
-            case _:
-                self.raise_error(
-                    "Hex strings for dense literals are only supported for int, f32 and f64 types"
-                )
-
-        data_values: list[int] | list[float] = []
-
-        # Use struct to unpack floats
-        if isattr(element_type, BaseAttr(Float32Type) | BaseAttr(Float64Type)):
-            data_values = list(struct.unpack_from(format_str, byte_list))
-        # Use int for unpacking IntegerType
-        else:
-            for i in range(num_chunks):
-                parsed_int = int.from_bytes(
-                    byte_list[i * chunk_size : (i + 1) * chunk_size],
-                    sys.byteorder,
-                    signed=True,
-                )
-                data_values.append(parsed_int)
-        if len(data_values) == 1:
-            # Splat attribute case, same value everywhere,
-            # Emit values repeatedly and emit empty shape
-            return [data_values[0]] * math.prod(type.get_shape()), []
-        return data_values, [num_chunks]
-
     def _parse_dense_literal_type(
         self,
     ) -> (
@@ -851,17 +778,10 @@ class AttrParser(BaseParser):
                 )
             data_values = []
         elif isinstance(dense_contents, str):
-            # Hex-encoded string case
-            # Get values and shape in case of hex_string (requires parsed type)
-            data_values, shape = self._parse_builtin_dense_attr_hex(
-                dense_contents, type
+            # Hex-encoded string case: convert straight to bytes (without the 0x prefix)
+            return DenseIntOrFPElementsAttr(
+                [type, BytesAttr(bytes.fromhex(dense_contents[2:]))]
             )
-            # For splat attributes any shape is fine
-            if shape and type_num_values != shape[0]:
-                self.raise_error(
-                    f"Shape mismatch in dense literal. Expected {type_num_values} "
-                    f"elements from the type, but got {shape[0]} elements."
-                )
         else:
             # Tensor literal case
             dense_values, shape = dense_contents
