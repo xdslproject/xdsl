@@ -17,14 +17,13 @@ from typing import Annotated, ClassVar, TypeAlias
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyFloatAttr,
-    AnyFloatAttrConstr,
     ArrayAttr,
     BoolAttr,
     ContainerType,
     DictionaryAttr,
     Float16Type,
     Float32Type,
+    FloatAttr,
     FunctionType,
     IntegerAttr,
     IntegerType,
@@ -417,8 +416,8 @@ ColorIdAttr: TypeAlias = IntegerAttr[
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
-ParamAttr: TypeAlias = AnyFloatAttr | IntegerAttr
-ParamAttrConstr = AnyFloatAttrConstr | IntegerAttr.constr()
+ParamAttr: TypeAlias = FloatAttr | IntegerAttr
+ParamAttrConstr = FloatAttr.constr() | IntegerAttr.constr()
 
 
 @irdl_op_definition

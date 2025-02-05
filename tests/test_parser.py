@@ -6,10 +6,10 @@ import pytest
 
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
-    AnyFloatAttr,
     ArrayAttr,
     Builtin,
     DictionaryAttr,
+    FloatAttr,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -807,22 +807,22 @@ def test_parse_number(
         ("24: i32", IntegerAttr(24, 32)),
         ("0: index", IntegerAttr.from_index_int_value(0)),
         ("-64: i64", IntegerAttr(-64, 64)),
-        ("-64.4: f64", AnyFloatAttr(-64.4, 64)),
-        ("32.4: f32", AnyFloatAttr(32.4, 32)),
-        ("0x7e00 : f16", AnyFloatAttr(float("nan"), 16)),
-        ("0x7c00 : f16", AnyFloatAttr(float("inf"), 16)),
-        ("0xfc00 : f16", AnyFloatAttr(float("-inf"), 16)),
-        ("0x7fc00000 : f32", AnyFloatAttr(float("nan"), 32)),
-        ("0x7f800000 : f32", AnyFloatAttr(float("inf"), 32)),
-        ("0xff800000 : f32", AnyFloatAttr(float("-inf"), 32)),
-        ("0x7ff8000000000000 : f64", AnyFloatAttr(float("nan"), 64)),
-        ("0x7ff0000000000000 : f64", AnyFloatAttr(float("inf"), 64)),
-        ("0xfff0000000000000 : f64", AnyFloatAttr(float("-inf"), 64)),
+        ("-64.4: f64", FloatAttr(-64.4, 64)),
+        ("32.4: f32", FloatAttr(32.4, 32)),
+        ("0x7e00 : f16", FloatAttr(float("nan"), 16)),
+        ("0x7c00 : f16", FloatAttr(float("inf"), 16)),
+        ("0xfc00 : f16", FloatAttr(float("-inf"), 16)),
+        ("0x7fc00000 : f32", FloatAttr(float("nan"), 32)),
+        ("0x7f800000 : f32", FloatAttr(float("inf"), 32)),
+        ("0xff800000 : f32", FloatAttr(float("-inf"), 32)),
+        ("0x7ff8000000000000 : f64", FloatAttr(float("nan"), 64)),
+        ("0x7ff0000000000000 : f64", FloatAttr(float("inf"), 64)),
+        ("0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64)),
         # ("3 : f64", None),  # todo this fails in mlir-opt but not in xdsl
     ],
 )
 def test_parse_optional_builtin_int_or_float_attr(
-    text: str, expected_value: IntegerAttr | AnyFloatAttr | None
+    text: str, expected_value: IntegerAttr | FloatAttr | None
 ):
     parser = Parser(MLContext(), text)
     if expected_value is None:
