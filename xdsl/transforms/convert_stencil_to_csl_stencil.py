@@ -6,9 +6,9 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
-    AnyFloatAttr,
     AnyTensorType,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -578,7 +578,7 @@ class PromoteCoefficients(RewritePattern):
             return
 
         val = dense.get_attrs()[0]
-        assert isattr(val, AnyFloatAttr)
+        assert isattr(val, FloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])
 
