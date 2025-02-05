@@ -337,14 +337,16 @@ def test_linalg_conv_2d_nchw_fchw():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.Conv2DNchwFchwOp(
-        DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
-        DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
         (
             TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
             TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
         ),
         (TestSSAValue(TensorType(f32, [1, 1, 3, 3])),),
         (TensorType(f32, [1, 1, 3, 3]),),
+        {
+            "dilations": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
+            "strides": DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
+        },
     )
     a = ShapedArray(TypedPtr.new_float32(list(range(25))), [1, 1, 5, 5])
     b = ShapedArray(
