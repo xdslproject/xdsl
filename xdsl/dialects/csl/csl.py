@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyFloatAttrConstr,
     AnyIntegerAttr,
-    AnyIntegerAttrConstr,
     ArrayAttr,
     BoolAttr,
     ContainerType,
@@ -420,7 +419,7 @@ ColorIdAttr: TypeAlias = IntegerAttr[
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
-ParamAttrConstr = AnyFloatAttrConstr | AnyIntegerAttrConstr
+ParamAttrConstr = AnyFloatAttrConstr | IntegerAttr.constr()
 
 
 @irdl_op_definition

@@ -12,7 +12,6 @@ from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     I32,
-    AnyIntegerAttrConstr,
     BoolAttr,
     Float64Type,
     FloatAttr,
@@ -2951,7 +2950,7 @@ def test_optional_property_with_extractor(program: str, generic: str):
         name = "test.opt_constant"
         T: ClassVar = VarConstraint("T", AnyAttr())
 
-        value = opt_prop_def(TypedAttributeConstraint(AnyIntegerAttrConstr, T))
+        value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))
 
         res = opt_result_def(T)
 
@@ -2984,7 +2983,7 @@ def test_default_property_with_extractor(program: str, generic: str):
         T: ClassVar = VarConstraint("T", AnyAttr())
 
         value = prop_def(
-            TypedAttributeConstraint(AnyIntegerAttrConstr, T),
+            TypedAttributeConstraint(IntegerAttr.constr(), T),
             default_value=BoolAttr.from_bool(True),
         )
 
