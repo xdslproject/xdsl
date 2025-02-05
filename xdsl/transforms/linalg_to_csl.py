@@ -4,10 +4,10 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
-    AnyIntegerAttr,
     DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
+    IntegerAttr,
     MemRefType,
     ModuleOp,
 )
@@ -39,7 +39,7 @@ def match_op_for_precision(
             raise ValueError(f"Unsupported element type {prec}")
 
 
-def get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
+def get_scalar_const(op: SSAValue) -> AnyFloatAttr | IntegerAttr | None:
     """Returns the value of a scalar arith.constant, or None if not a constant or not scalar)."""
     if (
         isinstance(op, OpResult)

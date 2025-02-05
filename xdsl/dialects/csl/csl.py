@@ -19,7 +19,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloatAttr,
     AnyFloatAttrConstr,
-    AnyIntegerAttr,
     ArrayAttr,
     BoolAttr,
     ContainerType,
@@ -418,7 +417,7 @@ ColorIdAttr: TypeAlias = IntegerAttr[
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
-ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+ParamAttr: TypeAlias = AnyFloatAttr | IntegerAttr
 ParamAttrConstr = AnyFloatAttrConstr | IntegerAttr.constr()
 
 

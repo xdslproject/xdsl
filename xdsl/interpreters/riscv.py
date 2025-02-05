@@ -5,7 +5,6 @@ from typing import Any, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -214,7 +213,7 @@ class RiscvFunctions(InterpreterFunctions):
         return data[key]
 
     def get_immediate_value(
-        self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
+        self, interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr
     ) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():

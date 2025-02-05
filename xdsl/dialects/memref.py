@@ -9,7 +9,6 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     I64,
     AnyFloatConstr,
-    AnyIntegerAttr,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
@@ -160,7 +159,7 @@ class AllocOp(IRDLOperation):
     memref = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(IntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -183,7 +182,7 @@ class AllocOp(IRDLOperation):
     def get(
         cls,
         return_type: Attribute,
-        alignment: int | AnyIntegerAttr | None = None,
+        alignment: int | IntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
@@ -314,14 +313,14 @@ class AllocaOp(IRDLOperation):
     memref = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(IntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: int | AnyIntegerAttr | None = None,
+        alignment: int | IntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
