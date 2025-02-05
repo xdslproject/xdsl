@@ -958,44 +958,13 @@ class QuantizedMatmulOp(NamedOpBase):
         )
 
 
-class PoolingOpsBase(IRDLOperation, ABC):
+class PoolingOpsBase(NamedOpBase, ABC):
     """Base class for linalg pooling operations."""
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
-    )
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
     strides = attr_def(DenseIntOrFPElementsAttr)
     dilations = attr_def(DenseIntOrFPElementsAttr)
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
-    def __init__(
-        self,
-        dilations: Attribute,
-        strides: Attribute,
-        inputs: Sequence[SSAValue],
-        outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
-    ):
-        if res is None:
-            result_types = tuple(output.type for output in outputs)
-        else:
-            result_types = res
-        super().__init__(
-            attributes={
-                "dilations": dilations,
-                "strides": strides,
-            },
-            operands=(inputs, outputs),
-            result_types=result_types,
-        )
 
 
 @irdl_op_definition
@@ -1007,6 +976,32 @@ class PoolingNchwMaxOp(PoolingOpsBase):
     """
 
     name = "linalg.pooling_nchw_max"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        max_op = (
+            arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = max_op(args[0], args[1])
+            YieldOp(result)
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=res,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
 
 
 class ConvOpsBase(IRDLOperation, ABC):
