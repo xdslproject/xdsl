@@ -73,7 +73,7 @@ builtin.module {
         "test.op"() : () -> ()
 }
 
-// CHECK:       tests/filecheck/parser-printer/graph_region.mlir:72:4
+// CHECK:       /graph_region.mlir
 // CHECK-NEXT:      ^blockA:
 // CHECK-NEXT:      ^^^^^^^
 // CHECK-NEXT:      re-declaration of block 'blockA'
