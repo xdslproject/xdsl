@@ -15,7 +15,6 @@ from __future__ import annotations
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyIntegerAttr,
     ArrayAttr,
     Attribute,
     BoolAttr,
@@ -62,7 +61,7 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "hlfir.expr"
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr | DeferredAttr | NoneType]]
+    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
     elementType: ParameterDef[IntegerType | AnyFloat | ReferenceType]
 
     def print_parameters(self, printer: Printer) -> None:

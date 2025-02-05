@@ -782,7 +782,6 @@ class IntegerAttr(
         return tuple(IntegerAttr(value, type) for value in type.unpack(buffer, num))
 
 
-AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
@@ -1352,13 +1351,13 @@ class DenseArrayBase(ParametrizedAttribute):
     def get_values(self) -> tuple[int, ...] | tuple[float, ...]:
         return self.elt_type.unpack(self.data.data, len(self))
 
-    def iter_attrs(self) -> Iterator[AnyIntegerAttr] | Iterator[AnyFloatAttr]:
+    def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[AnyFloatAttr]:
         if isinstance(self.elt_type, IntegerType):
             return IntegerAttr.iter_unpack(self.elt_type, self.data.data)
         else:
             return FloatAttr.iter_unpack(self.elt_type, self.data.data)
 
-    def get_attrs(self) -> tuple[AnyIntegerAttr, ...] | tuple[AnyFloatAttr, ...]:
+    def get_attrs(self) -> tuple[IntegerAttr, ...] | tuple[AnyFloatAttr, ...]:
         if isinstance(self.elt_type, IntegerType):
             return IntegerAttr.unpack(self.elt_type, self.data.data, len(self))
         else:
@@ -2180,7 +2179,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             | RankedStructure[IntegerType]
             | RankedStructure[IndexType]
         ),
-        data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
+        data: Sequence[int | float] | Sequence[IntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
         # zero rank type should only hold 1 value
         if not type.get_shape() and len(data) != 1:
@@ -2249,7 +2248,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         """
         return self.get_element_type().unpack(self.data.data, len(self))
 
-    def iter_attrs(self) -> Iterator[AnyIntegerAttr] | Iterator[AnyFloatAttr]:
+    def iter_attrs(self) -> Iterator[IntegerAttr] | Iterator[AnyFloatAttr]:
         """
         Return an iterator over all elements of the dense attribute in their relevant
         attribute representation (IntegerAttr / FloatAttr)
@@ -2259,7 +2258,7 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
         else:
             return FloatAttr.iter_unpack(eltype, self.data.data)
 
-    def get_attrs(self) -> Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]:
+    def get_attrs(self) -> Sequence[IntegerAttr] | Sequence[AnyFloatAttr]:
         """
         Return all elements of the dense attribute in their relevant
         attribute representation (IntegerAttr / FloatAttr)

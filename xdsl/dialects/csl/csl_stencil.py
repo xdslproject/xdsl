@@ -5,12 +5,12 @@ from typing import TypeAlias, cast
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyIntegerAttr,
     AnyTensorTypeConstr,
     Float16Type,
     Float32Type,
     FloatAttr,
     IndexType,
+    IntegerAttr,
     MemRefType,
     TensorType,
 )
@@ -138,7 +138,7 @@ class PrefetchOp(IRDLOperation):
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    num_chunks = prop_def(AnyIntegerAttr)
+    num_chunks = prop_def(IntegerAttr)
 
     result = result_def(MemRefType.constr() | AnyTensorTypeConstr)
 
@@ -146,7 +146,7 @@ class PrefetchOp(IRDLOperation):
         self,
         input_stencil: SSAValue | Operation,
         topo: dmp.RankTopoAttr,
-        num_chunks: AnyIntegerAttr,
+        num_chunks: IntegerAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
         result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
     ):
@@ -241,7 +241,7 @@ class ApplyOp(IRDLOperation):
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    num_chunks = prop_def(AnyIntegerAttr)
+    num_chunks = prop_def(IntegerAttr)
 
     bounds = opt_prop_def(stencil.StencilBoundsAttr)
 

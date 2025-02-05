@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatAttr,
     AnyFloatConstr,
-    AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -1203,7 +1202,7 @@ class AttrParser(BaseParser):
 
     def parse_optional_builtin_int_or_float_attr(
         self,
-    ) -> AnyIntegerAttr | AnyFloatAttr | None:
+    ) -> IntegerAttr | AnyFloatAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
