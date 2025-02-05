@@ -61,3 +61,16 @@ builtin.module {
 }
 
 // CHECK: SSA value %1 is referenced with an index larger than its size
+
+// -----
+
+// A block defined twice
+
+builtin.module {
+    ^blockA:
+        "test.op"() : () -> ()
+    ^blockA:
+        "test.op"() : () -> ()
+}
+
+// CHECK: SSA value %1 is referenced with an index larger than its size
