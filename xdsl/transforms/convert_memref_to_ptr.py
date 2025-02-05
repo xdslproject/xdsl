@@ -155,7 +155,7 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass
-class LowerMemrefFuncOpPattern(RewritePattern):
+class LowerMemRefFuncOpPattern(RewritePattern):
     """
     Rewrites function arguments of MemRefType to PtrType.
     """
@@ -200,7 +200,7 @@ class LowerMemrefFuncOpPattern(RewritePattern):
 
 
 @dataclass
-class LowerMemrefFuncReturnPattern(RewritePattern):
+class LowerMemRefFuncReturnPattern(RewritePattern):
     """
     Rewrites all `memref` arguments to `func.return` into `ptr.PtrType`
     """
@@ -230,7 +230,7 @@ class LowerMemrefFuncReturnPattern(RewritePattern):
 
 
 @dataclass
-class LowerMemrefFuncCallPattern(RewritePattern):
+class LowerMemRefFuncCallPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter, /):
         if not any(
@@ -327,7 +327,7 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
 
 
 @dataclass(frozen=True)
-class ConvertMemrefToPtr(ModulePass):
+class ConvertMemRefToPtr(ModulePass):
     name = "convert-memref-to-ptr"
 
     lower_func: bool = False
@@ -341,9 +341,9 @@ class ConvertMemrefToPtr(ModulePass):
             PatternRewriteWalker(
                 GreedyRewritePatternApplier(
                     [
-                        LowerMemrefFuncOpPattern(),
-                        LowerMemrefFuncCallPattern(),
-                        LowerMemrefFuncReturnPattern(),
+                        LowerMemRefFuncOpPattern(),
+                        LowerMemRefFuncCallPattern(),
+                        LowerMemRefFuncReturnPattern(),
                         ReconcileUnrealizedPtrCasts(),
                     ]
                 )

@@ -154,9 +154,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return MemRef
 
     def get_memref_stream():
-        from xdsl.dialects.memref_stream import MemrefStream
+        from xdsl.dialects.memref_stream import MemRefStream
 
-        return MemrefStream
+        return MemRefStream
 
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram

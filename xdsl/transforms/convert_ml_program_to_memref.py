@@ -58,7 +58,7 @@ class ConvertGlobalLoadConst(RewritePattern):
         )
 
 
-class ConvertMlProgramToMemrefPass(ModulePass):
+class ConvertMlProgramToMemRefPass(ModulePass):
     """
     Converts operations in the `ml_program` dialect to `memref`.
     `ml_program` operations are at the `tensor` level of abstraction, so some of the

@@ -18,7 +18,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
-    MemrefLayoutAttr,
+    MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
     SignlessIntegerConstraint,
@@ -26,7 +26,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     i32,
     i64,
 )
@@ -186,7 +186,7 @@ class AllocOp(IRDLOperation):
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
-        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
+        layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> Self:
         if shape is None:
@@ -324,7 +324,7 @@ class AllocaOp(IRDLOperation):
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
-        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
+        layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> AllocaOp:
         if shape is None:
@@ -376,7 +376,7 @@ class AtomicRMWOp(IRDLOperation):
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
     memref = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
     )
 
     @staticmethod
@@ -465,7 +465,7 @@ class DimOp(IRDLOperation):
     name = "memref.dim"
 
     source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
     )
     index = operand_def(IndexType)
 
@@ -650,14 +650,14 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
         )
 
 
-class MemrefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+class MemRefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import (
-            MemrefSubviewOfSubviewFolding,
+            MemRefSubviewOfSubviewFolding,
         )
 
-        return (MemrefSubviewOfSubviewFolding(),)
+        return (MemRefSubviewOfSubviewFolding(),)
 
 
 @irdl_op_definition
@@ -682,7 +682,7 @@ class SubviewOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     traits = lazy_traits_def(
-        lambda: (MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
+        lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
     )
 
     def __init__(
@@ -901,16 +901,16 @@ class CastOp(IRDLOperation):
     name = "memref.cast"
 
     source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
     )
-    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
+    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
 
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
         source: SSAValue | Operation,
-        type: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
+        type: MemRefType[Attribute] | UnrankedMemRefType[Attribute],
     ):
         return CastOp.build(operands=[source], result_types=[type])
 
@@ -920,16 +920,16 @@ class MemorySpaceCastOp(IRDLOperation):
     name = "memref.memory_space_cast"
 
     source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
     )
-    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
+    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
 
     traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
         source: SSAValue | Operation,
-        dest: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
+        dest: MemRefType[Attribute] | UnrankedMemRefType[Attribute],
     ):
         super().__init__(operands=[source], result_types=[dest])
 

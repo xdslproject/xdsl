@@ -63,9 +63,9 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
-    AccessOpToMemref,
-    CastOpToMemref,
-    LoadOpToMemref,
+    AccessOpToMemRef,
+    CastOpToMemRef,
+    LoadOpToMemRef,
     StencilToMemRefType,
     TrivialExternalLoadOpCleanup,
     TrivialExternalStoreOpCleanup,
@@ -1317,9 +1317,9 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
                     ),
                     StencilAccessOpToReadBlockOp(),
                     StencilStoreToSubview(),
-                    CastOpToMemref(),
-                    LoadOpToMemref(),
-                    AccessOpToMemref(),
+                    CastOpToMemRef(),
+                    LoadOpToMemRef(),
+                    AccessOpToMemRef(),
                 ]
             ),
             apply_recursively=False,

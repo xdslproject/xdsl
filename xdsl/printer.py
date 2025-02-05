@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyFloat,
     AnyFloatAttr,
-    AnyUnrankedMemrefType,
+    AnyUnrankedMemRefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -44,7 +44,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
@@ -608,8 +608,8 @@ class Printer(BasePrinter):
             self.print_string(">")
             return
 
-        if isinstance(attribute, UnrankedMemrefType):
-            attribute = cast(AnyUnrankedMemrefType, attribute)
+        if isinstance(attribute, UnrankedMemRefType):
+            attribute = cast(AnyUnrankedMemRefType, attribute)
             self.print_string("memref<*x")
             self.print_attribute(attribute.element_type)
             if not isinstance(attribute.memory_space, NoneAttr):

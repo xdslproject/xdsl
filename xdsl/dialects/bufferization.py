@@ -4,7 +4,7 @@ from typing import Any, ClassVar
 
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
-    AnyUnrankedMemrefTypeConstr,
+    AnyUnrankedMemRefTypeConstr,
     AnyUnrankedTensorTypeConstr,
     ContainerType,
     IndexType,
@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
 )
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
@@ -36,7 +36,7 @@ from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
-class TensorFromMemrefConstraint(
+class TensorFromMemRefConstraint(
     GenericAttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
 ):
     """
@@ -46,7 +46,7 @@ class TensorFromMemrefConstraint(
     """
 
     memref_constraint: GenericAttrConstraint[
-        MemRefType[Attribute] | UnrankedMemrefType[Attribute]
+        MemRefType[Attribute] | UnrankedMemRefType[Attribute]
     ]
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
@@ -64,7 +64,7 @@ class TensorFromMemrefConstraint(
         if isa(attr, TensorType[Attribute]):
             memref_type = MemRefType(attr.element_type, attr.shape)
         elif isa(attr, UnrankedTensorType[Attribute]):
-            memref_type = UnrankedMemrefType.from_type(attr.element_type)
+            memref_type = UnrankedMemRefType.from_type(attr.element_type)
         else:
             raise VerifyException(
                 f"Expected tensor or unranked tensor type, got {attr}"
@@ -139,7 +139,7 @@ class AllocTensorOp(IRDLOperation):
 class CloneOp(IRDLOperation):
     name = "bufferization.clone"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
     input = operand_def(T)
     output = result_def(T)
@@ -155,10 +155,10 @@ class CloneOp(IRDLOperation):
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
     memref = operand_def(T)
-    tensor = result_def(TensorFromMemrefConstraint(T))
+    tensor = result_def(TensorFromMemRefConstraint(T))
 
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
@@ -192,11 +192,11 @@ class ToTensorOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ToMemrefOp(IRDLOperation):
+class ToMemRefOp(IRDLOperation):
     name = "bufferization.to_memref"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
-    tensor = operand_def(TensorFromMemrefConstraint(T))
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
+    tensor = operand_def(TensorFromMemRefConstraint(T))
     memref = result_def(T)
 
     read_only = opt_prop_def(UnitAttr)
@@ -208,10 +208,10 @@ class ToMemrefOp(IRDLOperation):
 class MaterializeInDestinationOp(IRDLOperation):
     name = "bufferization.materialize_in_destination"
 
-    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemrefTypeConstr)
-    source = operand_def(TensorFromMemrefConstraint(T))
-    dest = operand_def(T | TensorFromMemrefConstraint(T))
-    result = opt_result_def(TensorFromMemrefConstraint(T))
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
+    source = operand_def(TensorFromMemRefConstraint(T))
+    dest = operand_def(T | TensorFromMemRefConstraint(T))
+    result = opt_result_def(TensorFromMemRefConstraint(T))
 
     restrict = opt_prop_def(UnitAttr)
     writable = opt_prop_def(UnitAttr)
@@ -225,7 +225,7 @@ Bufferization = Dialect(
         AllocTensorOp,
         CloneOp,
         ToTensorOp,
-        ToMemrefOp,
+        ToMemRefOp,
         MaterializeInDestinationOp,
     ],
     [],

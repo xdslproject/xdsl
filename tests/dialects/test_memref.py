@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     NoneAttr,
     StridedLayoutAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     i32,
     i64,
 )
@@ -327,7 +327,7 @@ def test_memref_cast():
     i32_memref_type = MemRefType(i32, [10, 2])
     memref_ssa_value = TestSSAValue(i32_memref_type)
 
-    res_type = UnrankedMemrefType.from_type(i32)
+    res_type = UnrankedMemRefType.from_type(i32)
 
     cast = CastOp.get(memref_ssa_value, res_type)
 
