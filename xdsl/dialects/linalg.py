@@ -975,10 +975,11 @@ class PoolingNchwMaxOp(PoolingOpsBase):
         res: Sequence[Attribute] | None = None,
         attributes: dict[str, Attribute] | None = None,
     ):
-
         arg_types = self.body_arg_types((*inputs, *outputs))
 
-        max_op = arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
+        max_op = (
+            arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
+        )
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -992,7 +993,6 @@ class PoolingNchwMaxOp(PoolingOpsBase):
             attributes=attributes,
             hidden_region=hidden_region,
         )
- 
 
 
 class ConvOpsBase(IRDLOperation, ABC):
