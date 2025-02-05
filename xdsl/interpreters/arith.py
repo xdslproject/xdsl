@@ -2,7 +2,7 @@ from math import copysign, isnan
 from typing import cast
 
 from xdsl.dialects import arith
-from xdsl.dialects.builtin import AnyFloatAttr, AnyIntegerAttr
+from xdsl.dialects.builtin import AnyFloatAttr, IntegerAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -23,10 +23,10 @@ class ArithFunctions(InterpreterFunctions):
     ) -> PythonValues:
         value = op.value
         interpreter.interpreter_assert(
-            isattr(op.value, base(AnyIntegerAttr) | base(AnyFloatAttr)),
+            isattr(op.value, base(IntegerAttr) | base(AnyFloatAttr)),
             f"arith.constant not implemented for {type(op.value)}",
         )
-        value = cast(AnyIntegerAttr, op.value)
+        value = cast(IntegerAttr, op.value)
         return (value.value.data,)
 
     @impl(arith.SubiOp)

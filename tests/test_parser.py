@@ -7,7 +7,6 @@ import pytest
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
-    AnyIntegerAttr,
     ArrayAttr,
     Builtin,
     DictionaryAttr,
@@ -823,7 +822,7 @@ def test_parse_number(
     ],
 )
 def test_parse_optional_builtin_int_or_float_attr(
-    text: str, expected_value: AnyIntegerAttr | AnyFloatAttr | None
+    text: str, expected_value: IntegerAttr | AnyFloatAttr | None
 ):
     parser = Parser(MLContext(), text)
     if expected_value is None:

@@ -6,7 +6,6 @@ from typing import cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
@@ -73,7 +72,7 @@ class ParamAttribute(ParametrizedAttribute):
             if parser.parse_optional_keyword("default"):
                 parser.parse_punctuation("=")
                 val = parser.parse_attribute()
-                assert isa(val, AnyIntegerAttr)
+                assert isa(val, IntegerAttr)
                 assert isinstance(val.type, IntegerType)
                 type = val.type
             else:

@@ -3,9 +3,9 @@ from typing import Any, Literal, cast
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
-    AnyIntegerAttr,
     Float32Type,
     Float64Type,
+    IntegerAttr,
     IntegerType,
     PackableType,
     UnrealizedConversionCastOp,
@@ -75,8 +75,8 @@ class BuiltinFunctions(InterpreterFunctions):
     def integer_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
     ) -> float:
-        interpreter.interpreter_assert(isa(attr, AnyIntegerAttr))
-        attr = cast(AnyIntegerAttr, attr)
+        interpreter.interpreter_assert(isa(attr, IntegerAttr))
+        attr = cast(IntegerAttr, attr)
         return attr.value.data
 
     @impl_attr(builtin.MemRefType)
