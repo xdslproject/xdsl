@@ -1069,6 +1069,8 @@ class BroadcastOp(IRDLOperation):
     init = operand_def(base(MemRefType) | base(AnyTensorType))
     result = var_result_def(AnyTensorType)
 
+    hidden_region = region_def("single_block")
+
     dimensions = attr_def(DenseArrayBase)
 
     def __init__(
@@ -1078,12 +1080,19 @@ class BroadcastOp(IRDLOperation):
         dimensions: Attribute,
         result: Attribute | None = None,
     ):
+        arg_types = NamedOpBase.body_arg_types((input, init))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
         super().__init__(
             attributes={
                 "dimensions": dimensions,
             },
             operands=(input, init),
             result_types=(result,),
+            regions=(hidden_region,),
         )
 
     def verify_(self) -> None:
