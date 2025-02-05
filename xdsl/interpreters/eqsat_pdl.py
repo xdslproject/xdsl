@@ -131,6 +131,7 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
         Operation,
     ] = field(default_factory=dict)
     did_populate: bool = field(default=False)
+    created_operations: list[Operation] = field(default_factory=list)
 
     def populate_maps(self, module: ModuleOp):
         for op in module.walk():
@@ -145,6 +146,7 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
                         self.op_components_to_op[
                             (source.name, attributes, tuple(source.operands))
                         ] = source
+        self.created_operations.clear()
         self.did_populate = True
 
     @impl(pdl.OperationOp)
@@ -171,13 +173,14 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
             print(
                 "TODO(jm): shouldn't this check be >= 1, what if an operand is used elsewhere?"
             )
-            assert len(operand.uses) == 1
+            # assert len(operand.uses) == 1
             # the above fails when an operand is an opresult from a newly created op.
 
-        operand_eqsat_values = tuple(
-            next(iter(ov.uses)).operation.results[0]
-            for ov in cast(tuple[SSAValue, ...], operand_values)
-        )
+        # operand_eqsat_values = tuple(
+        #     next(iter(ov.uses)).operation.results[0]
+        #     for ov in cast(tuple[SSAValue, ...], operand_values)
+        # )
+        operand_eqsat_values = operand_values
 
         attribute_values = interpreter.get_values(op.attribute_values)
 
@@ -215,9 +218,10 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
         if existing_op is not None:
             return (existing_op,)
 
-        eclass_operand_values = tuple(
-            self.value_to_eclass[operand].result for operand in operand_values
-        )
+        # eclass_operand_values = tuple(
+        #     self.value_to_eclass[operand].result for operand in operand_values
+        # )
+        eclass_operand_values = operand_values
 
         result_op = op_type.create(
             operands=eclass_operand_values,
@@ -227,6 +231,7 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
         )
 
         self.op_components_to_op[key] = result_op
+        self.created_operations.append(result_op)
 
         return (result_op,)
 
@@ -241,30 +246,37 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
         old_eclass_op = self.value_to_eclass[old_op.results[0]]
 
         assert not op.repl_values
-
         assert op.repl_operation is not None or op.repl_values
 
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
             assert isinstance(new_op, Operation)
-            new_results = new_op.results
-            assert len(new_results) == 1
-            new_eclass_op = self.value_to_eclass.get(new_results[0])
 
-            if new_eclass_op is None:
-                # Add new op to eclass
-                new_results[0].name_hint = old_op.results[0].name_hint
-                rewriter.insert_op(new_op, InsertPoint.before(old_op))
-                old_eclass_op.operands = old_eclass_op.arguments + new_results
-                self.value_to_eclass[new_results[0]] = old_eclass_op
-            else:
-                if old_eclass_op is new_eclass_op:
-                    # Class already exists and is in the same eclass, nothing to do
-                    ...
+            # Process all created operations in order
+            for created_op in self.created_operations:
+                new_results = created_op.results
+                assert len(new_results) == 1
+                new_eclass_op = self.value_to_eclass.get(new_results[0])
+
+                if new_eclass_op is None:
+                    # Add new op to eclass
+                    if created_op == new_op:
+                        # For the main replacement operation, use the original name hint
+                        new_results[0].name_hint = old_op.results[0].name_hint
+                    rewriter.insert_op(created_op, InsertPoint.before(old_op))
+                    old_eclass_op.operands = old_eclass_op.arguments + new_results
+                    self.value_to_eclass[new_results[0]] = old_eclass_op
                 else:
-                    raise NotImplementedError()
+                    if old_eclass_op is new_eclass_op:
+                        # Class already exists and is in the same eclass, nothing to do
+                        pass
+                    else:
+                        raise NotImplementedError()
 
         elif op.repl_values:
             raise NotImplementedError()
+
+        # Clear the created operations list after processing
+        self.created_operations.clear()
 
         return ()
