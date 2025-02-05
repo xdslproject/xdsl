@@ -53,6 +53,16 @@ builtin.module {
 
 // -----
 
+// A graph region that refers to values that are not defined in the module.
+
+builtin.module {
+    %0 = "test.termop"(%1, %2) : (i32, i32) -> i32
+}
+
+// CHECK: values %1, %2 were used but not defined
+
+// -----
+
 // A forward value used with a wrong index
 
 builtin.module {
