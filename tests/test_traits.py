@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyIntegerAttr,
     AnyTensorTypeConstr,
-    AnyUnrankedMemrefTypeConstr,
+    AnyUnrankedMemRefTypeConstr,
     AnyUnrankedTensorTypeConstr,
     IntegerAttr,
     IntegerType,
@@ -596,14 +596,14 @@ class SameOperandsAndResultTypeOp(IRDLOperation):
 
     ops = var_operand_def(
         MemRefType.constr()
-        | AnyUnrankedMemrefTypeConstr
+        | AnyUnrankedMemRefTypeConstr
         | AnyUnrankedTensorTypeConstr
         | AnyTensorTypeConstr
     )
 
     res = var_result_def(
         MemRefType.constr()
-        | AnyUnrankedMemrefTypeConstr
+        | AnyUnrankedMemRefTypeConstr
         | AnyUnrankedTensorTypeConstr
         | AnyTensorTypeConstr
     )

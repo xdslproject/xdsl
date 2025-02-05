@@ -100,9 +100,9 @@ class FixGetDsdOnGetDsd(RewritePattern):
                 raise ValueError("Failed to resolve GetMemDsdOp called on dsd type")
 
 
-class FixMemrefLoadOnGetDsd(RewritePattern):
+class FixMemRefLoadOnGetDsd(RewritePattern):
     """
-    Memref load ops should load from the underlying memref, not from the dsd.
+    MemRef load ops should load from the underlying memref, not from the dsd.
     """
 
     @op_type_rewrite_pattern
@@ -401,7 +401,7 @@ class CslVarLoad(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefToDsdPass(ModulePass):
+class MemRefToDsdPass(ModulePass):
     """
     Lowers memref ops to CSL DSDs.
 
@@ -434,7 +434,7 @@ class MemrefToDsdPass(ModulePass):
                     LowerAllocOpPass(),
                     DsdOpUpdateType(),
                     RetainAddressOfOpPass(),
-                    FixMemrefLoadOnGetDsd(),
+                    FixMemRefLoadOnGetDsd(),
                     FixGetDsdOnGetDsd(),
                 ]
             ),

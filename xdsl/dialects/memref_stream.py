@@ -953,7 +953,7 @@ class FillOp(IRDLOperation):
         super().__init__(operands=(memref, value))
 
 
-MemrefStream = Dialect(
+MemRefStream = Dialect(
     "memref_stream",
     [
         ReadOp,

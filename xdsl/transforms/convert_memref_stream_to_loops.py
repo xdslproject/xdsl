@@ -202,7 +202,7 @@ class LowerGenericOpPattern(RewritePattern):
             )
 
 
-class ConvertMemrefStreamToLoopsPass(ModulePass):
+class ConvertMemRefStreamToLoopsPass(ModulePass):
     """
     Converts a memref_stream generic to loop.
     """

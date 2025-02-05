@@ -220,7 +220,7 @@ class TileGenericPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamTileOuterLoopsPass(ModulePass):
+class MemRefStreamTileOuterLoopsPass(ModulePass):
     """
     Materializes loops around memref_stream.generic operations that have greater than
     specified number of non-1 upper bounds.

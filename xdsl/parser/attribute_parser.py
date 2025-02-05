@@ -41,7 +41,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
-    MemrefLayoutAttr,
+    MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
     NoneType,
@@ -53,7 +53,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
@@ -527,15 +527,15 @@ class AttrParser(BaseParser):
 
     def _parse_memref_attrs(
         self,
-    ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
+    ) -> MemRefType[Attribute] | UnrankedMemRefType[Attribute]:
         shape, type = self.parse_shape()
 
         # Unranked case
         if shape is None:
             if self.parse_optional_punctuation(",") is None:
-                return UnrankedMemrefType.from_type(type)
+                return UnrankedMemRefType.from_type(type)
             memory_space = self.parse_attribute()
-            return UnrankedMemrefType.from_type(type, memory_space)
+            return UnrankedMemRefType.from_type(type, memory_space)
 
         if self.parse_optional_punctuation(",") is None:
             return MemRefType(type, shape)
@@ -546,12 +546,12 @@ class AttrParser(BaseParser):
         # layout is the second one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
-            if not isinstance(memory_or_layout, MemrefLayoutAttr):
+            if not isinstance(memory_or_layout, MemRefLayoutAttr):
                 self.raise_error("Expected a MemRef layout attribute")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # If the argument is a MemrefLayoutAttr, use it as layout
-        if isinstance(memory_or_layout, MemrefLayoutAttr):
+        # If the argument is a MemRefLayoutAttr, use it as layout
+        if isinstance(memory_or_layout, MemRefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
 
         # Otherwise, consider it as the memory space.
