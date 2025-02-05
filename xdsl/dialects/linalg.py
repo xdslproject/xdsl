@@ -1004,43 +1004,47 @@ class PoolingNchwMaxOp(PoolingOpsBase):
         )
 
 
-class ConvOpsBase(IRDLOperation, ABC):
+class ConvOpsBase(NamedOpBase, ABC):
     """Base class for linalg convolution operations."""
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
-    )
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
     strides = attr_def(DenseIntOrFPElementsAttr)
     dilations = attr_def(DenseIntOrFPElementsAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
-        dilations: Attribute,
-        strides: Attribute,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
-        if res is None:
-            result_types = tuple(output.type for output in outputs)
-        else:
-            result_types = res
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        add, mul = (
+            (arith.AddfOp, arith.MulfOp)
+            if isinstance(arg_types[-1], AnyFloat)
+            else (arith.AddiOp, arith.MuliOp)
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            if arg_types[0] != arg_types[-1]:
+                assert isinstance(arg_types[-1], IntegerType)
+                a = arith.ExtSIOp(args[0], arg_types[-1])
+                b = arith.ExtSIOp(args[1], arg_types[-1])
+            else:
+                a = args[0]
+                b = args[1]
+            result = mul(a, b)
+            mac = add(result, args[2])
+            YieldOp(mac)
+
         super().__init__(
-            attributes={
-                "dilations": dilations,
-                "strides": strides,
-            },
-            operands=(inputs, outputs),
-            result_types=result_types,
+            ins=inputs,
+            outs=outputs,
+            attributes=attributes,
+            result_types=res,
+            hidden_region=hidden_region,
         )
 
 
