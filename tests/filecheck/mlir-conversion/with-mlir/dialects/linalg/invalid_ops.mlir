@@ -44,7 +44,7 @@ builtin.module {
 builtin.module {
   %0, %1 = "test.op"() : () -> (tensor<16xf32>, tensor<32x64x16xf32>)
   // CHECK:  Operation does not verify: Input rank plus added dimensions (2) does not match output rank (3)
-  %res_transpose = "linalg.broadcast"(%0, %1) {"dimensions" = array<i64: 1>} : (tensor<16xf32>, tensor<32x64x16xf32>) -> tensor<32x64x16xf32>
+	%res_broadcast = linalg.broadcast ins(%0 : tensor<16xf32>) outs(%1 : tensor<32x64x16xf32>) dimensions = [1]
 
 }
 
@@ -53,7 +53,7 @@ builtin.module {
 builtin.module {
   %0, %1 = "test.op"() : () -> (tensor<16xf32>, tensor<16x64xf32>)
   // CHECK:  Operation does not verify: Dimension 0 is out of range.  Expected range: [0, 1], got: 9
-  %res_transpose = "linalg.broadcast"(%0, %1) {"dimensions" = array<i64: 9>} : (tensor<16xf32>, tensor<16x64xf32>) -> tensor<16x64xf32>
+	%res_broadcast = linalg.broadcast ins(%0 : tensor<16xf32>) outs(%1 : tensor<16x64xf32>) dimensions = [9]
 
 }
 
@@ -62,6 +62,6 @@ builtin.module {
 builtin.module {
   %0, %1 = "test.op"() : () -> (tensor<3x4x5xf32>, tensor<4x5x6x2xf32>)
   // CHECK:  Operation does not verify: input dimension 0 should match output dimension 0. input: 3, output: 4
-  %res_transpose = "linalg.broadcast"(%0, %1) {"dimensions" = array<i64: 1>} : (tensor<3x4x5xf32>, tensor<4x5x6x2xf32>) -> tensor<4x5x6x2xf32>
+	%res_broadcast = linalg.broadcast ins(%0 : tensor<3x4x5xf32>) outs(%1 : tensor<4x5x6x2xf32>) dimensions = [1]
 
 }
