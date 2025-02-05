@@ -2317,6 +2317,8 @@ class DenseIntOrFPElementsAttr(TypedAttribute, ContainerType[AnyDenseElement]):
             pass
         elif self.is_splat():
             self._print_one_elem(data[0], printer)
+        elif len(self) > 100:
+            printer.print('"', "0x", self.data.data.hex().upper(), '"')
         else:
             self._print_dense_list(data, shape, printer)
         printer.print_string(">")
