@@ -15,7 +15,7 @@ builtin.module {
   %0, %1 = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16x1xf32>)
 
   // CHECK: Operation does not verify: Input rank (2) does not match output rank (3)
-   %res_transpose = "linalg.transpose"(%0, %1) {"permutation" = array<i64: 1, 0>} : (tensor<16x64xf32>, tensor<64x16x1xf32>) -> tensor<64x16x1xf32>
+	%res_transpose = linalg.transpose ins(%0 : tensor<16x64xf32>) outs(%1 : tensor<64x16x1xf32>) permutation = [1, 0]
 
 }
 
@@ -25,7 +25,7 @@ builtin.module {
   %0, %1 = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16xf32>)
 
   // CHECK: Operation does not verify: Input rank (2) does not match size of permutation (3)
-   %res_transpose = "linalg.transpose"(%0, %1) {"permutation" = array<i64: 1, 2, 3>} : (tensor<16x64xf32>, tensor<64x16xf32>) -> tensor<64x16xf32>
+	%res_transpose = linalg.transpose ins(%0 : tensor<16x64xf32>) outs(%1 : tensor<64x16xf32>) permutation = [1, 2, 3]
 
 }
 
@@ -35,7 +35,7 @@ builtin.module {
   %0, %1 = "test.op"() : () -> (tensor<16x32x64xf32>, tensor<32x64x16xf32>)
 
   // CHECK:  Operation does not verify: dim(result, 1) = 64 doesn't match dim(input, permutation[1]) = 32
-  %res_transpose = "linalg.transpose"(%0, %1) {"permutation" = array<i64: 1, 1, 2>} : (tensor<16x32x64xf32>, tensor<32x64x16xf32>) -> tensor<32x64x16xf32>
+	%res_transpose = linalg.transpose ins(%0 : tensor<16x32x64xf32>) outs(%1 : tensor<32x64x16xf32>) permutation = [1, 1, 2]
 
 }
 
