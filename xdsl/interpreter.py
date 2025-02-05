@@ -251,11 +251,14 @@ def impl_cast(
     return annot
 
 
+AttributeInvNoDefaultT = TypeVar("AttributeInvNoDefaultT", bound=Attribute)
+
+
 def impl_attr(
-    input_type: type[AttributeInvT],
+    input_type: type[AttributeInvNoDefaultT],
 ) -> Callable[
-    [AttrImpl[_FT, AttributeInvT]],
-    AttrImpl[_FT, AttributeInvT],
+    [AttrImpl[_FT, AttributeInvNoDefaultT]],
+    AttrImpl[_FT, AttributeInvNoDefaultT],
 ]:
     """
     Marks the conversion from an attribute to a Python value. The

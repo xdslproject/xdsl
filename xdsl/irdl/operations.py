@@ -21,6 +21,7 @@ from typing import (
     overload,
 )
 
+import typing_extensions
 from typing_extensions import assert_never
 
 from xdsl.ir import (
@@ -788,7 +789,12 @@ def operand_def(
 
 def var_operand_def(
     constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+        RangeConstraint
+        | AttrConstraint
+        | Attribute
+        | type[Attribute]
+        | TypeVar
+        | typing_extensions.TypeVar
     ) = Attribute,
     *,
     default: None = None,

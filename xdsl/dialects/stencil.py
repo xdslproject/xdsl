@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Annotated, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, Generic, TypeAlias, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -73,7 +75,9 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
-_FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
+_FieldTypeElement = TypeVar(
+    "_FieldTypeElement", bound=Attribute, covariant=True, default=Attribute
+)
 
 
 @irdl_attr_definition
