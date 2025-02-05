@@ -39,6 +39,19 @@ class EqsatPDLMatcher(PDLMatcher):
         # self.value_to_eclass[ssa_val] = only_use.operation
         # return res
 
+    def match_result(
+        self, ssa_val: SSAValue, pdl_op: pdl.ResultOp, xdsl_operand: SSAValue
+    ):
+        assert isinstance(
+            xdsl_operand.owner, eqsat.EClassOp
+        ), "TODO: What if operand is not an eclass?"
+        # TODO: if the operand owner is not an eclass, we could register a new eclass if the match finally succeeds?
+        #       another approach could be to keep the operation "outside" of the e-graph.
+        _ = (len(xdsl_operand.owner.operands) > 0) and print(
+            "TODO: e-class with multiple e-nodes"
+        )
+        return super().match_result(ssa_val, pdl_op, xdsl_operand.owner.operands[0])
+
 
 def _get_root_op(op: Operation | None) -> Operation | None:
     """
@@ -155,7 +168,11 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
         operand_values = interpreter.get_values(op.operand_values)
         for operand in operand_values:
             assert isinstance(operand, SSAValue)
+            print(
+                "TODO(jm): shouldn't this check be >= 1, what if an operand is used elsewhere?"
+            )
             assert len(operand.uses) == 1
+            # the above fails when an operand is an opresult from a newly created op.
 
         operand_eqsat_values = tuple(
             next(iter(ov.uses)).operation.results[0]
