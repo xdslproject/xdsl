@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.0"
 app = marimo.App(width="medium")
 
 
@@ -201,8 +201,8 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     l1_dist_scf_text = """\
-    func.func @l1_dist(%a : i32, %b : i32, %c : i32) -> (i32) {
-      %slt = arith.cmpi slt, %lhs, %rhs : i1
+    func.func @l1_dist(%a : i32, %b : i32) -> (i32) {
+      %slt = arith.cmpi slt, %a, %b : i1
       %res = scf.if %slt -> (i32) {
         %b_minus_a = arith.subi %b, %a : i32
         scf.yield %b_minus_a : i32
