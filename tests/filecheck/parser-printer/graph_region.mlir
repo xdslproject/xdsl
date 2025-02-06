@@ -74,7 +74,14 @@ builtin.module {
 
 // -----
 
-// A block defined twice
+// CHECK:       /graph_region.mlir:89:4
+// CHECK-NEXT:      ^blockA:
+// CHECK-NEXT:      ^^^^^^^
+// CHECK-NEXT:      re-declaration of block 'blockA'
+// CHECK-NEXT:  originally declared here:
+// CHECK-NEXT:  /graph_region.mlir:13:4
+// CHECK-NEXT:      ^blockA:
+// CHECK-NEXT:      ^^^^^^^
 
 builtin.module {
     ^blockA:
@@ -82,12 +89,3 @@ builtin.module {
     ^blockA:
         "test.op"() : () -> ()
 }
-
-// CHECK:       /graph_region.mlir:82:4
-// CHECK-NEXT:      ^blockA:
-// CHECK-NEXT:      ^^^^^^^
-// CHECK-NEXT:      re-declaration of block 'blockA'
-// CHECK-NEXT:  originally declared here:
-// CHECK-NEXT:  /graph_region.mlir:6:4
-// CHECK-NEXT:      ^blockA:
-// CHECK-NEXT:      ^^^^^^^
