@@ -83,7 +83,7 @@ builtin.module {
         "test.op"() : () -> ()
 }
 
-// CHECK:       /graph_region.mlir:72:4
+// CHECK:       /graph_region.mlir:82:4
 // CHECK-NEXT:      ^blockA:
 // CHECK-NEXT:      ^^^^^^^
 // CHECK-NEXT:      re-declaration of block 'blockA'
