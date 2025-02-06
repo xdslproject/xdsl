@@ -42,9 +42,9 @@ class EqsatPDLMatcher(PDLMatcher):
     def match_result(
         self, ssa_val: SSAValue, pdl_op: pdl.ResultOp, xdsl_operand: SSAValue
     ):
-        assert isinstance(
-            xdsl_operand.owner, eqsat.EClassOp
-        ), "TODO: What if operand is not an eclass?"
+        if not isinstance(xdsl_operand.owner, eqsat.EClassOp):
+            print("Operand isn't an e-class -> skipping")
+            return False
         # TODO: if the operand owner is not an eclass, we could register a new eclass if the match finally succeeds?
         #       another approach could be to keep the operation "outside" of the e-graph.
         _ = (len(xdsl_operand.owner.operands) > 0) and print(
@@ -252,20 +252,38 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
             (new_op,) = interpreter.get_values((op.repl_operation,))
             assert isinstance(new_op, Operation)
 
+            # Keep track of value replacements for updating users
+            value_to_eclass_result: dict[SSAValue, SSAValue] = {}
+
             # Process all created operations in order
             for created_op in self.created_operations:
+                # Update operands to point to E-class results if needed
+                new_operands = [
+                    value_to_eclass_result.get(operand, operand)
+                    for operand in created_op.operands
+                ]
+                created_op.operands = new_operands
+
                 new_results = created_op.results
                 assert len(new_results) == 1
+                new_result = new_results[0]
                 new_eclass_op = self.value_to_eclass.get(new_results[0])
 
                 if new_eclass_op is None:
                     # Add new op to eclass
                     if created_op == new_op:
                         # For the main replacement operation, use the original name hint
-                        new_results[0].name_hint = old_op.results[0].name_hint
-                    rewriter.insert_op(created_op, InsertPoint.before(old_op))
-                    old_eclass_op.operands = old_eclass_op.arguments + new_results
-                    self.value_to_eclass[new_results[0]] = old_eclass_op
+                        new_result.name_hint = old_op.results[0].name_hint
+                        rewriter.insert_op(created_op, InsertPoint.before(old_op))
+                        old_eclass_op.operands = old_eclass_op.arguments + new_results
+                        self.value_to_eclass[new_result] = old_eclass_op
+                        value_to_eclass_result[new_result] = old_eclass_op.result
+                    else:
+                        rewriter.insert_op(created_op, InsertPoint.before(old_op))
+                        new_eclass = eqsat.EClassOp(new_result)
+                        rewriter.insert_op(new_eclass, InsertPoint.before(old_op))
+                        self.value_to_eclass[new_result] = new_eclass
+                        value_to_eclass_result[new_result] = new_eclass.result
                 else:
                     if old_eclass_op is new_eclass_op:
                         # Class already exists and is in the same eclass, nothing to do
