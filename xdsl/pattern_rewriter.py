@@ -831,14 +831,14 @@ class PatternRewriteWalker:
             rewriter.current_operation = op
 
             # Apply the pattern on the operation
-            try:
-                self.pattern.match_and_rewrite(op, rewriter)
-            except Exception as err:
-                op.emit_error(
-                    f"Error while applying pattern: {str(err)}",
-                    exception_type=type(err),
-                    underlying_error=err,
-                )
+            # try:
+            self.pattern.match_and_rewrite(op, rewriter)
+            # except Exception as err:
+            #     op.emit_error(
+            #         f"Error while applying pattern: {str(err)}",
+            #         exception_type=type(err),
+            #         underlying_error=err,
+            #     )
             rewriter_has_done_action |= rewriter.has_done_action
 
             # If the worklist is empty, we are done
