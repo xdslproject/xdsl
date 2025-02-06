@@ -43,23 +43,21 @@ builtin.module {
 
 // -----
 
-// A graph region that refers to a value that is not defined in the module.
+// A graph region that refers to values that are not defined in the module.
+
+// CHECK: value %1 was used but not defined
 
 builtin.module {
     %0 = "test.termop"(%1) : (i32) -> i32
 }
 
-// CHECK: value %1 was used but not defined
-
 // -----
 
-// A graph region that refers to values that are not defined in the module.
+// CHECK: values %1, %2 were used but not defined
 
 builtin.module {
     %0 = "test.termop"(%1, %2) : (i32, i32) -> i32
 }
-
-// CHECK: values %1, %2 were used but not defined
 
 // -----
 
@@ -74,18 +72,18 @@ builtin.module {
 
 // -----
 
-// CHECK:       /graph_region.mlir:89:4
-// CHECK-NEXT:      ^blockA:
-// CHECK-NEXT:      ^^^^^^^
-// CHECK-NEXT:      re-declaration of block 'blockA'
-// CHECK-NEXT:  originally declared here:
-// CHECK-NEXT:  /graph_region.mlir:13:4
-// CHECK-NEXT:      ^blockA:
-// CHECK-NEXT:      ^^^^^^^
-
 builtin.module {
     ^blockA:
         "test.op"() : () -> ()
     ^blockA:
         "test.op"() : () -> ()
 }
+
+// CHECK:       /graph_region.mlir:78:4
+// CHECK-NEXT:      ^blockA:
+// CHECK-NEXT:      ^^^^^^^
+// CHECK-NEXT:      re-declaration of block 'blockA'
+// CHECK-NEXT:  originally declared here:
+// CHECK-NEXT:  /graph_region.mlir:4:4
+// CHECK-NEXT:      ^blockA:
+// CHECK-NEXT:      ^^^^^^^
