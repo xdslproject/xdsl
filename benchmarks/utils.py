@@ -3,13 +3,11 @@
 
 from pathlib import Path
 from argparse import ArgumentParser, Namespace
-import timeit
 
-import cProfile
 from collections.abc import Callable
 from typing import Any, Iterable, cast
 import subprocess
-from viztracer import VizTracer
+
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 
@@ -100,6 +98,11 @@ def show(args: Namespace, output_profs: list[Path], tool: str, options: tuple[st
 
 def profile(benchmarks: dict[str, Callable[[], Any]], argv: list[str] | None = None) -> None:
     """Run the selected profiler."""
+    import timeit
+
+    import cProfile
+    from viztracer import VizTracer
+
     if not benchmarks:
         raise ValueError("At least one benchmark must be provided to profile!")
 

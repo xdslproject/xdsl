@@ -33,6 +33,7 @@ dev = [
     "viztracer>=1.0.0",
     "snakeviz>=2.2.2",
     "flameprof>=0.4",
+    "asv>=0.6.4",
 ]
 docs = [
     "mkdocs-gen-files>=0.5.0",

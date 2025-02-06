@@ -40,7 +40,7 @@ def time_lexer__rvscf_lowering_emu() -> None:
     lex_file(MLIR_FILES["rvscf_lowering_emu"])
 
 
-def time_lexer__all() -> None:
+def _time_lexer__all() -> None:
     """Time lexing all `.mlir` files in xDSL's `tests/` directory ."""
     mlir_files = RAW_TEST_MLIR_DIR.iterdir()
     for mlir_file in mlir_files:
@@ -53,6 +53,6 @@ if __name__ == "__main__":
     BENCHMARKS = {
         "time_lexer__apply_pdl_extra_file": time_lexer__apply_pdl_extra_file,
         "time_lexer__rvscf_lowering_emu": time_lexer__rvscf_lowering_emu,
-        "time_lexer__all": time_lexer__all,
+        "time_lexer__all": _time_lexer__all,
     }
     profile(BENCHMARKS)
