@@ -262,7 +262,7 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     )
 
 
-IRDLGenericAttributeConstraint: TypeAlias = (
+IRDLGenericAttrConstraint: TypeAlias = (
     GenericAttrConstraint[AttributeInvT]
     | Attribute
     | type[AttributeInvT]
@@ -280,12 +280,12 @@ can either be:
 - A `ConstraintVar` representing a constraint variable.
 """
 
-IRDLAttributeConstraint = IRDLGenericAttributeConstraint[Attribute]
-"""See `IRDLGenericAttributeConstraint`."""
+IRDLAttrConstraint = IRDLGenericAttrConstraint[Attribute]
+"""See `IRDLGenericAttrConstraint`."""
 
 
 def irdl_list_to_attr_constraint(
-    pyrdl_constraints: Sequence[IRDLAttributeConstraint],
+    pyrdl_constraints: Sequence[IRDLAttrConstraint],
     *,
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
@@ -327,7 +327,7 @@ def irdl_list_to_attr_constraint(
 
 
 def irdl_to_attr_constraint(
-    irdl: IRDLAttributeConstraint,
+    irdl: IRDLAttrConstraint,
     *,
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
