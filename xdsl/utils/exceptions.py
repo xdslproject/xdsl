@@ -87,9 +87,10 @@ class MultipleSpansParseError(ParseError):
     ref_text: str | None
     refs: list[tuple[Span, str | None]]
 
-    def __repr__(self) -> str:
-        res = super().__repr__() + "\n"
-        res += self.ref_text or "With respect to:\n"
+    def __str__(self) -> str:
+        res = self.span.print_with_context(self.msg)
+        if self.ref_text is not None:
+            res += self.ref_text + "\n"
         for span, msg in self.refs:
             res += span.print_with_context(msg) + "\n"
         return res
