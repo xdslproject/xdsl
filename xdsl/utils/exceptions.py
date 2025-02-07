@@ -51,7 +51,7 @@ class InvalidIRException(Exception):
 class ShrinkException(Exception):
     """
     Exception for test case reduction when used in conjunction with the [Shrink Ray](https://github.com/DRMacIver/shrinkray) reducer.
-    
+
     To find a reduced version of a test case, raise this exception on the line of code you want to hit,
     and pass the `--shrink` argument to `xdsl-opt`, by changing its invocation from:
     `xdsl-opt input_file.mlir -p my,pass,pipeline`
