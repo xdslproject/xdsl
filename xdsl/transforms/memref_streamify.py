@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from xdsl.context import MLContext
-from xdsl.dialects import memref, memref_stream, stream
+from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
@@ -22,7 +22,13 @@ class StreamifyGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
-        if any(isinstance(operand.type, stream.StreamType) for operand in op.operands):
+        if any(
+            isinstance(
+                operand.type,
+                memref_stream.ReadableStreamType | memref_stream.WritableStreamType,
+            )
+            for operand in op.operands
+        ):
             # Already streamified
             return
 
@@ -35,15 +41,17 @@ class StreamifyGenericOpPattern(RewritePattern):
             for index, (i, arg) in enumerate(
                 zip(op.inputs, op.body.block.args[:input_count])
             )
-            if isinstance(i.type, memref.MemRefType) and arg.uses
+            if isinstance(i_type := i.type, memref.MemRefType) and arg.uses
+            if i_type.get_shape()
         )
         streamable_output_indices = tuple(
             (index, arg.type)
             for index, (o, arg) in enumerate(
                 zip(op.outputs, op.body.block.args[input_count:])
             )
-            if isinstance(o.type, memref.MemRefType)
+            if isinstance(o_type := o.type, memref.MemRefType)
             if index in init_indices or not arg.uses
+            if o_type.get_shape()
         )
         if not streamable_input_indices and not streamable_output_indices:
             # No memrefs to convert to streams
@@ -59,10 +67,10 @@ class StreamifyGenericOpPattern(RewritePattern):
         input_el_types = tuple(el_type for _, el_type in streamed_input_indices)
         output_el_types = tuple(el_type for _, el_type in streamed_output_indices)
         input_stream_types = tuple(
-            stream.ReadableStreamType(el_type) for el_type in input_el_types
+            memref_stream.ReadableStreamType(el_type) for el_type in input_el_types
         )
         output_stream_types = tuple(
-            stream.WritableStreamType(el_type) for el_type in output_el_types
+            memref_stream.WritableStreamType(el_type) for el_type in output_el_types
         )
 
         # input patterns are never unnested
@@ -125,7 +133,7 @@ class StreamifyGenericOpPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamifyPass(ModulePass):
+class MemRefStreamifyPass(ModulePass):
     """
     Converts a memref generic on memrefs to a memref generic on streams, by moving it into
     a streaming region.

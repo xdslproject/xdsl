@@ -1,15 +1,16 @@
 import re
 
-import jax
 import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, stablehlo
 from xdsl.dialects.builtin import ModuleOp, StringAttr, TensorType, i32
-from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, traits_def
 from xdsl.traits import SymbolOpInterface
 
 pytest.importorskip("jax")
+
+import jax  # noqa: E402
 
 from xdsl.backend.jax_executable import JaxExecutable, array  # noqa: E402
 
@@ -20,7 +21,7 @@ def test_abs():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
 
@@ -64,7 +65,7 @@ def test_add_sub():
     with ImplicitBuilder(main_op.body) as (arg0, arg1):
         res0 = stablehlo.AddOp(arg0, arg1).result
         res1 = stablehlo.SubtractOp(arg0, arg1).result
-        func.Return(res0, res1)
+        func.ReturnOp(res0, res1)
 
     module = ModuleOp([main_op])
 
@@ -92,7 +93,7 @@ def test_no_main():
         main_op = func.FuncOp("not_main", ((TI32,), (TI32,)))
         with ImplicitBuilder(main_op.body) as (arg,):
             res = stablehlo.AbsOp(arg).result
-            func.Return(res)
+            func.ReturnOp(res)
 
         module = ModuleOp([main_op])
 
@@ -105,7 +106,7 @@ def test_main_not_func():
         name = "sym_name"
 
         sym_name = attr_def(StringAttr)
-        traits = frozenset((SymbolOpInterface(),))
+        traits = traits_def(SymbolOpInterface())
 
     module = ModuleOp([SymNameOp(attributes={"sym_name": StringAttr("main")})])
 
@@ -119,7 +120,7 @@ def test_parameter_count_mismatch():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -139,7 +140,7 @@ def test_parameter_annotation():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -158,7 +159,7 @@ def test_return_annotation_tuple_type():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -180,7 +181,7 @@ def test_return_annotation_single():
     main_op = func.FuncOp("main", ((TI32,), (TI32,)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res)
+        func.ReturnOp(res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
@@ -200,7 +201,7 @@ def test_return_value_count_mismatch():
     main_op = func.FuncOp("main", ((TI32,), (TI32, TI32)))
     with ImplicitBuilder(main_op.body) as (arg,):
         res = stablehlo.AbsOp(arg).result
-        func.Return(res, res)
+        func.ReturnOp(res, res)
 
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)

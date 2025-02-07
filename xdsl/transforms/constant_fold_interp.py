@@ -70,7 +70,7 @@ class ConstantFoldInterpPattern(RewritePattern):
         match (value, value_type):
             case int(), IntegerType():
                 attr = IntegerAttr(value, value_type)
-                return arith.Constant(attr)
+                return arith.ConstantOp(attr)
             case _:
                 return None
 
@@ -85,10 +85,6 @@ class ConstantFoldInterpPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         interpreter = Interpreter(op)
-        # Do not call wgpu interpreter functions for this pass
-        # Do not call onnx interpreter function for this pass
-        register_implementations(
-            interpreter, ctx, include_wgpu=False, include_onnx=False
-        )
+        register_implementations(interpreter, ctx)
         pattern = ConstantFoldInterpPattern(interpreter)
         PatternRewriteWalker(pattern).rewrite_module(op)

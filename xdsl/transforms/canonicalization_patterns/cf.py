@@ -3,7 +3,6 @@ from typing import cast
 
 from xdsl.dialects import arith, cf
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     BoolAttr,
     DenseIntOrFPElementsAttr,
     IntegerAttr,
@@ -15,17 +14,19 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
+from xdsl.transforms.canonicalization_patterns.utils import (
+    const_evaluate_operand,
+)
 
 
 class AssertTrue(RewritePattern):
     """Erase assertion if argument is constant true."""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Assert, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.AssertOp, rewriter: PatternRewriter):
         owner = op.arg.owner
 
-        if not isinstance(owner, arith.Constant):
+        if not isinstance(owner, arith.ConstantOp):
             return
 
         value = owner.value
@@ -33,7 +34,7 @@ class AssertTrue(RewritePattern):
         if not isinstance(value, IntegerAttr):
             return
 
-        if value.value.data != 1:
+        if not value.value.data:
             return
 
         rewriter.replace_matched_op([])
@@ -46,7 +47,7 @@ class SimplifyBrToBlockWithSinglePred(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.BranchOp, rewriter: PatternRewriter):
         succ = op.successor
         parent = op.parent_block()
         if parent is None:
@@ -79,7 +80,7 @@ def collapse_branch(
 
     branch = successor.ops.first
     # Check that the terminator is an unconditional branch
-    if not isinstance(branch, cf.Branch):
+    if not isinstance(branch, cf.BranchOp):
         return
 
     # Check that the arguments are only used within the terminator
@@ -115,7 +116,7 @@ class SimplifyPassThroughBr(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.BranchOp, rewriter: PatternRewriter):
         # Check the successor doesn't point back to the current block
         parent = op.parent_block()
         if parent is None or op.successor == parent:
@@ -126,7 +127,7 @@ class SimplifyPassThroughBr(RewritePattern):
             return
         (block, args) = ret
 
-        rewriter.replace_matched_op(cf.Branch(block, *args))
+        rewriter.replace_matched_op(cf.BranchOp(block, *args))
 
 
 class SimplifyConstCondBranchPred(RewritePattern):
@@ -138,14 +139,17 @@ class SimplifyConstCondBranchPred(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.ConditionalBranchOp, rewriter: PatternRewriter):
         # Check if cond operand is constant
         cond = const_evaluate_operand(op.cond)
 
-        if cond == 1:
-            rewriter.replace_matched_op(cf.Branch(op.then_block, *op.then_arguments))
-        elif cond == 0:
-            rewriter.replace_matched_op(cf.Branch(op.else_block, *op.else_arguments))
+        if cond is None:
+            return
+
+        if cond:
+            rewriter.replace_matched_op(cf.BranchOp(op.then_block, *op.then_arguments))
+        else:
+            rewriter.replace_matched_op(cf.BranchOp(op.else_block, *op.else_arguments))
 
 
 class SimplifyPassThroughCondBranch(RewritePattern):
@@ -160,7 +164,7 @@ class SimplifyPassThroughCondBranch(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.ConditionalBranchOp, rewriter: PatternRewriter):
         # Try to collapse both branches
         collapsed_then = collapse_branch(op.then_block, op.then_arguments)
         collapsed_else = collapse_branch(op.else_block, op.else_arguments)
@@ -174,7 +178,7 @@ class SimplifyPassThroughCondBranch(RewritePattern):
         (new_else, new_else_args) = collapsed_else or (op.else_block, op.else_arguments)
 
         rewriter.replace_matched_op(
-            cf.ConditionalBranch(
+            cf.ConditionalBranchOp(
                 op.cond, new_then, new_then_args, new_else, new_else_args
             )
         )
@@ -195,16 +199,16 @@ class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
         op1: SSAValue,
         op2: SSAValue,
         rewriter: PatternRewriter,
-        cond_br: cf.ConditionalBranch,
+        cond_br: cf.ConditionalBranchOp,
     ) -> SSAValue:
         if op1 == op2:
             return op1
-        select = arith.Select(cond_br.cond, op1, op2)
+        select = arith.SelectOp(cond_br.cond, op1, op2)
         rewriter.insert_op(select, InsertPoint.before(cond_br))
         return select.result
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.ConditionalBranchOp, rewriter: PatternRewriter):
         # Check that the true and false destinations are the same
         if op.then_block != op.else_block:
             return
@@ -214,7 +218,7 @@ class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
             for (op1, op2) in zip(op.then_arguments, op.else_arguments, strict=True)
         )
 
-        rewriter.replace_matched_op(cf.Branch(op.then_block, *merged_operands))
+        rewriter.replace_matched_op(cf.BranchOp(op.then_block, *merged_operands))
 
 
 class CondBranchTruthPropagation(RewritePattern):
@@ -242,12 +246,12 @@ class CondBranchTruthPropagation(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.ConditionalBranchOp, rewriter: PatternRewriter):
         if len(op.then_block.predecessors()) == 1:
             if any(
                 use.operation.parent_block() is op.then_block for use in op.cond.uses
             ):
-                const_true = arith.Constant(BoolAttr.from_bool(True))
+                const_true = arith.ConstantOp(BoolAttr.from_bool(True))
                 rewriter.insert_op(const_true, InsertPoint.before(op))
                 op.cond.replace_by_if(
                     const_true.result,
@@ -257,7 +261,7 @@ class CondBranchTruthPropagation(RewritePattern):
             if any(
                 use.operation.parent_block() is op.else_block for use in op.cond.uses
             ):
-                const_false = arith.Constant(BoolAttr.from_bool(False))
+                const_false = arith.ConstantOp(BoolAttr.from_bool(False))
                 rewriter.insert_op(const_false, InsertPoint.before(op))
                 op.cond.replace_by_if(
                     const_false.result,
@@ -274,17 +278,17 @@ class SimplifySwitchWithOnlyDefault(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         if not op.case_blocks:
             rewriter.replace_matched_op(
-                cf.Branch(op.default_block, *op.default_operands)
+                cf.BranchOp(op.default_block, *op.default_operands)
             )
 
 
 def drop_case_helper(
     rewriter: PatternRewriter,
-    op: cf.Switch,
-    predicate: Callable[[AnyIntegerAttr, Block, Sequence[Operation | SSAValue]], bool],
+    op: cf.SwitchOp,
+    predicate: Callable[[IntegerAttr, Block, Sequence[Operation | SSAValue]], bool],
 ):
     case_values = op.case_values
     if case_values is None:
@@ -296,22 +300,22 @@ def drop_case_helper(
     new_case_operands: list[Sequence[Operation | SSAValue]] = []
 
     for switch_case, block, operands in zip(
-        case_values.data.data,
+        case_values.get_attrs(),
         op.case_blocks,
         op.case_operand,
         strict=True,
     ):
-        int_switch_case = cast(AnyIntegerAttr, switch_case)
+        int_switch_case = cast(IntegerAttr, switch_case)
         if predicate(int_switch_case, block, operands):
             requires_change = True
             continue
-        new_case_values.append(cast(AnyIntegerAttr, switch_case).value.data)
+        new_case_values.append(cast(IntegerAttr, switch_case).value.data)
         new_case_blocks.append(block)
         new_case_operands.append(operands)
 
     if requires_change:
         rewriter.replace_matched_op(
-            cf.Switch(
+            cf.SwitchOp(
                 op.flag,
                 op.default_block,
                 op.default_operands,
@@ -339,9 +343,9 @@ class DropSwitchCasesThatMatchDefault(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         def predicate(
-            switch_case: AnyIntegerAttr,
+            switch_case: IntegerAttr,
             block: Block,
             operands: Sequence[Operation | SSAValue],
         ) -> bool:
@@ -350,7 +354,7 @@ class DropSwitchCasesThatMatchDefault(RewritePattern):
         drop_case_helper(rewriter, op, predicate)
 
 
-def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
+def fold_switch(switch: cf.SwitchOp, rewriter: PatternRewriter, flag: int):
     """
     Helper for folding a switch with a constant value.
     switch %c_42 : i32, [
@@ -360,7 +364,7 @@ def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
     ]
     -> br ^bb2
     """
-    case_values = () if switch.case_values is None else switch.case_values.data.data
+    case_values = () if switch.case_values is None else switch.case_values.get_attrs()
 
     new_block, new_operands = next(
         (
@@ -373,7 +377,7 @@ def fold_switch(switch: cf.Switch, rewriter: PatternRewriter, flag: int):
         (switch.default_block, switch.default_operands),
     )
 
-    rewriter.replace_matched_op(cf.Branch(new_block, *new_operands))
+    rewriter.replace_matched_op(cf.BranchOp(new_block, *new_operands))
 
 
 class SimplifyConstSwitchValue(RewritePattern):
@@ -387,7 +391,7 @@ class SimplifyConstSwitchValue(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         if (flag := const_evaluate_operand(op.flag)) is not None:
             fold_switch(op, rewriter, flag)
 
@@ -408,7 +412,7 @@ class SimplifyPassThroughSwitch(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         requires_change = False
 
         new_case_blocks: list[Block] = []
@@ -432,7 +436,7 @@ class SimplifyPassThroughSwitch(RewritePattern):
 
         if requires_change:
             rewriter.replace_matched_op(
-                cf.Switch(
+                cf.SwitchOp(
                     op.flag,
                     default_block,
                     default_operands,
@@ -506,7 +510,7 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: cf.Switch, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         block = op.parent_block()
         if block is None:
             return
@@ -515,7 +519,7 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
             return
         pred = next(iter(preds))
         switch = pred.operation
-        if not isinstance(switch, cf.Switch):
+        if not isinstance(switch, cf.SwitchOp):
             return
 
         if switch.flag != op.flag:
@@ -529,15 +533,15 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
             fold_switch(
                 op,
                 rewriter,
-                cast(int, case_values.data.data[pred.index - 1].value.data),
+                cast(int, case_values.get_values()[pred.index - 1]),
             )
         else:
 
             def predicate(
-                switch_case: AnyIntegerAttr,
+                switch_case: IntegerAttr,
                 block: Block,
                 operands: Sequence[Operation | SSAValue],
             ) -> bool:
-                return switch_case in case_values.data.data
+                return switch_case in case_values.get_attrs()
 
             drop_case_helper(rewriter, op, predicate)

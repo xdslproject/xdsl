@@ -1,0 +1,42 @@
+site_name: xDSL
+
+theme:
+  name: "material"
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+
+plugins:
+- search
+- gen-files:
+    scripts:
+    - scripts/gen_ref_pages.py
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          docstring_style: google
+          members_order: source
+          show_root_heading: true
+          show_root_full_path: false
+          show_signature_annotations: true
+
+nav:
+  - xDSL: index.md
+  - API Reference:
+    - API Reference: api/index.md
+    - Core IR Data Structures:
+      - Core IR Data Structures: api/ir/index.md
+      - Attribute: api/ir/attribute.md
+      - SSAValue: api/ir/ssa_value.md
+      - IRNode: api/ir/ir_node.md
+      - Operation: api/ir/operation.md
+      - Block: api/ir/block.md
+      - Region: api/ir/region.md
+      - Dialect: api/ir/dialect.md
+  - Code Reference: reference/index.md
+  - Guides:
+    - MLIR Interoperation: guides/mlir_interoperation.md

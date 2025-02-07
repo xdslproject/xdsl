@@ -14,7 +14,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 
 
-def find_same_target_store(load: memref.Load):
+def find_same_target_store(load: memref.LoadOp):
     """
     Find the corresponding store operation (same memeref target) for a load when there
     is only a single one within a block.
@@ -29,7 +29,7 @@ def find_same_target_store(load: memref.Load):
 
     for op in parent_block.ops:
         if (
-            isinstance(op, memref.Store)
+            isinstance(op, memref.StoreOp)
             and op.memref == load.memref
             and op.indices == load.indices
         ):
@@ -41,7 +41,7 @@ def find_same_target_store(load: memref.Load):
     return found_op
 
 
-def is_loop_dependent(val: SSAValue, loop: scf.For):
+def is_loop_dependent(val: SSAValue, loop: scf.ForOp):
     """
     Returns true if the SSA value is dependent by the induction varialbe of the loop.
 
@@ -69,7 +69,7 @@ def is_loop_dependent(val: SSAValue, loop: scf.For):
 
 
 @dataclass
-class LoopHoistMemref(RewritePattern):
+class LoopHoistMemRef(RewritePattern):
     """
     Hoist pairs of memref.loads and memref.stores out of a loop.
 
@@ -90,7 +90,7 @@ class LoopHoistMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        for_op: scf.For,
+        for_op: scf.ForOp,
         rewriter: PatternRewriter,
     ) -> None:
         if for_op.parent_block() is None:
@@ -98,7 +98,7 @@ class LoopHoistMemref(RewritePattern):
 
         parent_block = for_op.body.block
 
-        loads = [op for op in parent_block.ops if isinstance(op, memref.Load)]
+        loads = [op for op in parent_block.ops if isinstance(op, memref.LoadOp)]
 
         if not loads:
             return
@@ -108,7 +108,7 @@ class LoopHoistMemref(RewritePattern):
         dup_load_locs = [loc for loc in set(load_locs) if load_locs.count(loc) > 1]
         loads = [load for load in loads if load.memref not in dup_load_locs]
 
-        load_store_pairs: dict[memref.Load, memref.Store] = {}
+        load_store_pairs: dict[memref.LoadOp, memref.StoreOp] = {}
 
         for load in loads:
             if (
@@ -142,12 +142,13 @@ class LoopHoistMemref(RewritePattern):
         load_map = {
             load: new_load
             for load, new_load in zip(for_op.body.block.ops, new_body.block.ops)
-            if isinstance(load, memref.Load) and isinstance(new_load, memref.Load)
+            if isinstance(load, memref.LoadOp) and isinstance(new_load, memref.LoadOp)
         }
         store_map = {
             store: new_store
             for store, new_store in zip(for_op.body.block.ops, new_body.block.ops)
-            if isinstance(store, memref.Store) and isinstance(new_store, memref.Store)
+            if isinstance(store, memref.StoreOp)
+            and isinstance(new_store, memref.StoreOp)
         }
 
         new_block_args = [
@@ -173,13 +174,13 @@ class LoopHoistMemref(RewritePattern):
 
         # yield the value that was used in the old store
         assert new_body.block.last_op is not None
-        rewriter.replace_op(new_body.block.last_op, scf.Yield(*new_yield_vals))
+        rewriter.replace_op(new_body.block.last_op, scf.YieldOp(*new_yield_vals))
 
-        new_for_op = scf.For(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
+        new_for_op = scf.ForOp(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
 
         # use yielded results of new loop in stores after the loop
         new_stores = [
-            memref.Store.get(new_for_op.res[idx], store.memref, store.indices)
+            memref.StoreOp.get(new_for_op.res[idx], store.memref, store.indices)
             for idx, store in enumerate(load_store_pairs.values())
         ]
         rewriter.insert_op(new_stores, InsertPoint.after(for_op))
@@ -189,14 +190,14 @@ class LoopHoistMemref(RewritePattern):
 
 
 @dataclass(frozen=True)
-class LoopHoistMemrefPass(ModulePass):
+class LoopHoistMemRefPass(ModulePass):
     name = "loop-hoist-memref"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LoopHoistMemref(),
+                    LoopHoistMemRef(),
                 ]
             ),
             walk_regions_first=True,

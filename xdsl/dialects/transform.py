@@ -5,7 +5,6 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
@@ -40,6 +39,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -149,14 +149,14 @@ AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
 
 
 @irdl_op_definition
-class GetConsumersOfResult(IRDLOperation):
+class GetConsumersOfResultOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult
     """
 
     name = "transform.get_consumers_of_result"
 
-    result_number = prop_def(AnyIntegerAttr)
+    result_number = prop_def(IntegerAttr)
     target = operand_def(TransformOpHandleType)
     consumers = result_def(TransformOpHandleType)
 
@@ -199,7 +199,7 @@ class GetParentOp(IRDLOperation):
     allow_empty_results = opt_prop_def(UnitAttr)
     op_name = opt_prop_def(StringAttr)
     deduplicate = opt_prop_def(UnitAttr)
-    nth_parent = prop_def(AnyIntegerAttr)
+    nth_parent = prop_def(IntegerAttr)
     target = operand_def(TransformOpHandleType)
     parent_result = result_def(TransformOpHandleType)
 
@@ -210,7 +210,7 @@ class GetParentOp(IRDLOperation):
         allow_empty_results: bool = False,
         op_name: str | None = None,
         deduplicate: bool = False,
-        nth_parent: int | AnyIntegerAttr = 1,
+        nth_parent: int | IntegerAttr = 1,
     ):
         if isinstance(nth_parent, int):
             nth_parent = IntegerAttr(nth_parent, IntegerType(64))
@@ -228,20 +228,20 @@ class GetParentOp(IRDLOperation):
 
 
 @irdl_op_definition
-class GetProducerOfOperand(IRDLOperation):
+class GetProducerOfOperandOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand
     """
 
     name = "transform.get_producer_of_operand"
 
-    operand_number = prop_def(AnyIntegerAttr)
+    operand_number = prop_def(IntegerAttr)
     target = operand_def(TransformOpHandleType)
     producer = result_def(TransformOpHandleType)
 
     def __init__(
         self,
-        operand_number: int | AnyIntegerAttr,
+        operand_number: int | IntegerAttr,
         target: SSAValue,
     ):
         if isinstance(operand_number, int):
@@ -325,7 +325,7 @@ class IncludeOp(IRDLOperation):
     def __init__(
         self,
         target: str,
-        failure_propagation_mode: FailurePropagationModeAttr | AnyIntegerAttr | int,
+        failure_propagation_mode: FailurePropagationModeAttr | IntegerAttr | int,
         operands_input: Sequence[SSAValue],
     ):
         if isinstance(failure_propagation_mode, int):
@@ -394,13 +394,13 @@ class MatchParamCmpIOp(IRDLOperation):
     name = "transform.match.param.cmpi"
 
     predicate = prop_def(
-        AnyIntegerAttr
+        IntegerAttr
     )  # Valid values given in xdsl/xdsl/dialects/arith.py
     param = operand_def(TransformParamHandleType)
     reference = operand_def(TransformParamHandleType)
 
     def __init__(
-        self, predicate: int | AnyIntegerAttr, param: SSAValue, reference: SSAValue
+        self, predicate: int | IntegerAttr, param: SSAValue, reference: SSAValue
     ):
         if isinstance(predicate, int):
             predicate = IntegerAttr(predicate, IntegerType(64))
@@ -455,9 +455,9 @@ class SplitHandleOp(IRDLOperation):
 
     name = "transform.split_handle"
 
-    pass_through_empty_handle = prop_def(AnyIntegerAttr)
-    fail_on_payload_too_small = prop_def(AnyIntegerAttr)
-    overflow_result = opt_prop_def(AnyIntegerAttr)
+    pass_through_empty_handle = prop_def(IntegerAttr)
+    fail_on_payload_too_small = prop_def(IntegerAttr)
+    overflow_result = opt_prop_def(IntegerAttr)
     handle = operand_def(TransformHandleType)
     results_ = var_result_def(TransformHandleType)
 
@@ -465,9 +465,9 @@ class SplitHandleOp(IRDLOperation):
         self,
         handle: SSAValue,
         number_of_results: int,
-        pass_through_empty_handle: int | AnyIntegerAttr | bool = False,
-        fail_on_payload_too_small: int | AnyIntegerAttr | bool = False,
-        overflow_result: int | AnyIntegerAttr | None = None,
+        pass_through_empty_handle: int | IntegerAttr | bool = False,
+        fail_on_payload_too_small: int | IntegerAttr | bool = False,
+        overflow_result: int | IntegerAttr | None = None,
     ):
         if isinstance(pass_through_empty_handle, bool):
             pass_through_empty_handle = IntegerAttr(
@@ -506,7 +506,7 @@ class YieldOp(IRDLOperation):
 
     name = "transform.yield"
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -523,11 +523,11 @@ class SequenceOp(IRDLOperation):
     extra_bindings = var_operand_def(TransformHandleType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-    traits = frozenset([IsolatedFromAbove()])
+    traits = traits_def(IsolatedFromAbove())
 
     def __init__(
         self,
-        failure_propagation_mode: FailurePropagationModeAttr | AnyIntegerAttr | int,
+        failure_propagation_mode: FailurePropagationModeAttr | IntegerAttr | int,
         root: Sequence[SSAValue],
         extra_bindings: Sequence[SSAValue],
         body: Region,
@@ -603,8 +603,8 @@ class TileOp(IRDLOperation):
                     AnyOpType()
                     for _ in range(
                         (
-                            len(static_sizes.as_tuple())
-                            - static_sizes.as_tuple().count(0)
+                            len(static_sizes.get_values())
+                            - static_sizes.get_values().count(0)
                         )
                         if static_sizes
                         else 0
@@ -765,7 +765,7 @@ class MatchOp(IRDLOperation):
     name = "transform.structured.match"
 
     ops = opt_prop_def(ArrayAttr[StringAttr])
-    interface = opt_prop_def(AnyIntegerAttr)
+    interface = opt_prop_def(IntegerAttr)
     op_attrs = opt_prop_def(DictionaryAttr)
     filter_result_types = opt_prop_def(TypeAttribute)
     filter_operand_types = opt_prop_def(TypeAttribute)
@@ -777,7 +777,7 @@ class MatchOp(IRDLOperation):
         self,
         target: SSAValue,
         ops: Sequence[str] | ArrayAttr[StringAttr] | None = None,
-        interface: int | AnyIntegerAttr | str | None = None,
+        interface: int | IntegerAttr | str | None = None,
         op_attrs: dict[str, Attribute] | DictionaryAttr | None = None,
         filter_result_types: TypeAttribute | None = None,
         filter_operand_types: TypeAttribute | None = None,
@@ -815,10 +815,10 @@ class MatchOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
-        GetConsumersOfResult,
+        GetConsumersOfResultOp,
         GetDefiningOp,
         GetParentOp,
-        GetProducerOfOperand,
+        GetProducerOfOperandOp,
         GetResultOp,
         GetTypeOp,
         IncludeOp,

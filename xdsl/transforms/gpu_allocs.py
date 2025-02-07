@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
 
 class GpuAllocPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
             gpu.AllocOp.build(
                 operands=[None, op.dynamic_sizes, op.symbol_operands],
@@ -24,11 +24,11 @@ class GpuAllocPattern(RewritePattern):
 
 class GpuDellocPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Dealloc, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.DeallocOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(gpu.DeallocOp(op.memref))
 
 
-class MemrefToGPUPass(ModulePass):
+class MemRefToGPUPass(ModulePass):
     name = "memref-to-gpu"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:

@@ -27,13 +27,14 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 
-integerOrFloatLike: ContainerOf = ContainerOf(
+integerOrFloatLike = ContainerOf(
     AnyOf(
         [
             IntegerType,
@@ -59,7 +60,7 @@ class VarithOp(IRDLOperation):
     args = var_operand_def(T)
     res = result_def(T)
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
     assembly_format = "$args attr-dict `:` type($res)"
 
@@ -99,7 +100,7 @@ class VarithSwitchOp(IRDLOperation):
 
     result = result_def(T)
 
-    traits = frozenset((Pure(),))
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -177,9 +178,9 @@ class VarithSwitchOp(IRDLOperation):
         with printer.indented():
             printer.print_string("\n")
             cases = [("default", self.default_arg)] + [
-                (str(c.value.data), arg)
+                (str(c), arg)
                 for (c, arg) in zip(
-                    self.case_values.data.data,
+                    self.case_values.get_values(),
                     self.args,
                     strict=True,
                 )

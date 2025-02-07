@@ -22,7 +22,7 @@ builtin.module {
 // CHECK-NEXT:   %2 = arith.constant 3 : index
 // CHECK-NEXT:   %3 = arith.constant 1.020000e+01 : f32
 // CHECK-NEXT:   %4 = arith.constant 1.810000e+01 : f32
-// CHECK-NEXT:   %5 = "scf.parallel"(%0, %1, %2, %3) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 1>}> ({
+// CHECK-NEXT:   %5 = "scf.parallel"(%0, %1, %2, %3) <{operandSegmentSizes = array<i32: 1, 1, 1, 1>}> ({
 // CHECK-NEXT:   ^0(%6 : index):
 // CHECK-NEXT:     scf.reduce(%4 : f32) {
 // CHECK-NEXT:     ^1(%7 : f32, %8 : f32):

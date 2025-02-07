@@ -5,7 +5,7 @@ from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRis
 from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
 )
-from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemRefToRiscvPass
 from xdsl.backend.riscv.lowering.convert_print_format_to_riscv_debug import (
     ConvertPrintFormatToRiscvDebugPass,
 )
@@ -35,7 +35,7 @@ from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldin
 
 from .dialects import toy
 from .frontend.ir_gen import IRGen
-from .frontend.parser import Parser
+from .frontend.parser import ToyParser
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -58,7 +58,7 @@ def context() -> MLContext:
 
 def parse_toy(program: str, ctx: MLContext | None = None) -> ModuleOp:
     mlir_gen = IRGen()
-    module_ast = Parser(Path("in_memory"), program).parseModule()
+    module_ast = ToyParser(Path("in_memory"), program).parseModule()
     module_op = mlir_gen.ir_gen_module(module_ast)
     return module_op
 
@@ -99,7 +99,7 @@ def transform(
         return
 
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
-    ConvertMemrefToRiscvPass().apply(ctx, module_op)
+    ConvertMemRefToRiscvPass().apply(ctx, module_op)
     ConvertPrintFormatToRiscvDebugPass().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
     ConvertScfToRiscvPass().apply(ctx, module_op)

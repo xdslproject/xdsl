@@ -5,7 +5,6 @@ from typing import Any, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -20,8 +19,8 @@ from xdsl.interpreter import (
     impl_cast,
     register_impls,
 )
-from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
@@ -214,7 +213,7 @@ class RiscvFunctions(InterpreterFunctions):
         return data[key]
 
     def get_immediate_value(
-        self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
+        self, interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr
     ) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():
@@ -428,6 +427,17 @@ class RiscvFunctions(InterpreterFunctions):
 
     # region D extension
 
+    @impl(riscv.FMAddDOp)
+    def run_fmadd_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMAddDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] * args[1] + args[2],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FAddDOp)
     def run_fadd_d(
         self,
@@ -606,13 +616,13 @@ class RiscvFunctions(InterpreterFunctions):
             case IntegerAttr():
                 return attr.value.data
             case builtin.DenseIntOrFPElementsAttr():
-                data = [el.value.data for el in attr.data]
+                data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
                     xtype=xtype_for_el_type(
                         attr.get_element_type(), interpreter.index_bitwidth
                     ),
                 )
-                return data_ptr
+                return data_ptr.raw
             case _:
                 interpreter.raise_error(f"Unknown value type for int register: {attr}")

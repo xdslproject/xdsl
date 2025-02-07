@@ -8,22 +8,96 @@ that aims at generating.
 [1] https://pulp-platform.github.io/snitch/publications
 """
 
+from __future__ import annotations
+
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Generic
 
-from xdsl.dialects import stream
-from xdsl.dialects.builtin import IntAttr
+from typing_extensions import TypeVar
+
+from xdsl.dialects.builtin import ContainerType, IntAttr
 from xdsl.dialects.riscv import IntRegisterType
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
+    AnyAttr,
+    GenericAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
+    ParameterDef,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
+
+_StreamTypeElement = TypeVar(
+    "_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute
+)
+
+
+@irdl_attr_definition
+class ReadableStreamType(
+    Generic[_StreamTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[_StreamTypeElement],
+):
+    name = "snitch.readable"
+
+    element_type: ParameterDef[_StreamTypeElement]
+
+    def get_element_type(self) -> _StreamTypeElement:
+        return self.element_type
+
+    def __init__(self, element_type: _StreamTypeElement):
+        super().__init__([element_type])
+
+    @classmethod
+    def constr(
+        cls,
+        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+    ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
+        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
+            ReadableStreamType, (element_type,)
+        )
+
+
+@irdl_attr_definition
+class WritableStreamType(
+    Generic[_StreamTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[_StreamTypeElement],
+):
+    name = "snitch.writable"
+
+    element_type: ParameterDef[_StreamTypeElement]
+
+    def get_element_type(self) -> _StreamTypeElement:
+        return self.element_type
+
+    def __init__(self, element_type: _StreamTypeElement):
+        super().__init__([element_type])
+
+    @classmethod
+    def constr(
+        cls,
+        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
+        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
+            WritableStreamType, (element_type,)
+        )
 
 
 @dataclass(frozen=True)
@@ -63,7 +137,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     def verify_(self) -> None:
         if self.dimension.data >= SnitchResources.dimensions:
             raise VerifyException(
-                f"dimension attribute out of range [0..{SnitchResources.dimensions-1}], "
+                f"dimension attribute out of range [0..{SnitchResources.dimensions - 1}], "
                 f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer"
             )
 
@@ -136,21 +210,21 @@ class SsrSetStreamRepetitionOp(SsrSetStreamConfigOperation):
 
 
 @irdl_op_definition
-class SsrEnable(IRDLOperation):
+class SsrEnableOp(IRDLOperation):
     """
     Enable stream semantics.
     """
 
     name = "snitch.ssr_enable"
 
-    streams = var_result_def(stream.StreamType)
+    streams = var_result_def(ReadableStreamType.constr() | WritableStreamType.constr())
 
     def __init__(self, stream_types: Sequence[Attribute]):
         super().__init__(result_types=[stream_types])
 
 
 @irdl_op_definition
-class SsrDisable(IRDLOperation):
+class SsrDisableOp(IRDLOperation):
     """
     Disable stream semantics.
     """
@@ -169,8 +243,11 @@ Snitch = Dialect(
         SsrSetDimensionSourceOp,
         SsrSetDimensionDestinationOp,
         SsrSetStreamRepetitionOp,
-        SsrEnable,
-        SsrDisable,
+        SsrEnableOp,
+        SsrDisableOp,
     ],
-    [],
+    [
+        ReadableStreamType,
+        WritableStreamType,
+    ],
 )

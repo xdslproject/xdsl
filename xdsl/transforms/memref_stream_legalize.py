@@ -76,15 +76,15 @@ def _is_safe_to_legalize(op: Operation) -> bool:
     return isinstance(
         op,
         memref_stream.YieldOp
-        | arith.Minimumf
-        | arith.Minnumf
-        | arith.Maximumf
-        | arith.Maxnumf
-        | arith.Addf
-        | arith.Subf
-        | arith.Mulf
-        | arith.Divf
-        | arith.Negf,
+        | arith.MinimumfOp
+        | arith.MinnumfOp
+        | arith.MaximumfOp
+        | arith.MaxnumfOp
+        | arith.AddfOp
+        | arith.SubfOp
+        | arith.MulfOp
+        | arith.DivfOp
+        | arith.NegfOp,
     )
 
 
@@ -116,7 +116,7 @@ def _legalize_block(
 
 
 @dataclass(frozen=True)
-class MemrefStreamGenericLegalize(RewritePattern):
+class MemRefStreamGenericLegalize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
@@ -191,7 +191,7 @@ class MemrefStreamGenericLegalize(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamLegalizePass(ModulePass):
+class MemRefStreamLegalizePass(ModulePass):
     """
     Legalize memref_stream.generic payload and bounds for streaming.
     """
@@ -200,6 +200,6 @@ class MemrefStreamLegalizePass(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([MemrefStreamGenericLegalize()]),
+            GreedyRewritePatternApplier([MemRefStreamGenericLegalize()]),
             apply_recursively=False,
         ).rewrite_module(op)

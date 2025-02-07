@@ -34,6 +34,7 @@ from xdsl.irdl import (
     opt_attr_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -117,7 +118,7 @@ class DialectOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), SymbolOpInterface(), SymbolTable()])
+    traits = traits_def(NoTerminator(), SymbolOpInterface(), SymbolTable())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -147,7 +148,7 @@ class TypeOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
+    traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -202,7 +203,7 @@ class AttributeOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
+    traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -238,7 +239,7 @@ class ParametersOp(IRDLOperation):
 
     args = var_operand_def(AttributeType)
 
-    traits = frozenset([HasParent(TypeOp, AttributeOp)])
+    traits = traits_def(HasParent(TypeOp, AttributeOp))
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
@@ -265,7 +266,7 @@ class OperationOp(IRDLOperation):
     sym_name = attr_def(StringAttr)
     body = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
+    traits = traits_def(NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -291,6 +292,16 @@ class OperationOp(IRDLOperation):
         if not isinstance(dialect_op, DialectOp):
             raise ValueError("Tried to get qualified name of an unverified OperationOp")
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
+
+    def get_py_class_name(self) -> str:
+        return (
+            "".join(
+                y[:1].upper() + y[1:]
+                for x in self.sym_name.data.split(".")
+                for y in x.split("_")
+            )
+            + "Op"
+        )
 
 
 def _parse_argument(parser: Parser) -> tuple[VariadicityAttr, SSAValue]:
@@ -320,7 +331,7 @@ class OperandsOp(IRDLOperation):
 
     variadicity = attr_def(VariadicityArrayAttr)
 
-    traits = frozenset([HasParent(OperationOp)])
+    traits = traits_def(HasParent(OperationOp))
 
     def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
         args_list = [
@@ -361,7 +372,7 @@ class ResultsOp(IRDLOperation):
 
     variadicity = attr_def(VariadicityArrayAttr)
 
-    traits = frozenset([HasParent(OperationOp)])
+    traits = traits_def(HasParent(OperationOp))
 
     def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
         args_list = [

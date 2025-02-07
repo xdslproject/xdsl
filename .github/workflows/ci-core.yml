@@ -17,39 +17,23 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install native dependencies
-      uses: awalsh128/cache-apt-pkgs-action@latest
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
-        packages: mesa-vulkan-drivers
-        version: 1.0
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip' # caching pip dependencies
-        cache-dependency-path: |
-          setup.py
-          requirements.txt
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
 
-    - name: Upgrade pip
+    - name: Install the project
+      run: VENV_EXTRAS="--extra dev" make venv
+
+    - name: Run all tests
       run: |
-        pip install --upgrade pip
-
-    - name: Install the package locally
-      run: pip install -r requirements.txt
-
-    - name: Test with pytest
-      run: |
-        pytest -W error
-
-    - name: Execute lit tests
-      run: |
-        export PYTHONPATH=$(pwd)
-        lit -v tests/filecheck/
-        lit -v docs/Toy/examples/
+        make tests-functional

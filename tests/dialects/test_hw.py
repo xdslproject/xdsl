@@ -35,6 +35,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_region_def,
     region_def,
+    traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.traits import (
@@ -72,13 +73,13 @@ class ModuleOp(IRDLOperation):
     name = "module"
     region = region_def()
     sym_name = attr_def(StringAttr)
-    traits = frozenset({InnerSymbolTableTrait(), SymbolOpInterface()})
+    traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
 
 @irdl_op_definition
 class OutputOp(IRDLOperation):
     name = "output"
-    traits = frozenset({IsTerminator()})
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -86,12 +87,10 @@ class CircuitOp(IRDLOperation):
     name = "circuit"
     region: Region | None = opt_region_def()
     sym_name = attr_def(StringAttr)
-    traits = frozenset(
-        {
-            InnerRefNamespaceTrait(),
-            SymbolTable(),
-            SingleBlockImplicitTerminator(OutputOp),
-        }
+    traits = traits_def(
+        InnerRefNamespaceTrait(),
+        SymbolTable(),
+        SingleBlockImplicitTerminator(OutputOp),
     )
 
     def __post_init__(self):
@@ -103,7 +102,7 @@ class CircuitOp(IRDLOperation):
 class WireOp(IRDLOperation):
     name = "wire"
     sym_name = attr_def(StringAttr)
-    traits = frozenset({InnerRefUserOpInterfaceTrait()})
+    traits = traits_def(InnerRefUserOpInterfaceTrait())
 
 
 def test_inner_symbol_table_interface():
@@ -146,7 +145,7 @@ def test_inner_symbol_table_interface():
         name = "module"
         region = region_def()
         sym_name = attr_def(StringAttr)
-        traits = frozenset({InnerSymbolTableTrait()})
+        traits = traits_def(InnerSymbolTableTrait())
 
     mod_missing_trait = MissingTraitModuleOp(
         attributes={"sym_name": StringAttr("symbol_name")}, regions=[[OutputOp()]]
@@ -165,7 +164,7 @@ def test_inner_symbol_table_interface():
     class MissingAttrModuleOp(IRDLOperation):
         name = "module"
         region = region_def()
-        traits = frozenset({InnerSymbolTableTrait(), SymbolOpInterface()})
+        traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
     mod_missing_trait_parent = ModuleOp(regions=[[OutputOp()]])
     MissingAttrModuleOp(regions=[[mod_missing_trait_parent, OutputOp()]])
@@ -186,8 +185,8 @@ def test_inner_ref_namespace_interface():
         name = "circuit"
         region: Region | None = opt_region_def()
         sym_name = attr_def(StringAttr)
-        traits = frozenset(
-            {InnerRefNamespaceTrait(), SingleBlockImplicitTerminator(OutputOp)}
+        traits = traits_def(
+            InnerRefNamespaceTrait(), SingleBlockImplicitTerminator(OutputOp)
         )
 
     wire0 = WireOp(attributes={"sym_name": StringAttr("wire0")})
@@ -262,16 +261,16 @@ def test_inner_symbol_table_collection():
 
     sym_table1 = inner_sym_tables.get_inner_symbol_table(mod1)
     sym_table2 = inner_sym_tables.get_inner_symbol_table(mod2)
-    assert (
-        sym_table1 is not sym_table2
-    ), "Different InnerSymbolTableTrait objects must return different instances of inner symbol tables"
+    assert sym_table1 is not sym_table2, (
+        "Different InnerSymbolTableTrait objects must return different instances of inner symbol tables"
+    )
 
     unpopulated_inner_sym_tables = InnerSymbolTableCollection()
     sym_table3 = unpopulated_inner_sym_tables.get_inner_symbol_table(mod1)
     sym_table4 = unpopulated_inner_sym_tables.get_inner_symbol_table(mod2)
-    assert (
-        sym_table3 is not sym_table4
-    ), "InnerSymbolTableTrait still behave as expected when created on the fly"
+    assert sym_table3 is not sym_table4, (
+        "InnerSymbolTableTrait still behave as expected when created on the fly"
+    )
 
 
 def test_inner_ref_attr():
@@ -289,9 +288,9 @@ def test_inner_ref_attr():
     CircuitOp(attributes={"sym_name": StringAttr("circuit")}, regions=[[mod1, mod2]])
 
     ref = InnerRefAttr("mod2", "wire2")
-    assert (
-        ref.get_module().data == "mod2"
-    ), "Name of the referenced module should be returned correctly"
+    assert ref.get_module().data == "mod2", (
+        "Name of the referenced module should be returned correctly"
+    )
 
 
 def test_inner_sym_attr():
@@ -299,14 +298,14 @@ def test_inner_sym_attr():
     Test inner symbol attributes
     """
     invalid_sym_attr = InnerSymAttr()
-    assert (
-        invalid_sym_attr.get_sym_name() is None
-    ), "Invalid InnerSymAttr should return no name"
+    assert invalid_sym_attr.get_sym_name() is None, (
+        "Invalid InnerSymAttr should return no name"
+    )
 
     sym_attr = InnerSymAttr("sym")
-    assert sym_attr.get_sym_name() == StringAttr(
-        "sym"
-    ), "InnerSymAttr for “ground” type should return name"
+    assert sym_attr.get_sym_name() == StringAttr("sym"), (
+        "InnerSymAttr for “ground” type should return name"
+    )
 
     with pytest.raises(VerifyException, match=r"inner symbol cannot have empty name"):
         InnerSymAttr("")
@@ -319,22 +318,22 @@ def test_inner_sym_attr():
         ]
     )
 
-    assert aggregate_sym_attr.get_sym_name() == StringAttr(
-        "sym"
-    ), "InnerSymAttr for aggregate types should return name with field ID 0"
+    assert aggregate_sym_attr.get_sym_name() == StringAttr("sym"), (
+        "InnerSymAttr for aggregate types should return name with field ID 0"
+    )
 
     for inner, expected_field_id in zip(aggregate_sym_attr, [0, 1, 2]):
-        assert (
-            inner.field_id.data == expected_field_id
-        ), "InnerSymAttr should allow iterating its properties in order"
+        assert inner.field_id.data == expected_field_id, (
+            "InnerSymAttr should allow iterating its properties in order"
+        )
 
     aggregate_without_nested = aggregate_sym_attr.erase(2)
-    assert (
-        aggregate_without_nested.get_sym_if_exists(2) is None
-    ), "InnerSymAttr removal should work"
-    assert (
-        len(aggregate_without_nested) == 2
-    ), "InnerSymAttr removal should correctly change length"
+    assert aggregate_without_nested.get_sym_if_exists(2) is None, (
+        "InnerSymAttr removal should work"
+    )
+    assert len(aggregate_without_nested) == 2, (
+        "InnerSymAttr removal should correctly change length"
+    )
 
 
 def test_instance_builder():

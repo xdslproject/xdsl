@@ -23,6 +23,15 @@ class VerifyException(DiagnosticException):
     pass
 
 
+class PassFailedException(DiagnosticException):
+    """
+    A diagnostic error which can be raised during the execution of a pass, used to
+    signify that the pass did not succeed.
+    """
+
+    pass
+
+
 class PyRDLError(Exception):
     pass
 
@@ -70,9 +79,6 @@ class ParseError(Exception):
     msg: str
 
     def __str__(self) -> str:
-        return self.span.print_with_context(self.msg)
-
-    def with_context(self) -> str:
         return self.span.print_with_context(self.msg)
 
 

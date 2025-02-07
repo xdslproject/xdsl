@@ -3,9 +3,9 @@ import pytest
 from xdsl.dialects import tensor
 from xdsl.dialects.builtin import ModuleOp, TensorType, f32, i32
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.tensor import TensorFunctions
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
 

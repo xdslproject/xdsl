@@ -11,7 +11,8 @@ from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
+from xdsl.tools.command_line_tool import CommandLineTool
+from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
@@ -106,7 +107,7 @@ class xDSLOptMain(CommandLineTool):
             "-p",
             "--passes",
             required=False,
-            help="Delimited list of passes." f" Available passes are: {pass_names}",
+            help=f"Delimited list of passes. Available passes are: {pass_names}",
             type=str,
             default="",
         )
@@ -191,6 +192,11 @@ class xDSLOptMain(CommandLineTool):
         Add other/additional targets by overloading this function.
         """
 
+        def _output_arm_asm(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.arm import print_assembly
+
+            print_assembly(prog, output)
+
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
                 stream=output,
@@ -212,11 +218,11 @@ class xDSLOptMain(CommandLineTool):
             print_assembly(prog, output)
 
         def _output_wat(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.wasm import WasmModule
+            from xdsl.dialects.wasm import WasmModuleOp
             from xdsl.dialects.wasm.wat import WatPrinter
 
             for op in prog.walk():
-                if isinstance(op, WasmModule):
+                if isinstance(op, WasmModuleOp):
                     printer = WatPrinter(output)
                     op.print_wat(printer)
                     print("", file=output)
@@ -235,17 +241,28 @@ class xDSLOptMain(CommandLineTool):
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 
-        def _print_to_csl(prog: ModuleOp, output: IO[str]):
+        def _output_csl(prog: ModuleOp, output: IO[str]):
             from xdsl.backend.csl.print_csl import print_to_csl
 
             print_to_csl(prog, output)
 
+        def _output_wgsl(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.wgsl.wgsl_printer import WGSLPrinter
+            from xdsl.dialects import gpu
+
+            for op in prog.ops:
+                if isinstance(op, gpu.ModuleOp):
+                    printer = WGSLPrinter(stream=output)
+                    printer.print(op)
+
+        self.available_targets["arm-asm"] = _output_arm_asm
+        self.available_targets["csl"] = _output_csl
         self.available_targets["mlir"] = _output_mlir
-        self.available_targets["riscv-asm"] = _output_riscv_asm
-        self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
+        self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["wat"] = _output_wat
-        self.available_targets["csl"] = _print_to_csl
+        self.available_targets["wgsl"] = _output_wgsl
+        self.available_targets["x86-asm"] = _output_x86_asm
 
     def setup_pipeline(self):
         """

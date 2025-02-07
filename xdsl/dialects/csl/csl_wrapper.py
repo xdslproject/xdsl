@@ -6,7 +6,6 @@ from typing import cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
@@ -28,11 +27,11 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     opt_prop_def,
     prop_def,
     region_def,
     result_def,
-    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser
@@ -73,7 +72,7 @@ class ParamAttribute(ParametrizedAttribute):
             if parser.parse_optional_keyword("default"):
                 parser.parse_punctuation("=")
                 val = parser.parse_attribute()
-                assert isa(val, AnyIntegerAttr)
+                assert isa(val, IntegerAttr)
                 assert isinstance(val.type, IntegerType)
                 type = val.type
             else:
@@ -228,7 +227,9 @@ class ModuleOp(IRDLOperation):
             len(self.program_module.block.args)
             == len(self.layout_module.block.args) - 2
             # minus two as layout_module has additional x and y args
-        ), "program_module block args should only contain args from properties when calling this function"
+        ), (
+            "program_module block args should only contain args from properties when calling this function"
+        )
 
         if yield_args is None:
             yield_args = self.layout_yield_op.items()
@@ -372,8 +373,12 @@ class YieldOp(IRDLOperation):
     values = var_operand_def(Attribute)
     fields = prop_def(ArrayAttr[StringAttr])
 
-    traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(ModuleOp), Pure()])
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(ModuleOp),
+            Pure(),
+        )
     )
 
     def __init__(

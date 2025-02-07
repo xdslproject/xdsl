@@ -18,7 +18,7 @@ ground_truth = {
 
 @pytest.mark.parametrize(
     "op",
-    (
+    [
         riscv_snitch.DMSourceOp,
         riscv_snitch.DMDestinationOp,
         riscv_snitch.DMCopyImmOp,
@@ -27,7 +27,7 @@ ground_truth = {
         riscv_snitch.DMStatOp,
         riscv_snitch.DMStrideOp,
         riscv_snitch.DMRepOp,
-    ),
+    ],
 )
 def test_insn_repr(op: RISCVInstruction):
     trait = op.get_trait(HasInsnRepresentation)

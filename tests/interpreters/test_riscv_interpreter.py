@@ -14,8 +14,8 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.interpreter import Interpreter, PythonValues
-from xdsl.interpreters.ptr import RawPtr, TypedPtr
 from xdsl.interpreters.riscv import RiscvFunctions
+from xdsl.interpreters.utils.ptr import RawPtr, TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError
@@ -156,6 +156,16 @@ def test_riscv_interpreter():
     ) == (12.0,)
 
     # D extension arithmetic
+
+    assert interpreter.run_op(
+        riscv.FMAddDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0, 5.0),
+    ) == (17.0,)
 
     assert interpreter.run_op(
         riscv.FAddDOp(
@@ -374,9 +384,12 @@ def test_values():
     interpreter.register_implementations(riscv_functions)
     assert interpreter.value_for_attribute(IntegerAttr(1, i32), riscv.Registers.A0) == 1
 
-    assert interpreter.value_for_attribute(
-        DenseIntOrFPElementsAttr.create_dense_int(
-            TensorType(i32, [2, 3]), list(range(6))
-        ),
-        riscv.Registers.A0,
-    ) == TypedPtr.new_int32(list(range(6)))
+    assert (
+        interpreter.value_for_attribute(
+            DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i32, [2, 3]), tuple(range(6))
+            ),
+            riscv.Registers.A0,
+        )
+        == TypedPtr.new_int32(tuple(range(6))).raw
+    )

@@ -82,7 +82,7 @@ def test_default_reserved_registers():
 
 def test_allocate_with_inout_constraints():
     @irdl_op_definition
-    class MyInstruction(riscv.RISCVAsmOperation, IRDLOperation):
+    class MyInstructionOp(riscv.RISCVAsmOperation, IRDLOperation):
         name = "riscv.my_instruction"
 
         rs0 = operand_def()
@@ -114,7 +114,7 @@ def test_allocate_with_inout_constraints():
     register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
 
     # All new registers. The result register is reused by the allocator for the operand.
-    op0 = MyInstruction.get("", "", "", "")
+    op0 = MyInstructionOp.get("", "", "", "")
     register_allocator.process_riscv_op(op0)
     assert op0.rs0.type == riscv.IntRegisterType("j1")
     assert op0.rs1.type == riscv.IntRegisterType("j0")
@@ -123,7 +123,7 @@ def test_allocate_with_inout_constraints():
 
     # One register reserved for inout parameter, the allocator should allocate the output
     # to the same register.
-    op1 = MyInstruction.get("", "", "", "a0")
+    op1 = MyInstructionOp.get("", "", "", "a0")
     register_allocator.process_riscv_op(op1)
     assert op1.rs0.type == riscv.IntRegisterType("j2")
     assert op1.rs1.type == riscv.IntRegisterType("a0")

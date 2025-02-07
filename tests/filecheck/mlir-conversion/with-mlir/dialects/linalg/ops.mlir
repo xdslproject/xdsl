@@ -1,4 +1,5 @@
 // RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | mlir-opt --allow-unregistered-dialect | filecheck %s
 
 %0, %1 = "test.op"() : () -> (f32, memref<1x256xf32>)
 
@@ -59,6 +60,9 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 %18, %19 = "test.op"() : () -> (memref<64x9216xf32>, memref<9216x4096xf32>)
 %20 = "test.op"() : () -> (memref<64x4096xf32>)
 
+%zero = arith.constant 0.0 : f32
+linalg.fill {id} ins(%zero : f32) outs(%20 : memref<64x4096xf32>)
+
 linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%20 : memref<64x4096xf32>)
 
 
@@ -68,6 +72,14 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 %25 = "test.op"() : () -> (tensor<64x4096xi32>)
 
 %quant_mat_mul = linalg.quantized_matmul ins(%21, %22, %23, %24 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%25 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
+
+%26, %27, %28 = "test.op"(): () ->  (tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>, tensor<1x1x3x3xi32>)
+
+%conv_2d_nchw_i = linalg.conv_2d_nchw_fchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>}
+            ins(%26, %27: tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>)
+            outs(%28: tensor<1x1x3x3xi32>) -> tensor<1x1x3x3xi32>
+
+
 
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
@@ -99,17 +111,21 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %13:2 = "test.op"() : () -> (tensor<16xf32>, tensor<16x64xf32>)
 // CHECK-NEXT:    %broadcasted  = linalg.broadcast ins(%13#0 : tensor<16xf32>) outs(%13#1 : tensor<16x64xf32>) dimensions = [1]
 // CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
-// CHECK-NEXT:    ^bb0(%in: f32, %in_1: f32, %out: f32):
-// CHECK-NEXT:      %{{.*}} = arith.addf %in, %in_1 : f32
+// CHECK-NEXT:    ^bb0(%in: f32, %in_2: f32, %out: f32):
+// CHECK-NEXT:      %{{.*}} = arith.addf %in, %in_2 : f32
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    } -> tensor<2x3xf32>
 // CHECK-NEXT:    %{{.*}} = linalg.sub ins(%{{.*}}, %{{.*}} : tensor<2x3xf32>, tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    %16:2 = "test.op"() : () -> (memref<64x9216xf32>, memref<9216x4096xf32>)
 // CHECK-NEXT:    %17 = "test.op"() : () -> memref<64x4096xf32>
+// CHECK-NEXT:    %cst_0 = arith.constant 0.000000e+00 : f32
+// CHECK-NEXT:    linalg.fill {id} ins(%cst_0 : f32) outs(%17 : memref<64x4096xf32>)
 // CHECK-NEXT:    linalg.matmul {id} ins(%16#0, %16#1 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%17 : memref<64x4096xf32>)
 // CHECK-NEXT:    %18:2 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
 // CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
+// CHECK-NEXT:    %c0_i32_1 = arith.constant 0 : i32
 // CHECK-NEXT:    %19 = "test.op"() : () -> tensor<64x4096xi32>
-// CHECK-NEXT:    %20 = linalg.quantized_matmul ins(%18#0, %18#1, %c0_i32, %c0_i32_0 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%19 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
+// CHECK-NEXT:    %20 = linalg.quantized_matmul ins(%18#0, %18#1, %c0_i32, %c0_i32_1 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%19 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
+// CHECK-NEXT:    %21:3 = "test.op"() : () -> (tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>, tensor<1x1x3x3xi32>)
+// CHECK-NEXT:    %22 = linalg.conv_2d_nchw_fchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%21#0, %21#1 : tensor<1x1x5x5xi8>, tensor<1x1x3x3xi8>) outs(%21#2 : tensor<1x1x3x3xi32>) -> tensor<1x1x3x3xi32>
 // CHECK-NEXT:  }

@@ -14,8 +14,8 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
-    parse_assignment,
-    print_assignment,
+    parse_for_op_like,
+    print_for_op_like,
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
@@ -24,6 +24,7 @@ from xdsl.irdl import (
     VarConstraint,
     base,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     prop_def,
     region_def,
@@ -32,7 +33,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -49,7 +50,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class While(IRDLOperation):
+class WhileOp(IRDLOperation):
     name = "scf.while"
     arguments = var_operand_def()
 
@@ -57,7 +58,7 @@ class While(IRDLOperation):
     before_region = region_def()
     after_region = region_def()
 
-    traits = frozenset([RecursiveMemoryEffect()])
+    traits = traits_def(RecursiveMemoryEffect())
 
     def __init__(
         self,
@@ -149,28 +150,26 @@ class While(IRDLOperation):
         op = cls(arguments, function_type.outputs.data, before_region, after_region)
 
         if attrs is not None:
-            op.attributes = attrs.data
+            op.attributes |= attrs.data
 
         return op
 
 
 @irdl_op_definition
-class Yield(AbstractYieldOperation[Attribute]):
+class YieldOp(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
-    traits = traits_def(
-        lambda: frozenset(
-            [
-                IsTerminator(),
-                HasParent(For, If, While, IndexSwitchOp),
-                Pure(),
-            ]
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(ForOp, IfOp, WhileOp, IndexSwitchOp),
+            Pure(),
         )
     )
 
 
 @irdl_op_definition
-class If(IRDLOperation):
+class IfOp(IRDLOperation):
     name = "scf.if"
     output = var_result_def()
     cond = operand_def(IntegerType(1))
@@ -179,12 +178,10 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region = region_def()
 
-    traits = frozenset(
-        [
-            SingleBlockImplicitTerminator(Yield),
-            RecursiveMemoryEffect(),
-            RecursivelySpeculatable(),
-        ]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(YieldOp),
+        RecursiveMemoryEffect(),
+        RecursivelySpeculatable(),
     )
 
     def __init__(
@@ -216,7 +213,7 @@ class If(IRDLOperation):
         if last_op is not None and last_op.has_trait(IsTerminator):
             return region
 
-        block.add_op(Yield())
+        block.add_op(YieldOp())
 
         return region
 
@@ -276,13 +273,16 @@ class If(IRDLOperation):
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.scf import SimplifyTrivialLoops
+        from xdsl.transforms.canonicalization_patterns.scf import (
+            RehoistConstInLoops,
+            SimplifyTrivialLoops,
+        )
 
-        return (SimplifyTrivialLoops(),)
+        return (SimplifyTrivialLoops(), RehoistConstInLoops())
 
 
 @irdl_op_definition
-class For(IRDLOperation):
+class ForOp(IRDLOperation):
     name = "scf.for"
 
     T: ClassVar = VarConstraint("T", base(IndexType) | SignlessIntegerConstraint)
@@ -297,12 +297,10 @@ class For(IRDLOperation):
 
     body = region_def("single_block")
 
-    traits = frozenset(
-        [
-            SingleBlockImplicitTerminator(Yield),
-            ForOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
-        ]
+    traits = traits_def(
+        SingleBlockImplicitTerminator(YieldOp),
+        ForOpHasCanonicalizationPatternsTrait(),
+        RecursiveMemoryEffect(),
     )
 
     def __init__(
@@ -351,7 +349,7 @@ class For(IRDLOperation):
                     "Block args after the induction variable must match the loop-carried variables."
                 )
         if (last_op := self.body.block.last_op) is not None and isinstance(
-            last_op, Yield
+            last_op, YieldOp
         ):
             yieldop = last_op
             if len(yieldop.arguments) != iter_args_num:
@@ -367,83 +365,20 @@ class For(IRDLOperation):
                     )
 
     def print(self, printer: Printer):
-        block = self.body.block
-        indvar, *iter_args = block.args
-        printer.print_string(" ")
-        printer.print_ssa_value(indvar)
-        printer.print_string(" = ")
-        printer.print_ssa_value(self.lb)
-        printer.print_string(" to ")
-        printer.print_ssa_value(self.ub)
-        printer.print_string(" step ")
-        printer.print_ssa_value(self.step)
-        printer.print_string(" ")
-        if iter_args:
-            printer.print_string("iter_args(")
-            printer.print_list(
-                zip(iter_args, self.iter_args),
-                lambda pair: print_assignment(printer, *pair),
-            )
-            printer.print_string(") -> (")
-            printer.print_list((a.type for a in iter_args), printer.print_attribute)
-            printer.print_string(") ")
-        if not isinstance(indvar.type, IndexType):
-            printer.print_string(": ")
-            printer.print_attribute(indvar.type)
-            printer.print_string(" ")
-        printer.print_region(
+        print_for_op_like(
+            printer,
+            self.lb,
+            self.ub,
+            self.step,
+            self.iter_args,
             self.body,
-            print_entry_block_args=False,
-            print_empty_block=False,
-            print_block_terminators=bool(iter_args),
+            IndexType,
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        # Parse bounds
-        unresolved_indvar = parser.parse_argument(expect_type=False)
-        parser.parse_characters("=")
-        lb = parser.parse_operand()
-        parser.parse_characters("to")
-        ub = parser.parse_operand()
-        parser.parse_characters("step")
-        step = parser.parse_operand()
-
-        # Parse iteration arguments
-        pos = parser.pos
-        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
-        iter_arg_unresolved_operands: list[UnresolvedOperand] = []
-        iter_arg_types: list[Attribute] = []
-        if parser.parse_optional_characters("iter_args"):
-            for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
-                Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
-            ):
-                unresolved_iter_args.append(iter_arg)
-                iter_arg_unresolved_operands.append(iter_arg_operand)
-            parser.parse_characters("->")
-            iter_arg_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.PAREN, parser.parse_attribute
-            )
-
-        iter_arg_operands = parser.resolve_operands(
-            iter_arg_unresolved_operands, iter_arg_types, pos
-        )
-
-        # Set induction variable type
-        indvar_type = (
-            parser.parse_type()
-            if parser.parse_optional_characters(":")
-            else IndexType()
-        )
-        indvar = unresolved_indvar.resolve(indvar_type)
-
-        # Set block argument types
-        iter_args = [
-            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
-        ]
-
-        # Parse body
-        body = parser.parse_region((indvar, *iter_args))
+        lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser, IndexType())
+        _, *iter_args = body.block.args
 
         for_op = cls(lb, ub, step, iter_arg_operands, body)
 
@@ -467,9 +402,10 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = traits_def(
-        lambda: frozenset(
-            [SingleBlockImplicitTerminator(ReduceOp), RecursiveMemoryEffect()]
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(ReduceOp),
+            RecursiveMemoryEffect(),
         )
     )
 
@@ -568,14 +504,12 @@ class ReduceOp(IRDLOperation):
 
     reductions = var_region_def("single_block")
 
-    traits = traits_def(
-        lambda: frozenset(
-            [
-                RecursiveMemoryEffect(),
-                HasParent(ParallelOp),
-                IsTerminator(),
-                SingleBlockImplicitTerminator(ReduceReturnOp),
-            ]
+    traits = lazy_traits_def(
+        lambda: (
+            RecursiveMemoryEffect(),
+            HasParent(ParallelOp),
+            IsTerminator(),
+            SingleBlockImplicitTerminator(ReduceReturnOp),
         )
     )
 
@@ -631,7 +565,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result = operand_def()
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(ReduceOp), IsTerminator(), Pure())
 
     assembly_format = "$result attr-dict `:` type($result)"
 
@@ -640,58 +574,21 @@ class ReduceReturnOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Condition(IRDLOperation):
+class ConditionOp(IRDLOperation):
     name = "scf.condition"
-    cond = operand_def(IntegerType(1))
-    arguments = var_operand_def()
+    condition = operand_def(IntegerType(1))
+    args = var_operand_def()
 
-    traits = frozenset([HasParent(While), IsTerminator(), Pure()])
+    traits = traits_def(HasParent(WhileOp), IsTerminator(), Pure())
+
+    assembly_format = "`(` $condition `)` attr-dict ($args^ `:` type($args))?"
 
     def __init__(
         self,
-        cond: SSAValue | Operation,
-        *output_ops: SSAValue | Operation,
+        condition: SSAValue | Operation,
+        *args: SSAValue | Operation,
     ):
-        super().__init__(operands=[cond, [output for output in output_ops]])
-
-    def print(self, printer: Printer):
-        printer.print("(", self.cond, ")")
-        if self.attributes:
-            printer.print_op_attributes(self.attributes)
-        if self.arguments:
-            printer.print(" ")
-            printer.print_list(self.arguments, printer.print_ssa_value)
-            printer.print_string(" : ")
-            printer.print_list(
-                self.arguments, lambda val: printer.print_attribute(val.type)
-            )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        parser.parse_punctuation("(")
-        unresolved_cond = parser.parse_unresolved_operand("cond expected")
-        parser.parse_punctuation(")")
-        cond = parser.resolve_operand(unresolved_cond, IntegerType(1))
-        attrs = parser.parse_optional_attr_dict()
-
-        # scf.condition is a terminator, so the list of arguments cannot be confused with
-        # the results of a hypothetical operation on the next line.
-        pos = parser.pos
-        unresolved_arguments = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
-        )
-        if unresolved_arguments is not None:
-            parser.parse_punctuation(":")
-            types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_type
-            )
-            arguments = parser.resolve_operands(unresolved_arguments, types, pos)
-        else:
-            arguments: Sequence[SSAValue] = ()
-
-        op = cls(cond, *arguments)
-        op.attributes = attrs
-        return op
+        super().__init__(operands=(condition, args))
 
 
 @irdl_op_definition
@@ -706,7 +603,7 @@ class IndexSwitchOp(IRDLOperation):
     default_region = region_def("single_block")
     case_regions = var_region_def("single_block")
 
-    traits = frozenset([RecursiveMemoryEffect(), SingleBlockImplicitTerminator(Yield)])
+    traits = traits_def(RecursiveMemoryEffect(), SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self,
@@ -731,30 +628,30 @@ class IndexSwitchOp(IRDLOperation):
 
     def _verify_region(self, region: Region, name: str):
         yield_op = region.block.last_op
-        assert isinstance(yield_op, Yield)
+        assert isinstance(yield_op, YieldOp)
 
         if yield_op.operand_types != self.result_types:
             raise VerifyException(
-                f'region {name} returns values of types ({", ".join(str(x) for x in yield_op.operand_types)})'
-                f' but expected ({", ".join(str(x) for x in self.result_types)})'
+                f"region {name} returns values of types ({', '.join(str(x) for x in yield_op.operand_types)})"
+                f" but expected ({', '.join(str(x) for x in self.result_types)})"
             )
 
     def verify_(self) -> None:
         if self.cases.elt_type != i64:
             raise VerifyException("case values should have type i64")
 
-        if len(self.cases.data) != len(self.case_regions):
+        if len(self.cases) != len(self.case_regions):
             raise VerifyException(
-                f"has {len(self.case_regions)} case regions but {len(self.cases.data)} case values"
+                f"has {len(self.case_regions)} case regions but {len(self.cases)} case values"
             )
 
-        cases = self.cases.data.data
-        if len(set(cases)) != len(cases):
+        cases = self.cases
+        if len(set(cases.iter_values())) != len(cases):
             raise VerifyException("has duplicate case value")
 
         self._verify_region(self.default_region, "default")
-        for name, region in zip(cases, self.case_regions):
-            self._verify_region(region, str(name.data))
+        for name, region in zip(cases.iter_values(), self.case_regions, strict=True):
+            self._verify_region(region, str(name))
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -767,8 +664,10 @@ class IndexSwitchOp(IRDLOperation):
             printer.print_string(" -> ")
             printer.print_list(self.result_types, printer.print_attribute)
         printer.print_string("\n")
-        for case_value, case_region in zip(self.cases.data.data, self.case_regions):
-            printer.print_string(f"case {case_value.data} ")
+        for case_value, case_region in zip(
+            self.cases.iter_values(), self.case_regions, strict=True
+        ):
+            printer.print_string(f"case {case_value} ")
             printer.print_region(case_region)
             printer.print_string("\n")
 
@@ -801,14 +700,14 @@ class IndexSwitchOp(IRDLOperation):
 Scf = Dialect(
     "scf",
     [
-        If,
-        For,
-        Yield,
-        Condition,
+        IfOp,
+        ForOp,
+        YieldOp,
+        ConditionOp,
         ParallelOp,
         ReduceOp,
         ReduceReturnOp,
-        While,
+        WhileOp,
         IndexSwitchOp,
     ],
     [],

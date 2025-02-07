@@ -8,20 +8,20 @@ builtin.module {
 %1 = "csl.zeros"() : () -> memref<512xf32>
 %2 = "csl.get_mem_dsd"(%1, %0) : (memref<512xf32>, i16) -> !csl<dsd mem1d_dsd>
 
-%3 = arith.constant 1 : si16
-%4 = "csl.increment_dsd_offset"(%2, %3) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+%int8 = arith.constant 3 : si8
+%3 = "csl.set_dsd_stride"(%2, %int8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
 
-%5 = arith.constant 510 : ui16
-%6 = "csl.set_dsd_length"(%4, %5) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
+%4 = arith.constant 1 : si16
+%5 = "csl.increment_dsd_offset"(%3, %4) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
 
-%int8 = arith.constant 1 : si8
-%7 = "csl.set_dsd_stride"(%6, %int8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
+%6 = arith.constant 510 : ui16
+%7 = "csl.set_dsd_length"(%5, %6) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
 
 "test.op"(%7) : (!csl<dsd mem1d_dsd>) -> ()
 
 // CHECK-NEXT:  %0 = "csl.zeros"() : () -> memref<512xf32>
 // CHECK-NEXT:  %1 = arith.constant 510 : ui16
-// CHECK-NEXT:  %2 = "csl.get_mem_dsd"(%0, %1) <{"offsets" = [1 : si16], "strides" = [1 : si8]}> : (memref<512xf32>, ui16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:  %2 = "csl.get_mem_dsd"(%0, %1) <{tensor_access = affine_map<(d0) -> (((d0 * 3) + 1))>}> : (memref<512xf32>, ui16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:  "test.op"(%2) : (!csl<dsd mem1d_dsd>) -> ()
 
 
@@ -41,14 +41,13 @@ builtin.module {
 "test.op"(%19) : (!csl<dsd mem1d_dsd>) -> ()
 
 // CHECK-NEXT:  %3 = "test.op"() : () -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:  %4 = arith.constant 2 : si16
-// CHECK-NEXT:  %5 = arith.addi %4, %4 : si16
-// CHECK-NEXT:  %6 = "csl.increment_dsd_offset"(%3, %5) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:  %7 = arith.constant 511 : ui16
-// CHECK-NEXT:  %8 = "csl.set_dsd_length"(%6, %7) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:  %9 = arith.constant 3 : si8
-// CHECK-NEXT:  %10 = "csl.set_dsd_stride"(%8, %9) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:  "test.op"(%10) : (!csl<dsd mem1d_dsd>) -> ()
+// CHECK-NEXT:  %4 = arith.constant 4 : si16
+// CHECK-NEXT:  %5 = "csl.increment_dsd_offset"(%3, %4) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:  %6 = arith.constant 511 : ui16
+// CHECK-NEXT:  %7 = "csl.set_dsd_length"(%5, %6) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:  %8 = arith.constant 3 : si8
+// CHECK-NEXT:  %9 = "csl.set_dsd_stride"(%7, %8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:  "test.op"(%9) : (!csl<dsd mem1d_dsd>) -> ()
 
 }
 // CHECK-NEXT: }

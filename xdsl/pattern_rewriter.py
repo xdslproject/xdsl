@@ -10,7 +10,7 @@ from typing import TypeVar, Union, final, get_args, get_origin
 
 from typing_extensions import deprecated
 
-from xdsl.builder import BuilderListener
+from xdsl.builder import Builder, BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -22,8 +22,10 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.irdl import GenericAttrConstraint, base
+from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @dataclass(eq=False)
@@ -75,8 +77,8 @@ class PatternRewriterListener(BuilderListener):
             )
 
 
-@dataclass(eq=False)
-class PatternRewriter(PatternRewriterListener):
+@dataclass(eq=False, init=False)
+class PatternRewriter(Builder, PatternRewriterListener):
     """
     A rewriter used during pattern matching.
     Once an operation is matched, this rewriter is used to apply
@@ -88,6 +90,11 @@ class PatternRewriter(PatternRewriterListener):
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
+
+    def __init__(self, current_operation: Operation):
+        PatternRewriterListener.__init__(self)
+        self.current_operation = current_operation
+        Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
         self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
@@ -344,25 +351,38 @@ class PatternRewriter(PatternRewriterListener):
         self.has_done_action = True
         return Rewriter.move_region_contents_to_new_regions(region)
 
+    def inline_region(self, region: Region, insertion_point: BlockInsertPoint) -> None:
+        """Move the region blocks to the specified insertion point."""
+        self.has_done_action = True
+        Rewriter.inline_region(region, insertion_point)
+
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.before(target))` instead"
+    )
     def inline_region_before(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_before(region, target)
+        self.inline_region(region, BlockInsertPoint.before(target))
 
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.after(target))` instead"
+    )
     def inline_region_after(self, region: Region, target: Block) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_after(region, target)
+        self.inline_region(region, BlockInsertPoint.after(target))
 
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.at_start(target))` instead"
+    )
     def inline_region_at_start(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_at_start(region, target)
+        self.inline_region(region, BlockInsertPoint.at_start(target))
 
+    @deprecated(
+        "Please use `inline_region(region, BlockInsertPoint.at_end(target))` instead"
+    )
     def inline_region_at_end(self, region: Region, target: Region) -> None:
         """Move the region blocks to an existing region."""
-        self.has_done_action = True
-        Rewriter.inline_region_at_end(region, target)
+        self.inline_region(region, BlockInsertPoint.at_end(target))
 
 
 class RewritePattern(ABC):
@@ -551,8 +571,34 @@ _AttributeT = TypeVar("_AttributeT", bound=Attribute)
 _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
+def attr_constr_rewrite_pattern(
+    constr: GenericAttrConstraint[_AttributeT],
+) -> Callable[
+    [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
+    Callable[[_TypeConversionPatternT, Attribute], Attribute | None],
+]:
+    """
+    This function is intended to be used as a decorator on a TypeConversionPattern
+    method. It uses the passed constraint to match on a specific attribute type before
+    calling the decorated function.
+    """
+
+    def wrapper(
+        func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
+    ):
+        @wraps(func)
+        def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
+            if isattr(typ, constr):
+                return func(self, typ)
+            return None
+
+        return impl
+
+    return wrapper
+
+
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
+    func: Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None],
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern
@@ -561,14 +607,8 @@ def attr_type_rewrite_pattern(
     """
     params = list(inspect.signature(func).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
-
-    @wraps(func)
-    def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-        if isa(typ, expected_type):
-            return func(self, typ)
-        return None
-
-    return impl
+    constr = base(expected_type)
+    return attr_constr_rewrite_pattern(constr)(func)
 
 
 @dataclass(eq=False, repr=False)
@@ -668,7 +708,7 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
-    post_walk_func: Callable[[Operation, PatternRewriterListener], bool] | None = field(
+    post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
         default=None
     )
     """
@@ -704,7 +744,11 @@ class PatternRewriteWalker:
         """Handle removal of an operation."""
         if self.apply_recursively:
             self._add_operands_to_worklist(op.operands)
-        self._worklist.remove(op)
+        if op.regions:
+            for sub_op in op.walk():
+                self._worklist.remove(sub_op)
+        else:
+            self._worklist.remove(op)
 
     def _handle_operation_modification(self, op: Operation) -> None:
         """Handle modification of an operation."""
@@ -751,19 +795,19 @@ class PatternRewriteWalker:
         Rewrite operations nested in the given operation by repeatedly applying the
         pattern. Returns `True` if the IR was mutated.
         """
-        return self.rewrite_op(module)
+        return self.rewrite_region(module.body)
 
-    def rewrite_op(self, op: Operation) -> bool:
+    def rewrite_region(self, region: Region) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
         pattern. Returns `True` if the IR was mutated.
         """
         pattern_listener = self._get_rewriter_listener()
 
-        self._populate_worklist(op)
+        self._populate_worklist(region)
         op_was_modified = self._process_worklist(pattern_listener)
         if self.post_walk_func is not None:
-            op_was_modified |= self.post_walk_func(op, pattern_listener)
+            op_was_modified |= self.post_walk_func(region, pattern_listener)
 
         if not self.apply_recursively:
             return op_was_modified
@@ -771,14 +815,14 @@ class PatternRewriteWalker:
         result = op_was_modified
 
         while op_was_modified:
-            self._populate_worklist(op)
+            self._populate_worklist(region)
             op_was_modified = self._process_worklist(pattern_listener)
             if self.post_walk_func is not None:
-                op_was_modified |= self.post_walk_func(op, pattern_listener)
+                op_was_modified |= self.post_walk_func(region, pattern_listener)
 
         return result
 
-    def _populate_worklist(self, op: Operation) -> None:
+    def _populate_worklist(self, op: Operation | Region | Block) -> None:
         """Populate the worklist with all nested operations."""
         # We walk in reverse order since we use a stack for our worklist.
         for sub_op in op.walk(
@@ -807,6 +851,7 @@ class PatternRewriteWalker:
             # Reset the rewriter on `op`
             rewriter.has_done_action = False
             rewriter.current_operation = op
+            rewriter.insertion_point = InsertPoint.before(op)
 
             # Apply the pattern on the operation
             try:

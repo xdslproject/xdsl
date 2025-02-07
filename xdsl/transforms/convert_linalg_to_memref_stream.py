@@ -23,7 +23,9 @@ def iterator_type_attr(t: linalg.IteratorTypeAttr) -> memref_stream.IteratorType
 
 class ConvertGenericOpPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.Generic, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(
+        self, op: linalg.GenericOp, rewriter: PatternRewriter
+    ) -> None:
         if op.res:
             raise NotImplementedError(
                 "converting linalg.generic with results not supported"
@@ -61,7 +63,7 @@ class ConvertYieldOpPattern(RewritePattern):
         rewriter.replace_matched_op(memref_stream.YieldOp(*op.operands))
 
 
-class ConvertLinalgToMemrefStreamPass(ModulePass):
+class ConvertLinalgToMemRefStreamPass(ModulePass):
     name = "convert-linalg-to-memref-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:

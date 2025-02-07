@@ -19,7 +19,7 @@ def insert_eclass_ops(block: Block):
         results = op.results
 
         # Skip special ops such as return ops
-        if isinstance(op, func.Return):
+        if isinstance(op, func.ReturnOp):
             continue
 
         if len(results) != 1:
@@ -52,7 +52,7 @@ class InsertEclassOps(RewritePattern):
         insert_eclass_ops(op.body.block)
 
 
-class EqsatCreateEclasses(ModulePass):
+class EqsatCreateEclassesPass(ModulePass):
     """
     Create initial eclasses from an MLIR program.
 

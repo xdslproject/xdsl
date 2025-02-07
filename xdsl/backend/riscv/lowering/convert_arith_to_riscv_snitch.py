@@ -61,7 +61,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
                     return
                 cls = self.riscv_snitch_v_f16_op_cls
             case _:
-                assert False, f"Unexpected float type {op.lhs.type}"
+                raise ValueError(f"Unexpected float type {op.lhs.type}")
 
         rv_flags = riscv.FastMathFlagsAttr("none")
         if op.fastmath is not None:
@@ -74,7 +74,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
 
 
 lower_arith_addf = LowerBinaryFloatVectorOp(
-    arith.Addf, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
+    arith.AddfOp, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
 )
 
 

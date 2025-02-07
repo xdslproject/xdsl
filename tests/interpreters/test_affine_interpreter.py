@@ -7,9 +7,9 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
-from xdsl.interpreters.memref import MemrefFunctions
-from xdsl.interpreters.ptr import TypedPtr
+from xdsl.interpreters.memref import MemRefFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
@@ -31,8 +31,8 @@ def module_op():
             ),
         ).body
     ):
-        alloc_op_0 = memref.Alloc.get(index, None, (2, 3))
-        alloc_op_1 = memref.Alloc.get(index, None, (3, 2))
+        alloc_op_0 = memref.AllocOp.get(index, None, (2, 3))
+        alloc_op_1 = memref.AllocOp.get(index, None, (3, 2))
 
         @Builder.implicit_region((index,))
         def init_rows_region(args: tuple[Any, ...]):
@@ -41,15 +41,15 @@ def module_op():
             @Builder.implicit_region((index,))
             def init_cols_region(args: tuple[Any, ...]):
                 (col,) = args
-                sum_op = arith.Addi(row, col)
-                affine.Store(sum_op.result, alloc_op_0.memref, (row, col))
-                affine.Yield.get()
+                sum_op = arith.AddiOp(row, col)
+                affine.StoreOp(sum_op.result, alloc_op_0.memref, (row, col))
+                affine.YieldOp.get()
 
-            affine.For.from_region((), (), (), (), 0, 3, init_cols_region)
+            affine.ForOp.from_region((), (), (), (), 0, 3, init_cols_region)
 
-            affine.Yield.get()
+            affine.YieldOp.get()
 
-        affine.For.from_region((), (), (), (), 0, 2, init_rows_region)
+        affine.ForOp.from_region((), (), (), (), 0, 2, init_rows_region)
 
         @Builder.implicit_region((index,))
         def transpose_rows_region(args: tuple[Any, ...]):
@@ -58,16 +58,16 @@ def module_op():
             @Builder.implicit_region((index,))
             def transpose_cols_region(args: tuple[Any, ...]):
                 (col,) = args
-                res = affine.Load(alloc_op_0.memref, (row, col)).result
-                affine.Store(res, alloc_op_1.memref, (col, row))
-                affine.Yield.get()
+                res = affine.LoadOp(alloc_op_0.memref, (row, col)).result
+                affine.StoreOp(res, alloc_op_1.memref, (col, row))
+                affine.YieldOp.get()
 
-            affine.For.from_region((), (), (), (), 0, 3, transpose_cols_region)
+            affine.ForOp.from_region((), (), (), (), 0, 3, transpose_cols_region)
 
-            affine.Yield.get()
+            affine.YieldOp.get()
 
-        affine.For.from_region((), (), (), (), 0, 2, transpose_rows_region)
-        func.Return(alloc_op_0.memref, alloc_op_1.memref)
+        affine.ForOp.from_region((), (), (), (), 0, 2, transpose_rows_region)
+        func.ReturnOp(alloc_op_0.memref, alloc_op_1.memref)
 
 
 def test_functions():
@@ -75,7 +75,7 @@ def test_functions():
 
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(ArithFunctions())
-    interpreter.register_implementations(MemrefFunctions())
+    interpreter.register_implementations(MemRefFunctions())
     interpreter.register_implementations(AffineFunctions())
     interpreter.register_implementations(FuncFunctions())
 

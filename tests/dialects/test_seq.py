@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.seq import (
-    ClockDivider,
+    ClockDividerOp,
     CompRegOp,
     clock,
 )
@@ -16,7 +16,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def test_clockdivider_verify():
-    clock_div = ClockDivider(
+    clock_div = ClockDividerOp(
         TestSSAValue(clock),
         IntegerAttr(512, i32),
     )

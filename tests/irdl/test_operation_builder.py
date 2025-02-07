@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.test import TestTermOp
 from xdsl.ir import Block, Region
@@ -28,6 +28,7 @@ from xdsl.irdl import (
     region_def,
     result_def,
     successor_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -449,9 +450,9 @@ def test_noop_region():
 
 
 def test_singleop_region():
-    a = Constant.from_int_and_width(1, i32)
+    a = ConstantOp.from_int_and_width(1, i32)
     region0 = Region(Block([a]))
-    assert type(region0.op) is Constant
+    assert type(region0.op) is ConstantOp
 
 
 @irdl_op_definition
@@ -583,7 +584,7 @@ class SuccessorOp(IRDLOperation):
 
     successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_successor_op_successor():
@@ -605,7 +606,7 @@ class OptSuccessorOp(IRDLOperation):
 
     successor = opt_successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_opt_successor_builder():
@@ -633,7 +634,7 @@ class VarSuccessorOp(IRDLOperation):
 
     successor = var_successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_var_successor_builder():
@@ -658,7 +659,7 @@ class TwoVarSuccessorOp(IRDLOperation):
     res2 = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
 
 def test_two_var_successor_builder():

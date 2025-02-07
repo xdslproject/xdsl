@@ -41,7 +41,7 @@ class ApplyRedundantOperands(RewritePattern):
                 continue
             a.replace_by(bbargs[rbargs[i]])
 
-        cse(op.region.block)
+        cse(op.region.block, rewriter)
 
 
 class ApplyUnusedOperands(RewritePattern):
@@ -109,3 +109,14 @@ class ApplyUnusedResults(RewritePattern):
 
         rewriter.replace_op(old_return, stencil.ReturnOp.get(return_args))
         rewriter.replace_matched_op(new, replace_results)
+
+
+class RemoveCastWithNoEffect(RewritePattern):
+    """
+    Remove `stencil.cast` where input and output types are equal.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.CastOp, rewriter: PatternRewriter) -> None:
+        if op.result.type == op.field.type:
+            rewriter.replace_matched_op([], new_results=[op.field])

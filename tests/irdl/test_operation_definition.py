@@ -48,6 +48,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -409,7 +410,7 @@ def test_range_var_fail_not_satisfy_constraint():
 
 
 @irdl_op_definition
-class OperationWithoutProperty(IRDLOperation):
+class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
     prop1 = prop_def(Attribute)
@@ -417,7 +418,7 @@ class OperationWithoutProperty(IRDLOperation):
 
 # Check that an operation cannot accept properties that are not defined
 def test_unknown_property():
-    op = OperationWithoutProperty.create(properties={"prop1": i32, "prop2": i32})
+    op = WithoutPropOp.create(properties={"prop1": i32, "prop2": i32})
     with pytest.raises(
         VerifyException, match="property 'prop2' is not defined by the operation"
     ):
@@ -808,7 +809,7 @@ class EntryArgsOp(IRDLOperation):
     name = "test.entry_args"
     body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
 
-    traits = frozenset((NoTerminator(),))
+    traits = traits_def(NoTerminator())
 
 
 def test_entry_args_op():
@@ -877,17 +878,17 @@ def test_default_accessors():
 
     assert isinstance(parsed, DefaultOp)
 
-    assert parsed.prop.value.data == 0
+    assert not parsed.prop.value.data
 
     assert parsed.properties.get("opt_prop") is None
 
-    assert parsed.opt_prop.value.data == 1
+    assert parsed.opt_prop.value.data
 
-    assert parsed.attr.value.data == 0
+    assert not parsed.attr.value.data
 
     assert parsed.attributes.get("opt_attr") is None
 
-    assert parsed.opt_attr.value.data == 1
+    assert parsed.opt_attr.value.data
 
 
 def test_generic_accessors():
@@ -900,14 +901,14 @@ def test_generic_accessors():
 
     assert isinstance(parsed, DefaultOp)
 
-    assert parsed.prop.value.data == 0
+    assert not parsed.prop.value.data
 
     assert parsed.properties.get("opt_prop") is None
 
-    assert parsed.opt_prop.value.data == 1
+    assert parsed.opt_prop.value.data
 
-    assert parsed.attr.value.data == 0
+    assert not parsed.attr.value.data
 
     assert parsed.attributes.get("opt_attr") is None
 
-    assert parsed.opt_attr.value.data == 1
+    assert parsed.opt_attr.value.data

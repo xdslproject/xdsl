@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     FunctionType,
     IntegerAttr,
     IntegerType,
@@ -13,12 +11,8 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
 )
 from xdsl.dialects.utils import (
-    parse_call_op_like,
     parse_func_op_like,
-    parse_return_op_like,
-    print_call_op_like,
     print_func_op_like,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
@@ -28,6 +22,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_result_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -52,7 +47,7 @@ class SyscallOp(IRDLOperation):
 
     def __init__(
         self,
-        num: int | AnyIntegerAttr,
+        num: int | IntegerAttr,
         has_result: bool = False,
         operands: list[SSAValue | Operation] = [],
     ):
@@ -84,6 +79,10 @@ class CallOp(riscv.RISCVInstruction):
     callee = attr_def(SymbolRefAttr)
     ress = var_result_def(riscv.RISCVRegisterType)
 
+    assembly_format = (
+        "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
+    )
+
     def __init__(
         self,
         callee: SymbolRefAttr,
@@ -110,27 +109,6 @@ class CallOp(riscv.RISCVInstruction):
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
-
-    def print(self, printer: Printer):
-        print_call_op_like(
-            printer,
-            self,
-            self.callee,
-            self.args,
-            self.attributes,
-            reserved_attr_names=("callee",),
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> CallOp:
-        callee, arguments, results, extra_attributes = parse_call_op_like(
-            parser, reserved_attr_names=("callee",)
-        )
-        ress = cast(tuple[riscv.RISCVRegisterType, ...], results)
-        call = CallOp(callee, arguments, ress)
-        if extra_attributes is not None:
-            call.attributes |= extra_attributes.data
-        return call
 
     def assembly_instruction_name(self) -> str:
         return "jal"
@@ -166,12 +144,10 @@ class FuncOp(riscv.RISCVAsmOperation):
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
 
-    traits = frozenset(
-        [
-            SymbolOpInterface(),
-            FuncOpCallableInterface(),
-            IsolatedFromAbove(),
-        ]
+    traits = traits_def(
+        SymbolOpInterface(),
+        FuncOpCallableInterface(),
+        IsolatedFromAbove(),
     )
 
     def __init__(
@@ -197,18 +173,16 @@ class FuncOp(riscv.RISCVAsmOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (
-            name,
-            input_types,
-            return_types,
-            region,
-            extra_attrs,
-            arg_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
+            parse_func_op_like(
+                parser,
+                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            )
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in riscv_func")
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in riscv_func")
         func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
@@ -243,7 +217,9 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = traits_def(IsTerminator(), HasParent(FuncOp))
+
+    assembly_format = "attr-dict ($values^ `:` type($values))?"
 
     def __init__(
         self,
@@ -264,16 +240,6 @@ class ReturnOp(riscv.RISCVInstruction):
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.values)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReturnOp:
-        attrs, args = parse_return_op_like(parser)
-        op = ReturnOp(*args)
-        op.attributes.update(attrs)
-        return op
 
     def assembly_instruction_name(self) -> str:
         return "ret"

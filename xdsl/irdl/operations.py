@@ -21,16 +21,19 @@ from typing import (
     overload,
 )
 
+from typing_extensions import assert_never
+
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
     Block,
     Operation,
     OpResult,
-    OpTrait,
+    OpTraits,
     Region,
     SSAValue,
 )
+from xdsl.traits import OpTrait
 from xdsl.utils.exceptions import (
     ParseError,
     PyRDLOpDefinitionError,
@@ -353,10 +356,7 @@ class VarOperandDef(OperandDef, VariadicDef):
 
     def __init__(
         self,
-        attr: Attribute
-        | type[Attribute]
-        | AttrConstraint
-        | GenericRangeConstraint[Attribute],
+        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint,
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -383,13 +383,10 @@ class ResultDef(OperandOrResultDef):
     """The result constraint."""
 
     def __init__(
-        self,
-        attr: Attribute
-        | type[Attribute]
-        | AttrConstraint
-        | GenericRangeConstraint[Attribute],
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
     ):
-        self.constr = range_constr_coercion(attr)
+        assert not isinstance(attr, GenericRangeConstraint)
+        self.constr = single_range_constr_coercion(attr)
 
 
 @dataclass(init=False)
@@ -397,11 +394,7 @@ class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
 
     def __init__(
-        self,
-        attr: Attribute
-        | type[Attribute]
-        | AttrConstraint
-        | GenericRangeConstraint[Attribute],
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -527,36 +520,24 @@ class _OpDefField(Generic[_ClsT]):
 
 
 class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: (
-        RangeConstraint
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-        | ConstraintVar
-    )
+    param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
 
     def __init__(
         self,
         cls: type[_ClsT],
-        param: RangeConstraint
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-        | ConstraintVar,
+        param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar,
     ):
         super().__init__(cls)
         self.param = param
 
 
 class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
+    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
 
     def __init__(
         self,
         cls: type[_ClsT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     ):
         super().__init__(cls)
         self.param = param
@@ -586,7 +567,7 @@ class _AttrOrPropFieldDef(
     def __init__(
         self,
         cls: type[AttrOrPropInvT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
         ir_name: str | None = None,
         default_value: Attribute | None = None,
     ):
@@ -633,15 +614,8 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
     pass
 
 
-@dataclass
-class _TraitsFieldDef:
-    value: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]]
-
-
 def result_def(
-    constraint: (
-        AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
-    ) = Attribute,
+    constraint: (AttrConstraint | Attribute | type[Attribute] | TypeVar) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -740,12 +714,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: (
-        type[AttributeInvT]
-        | TypeVar
-        | GenericAttrConstraint[AttributeInvT]
-        | ConstraintVar
-    ),
+    constraint: (type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT]),
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -805,9 +774,7 @@ def opt_attr_def(
 
 
 def operand_def(
-    constraint: (
-        AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
-    ) = Attribute,
+    constraint: (AttrConstraint | Attribute | type[Attribute] | TypeVar) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -948,18 +915,22 @@ def opt_successor_def(
     return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
-def traits_def(
-    traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]],
-    *,
-    default: None = None,
-    resolver: None = None,
-    init: Literal[False] = False,
-) -> frozenset[OpTrait]:
+# traits
+
+
+def traits_def(*traits: OpTrait):
     """
     Defines the traits of an operation.
-    This should only be assigned on the `traits` field of an operation definition.
     """
-    return cast(frozenset[OpTrait], _TraitsFieldDef(traits))
+    return OpTraits(frozenset(traits))
+
+
+def lazy_traits_def(future_traits: Callable[[], tuple[OpTrait, ...]]):
+    """
+    Defines the traits of an operation, in the case where any trait uses an operation
+    that is not yet declared.
+    """
+    return OpTraits(future_traits)
 
 
 # Exclude `object`
@@ -995,9 +966,7 @@ class OpDef:
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    _traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]] = field(
-        default_factory=frozenset
-    )
+    traits: OpTraits = field(default_factory=lambda: traits_def())
 
     accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
         default_factory=dict
@@ -1008,18 +977,6 @@ class OpDef:
     or is already used by the operation, so we need to use a different name.
     """
     assembly_format: str | None = field(default=None)
-
-    @property
-    def traits(self) -> frozenset[OpTrait]:
-        if callable(self._traits):
-            self._traits = self._traits()
-        return self._traits
-
-    @traits.setter
-    def traits(
-        self, traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]]
-    ) -> None:
-        self._traits = traits
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -1127,16 +1084,13 @@ class OpDef:
                 if field_name == "traits":
                     traits = value
                     field_names.add("traits")
-                    if isinstance(traits, frozenset):
-                        op_def.traits = traits
-                        continue
-                    if not isinstance(traits, _TraitsFieldDef):
+                    if not isinstance(traits, OpTraits):
                         raise PyRDLOpDefinitionError(
                             f"pyrdl operation definition '{pyrdl_def.__name__}' "
-                            "traits field should either be a frozenset of "
-                            f"'{OpTrait.__name__}', or a 'traits_def' definition."
+                            "traits field should be an instance of"
+                            f"'{OpTraits.__name__}'."
                         )
-                    op_def.traits = traits.value
+                    op_def.traits = traits
                     continue
 
                 # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
@@ -1175,14 +1129,14 @@ class OpDef:
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_range_constraint(
                     pyrdl_constr: (
-                        GenericRangeConstraint[Attribute]
+                        RangeConstraint
                         | AttrConstraint
                         | Attribute
                         | type[Attribute]
                         | TypeVar
                         | ConstraintVar
                     ),
-                ) -> GenericRangeConstraint[Attribute]:
+                ) -> RangeConstraint:
                     if isinstance(pyrdl_constr, GenericRangeConstraint):
                         return pyrdl_constr
                     return RangeOf(get_constraint(pyrdl_constr))
@@ -1366,15 +1320,16 @@ def get_construct_defs(
     | list[tuple[str, SuccessorDef]]
 ):
     """Get the definitions of this type in an operation definition."""
-    if construct == VarIRConstruct.OPERAND:
-        return op_def.operands
-    if construct == VarIRConstruct.RESULT:
-        return op_def.results
-    if construct == VarIRConstruct.REGION:
-        return op_def.regions
-    if construct == VarIRConstruct.SUCCESSOR:
-        return op_def.successors
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return op_def.operands
+        case VarIRConstruct.RESULT:
+            return op_def.results
+        case VarIRConstruct.REGION:
+            return op_def.regions
+        case VarIRConstruct.SUCCESSOR:
+            return op_def.successors
+    assert_never(construct)
 
 
 def get_op_constructs(
@@ -1385,15 +1340,16 @@ def get_op_constructs(
     For example, if the argument type is an operand, get the list of
     operands.
     """
-    if construct == VarIRConstruct.OPERAND:
-        return op.operands
-    if construct == VarIRConstruct.RESULT:
-        return op.results
-    if construct == VarIRConstruct.REGION:
-        return op.regions
-    if construct == VarIRConstruct.SUCCESSOR:
-        return op.successors
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return op.operands
+        case VarIRConstruct.RESULT:
+            return op.results
+        case VarIRConstruct.REGION:
+            return op.regions
+        case VarIRConstruct.SUCCESSOR:
+            return op.successors
+    assert_never(construct)
 
 
 def get_attr_size_option(
@@ -1405,15 +1361,16 @@ def get_attr_size_option(
     | AttrSizedSuccessorSegments
 ]:
     """Get the AttrSized option for this type."""
-    if construct == VarIRConstruct.OPERAND:
-        return AttrSizedOperandSegments
-    if construct == VarIRConstruct.RESULT:
-        return AttrSizedResultSegments
-    if construct == VarIRConstruct.REGION:
-        return AttrSizedRegionSegments
-    if construct == VarIRConstruct.SUCCESSOR:
-        return AttrSizedSuccessorSegments
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return AttrSizedOperandSegments
+        case VarIRConstruct.RESULT:
+            return AttrSizedResultSegments
+        case VarIRConstruct.REGION:
+            return AttrSizedRegionSegments
+        case VarIRConstruct.SUCCESSOR:
+            return AttrSizedSuccessorSegments
+    assert_never(construct)
 
 
 def get_same_variadic_size_option(
@@ -1425,15 +1382,16 @@ def get_same_variadic_size_option(
     | SameVariadicSuccessorSize
 ]:
     """Get the AttrSized option for this type."""
-    if construct == VarIRConstruct.OPERAND:
-        return SameVariadicOperandSize
-    if construct == VarIRConstruct.RESULT:
-        return SameVariadicResultSize
-    if construct == VarIRConstruct.REGION:
-        return SameVariadicRegionSize
-    if construct == VarIRConstruct.SUCCESSOR:
-        return SameVariadicSuccessorSize
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return SameVariadicOperandSize
+        case VarIRConstruct.RESULT:
+            return SameVariadicResultSize
+        case VarIRConstruct.REGION:
+            return SameVariadicRegionSize
+        case VarIRConstruct.SUCCESSOR:
+            return SameVariadicSuccessorSize
+    assert_never(construct)
 
 
 def get_multiple_variadic_options(
@@ -1476,7 +1434,7 @@ def get_variadic_sizes_from_attr(
             f"{size_attribute_name} {container_name} is expected to "
             "be a DenseArrayBase of i32"
         )
-    def_sizes = cast(list[int], [size_attr.data for size_attr in attribute.data.data])
+    def_sizes = cast(Sequence[int], attribute.get_values())
 
     if len(def_sizes) != len(defs):
         raise VerifyException(
@@ -1547,28 +1505,24 @@ def get_variadic_sizes(
     if len(variadic_defs) == 1:
         if len(args) - len(defs) + 1 < 0:
             raise VerifyException(
-                f"Expected at least {len(defs) - 1} "
-                f"{def_type_name}s, got {len(defs)}"
+                f"Expected at least {len(defs) - 1} {def_type_name}s, got {len(defs)}"
             )
         return [len(args) - len(defs) + 1]
 
     # If the operation has to related SameSize option, equally distribute the
     # variadic arguments between the variadic definitions.
     option = next((o for o in op_def.options if isinstance(o, same_size_option)), None)
-    if option is not None:
-        non_variadic_defs = len(defs) - len(variadic_defs)
-        variadic_args = len(args) - non_variadic_defs
-        if variadic_args % len(variadic_defs):
-            name = get_construct_name(construct)
-            raise VerifyException(
-                f"Operation has {variadic_args} {name}s for {len(variadic_defs)} variadic {name}s marked as having the same size."
-            )
-        return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
-    # Unreachable, all cases should have been handled.
-    # Additional cases should raise an exception upon
-    # definition of the irdl operation.
-    assert False, "Unexpected xDSL error while fetching variadic sizes"
+    assert option is not None, "Unexpected xDSL error while fetching variadic sizes"
+
+    non_variadic_defs = len(defs) - len(variadic_defs)
+    variadic_args = len(args) - non_variadic_defs
+    if variadic_args % len(variadic_defs):
+        name = get_construct_name(construct)
+        raise VerifyException(
+            f"Operation has {variadic_args} {name}s for {len(variadic_defs)} variadic {name}s marked as having the same size."
+        )
+    return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
 
 def get_operand_result_or_region(
@@ -2090,12 +2044,9 @@ def get_accessors_from_op_def(
             else:
                 new_attrs[accessor_name] = property_field(attribute_name)
 
-    @classmethod
-    @property
-    def get_traits(cls: type[IRDLOperationInvT]):
-        return op_def.traits
-
-    new_attrs["traits"] = get_traits
+    # If the traits are already defined then this is a no-op, as the new attrs are
+    # passed after the existing attrs, otherwise this sets an empty OpTraits.
+    new_attrs["traits"] = op_def.traits
 
     @classmethod
     def get_irdl_definition(cls: type[IRDLOperationInvT]):
@@ -2145,9 +2096,9 @@ def get_accessors_from_op_def(
 def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     """Decorator used on classes to define a new operation definition."""
 
-    assert issubclass(
-        cls, IRDLOperation
-    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
+    assert issubclass(cls, IRDLOperation), (
+        f"class {cls.__name__} should be a subclass of IRDLOperation"
+    )
 
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))

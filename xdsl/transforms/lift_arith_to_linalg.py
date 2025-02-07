@@ -17,7 +17,7 @@ from xdsl.utils.hints import isa
 
 class LiftAddfPass(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Addf, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: arith.AddfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
             rewriter.replace_matched_op(
                 linalg.AddOp(op.operands, [op.lhs], [op.result.type])
@@ -26,7 +26,7 @@ class LiftAddfPass(RewritePattern):
 
 class LiftSubfPass(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Subf, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: arith.SubfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
             rewriter.replace_matched_op(
                 linalg.SubOp(op.operands, [op.lhs], [op.result.type])
@@ -35,7 +35,7 @@ class LiftSubfPass(RewritePattern):
 
 class LiftMulfPass(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Mulf, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: arith.MulfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
             rewriter.replace_matched_op(
                 linalg.MulOp(op.operands, [op.lhs], [op.result.type])

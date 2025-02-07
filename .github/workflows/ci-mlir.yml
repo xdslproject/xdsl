@@ -27,30 +27,23 @@ jobs:
         path: xdsl
         fetch-depth: 2
 
-    - name: Install native dependencies
-      uses: awalsh128/cache-apt-pkgs-action@latest
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
-        packages: mesa-vulkan-drivers
-        version: 1.0
+        enable-cache: true
+        cache-dependency-glob: "xdsl/uv.lock"
 
-    - name: Python Setup
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip' # caching pip dependencies
-        cache-dependency-path: |
-          setup.py
-          requirements.txt
-
-    - name: Upgrade pip
+    - name: Set up Python ${{ matrix.python-version }}
       run: |
-        pip install --upgrade pip
+        # Change directory so that xdsl-opt can be found during installation.
+        cd xdsl
+        uv python install ${{ matrix.python-version }}
 
     - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        pip install -r requirements.txt
+        VENV_EXTRAS="--all-extras" make venv
 
     - name: Cache binaries
       id: cache-binary
@@ -74,7 +67,7 @@ jobs:
 
     - name: Ninja Setup
       if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
+      uses: lukka/get-cmake@aa1df13cce8c30d2cb58efa871271c5a764623f8
 
     - name: MLIR Build Setup
       if: steps.cache-binary.outputs.cache-hit != 'true'
@@ -99,40 +92,33 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        pytest -W error --cov --cov-config=.coveragerc .
+        uv run pytest -W error --cov --cov-config=.coveragerc .
 
     - name: Execute lit tests
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        lit -v tests/filecheck/ -DCOVERAGE
-        lit -v docs/Toy/examples/ -DCOVERAGE
+        uv run lit -v tests/filecheck/ -DCOVERAGE
+        uv run lit -v docs/Toy/examples/ -DCOVERAGE
 
     - name: Test MLIR dependent examples/tutorials
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
-
-    - name: Test MLIR dependent marimo notebooks
-      run: |
-        cd xdsl
-        # Add mlir-opt to the path
-        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        make tests-marimo-mlir
+        uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
     - name: Combine coverage data
       run: |
         cd xdsl
-        coverage combine --append
-        coverage report
-        coverage xml
+        uv run coverage combine --append
+        uv run coverage report
+        uv run coverage xml
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
-      uses: Wandalen/wretry.action@v1
+      uses: Wandalen/wretry.action@v3
       with:
         action: codecov/codecov-action@v4
         attempt_delay: 10000

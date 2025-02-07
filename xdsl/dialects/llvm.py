@@ -8,10 +8,11 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     I64,
-    AnyIntegerAttr,
+    AnyFloatConstr,
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
+    DenseI64ArrayConstr,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -20,9 +21,11 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
     i64,
 )
+from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -38,6 +41,7 @@ from xdsl.irdl import (
     BaseAttr,
     IRDLOperation,
     ParameterDef,
+    ParsePropInAttrDict,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -49,11 +53,18 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoMemoryEffect, SymbolOpInterface
+from xdsl.traits import (
+    IsTerminator,
+    NoMemoryEffect,
+    Pure,
+    SameOperandsAndResultType,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
@@ -75,6 +86,8 @@ def _parse_llvm_type(parser: AttrParser):
         return LLVMPointerType(LLVMPointerType.parse_parameters(parser))
     if parser.parse_optional_characters("array"):
         return LLVMArrayType(LLVMArrayType.parse_parameters(parser))
+    if parser.parse_optional_characters("struct"):
+        return LLVMStructType(LLVMStructType.parse_parameters(parser))
 
 
 def parse_llvm_type(parser: AttrParser):
@@ -364,7 +377,7 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
     rhs = operand_def(T)
     res = result_def(T)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -410,6 +423,17 @@ class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
 class OverflowAttr(OverflowAttrBase):
     name = "llvm.overflow"
 
+    @classmethod
+    def parse(cls, parser: Parser) -> OverflowAttr:
+        if parser.parse_optional_keyword("overflow") is not None:
+            return OverflowAttr(OverflowAttr.parse_parameter(parser))
+        return OverflowAttr("none")
+
+    def print(self, printer: Printer):
+        if self.flags:
+            printer.print(" overflow")
+            self.print_parameter(printer)
+
 
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
@@ -421,7 +445,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     res = result_def(T)
     overflowFlags = opt_prop_def(OverflowAttr)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -440,22 +464,11 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         )
 
     @classmethod
-    def parse_overflow(cls, parser: Parser) -> OverflowAttr:
-        if parser.parse_optional_keyword("overflow") is not None:
-            return OverflowAttr(OverflowAttr.parse_parameter(parser))
-        return OverflowAttr("none")
-
-    def print_overflow(self, printer: Printer) -> None:
-        if self.overflowFlags and self.overflowFlags.flags:
-            printer.print(" overflow")
-            self.overflowFlags.print_parameter(printer)
-
-    @classmethod
     def parse(cls, parser: Parser):
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
-        overflowFlags = cls.parse_overflow(parser)
+        overflowFlags = OverflowAttr.parse(parser)
         attributes = parser.parse_optional_attr_dict()
         parser.parse_characters(":")
         type = parser.parse_type()
@@ -464,10 +477,101 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         printer.print(" ", self.lhs, ", ", self.rhs)
-        self.print_overflow(printer)
+        if self.overflowFlags:
+            self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
         printer.print(" : ")
         printer.print(self.lhs.type)
+
+
+class ArithmeticBinOpExact(IRDLOperation, ABC):
+    """Class for arithmetic binary operations that use an exact flag."""
+
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+    is_exact = opt_prop_def(UnitAttr, prop_name="isExact")
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+        is_exact: UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+            properties={
+                "isExact": is_exact,
+            },
+        )
+
+    @classmethod
+    def parse_exact(cls, parser: Parser):
+        if parser.parse_optional_keyword("exact") is not None:
+            return UnitAttr()
+
+    def print_exact(self, printer: Printer) -> None:
+        if self.is_exact:
+            printer.print(" exact")
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        exact = cls.parse_exact(parser)
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], attributes, exact)
+
+    def print(self, printer: Printer) -> None:
+        self.print_exact(printer)
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.lhs.type)
+
+
+class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
+    """Class for arithmetic binary operations that use a disjoint flag."""
+
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+    is_disjoint = opt_prop_def(UnitAttr, prop_name="isDisjoint")
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = (
+        "(`disjoint` $isDisjoint^)? $lhs `,` $rhs attr-dict `:` type($res)"
+    )
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+        is_disjoint: UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+            properties={
+                "isDisjoint": is_disjoint,
+            },
+        )
 
 
 class IntegerConversionOp(IRDLOperation, ABC):
@@ -475,7 +579,7 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
     res = result_def(IntegerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -503,6 +607,74 @@ class IntegerConversionOp(IRDLOperation, ABC):
         printer.print(self.arg.type, " to ", self.res.type)
 
 
+class IntegerConversionOpNNeg(IRDLOperation, ABC):
+    arg = operand_def(IntegerType)
+    res = result_def(IntegerType)
+    traits = traits_def(NoMemoryEffect())
+    non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
+
+    assembly_format = "(`nneg` $nonNeg^)? $arg attr-dict `:` type($arg) `to` type($res)"
+
+    def __init__(
+        self,
+        arg: SSAValue,
+        res_type: Attribute,
+        attributes: dict[str, Attribute] = {},
+        non_neg: UnitAttr | None = None,
+    ):
+        super().__init__(
+            operands=(arg,),
+            attributes=attributes,
+            result_types=(res_type,),
+            properties={
+                "nonNeg": non_neg,
+            },
+        )
+
+
+class IntegerConversionOpOverflow(IRDLOperation, ABC):
+    arg = operand_def(IntegerType)
+    res = result_def(IntegerType)
+    overflowFlags = opt_prop_def(OverflowAttr)
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        arg: SSAValue,
+        res_type: Attribute,
+        attributes: dict[str, Attribute] = {},
+        overflow: OverflowAttr = OverflowAttr(None),
+    ):
+        super().__init__(
+            operands=(arg,),
+            attributes=attributes,
+            result_types=(res_type,),
+            properties={
+                "overflowFlags": overflow,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_unresolved_operand()
+        overflowFlags = OverflowAttr.parse(parser)
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        arg_type = parser.parse_type()
+        parser.parse_characters("to")
+        res_type = parser.parse_type()
+        operands = parser.resolve_operands([arg], [arg_type], parser.pos)
+        return cls(operands[0], res_type, attributes, overflowFlags)
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.arg)
+        if self.overflowFlags:
+            self.overflowFlags.print(printer)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.arg.type, " to ", self.res.type)
+
+
 @irdl_op_definition
 class AddOp(ArithmeticBinOpOverflow):
     name = "llvm.add"
@@ -519,12 +691,12 @@ class MulOp(ArithmeticBinOpOverflow):
 
 
 @irdl_op_definition
-class UDivOp(ArithmeticBinOperation):
+class UDivOp(ArithmeticBinOpExact):
     name = "llvm.udiv"
 
 
 @irdl_op_definition
-class SDivOp(ArithmeticBinOperation):
+class SDivOp(ArithmeticBinOpExact):
     name = "llvm.sdiv"
 
 
@@ -544,7 +716,7 @@ class AndOp(ArithmeticBinOperation):
 
 
 @irdl_op_definition
-class OrOp(ArithmeticBinOperation):
+class OrOp(ArithmeticBinOpDisjoint):
     name = "llvm.or"
 
 
@@ -559,17 +731,17 @@ class ShlOp(ArithmeticBinOpOverflow):
 
 
 @irdl_op_definition
-class LShrOp(ArithmeticBinOperation):
+class LShrOp(ArithmeticBinOpExact):
     name = "llvm.lshr"
 
 
 @irdl_op_definition
-class AShrOp(ArithmeticBinOperation):
+class AShrOp(ArithmeticBinOpExact):
     name = "llvm.ashr"
 
 
 @irdl_op_definition
-class TruncOp(IntegerConversionOp):
+class TruncOp(IntegerConversionOpOverflow):
     name = "llvm.trunc"
 
     def verify(self, verify_nested_ops: bool = True):
@@ -583,7 +755,7 @@ class TruncOp(IntegerConversionOp):
 
 
 @irdl_op_definition
-class ZExtOp(IntegerConversionOp):
+class ZExtOp(IntegerConversionOpNNeg):
     name = "llvm.zext"
 
     def verify(self, verify_nested_ops: bool = True):
@@ -608,6 +780,86 @@ class SExtOp(IntegerConversionOp):
                 f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
             )
         super().verify(verify_nested_ops)
+
+
+class ICmpPredicateFlag(StrEnum):
+    EQ = "eq"
+    NE = "ne"
+    SLT = "slt"
+    SLE = "sle"
+    SGT = "sgt"
+    SGE = "sge"
+    ULT = "ult"
+    ULE = "ule"
+    UGT = "ugt"
+    UGE = "uge"
+
+    @staticmethod
+    def from_int(index: int) -> ICmpPredicateFlag:
+        return ALL_ICMP_FLAGS[index]
+
+    def to_int(self) -> int:
+        return ICMP_INDEX_BY_FLAG[self]
+
+
+ALL_ICMP_FLAGS = tuple(ICmpPredicateFlag)
+ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
+
+
+@irdl_op_definition
+class ICmpOp(IRDLOperation):
+    name = "llvm.icmp"
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(i1)
+    predicate = prop_def(IntegerAttr[i64])
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        predicate: IntegerAttr[IntegerType],
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[i1],
+            properties={
+                "predicate": predicate,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        predicate_literal = parser.parse_str_literal()
+        predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
+        predicate_int = predicate_value.to_int()
+        predicate = IntegerAttr(predicate_int, i64)
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], predicate, attributes)
+
+    def print_predicate(self, printer: Printer):
+        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f"{flag}")
+
+    def print(self, printer: Printer):
+        printer.print_string(' "')
+        self.print_predicate(printer)
+        printer.print('" ', self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print(self.lhs.type)
 
 
 @irdl_op_definition
@@ -732,7 +984,7 @@ class GEPOp(IRDLOperation):
     rawConstantIndices = prop_def(DenseArrayBase)
     inbounds = opt_prop_def(UnitAttr)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -819,7 +1071,7 @@ class AllocaOp(IRDLOperation):
 
     size = operand_def(IntegerType)
 
-    alignment = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(IntegerAttr)
     elem_type = opt_prop_def(Attribute)
 
     res = result_def()
@@ -851,7 +1103,7 @@ class IntToPtrOp(IRDLOperation):
 
     output = result_def(LLVMPointerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
@@ -925,7 +1177,7 @@ class PtrToIntOp(IRDLOperation):
 
     output = result_def(IntegerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
@@ -1000,7 +1252,7 @@ class NullOp(IRDLOperation):
 
     nullptr = result_def(LLVMPointerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
@@ -1018,12 +1270,12 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position = prop_def(DenseArrayBase)
+    position = prop_def(DenseI64ArrayConstr)
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1048,13 +1300,13 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position = prop_def(DenseArrayBase)
+    position = prop_def(DenseI64ArrayConstr)
     container = operand_def(Attribute)
     value = operand_def(Attribute)
 
     res = result_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1081,7 +1333,7 @@ class UndefOp(IRDLOperation):
 
     res = result_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
@@ -1099,15 +1351,15 @@ class GlobalOp(IRDLOperation):
     thread_local_ = opt_prop_def(UnitAttr)
     visibility_ = opt_prop_def(IntegerAttr[IntegerType])
     value = opt_prop_def(Attribute)
-    alignment = opt_prop_def(AnyIntegerAttr)
-    addr_space = prop_def(AnyIntegerAttr)
-    unnamed_addr = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(IntegerAttr)
+    addr_space = prop_def(IntegerAttr)
+    unnamed_addr = opt_prop_def(IntegerAttr)
     section = opt_prop_def(StringAttr)
 
     # This always needs an empty region as it is in the top level module definition
     body = region_def()
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def __init__(
         self,
@@ -1169,7 +1421,7 @@ class AddressOfOp(IRDLOperation):
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -1295,7 +1547,7 @@ class ReturnOp(IRDLOperation):
 
     arg = opt_operand_def(Attribute)
 
-    traits = frozenset((IsTerminator(), NoMemoryEffect()))
+    traits = traits_def(IsTerminator(), NoMemoryEffect())
 
     def __init__(self, value: Attribute | None = None):
         super().__init__(attributes={"value": value})
@@ -1307,7 +1559,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(Attribute)
     value = prop_def(Attribute)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(self, value: Attribute, value_type: Attribute):
         super().__init__(properties={"value": value}, result_types=[value_type])
@@ -1333,27 +1585,11 @@ class ConstantOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        if isattr(self.value, AnyIntegerAttr) and self.result.type == IntegerType(64):
+        if isattr(self.value, IntegerAttr) and self.result.type == IntegerType(64):
             self.value.print_without_type(printer)
         else:
             printer.print(self.value)
         printer.print(") : ", self.result.type)
-
-
-class FastMathFlag(StrEnum):
-    REASSOC = "reassoc"
-    NO_NANS = "nnan"
-    NO_INFS = "ninf"
-    NO_SIGNED_ZEROS = "nsz"
-    ALLOW_RECIP = "arcp"
-    ALLOW_CONTRACT = "contract"
-    APPROX_FUNC = "afn"
-
-
-@dataclass(frozen=True, init=False)
-class FastMathAttrBase(BitEnumAttribute[FastMathFlag]):
-    none_value = "none"
-    all_value = "fast"
 
 
 @irdl_attr_definition
@@ -1476,59 +1712,163 @@ class ZeroOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($res)"
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     res = result_def(LLVMTypeConstr)
+
+
+class GenericCastOp(IRDLOperation, ABC):
+    arg = operand_def(Attribute)
+    """
+    LLVM-compatible non-aggregate type
+    """
+
+    result = result_def(Attribute)
+    """
+    LLVM-compatible non-aggregate type
+    """
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$arg attr-dict `:` type($arg) `to` type($result)"
+
+    def __init__(self, val: Operation | SSAValue, res_type: Attribute):
+        super().__init__(
+            operands=[SSAValue.get(val)],
+            result_types=[res_type],
+        )
+
+
+class AbstractFloatArithOp(IRDLOperation, ABC):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+
+    irdl_options = [ParsePropInAttrDict(), SameOperandsAndResultType()]
+
+    def __init__(
+        self,
+        lhs: SSAValue | Operation,
+        rhs: SSAValue | Operation,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+        attrs: dict[str, Attribute] | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+            attributes=attrs,
+        )
+
+
+@irdl_op_definition
+class FAddOp(AbstractFloatArithOp):
+    name = "llvm.fadd"
+
+
+@irdl_op_definition
+class FMulOp(AbstractFloatArithOp):
+    name = "llvm.fmul"
+
+
+@irdl_op_definition
+class FDivOp(AbstractFloatArithOp):
+    name = "llvm.fdiv"
+
+
+@irdl_op_definition
+class FSubOp(AbstractFloatArithOp):
+    name = "llvm.fsub"
+
+
+@irdl_op_definition
+class FRemOp(AbstractFloatArithOp):
+    name = "llvm.frem"
+
+
+@irdl_op_definition
+class BitcastOp(GenericCastOp):
+    name = "llvm.bitcast"
+
+
+@irdl_op_definition
+class SIToFPOp(GenericCastOp):
+    name = "llvm.sitofp"
+
+
+@irdl_op_definition
+class FPExtOp(GenericCastOp):
+    name = "llvm.fpext"
 
 
 LLVM = Dialect(
     "llvm",
     [
-        AddOp,
-        SubOp,
-        MulOp,
-        UDivOp,
-        SDivOp,
-        URemOp,
-        SRemOp,
-        AndOp,
-        OrOp,
-        XOrOp,
-        ShlOp,
-        LShrOp,
         AShrOp,
-        TruncOp,
-        ZExtOp,
-        SExtOp,
-        ExtractValueOp,
-        InsertValueOp,
-        InlineAsmOp,
-        UndefOp,
-        AllocaOp,
-        GEPOp,
-        IntToPtrOp,
-        NullOp,
-        LoadOp,
-        StoreOp,
-        GlobalOp,
+        AddOp,
         AddressOfOp,
-        FuncOp,
-        CallOp,
-        ReturnOp,
-        ConstantOp,
+        AllocaOp,
+        AndOp,
+        BitcastOp,
         CallIntrinsicOp,
+        CallOp,
+        ConstantOp,
+        ExtractValueOp,
+        FAddOp,
+        FDivOp,
+        FMulOp,
+        FPExtOp,
+        FRemOp,
+        FSubOp,
+        FuncOp,
+        GEPOp,
+        GlobalOp,
+        ICmpOp,
+        InlineAsmOp,
+        InsertValueOp,
+        IntToPtrOp,
+        LShrOp,
+        LoadOp,
+        MulOp,
+        NullOp,
+        OrOp,
+        ReturnOp,
+        SDivOp,
+        SExtOp,
+        SIToFPOp,
+        SRemOp,
+        ShlOp,
+        StoreOp,
+        SubOp,
+        TruncOp,
+        UDivOp,
+        URemOp,
+        UndefOp,
+        XOrOp,
+        ZExtOp,
         ZeroOp,
     ],
     [
-        LLVMStructType,
-        LLVMPointerType,
-        LLVMArrayType,
-        LLVMVoidType,
-        LLVMFunctionType,
-        LinkageAttr,
         CallingConventionAttr,
-        TailCallKindAttr,
         FastMathAttr,
+        LLVMArrayType,
+        LLVMFunctionType,
+        LLVMPointerType,
+        LLVMStructType,
+        LLVMVoidType,
+        LinkageAttr,
         OverflowAttr,
+        TailCallKindAttr,
     ],
 )

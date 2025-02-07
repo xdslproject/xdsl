@@ -9,29 +9,34 @@ from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith, func, riscv, riscv_func
+from xdsl.dialects import arith, func, get_all_dialects, riscv, riscv_func
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
+from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
+from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
+    get_all_passes,
     individual_rewrite,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 
 @pytest.mark.asyncio
 async def test_inputs():
     """Test different inputs produce desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -42,7 +47,7 @@ async def test_inputs():
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
 
-        # Test inccorect input
+        # Test incorrect input
         app.input_text_area.insert("dkjfd")
         await pilot.pause()
         assert (
@@ -86,9 +91,9 @@ async def test_inputs():
         with ImplicitBuilder(expected_module.body):
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
-                two = arith.Constant(IntegerAttr(2, index)).result
-                res = arith.Muli(n, two)
-                func.Return(res)
+                two = arith.ConstantOp(IntegerAttr(2, index)).result
+                res = arith.MuliOp(n, two)
+                func.ReturnOp(res)
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
@@ -97,7 +102,10 @@ async def test_inputs():
 @pytest.mark.asyncio
 async def test_buttons():
     """Test pressing keys has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -158,18 +166,12 @@ async def test_buttons():
         # Select two passes
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
-            ),
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
         )
 
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_arith_to_riscv.ConvertArithToRiscvPass,
-                PipelinePassSpec(name="convert-arith-to-riscv", args={}),
-            ),
+            convert_arith_to_riscv.ConvertArithToRiscvPass(),
         )
 
         # assert that pass selection affected Output Text Area
@@ -197,6 +199,15 @@ async def test_buttons():
 }
 """
         )
+
+        # Test that the current pipeline command is correctly copied
+        def callback(x: str):
+            assert (
+                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
+            )
+
+        _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
+        await pilot.click("#copy_query_button")
 
         current_pipeline = app.pass_pipeline
         # press "Remove Last Pass" button
@@ -249,9 +260,12 @@ async def test_buttons():
         with ImplicitBuilder(expected_module.body):
             function = func.FuncOp("hello", ((index,), (index,)))
             with ImplicitBuilder(function.body) as (n,):
-                two = arith.Constant(IntegerAttr(2, index)).result
-                res = arith.Muli(n, two)
-                func.Return(res)
+                n.name_hint = "n"
+                two = arith.ConstantOp(IntegerAttr(2, index)).result
+                two.name_hint = "two"
+                res = arith.MuliOp(n, two).result
+                res.name_hint = "res"
+                func.ReturnOp(res)
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
@@ -265,7 +279,13 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.available_pass_list == get_condensed_pass_list(expected_module)
+        rewrites = get_all_possible_rewrites(
+            expected_module,
+            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
+        )
+        assert app.available_pass_list == get_condensed_pass_list(
+            expected_module, app.all_passes
+        ) + tuple(rewrites)
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
@@ -278,7 +298,10 @@ async def test_buttons():
 @pytest.mark.asyncio
 async def test_rewrites():
     """Test rewrite application has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -288,8 +311,8 @@ async def test_rewrites():
         app.input_text_area.insert(
             """
         func.func @hello(%n : i32) -> i32 {
-  %two = arith.constant 0 : i32
-  %res = arith.addi %two, %n : i32
+  %c0 = arith.constant 0 : i32
+  %res = arith.addi %n, %c0 : i32
   func.return %res : i32
 }
         """
@@ -299,32 +322,26 @@ async def test_rewrites():
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
-            display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
-            module_pass=individual_rewrite.IndividualRewrite,
-            pass_spec=list(
-                parse_pipeline(
-                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
-                )
-            )[0],
+            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
+            module_pass=individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
+            ),
         )
 
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
         assert isinstance(app.current_module, ModuleOp)
-        condensed_list = get_condensed_pass_list(app.current_module) + (addi_pass,)
+        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
+            addi_pass,
+        )
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                individual_rewrite.IndividualRewrite,
-                list(
-                    parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
-                    )
-                )[0],
+            individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
             ),
         )
 
@@ -334,7 +351,7 @@ async def test_rewrites():
             app.output_text_area.text
             == """builtin.module {
   func.func @hello(%n : i32) -> i32 {
-    %two = arith.constant 0 : i32
+    %c0 = arith.constant 0 : i32
     func.return %n : i32
   }
 }
@@ -345,7 +362,10 @@ async def test_rewrites():
 @pytest.mark.asyncio
 async def test_passes():
     """Test pass application has the desired result."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -379,10 +399,7 @@ async def test_passes():
         # Select a pass
         app.pass_pipeline = (
             *app.pass_pipeline,
-            (
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
-            ),
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
         )
         # assert that the Output Text Area has changed accordingly
         await pilot.pause()
@@ -421,8 +438,8 @@ async def test_passes():
                 with ImplicitBuilder(function.body) as (n,):
                     zero = riscv.MVOp(n, rd=riscv.IntRegisterType(""))
                     n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
-                    two = arith.Constant(IntegerAttr(2, index)).result
-                    res = arith.Muli(n_one, two)
+                    two = arith.ConstantOp(IntegerAttr(2, index)).result
+                    res = arith.MuliOp(n_one, two)
                     one = UnrealizedConversionCastOp.get(
                         [res.result], [riscv.IntRegisterType("")]
                     )
@@ -437,7 +454,10 @@ async def test_passes():
 @pytest.mark.asyncio
 async def test_argument_pass_screen():
     """Test that clicking on a pass that requires passes opens a screen to specify them."""
-    async with InputApp().run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -461,8 +481,7 @@ async def test_argument_pass_screen():
 
         for node in root_children:
             assert node.data is not None
-            pass_val, _ = node.data
-            if pass_val.name == stencil_global_to_local.DistributeStencilPass.name:
+            if node.data is stencil_global_to_local.DistributeStencilPass:
                 distribute_stencil_node = node
 
         assert distribute_stencil_node is not None
@@ -476,3 +495,97 @@ async def test_argument_pass_screen():
 
         arg_screen_str: type[Screen[Any]] = AddArguments
         assert isinstance(app.screen, arg_screen_str)
+
+
+@pytest.mark.asyncio
+async def test_dark_mode():
+    """Tests that 'd' switches between dark and light mode"""
+
+    async with InputApp(tuple(), tuple()).run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+
+        assert app.theme == "textual-dark"
+
+        await pilot.press("d")
+
+        assert app.theme == "textual-light"
+
+        await pilot.press("d")
+
+        assert app.theme == "textual-dark"
+
+
+@pytest.mark.asyncio
+async def test_apply_individual_rewrite():
+    """Tests that using the tree to apply an individual rewrite works"""
+
+    async with InputApp(tuple(get_all_dialects().items()), ()).run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
+        # Testing a pass
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : i32) -> i32 {
+  %c0 = arith.constant 0 : i32
+  %res = arith.addi %c0, %n : i32
+  func.return %res : i32
+}
+        """
+        )
+        app.passes_tree.root.expand()
+        await pilot.pause()
+
+        node = None
+        for n in app.passes_tree.root.children:
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationConstantProp"
+            ):
+                node = n
+
+        assert node is not None
+
+        # manually trigger node selection
+        app.passes_tree.select_node(node)
+
+        await pilot.pause()
+
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : i32) -> i32 {
+    %c0 = arith.constant 0 : i32
+    %res = arith.addi %n, %c0 : i32
+    func.return %res : i32
+  }
+}
+"""
+        )
+
+        # Apply second individual rewrite
+        node = None
+        for n in app.passes_tree.root.children:
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(
+                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
+            ):
+                node = n
+
+        assert node is not None
+
+        # manually trigger node selection
+        app.passes_tree.select_node(node)
+
+        await pilot.pause()
+
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : i32) -> i32 {
+    %c0 = arith.constant 0 : i32
+    func.return %n : i32
+  }
+}
+"""
+        )
