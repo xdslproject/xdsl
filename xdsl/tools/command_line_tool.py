@@ -118,7 +118,7 @@ class CommandLineTool:
             else:
                 raise
         except DiagnosticException as e:
-            if self.args.parsing_diagnostics:
+            if self.args.verify_diagnostics:
                 print(e)
             else:
                 raise
