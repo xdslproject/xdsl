@@ -5,8 +5,6 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyFloatAttr,
-    AnyMemRefType,
     DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
@@ -14,6 +12,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
     i16,
@@ -265,7 +264,7 @@ class GenerateCoeffAPICalls(RewritePattern):
         pattern = wrapper.get_param_value("pattern").value.data
         neighbours = pattern - 1
         empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
-        cmap: dict[csl.Direction, list[AnyFloatAttr]] = {
+        cmap: dict[csl.Direction, list[FloatAttr]] = {
             csl.Direction.NORTH: empty,
             csl.Direction.SOUTH: empty.copy(),
             csl.Direction.EAST: empty.copy(),
@@ -445,7 +444,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         if (
-            not isattr(accumulator.type, AnyMemRefType)
+            not isattr(accumulator.type, MemRefType)
             or not isinstance(op.accumulator, OpResult)
             or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
         ):

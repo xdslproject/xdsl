@@ -11,7 +11,7 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
+VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -28,7 +28,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	XDSL_VERSION_OVERRIDE="0+dynamic" uv sync ${VENV_EXTRAS}
+	uv sync ${VENV_EXTRAS}
 	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi
@@ -98,30 +98,10 @@ tests-marimo: uv-installed
 	done
 	@echo "All marimo tests passed successfully."
 
-.PHONY: tests-marimo-onnx
-tests-marimo-onnx: uv-installed
-	@if uv run python -c "import onnx" > /dev/null 2>&1; then \
-		echo "onnx is installed, running tests."; \
-		if ! command -v mlir-opt > /dev/null 2>&1; then \
-			echo "MLIR is not installed, skipping tests."; \
-			exit 0; \
-		fi; \
-		for file in docs/marimo/onnx/*.py; do \
-			echo "Running $$file"; \
-			error_message=$$(uv run python3 "$$file" 2>&1) || { \
-				echo "Error running $$file"; \
-				echo "$$error_message"; \
-				exit 1; \
-			}; \
-		done; \
-		echo "All marimo onnx tests passed successfully."; \
-	else \
-		echo "onnx is not installed, skipping tests."; \
-	fi
 
 # run all tests
 .PHONY: tests-functional
-tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-onnx
+tests-functional: pytest tests-toy filecheck pytest-nb tests-marimo
 	@echo All functional tests done.
 
 # run all tests
@@ -183,3 +163,13 @@ coverage-report: uv-installed
 .PHONY: coverage-clean
 coverage-clean: uv-installed
 	uv run coverage erase
+
+# docs
+
+.PHONY: docs-serve
+docs-serve: uv-installed
+	uv run mkdocs serve
+
+.PHONY: docs-build
+docs-build: uv-installed
+	uv run mkdocs build

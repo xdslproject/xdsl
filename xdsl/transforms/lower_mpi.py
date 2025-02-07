@@ -210,7 +210,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         """
         assert isinstance(ssa_val_type := ssa_val.type, memref.MemRefType)
 
-        # Note: we only allow MemRef, not UnrankedMemref!
+        # Note: we only allow MemRef, not UnrankedMemRef!
         # TODO: handle -1 in sizes
         if not all(dim >= 0 for dim in ssa_val_type.get_shape()):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
@@ -619,13 +619,13 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
         ], new_results
 
 
-class LowerMpiUnwrapMemrefOp(_MPIToLLVMRewriteBase):
+class LowerMpiUnwrapMemRefOp(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: mpi.UnwrapMemrefOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: mpi.UnwrapMemRefOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(*self.lower(op))
 
     def lower(
-        self, op: mpi.UnwrapMemrefOp
+        self, op: mpi.UnwrapMemRefOp
     ) -> tuple[list[Operation], list[SSAValue | None]]:
         count_ops, count_ssa_val = self._emit_memref_counts(op.ref)
         extract_ptr_ops, ptr = self._memref_get_llvm_ptr(op.ref)
@@ -856,7 +856,7 @@ class LowerMPIPass(ModulePass):
                     LowerMpiReduce(lib_info),
                     LowerMpiAllreduce(lib_info),
                     LowerMpiBcast(lib_info),
-                    LowerMpiUnwrapMemrefOp(lib_info),
+                    LowerMpiUnwrapMemRefOp(lib_info),
                     LowerMpiGetDtype(lib_info),
                     LowerMpiAllocateType(lib_info),
                     LowerNullRequestOp(lib_info),

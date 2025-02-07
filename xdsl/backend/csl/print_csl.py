@@ -253,7 +253,7 @@ class CslPrintContext:
             case DenseIntOrFPElementsAttr():
                 data = init.get_attrs()
                 assert len(data) == 1, (
-                    f"Memref global initialiser has to have 1 value, got {len(data)}"
+                    f"MemRef global initialiser has to have 1 value, got {len(data)}"
                 )
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:
@@ -800,9 +800,9 @@ class CslPrintContext:
                         f"  .{q_type}_queue = @get_{q_type}_queue({queue_id.value.data}),"
                     )
                     self.print(f"  .fabric_color = {fabric_color},")
-                    if wavelet_index_offset:
+                    if wavelet_index_offset is not None:
                         self.print(f"  .wavelet_index_offset = {wavelet_index_offset},")
-                    if control:
+                    if control is not None:
                         self.print(f"  .control = {control},")
                     self.print("}});")
                 case csl.SetDsdBaseAddrOp(

@@ -16,9 +16,7 @@ from xdsl.dialects.builtin import (
     AnyArrayAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyFloatAttr,
     AnyFloatConstr,
-    AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -41,7 +39,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
-    MemrefLayoutAttr,
+    MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
     NoneType,
@@ -53,7 +51,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
@@ -195,12 +193,24 @@ class AttrParser(BaseParser):
 
         return name, self.parse_attribute()
 
+    def _find_duplicated_key(self, attrs: list[tuple[str, Attribute]]) -> str | None:
+        seen_keys: set[str] = set()
+        for key, _ in attrs:
+            if key in seen_keys:
+                return key
+            seen_keys.add(key)
+        return None
+
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
         attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
         if attrs is None:
             return dict()
+
+        if (key := self._find_duplicated_key(attrs)) is not None:
+            self.raise_error(f"Duplicate key '{key}' in dictionary attribute")
+
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_body(
@@ -515,15 +525,15 @@ class AttrParser(BaseParser):
 
     def _parse_memref_attrs(
         self,
-    ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
+    ) -> MemRefType[Attribute] | UnrankedMemRefType[Attribute]:
         shape, type = self.parse_shape()
 
         # Unranked case
         if shape is None:
             if self.parse_optional_punctuation(",") is None:
-                return UnrankedMemrefType.from_type(type)
+                return UnrankedMemRefType.from_type(type)
             memory_space = self.parse_attribute()
-            return UnrankedMemrefType.from_type(type, memory_space)
+            return UnrankedMemRefType.from_type(type, memory_space)
 
         if self.parse_optional_punctuation(",") is None:
             return MemRefType(type, shape)
@@ -534,12 +544,12 @@ class AttrParser(BaseParser):
         # layout is the second one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
-            if not isinstance(memory_or_layout, MemrefLayoutAttr):
+            if not isinstance(memory_or_layout, MemRefLayoutAttr):
                 self.raise_error("Expected a MemRef layout attribute")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # If the argument is a MemrefLayoutAttr, use it as layout
-        if isinstance(memory_or_layout, MemrefLayoutAttr):
+        # If the argument is a MemRefLayoutAttr, use it as layout
+        if isinstance(memory_or_layout, MemRefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
 
         # Otherwise, consider it as the memory space.
@@ -1191,7 +1201,7 @@ class AttrParser(BaseParser):
 
     def parse_optional_builtin_int_or_float_attr(
         self,
-    ) -> AnyIntegerAttr | AnyFloatAttr | None:
+    ) -> IntegerAttr | FloatAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool

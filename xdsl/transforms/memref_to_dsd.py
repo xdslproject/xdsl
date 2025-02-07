@@ -7,7 +7,6 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyMemRefType,
     ArrayAttr,
     Float16Type,
     Float32Type,
@@ -21,6 +20,7 @@ from xdsl.dialects.builtin import (
     StridedLayoutAttr,
     UnrealizedConversionCastOp,
 )
+from xdsl.dialects.csl.csl import ZerosOpAttr
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
@@ -42,7 +42,7 @@ class LowerAllocOpPass(RewritePattern):
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         assert isattr(
             memref_type := op.memref.type,
-            MemRefType.constr(element_type=csl.ZerosOpAttrConstr),
+            MemRefType[ZerosOpAttr].constr(element_type=csl.ZerosOpAttrConstr),
         )
         zeros_op = csl.ZerosOp(memref_type)
 
@@ -100,9 +100,9 @@ class FixGetDsdOnGetDsd(RewritePattern):
                 raise ValueError("Failed to resolve GetMemDsdOp called on dsd type")
 
 
-class FixMemrefLoadOnGetDsd(RewritePattern):
+class FixMemRefLoadOnGetDsd(RewritePattern):
     """
-    Memref load ops should load from the underlying memref, not from the dsd.
+    MemRef load ops should load from the underlying memref, not from the dsd.
     """
 
     @op_type_rewrite_pattern
@@ -123,8 +123,8 @@ class LowerSubviewOpPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
-        assert isa(op.source.type, AnyMemRefType)
-        assert isa(op.result.type, AnyMemRefType)
+        assert isa(op.source.type, MemRefType)
+        assert isa(op.result.type, MemRefType)
 
         if len(op.result.type.get_shape()) == 1 and len(op.source.type.get_shape()) > 1:
             # 1d subview onto a nd memref
@@ -401,7 +401,7 @@ class CslVarLoad(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefToDsdPass(ModulePass):
+class MemRefToDsdPass(ModulePass):
     """
     Lowers memref ops to CSL DSDs.
 
@@ -434,7 +434,7 @@ class MemrefToDsdPass(ModulePass):
                     LowerAllocOpPass(),
                     DsdOpUpdateType(),
                     RetainAddressOfOpPass(),
-                    FixMemrefLoadOnGetDsd(),
+                    FixMemRefLoadOnGetDsd(),
                     FixGetDsdOnGetDsd(),
                 ]
             ),

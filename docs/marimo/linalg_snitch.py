@@ -287,7 +287,7 @@ def _(
         [
             convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
-            convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
+            convert_memref_to_riscv.ConvertMemRefToRiscvPass(),
             convert_arith_to_riscv.ConvertArithToRiscvPass(),
             convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
             reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
@@ -407,7 +407,7 @@ def _(
 
     convert_linalg_to_snitch = PipelinePass(
         [
-            convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
+            convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
             *OPTIMISE_MEMREF_STREAM_PASSES,
             *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
@@ -513,7 +513,7 @@ def _(TypedPtr, a_shape, b_shape, c_shape, mo, riscv_ctx, riscv_module):
     riscv_op_counter = OpCounter()
     riscv_interpreter = Interpreter(riscv_module, listeners=(riscv_op_counter,))
 
-    register_implementations(riscv_interpreter, riscv_ctx, include_wgpu=False, include_onnx=False)
+    register_implementations(riscv_interpreter, riscv_ctx)
 
     riscv_interpreter.call_op("matmul", (a_shaped.data_ptr.raw, b_shaped.data_ptr.raw, riscv_c_shaped.data_ptr.raw))
 
@@ -566,7 +566,7 @@ def _(
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-    register_implementations(snitch_interpreter, snitch_stream_ctx, include_wgpu=False, include_onnx=False)
+    register_implementations(snitch_interpreter, snitch_stream_ctx)
 
     snitch_interpreter.call_op(
         "matmul",
