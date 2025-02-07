@@ -3,6 +3,20 @@ import pytest
 from xdsl.dialects import x86
 
 
+def test_unallocated_register():
+    unallocated = x86.register.GeneralRegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.GeneralRegisterType.unallocated()
+
+    unallocated = x86.register.RFLAGSRegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.RFLAGSRegisterType.unallocated()
+
+    unallocated = x86.register.AVXRegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.AVXRegisterType.unallocated()
+
+
 @pytest.mark.parametrize(
     "register, name",
     [
@@ -27,6 +41,8 @@ from xdsl.dialects import x86
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+
+    assert register.instruction_set_name() == "x86"
 
 
 def test_rflags_register():
@@ -75,3 +91,5 @@ def test_rflags_register():
 def test_avx_register(register: x86.register.AVXRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+
+    assert register.instruction_set_name() == "x86AVX"
