@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file --verify-diagnostics --parsing-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --split-input-file --verify-diagnostics | filecheck %s
 
 // CHECK: foo not in x86 
 "test.op"() { reg = !x86.reg<foo> } : () -> ()
