@@ -1769,7 +1769,8 @@ class S_JmpOp(IRDLOperation, X86Instruction):
 @irdl_op_definition
 class RR_CmpOp(IRDLOperation, X86Instruction):
     """
-    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    Compares the first source operand with the second source operand and sets the status
+    flags in the EFLAGS register according to the results.
     https://www.felixcloutier.com/x86/cmp
     """
 
@@ -1806,7 +1807,8 @@ class RR_CmpOp(IRDLOperation, X86Instruction):
 @irdl_op_definition
 class RM_CmpOp(IRDLOperation, X86Instruction):
     """
-    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    Compares the first source operand with the second source operand and sets the status
+    flags in the EFLAGS register according to the results.
     https://www.felixcloutier.com/x86/cmp
     """
 
@@ -1865,7 +1867,8 @@ class RM_CmpOp(IRDLOperation, X86Instruction):
 @irdl_op_definition
 class RI_CmpOp(IRDLOperation, X86Instruction):
     """
-    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    Compares the first source operand with the second source operand and sets the status
+    flags in the EFLAGS register according to the results.
     https://www.felixcloutier.com/x86/cmp
     """
 
@@ -1917,7 +1920,8 @@ class RI_CmpOp(IRDLOperation, X86Instruction):
 @irdl_op_definition
 class MR_CmpOp(IRDLOperation, X86Instruction):
     """
-    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    Compares the first source operand with the second source operand and sets the status
+    flags in the EFLAGS register according to the results.
     https://www.felixcloutier.com/x86/cmp
     """
 
@@ -1976,7 +1980,8 @@ class MR_CmpOp(IRDLOperation, X86Instruction):
 @irdl_op_definition
 class MI_CmpOp(IRDLOperation, X86Instruction):
     """
-    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    Compares the first source operand with the second source operand and sets the status
+    flags in the EFLAGS register according to the results.
     https://www.felixcloutier.com/x86/cmp
     """
 
@@ -2501,7 +2506,8 @@ class RRR_Vfmadd231pdOp(
     RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]
 ):
     """
-    Multiply packed double-precision floating-point elements in r2 and r3, add the intermediate result to r1, and store the final result in r1.
+    Multiply packed double-precision floating-point elements in r2 and r3, add the
+    intermediate result to r1, and store the final result in r1.
     https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
     """
 
@@ -2511,7 +2517,8 @@ class RRR_Vfmadd231pdOp(
 @irdl_op_definition
 class RR_VmovapdOp(R_RR_Operation[AVXRegisterType, AVXRegisterType]):
     """
-    Move aligned packed double precision floating-point values from zmm1 to zmm2 using writemask k1
+    Move aligned packed double precision floating-point values from zmm1 to zmm2 using
+    writemask k1
     https://www.felixcloutier.com/x86/movapd
     """
 

@@ -453,7 +453,7 @@ class CslPrintContext:
             case StringAttr() as s:
                 return f'"{s.data}"'
             case DenseIntOrFPElementsAttr(type=typ):
-                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(a) for a in attr.iter_attrs())} }}"
+                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(a) for a in attr.iter_attrs())} }}"  # noqa: E501
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -819,11 +819,13 @@ class CslPrintContext:
                     )
                 case csl.SetDsdLengthOp(op=input_dsd, length=length, result=result):
                     self.print(
-                        f"{self._var_use(result)} = @set_dsd_length({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(length)});"
+                        f"{self._var_use(result)} = @set_dsd_length({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(length)});"  # noqa: E501
                     )
                 case csl.SetDsdStrideOp(op=input_dsd, stride=stride, result=result):
                     self.print(
-                        f"{self._var_use(result)} = @set_dsd_stride({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(stride)});"
+                        f"{self._var_use(result)} = @set_dsd_stride("
+                        f"{self._get_variable_name_for(input_dsd)}, "
+                        f"{self._get_variable_name_for(stride)});"
                     )
                 case csl.BuiltinDsdOp(ops=ops):
                     self.print(

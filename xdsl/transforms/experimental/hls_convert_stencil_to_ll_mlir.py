@@ -1070,8 +1070,9 @@ class PackData(RewritePattern):
                     assert isinstance(insertvalue.container, OpResult)
                     container_op = insertvalue.container.op
                     if isinstance(container_op, UndefOp):
-                        # We mark the UndefOp to update its type in the next pass and also update the type returned by the insertvalue
-                        # operation that uses it
+                        # We mark the UndefOp to update its type in the next pass and
+                        # also update the type returned by the insertvalue operation
+                        # that uses it
 
                         container_op.attributes["replace"] = IntAttr(0)
 

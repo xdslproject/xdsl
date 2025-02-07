@@ -115,7 +115,7 @@ def test_get_producer_of_operand():
     target = test.TestOp(result_types=[transform.AnyValueType()]).results[0]
     assert_print_op(
         transform.GetProducerOfOperandOp(operand_number=0, target=target),
-        """%0 = "transform.get_producer_of_operand"(%1) <{operand_number = 0 : i64}> : (!transform.any_value) -> !transform.any_op""",
+        """%0 = "transform.get_producer_of_operand"(%1) <{operand_number = 0 : i64}> : (!transform.any_value) -> !transform.any_op""",  # noqa: E501
         None,
     )
 
@@ -125,7 +125,7 @@ def test_get_result():
     result_number = 0
     assert_print_op(
         transform.GetResultOp(target=target, raw_position_list=[result_number]),
-        """%0 = "transform.get_result"(%1) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value""",
+        """%0 = "transform.get_result"(%1) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value""",  # noqa: E501
         None,
     )
 

@@ -602,11 +602,13 @@ class ApplyOp(IRDLOperation):
         for operand, argument in zip(self.operands, self.region.block.args):
             if operand.type != argument.type:
                 raise VerifyException(
-                    f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                    "Expected argument type to match operand type, got "
+                    f"{argument.type} != {operand.type} at index {argument.index}"
                 )
         if len(self.res) > 0 and len(self.dest) > 0:
             raise VerifyException(
-                "Expected stencil.apply to have all value-semantics result or buffer-semantic destination operands."
+                "Expected stencil.apply to have all value-semantics result or "
+                "buffer-semantic destination operands."
             )
         if len(self.res) > 0:
             res_type = cast(TempType[Attribute], self.res[0].type)

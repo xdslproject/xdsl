@@ -120,7 +120,7 @@ class AllocTensorOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    assembly_format = "`(` $dynamic_sizes `)` ( `copy` `(` $copy^ `)`)? (`size_hint` `=` $size_hint^)? attr-dict `:` type($tensor)"
+    assembly_format = "`(` $dynamic_sizes `)` ( `copy` `(` $copy^ `)`)? (`size_hint` `=` $size_hint^)? attr-dict `:` type($tensor)"  # noqa E501
 
     def __init__(
         self,
@@ -216,7 +216,10 @@ class MaterializeInDestinationOp(IRDLOperation):
     restrict = opt_prop_def(UnitAttr)
     writable = opt_prop_def(UnitAttr)
 
-    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"
+    assembly_format = (
+        "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest "
+        "attr-dict `:` functional-type(operands, results)"
+    )
 
 
 Bufferization = Dialect(

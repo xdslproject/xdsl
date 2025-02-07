@@ -105,7 +105,7 @@ ignore = [
 # TODO: remove this setting and go to default line length of 88
 # Removing this line length results in a large number of errors for doc strings, ideally
 # these should be ignored separately.
-max-line-length = 150
+max-line-length = 130
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
@@ -141,6 +141,7 @@ max-line-length = 150
 "**/__marimo__/*" = ["ALL"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
+"tests/*" = ["E501"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

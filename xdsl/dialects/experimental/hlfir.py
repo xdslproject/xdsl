@@ -1027,7 +1027,7 @@ class CharExtremumOp(IRDLOperation):
     minimum or maximum number of characters. Example:
 
     %0 = hlfir.char_extremum min, %arg0, %arg1 : (!fir.ref<!fir.char<1,10>>, !fir.ref<!fir.char<1,20>>) -> !hlfir.expr<!fir.char<1,10>>
-    """
+    """  # noqa E501
 
     name = "hlfir.char_extremum"
     predicate = operand_def()
