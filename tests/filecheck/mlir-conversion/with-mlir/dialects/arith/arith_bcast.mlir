@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --allow-unregistered-dialects | xdsl-opt | filecheck %s
+// RUN: mlir-opt %s --allow-unregistered-dialect | xdsl-opt | filecheck %s
 
 // CHECK:        %0 = "test.op"() : () -> i32
 // CHECK-NEXT:   %1 = arith.bitcast %0 : i32 to i32
