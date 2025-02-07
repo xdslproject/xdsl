@@ -1505,8 +1505,7 @@ def get_variadic_sizes(
     if len(variadic_defs) == 1:
         if len(args) - len(defs) + 1 < 0:
             raise VerifyException(
-                f"Expected at least {len(defs) - 1} "
-                f"{def_type_name}s, got {len(defs)}"
+                f"Expected at least {len(defs) - 1} {def_type_name}s, got {len(defs)}"
             )
         return [len(args) - len(defs) + 1]
 
@@ -2097,9 +2096,9 @@ def get_accessors_from_op_def(
 def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     """Decorator used on classes to define a new operation definition."""
 
-    assert issubclass(
-        cls, IRDLOperation
-    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
+    assert issubclass(cls, IRDLOperation), (
+        f"class {cls.__name__} should be a subclass of IRDLOperation"
+    )
 
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))

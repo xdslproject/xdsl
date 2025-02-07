@@ -28,8 +28,8 @@ builtin.module {
 // CHECK-NEXT:     "vector.maskedstore"(%0, %2, %2, %1, %6) : (memref<4x4xindex>, index, index, vector<1xi1>, vector<1xindex>) -> ()
 // CHECK-NEXT:     "vector.print"(%6) : (vector<1xindex>) -> ()
 // CHECK-NEXT:     %7 = "vector.create_mask"(%2) : (index) -> vector<2xi1>
-// CHECK-NEXT:     %8 = "vector.transfer_read"(%0, %2, %2, %2) <{"in_bounds" = [true], "operandSegmentSizes" = array<i32: 1, 2, 1, 0>, "permutation_map" = affine_map<(d0, d1) -> (d0)>}> : (memref<4x4xindex>, index, index, index) -> vector<4xindex>
-// CHECK-NEXT:     "vector.transfer_write"(%8, %0, %2, %2) <{"in_bounds" = [true], "operandSegmentSizes" = array<i32: 1, 1, 2, 0>, "permutation_map" = affine_map<(d0, d1) -> (d0)>}> : (vector<4xindex>, memref<4x4xindex>, index, index) -> ()
+// CHECK-NEXT:     %8 = "vector.transfer_read"(%0, %2, %2, %2) <{in_bounds = [true], operandSegmentSizes = array<i32: 1, 2, 1, 0>, permutation_map = affine_map<(d0, d1) -> (d0)>}> : (memref<4x4xindex>, index, index, index) -> vector<4xindex>
+// CHECK-NEXT:     "vector.transfer_write"(%8, %0, %2, %2) <{in_bounds = [true], operandSegmentSizes = array<i32: 1, 1, 2, 0>, permutation_map = affine_map<(d0, d1) -> (d0)>}> : (vector<4xindex>, memref<4x4xindex>, index, index) -> ()
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

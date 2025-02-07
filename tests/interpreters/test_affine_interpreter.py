@@ -7,7 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
-from xdsl.interpreters.memref import MemrefFunctions
+from xdsl.interpreters.memref import MemRefFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir.affine import AffineMap
@@ -75,7 +75,7 @@ def test_functions():
 
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(ArithFunctions())
-    interpreter.register_implementations(MemrefFunctions())
+    interpreter.register_implementations(MemRefFunctions())
     interpreter.register_implementations(AffineFunctions())
     interpreter.register_implementations(FuncFunctions())
 

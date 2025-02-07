@@ -10,20 +10,20 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from enum import auto
 from itertools import product
-from typing import Any, ClassVar, Generic, TypeVar, cast
+from typing import Any, ClassVar, Generic, cast
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyMemRefTypeConstr,
     ArrayAttr,
     ContainerType,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     StringAttr,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -39,7 +39,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
-    BaseAttr,
     GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
@@ -66,8 +65,9 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
-_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
-_StreamTypeElementConstrT = TypeVar("_StreamTypeElementConstrT", bound=Attribute)
+_StreamTypeElement = TypeVar(
+    "_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute
+)
 
 
 @irdl_attr_definition
@@ -87,18 +87,14 @@ class ReadableStreamType(
     def __init__(self, element_type: _StreamTypeElement):
         super().__init__([element_type])
 
-    @staticmethod
+    @classmethod
     def constr(
-        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
-    ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]]:
-        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]](
+        cls,
+        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+    ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
+        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
             ReadableStreamType, (element_type,)
         )
-
-
-AnyReadableStreamTypeConstr = BaseAttr[ReadableStreamType[Attribute]](
-    ReadableStreamType
-)
 
 
 @irdl_attr_definition
@@ -118,18 +114,14 @@ class WritableStreamType(
     def __init__(self, element_type: _StreamTypeElement):
         super().__init__([element_type])
 
-    @staticmethod
+    @classmethod
     def constr(
-        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
-    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]]:
-        return ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]](
+        cls,
+        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
+        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
             WritableStreamType, (element_type,)
         )
-
-
-AnyWritableStreamTypeConstr = BaseAttr[WritableStreamType[Attribute]](
-    WritableStreamType
-)
 
 
 class IteratorType(StrEnum):
@@ -471,7 +463,7 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(AnyMemRefTypeConstr | AnyWritableStreamTypeConstr)
+    outputs = var_operand_def(MemRefType.constr() | WritableStreamType.constr())
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
@@ -961,7 +953,7 @@ class FillOp(IRDLOperation):
         super().__init__(operands=(memref, value))
 
 
-MemrefStream = Dialect(
+MemRefStream = Dialect(
     "memref_stream",
     [
         ReadOp,

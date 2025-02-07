@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
@@ -12,8 +12,7 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyFloat,
-    AnyFloatAttr,
-    AnyUnrankedMemrefType,
+    AnyUnrankedMemRefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -28,6 +27,7 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
+    FloatAttr,
     FunctionType,
     IndexType,
     IntAttr,
@@ -44,7 +44,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
@@ -333,7 +333,7 @@ class Printer(BasePrinter):
                     self.print_string(chr(byte))
         self.print_string('"')
 
-    def print_float_attr(self, attribute: AnyFloatAttr):
+    def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
     def print_float(self, value: float, type: AnyFloat):
@@ -608,8 +608,8 @@ class Printer(BasePrinter):
             self.print_string(">")
             return
 
-        if isinstance(attribute, UnrankedMemrefType):
-            attribute = cast(AnyUnrankedMemrefType, attribute)
+        if isinstance(attribute, UnrankedMemRefType):
+            attribute = cast(AnyUnrankedMemRefType, attribute)
             self.print_string("memref<*x")
             self.print_attribute(attribute.element_type)
             if not isinstance(attribute.memory_space, NoneAttr):
@@ -688,13 +688,17 @@ class Printer(BasePrinter):
         self.print_string("]")
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
-        if isinstance(attr_tuple[1], UnitAttr):
-            self.print_string(f'"{attr_tuple[0]}"')
+        # Print the name without quotes if it is a bare identifier
+        if MLIRLexer.bare_identifier_regex.fullmatch(attr_tuple[0]):
+            self.print_string(attr_tuple[0])
         else:
-            self.print_string(f'"{attr_tuple[0]}" = ')
+            self.print_string(f'"{attr_tuple[0]}"')
+
+        if not isinstance(attr_tuple[1], UnitAttr):
+            self.print_string(" = ")
             self.print_attribute(attr_tuple[1])
 
-    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+    def print_attr_dict(self, attr_dict: Mapping[str, Attribute]) -> None:
         self.print_string("{")
         self.print_list(attr_dict.items(), self._print_attr_string)
         self.print_string("}")
@@ -709,7 +713,7 @@ class Printer(BasePrinter):
 
     def print_op_attributes(
         self,
-        attributes: dict[str, Attribute],
+        attributes: Mapping[str, Attribute],
         *,
         reserved_attr_names: Iterable[str] = (),
         print_keyword: bool = False,

@@ -33,14 +33,12 @@ def get_all_possible_rewrites(
             rewriter = PatternRewriter(cloned_op)
             pattern.match_and_rewrite(cloned_op, rewriter)
             if rewriter.has_done_action:
-                p = individual_rewrite.ApplyIndividualRewritePass(
-                    op_idx, cloned_op.name, pattern_name
-                )
                 res.append(
                     AvailablePass(
                         f"{cloned_op}:{cloned_op.name}:{pattern_name}",
-                        individual_rewrite.ApplyIndividualRewritePass,
-                        p.pipeline_pass_spec(),
+                        individual_rewrite.ApplyIndividualRewritePass(
+                            op_idx, cloned_op.name, pattern_name
+                        ),
                     )
                 )
 

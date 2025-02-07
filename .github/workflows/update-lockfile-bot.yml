@@ -2,6 +2,9 @@ name: Update Lockfile Bot
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - 'dependabot/**'
 
 permissions:
   contents: write
@@ -14,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -25,7 +28,7 @@ jobs:
       - name: Install the package locally and update lockfile
         run: |
           # Install all default extras.
-          XDSL_VERSION_OVERRIDE="0+dynamic" make venv
+          make venv
 
       - uses: EndBug/add-and-commit@v9
         with:

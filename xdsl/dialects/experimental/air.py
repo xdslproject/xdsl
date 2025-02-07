@@ -12,10 +12,10 @@ from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
-    AnyIntegerAttr,
     ArrayAttr,
     IndexType,
     IntAttr,
+    IntegerAttr,
     MemRefType,
     StringAttr,
     SymbolRefAttr,
@@ -93,7 +93,7 @@ class ChannelOp(IRDLOperation):
     size = prop_def(AnyArrayAttr)
 
     def __init__(
-        self, sym_name: SymbolRefAttr, size: ArrayAttr[AnyIntegerAttr]
+        self, sym_name: SymbolRefAttr, size: ArrayAttr[IntegerAttr]
     ):  # TODO: add verify to check 64-bit integer array attribute
         super().__init__(properties={"sym_name": sym_name, "size": size})
 

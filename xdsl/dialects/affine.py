@@ -6,7 +6,6 @@ from typing import Any, ClassVar, cast
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyIntegerAttr,
     ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
@@ -121,7 +120,7 @@ class ForOp(IRDLOperation):
 
     lowerBoundMap = prop_def(AffineMapAttr)
     upperBoundMap = prop_def(AffineMapAttr)
-    step = prop_def(AnyIntegerAttr)
+    step = prop_def(IntegerAttr)
 
     body = region_def()
 
@@ -168,7 +167,7 @@ class ForOp(IRDLOperation):
         lower_bound: int | AffineMapAttr,
         upper_bound: int | AffineMapAttr,
         region: Region,
-        step: int | AnyIntegerAttr = 1,
+        step: int | IntegerAttr = 1,
     ) -> ForOp:
         if isinstance(lower_bound, int):
             lower_bound = AffineMapAttr(
@@ -279,7 +278,7 @@ class StoreOp(IRDLOperation):
             # for zero-dimensional memrefs.
             if not isinstance(memref_type := memref.type, MemRefType):
                 raise ValueError(
-                    "affine.store memref operand must be of type MemrefType"
+                    "affine.store memref operand must be of type MemRefType"
                 )
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))

@@ -2,12 +2,12 @@ import re
 
 import pytest
 
-from xdsl.backend.riscv.register_queue import RegisterQueue
+from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
 from xdsl.dialects import riscv
 
 
 def test_default_reserved_registers():
-    register_queue = RegisterQueue()
+    register_queue = RiscvRegisterQueue()
 
     for reg in (
         riscv.Registers.ZERO,
@@ -23,7 +23,7 @@ def test_default_reserved_registers():
 
 
 def test_push_j_register():
-    register_queue = RegisterQueue()
+    register_queue = RiscvRegisterQueue()
 
     register_queue.push(riscv.IntRegisterType("j0"))
     assert riscv.IntRegisterType("j0") == register_queue.available_int_registers[-1]
@@ -33,7 +33,7 @@ def test_push_j_register():
 
 
 def test_push_register():
-    register_queue = RegisterQueue()
+    register_queue = RiscvRegisterQueue()
 
     register_queue.push(riscv.Registers.A0)
     assert riscv.Registers.A0 == register_queue.available_int_registers[-1]
@@ -43,7 +43,7 @@ def test_push_register():
 
 
 def test_reserve_register():
-    register_queue = RegisterQueue()
+    register_queue = RiscvRegisterQueue()
 
     register_queue.reserve_register(riscv.IntRegisterType("j0"))
     assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 1
@@ -72,7 +72,7 @@ def test_reserve_register():
 
 
 def test_limit():
-    register_queue = RegisterQueue()
+    register_queue = RiscvRegisterQueue()
     register_queue.limit_registers(1)
 
     assert not register_queue.pop(riscv.IntRegisterType).register_name.startswith("j")

@@ -144,7 +144,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return LTL
 
     def get_math():
-        from xdsl.dialects.experimental.math import Math
+        from xdsl.dialects.math import Math
 
         return Math
 
@@ -154,9 +154,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return MemRef
 
     def get_memref_stream():
-        from xdsl.dialects.memref_stream import MemrefStream
+        from xdsl.dialects.memref_stream import MemRefStream
 
-        return MemrefStream
+        return MemRefStream
 
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
@@ -177,11 +177,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.omp import OMP
 
         return OMP
-
-    def get_onnx():
-        from xdsl.dialects.onnx import ONNX
-
-        return ONNX
 
     def get_pdl():
         from xdsl.dialects.pdl import PDL
@@ -284,7 +279,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Stim
 
     def get_symref():
-        from xdsl.frontend.symref import Symref
+        from xdsl.frontend.pyast.symref import Symref
 
         return Symref
 
@@ -363,7 +358,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "mod_arith": get_mod_arith,
         "mpi": get_mpi,
         "omp": get_omp,
-        "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,

@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TypeAlias
 
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -20,7 +19,7 @@ from .attributes import LabelAttr
 from .register import AVXRegisterType, GeneralRegisterType, RFLAGSRegisterType
 
 AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
+    IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
 )
 
 
@@ -34,7 +33,7 @@ def append_comment(line: str, comment: StringAttr | None) -> str:
 
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isa(arg, AnyIntegerAttr):
+    if isa(arg, IntegerAttr):
         return f"{arg.value.data}"
     elif isinstance(arg, int):
         return f"{arg}"
@@ -97,7 +96,7 @@ def parse_optional_immediate_value(
         return LabelAttr(immediate)
 
 
-def print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
+def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
             printer.print(immediate.value.data)
@@ -106,7 +105,7 @@ def print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAtt
 
 
 def memory_access_str(
-    register: AssemblyInstructionArg, offset: AnyIntegerAttr | None
+    register: AssemblyInstructionArg, offset: IntegerAttr | None
 ) -> str:
     register_str = assembly_arg_str(register)
     if offset is not None:

@@ -37,7 +37,7 @@ from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.irdl import ParamAttrDef
+    from xdsl.irdl import GenericAttrConstraint, ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
@@ -287,7 +287,7 @@ class Attribute(ABC):
     def verify(self) -> None:
         """
         Check that the attribute parameters satisfy the expected invariants.
-        Raise an exception otherwise.
+        Raise a VerifyException otherwise.
         """
         pass
 
@@ -298,6 +298,12 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+    @classmethod
+    def constr(cls) -> GenericAttrConstraint[Self]:
+        from xdsl.irdl import BaseAttr
+
+        return BaseAttr(cls)
 
 
 class TypeAttribute(Attribute):

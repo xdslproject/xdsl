@@ -250,7 +250,7 @@ class PrototypeAST:
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append("", f"Proto '{self.name}' @{self.loc}")
-        dumper.append("Params: ", f'[{", ".join(arg.name for arg in self.args)}]')
+        dumper.append("Params: ", f"[{', '.join(arg.name for arg in self.args)}]")
 
 
 @dataclass

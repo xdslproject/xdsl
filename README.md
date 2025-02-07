@@ -49,11 +49,11 @@ MLIR version is commit `d401987fe349a87c53fe25829215b080b70c0c1a`.
 ### Subprojects With Extra Dependencies
 
 xDSL has a number of subprojects, some of which require extra dependencies.
-In order to keep the set of dependencies ot a minimum, these extra dependencies have to be
+In order to keep the set of dependencies to a minimum, these extra dependencies have to be
 specified explicitly. To install these, use:
 
 ``` bash
-pip install xdsl[gui,jax,riscv,wgpu,onnx]
+pip install xdsl[gui,jax,riscv]
 ```
 
 To install the testing/development dependencies, use:
@@ -78,7 +78,7 @@ for users interested in that use case.
 - [A Database example](https://xdsl.dev/xdsl/lab/index.html?path=database_example.ipynb)
 - [A simple introduction](https://xdsl.dev/xdsl/lab/index.html?path=tutorial.ipynb)
 - [A DSL for defining new IRs](https://xdsl.dev/xdsl/lab/index.html?path=irdl.ipynb)
-- [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
+- [Connecting xDSL with MLIR](docs/guides/mlir_interoperation.md)
 
 We provide a Makefile containing a lot of common tasks, which might provide
 an overview of common actions.
@@ -132,7 +132,7 @@ pytest
 lit tests/filecheck
 ```
 
-### Testing
+### Testing and benchmarking
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
@@ -147,6 +147,12 @@ uv run lit tests/filecheck
 # run all tests using makefile
 make tests
 ```
+
+Benchmarks for the project are tracked in the <https://github.com/xdslproject/xdsl-bench>
+repository. These run automatically every day on the main branch, reporting
+their results to <https://xdsl.dev/xdsl-bench/>. However, they can also be run
+manually by cloning the repository and pointing the submodule at your
+feature branch to benchmark.
 
 ### Formatting and Typechecking
 

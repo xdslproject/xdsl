@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from ordered_set import OrderedSet
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.context import MLContext
 from xdsl.dialects import builtin, riscv, riscv_func
 from xdsl.dialects.riscv import (
@@ -51,7 +51,7 @@ class PrologueEpilogueInsertion(ModulePass):
             return self.flen
 
         # Build the prologue at the beginning of the function.
-        builder = Builder.at_start(func.body.blocks[0])
+        builder = Builder(InsertPoint.at_start(func.body.blocks[0]))
         sp_register = builder.insert(riscv.GetRegisterOp(Registers.SP))
         stack_size = sum(get_register_size(r) for r in used_callee_preserved_registers)
         builder.insert(riscv.AddiOp(sp_register, -stack_size, rd=Registers.SP))
@@ -73,7 +73,7 @@ class PrologueEpilogueInsertion(ModulePass):
             if not isinstance(ret_op, riscv_func.ReturnOp):
                 continue
 
-            builder = Builder.before(ret_op)
+            builder = Builder(InsertPoint.before(ret_op))
             offset = 0
             for reg in used_callee_preserved_registers:
                 if isinstance(reg, IntRegisterType):

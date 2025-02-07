@@ -142,15 +142,15 @@ class FormatProgram:
         for uo, ot in zip(unresolved_operands, operand_types, strict=True):
             assert uo is not None
             if isinstance(uo, UnresolvedOperand):
-                assert isinstance(
-                    ot, Attribute
-                ), "Something went wrong with the declarative assembly format parser."
+                assert isinstance(ot, Attribute), (
+                    "Something went wrong with the declarative assembly format parser."
+                )
                 "Single operand has no type or variadic/optional type"
                 operands.append(parser.resolve_operand(uo, ot))
             else:
-                assert isinstance(
-                    ot, Sequence
-                ), f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
+                assert isinstance(ot, Sequence), (
+                    f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
+                )
                 "Variadic or optional operand has no type or a single type "
                 operands.append(parser.resolve_operands(uo, ot, parser.pos))
 
@@ -438,27 +438,39 @@ class AttrDictDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.print_properties:
-            if (
-                not (set(op.attributes.keys()) | set(op.properties.keys()))
-                - self.reserved_attr_names
-            ):
-                return
             if any(name in op.attributes for name in op.properties):
                 raise ValueError(
                     "Cannot print attributes and properties with the same name "
-                    "in a signle dictionary"
+                    "in a single dictionary"
                 )
+            op_def = op.get_irdl_definition()
+            dictionary = op.attributes | op.properties
+            reserved_or_default = self.reserved_attr_names.union(
+                name
+                for name, d in (op_def.properties | op_def.attributes).items()
+                if d.default_value is not None
+                and dictionary.get(name) == d.default_value
+            )
+            if reserved_or_default.issuperset(dictionary.keys()):
+                return
             printer.print_op_attributes(
-                op.attributes | op.properties,
-                reserved_attr_names=self.reserved_attr_names,
+                dictionary,
+                reserved_attr_names=reserved_or_default,
                 print_keyword=self.with_keyword,
             )
         else:
-            if not set(op.attributes.keys()) - self.reserved_attr_names:
+            op_def = op.get_irdl_definition()
+            reserved_or_default = self.reserved_attr_names.union(
+                name
+                for name, d in op_def.attributes.items()
+                if d.default_value is not None
+                and op.attributes.get(name) == d.default_value
+            )
+            if reserved_or_default.issuperset(op.attributes.keys()):
                 return
             printer.print_op_attributes(
                 op.attributes,
-                reserved_attr_names=self.reserved_attr_names,
+                reserved_attr_names=reserved_or_default,
                 print_keyword=self.with_keyword,
             )
 

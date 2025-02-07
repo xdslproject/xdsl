@@ -252,9 +252,9 @@ class CslPrintContext:
                 return ""
             case DenseIntOrFPElementsAttr():
                 data = init.get_attrs()
-                assert (
-                    len(data) == 1
-                ), f"Memref global initialiser has to have 1 value, got {len(data)}"
+                assert len(data) == 1, (
+                    f"MemRef global initialiser has to have 1 value, got {len(data)}"
+                )
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:
                 return f"<unknown memref.global init type {other}>"
@@ -344,9 +344,9 @@ class CslPrintContext:
         """
         type = val.type
         assert isa(type, MemRefType[Attribute])
-        assert isinstance(
-            val, OpResult
-        ), "The value provided to _memref_type_to_string must be an op result"
+        assert isinstance(val, OpResult), (
+            "The value provided to _memref_type_to_string must be an op result"
+        )
         dims: list[str] = []
         idx = 0
         for dim in type.get_shape():
@@ -452,8 +452,8 @@ class CslPrintContext:
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
-            case DenseIntOrFPElementsAttr(data=data, type=typ):
-                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(d) for d in data)} }}"
+            case DenseIntOrFPElementsAttr(type=typ):
+                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(a) for a in attr.iter_attrs())} }}"
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -716,7 +716,7 @@ class CslPrintContext:
                     if init is None:
                         init = ""
                     else:
-                        init = f" = { self._get_variable_name_for(init)}"
+                        init = f" = {self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.variables[res] = name.data
                     self.print(f"param {name.data} : {ty}{init};")
@@ -800,9 +800,9 @@ class CslPrintContext:
                         f"  .{q_type}_queue = @get_{q_type}_queue({queue_id.value.data}),"
                     )
                     self.print(f"  .fabric_color = {fabric_color},")
-                    if wavelet_index_offset:
+                    if wavelet_index_offset is not None:
                         self.print(f"  .wavelet_index_offset = {wavelet_index_offset},")
-                    if control:
+                    if control is not None:
                         self.print(f"  .control = {control},")
                     self.print("}});")
                 case csl.SetDsdBaseAddrOp(

@@ -9,11 +9,11 @@ from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
-    AnyMemRefTypeConstr,
     ArrayAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
+    MemRefType,
     TensorType,
 )
 from xdsl.ir import (
@@ -104,7 +104,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         printer.print(">")
 
     def print_nested_parameters(self, printer: Printer) -> None:
-        printer.print(f'[{", ".join(str(e) for e in self)}]')
+        printer.print(f"[{', '.join(str(e) for e in self)}]")
 
     def verify(self) -> None:
         l = len(self)
@@ -362,7 +362,7 @@ class StencilType(
         bounds: GenericAttrConstraint[Attribute] | None = None,
         element_type: GenericAttrConstraint[_FieldTypeElement] | None = None,
     ) -> (
-        BaseAttr[StencilType[Attribute]]
+        BaseAttr[StencilType[_FieldTypeElement]]
         | ParamAttrConstraint[StencilType[_FieldTypeElement]]
     ):
         if bounds is None and element_type is None:
@@ -542,9 +542,9 @@ class ApplyOp(IRDLOperation):
         assign_args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_assign_args
         )
-        args: list[Parser.Argument]
-        operands: list[SSAValue]
-        args, operands = zip(*assign_args) if assign_args else ([], [])
+        args: tuple[Parser.Argument, ...]
+        operands: tuple[SSAValue, ...]
+        args, operands = zip(*assign_args) if assign_args else ((), ())
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
@@ -562,7 +562,7 @@ class ApplyOp(IRDLOperation):
         parser.parse_punctuation(")")
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:
-            attrs = attrs.data
+            attrs = dict(attrs.data)
         else:
             attrs = {}
         region = parser.parse_region(args)
@@ -910,7 +910,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | AnyMemRefTypeConstr)
+    result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -1080,7 +1080,7 @@ class AccessOp(IRDLOperation):
         attrs = parser.parse_optional_attr_dict_with_keyword(
             {"offset", "offset_mapping"}
         )
-        attrs = attrs.data if attrs else dict[str, Attribute]()
+        attrs = dict(attrs.data) if attrs else {}
         attrs["offset"] = IndexAttr.get(*offset)
         if offset_mapping:
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)

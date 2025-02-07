@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from functools import singledispatchmethod
-from typing import IO, cast
+from typing import cast
 
 from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.builtin import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.hints import isa
 
 
-class WGSLPrinter:
+class WGSLPrinter(BasePrinter):
     name_dict: dict[SSAValue, str] = dict()
     count = 0
 
@@ -23,19 +24,19 @@ class WGSLPrinter:
         return self.name_dict[v]
 
     @singledispatchmethod
-    def print(self, op: Operation, out_stream: IO[str]) -> None:
+    def print(self, op: Operation) -> None:
         raise NotImplementedError(
             f"Printing of '{op.name}' to WGSL is not implemented yet."
         )
 
     @print.register
-    def _(self, op: gpu.ModuleOp, out_stream: IO[str]):
+    def _(self, op: gpu.ModuleOp):
         for o in op.body.ops:
             if isinstance(o, gpu.FuncOp):
-                self.print(o, out_stream)
+                self.print(o)
 
     @print.register
-    def _(self, op: gpu.FuncOp, out_stream: IO[str]):
+    def _(self, op: gpu.FuncOp):
         workgroup_size = (1,)
         if op.known_block_size:
             workgroup_size = op.known_block_size.get_values()
@@ -59,9 +60,9 @@ class WGSLPrinter:
     @group(0) @binding({arg.index})
     var<storage,{auth}> {self.wgsl_name(arg)}: {arg_type};
 """
-            out_stream.write(arguments)
+            self.print_string(arguments)
 
-        out_stream.write(
+        self.print_string(
             f"""
     @compute
     @workgroup_size({",".join(str(i) for i in workgroup_size)})
@@ -72,83 +73,76 @@ class WGSLPrinter:
 """
         )
         for operation in op.body.ops:
-            self.print(operation, out_stream)
-        out_stream.write(
+            self.print(operation)
+        self.print_string(
             """
             }
             """
         )
 
     @print.register
-    def _(self, op: gpu.ReturnOp, out_stream: IO[str]):
+    def _(self, op: gpu.ReturnOp):
         pass
 
     @print.register
-    def _(self, op: gpu.BlockIdOp, out_stream: IO[str]):
+    def _(self, op: gpu.BlockIdOp):
         dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = workgroup_id.{dim};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {name_hint}: u32 = workgroup_id.{dim};")
 
     @print.register
-    def _(self, op: gpu.ThreadIdOp, out_stream: IO[str]):
+    def _(self, op: gpu.ThreadIdOp):
         dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = local_invocation_id.{dim};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {name_hint}: u32 = local_invocation_id.{dim};")
 
     @print.register
-    def _(self, op: gpu.GridDimOp, out_stream: IO[str]):
+    def _(self, op: gpu.GridDimOp):
         dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = num_workgroups.{dim};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {name_hint}: u32 = num_workgroups.{dim};")
 
     @print.register
-    def _(self, op: gpu.BlockDimOp, out_stream: IO[str]):
+    def _(self, op: gpu.BlockDimOp):
         dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = local_invocation_id.{dim};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {name_hint}: u32 = local_invocation_id.{dim};")
 
     @print.register
-    def _(self, op: gpu.GlobalIdOp, out_stream: IO[str]):
+    def _(self, op: gpu.GlobalIdOp):
         dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = global_invocation_id.{dim};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {name_hint}: u32 = global_invocation_id.{dim};")
 
     @print.register
-    def _(self, op: memref.LoadOp, out_stream: IO[str]):
+    def _(self, op: memref.LoadOp):
         load_ref = self.wgsl_name(op.memref)
         name_hint = self.wgsl_name(op.res)
         indices = [self.wgsl_name(i) for i in op.indices]
         index_value = self.calculate_index(op, indices)
-        out_stream.write(
-            f"""
-        let {name_hint} = {load_ref}[{index_value}];"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {name_hint} = {load_ref}[{index_value}];")
 
     @print.register
-    def _(self, op: memref.StoreOp, out_stream: IO[str]):
+    def _(self, op: memref.StoreOp):
         value = self.wgsl_name(op.value)
         store_ref = self.wgsl_name(op.memref)
         indices = [self.wgsl_name(i) for i in op.indices]
         index_value = self.calculate_index(op, indices)
-        out_stream.write(
-            f"""
-        {store_ref}[{index_value}] = {value};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"{store_ref}[{index_value}] = {value};")
 
     def calculate_index(self, op: memref.StoreOp | memref.LoadOp, indices: list[str]):
         """
@@ -171,86 +165,76 @@ class WGSLPrinter:
         return " + ".join(index_values)
 
     @print.register
-    def _(self, op: gpu.ModuleEndOp, out_stream: IO[str]):
+    def _(self, op: gpu.ModuleEndOp):
         # Nothing to print :)
         pass
 
     @print.register
-    def _(self, op: arith.ConstantOp, out_stream: IO[str]):
+    def _(self, op: arith.ConstantOp):
         value = int(str(op.value).split()[0])
         cons_type = op.result.type
         if isinstance(op.result.type, builtin.IndexType):
             cons_type = "u32"
         name_hint = self.wgsl_name(op.result)
-        if cons_type == "u32":
-            if value < 0:
-                value = 4294967296 + value
-            out_stream.write(
-                f"""
-        let {name_hint} : {cons_type} = {value}u;"""
-            )
-        else:
-            out_stream.write(
-                f"""
-        let {name_hint} : {cons_type} = {value};"""
-            )
+        self.print_string("\n")
+        with self.indented(2):
+            if cons_type == "u32":
+                if value < 0:
+                    value = 4294967296 + value
+                self.print_string(f"let {name_hint} : {cons_type} = {value}u;")
+            else:
+                self.print_string(f"let {name_hint} : {cons_type} = {value};")
 
     @print.register
-    def _(self, op: arith.AddiOp, out_stream: IO[str]):
+    def _(self, op: arith.AddiOp):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
-        out_stream.write(
-            f"""
-        let {op_name_hint} = {lhs} + {rhs};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {op_name_hint} = {lhs} + {rhs};")
 
     @print.register
-    def _(self, op: arith.MuliOp, out_stream: IO[str]):
+    def _(self, op: arith.MuliOp):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
-        out_stream.write(
-            f"""
-        let {op_name_hint} = {lhs} * {rhs};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {op_name_hint} = {lhs} * {rhs};")
 
     @print.register
-    def _(self, op: arith.SubiOp, out_stream: IO[str]):
+    def _(self, op: arith.SubiOp):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
-        out_stream.write(
-            f"""
-        let {op_name_hint} = {lhs} - {rhs};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {op_name_hint} = {lhs} - {rhs};")
 
     @print.register
-    def _(self, op: arith.MulfOp, out_stream: IO[str]):
+    def _(self, op: arith.MulfOp):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
-        out_stream.write(
-            f"""
-        let {op_name_hint} = {lhs} * {rhs};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {op_name_hint} = {lhs} * {rhs};")
 
     @print.register
-    def _(self, op: arith.AddfOp, out_stream: IO[str]):
+    def _(self, op: arith.AddfOp):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
-        out_stream.write(
-            f"""
-        let {op_name_hint} = {lhs} + {rhs};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {op_name_hint} = {lhs} + {rhs};")
 
     @print.register
-    def _(self, op: arith.SubfOp, out_stream: IO[str]):
+    def _(self, op: arith.SubfOp):
         op_name_hint = self.wgsl_name(op.result)
         lhs = self.wgsl_name(op.lhs)
         rhs = self.wgsl_name(op.rhs)
-        out_stream.write(
-            f"""
-        let {op_name_hint} = {lhs} - {rhs};"""
-        )
+        self.print_string("\n")
+        with self.indented(2):
+            self.print_string(f"let {op_name_hint} = {lhs} - {rhs};")

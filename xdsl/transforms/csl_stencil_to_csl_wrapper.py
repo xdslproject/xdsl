@@ -5,14 +5,13 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, llvm, memref, stencil
 from xdsl.dialects.builtin import (
-    AnyMemRefType,
-    AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
     ArrayAttr,
     DictionaryAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ShapedType,
     Signedness,
     StringAttr,
@@ -113,7 +112,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 stencil.StencilTypeConstr,
             ) and isattr(
                 el_type := field_t.element_type,
-                AnyTensorTypeConstr | AnyMemRefTypeConstr,
+                AnyTensorTypeConstr | MemRefType.constr(),
             ):
                 # unbufferized csl_stencil
                 z_dim = max(z_dim, el_type.get_shape()[-1])
@@ -124,7 +123,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
             if isattr(
                 buf_t := apply_op.receive_chunk.block.args[0].type,
-                AnyTensorTypeConstr | AnyMemRefTypeConstr,
+                AnyTensorTypeConstr | MemRefType.constr(),
             ):
                 chunk_size = max(chunk_size, buf_t.get_shape()[-1])
 
@@ -167,9 +166,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # replace func.return by unblock_cmd_stream and csl.return
         func_return = main_func.body.block.last_op
         assert isinstance(func_return, func.ReturnOp)
-        assert (
-            len(func_return.arguments) == 0
-        ), "Non-empty returns currently not supported"
+        assert len(func_return.arguments) == 0, (
+            "Non-empty returns currently not supported"
+        )
         memcpy = module_op.get_program_import("<memcpy/memcpy>")
         unblock_call = csl.MemberCallOp(
             struct=memcpy, fname="unblock_cmd_stream", params=[], result_type=None
@@ -396,7 +395,7 @@ class LowerTimerFuncCall(RewritePattern):
             or not (isinstance(start_call := end_call.arguments[0].owner, func.CallOp))
             or not start_call.callee.string_value() == TIMER_START
             or not (wrapper := _get_module_wrapper(op))
-            or not isa(op.ptr.type, AnyMemRefType)
+            or not isa(op.ptr.type, MemRefType)
         ):
             return
 

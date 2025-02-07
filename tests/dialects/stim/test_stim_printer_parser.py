@@ -87,7 +87,7 @@ def test_print_stim_qubit_coord_op():
 
 @pytest.mark.parametrize(
     "program",
-    [(""), ("\n"), ("#hi"), ("# hi \n" "#hi\n")],
+    [(""), ("\n"), ("#hi"), ("# hi \n#hi\n")],
 )
 def test_stim_roundtrip_empty_circuit(program: str):
     stim_parser = StimParser(program)
@@ -101,7 +101,7 @@ def test_stim_roundtrip_empty_circuit(program: str):
         ("QUBIT_COORDS() 0\n"),
         ("QUBIT_COORDS(0, 0) 0\n"),
         ("QUBIT_COORDS(0, 2) 1\n"),
-        ("QUBIT_COORDS(0, 0) 0\n" "QUBIT_COORDS(1, 2) 2\n"),
+        ("QUBIT_COORDS(0, 0) 0\nQUBIT_COORDS(1, 2) 2\n"),
     ],
 )
 def test_stim_roundtrip_qubit_coord_op(program: str):

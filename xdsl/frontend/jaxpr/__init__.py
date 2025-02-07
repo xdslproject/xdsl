@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from jax._src.core import ClosedJaxpr
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.builtin import FunctionType, ModuleOp, TensorType, f32
 from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Block, Region
@@ -36,7 +36,7 @@ class IRGen:
         # We create an empty MLIR module and codegen functions one at a time and
         # add them to the module.
         self.module = ModuleOp([])
-        self.builder = Builder.at_end(self.module.body.blocks[0])
+        self.builder = Builder(InsertPoint.at_end(self.module.body.blocks[0]))
 
     def ir_gen_module(self, jaxpr: ClosedJaxpr) -> ModuleOp:
         """
@@ -62,7 +62,7 @@ class IRGen:
         ]
 
         block = Block(arg_types=input_types)
-        self.builder = Builder.at_end(block)
+        self.builder = Builder(InsertPoint.at_end(block))
 
         func_type = FunctionType.from_lists(input_types, output_types)
 

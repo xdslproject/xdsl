@@ -4,7 +4,6 @@ from collections.abc import Sequence
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     FunctionType,
     IntegerAttr,
     IntegerType,
@@ -48,7 +47,7 @@ class SyscallOp(IRDLOperation):
 
     def __init__(
         self,
-        num: int | AnyIntegerAttr,
+        num: int | IntegerAttr,
         has_result: bool = False,
         operands: list[SSAValue | Operation] = [],
     ):

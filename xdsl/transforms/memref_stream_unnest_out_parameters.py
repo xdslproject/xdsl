@@ -54,7 +54,7 @@ class UnnestOutParametersPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamUnnestOutParametersPass(ModulePass):
+class MemRefStreamUnnestOutParametersPass(ModulePass):
     """
     Converts the affine maps of memref_stream.generic out parameters from taking all the
     indices to only taking "parallel" ones.
