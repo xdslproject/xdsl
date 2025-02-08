@@ -36,8 +36,8 @@ def pipeline_html(
     ctx: MLContext, module: ModuleOp, passes: Sequence[tuple[mo.Html, ModulePass]]
 ) -> tuple[MLContext, ModuleOp, mo.Html]:
     """
-    Returns a tuple of the resulting context and module after applying the passes, and the
-    Marimo-optimised representation of the modules throughout compilation.
+    Returns a tuple of the resulting context and module after applying the passes, and
+    the Marimo-optimised representation of the modules throughout compilation.
 
     The input is the input MLContext, a sequence of tuples of
     (pass description, module pass).

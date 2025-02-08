@@ -148,7 +148,7 @@ class AffineMap:
         map2: (d0)[s0] -> (d0 + s0, d0 - s0)
         map1.compose(map2): (d0)[s0, s1, s2] -> (d0 + s1 + s2 + 1, d0 - s0 - s2 - 1)
         ```
-        """  #
+        """
         if self.num_dims != len(other.results):
             raise ValueError(
                 "Cannot compose AffineMaps with mismatching dimensions and results: "

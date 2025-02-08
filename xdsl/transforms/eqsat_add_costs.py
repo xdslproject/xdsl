@@ -33,7 +33,8 @@ def add_eqsat_costs(block: Block):
 
         if len(op.results) != 1:
             raise DiagnosticException(
-                f"Cannot compute cost of one result of operation with multiple results: {op}"
+                "Cannot compute cost of one result of operation with multiple "
+                "results: {op}"
             )
 
         costs = tuple(get_eqsat_cost(value) for value in op.operands)

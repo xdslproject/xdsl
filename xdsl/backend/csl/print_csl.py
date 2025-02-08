@@ -823,9 +823,7 @@ class CslPrintContext:
                     )
                 case csl.SetDsdStrideOp(op=input_dsd, stride=stride, result=result):
                     self.print(
-                        f"{self._var_use(result)} = @set_dsd_stride("
-                        f"{self._get_variable_name_for(input_dsd)}, "
-                        f"{self._get_variable_name_for(stride)});"
+                        f"{self._var_use(result)} = @set_dsd_stride({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(stride)});"  # noqa: E501
                     )
                 case csl.BuiltinDsdOp(ops=ops):
                     self.print(

@@ -569,9 +569,7 @@ def test_informative_attribute():
 
     with pytest.raises(
         VerifyException,
-        match="Dear user, here's what this constraint means in your abstraction.\n"
-        "Underlying verification failure: #test.int<42> "
-        "should be of base attribute none",
+        match="Dear user, here's what this constraint means in your abstraction.\nUnderlying verification failure: #test.int<42> should be of base attribute none",
     ):
         InformativeAttr((IntData(42),))
 

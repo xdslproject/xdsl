@@ -389,7 +389,7 @@ class BufferAlloc(RewritePattern):
     %forward = stencil.load %alloc : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>
     // [...]
     ```
-    """
+    """  # noqa: E501
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):

@@ -225,13 +225,12 @@ def test_allof_verify_multiple_failures():
     """
     constraint = AllOf((LessThan(5), GreaterThan(8)))
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException,
+        match=f"The following constraints were not satisfied:\n{IntData(7)} should "
+        f"hold a value less than 5\n{IntData(7)} should hold a value greater than 8",
+    ):
         constraint.verify(IntData(7), ConstraintContext())
-    assert e.value.args[0] == (
-        f"The following constraints were not satisfied:\n{IntData(7)} "
-        f"should hold a value less than 5\n{IntData(7)} "
-        "should hold a value greater than 8"
-    )
 
 
 def test_param_attr_verify():
