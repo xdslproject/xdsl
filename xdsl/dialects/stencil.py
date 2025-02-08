@@ -823,13 +823,7 @@ class CombineOp(IRDLOperation):
         CombineOpHasShapeInferencePatternsTrait(),
     )
 
-    assembly_format = (
-        "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` "
-        "`upper` `=` `(` $upper `:` type($upper) `)` "
-        "(`lowerext` `=` $lowerext^ `:` type($lowerext))? "
-        "(`upperext` `=` $upperext^ `:` type($upperext))? "
-        "attr-dict-with-keyword `:` type($results_)"
-    )
+    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"  # noqa: E501
 
     irdl_options = [
         AttrSizedOperandSegments(),

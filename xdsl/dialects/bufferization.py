@@ -216,10 +216,7 @@ class MaterializeInDestinationOp(IRDLOperation):
     restrict = opt_prop_def(UnitAttr)
     writable = opt_prop_def(UnitAttr)
 
-    assembly_format = (
-        "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest "
-        "attr-dict `:` functional-type(operands, results)"
-    )
+    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"  # noqa: E501
 
 
 Bufferization = Dialect(
