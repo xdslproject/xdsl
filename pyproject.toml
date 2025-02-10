@@ -30,9 +30,6 @@ dev = [
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
     "pyright==1.1.393",
-    "viztracer>=1.0.0",
-    "snakeviz>=2.2.2",
-    "flameprof>=0.4",
 ]
 docs = [
     "mkdocs-gen-files>=0.5.0",
@@ -45,10 +42,11 @@ jax = ["jax==0.5.0", "numpy==2.2.2"]
 riscv = ["riscemu==2.2.7"]
 bench = [
     "asv>=0.6.4",
-    "functiontrace>=0.3.7",
     "snakeviz>=2.2.2",
     "tqdm>=4.67.1",
     "viztracer>=1.0.1",
+    "flameprof>=0.4",
+    "functiontrace>=0.3.7",
 ]
 
 [project.urls]

@@ -10,8 +10,9 @@ VENV_DIR ?= .venv
 # use activated venv if any
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
-# allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra bench --extra jax --extra riscv --extra docs
+# allow providing options to uv, such as overriding which extras are installed
+VENV_OPTIONS ?= --extra gui --extra dev --extra bench --extra jax --extra riscv --extra docs
+# VENV_OPTIONS ?= -p pypy3
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -28,7 +29,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	uv sync ${VENV_EXTRAS}
+	uv sync ${VENV_OPTIONS}
 	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi

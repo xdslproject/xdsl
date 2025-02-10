@@ -2943,7 +2943,7 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0+untagged.3250.gd58bed6.dirty"
+version = "0+untagged.3252.g78dd047.dirty"
 source = { editable = "." }
 dependencies = [
     { name = "immutabledict" },
@@ -2954,6 +2954,7 @@ dependencies = [
 [package.optional-dependencies]
 bench = [
     { name = "asv" },
+    { name = "flameprof" },
     { name = "functiontrace" },
     { name = "snakeviz" },
     { name = "tqdm" },
@@ -2962,7 +2963,6 @@ bench = [
 dev = [
     { name = "coverage" },
     { name = "filecheck" },
-    { name = "flameprof" },
     { name = "ipykernel" },
     { name = "lit" },
     { name = "marimo" },
@@ -2974,10 +2974,8 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
-    { name = "snakeviz" },
     { name = "textual-dev" },
     { name = "toml" },
-    { name = "viztracer" },
 ]
 docs = [
     { name = "mkdocs" },
@@ -3002,7 +3000,7 @@ requires-dist = [
     { name = "asv", marker = "extra == 'bench'", specifier = ">=0.6.4" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.1" },
-    { name = "flameprof", marker = "extra == 'dev'", specifier = ">=0.4" },
+    { name = "flameprof", marker = "extra == 'bench'", specifier = ">=0.4" },
     { name = "functiontrace", marker = "extra == 'bench'", specifier = ">=0.3.7" },
     { name = "immutabledict", specifier = "<4.2.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
@@ -3026,14 +3024,12 @@ requires-dist = [
     { name = "riscemu", marker = "extra == 'riscv'", specifier = "==2.2.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.9.4" },
     { name = "snakeviz", marker = "extra == 'bench'", specifier = ">=2.2.2" },
-    { name = "snakeviz", marker = "extra == 'dev'", specifier = ">=2.2.2" },
     { name = "textual", marker = "extra == 'gui'", specifier = "==1.0.0" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "tqdm", marker = "extra == 'bench'", specifier = ">=4.67.1" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
     { name = "viztracer", marker = "extra == 'bench'", specifier = ">=1.0.1" },
-    { name = "viztracer", marker = "extra == 'dev'", specifier = ">=1.0.0" },
 ]
 
 [[package]]
