@@ -236,30 +236,33 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _():
-    l1_dist_scf_text = """\
-    func.func @l1_dist(%a : i32, %b : i32) -> i32 {
-      %slt = arith.cmpi slt, %a, %b : i32
-      %res = scf.if %slt -> (i32) {
-        %b_minus_a = arith.subi %b, %a : i32
-        scf.yield %b_minus_a : i32
-      } else {
-        %a_minus_b = arith.subi %a, %b : i32
-        scf.yield %a_minus_b : i32
-      }
-      func.return %res : i32
-    }"""
-    return (l1_dist_scf_text,)
+def _(mo):
+    mo.md(r"""### `scf.if`""")
+    return
 
 
 @app.cell(hide_code=True)
-def _(l1_dist_scf_text, mo, xmo):
+def _():
+    select_text = """\
+    func.func @select(%cond : i32, %a : i32, %b : i32) -> i32 {
+      %res = scf.if %cond -> (i32) {
+        scf.yield %a : i32
+      } else {
+        scf.yield %b : i32
+      }
+      func.return %res : i32
+    }"""
+    return (select_text,)
+
+
+@app.cell(hide_code=True)
+def _(mo, select_text, xmo):
     mo.md(
         fr"""
         The [`scf` dialect](https://mlir.llvm.org/docs/Dialects/Scf/) contains operations for control flow.
-        Here is another implementation of l1_distance using an if statement:
+        Here is a function that returns the second argument if the first argument is `true`, and the third argument otherwise:
 
-        {xmo.module_html(l1_dist_scf_text)}
+        {xmo.module_html(select_text)}
 
         Note that we did not put early returns in the branches of the if operation.
         This is because MLIR's SSA blocks have a contract, which is that all the operations are executed from top to bottom, and operations are guaranteed to yield to the outer block.
@@ -269,6 +272,119 @@ def _(l1_dist_scf_text, mo, xmo):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""### Exercise 3: Abs Function""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(abs_function_text, mo):
+    abs_input_text = mo.ui.text("-5")
+    abs_text_area = mo.ui.code_editor(
+        abs_function_text, language="javascript"
+    )
+    return abs_input_text, abs_text_area
+
+
+@app.cell(hide_code=True)
+def _():
+    abs_function_text = """\
+    func.func @abs(%a : i32) -> i32 {
+        %false = arith.constant 0 : i1
+        %res = scf.if %false -> (i32) {
+            scf.yield %a : i32
+        } else {
+            scf.yield %a : i32
+        }
+        func.return %res : i32
+    }"""
+    return (abs_function_text,)
+
+
+@app.cell(hide_code=True)
+def _(Parser, abs_input_text, abs_text_area, ctx, run_func):
+    abs_error_text = ""
+    abs_results_text = ""
+    try:
+        abs_input = int(abs_input_text.value)
+        abs_inputs = (abs_input,)
+        abs_module = Parser(ctx, abs_text_area.value).parse_module()
+        abs_results = run_func(abs_module, "abs", abs_inputs)
+        abs_results_text = f"abs({abs_input}) = {abs_results}"
+    except Exception as e:
+        abs_error_text = str(e)
+
+    if abs_error_text:
+        abs_info_text = f"""
+        Error:
+
+        ```
+        {abs_error_text}
+        ```
+        """
+    else:
+        abs_info_text = f"""\
+        Change the definition of `abs` to compute the absolute value of the input.
+
+        ```
+        {abs_results_text}
+        ```
+        """
+    return (
+        abs_error_text,
+        abs_info_text,
+        abs_input,
+        abs_inputs,
+        abs_module,
+        abs_results,
+        abs_results_text,
+    )
+
+
+@app.cell
+def _(abs_info_text, abs_input_text, abs_text_area, mo):
+    mo.vstack(
+        (
+            mo.md(f"""Input: {abs_input_text} {mo.ui.button(label="run")}"""),
+            abs_text_area,
+            mo.md(abs_info_text)
+        )
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Unhide the cell below to see the solution:""")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    # Solution
+
+    abs_impl = """\
+    func.func @abs(%a : i32) -> i32 {
+        %zero = arith.constant 0 : i32
+        %slt = arith.cmpi slt, %a, %zero : i32
+        %res = scf.if %slt -> (i32) {
+            %r = arith.subi %zero, %a : i32
+            scf.yield %r : i32
+        } else {
+            scf.yield %a : i32
+        }
+        func.return %res : i32
+    }"""
+    return (abs_impl,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""### `scf.for`""")
+    return
+
+
+@app.cell
 def _(mo, triangle_text, xmo):
     mo.md(
         fr"""
@@ -286,7 +402,7 @@ def _(mo, triangle_text, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Exercise 3: Factorial Function""")
+    mo.md(r"""### Exercise 4: Factorial Function""")
     return
 
 
@@ -310,7 +426,6 @@ def _(Parser, ctx, run_func, second_input_text, second_text_area):
         second_results = run_func(second_module, "factorial", second_inputs)
         second_results_text = f"factorial({second_input}) = {second_results}"
     except Exception as e:
-        print("no")
         second_error_text = str(e)
 
     if second_error_text:
