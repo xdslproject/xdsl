@@ -25,15 +25,15 @@ implementation, and are desiged to align with
 - Component
   - [x] Lexer
   - [x] Parser
-  - [ ] Pattern rewriter
+  - [x] Pattern rewriter
   - [ ] Printer
   - [ ] Verifier
 - Microbenchmarks
   - [x] IR traversal (direct block iteration and walking)
   - [x] Dialect loading
   - [x] Import machinery
-  - [ ] Extensibility through interface/trait lookups
-  - [ ] Operation creation
+  - [x] Extensibility through interface/trait lookups
+  - [x] Operation creation
   - [ ] ...
 
 ## Automated regression benchmarking with ASV

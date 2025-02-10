@@ -5,18 +5,17 @@ from xdsl.dialects.test import TestOp
 from xdsl.ir import Block
 
 EXAMPLE_BLOCK_NUM_OPS = 1_000
-EXAMPLE_BLOCK = Block(ops=(
-    TestOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)
-))
+EXAMPLE_BLOCK = Block(ops=(TestOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)))
+
 
 def time_ir_traversal__iterate_block_ops() -> None:
-    """."""
+    """Time directly iterating over a block's operations."""
     for op in EXAMPLE_BLOCK.ops:
         assert op
 
 
 def time_ir_traversal__walk_block_ops() -> None:
-    """."""
+    """Time walking a block's operations."""
     for op in EXAMPLE_BLOCK.walk():
         assert op
 

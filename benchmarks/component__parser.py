@@ -4,6 +4,7 @@
 from pathlib import Path
 
 from xdsl.context import MLContext
+from xdsl.ir import Operation
 from xdsl.parser import Parser
 
 BENCHMARKS_DIR = Path(__file__).parent
@@ -18,16 +19,16 @@ MLIR_FILES: dict[str, Path] = {
 CTX = MLContext(allow_unregistered=True)
 
 
-def parse_input(parser_input: str) -> None:
+def parse_input(parser_input: str) -> Operation:
     """Parse a string."""
     parser = Parser(CTX, parser_input)
-    parser.parse_op()
+    return parser.parse_op()
 
 
-def parse_file(mlir_file: Path) -> None:
+def parse_file(mlir_file: Path) -> Operation:
     """Parse a MLIR file."""
     contents = mlir_file.read_text()
-    parse_input(contents)
+    return parse_input(contents)
 
 
 def time_parser__apply_pdl_extra_file() -> None:
