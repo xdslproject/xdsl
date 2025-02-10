@@ -5,17 +5,33 @@ import cProfile
 import subprocess
 import timeit
 from argparse import ArgumentParser, Namespace
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
+PROFILERS = (
+    "timeit",
+    "snakeviz",
+    "viztracer",
+    "flameprof"
+)
 
 
-def parse_arguments() -> ArgumentParser:
+def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
     """Parse the arguments for the profiler tool."""
     parser = ArgumentParser()
 
+    parser.add_argument(
+        "test",
+        choices=benchmark_names,
+        help="the name of the benchmark to run"
+    )
+    parser.add_argument(
+        "profiler",
+        choices=PROFILERS,
+        help="the profiler to use"
+    )
     parser.add_argument(
         "-o",
         "--output",
@@ -24,80 +40,65 @@ def parse_arguments() -> ArgumentParser:
         help="the directory into which to write out the profile files",
     )
     parser.add_argument(
-        "-t",
-        "--test",
-        help="the name of the test to run",
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="don't show the profiler's UI"
     )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="don't show the profiler's UI"
-    )
-
-    sub_parsers = parser.add_subparsers(dest="command", required=True)
-    sub_parsers.add_parser("timeit", help="use the timeit")
-    sub_parsers.add_parser("snakeviz", help="use the SnakeViz profiler")
-    sub_parsers.add_parser("viztracer", help="use the VizTracer profiler")
-    sub_parsers.add_parser("flameprof", help="use the flameprof profiler")
 
     return parser
 
 
-def get_benchmarks(
+def get_benchmark(
     args: Namespace, benchmarks: dict[str, Callable[[], Any]]
-) -> Iterable[tuple[str, Callable[[], None]]]:
-    """Get the filtered set of benchmarks items to profile."""
-    if args.test is not None and args.test in benchmarks:
-        benchmarks = {args.test: benchmarks[args.test]}
-    return benchmarks.items()
+) -> tuple[str, Callable[[], None]]:
+    """Get the benchmark to profile."""
+    return (args.test, benchmarks[args.test])
 
 
 def timeit_benchmark(
     args: Namespace, benchmarks: dict[str, Callable[[], Any]], number: int = 1
 ) -> None:
     """Use timeit to run a benchmark."""
-    for name, test in get_benchmarks(args, benchmarks):
-        print(f"Test {name} ran in: {timeit.timeit(test, number=number):.5f}s")
+    name, test = get_benchmark(args, benchmarks)
+    print(f"Test {name} ran in: {timeit.timeit(test, number=number):.5f}s")
 
 
 def cprofile_benchmark(
     args: Namespace, benchmarks: dict[str, Callable[[], Any]]
-) -> list[Path]:
+) -> Path:
     """Use cProfile to profile a benchmark."""
-    output_profs: list[Path] = []
-    for name, _ in get_benchmarks(args, benchmarks):
-        output_profs.append(output_prof := args.output / f"{name}.prof")
-        cProfile.run(f"{name}()", str(output_prof))
-    return output_profs
+    name, _ = get_benchmark(args, benchmarks)
+    output_prof = args.output / f"{name}.prof"
+    cProfile.run(f"{name}()", str(output_prof))
+    return output_prof
 
 
 def viztracer_benchmark(
     args: Namespace, benchmarks: dict[str, Callable[[], Any]]
-) -> list[Path]:
+) -> Path:
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
 
-    output_profs: list[Path] = []
-    for name, test in get_benchmarks(args, benchmarks):
-        output_profs.append(output_prof := args.output / f"{name}.json")
-        with VizTracer(output_file=str(output_prof)):
-            test()
-    return output_profs
+    name, test = get_benchmark(args, benchmarks)
+    output_prof = args.output / f"{name}.json"
+    with VizTracer(output_file=str(output_prof)):
+        test()
+    return output_prof
 
 
 def show(
     args: Namespace,
-    output_profs: list[Path],
+    output_prof: Path,
     tool: str,
     options: tuple[str, ...] | None = None,
 ) -> None:
     """Show the profile using the specified tool."""
     if args.quiet:
         return
-    if args.test is None:
-        raise ValueError("Cannot show UI for more than one benchmark")
-    assert len(output_profs) == 1
     if options is None:
         options = cast(tuple[str], ())
-    command = ["uv", "run", tool, str(output_profs[0]), *options]
+    command = ["uv", "run", tool, output_prof, *options]
     subprocess.run(command, check=True)  # noqa: S603
 
 
@@ -108,19 +109,19 @@ def profile(
     if not benchmarks:
         raise ValueError("At least one benchmark must be provided to profile!")
 
-    args = parse_arguments().parse_args(args=argv)
+    args = parse_arguments(list(benchmarks.keys())).parse_args(args=argv)
 
-    match args.command:
+    match args.profiler:
         case "timeit":
             timeit_benchmark(args, benchmarks)
         case "snakeviz":
-            output_profs = cprofile_benchmark(args, benchmarks)
-            show(args, output_profs, tool="snakeviz")
+            output_prof = cprofile_benchmark(args, benchmarks)
+            show(args, output_prof, tool="snakeviz")
         case "flameprof":
-            output_profs = cprofile_benchmark(args, benchmarks)
-            show(args, output_profs, tool="flameprof")
+            output_prof = cprofile_benchmark(args, benchmarks)
+            show(args, output_prof, tool="flameprof")
         case "viztracer":
-            output_profs = viztracer_benchmark(args, benchmarks)
-            show(args, output_profs, tool="vizviewer")
+            output_prof = viztracer_benchmark(args, benchmarks)
+            show(args, output_prof, tool="vizviewer")
         case _:
             raise ValueError("Invalid command!")

@@ -65,39 +65,31 @@ benchmark can be specified. The help page for this CLI is as follows:
 ```
 uv run python3
  BENCHMARK.py --help
-usage: BENCHMARK.py [-h] [-o OUTPUT] [-t TEST] [-s]
-                     {timeit,snakeviz,viztracer,flameprof} ...
+usage: BENCHMARK.py [-h] [-o OUTPUT] [-q]
+                     {BENCHMARK_NAME,...}
+                     {timeit,snakeviz,viztracer,flameprof}
 
 positional arguments:
+  {BENCHMARK_NAME,...}
+                        name of the benchmark to run
   {timeit,snakeviz,viztracer,flameprof}
-    timeit              use the timeit
-    snakeviz            use the SnakeViz profiler
-    viztracer           use the VizTracer profiler
-    flameprof           use the flameprof profiler
+                        profiler to use
 
 options:
   -h, --help            show this help message and exit
   -o OUTPUT, --output OUTPUT
                         the directory into which to write out the profile
                         files
-  -t TEST, --test TEST  the name of the test to run
   -q, --quiet           don't show the profiler's UI
 ```
 
-### Examples
+### Example
 
-To use `timeit` to get the average runtime of the lexer on
-`apply_pdl_extra_file.mlir`:
-
-```bash
-uv run python3 component__lexer.py -t time_lexer__apply_pdl_extra_file timeit
-```
-
-To use `viztracer` to profile the end-to-end optimisation of a constant folding
-workload
+To use `viztracer` to profile the lexer on `apply_pdl_extra_file.mlir` (the
+"Lexer.apply_pdl_extra_fil" benchmark):
 
 ```bash
-uv run python3 end_to_end.py -t time_end_to_end_opt__constant_folding viztracer
+uv run python3 components.py Lexer.apply_pdl_extra_file viztracer
 ```
 
 ### Extensibility
