@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.0"
 app = marimo.App()
 
 
@@ -479,6 +479,177 @@ def _(Abs, Sum, a, b, print_ir, x, y):
     # The triangle sum from 0 to a (excluded)
     print_ir(Sum(b+b, (b, 0, a)))
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        ## Solutions
+
+        Here is a solution for the implementation of `emit_real_op` and `emit_integer_op`.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    Abs,
+    Add,
+    AddfOp,
+    AddiOp,
+    Block,
+    Builder,
+    CmpfOp,
+    ConstantOp,
+    Expr,
+    Float,
+    Float64Type,
+    FloatAttr,
+    ForOp,
+    IfOp,
+    InsertPoint,
+    Integer,
+    IntegerAttr,
+    IntegerType,
+    Mul,
+    MulfOp,
+    MuliOp,
+    Pow,
+    PowFOp,
+    Region,
+    SIToFPOp,
+    SSAValue,
+    SelectOp,
+    SubfOp,
+    Sum,
+    Symbol,
+    YieldOp,
+):
+    def solution():
+        def emit_integer_op(
+            expr: Expr,
+            builder: Builder,
+            args: dict[Symbol, SSAValue],
+        ):
+            # Handle symbolic values
+            if isinstance(expr, Symbol):
+                return args[expr]
+
+            # Handle constants
+            if isinstance(expr, Integer):
+                constant_op = builder.insert(
+                    ConstantOp(IntegerAttr(int(expr), IntegerType(64)))
+                )
+                return constant_op.result
+
+            if isinstance(expr, Add):
+                lhs = emit_integer_op(expr.args[0], builder, args)
+                rhs = emit_integer_op(expr.args[1], builder, args)
+                add_op = builder.insert(AddiOp(lhs, rhs))
+                return add_op.result
+
+            if isinstance(expr, Mul):
+                lhs = emit_integer_op(expr.args[0], builder, args)
+                rhs = emit_integer_op(expr.args[1], builder, args)
+                add_op = builder.insert(MuliOp(lhs, rhs))
+                return add_op.result
+
+            # Hint: Implement here support for Add and Mul
+
+            raise NotImplementedError(f"No IR emitter for integer function {expr.func}")
+
+        def emit_real_op(
+            expr: Expr,
+            builder: Builder,
+            args: dict[Symbol, SSAValue],
+        ):
+            # If the expression is an integer expression, emits it and then convert it
+            # back to a float expression.
+            if expr.is_integer:
+                res = emit_integer_op(expr, builder, args)
+                op = builder.insert(SIToFPOp(res, Float64Type()))
+                return op.result
+
+            # Handle constants
+            if isinstance(expr, Float):
+                constant_op = builder.insert(
+                    ConstantOp(FloatAttr(float(expr), Float64Type()))
+                )
+                return constant_op
+
+            # Handle symbolic values
+            if isinstance(expr, Symbol):
+                return args[expr]
+
+            if isinstance(expr, Add):
+                lhs = emit_real_op(expr.args[0], builder, args)
+                rhs = emit_real_op(expr.args[1], builder, args)
+                add_op = builder.insert(AddfOp(lhs, rhs))
+                return add_op.result
+
+            if isinstance(expr, Mul):
+                lhs = emit_real_op(expr.args[0], builder, args)
+                rhs = emit_real_op(expr.args[1], builder, args)
+                add_op = builder.insert(MulfOp(lhs, rhs))
+                return add_op.result
+
+            if isinstance(expr, Pow):
+                lhs = emit_real_op(expr.args[0], builder, args)
+                rhs = emit_real_op(expr.args[1], builder, args)
+                add_op = builder.insert(PowFOp(lhs, rhs))
+                return add_op.result
+
+            if isinstance(expr, Abs):
+                # The arith.select solution
+                if False:
+                    arg = emit_real_op(expr.args[0], builder, args)
+                    zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
+                    neg = builder.insert(SubfOp(zero, arg)).result
+                    is_neg = builder.insert(CmpfOp(arg, zero, "olt")).result
+                    select = builder.insert(SelectOp(is_neg, neg, arg)).result
+                    return select
+
+                # The scf.if solution
+                arg = emit_real_op(expr.args[0], builder, args)
+                zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
+                is_neg = builder.insert(CmpfOp(arg, zero, "olt")).result
+
+                lhs_region = Region([Block()])
+                builder2 = Builder(InsertPoint.at_end(lhs_region.block))
+                neg = builder2.insert(SubfOp(zero, arg)).result
+                builder2.insert(YieldOp(neg))
+
+                rhs_region = Region([Block()])
+                builder3 = Builder(InsertPoint.at_end(rhs_region.block))
+                builder3.insert(YieldOp(neg))
+
+                if_res = builder.insert(
+                    IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
+                ).results[0]
+
+                return if_res
+
+            if isinstance(expr, Sum):
+                zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
+                lb = emit_integer_op(expr.args[1][1], builder, args)
+                ub = emit_integer_op(expr.args[1][2], builder, args)
+                step = builder.insert(ConstantOp(IntegerAttr(0, IntegerType(64))))
+                region = Region([Block(arg_types=[IntegerType(64), Float64Type()])])
+                accumulator = region.block.args[1]
+
+                b2 = Builder(InsertPoint.at_end(region.block))
+                arg = emit_real_op(
+                    expr.args[0], b2, args | {expr.args[1][0]: region.block.args[0]}
+                )
+                add = b2.insert(AddfOp(arg, accumulator)).result
+                b2.insert(YieldOp(add))
+
+                return builder.insert(ForOp(lb, ub, step, [zero], region)).results[0]
+
+            raise NotImplementedError(f"No IR emitter for float function {expr.func}")
+    return (solution,)
 
 
 if __name__ == "__main__":

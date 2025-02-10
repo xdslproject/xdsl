@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.0"
 app = marimo.App(width="medium")
 
 
@@ -178,12 +178,20 @@ def _(
 
         # Name the fields arg and result
 
+        def __init__(self, arg: SSAValue):
+            raise NotImplementedError("ImOp __init__ is not yet implemented")
+
+
     @irdl_op_definition
     class CreateOp(IRDLOperation):
         name = "complex.create"
         traits = traits_def(Pure())
 
         # Name the fields re, im, and result
+
+        def __init__(self, re: SSAValue, im: SSAValue):
+            raise NotImplementedError("CreateOp __init__ is not yet implemented")
+
 
     @irdl_op_definition
     class AddcOp(IRDLOperation):
@@ -192,6 +200,10 @@ def _(
 
         # Name the fields lhs, rhs, and result
 
+        def __init__(self, lhs: SSAValue, rhs: SSAValue):
+            raise NotImplementedError("AddcOp __init__ is not yet implemented")
+
+
     @irdl_op_definition
     class MulcOp(IRDLOperation):
         name = "complex.mul"
@@ -199,13 +211,135 @@ def _(
 
         # Name the fields lhs, rhs, and result
 
+        def __init__(self, lhs: SSAValue, rhs: SSAValue):
+            raise NotImplementedError("MulcOp __init__ is not yet implemented")
+
     @irdl_op_definition
     class NormOp(IRDLOperation):
         name = "complex.norm"
         traits = traits_def(Pure())
 
         # Name the fields arg and result
+
+        def __init__(self, arg: SSAValue):
+            raise NotImplementedError("NormOp __init__ is not yet implemented")
+
     return AddcOp, ComplexType, CreateOp, ImOp, MulcOp, NormOp, ReOp
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        """
+        ### Solution
+
+        Hidden below is the definition of all operations
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    Float64Type,
+    IRDLOperation,
+    ParametrizedAttribute,
+    Pure,
+    SSAValue,
+    TypeAttribute,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+    traits_def,
+):
+    def dialect_solution():
+        @irdl_attr_definition
+        class ComplexType(ParametrizedAttribute, TypeAttribute):
+            name = "complex.complex"
+
+        @irdl_op_definition
+        class CreateOp(IRDLOperation):
+            name = "complex.create"
+
+            traits = traits_def(Pure())
+
+            re = operand_def(Float64Type())
+            im = operand_def(Float64Type())
+
+            result = result_def(ComplexType())
+
+            def __init__(self, re: SSAValue, im: SSAValue):
+                super().__init__(operands=[re, im], result_types=[ComplexType()])
+
+        @irdl_op_definition
+        class ReOp(IRDLOperation):
+            name = "complex.re"
+
+            traits = traits_def(Pure())
+
+            arg = operand_def(ComplexType())
+
+            result = result_def(Float64Type())
+
+            def __init__(self, arg: SSAValue):
+                super().__init__(operands=[arg], result_types=[Float64Type()])
+
+        @irdl_op_definition
+        class ImOp(IRDLOperation):
+            name = "complex.im"
+
+            traits = traits_def(Pure())
+
+            arg = operand_def(ComplexType())
+
+            result = result_def(Float64Type())
+
+            def __init__(self, arg: SSAValue):
+                super().__init__(operands=[arg], result_types=[Float64Type()])
+
+        @irdl_op_definition
+        class AddcOp(IRDLOperation):
+            name = "complex.add"
+
+            traits = traits_def(Pure())
+
+            lhs = operand_def(ComplexType())
+            rhs = operand_def(ComplexType())
+
+            result = result_def(ComplexType())
+
+            def __init__(self, lhs: SSAValue, rhs: SSAValue):
+                super().__init__(operands=[lhs, rhs], result_types=[ComplexType()])
+
+
+        @irdl_op_definition
+        class MulcOp(IRDLOperation):
+            name = "complex.mul"
+
+            traits = traits_def(Pure())
+
+            lhs = operand_def(ComplexType())
+            rhs = operand_def(ComplexType())
+
+            result = result_def(ComplexType())
+
+            def __init__(self, lhs: SSAValue, rhs: SSAValue):
+                super().__init__(operands=[lhs, rhs], result_types=[ComplexType()])
+
+        @irdl_op_definition
+        class NormOp(IRDLOperation):
+            name = "complex.norm"
+
+            traits = traits_def(Pure())
+
+            arg = operand_def(ComplexType())
+
+            result = result_def(Float64Type())
+
+            def __init__(self, arg: SSAValue):
+                super().__init__(operands=[arg], result_types=[Float64Type()])
+    return (dialect_solution,)
 
 
 @app.cell(hide_code=True)
@@ -265,19 +399,22 @@ def _(
 
 
     def print_ir(expr: Expr):
-        # Print the SymPy expression
-        print(expr)
+        try:
+            # Print the SymPy expression
+            print(expr)
 
-        # Converts the SymPy expression to an MLIR `builtin.module` operation
-        op = emit_ir(expr)
-        cse(op)
+            # Converts the SymPy expression to an MLIR `builtin.module` operation
+            op = emit_ir(expr)
+            cse(op)
 
-        # Check that the operation verifies, and prints the operation
-        op.verify()
-        print(op)
+            # Check that the operation verifies, and prints the operation
+            op.verify()
+            print(op)
 
-        # Print a separator
-        print("\n\n")
+            # Print a separator
+            print("\n\n")
+        except NotImplementedError as e:
+            print("Error:", e)
     return emit_ir, print_ir
 
 
@@ -654,25 +791,28 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(Expr, cse, emit_ir, lower_complex):
     def print_ir_with_complex_lowering(expr: Expr):
-        # Print the SymPy expression
-        print(expr)
+        try:
+            # Print the SymPy expression
+            print(expr)
 
-        # Converts the SymPy expression to an MLIR `builtin.module` operation
-        op = emit_ir(expr)
-        cse(op)
+            # Converts the SymPy expression to an MLIR `builtin.module` operation
+            op = emit_ir(expr)
+            cse(op)
 
-        # Check that the operation verifies, and prints the operation
-        op.verify()
-        print("Op before lowering:")
-        print(op)
+            # Check that the operation verifies, and prints the operation
+            op.verify()
+            print("Op before lowering:")
+            print(op)
 
-        print("Op after lowering:")
-        lower_complex(op)
-        op.verify()
-        print(op)
+            print("Op after lowering:")
+            lower_complex(op)
+            op.verify()
+            print(op)
 
-        # Print a separator
-        print("\n\n")
+            # Print a separator
+            print("\n\n")
+        except NotImplementedError as e:
+            print("Error:", e)
     return (print_ir_with_complex_lowering,)
 
 
@@ -680,6 +820,132 @@ def _(Expr, cse, emit_ir, lower_complex):
 def _(I, Norm, print_ir_with_complex_lowering, x, y):
     print_ir_with_complex_lowering(Norm(x + I * y))
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        """
+        ### Solution
+
+        Hidden below is a possible lowering:
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    AddcOp,
+    AddfOp,
+    ConstantOp,
+    CreateOp,
+    Float64Type,
+    FloatAttr,
+    GreedyRewritePatternApplier,
+    ImOp,
+    MulcOp,
+    MulfOp,
+    NormOp,
+    Operation,
+    PatternRewriteWalker,
+    PatternRewriter,
+    PowFOp,
+    ReOp,
+    RewritePattern,
+    SubfOp,
+    cse,
+    dce,
+):
+    def solution():
+        # Lower the complex dialect.
+        def lower_complex(op: Operation):
+            # Hint: Add rewrite patterns in this list
+            rewrites = [FoldReCreateOp(), FoldImCreateOp(), LowerAddOp(), LowerMulOp(), LowerNormOp()]
+            PatternRewriteWalker(GreedyRewritePatternApplier(rewrites)).rewrite_module(op)
+
+            # Run dce and cse after the rewritting
+            cse(op)
+            dce(op)
+
+
+        class FoldReCreateOp(RewritePattern):
+            def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+                if not isinstance(op, ReOp):
+                    return
+
+                if not isinstance(create:= op.arg.owner, CreateOp):
+                    return
+
+                rewriter.replace_matched_op([], new_results=[create.re])
+
+
+        class FoldImCreateOp(RewritePattern):
+            def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+                if not isinstance(op, ImOp):
+                    return
+
+                if not isinstance(create := op.arg.owner, CreateOp):
+                    return
+
+                rewriter.replace_matched_op([], new_results=[create.im])
+
+
+        class LowerAddOp(RewritePattern):
+            def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+                if not isinstance(op, AddcOp):
+                    return
+
+                re_lhs = rewriter.insert(ReOp(op.lhs)).result
+                re_rhs = rewriter.insert(ReOp(op.rhs)).result
+                im_lhs = rewriter.insert(ImOp(op.lhs)).result
+                im_rhs = rewriter.insert(ImOp(op.rhs)).result
+                new_re = rewriter.insert(AddfOp(re_lhs, re_rhs)).result
+                new_im = rewriter.insert(AddfOp(im_lhs, im_rhs)).result
+                create = rewriter.insert(CreateOp(new_re, new_im)).result
+
+                rewriter.replace_matched_op([], new_results=[create])
+
+        class LowerMulOp(RewritePattern):
+            def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+                if not isinstance(op, MulcOp):
+                    return
+
+                re_lhs = rewriter.insert(ReOp(op.lhs)).result
+                re_rhs = rewriter.insert(ReOp(op.rhs)).result
+                im_lhs = rewriter.insert(ImOp(op.lhs)).result
+                im_rhs = rewriter.insert(ImOp(op.rhs)).result
+
+                tmp1 = rewriter.insert(MulfOp(re_lhs, re_rhs)).result
+                tmp2 = rewriter.insert(MulfOp(im_lhs, im_rhs)).result
+                new_re = rewriter.insert(SubfOp(tmp1, tmp2)).result
+
+                tmp3 = rewriter.insert(MulfOp(re_lhs, im_rhs)).result
+                tmp4 = rewriter.insert(MulfOp(im_lhs, re_rhs)).result
+                new_im = rewriter.insert(AddfOp(tmp3, tmp4)).result
+
+                create = rewriter.insert(CreateOp(new_re, new_im)).result
+
+                rewriter.replace_matched_op([], new_results=[create])
+
+        class LowerNormOp(RewritePattern):
+            def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+                if not isinstance(op, NormOp):
+                    return
+
+                re = rewriter.insert(ReOp(op.arg)).result
+                im = rewriter.insert(ImOp(op.arg)).result
+
+                re_2 = rewriter.insert(MulfOp(re, re)).result
+                im_2 = rewriter.insert(MulfOp(im, im)).result
+
+                add = rewriter.insert(AddfOp(re_2, im_2)).result
+
+                half = rewriter.insert(ConstantOp(FloatAttr(0.5, Float64Type()))).result
+                pow = rewriter.insert(PowFOp(add, half)).result
+
+                rewriter.replace_matched_op([], new_results=[pow])
+    return (solution,)
 
 
 @app.cell(hide_code=True)
@@ -703,40 +969,43 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(Expr, cse, dce, emit_ir, lower_complex, optimize):
     def print_ir_with_pipeline(expr: Expr):
-        # Print the SymPy expression
-        print(expr)
+        try:
+            # Print the SymPy expression
+            print(expr)
 
-        # Converts the SymPy expression to an MLIR `builtin.module` operation
-        print("Emitted IR:")
-        op = emit_ir(expr)
-        cse(op)
-        dce(op)
-        op.verify()
-        print(op)
-        print("\n\n")
+            # Converts the SymPy expression to an MLIR `builtin.module` operation
+            print("Emitted IR:")
+            op = emit_ir(expr)
+            cse(op)
+            dce(op)
+            op.verify()
+            print(op)
+            print("\n\n")
 
-        print("After first optimization:")
-        optimize(op)
-        op.verify()
-        print(op)
-        print("\n\n")
-
-
-        print("After complex lowering:")
-        lower_complex(op)
-        op.verify()
-        print(op)
-        print("\n\n")
+            print("After first optimization:")
+            optimize(op)
+            op.verify()
+            print(op)
+            print("\n\n")
 
 
-        print("After second optimization:")
-        optimize(op)
-        op.verify()
-        print(op)
-        print("\n\n")
+            print("After complex lowering:")
+            lower_complex(op)
+            op.verify()
+            print(op)
+            print("\n\n")
 
-        # Print a separator
-        print("\n\n")
+
+            print("After second optimization:")
+            optimize(op)
+            op.verify()
+            print(op)
+            print("\n\n")
+
+            # Print a separator
+            print("\n\n")
+        except NotImplementedError as e:
+            print("Error:", e)
     return (print_ir_with_pipeline,)
 
 
