@@ -314,15 +314,15 @@ func.func @funcyasm() {
     // CHECK-NEXT: jmp then
 }
 
-%zmm0 = x86.get_avx_register : () -> !x86.avxreg<zmm0>
-%zmm1 = x86.get_avx_register : () -> !x86.avxreg<zmm1>
-%zmm2 = x86.get_avx_register : () -> !x86.avxreg<zmm2>
+%zmm0 = x86.get_avx_register : () -> !x86.avx512reg<zmm0>
+%zmm1 = x86.get_avx_register : () -> !x86.avx512reg<zmm1>
+%zmm2 = x86.get_avx_register : () -> !x86.avx512reg<zmm2>
 
-%rrr_vfmadd231pd = x86.rrr.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avxreg<zmm0>, !x86.avxreg<zmm1>, !x86.avxreg<zmm2>) -> !x86.avxreg<zmm0>
+%rrr_vfmadd231pd = x86.rrr.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK: vfmadd231pd zmm0, zmm1, zmm2
-%rr_vmovapd = x86.rr.vmovapd %zmm0, %zmm1 : (!x86.avxreg<zmm0>, !x86.avxreg<zmm1>) -> !x86.avxreg<zmm0>
+%rr_vmovapd = x86.rr.vmovapd %zmm0, %zmm1 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vmovapd zmm0, zmm1
-x86.mr.vmovapd %0, %zmm1, 8 : (!x86.reg<rax>, !x86.avxreg<zmm1>) -> ()
+x86.mr.vmovapd %0, %zmm1, 8 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()
 // CHECK-NEXT: vmovapd [rax+8], zmm1
-%rm_vbroadcastsd = x86.rm.vbroadcastsd %zmm0, %1, 8 : (!x86.avxreg<zmm0>, !x86.reg<rdx>) -> !x86.avxreg<zmm0>
+%rm_vbroadcastsd = x86.rm.vbroadcastsd %zmm0, %1, 8 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vbroadcastsd zmm0, [rdx+8]

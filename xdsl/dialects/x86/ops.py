@@ -53,10 +53,10 @@ from .assembly import (
 )
 from .attributes import LabelAttr
 from .register import (
-    AVXRegisterType,
     GeneralRegisterType,
     RFLAGSRegisterType,
     X86RegisterType,
+    X86VectorRegisterType,
 )
 
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
@@ -2517,7 +2517,7 @@ class RRROperation(
 
 @irdl_op_definition
 class RRR_Vfmadd231pdOp(
-    RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]
+    RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
 ):
     """
     Multiply packed double-precision floating-point elements in r2 and r3, add the
@@ -2529,7 +2529,7 @@ class RRR_Vfmadd231pdOp(
 
 
 @irdl_op_definition
-class RR_VmovapdOp(R_RR_Operation[AVXRegisterType, AVXRegisterType]):
+class RR_VmovapdOp(R_RR_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2 using
     writemask k1
@@ -2540,7 +2540,7 @@ class RR_VmovapdOp(R_RR_Operation[AVXRegisterType, AVXRegisterType]):
 
 
 @irdl_op_definition
-class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, AVXRegisterType]):
+class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
     https://www.felixcloutier.com/x86/movapd
@@ -2550,7 +2550,7 @@ class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, AVXRegisterType]):
 
 
 @irdl_op_definition
-class RM_VbroadcastsdOp(R_RM_Operation[AVXRegisterType, GeneralRegisterType]):
+class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
     https://www.felixcloutier.com/x86/vbroadcast
@@ -2584,7 +2584,7 @@ class GetRegisterOp(GetAnyRegisterOperation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class GetAVXRegisterOp(GetAnyRegisterOperation[AVXRegisterType]):
+class GetAVXRegisterOp(GetAnyRegisterOperation[X86VectorRegisterType]):
     name = "x86.get_avx_register"
 
 

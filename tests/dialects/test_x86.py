@@ -72,6 +72,6 @@ def test_rflags_register():
         (x86.register.ZMM31, "zmm31"),
     ],
 )
-def test_avx_register(register: x86.register.AVXRegisterType, name: str):
+def test_avx_register(register: x86.register.AVX512RegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
