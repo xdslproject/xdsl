@@ -63,4 +63,5 @@ class OneLineAssemblyPrintable(AssemblyPrintable, ABC):
     def print_assembly(self, printer: AssemblyPrinter) -> None:
         line = self.assembly_line()
         if line is not None:
-            printer.print_string(line + "\n")
+            printer.print_string(line)
+            printer.print_string("\n")
