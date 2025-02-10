@@ -277,7 +277,8 @@ IntegerTensorType: TypeAlias = TensorType[IntegerType]
 @irdl_op_definition
 class AndOp(IRDLOperation):
     """
-    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor. Depending on the element type, does the following:
+    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
 
     For booleans: logical AND.
     For integers: bitwise AND.

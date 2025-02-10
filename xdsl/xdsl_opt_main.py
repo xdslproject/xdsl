@@ -148,8 +148,8 @@ class xDSLOptMain(CommandLineTool):
             "--split-input-file",
             default=False,
             action="store_true",
-            help="Split the input file into pieces and process each chunk independently by "
-            " using `// -----`",
+            help="Split the input file into pieces and process each chunk "
+            "independently by using `// -----`",
         )
 
         arg_parser.add_argument(

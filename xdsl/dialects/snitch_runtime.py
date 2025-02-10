@@ -100,7 +100,8 @@ class GlobalCoreBaseHartidOp(SnitchRuntimeGetInfo):
 @irdl_op_definition
 class GlobalCoreIdxOp(SnitchRuntimeGetInfo):
     """
-    Regardless of core type, return global core index, equal to the Hart ID of the current core - global base Hart ID of the cluster
+    Regardless of core type, return global core index, equal to the Hart ID of the
+    current core - global base Hart ID of the cluster
     """
 
     name = "snrt.global_core_idx"

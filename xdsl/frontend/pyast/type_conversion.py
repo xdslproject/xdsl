@@ -93,7 +93,8 @@ class TypeConverter:
                         self.file,
                         type_hint.lineno,
                         type_hint.col_offset,
-                        f"Expected 1 type argument for generic type '{type_name}', got {len(materialized_arguments)} type arguments instead.",
+                        f"Expected 1 type argument for generic type '{type_name}', got "
+                        f"{len(materialized_arguments)} type arguments instead.",
                     )
                 arguments_for_constructor.append(materialized_arguments[0])
                 continue

@@ -602,11 +602,13 @@ class ApplyOp(IRDLOperation):
         for operand, argument in zip(self.operands, self.region.block.args):
             if operand.type != argument.type:
                 raise VerifyException(
-                    f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                    "Expected argument type to match operand type, got "
+                    f"{argument.type} != {operand.type} at index {argument.index}"
                 )
         if len(self.res) > 0 and len(self.dest) > 0:
             raise VerifyException(
-                "Expected stencil.apply to have all value-semantics result or buffer-semantic destination operands."
+                "Expected stencil.apply to have all value-semantics result or "
+                "buffer-semantic destination operands."
             )
         if len(self.res) > 0:
             res_type = cast(TempType[Attribute], self.res[0].type)
@@ -804,7 +806,7 @@ class CombineOp(IRDLOperation):
                └────────┼─────────┘     └────────┼─────────┘
                         │                        │
     ```
-    """
+    """  # noqa: E501
 
     name = "stencil.combine"
 
@@ -821,7 +823,7 @@ class CombineOp(IRDLOperation):
         CombineOpHasShapeInferencePatternsTrait(),
     )
 
-    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
+    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"  # noqa: E501
 
     irdl_options = [
         AttrSizedOperandSegments(),

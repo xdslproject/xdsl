@@ -21,7 +21,10 @@ from xdsl.utils.exceptions import DiagnosticException
 def offset_calculations(
     memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
 ) -> tuple[list[Operation], SSAValue]:
-    """Get operations calculating an offset which needs to be added to memref's base pointer to access an element referenced by indices."""
+    """
+    Get operations calculating an offset which needs to be added to memref's base
+    pointer to access an element referenced by indices.
+    """
 
     assert isinstance(memref_type.element_type, builtin.FixedBitwidthType)
 
