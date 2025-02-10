@@ -32,6 +32,14 @@ def time_end_to_end_opt__constant_folding() -> None:
     runner.run()  # type: ignore[no-untyped-call]
 
 
+def time_end_to_end_opt__constant_folding_long() -> None:
+    """Time running a constant folding example."""
+    runner = xDSLOptMain(
+        args=[str(MLIR_FILES["constant_folding_long"]), "-p", "canonicalize"]
+    )
+    runner.run()  # type: ignore[no-untyped-call]
+
+
 def time_end_to_end_opt__constant_folding_unverified() -> None:
     """Time running a constant folding example."""
     runner = xDSLOptMain(
@@ -56,5 +64,6 @@ if __name__ == "__main__":
         "time_end_to_end_opt__constant_folding": time_end_to_end_opt__constant_folding,
         "time_end_to_end_opt__constant_folding_unverified": time_end_to_end_opt__constant_folding_unverified,
         "time_end_to_end_opt__constant_folding_long": time_end_to_end_opt__constant_folding_long,
+        "time_end_to_end_opt__loop_unrolling": time_end_to_end_opt__loop_unrolling,
     }
     profile(BENCHMARKS)

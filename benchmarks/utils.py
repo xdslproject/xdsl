@@ -3,7 +3,10 @@
 
 from pathlib import Path
 from argparse import ArgumentParser, Namespace
+import timeit
 
+import cProfile
+from viztracer import VizTracer
 from collections.abc import Callable
 from typing import Any, Iterable, cast
 import subprocess
@@ -92,17 +95,11 @@ def show(args: Namespace, output_profs: list[Path], tool: str, options: tuple[st
     if options is None:
         options = cast(tuple[str], ())
     command = ["uv", "run", tool, str(output_profs[0]), *options]
-    print(command)
     subprocess.run(command, check=True)  # noqa: S603
 
 
 def profile(benchmarks: dict[str, Callable[[], Any]], argv: list[str] | None = None) -> None:
     """Run the selected profiler."""
-    import timeit
-
-    import cProfile
-    from viztracer import VizTracer
-
     if not benchmarks:
         raise ValueError("At least one benchmark must be provided to profile!")
 

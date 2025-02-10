@@ -696,6 +696,16 @@ wheels = [
 ]
 
 [[package]]
+name = "functiontrace"
+version = "0.3.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/a3/e174a777f5a87a56e6a4dea99603c9906e926b89c20e8db82cf19f9a40e0/functiontrace-0.3.7.tar.gz", hash = "sha256:ddb9f1645ab5fc3f67b707efeced9853a3272840d65881b8cd7d1eddc80295e8", size = 94522 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/02/3fdbe4605cdb70f5021d0af91cf018b5842080b33de94a47b69172b8bd7d/functiontrace-0.3.7-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2c66b1244c73cb65c2a6d8f23a4616eea94e52b2e964577e40335786dbad16d1", size = 75658 },
+    { url = "https://files.pythonhosted.org/packages/50/8b/d91b9531098d3ffba7f7a515c5b0ca1970ad947503357f6837e430d65287/functiontrace-0.3.7-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:92f3a041b9e50308400d29f18cc5fb23003dc7d5ef3447746893e8bb65803761", size = 75430 },
+]
+
+[[package]]
 name = "ghp-import"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2921,7 +2931,7 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0+untagged.3247.g094bd3b.dirty"
+version = "0+untagged.3248.g87719dc.dirty"
 source = { editable = "." }
 dependencies = [
     { name = "immutabledict" },
@@ -2930,8 +2940,13 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-dev = [
+bench = [
     { name = "asv" },
+    { name = "functiontrace" },
+    { name = "snakeviz" },
+    { name = "viztracer" },
+]
+dev = [
     { name = "coverage" },
     { name = "filecheck" },
     { name = "flameprof" },
@@ -2971,10 +2986,11 @@ riscv = [
 
 [package.metadata]
 requires-dist = [
-    { name = "asv", marker = "extra == 'dev'", specifier = ">=0.6.4" },
+    { name = "asv", marker = "extra == 'bench'", specifier = ">=0.6.4" },
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.1" },
     { name = "flameprof", marker = "extra == 'dev'", specifier = ">=0.4" },
+    { name = "functiontrace", marker = "extra == 'bench'", specifier = ">=0.3.7" },
     { name = "immutabledict", specifier = "<4.2.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.0" },
@@ -2996,11 +3012,13 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "riscemu", marker = "extra == 'riscv'", specifier = "==2.2.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.9.4" },
+    { name = "snakeviz", marker = "extra == 'bench'", specifier = ">=2.2.2" },
     { name = "snakeviz", marker = "extra == 'dev'", specifier = ">=2.2.2" },
     { name = "textual", marker = "extra == 'gui'", specifier = "==1.0.0" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
+    { name = "viztracer", marker = "extra == 'bench'", specifier = ">=1.0.1" },
     { name = "viztracer", marker = "extra == 'dev'", specifier = ">=1.0.0" },
 ]
 

@@ -33,7 +33,6 @@ dev = [
     "viztracer>=1.0.0",
     "snakeviz>=2.2.2",
     "flameprof>=0.4",
-    "asv>=0.6.4",
 ]
 docs = [
     "mkdocs-gen-files>=0.5.0",
@@ -44,6 +43,12 @@ docs = [
 gui = ["textual==1.0.0", "pyclip==0.7"]
 jax = ["jax==0.5.0", "numpy==2.2.2"]
 riscv = ["riscemu==2.2.7"]
+bench = [
+    "asv>=0.6.4",
+    "functiontrace>=0.3.7",
+    "snakeviz>=2.2.2",
+    "viztracer>=1.0.1",
+]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
