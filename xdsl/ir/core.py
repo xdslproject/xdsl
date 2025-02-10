@@ -21,14 +21,13 @@ from typing import (
     Generic,
     NoReturn,
     Protocol,
-    TypeVar,
     cast,
     get_args,
     get_origin,
     overload,
 )
 
-from typing_extensions import Self, deprecated
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
@@ -338,8 +337,10 @@ class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
 
 DataElement = TypeVar("DataElement", covariant=True, bound=Hashable)
 
-AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
-AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
+AttributeCovT = TypeVar(
+    "AttributeCovT", bound=Attribute, covariant=True, default=Attribute
+)
+AttributeInvT = TypeVar("AttributeInvT", bound=Attribute, default=Attribute)
 
 
 @dataclass(frozen=True)
