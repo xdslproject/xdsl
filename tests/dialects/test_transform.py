@@ -78,7 +78,7 @@ def test_tileop_init():
             dynamic_sizes=[],
             static_sizes=static_sizes,
         ),
-        """%0, %1, %2 = "transform.structured.tile_using_for"(%3) <{static_sizes = array<i32: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",  # noqa: E501
+        """%0, %1, %2 = "transform.structured.tile_using_for"(%3) <{static_sizes = array<i32: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)""",
         None,
     )
 
@@ -115,7 +115,7 @@ def test_get_producer_of_operand():
     target = test.TestOp(result_types=[transform.AnyValueType()]).results[0]
     assert_print_op(
         transform.GetProducerOfOperandOp(operand_number=0, target=target),
-        """%0 = "transform.get_producer_of_operand"(%1) <{operand_number = 0 : i64}> : (!transform.any_value) -> !transform.any_op""",  # noqa: E501
+        """%0 = "transform.get_producer_of_operand"(%1) <{operand_number = 0 : i64}> : (!transform.any_value) -> !transform.any_op""",
         None,
     )
 
@@ -125,7 +125,7 @@ def test_get_result():
     result_number = 0
     assert_print_op(
         transform.GetResultOp(target=target, raw_position_list=[result_number]),
-        """%0 = "transform.get_result"(%1) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value""",  # noqa: E501
+        """%0 = "transform.get_result"(%1) <{raw_position_list = array<i64: 0>}> : (!transform.any_op) -> !transform.any_value""",
         None,
     )
 
@@ -210,7 +210,7 @@ def test_split_handle():
             fail_on_payload_too_small=True,
             overflow_result=1,
         ),
-        """ %0, %1 = "transform.split_handle"(%2) <{pass_through_empty_handle = true, fail_on_payload_too_small = true, overflow_result = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op) """,  # noqa: E501
+        """ %0, %1 = "transform.split_handle"(%2) <{pass_through_empty_handle = true, fail_on_payload_too_small = true, overflow_result = 1 : i64}> : (!transform.any_op) -> (!transform.any_op, !transform.any_op) """,
         None,
     )
 
@@ -232,7 +232,7 @@ def test_amount_of_loops():
             dynamic_sizes=[],
             static_sizes=static_sizes,
         ),
-        """%0, %1 = "transform.structured.tile_using_for"(%2) <{static_sizes = array<i32: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",  # noqa: E501
+        """%0, %1 = "transform.structured.tile_using_for"(%2) <{static_sizes = array<i32: 8, 0>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)""",
         None,
     )
 

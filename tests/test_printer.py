@@ -735,7 +735,7 @@ def test_dictionary_attr():
 
     prog = """
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}} : () -> ()
-    """  # noqa: E501
+    """
 
     ctx = MLContext()
     ctx.load_dialect(Builtin)
@@ -752,7 +752,7 @@ def test_densearray_attr():
 
     prog = """
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 0.3400000035762787>} : () -> ()
-    """  # noqa: E501
+    """
 
     ctx = MLContext()
     ctx.load_dialect(Builtin)
@@ -890,11 +890,11 @@ def test_print_properties_as_attributes_safeguard():
 
     prog = """
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private"}> {extra_attr, sym_name = "this should be overriden by the property"} : () -> ()
-    """  # noqa: E501
+    """
 
     retro_prog = """
 "func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
-    """  # noqa: E501
+    """
 
     ctx = MLContext()
     ctx.load_dialect(Builtin)
