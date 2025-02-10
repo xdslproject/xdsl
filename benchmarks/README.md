@@ -15,20 +15,20 @@ implementation, and are desiged to align with
 
 ### List of benchmarks
 
-- End-to-end
-  - [x] Empty program
+- End-to-end (`end_to_end.py`)
   - [x] Constant folding (with and without verifier)
+  - [x] Empty program
   - [x] Loop unrolling
   - [ ] CIRCT workload
   - [ ] ASL workload
   - [ ] ...
-- Component
+- Component (`components.py`)
   - [x] Lexer
   - [x] Parser
   - [x] Pattern rewriter
   - [ ] Printer
   - [ ] Verifier
-- Microbenchmarks
+- Microbenchmarks (`microbenchmarks.py`)
   - [x] IR traversal (direct block iteration and walking)
   - [x] Dialect loading
   - [x] Import machinery
