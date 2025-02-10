@@ -108,6 +108,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ptr_to_riscv.ConvertPtrToRiscvPass
 
+    def get_convert_ptr_type_offsets():
+        from xdsl.transforms import convert_ptr_type_offsets
+
+        return convert_ptr_type_offsets.ConvertPtrTypeOffsetsPass
+
     def get_convert_qref_to_qssa():
         from xdsl.transforms import convert_qref_to_qssa
 

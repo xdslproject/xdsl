@@ -25,7 +25,7 @@ class ConvertTypeOffsetOp(RewritePattern):
             )
         elem_type = cast(FixedBitwidthType, op.elem_type)
         rewriter.replace_matched_op(
-            arith.Constant.from_int_and_width(elem_type.size, IndexType())
+            arith.ConstantOp.from_int_and_width(elem_type.size, IndexType())
         )
 
 
