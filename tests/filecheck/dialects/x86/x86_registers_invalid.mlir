@@ -4,5 +4,6 @@
 "test.op"() { reg = !x86.reg<foo> } : () -> ()
 
 // -----
+
 // CHECK: foo not in x86AVX
 "test.op"() { reg = !x86.avxreg<foo> } : () -> ()
