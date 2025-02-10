@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 
 from xdsl.backend.register_type import RegisterType
@@ -11,7 +12,7 @@ from xdsl.parser import AttrParser
 from xdsl.utils.exceptions import VerifyException
 
 
-class X86RegisterType(RegisterType):
+class X86RegisterType(RegisterType, ABC):
     """
     The abstract class for all x86 register types.
     """
@@ -125,6 +126,10 @@ RFLAGS = RFLAGSRegisterType("rflags")
 
 
 class X86VectorRegisterType(X86RegisterType):
+    """
+    The abstract class for all x86 vector register types.
+    """
+
     pass
 
 
