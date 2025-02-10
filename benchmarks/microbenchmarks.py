@@ -2,28 +2,24 @@
 """Microbenchmark properties of the xDSL implementation."""
 
 from __future__ import annotations
+
 import importlib
 
-from xdsl.traits import IsTerminator, NoTerminator
-from xdsl.dialects.gpu import TerminatorOp
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    opt_successor_def,
-    traits_def,
-)
-from xdsl.dialects.test import TestOp
-from xdsl.ir import Block
 import xdsl.dialects.arith
 import xdsl.dialects.builtin
-
 from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, Float64Type, TensorType, f64
+from xdsl.dialects.gpu import TerminatorOp
+from xdsl.dialects.test import TestOp
+from xdsl.ir import Block
 from xdsl.irdl import (
     IRDLOperation,
     attr_def,
     irdl_op_definition,
+    opt_successor_def,
     result_def,
+    traits_def,
 )
+from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -82,14 +78,16 @@ class ImportClasses:
 
     def time_import_xdsl_opt(self) -> None:
         """Import benchmark using the default asv mechanism."""
-        from xdsl.xdsl_opt_main import xDSLOptMain  # noqa: F401
-
+        from xdsl.xdsl_opt_main import (
+            xDSLOptMain,  # noqa: F401 # pyright: ignore[reportUnusedImport]
+        )
 
     def timeraw_import_xdsl_opt(self) -> str:
         """Import benchmark using the `raw` asv mechanism."""
         return """
         from xdsl.xdsl_opt_main import xDSLOptMain
         """
+
 
 class IRTraversal:
     """Benchmark the time to traverse xDSL IR."""
@@ -101,7 +99,6 @@ class IRTraversal:
         """Time directly iterating over a block's operations."""
         for op in IRTraversal.EXAMPLE_BLOCK.ops:
             assert op
-
 
     def time_walk_block_ops(self) -> None:
         """Time walking a block's operations."""
@@ -121,7 +118,6 @@ class LoadDialects:
         """
         importlib.reload(xdsl.dialects.arith)
 
-
     def time_builtin_load(self) -> None:
         """Time loading the `builtin` dialect."""
         importlib.reload(xdsl.dialects.builtin)
@@ -137,14 +133,12 @@ class OpCreation:
         [y for y in range(CONSTANT_OPERATION_Y_SIZE)],
     )
 
-
     def time_operation_create(self) -> None:
         """Time creating an operation."""
         ConstantOp.from_list(
             [x for x in range(OpCreation.CONSTANT_OPERATION_X_SIZE)],
             [y for y in range(OpCreation.CONSTANT_OPERATION_Y_SIZE)],
         )
-
 
     def time_operation_clone(self) -> None:
         """Time cloning an operation."""
@@ -163,14 +157,14 @@ if __name__ == "__main__":
     OP_CREATION = OpCreation()
 
     BENCHMARKS: dict[str, Callable[[], None]] = {
-       "Extensibility.interface_check": EXTENSIBILITY.time_interface_check,
-       "Extensibility.trait_check": EXTENSIBILITY.time_trait_check,
-       "ImportClasses.import_xdsl_opt": IMPORT_CLASSES.time_import_xdsl_opt,
-       "IRTraversal.iterate_block_ops": IR_TRAVERSAL.time_iterate_block_ops,
-       "IRTraversal.walk_block_ops": IR_TRAVERSAL.time_walk_block_ops,
-       "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
-       "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
-       "OpCreation.operation_create": OP_CREATION.time_operation_create,
-       "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
+        "Extensibility.interface_check": EXTENSIBILITY.time_interface_check,
+        "Extensibility.trait_check": EXTENSIBILITY.time_trait_check,
+        "ImportClasses.import_xdsl_opt": IMPORT_CLASSES.time_import_xdsl_opt,
+        "IRTraversal.iterate_block_ops": IR_TRAVERSAL.time_iterate_block_ops,
+        "IRTraversal.walk_block_ops": IR_TRAVERSAL.time_walk_block_ops,
+        "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
+        "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
+        "OpCreation.operation_create": OP_CREATION.time_operation_create,
+        "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
     }
     profile(BENCHMARKS)

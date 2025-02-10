@@ -73,7 +73,7 @@ def viztracer_benchmark(
     args: Namespace, benchmarks: dict[str, Callable[[], Any]]
 ) -> list[Path]:
     """Use VizTracer to profile a benchmark."""
-    from viztracer import VizTracer  # type: ignore
+    from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
 
     output_profs: list[Path] = []
     for name, test in get_benchmarks(args, benchmarks):
