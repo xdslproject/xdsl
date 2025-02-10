@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.ir import Operation
 from xdsl.utils.base_printer import BasePrinter
 
 
