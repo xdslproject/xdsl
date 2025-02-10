@@ -1008,6 +1008,15 @@ class Operation(IRNode):
         if region_first:
             yield self
 
+    def walk_blocks(self, *, reverse: bool = False) -> Iterator[Block]:
+        """
+        Iterate over all the blocks nested in the region.
+        Iterate in reverse order if reverse is True.
+        """
+        for region in reversed(self.regions) if reverse else self.regions:
+            for block in reversed(region.blocks) if reverse else region.blocks:
+                yield from block.walk_blocks(reverse=reverse)
+
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
         Get a named attribute or property.
@@ -1707,13 +1716,26 @@ class Block(IRNode, IRWithUses):
         self, *, reverse: bool = False, region_first: bool = False
     ) -> Iterable[Operation]:
         """
-        Call a function on all operations contained in the block.
+        Iterate over all operations contained in the block.
         If region_first is set, then the operation regions are iterated before the
         operation. If reverse is set, then the region, block, and operation lists are
         iterated in reverse order.
         """
         for op in reversed(self.ops) if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
+
+    def walk_blocks(self, *, reverse: bool = False) -> Iterator[Block]:
+        """
+        Iterate over all the blocks nested within this block, including self, in the
+        order in which they are printed in the IR.
+        Iterate in reverse order if reverse is True.
+        """
+        if not reverse:
+            yield self
+        for op in reversed(self.ops) if reverse else self.ops:
+            yield from op.walk_blocks(reverse=reverse)
+        if reverse:
+            yield self
 
     def verify(self) -> None:
         for operation in self.ops:
