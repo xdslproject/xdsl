@@ -69,34 +69,34 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_convert_linalg_to_memref_stream():
         from xdsl.transforms import convert_linalg_to_memref_stream
 
-        return convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass
+        return convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass
 
     def get_convert_memref_stream_to_loops():
         from xdsl.transforms import convert_memref_stream_to_loops
 
-        return convert_memref_stream_to_loops.ConvertMemrefStreamToLoopsPass
+        return convert_memref_stream_to_loops.ConvertMemRefStreamToLoopsPass
 
     def get_convert_memref_stream_to_snitch_stream():
         from xdsl.transforms import convert_memref_stream_to_snitch_stream
 
         return (
-            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass
+            convert_memref_stream_to_snitch_stream.ConvertMemRefStreamToSnitchStreamPass
         )
 
     def get_convert_memref_to_ptr():
         from xdsl.transforms import convert_memref_to_ptr
 
-        return convert_memref_to_ptr.ConvertMemrefToPtr
+        return convert_memref_to_ptr.ConvertMemRefToPtr
 
     def get_convert_memref_to_riscv():
         from xdsl.backend.riscv.lowering import convert_memref_to_riscv
 
-        return convert_memref_to_riscv.ConvertMemrefToRiscvPass
+        return convert_memref_to_riscv.ConvertMemRefToRiscvPass
 
     def get_convert_ml_program_to_memref():
         from xdsl.transforms import convert_ml_program_to_memref
 
-        return convert_ml_program_to_memref.ConvertMlProgramToMemrefPass
+        return convert_ml_program_to_memref.ConvertMlProgramToMemRefPass
 
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
@@ -107,6 +107,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import convert_ptr_to_riscv
 
         return convert_ptr_to_riscv.ConvertPtrToRiscvPass
+
+    def get_convert_ptr_type_offsets():
+        from xdsl.transforms import convert_ptr_type_offsets
+
+        return convert_ptr_type_offsets.ConvertPtrTypeOffsetsPass
 
     def get_convert_qref_to_qssa():
         from xdsl.transforms import convert_qref_to_qssa
@@ -239,7 +244,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return eqsat_extract.EqsatExtractPass
 
     def get_frontend_desymrefy():
-        from xdsl.frontend.passes.desymref import FrontendDesymrefyPass
+        from xdsl.frontend.pyast.passes.desymref import FrontendDesymrefyPass
 
         return FrontendDesymrefyPass
 
@@ -286,7 +291,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_loop_hoist_memref():
         from xdsl.transforms import loop_hoist_memref
 
-        return loop_hoist_memref.LoopHoistMemrefPass
+        return loop_hoist_memref.LoopHoistMemRefPass
 
     def get_lower_affine():
         from xdsl.transforms import lower_affine
@@ -331,52 +336,52 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_memref_stream_fold_fill():
         from xdsl.transforms import memref_stream_fold_fill
 
-        return memref_stream_fold_fill.MemrefStreamFoldFillPass
+        return memref_stream_fold_fill.MemRefStreamFoldFillPass
 
     def get_memref_stream_generalize_fill():
         from xdsl.transforms import memref_stream_generalize_fill
 
-        return memref_stream_generalize_fill.MemrefStreamGeneralizeFillPass
+        return memref_stream_generalize_fill.MemRefStreamGeneralizeFillPass
 
     def get_memref_stream_infer_fill():
         from xdsl.transforms import memref_stream_infer_fill
 
-        return memref_stream_infer_fill.MemrefStreamInferFillPass
+        return memref_stream_infer_fill.MemRefStreamInferFillPass
 
     def get_memref_stream_interleave():
         from xdsl.transforms import memref_stream_interleave
 
-        return memref_stream_interleave.MemrefStreamInterleavePass
+        return memref_stream_interleave.MemRefStreamInterleavePass
 
     def get_memref_stream_legalize():
         from xdsl.transforms import memref_stream_legalize
 
-        return memref_stream_legalize.MemrefStreamLegalizePass
+        return memref_stream_legalize.MemRefStreamLegalizePass
 
     def get_memref_stream_tile_outer_loops():
         from xdsl.transforms import memref_stream_tile_outer_loops
 
-        return memref_stream_tile_outer_loops.MemrefStreamTileOuterLoopsPass
+        return memref_stream_tile_outer_loops.MemRefStreamTileOuterLoopsPass
 
     def get_memref_stream_unnest_out_parameters():
         from xdsl.transforms import memref_stream_unnest_out_parameters
 
-        return memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass
+        return memref_stream_unnest_out_parameters.MemRefStreamUnnestOutParametersPass
 
     def get_memref_streamify():
         from xdsl.transforms import memref_streamify
 
-        return memref_streamify.MemrefStreamifyPass
+        return memref_streamify.MemRefStreamifyPass
 
     def get_memref_to_dsd():
         from xdsl.transforms import memref_to_dsd
 
-        return memref_to_dsd.MemrefToDsdPass
+        return memref_to_dsd.MemRefToDsdPass
 
     def get_memref_to_gpu():
         from xdsl.transforms import gpu_allocs
 
-        return gpu_allocs.MemrefToGPUPass
+        return gpu_allocs.MemRefToGPUPass
 
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
@@ -520,6 +525,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "convert-ptr-type-offsets": get_convert_ptr_type_offsets,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,

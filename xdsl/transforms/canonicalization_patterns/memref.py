@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.hints import isa
 
 
-class MemrefSubviewOfSubviewFolding(RewritePattern):
+class MemRefSubviewOfSubviewFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
         source_subview = op.source.owner

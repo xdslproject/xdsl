@@ -852,7 +852,9 @@ class OptionlessMultipleVarOp(IRDLOperation):
 def test_no_multiple_var_option():
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
+        match="Operation test.multiple_var_op defines more than two variadic operands, "
+        "but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments "
+        "PyRDL options.",
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
 

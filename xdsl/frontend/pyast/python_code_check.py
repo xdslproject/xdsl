@@ -2,9 +2,9 @@ import ast
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from xdsl.frontend.block import is_block
-from xdsl.frontend.const import is_constant, is_constant_stmt
-from xdsl.frontend.exception import CodeGenerationException
+from xdsl.frontend.pyast.block import is_block
+from xdsl.frontend.pyast.const import is_constant, is_constant_stmt
+from xdsl.frontend.pyast.exception import CodeGenerationException
 
 # Type aliases for simplicity.
 BlockMap = dict[str, ast.FunctionDef]

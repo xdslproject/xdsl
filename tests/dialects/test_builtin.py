@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BoolAttr,
     BytesAttr,
     ComplexType,
     DenseArrayBase,
@@ -30,7 +31,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StridedLayoutAttr,
     SymbolRefAttr,
-    TensorOrMemrefOf,
+    TensorOrMemRefOf,
     TensorType,
     UnrealizedConversionCastOp,
     VectorBaseTypeAndRankConstraint,
@@ -181,6 +182,16 @@ def test_IntegerAttr_normalize():
         ),
     ):
         IntegerAttr(256, 8)
+
+
+def test_IntAttr___bool__():
+    assert not IntAttr(0)
+    assert IntAttr(1)
+
+
+def test_BoolAttr___bool__():
+    assert not BoolAttr.from_bool(False)
+    assert BoolAttr.from_bool(True)
 
 
 def test_IntegerType_packing():
@@ -647,14 +658,14 @@ def test_strides():
 
 
 def test_tensor_or_memref_of_constraint_verify():
-    constraint = TensorOrMemrefOf(i64)
+    constraint = TensorOrMemRefOf(i64)
 
     constraint.verify(MemRefType(i64, [1]), ConstraintContext())
     constraint.verify(TensorType(i64, [1]), ConstraintContext())
 
 
 def test_tensor_or_memref_of_constraint_attribute_mismatch():
-    constraint = TensorOrMemrefOf(i64)
+    constraint = TensorOrMemRefOf(i64)
 
     with pytest.raises(
         VerifyException, match=f"Expected tensor or memref type, got {i64}"
