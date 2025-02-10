@@ -6,7 +6,7 @@ from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.func import FuncFunctions
-from xdsl.interpreters.memref import MemrefFunctions
+from xdsl.interpreters.memref import MemRefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_cf import RiscvCfFunctions
 from xdsl.interpreters.riscv_debug import RiscvDebugFunctions
@@ -104,7 +104,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         interpreter.register_implementations(AffineFunctions())
     if emit in ("affine", "scf"):
         interpreter.register_implementations(ArithFunctions())
-        interpreter.register_implementations(MemrefFunctions())
+        interpreter.register_implementations(MemRefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
     if emit == "scf":

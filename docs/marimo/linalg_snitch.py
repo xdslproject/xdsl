@@ -287,7 +287,7 @@ def _(
         [
             convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
-            convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
+            convert_memref_to_riscv.ConvertMemRefToRiscvPass(),
             convert_arith_to_riscv.ConvertArithToRiscvPass(),
             convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
             reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
@@ -407,7 +407,7 @@ def _(
 
     convert_linalg_to_snitch = PipelinePass(
         [
-            convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
+            convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
             *OPTIMISE_MEMREF_STREAM_PASSES,
             *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,

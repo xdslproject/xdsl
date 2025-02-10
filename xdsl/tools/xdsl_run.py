@@ -60,7 +60,8 @@ class xDSLRunMain(CommandLineTool):
             "--args",
             default="",
             type=str,
-            help="Arguments to pass to entry function. Comma-separated list of xDSL Attributes, that will be parsed and converted by the interpreter.",
+            help="Arguments to pass to entry function. Comma-separated list of xDSL "
+            "Attributes, that will be parsed and converted by the interpreter.",
         )
         return super().register_all_arguments(arg_parser)
 

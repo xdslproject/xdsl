@@ -43,7 +43,8 @@ _lexer_rules: list[tuple[re.Pattern[str], Token.Kind]] = [
     (re.compile(r","), Token.Kind.COMMA),
 ]
 """
-This is a list of lexer rules that should be tried in this specific order to get the next token.
+This is a list of lexer rules that should be tried in this specific order to get the
+next token.
 """
 
 
@@ -148,8 +149,8 @@ class PipelinePassSpec:
 
     def __str__(self) -> str:
         """
-        This function returns a string containing the PipelineSpec name, its arguments and
-        respective values for use on the commandline.
+        This function returns a string containing the PipelineSpec name, its arguments
+        and respective values for use on the commandline.
         """
         query = f"{self.name}"
         arguments_pipeline = " ".join(
@@ -310,7 +311,8 @@ def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:
     """
     Parse a singular value element
     """
-    # valid value elements are quoted strings, numbers, true|false, and "ident" type strings
+    # valid value elements are quoted strings, numbers, true|false, and "ident" type
+    # strings
     match lexer.lex():
         case Token(kind=Token.Kind.STRING_LIT, span=span):
             # string literals are converted to unescaped strings
@@ -335,5 +337,6 @@ def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:
             # every other token type is invalid as a value
             raise PassPipelineParseError(
                 token,
-                "Unknown argument value, wrap argument in quotes to pass arbitrary string values",
+                "Unknown argument value, wrap argument in quotes to pass arbitrary "
+                "string values",
             )

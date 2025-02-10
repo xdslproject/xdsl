@@ -3,15 +3,15 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     I32,
-    AnyIntegerAttrConstr,
     BoolAttr,
     Float64Type,
     FloatAttr,
@@ -2261,7 +2261,7 @@ def test_optional_successor(program: str, generic_program: str):
 # Inference                                                                   #
 ################################################################################
 
-_T = TypeVar("_T", bound=Attribute, covariant=True)
+_T = TypeVar("_T", bound=Attribute, covariant=True, default=Attribute)
 _ConstrT = TypeVar("_ConstrT", bound=Attribute, covariant=True)
 
 
@@ -2364,16 +2364,17 @@ def test_nested_inference():
         p: ParameterDef[_T]
         q: ParameterDef[Attribute]
 
-        @staticmethod
+        @classmethod
         def constr(
+            cls,
             *,
             n: GenericAttrConstraint[Attribute] | None = None,
-            p: GenericAttrConstraint[_ConstrT] | None = None,
+            p: GenericAttrConstraint[_T] | None = None,
             q: GenericAttrConstraint[Attribute] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+        ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if n is None and p is None and q is None:
-                return BaseAttr[ParamOne[Attribute]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (n, p, q))
+                return BaseAttr[ParamOne[_T]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (n, p, q))
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
@@ -2398,6 +2399,44 @@ def test_nested_inference():
     check_roundtrip(program, ctx)
 
 
+def test_nested_inference_variable():
+    """Check that Param<T> infers correctly T when Param<T> is nested in a variable."""
+
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+
+        p: ParameterDef[_T]
+
+        @classmethod
+        def constr(
+            cls, *, p: GenericAttrConstraint[_T] | None = None
+        ) -> ParamAttrConstraint[ParamOne[_T]]:
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
+
+    @irdl_op_definition
+    class ResultTypeIsOperandParamOp(IRDLOperation):
+        T: ClassVar = VarConstraint("T", AnyAttr())
+        U: ClassVar = VarConstraint("U", ParamOne.constr(p=T))
+
+        name = "test.result_type_is_operand_param"
+        res = result_def(T)
+        arg = operand_def(U)
+
+        assembly_format = "$arg attr-dict `:` type($arg)"
+
+    ctx = MLContext()
+    ctx.load_op(ResultTypeIsOperandParamOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> !test.param_one<i32>
+    %1 = test.result_type_is_operand_param %0 : !test.param_one<i32>"""
+    )
+    check_roundtrip(program, ctx)
+
+
 def test_non_verifying_inference():
     """
     Check that non-verifying operands/results will
@@ -2409,14 +2448,15 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: ParameterDef[_T]
 
-        @staticmethod
+        @classmethod
         def constr(
+            cls,
             *,
-            p: GenericAttrConstraint[_ConstrT] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+            p: GenericAttrConstraint[_T] | None = None,
+        ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if p is None:
-                return BaseAttr[ParamOne[Attribute]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (p,))
+                return BaseAttr[ParamOne[_T]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
@@ -2948,7 +2988,7 @@ def test_optional_property_with_extractor(program: str, generic: str):
         name = "test.opt_constant"
         T: ClassVar = VarConstraint("T", AnyAttr())
 
-        value = opt_prop_def(TypedAttributeConstraint(AnyIntegerAttrConstr, T))
+        value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))
 
         res = opt_result_def(T)
 
@@ -2981,7 +3021,7 @@ def test_default_property_with_extractor(program: str, generic: str):
         T: ClassVar = VarConstraint("T", AnyAttr())
 
         value = prop_def(
-            TypedAttributeConstraint(AnyIntegerAttrConstr, T),
+            TypedAttributeConstraint(IntegerAttr.constr(), T),
             default_value=BoolAttr.from_bool(True),
         )
 

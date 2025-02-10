@@ -7,8 +7,6 @@ from typing import ClassVar, Literal, TypeVar, cast, overload
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
-    AnyIntegerAttr,
-    AnyIntegerAttrConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -132,7 +130,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(_T)
     value = prop_def(
         TypedAttributeConstraint(
-            AnyIntegerAttrConstr
+            IntegerAttr.constr()
             | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
             | BaseAttr(DenseIntOrFPElementsAttr),
             _T,
@@ -146,31 +144,34 @@ class ConstantOp(IRDLOperation):
     @overload
     def __init__(
         self,
-        value: FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
         value_type: None = None,
-    ) -> None: ...
+    ) -> None:
+        ...
 
     @overload
     def __init__(
         self,
-        value: AnyIntegerAttr,
+        value: IntegerAttr,
         value_type: None = None,
         *,
         truncate_bits: bool = False,
-    ) -> None: ...
+    ) -> None:
+        ...
 
     @overload
-    def __init__(self, value: Attribute, value_type: Attribute) -> None: ...
+    def __init__(self, value: Attribute, value_type: Attribute) -> None:
+        ...
 
     def __init__(
         self,
-        value: AnyIntegerAttr | FloatAttr[AnyFloat] | Attribute,
+        value: IntegerAttr | FloatAttr[AnyFloat] | Attribute,
         value_type: Attribute | None = None,
         *,
         truncate_bits: bool = False,
     ):
         if value_type is None:
-            value = cast(AnyIntegerAttr | FloatAttr[AnyFloat], value)
+            value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
             value_type = value.type
         if isinstance(value, IntegerAttr):
             value_type = cast(IntegerType, value_type)
@@ -225,7 +226,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         return None
 
     @staticmethod
-    def is_right_zero(attr: AnyIntegerAttr) -> bool:
+    def is_right_zero(attr: IntegerAttr) -> bool:
         """
         Returns True only when 'attr' is a right zero for the operation
         https://en.wikipedia.org/wiki/Absorbing_element
@@ -236,7 +237,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         return False
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         """
         Return True only when 'attr' is a right unit/identity for the operation
         https://en.wikipedia.org/wiki/Identity_element
@@ -397,7 +398,7 @@ class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
         return lhs + rhs
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -480,11 +481,11 @@ class MuliOp(SignlessIntegerBinaryOperationWithOverflow):
         return lhs * rhs
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
     @staticmethod
-    def is_right_zero(attr: AnyIntegerAttr) -> bool:
+    def is_right_zero(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -542,7 +543,7 @@ class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
         return lhs - rhs
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -573,7 +574,7 @@ class DivUIOp(SignlessIntegerBinaryOperation):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
 
@@ -592,7 +593,7 @@ class DivSIOp(SignlessIntegerBinaryOperation):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
 
@@ -609,7 +610,7 @@ class FloorDivSIOp(SignlessIntegerBinaryOperation):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
 
@@ -622,7 +623,7 @@ class CeilDivSIOp(SignlessIntegerBinaryOperation):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
 
@@ -636,7 +637,7 @@ class CeilDivUIOp(SignlessIntegerBinaryOperation):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
 
@@ -695,7 +696,7 @@ class AndIOp(SignlessIntegerBinaryOperation):
         return lhs & rhs
 
     @staticmethod
-    def is_right_zero(attr: AnyIntegerAttr) -> bool:
+    def is_right_zero(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -714,7 +715,7 @@ class OrIOp(SignlessIntegerBinaryOperation):
         return lhs | rhs
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -733,7 +734,7 @@ class XOrIOp(SignlessIntegerBinaryOperation):
         return lhs ^ rhs
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -751,7 +752,7 @@ class ShLIOp(SignlessIntegerBinaryOperationWithOverflow):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -770,7 +771,7 @@ class ShRUIOp(SignlessIntegerBinaryOperation):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -790,7 +791,7 @@ class ShRSIOp(SignlessIntegerBinaryOperation):
     )
 
     @staticmethod
-    def is_right_unit(attr: AnyIntegerAttr) -> bool:
+    def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
 
@@ -871,7 +872,7 @@ class CmpiOp(ComparisonOperation):
     """
 
     name = "arith.cmpi"
-    predicate = prop_def(AnyIntegerAttr)
+    predicate = prop_def(IntegerAttr)
     lhs = operand_def(signlessIntegerLike)
     rhs = operand_def(signlessIntegerLike)
     result = result_def(IntegerType(1))
@@ -963,7 +964,7 @@ class CmpfOp(ComparisonOperation):
     """
 
     name = "arith.cmpf"
-    predicate = prop_def(AnyIntegerAttr)
+    predicate = prop_def(IntegerAttr)
     lhs = operand_def(floatingPointLike)
     rhs = operand_def(floatingPointLike)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
@@ -1260,7 +1261,8 @@ class IndexCastOp(IRDLOperation):
         # exactly one of input or result must be of IndexType, no more, no less.
         if not isinstance(self.input.type, it) ^ isinstance(self.result.type, it):
             raise VerifyException(
-                f"'arith.index_cast' op operand type '{self.input.type}' and result type '{self.input.type}' are cast incompatible"
+                f"'arith.index_cast' op operand type '{self.input.type}' and result "
+                f"type '{self.input.type}' are cast incompatible"
             )
 
 
