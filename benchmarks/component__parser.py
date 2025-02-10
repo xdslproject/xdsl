@@ -9,6 +9,7 @@ from xdsl.parser import Parser
 
 BENCHMARKS_DIR = Path(__file__).parent
 GENERIC_TEST_MLIR_DIR = BENCHMARKS_DIR / "resources" / "generic_test_mlir"
+EXTRA_TEST_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
 MLIR_FILES: dict[str, Path] = {
     "apply_pdl_extra_file": GENERIC_TEST_MLIR_DIR
     / "filecheck__transforms__apply-pdl__apply_pdl_extra_file.mlir",
@@ -41,6 +42,16 @@ def time_parser__add() -> None:
     parse_file(MLIR_FILES["add"])
 
 
+def time_parser__dense_attr() -> None:
+    """Time parsing a 1024x1024xi8 dense attribute"""
+    parse_file(EXTRA_TEST_MLIR_DIR / "large_dense_attr.mlir")
+
+
+def time_parser__dense_attr_hex() -> None:
+    """Time parsing a 1024x1024xi8 dense attribute given as a hex string"""
+    parse_file(EXTRA_TEST_MLIR_DIR / "large_dense_attr_hex.mlir")
+
+
 def time_parser__all() -> None:
     """Time parsing all `.mlir` files in xDSL's `tests/` directory ."""
     mlir_files = GENERIC_TEST_MLIR_DIR.iterdir()
@@ -54,6 +65,8 @@ if __name__ == "__main__":
     BENCHMARKS = {
         "time_parser__apply_pdl_extra_file": time_parser__apply_pdl_extra_file,
         "time_parser__add": time_parser__add,
+        "time_parser__dense_attr": time_parser__dense_attr,
+        "time_parser__dense_attr_hex": time_parser__dense_attr_hex,
         "time_parser__all": time_parser__all,
     }
     profile(BENCHMARKS)
