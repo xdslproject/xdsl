@@ -15,7 +15,7 @@ from typing import (
     get_origin,
 )
 
-from xdsl.ir import ParametrizedAttribute
+from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -98,6 +98,17 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
         )
         try:
             constraint.verify(arg, ConstraintContext())
+            return True
+        except VerifyException:
+            return False
+
+    if origin is SSAValue:
+        if not isinstance(arg, SSAValue):
+            return False
+        arg = cast(SSAValue, arg)
+        constraint = irdl_to_attr_constraint(get_args(hint)[0])
+        try:
+            constraint.verify(arg.type, ConstraintContext())
             return True
         except VerifyException:
             return False
