@@ -7,6 +7,7 @@ from typing import IO, Generic, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -14,7 +15,6 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
 )
-from xdsl.dialects.func import FuncOp
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -41,9 +41,7 @@ from xdsl.utils.exceptions import VerifyException
 
 from .assembly import (
     AssemblyInstructionArg,
-    append_comment,
     assembly_arg_str,
-    assembly_line,
     memory_access_str,
     parse_immediate_value,
     parse_optional_immediate_value,
@@ -64,7 +62,7 @@ R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 
 
-class X86AsmOperation(IRDLOperation, ABC):
+class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
@@ -184,7 +182,7 @@ class X86Instruction(X86AsmOperation):
             for arg in self.assembly_line_args()
             if arg is not None
         )
-        return assembly_line(instruction_name, arg_str, self.comment)
+        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 class R_RR_Operation(
@@ -1616,7 +1614,7 @@ class LabelOp(X86AsmOperation, X86CustomFormatOperation):
         )
 
     def assembly_line(self) -> str | None:
-        return append_comment(f"{self.label.data}:", self.comment)
+        return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1673,7 +1671,9 @@ class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
         else:
             arg_str = ""
 
-        return assembly_line(self.directive.data, arg_str, is_indented=False)
+        return AssemblyPrinter.assembly_line(
+            self.directive.data, arg_str, is_indented=False
+        )
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2582,14 +2582,8 @@ class GetAVXRegisterOp(GetAnyRegisterOperation[AVXRegisterType]):
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
-    for op in module.body.walk():
-        if isinstance(op, FuncOp):
-            print(f"{op.sym_name.data}:", file=output)
-            continue
-        assert isinstance(op, X86AsmOperation), f"{op}"
-        asm = op.assembly_line()
-        if asm is not None:
-            print(asm, file=output)
+    printer = AssemblyPrinter(stream=output)
+    printer.print_module(module)
 
 
 def x86_code(module: ModuleOp) -> str:
