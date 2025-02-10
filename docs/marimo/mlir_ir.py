@@ -132,21 +132,22 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _():
-    forty_two_text = """\
-    func.func @forty_two() -> (i32) {
-      %res = arith.constant 42 : i32
-      func.return %res : i32
+    add_one_text = """\
+    func.func @add_one(%n: i32) -> i32 {
+      %one = arith.constant 1 : i32
+      %n_plus_one = arith.addi %n, %one : i32
+      func.return %n_plus_one : i32
     }"""
-    return (forty_two_text,)
+    return (add_one_text,)
 
 
 @app.cell(hide_code=True)
-def _(forty_two_text, mo, xmo):
+def _(add_one_text, mo, xmo):
     mo.md(
         fr"""
-        The [arith dialect](https://mlir.llvm.org/docs/Dialects/Arith/) contains arithmetic operations on integers, floating-point values, and other numeric constructs. To start with, here is a function that always returns 42:
+        The [arith dialect](https://mlir.llvm.org/docs/Dialects/ArithOps/) contains arithmetic operations on integers, floating-point values, and other numeric constructs. To start with, here is a function that adds one to its only argument:
 
-        {xmo.module_html(forty_two_text)}
+        {xmo.module_html(add_one_text)}
         """
     )
     return
@@ -154,14 +155,42 @@ def _(forty_two_text, mo, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Exercise 2: Fused Multiply-Add""")
+    mo.md(r"""The `i` in `arith.addi` above stands for integer. Some of the operations, like for addition (`addi`/`addf`), subtraction (`subi`/`subf`), multiplication (`muli`/`mulf`), and others have both integer and floating point variants.""")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    less_than_text = """\
+    func.func @less_than(%a: i32, %b: i32) -> i1 {
+      %slt = arith.cmpi slt, %lhs, %rhs : i1
+      func.return %slt : i1
+    }"""
+    return (less_than_text,)
+
+
+@app.cell(hide_code=True)
+def _(add_one_text, mo, xmo):
+    mo.md(
+        fr"""
+        The `arith` dialect also contains operations for comparisons. The function below returns the value True if a is less than b when the 32-bit values passed in are interpreted as signed integers. Note that the signedness is communicated by the operation itself, not the types of the operands:
+
+        {xmo.module_html(add_one_text)}
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""### Exercise 2: Multiply and Add""")
     return
 
 
 @app.cell(hide_code=True)
 def _():
     fma_text = """\
-    func.func @fused_multiply_add(%a : i32, %b : i32, %c : i32) -> (i32) {
+    func.func @multiply_and_add(%a : i32, %b : i32, %c : i32) -> (i32) {
       // Change this to return a * b + c instead
       func.return %a : i32
     }"""
@@ -176,9 +205,28 @@ def _(fma_text, mo):
 
 @app.cell(hide_code=True)
 def _(exercise_text, fma_text_area, mo):
-    _fma_info_text = exercise_text(fma_text_area.value, "fused_multiply_add", ((1, 2, 3), (4, 5, 6)), ("first(1, 2, 3) = ", "first(4, 5, 6) = "))
+    _fma_info_text = exercise_text(fma_text_area.value, "multiply_and_add", ((1, 2, 3), (4, 5, 6)), ("first(1, 2, 3) = ", "first(4, 5, 6) = "))
     mo.vstack((fma_text_area, mo.md(_fma_info_text)))
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Unhide the cell below to see the solution:""")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    # Solution
+
+    fma_impl = """\
+    func.func @multiply_and_add(%a : i32, %b : i32, %c : i32) -> (i32) {
+      %ab = arith.muli %a, %b : i32
+      %res = arith.addi %ab, %c : i32
+      func.return %res : i32
+    }"""
+    return (fma_impl,)
 
 
 @app.cell(hide_code=True)
