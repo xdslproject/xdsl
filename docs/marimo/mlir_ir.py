@@ -87,9 +87,9 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     first_text = """\
-    func.func @first(%arg0: index, %arg1: index) -> index {
+    func.func @first(%arg0: i32, %arg1: i32) -> i32 {
         // Change this to return the second argument instead
-        func.return %arg0 : index
+        func.return %arg0 : i32
     }\
     """
     return (first_text,)
@@ -333,8 +333,8 @@ def _(mo):
 def _(builtin, mo):
     mo.md(fr"""
     Attributes hold compile-time data, such as constants, types, and other information.
-    The IR above contains four attributes: `@triangle`, `0`, `1` and `index`.
-    `index` is the type of integer values that fit in a register on the target.
+    The IR above contains four attributes: `@triangle`, `0`, `1` and `i32`.
+    `i32` is the type of integer values that fit in a register on the target.
     As the IR here is independent of the machine on which it will run, we don't yet specify the bitwidth of the integer.
     In MLIR, the common way to represent integers of 16, 32, 64, or other bitwidths is `i16`, `i32`, `i64`, etc.
     `@triangle` is a symbol name, denoting the name of the function.
@@ -347,7 +347,7 @@ def _(builtin, mo):
     ```
     {builtin.DictionaryAttr({
         "some_string": builtin.StringAttr("my_string"),
-        "some_int": builtin.IntegerAttr(42, builtin.IndexType()),
+        "some_int": builtin.IntegerAttr(42, builtin.i32),
         "some_float": builtin.FloatAttr(3.1415, builtin.f32),
         "a_unit_attr": builtin.UnitAttr()
     })}
@@ -437,15 +437,15 @@ def _(MLContext, arith, builtin, func, scf):
 @app.cell(hide_code=True)
 def _():
     triangle_text = """\
-    func.func @triangle(%n: index) -> index {
-      %zero = arith.constant 0 : index
-      %one = arith.constant 1 : index
-      %n_plus_one = arith.addi %n, %one : index
-      %res = scf.for %i = %one to %n_plus_one step %one iter_args(%acc_in = %zero) -> (index) {
-        %acc_out = arith.addi %acc_in, %i : index
-        scf.yield %acc_out : index
+    func.func @triangle(%n: i32) -> i32 {
+      %zero = arith.constant 0 : i32
+      %one = arith.constant 1 : i32
+      %n_plus_one = arith.addi %n, %one : i32
+      %res = scf.for %i = %one to %n_plus_one step %one iter_args(%acc_in = %zero) -> (i32) : i32 {
+        %acc_out = arith.addi %acc_in, %i : i32
+        scf.yield %acc_out : i32
       }
-      func.return %res : index
+      func.return %res : i32
     }\
     """
     return (triangle_text,)
