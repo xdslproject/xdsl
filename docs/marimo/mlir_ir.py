@@ -110,6 +110,22 @@ def _(exercise_text, first_text_area, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""Unhide the cell below to see the solution:""")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    second_text = """\
+    func.func @first(%arg0: i32, %arg1: i32) -> i32 {
+        func.return %arg1 : i32
+    }\
+    """
+    return (second_text,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""## The Arith Dialect""")
     return
 
