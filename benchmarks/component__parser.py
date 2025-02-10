@@ -48,7 +48,7 @@ def time_parser__all() -> None:
 
 
 if __name__ == "__main__":
-    from utils import profile
+    from bench_utils import profile  # type: ignore
 
     BENCHMARKS = {
         "time_parser__apply_pdl_extra_file": time_parser__apply_pdl_extra_file,

@@ -6,7 +6,7 @@
 if __name__ == "__main__":
     from collections.abc import Callable
 
-    from utils import profile
+    from bench_utils import profile  # type: ignore
 
     BENCHMARKS: dict[str, Callable[[], None]] = {}
     profile(BENCHMARKS)

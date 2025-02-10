@@ -24,7 +24,7 @@ def timeraw_import_xdsl_opt() -> str:
 
 
 if __name__ == "__main__":
-    from utils import profile
+    from bench_utils import profile  # type: ignore
 
     BENCHMARKS = {
         "time_import_xdsl_opt": time_import_xdsl_opt,

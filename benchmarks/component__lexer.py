@@ -48,7 +48,7 @@ def _time_lexer__all() -> None:
 
 
 if __name__ == "__main__":
-    from utils import profile
+    from bench_utils import profile  # type: ignore
 
     BENCHMARKS = {
         "time_lexer__apply_pdl_extra_file": time_lexer__apply_pdl_extra_file,

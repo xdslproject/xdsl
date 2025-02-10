@@ -47,6 +47,7 @@ bench = [
     "asv>=0.6.4",
     "functiontrace>=0.3.7",
     "snakeviz>=2.2.2",
+    "tqdm>=4.67.1",
     "viztracer>=1.0.1",
 ]
 

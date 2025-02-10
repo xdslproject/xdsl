@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Benchmark loading dialects in xDSL."""
+
 import importlib
 
-import xdsl.dialects.builtin
 import xdsl.dialects.arith
+import xdsl.dialects.builtin
 
 
 def time_load_dialect__arith() -> None:
@@ -24,7 +25,7 @@ def time_load_dialect__builtin() -> None:
 if __name__ == "__main__":
     from collections.abc import Callable
 
-    from utils import profile
+    from bench_utils import profile  # type: ignore
 
     BENCHMARKS: dict[str, Callable[[], None]] = {
         "time_load_dialect__arith": time_load_dialect__arith,
