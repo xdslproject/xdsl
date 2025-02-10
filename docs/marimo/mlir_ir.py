@@ -553,31 +553,6 @@ def _(builtin, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Attribute Dictionaries""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(builtin, mo):
-    _module_op = builtin.ModuleOp([])
-    _module_op.attributes = {"my_key": builtin.StringAttr("my_value")}
-
-    mo.md(fr"""
-    Operations can be supplemented with arbitrary information via their attribute dictionary.
-
-    Here's a module with some extra information:
-    ```
-    {str(_module_op)}
-    ```
-
-    There are two changes here, the added dictionary and the `attributes` keyword, which is added to avoid the ambiguity between the dictionary and the region, which are both delimited with `{{}}`.
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""## Generic Format""")
     return
 
