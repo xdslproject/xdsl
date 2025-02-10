@@ -116,27 +116,21 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _():
-    l1_dist_text = """\
-    func.func @l1_dist(%a : i32, %b : i32, %c : i32) -> (i32) {
-      %a_minus_b = arith.subi %a, %b : i32
-      %b_minus_a = arith.subi %b, %a : i32
-      %slt = arith.cmpi slt, %lhs, %rhs : i1
-      %res = arith.select %slt, %a_minus_b, %b_minus_a : i32
+    forty_two_text = """\
+    func.func @forty_two() -> (i32) {
+      %res = arith.constant 42 : i32
       func.return %res : i32
     }"""
-    return (l1_dist_text,)
+    return (forty_two_text,)
 
 
 @app.cell(hide_code=True)
-def _(l1_dist_text, mo, xmo):
+def _(forty_two_text, mo, xmo):
     mo.md(
         fr"""
-        The [arith dialect](https://mlir.llvm.org/docs/Dialects/Arith/) contains arithmetic operations on integers, floating-point values, and other numeric constructs.
+        The [arith dialect](https://mlir.llvm.org/docs/Dialects/Arith/) contains arithmetic operations on integers, floating-point values, and other numeric constructs. To start with, here is a function that always returns 42:
 
-        {xmo.module_html(l1_dist_text)}
-
-        The `arith.cmpi` operation specifies how it interprets the inputs.
-        Importantly, the signedness of the operands is not specified by the types, and rather by the operation itself.
+        {xmo.module_html(forty_two_text)}
         """
     )
     return
