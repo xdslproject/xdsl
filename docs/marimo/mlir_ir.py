@@ -470,6 +470,25 @@ def _(mo, second_info_text, second_input_text, second_text_area):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""## `triangle` revisited""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, triangle_text):
+    mo.md(fr"""
+    This notebook contains a very light overview of the most commonly used dialects and operations in MLIR and xDSL, as well as the key concepts of SSA and structured control flow.
+
+    {mo.ui.code_editor(triangle_text, language="javascript", disabled=True)}
+
+    The sections below are a deeper dive into some of the structures that were implicit in the IR snippets we looked at.
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""## The `builtin` Dialect""")
     return
 
