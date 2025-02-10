@@ -166,11 +166,11 @@ if __name__ == "__main__":
        "Extensibility.interface_check": EXTENSIBILITY.time_interface_check,
        "Extensibility.trait_check": EXTENSIBILITY.time_trait_check,
        "ImportClasses.import_xdsl_opt": IMPORT_CLASSES.time_import_xdsl_opt,
-       "IRTraversal.time_iterate_block_ops": IR_TRAVERSAL.time_iterate_block_ops,
-       "IRTraversal.time_walk_block_ops": IR_TRAVERSAL.time_walk_block_ops,
-       "LoadDialects.time_arith_load": LOAD_DIALECTS.time_arith_load,
-       "LoadDialects.time_builtin_load": LOAD_DIALECTS.time_builtin_load,
-       "OpCreation.time_operation_create": OP_CREATION.time_operation_create,
-       "OpCreation.time_operation_clone": OP_CREATION.time_operation_clone,
+       "IRTraversal.iterate_block_ops": IR_TRAVERSAL.time_iterate_block_ops,
+       "IRTraversal.walk_block_ops": IR_TRAVERSAL.time_walk_block_ops,
+       "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
+       "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
+       "OpCreation.operation_create": OP_CREATION.time_operation_create,
+       "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
     }
     profile(BENCHMARKS)
