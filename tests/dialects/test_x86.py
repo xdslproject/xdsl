@@ -72,6 +72,58 @@ def test_rflags_register():
         (x86.register.ZMM31, "zmm31"),
     ],
 )
-def test_avx_register(register: x86.register.AVX512RegisterType, name: str):
+def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
+    assert register.is_allocated
+    assert register.register_name == name
+
+
+@pytest.mark.parametrize(
+    "register, name",
+    [
+        (x86.register.YMM0, "ymm0"),
+        (x86.register.YMM1, "ymm1"),
+        (x86.register.YMM2, "ymm2"),
+        (x86.register.YMM3, "ymm3"),
+        (x86.register.YMM4, "ymm4"),
+        (x86.register.YMM5, "ymm5"),
+        (x86.register.YMM6, "ymm6"),
+        (x86.register.YMM7, "ymm7"),
+        (x86.register.YMM8, "ymm8"),
+        (x86.register.YMM9, "ymm9"),
+        (x86.register.YMM10, "ymm10"),
+        (x86.register.YMM11, "ymm11"),
+        (x86.register.YMM12, "ymm12"),
+        (x86.register.YMM13, "ymm13"),
+        (x86.register.YMM14, "ymm14"),
+        (x86.register.YMM15, "ymm15"),
+    ],
+)
+def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
+    assert register.is_allocated
+    assert register.register_name == name
+
+
+@pytest.mark.parametrize(
+    "register, name",
+    [
+        (x86.register.XMM0, "xmm0"),
+        (x86.register.XMM1, "xmm1"),
+        (x86.register.XMM2, "xmm2"),
+        (x86.register.XMM3, "xmm3"),
+        (x86.register.XMM4, "xmm4"),
+        (x86.register.XMM5, "xmm5"),
+        (x86.register.XMM6, "xmm6"),
+        (x86.register.XMM7, "xmm7"),
+        (x86.register.XMM8, "xmm8"),
+        (x86.register.XMM9, "xmm9"),
+        (x86.register.XMM10, "xmm10"),
+        (x86.register.XMM11, "xmm11"),
+        (x86.register.XMM12, "xmm12"),
+        (x86.register.XMM13, "xmm13"),
+        (x86.register.XMM14, "xmm14"),
+        (x86.register.XMM15, "xmm15"),
+    ],
+)
+def test_sse_register(register: x86.register.SSERegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name

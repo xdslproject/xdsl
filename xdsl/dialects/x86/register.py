@@ -129,6 +129,124 @@ class X86VectorRegisterType(X86RegisterType):
 
 
 @irdl_attr_definition
+class SSERegisterType(X86VectorRegisterType):
+    """
+    An x86 register type for SSE instructions.
+    """
+
+    name = "x86.ssereg"
+
+    @classmethod
+    def unallocated(cls) -> SSERegisterType:
+        return UNALLOCATED_SSE
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "SSE"
+
+    @classmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        return SSE_INDEX_BY_NAME
+
+
+SSE_INDEX_BY_NAME = {
+    "xmm0": 0,
+    "xmm1": 1,
+    "xmm2": 2,
+    "xmm3": 3,
+    "xmm4": 4,
+    "xmm5": 5,
+    "xmm6": 6,
+    "xmm7": 7,
+    "xmm8": 8,
+    "xmm9": 9,
+    "xmm10": 10,
+    "xmm11": 11,
+    "xmm12": 12,
+    "xmm13": 13,
+    "xmm14": 14,
+    "xmm15": 15,
+}
+
+UNALLOCATED_SSE = SSERegisterType("")
+XMM0 = SSERegisterType("xmm0")
+XMM1 = SSERegisterType("xmm1")
+XMM2 = SSERegisterType("xmm2")
+XMM3 = SSERegisterType("xmm3")
+XMM4 = SSERegisterType("xmm4")
+XMM5 = SSERegisterType("xmm5")
+XMM6 = SSERegisterType("xmm6")
+XMM7 = SSERegisterType("xmm7")
+XMM8 = SSERegisterType("xmm8")
+XMM9 = SSERegisterType("xmm9")
+XMM10 = SSERegisterType("xmm10")
+XMM11 = SSERegisterType("xmm11")
+XMM12 = SSERegisterType("xmm12")
+XMM13 = SSERegisterType("xmm13")
+XMM14 = SSERegisterType("xmm14")
+XMM15 = SSERegisterType("xmm15")
+
+
+@irdl_attr_definition
+class AVX2RegisterType(X86VectorRegisterType):
+    """
+    An x86 register type for AVX2 instructions.
+    """
+
+    name = "x86.avx2reg"
+
+    @classmethod
+    def unallocated(cls) -> AVX2RegisterType:
+        return UNALLOCATED_AVX2
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "AVX2"
+
+    @classmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        return AVX2_INDEX_BY_NAME
+
+
+AVX2_INDEX_BY_NAME = {
+    "ymm0": 0,
+    "ymm1": 1,
+    "ymm2": 2,
+    "ymm3": 3,
+    "ymm4": 4,
+    "ymm5": 5,
+    "ymm6": 6,
+    "ymm7": 7,
+    "ymm8": 8,
+    "ymm9": 9,
+    "ymm10": 10,
+    "ymm11": 11,
+    "ymm12": 12,
+    "ymm13": 13,
+    "ymm14": 14,
+    "ymm15": 15,
+}
+
+UNALLOCATED_AVX2 = AVX2RegisterType("")
+YMM0 = AVX2RegisterType("ymm0")
+YMM1 = AVX2RegisterType("ymm1")
+YMM2 = AVX2RegisterType("ymm2")
+YMM3 = AVX2RegisterType("ymm3")
+YMM4 = AVX2RegisterType("ymm4")
+YMM5 = AVX2RegisterType("ymm5")
+YMM6 = AVX2RegisterType("ymm6")
+YMM7 = AVX2RegisterType("ymm7")
+YMM8 = AVX2RegisterType("ymm8")
+YMM9 = AVX2RegisterType("ymm9")
+YMM10 = AVX2RegisterType("ymm10")
+YMM11 = AVX2RegisterType("ymm11")
+YMM12 = AVX2RegisterType("ymm12")
+YMM13 = AVX2RegisterType("ymm13")
+YMM14 = AVX2RegisterType("ymm14")
+YMM15 = AVX2RegisterType("ymm15")
+
+
+@irdl_attr_definition
 class AVX512RegisterType(X86VectorRegisterType):
     """
     An x86 register type for AVX512 instructions.
