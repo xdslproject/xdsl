@@ -6,7 +6,6 @@ from xdsl.dialects import arith, ptr
 from xdsl.dialects.builtin import FixedBitwidthType, IndexType, ModuleOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -34,5 +33,5 @@ class ConvertPtrTypeOffsetsPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertTypeOffsetOp()]),
+            ConvertTypeOffsetOp(),
         ).rewrite_module(op)
