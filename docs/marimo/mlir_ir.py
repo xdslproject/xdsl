@@ -44,28 +44,7 @@ def _(mo, triangle_text):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        We'll look at it more in detail, but let's take a look at some broad properties:
-
-        1. The IR is "structured".
-
-        There are curly braces (`{{}}`) with indented code in them, a bit like the C family languages.
-
-        2. There are assignments with `=`
-
-        One important detail is that each value is assigned to exactly once.
-        MLIR IR is in [SSA form](https://en.wikipedia.org/wiki/Static_single-assignment_form), a property that makes it easier to determine the contents of a value when reasoning about code.
-
-        3. The things immediately to the right of the assignments are in the form `first.second`
-
-        These things are the names of operations.
-        These operations are the core building blocks of MLIR IR, and their structure and meaning is indicated by this name.
-        The names are all in two parts, where the first part is the name of a dialect, a kind of namespace for related concepts, and the second makes the operation name unique within the dialect.
-
-        With this in mind, let's zoom in to the first operation.
-        """
-    )
+    mo.md(r"""This notebook explains all the components of the above snippet of code.""")
     return
 
 
