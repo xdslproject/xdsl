@@ -71,8 +71,8 @@ class DialectStubGenerator:
 
     def _generate_constraint_type(self, constraint: AttrConstraint) -> str:
         """
-        Return a type hint for the member constrained by a constraint, by it an attribute
-        parameter, or an operation attribute/property.
+        Return a type hint for the member constrained by a constraint, by it an
+        attribute parameter, or an operation attribute/property.
         """
         import xdsl.dialects.builtin
         import xdsl.ir
@@ -94,7 +94,7 @@ class DialectStubGenerator:
                 )
             case AllOf(constraints):
                 self._import(typing, "Annotated")
-                return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"
+                return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"  # noqa: E501
             case ArrayOfConstraint(constraint):
                 self._import(xdsl.dialects.builtin, ArrayAttr)
                 return f"ArrayAttr[{self._generate_constraint_type(constraint)}]"
@@ -144,7 +144,8 @@ class DialectStubGenerator:
         """
         Generate type stub for an irdl operation.
         """
-        # Keep track of whether the operation has any body, to generate a pass if it does not.
+        # Keep track of whether the operation has any body, to generate a pass if it
+        # does not.
         had_body = False
 
         # They all are IRDLOperations.
@@ -184,14 +185,14 @@ class DialectStubGenerator:
             had_body = True
             match o:
                 case OptAttributeDef():
-                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"  # noqa: E501
                 case AttributeDef():
                     yield f"    {name} : {self._generate_constraint_type(o.constr)}"
         for name, o in op_def.properties.items():
             had_body = True
             match o:
                 case OptPropertyDef():
-                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"  # noqa: E501
                 case PropertyDef():
                     yield f"    {name} : {self._generate_constraint_type(o.constr)}"
 

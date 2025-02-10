@@ -61,7 +61,7 @@ class GeneralizeFillPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamGeneralizeFillPass(ModulePass):
+class MemRefStreamGeneralizeFillPass(ModulePass):
     """
     Generalizes memref_stream.fill ops.
     """

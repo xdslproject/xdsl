@@ -6,7 +6,7 @@ from typing import cast
 
 from ordered_set import OrderedSet
 
-from xdsl.backend.riscv.register_queue import RegisterQueue
+from xdsl.backend.register_queue import RegisterQueue
 from xdsl.dialects import riscv, riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
     FloatRegisterType,
@@ -22,10 +22,12 @@ from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 from xdsl.utils.exceptions import DiagnosticException
 
 
-def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
+def gather_allocated(
+    func: riscv_func.FuncOp,
+) -> set[IntRegisterType | FloatRegisterType]:
     """Utility method to gather already allocated registers"""
 
-    allocated: set[RISCVRegisterType] = set()
+    allocated: set[IntRegisterType | FloatRegisterType] = set()
 
     for op in func.walk():
         if not isinstance(op, RISCVAsmOperation):
@@ -41,7 +43,10 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
             allocated.update(riscv.Registers.FT)
 
         for param in chain(op.operands, op.results):
-            if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
+            if (
+                isinstance(param.type, IntRegisterType | FloatRegisterType)
+                and param.type.is_allocated
+            ):
                 if not param.type.register_name.startswith("j"):
                     allocated.add(param.type)
 
@@ -110,15 +115,15 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ```
     """
 
-    available_registers: RegisterQueue
+    available_registers: RegisterQueue[IntRegisterType | FloatRegisterType]
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
 
     exclude_preallocated: bool = True
     exclude_snitch_reserved: bool = True
 
-    def __init__(self, available_registers: RegisterQueue | None = None) -> None:
-        if available_registers is None:
-            available_registers = RegisterQueue()
+    def __init__(
+        self, available_registers: RegisterQueue[IntRegisterType | FloatRegisterType]
+    ) -> None:
         self.available_registers = available_registers
         self.live_ins_per_block = {}
 
@@ -336,7 +341,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
-        preallocated: set[RISCVRegisterType] = set()
+        preallocated: set[IntRegisterType | FloatRegisterType] = set()
 
         if self.exclude_preallocated:
             preallocated |= gather_allocated(func)
@@ -345,13 +350,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             preallocated |= get_snitch_reserved()
 
         for pa_reg in preallocated:
-            if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
-                self.available_registers.reserve_register(pa_reg)
-
-            if pa_reg in self.available_registers.available_int_registers:
-                self.available_registers.available_int_registers.remove(pa_reg)
-            if pa_reg in self.available_registers.available_float_registers:
-                self.available_registers.available_float_registers.remove(pa_reg)
+            self.available_registers.reserve_register(pa_reg)
+            self.available_registers.exclude_register(pa_reg)
 
         block = func.body.block
 

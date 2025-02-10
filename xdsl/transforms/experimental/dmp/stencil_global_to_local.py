@@ -285,7 +285,7 @@ def generate_mpi_calls_for(
             # copy source area to outbound buffer
             yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
-            unwrap_out = mpi.UnwrapMemrefOp(alloc_outbound)
+            unwrap_out = mpi.UnwrapMemRefOp(alloc_outbound)
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
@@ -305,7 +305,7 @@ def generate_mpi_calls_for(
             )
 
             # get ptr for receive buffer
-            unwrap_in = mpi.UnwrapMemrefOp(alloc_inbound)
+            unwrap_in = mpi.UnwrapMemRefOp(alloc_inbound)
             unwrap_in.ptr.name_hint = f"recv_buff_ex{i}_ptr"
             yield unwrap_in
             # Irecv call
@@ -439,7 +439,7 @@ class MpiLoopInvariantCodeMotion:
             memref.AllocOp
             | mpi.CommRankOp
             | mpi.AllocateTypeOp
-            | mpi.UnwrapMemrefOp
+            | mpi.UnwrapMemRefOp
             | mpi.InitOp
         ),
         rewriter: Rewriter,
@@ -450,7 +450,7 @@ class MpiLoopInvariantCodeMotion:
         self.seen_ops.add(op)
 
         # memref unwraps can always be moved to their allocation
-        if isinstance(op, mpi.UnwrapMemrefOp) and isinstance(
+        if isinstance(op, mpi.UnwrapMemRefOp) and isinstance(
             op.ref.owner, memref.AllocOp
         ):
             op.detach()
@@ -499,7 +499,7 @@ class MpiLoopInvariantCodeMotion:
             memref.AllocOp
             | mpi.CommRankOp
             | mpi.AllocateTypeOp
-            | mpi.UnwrapMemrefOp
+            | mpi.UnwrapMemRefOp
             | mpi.InitOp
         ],
     ) -> Callable[[Operation], None]:
@@ -514,7 +514,7 @@ class MpiLoopInvariantCodeMotion:
                 memref.AllocOp
                 | mpi.CommRankOp
                 | mpi.AllocateTypeOp
-                | mpi.UnwrapMemrefOp
+                | mpi.UnwrapMemRefOp
                 | mpi.InitOp,
             ):
                 worklist.append(op)
@@ -533,7 +533,7 @@ class MpiLoopInvariantCodeMotion:
             memref.AllocOp
             | mpi.CommRankOp
             | mpi.AllocateTypeOp
-            | mpi.UnwrapMemrefOp
+            | mpi.UnwrapMemRefOp
             | mpi.InitOp
         ] = list()
         matcher = self.get_matcher(worklist)

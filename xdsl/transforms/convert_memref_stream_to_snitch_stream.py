@@ -228,7 +228,7 @@ def strides_for_affine_map(
     return result
 
 
-class ConvertMemrefStreamToSnitchStreamPass(ModulePass):
+class ConvertMemRefStreamToSnitchStreamPass(ModulePass):
     """
     Converts memref_stream `read` and `write` operations to the snitch_stream equivalents.
 

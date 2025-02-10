@@ -61,3 +61,23 @@ builtin.module {
 }
 
 // CHECK: SSA value %1 is referenced with an index larger than its size
+
+// -----
+
+// A block defined twice
+
+builtin.module {
+    ^blockA:
+        "test.op"() : () -> ()
+    ^blockA:
+        "test.op"() : () -> ()
+}
+
+// CHECK:       /graph_region.mlir:72:4
+// CHECK-NEXT:      ^blockA:
+// CHECK-NEXT:      ^^^^^^^
+// CHECK-NEXT:      re-declaration of block 'blockA'
+// CHECK-NEXT:  originally declared here:
+// CHECK-NEXT:  /graph_region.mlir:6:4
+// CHECK-NEXT:      ^blockA:
+// CHECK-NEXT:      ^^^^^^^

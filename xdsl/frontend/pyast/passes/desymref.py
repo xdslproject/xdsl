@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.frontend import symref
-from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.pyast import symref
+from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter

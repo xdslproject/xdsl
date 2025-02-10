@@ -11,7 +11,6 @@ from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyFloatAttr,
     Builtin,
     FloatAttr,
     FunctionType,
@@ -814,7 +813,7 @@ def test_float_attr():
 def test_float_attr_specials():
     printer = Printer()
 
-    def _test_attr_print(expected: str, attr: AnyFloatAttr):
+    def _test_attr_print(expected: str, attr: FloatAttr):
         io = StringIO()
         printer.stream = io
         printer.print_attribute(attr)

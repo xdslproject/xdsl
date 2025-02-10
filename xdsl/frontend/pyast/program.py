@@ -4,11 +4,11 @@ from io import StringIO
 from typing import Any
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.code_generation import CodeGeneration
-from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.passes.desymref import Desymrefier
-from xdsl.frontend.python_code_check import FunctionMap
-from xdsl.frontend.type_conversion import TypeConverter
+from xdsl.frontend.pyast.code_generation import CodeGeneration
+from xdsl.frontend.pyast.exception import FrontendProgramException
+from xdsl.frontend.pyast.passes.desymref import Desymrefier
+from xdsl.frontend.pyast.python_code_check import FunctionMap
+from xdsl.frontend.pyast.type_conversion import TypeConverter
 from xdsl.printer import Printer
 
 

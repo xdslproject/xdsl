@@ -6,13 +6,13 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
-    AnyFloatAttr,
-    AnyMemRefTypeConstr,
     AnyTensorType,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     TensorType,
 )
@@ -177,7 +177,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
 
         assert isattr(
             op.input_stencil.type,
-            AnyMemRefTypeConstr | stencil.StencilTypeConstr,
+            MemRefType.constr() | stencil.StencilTypeConstr,
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
@@ -483,7 +483,8 @@ class ConvertApplyOpPattern(RewritePattern):
             for idx, old in enumerate(done_exchange_used_block_args, start=2)
         )
 
-        # add translation from old to new arg index for non-optional args - note, access to accumulator must be handled separately below
+        # add translation from old to new arg index for non-optional args - note, access
+        # to accumulator must be handled separately below
         chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
             receive_chunk.block.args[0]
         )
@@ -578,7 +579,7 @@ class PromoteCoefficients(RewritePattern):
             return
 
         val = dense.get_attrs()[0]
-        assert isattr(val, AnyFloatAttr)
+        assert isattr(val, FloatAttr)
         apply.add_coeff(op.offset, val)
         rewriter.replace_op(mulf, [], new_results=[op.result])
 

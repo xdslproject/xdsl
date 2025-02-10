@@ -2,8 +2,8 @@ import ast
 
 import pytest
 
-from xdsl.frontend.exception import CodeGenerationException
-from xdsl.frontend.python_code_check import CheckAndInlineConstants
+from xdsl.frontend.pyast.exception import CodeGenerationException
+from xdsl.frontend.pyast.python_code_check import CheckAndInlineConstants
 
 
 def test_const_correctly_evaluated_I():

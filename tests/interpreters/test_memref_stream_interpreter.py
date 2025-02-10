@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.interpreters.memref_stream import MemrefStreamFunctions
+from xdsl.interpreters.memref_stream import MemRefStreamFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
@@ -31,7 +31,7 @@ def index(value: int) -> IntegerAttr[IndexType]:
 
 def test_memref_stream_generic():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     op = memref_stream.GenericOp(
@@ -85,7 +85,7 @@ def test_memref_stream_generic():
 
 def test_memref_stream_generic_scalar():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     op = memref_stream.GenericOp(
@@ -139,7 +139,7 @@ def test_memref_stream_generic_scalar():
 
 def test_memref_stream_generic_reduction():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     op = memref_stream.GenericOp(
@@ -180,7 +180,7 @@ def test_memref_stream_generic_reduction():
 
 def test_memref_stream_generic_imperfect_nesting():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     f32 = Float32Type()
@@ -231,7 +231,7 @@ def test_memref_stream_generic_imperfect_nesting():
 
 def test_memref_stream_generic_reduction_with_initial_value():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     f32 = Float32Type()
@@ -282,7 +282,7 @@ def test_memref_stream_generic_reduction_with_initial_value():
 
 def test_memref_stream_interleaved_reduction_with_initial_value():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
     f32 = Float32Type()

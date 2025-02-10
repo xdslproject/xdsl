@@ -17,17 +17,13 @@ from typing import Annotated, ClassVar, TypeAlias
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyFloatAttr,
-    AnyFloatAttrConstr,
-    AnyIntegerAttr,
-    AnyIntegerAttrConstr,
-    AnyMemRefType,
     ArrayAttr,
     BoolAttr,
     ContainerType,
     DictionaryAttr,
     Float16Type,
     Float32Type,
+    FloatAttr,
     FunctionType,
     IntegerAttr,
     IntegerType,
@@ -420,8 +416,8 @@ ColorIdAttr: TypeAlias = IntegerAttr[
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
-ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
-ParamAttrConstr = AnyFloatAttrConstr | AnyIntegerAttrConstr
+ParamAttr: TypeAlias = FloatAttr | IntegerAttr
+ParamAttrConstr = FloatAttr.constr() | IntegerAttr.constr()
 
 
 @irdl_op_definition
@@ -1344,9 +1340,9 @@ class BuiltinDsdOp(IRDLOperation, ABC):
             sig_typ: Attribute | type[Attribute],
         ) -> bool:
             if isinstance(sig_typ, type):
-                return (
-                    sig_typ == DsdType and isa(op_typ, AnyMemRefType)
-                ) or isinstance(op_typ, sig_typ)
+                return (sig_typ == DsdType and isa(op_typ, MemRefType)) or isinstance(
+                    op_typ, sig_typ
+                )
             else:
                 return op_typ == sig_typ
 

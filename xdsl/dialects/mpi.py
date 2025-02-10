@@ -651,7 +651,7 @@ class FinalizeOp(MPIBaseOp):
 
 
 @irdl_op_definition
-class UnwrapMemrefOp(MPIBaseOp):
+class UnwrapMemRefOp(MPIBaseOp):
     """
     This Op can be used as a helper to get memrefs into MPI calls.
 
@@ -848,7 +848,7 @@ MPI = Dialect(
         InitOp,
         FinalizeOp,
         CommRankOp,
-        UnwrapMemrefOp,
+        UnwrapMemRefOp,
         GetDtypeOp,
         AllocateTypeOp,
         VectorGetOp,

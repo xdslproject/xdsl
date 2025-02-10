@@ -34,10 +34,6 @@ for path in sorted(src.rglob("*.py")):
 
     ident = ".".join(parts)
 
-    if ident in ("irdl.error",):
-        # TODO: rename error function, treated as circular reference
-        continue
-
     nav[parts] = doc_path.as_posix()
 
     with mkdocs_gen_files.open(full_doc_path, "w") as fd:

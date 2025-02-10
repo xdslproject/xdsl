@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 

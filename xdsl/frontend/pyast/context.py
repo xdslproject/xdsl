@@ -5,8 +5,8 @@ from inspect import getsource
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from typing import Any
 
-from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.python_code_check import PythonCodeCheck
+from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.frontend.pyast.python_code_check import PythonCodeCheck
 
 
 @dataclass

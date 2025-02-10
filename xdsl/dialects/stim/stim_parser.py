@@ -228,7 +228,9 @@ class StimParser:
         """
         Parse targets with format:
             targets = SPACE INDENTS target targets?
-        TODO: the Stim documentation indicates that their parser requires at least one target per instruction - but their actual parser does not enforce this. Check incongruency.
+        TODO: the Stim documentation indicates that their parser requires at least one
+        target per instruction - but their actual parser does not enforce this.
+        Check incongruency.
         """
         # Check that there is a first target
         if (first := self.parse_optional_target()) is None:

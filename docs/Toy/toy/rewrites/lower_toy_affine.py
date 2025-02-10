@@ -36,10 +36,10 @@ from ..dialects import toy
 
 # region Helpers
 
-MemrefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
+MemRefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
 
 
-def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
+def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemRefTypeF64:
     """
     Convert the given RankedTensorType into the corresponding MemRefType.
     """
@@ -47,7 +47,7 @@ def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
 
 
 def insert_alloc_and_dealloc(
-    type: MemrefTypeF64, op: Operation, rewriter: PatternRewriter
+    type: MemRefTypeF64, op: Operation, rewriter: PatternRewriter
 ) -> memref.AllocOp:
     """
     Insert an allocation and deallocation for the given MemRefType.

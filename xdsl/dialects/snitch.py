@@ -13,7 +13,9 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ContainerType, IntAttr
 from xdsl.dialects.riscv import IntRegisterType
@@ -26,7 +28,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    BaseAttr,
+    AnyAttr,
     GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
@@ -39,8 +41,9 @@ from xdsl.irdl import (
 )
 from xdsl.utils.exceptions import VerifyException
 
-_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
-_StreamTypeElementConstrT = TypeVar("_StreamTypeElementConstrT", bound=Attribute)
+_StreamTypeElement = TypeVar(
+    "_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute
+)
 
 
 @irdl_attr_definition
@@ -60,18 +63,14 @@ class ReadableStreamType(
     def __init__(self, element_type: _StreamTypeElement):
         super().__init__([element_type])
 
-    @staticmethod
+    @classmethod
     def constr(
-        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
-    ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]]:
-        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElementConstrT]](
+        cls,
+        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+    ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
+        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
             ReadableStreamType, (element_type,)
         )
-
-
-AnyReadableStreamTypeConstr = BaseAttr[ReadableStreamType[Attribute]](
-    ReadableStreamType
-)
 
 
 @irdl_attr_definition
@@ -91,18 +90,14 @@ class WritableStreamType(
     def __init__(self, element_type: _StreamTypeElement):
         super().__init__([element_type])
 
-    @staticmethod
+    @classmethod
     def constr(
-        element_type: GenericAttrConstraint[_StreamTypeElementConstrT],
-    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]]:
-        return ParamAttrConstraint[WritableStreamType[_StreamTypeElementConstrT]](
+        cls,
+        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+    ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
+        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
             WritableStreamType, (element_type,)
         )
-
-
-AnyWritableStreamTypeConstr = BaseAttr[WritableStreamType[Attribute]](
-    WritableStreamType
-)
 
 
 @dataclass(frozen=True)
@@ -222,7 +217,7 @@ class SsrEnableOp(IRDLOperation):
 
     name = "snitch.ssr_enable"
 
-    streams = var_result_def(AnyReadableStreamTypeConstr | AnyWritableStreamTypeConstr)
+    streams = var_result_def(ReadableStreamType.constr() | WritableStreamType.constr())
 
     def __init__(self, stream_types: Sequence[Attribute]):
         super().__init__(result_types=[stream_types])

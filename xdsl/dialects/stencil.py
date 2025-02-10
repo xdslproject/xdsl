@@ -9,11 +9,11 @@ from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
-    AnyMemRefTypeConstr,
     ArrayAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
+    MemRefType,
     TensorType,
 )
 from xdsl.ir import (
@@ -362,7 +362,7 @@ class StencilType(
         bounds: GenericAttrConstraint[Attribute] | None = None,
         element_type: GenericAttrConstraint[_FieldTypeElement] | None = None,
     ) -> (
-        BaseAttr[StencilType[Attribute]]
+        BaseAttr[StencilType[_FieldTypeElement]]
         | ParamAttrConstraint[StencilType[_FieldTypeElement]]
     ):
         if bounds is None and element_type is None:
@@ -542,9 +542,9 @@ class ApplyOp(IRDLOperation):
         assign_args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_assign_args
         )
-        args: list[Parser.Argument]
-        operands: list[SSAValue]
-        args, operands = zip(*assign_args) if assign_args else ([], [])
+        args: tuple[Parser.Argument, ...]
+        operands: tuple[SSAValue, ...]
+        args, operands = zip(*assign_args) if assign_args else ((), ())
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
@@ -602,11 +602,13 @@ class ApplyOp(IRDLOperation):
         for operand, argument in zip(self.operands, self.region.block.args):
             if operand.type != argument.type:
                 raise VerifyException(
-                    f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                    "Expected argument type to match operand type, got "
+                    f"{argument.type} != {operand.type} at index {argument.index}"
                 )
         if len(self.res) > 0 and len(self.dest) > 0:
             raise VerifyException(
-                "Expected stencil.apply to have all value-semantics result or buffer-semantic destination operands."
+                "Expected stencil.apply to have all value-semantics result or "
+                "buffer-semantic destination operands."
             )
         if len(self.res) > 0:
             res_type = cast(TempType[Attribute], self.res[0].type)
@@ -804,7 +806,7 @@ class CombineOp(IRDLOperation):
                └────────┼─────────┘     └────────┼─────────┘
                         │                        │
     ```
-    """
+    """  # noqa: E501
 
     name = "stencil.combine"
 
@@ -821,7 +823,7 @@ class CombineOp(IRDLOperation):
         CombineOpHasShapeInferencePatternsTrait(),
     )
 
-    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
+    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"  # noqa: E501
 
     irdl_options = [
         AttrSizedOperandSegments(),
@@ -910,7 +912,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field = operand_def(Attribute)
-    result = result_def(base(FieldType[Attribute]) | AnyMemRefTypeConstr)
+    result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"

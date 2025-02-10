@@ -31,7 +31,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StridedLayoutAttr,
     SymbolRefAttr,
-    TensorOrMemrefOf,
+    TensorOrMemRefOf,
     TensorType,
     UnrealizedConversionCastOp,
     VectorBaseTypeAndRankConstraint,
@@ -658,14 +658,14 @@ def test_strides():
 
 
 def test_tensor_or_memref_of_constraint_verify():
-    constraint = TensorOrMemrefOf(i64)
+    constraint = TensorOrMemRefOf(i64)
 
     constraint.verify(MemRefType(i64, [1]), ConstraintContext())
     constraint.verify(TensorType(i64, [1]), ConstraintContext())
 
 
 def test_tensor_or_memref_of_constraint_attribute_mismatch():
-    constraint = TensorOrMemrefOf(i64)
+    constraint = TensorOrMemRefOf(i64)
 
     with pytest.raises(
         VerifyException, match=f"Expected tensor or memref type, got {i64}"

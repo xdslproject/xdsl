@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
+from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
 from xdsl.context import MLContext
 from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import ModuleOp
@@ -54,9 +55,12 @@ class RISCVRegisterAllocation(ModulePass):
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
-                allocator = allocator_strategies[self.allocation_strategy]()
+                riscv_register_queue = RiscvRegisterQueue()
                 if self.limit_registers is not None:
-                    allocator.available_registers.limit_registers(self.limit_registers)
+                    riscv_register_queue.limit_registers(self.limit_registers)
+                allocator = allocator_strategies[self.allocation_strategy](
+                    riscv_register_queue
+                )
                 allocator.exclude_preallocated = self.exclude_preallocated
                 allocator.exclude_snitch_reserved = self.exclude_snitch_reserved
                 allocator.allocate_func(

@@ -345,7 +345,7 @@ class TblgenLoader:
             """)
 
         if (
-            "AnyIntegerAttrBase" in rec.superclasses
+            "IntegerAttrBase" in rec.superclasses
             or "SignlessIntegerAttrBase" in rec.superclasses
             or "SignedIntegerAttrBase" in rec.superclasses
             or "UnsignedIntegerAttrBase" in rec.superclasses

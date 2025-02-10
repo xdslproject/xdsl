@@ -4,10 +4,10 @@ import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from xdsl.frontend.dialects.builtin import (
+from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
-from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.ir import Operation
 
 

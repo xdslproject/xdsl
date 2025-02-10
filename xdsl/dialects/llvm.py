@@ -9,7 +9,6 @@ from typing import ClassVar
 from xdsl.dialects.builtin import (
     I64,
     AnyFloatConstr,
-    AnyIntegerAttr,
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
@@ -1072,7 +1071,7 @@ class AllocaOp(IRDLOperation):
 
     size = operand_def(IntegerType)
 
-    alignment = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(IntegerAttr)
     elem_type = opt_prop_def(Attribute)
 
     res = result_def()
@@ -1352,9 +1351,9 @@ class GlobalOp(IRDLOperation):
     thread_local_ = opt_prop_def(UnitAttr)
     visibility_ = opt_prop_def(IntegerAttr[IntegerType])
     value = opt_prop_def(Attribute)
-    alignment = opt_prop_def(AnyIntegerAttr)
-    addr_space = prop_def(AnyIntegerAttr)
-    unnamed_addr = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(IntegerAttr)
+    addr_space = prop_def(IntegerAttr)
+    unnamed_addr = opt_prop_def(IntegerAttr)
     section = opt_prop_def(StringAttr)
 
     # This always needs an empty region as it is in the top level module definition
@@ -1586,7 +1585,7 @@ class ConstantOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        if isattr(self.value, AnyIntegerAttr) and self.result.type == IntegerType(64):
+        if isattr(self.value, IntegerAttr) and self.result.type == IntegerType(64):
             self.value.print_without_type(printer)
         else:
             printer.print(self.value)

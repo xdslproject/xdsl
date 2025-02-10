@@ -55,7 +55,7 @@ class ExtractCslModules(RewritePattern):
 
         params = list[SSAValue]()
         for param in op.params:
-            if isattr(param.value, builtin.AnyIntegerAttrConstr):
+            if isattr(param.value, builtin.IntegerAttr):
                 value = arith.ConstantOp(param.value)
             else:
                 value = None

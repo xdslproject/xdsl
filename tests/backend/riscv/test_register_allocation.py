@@ -8,7 +8,7 @@ from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorLivenessBlockNaive,
     reg_types,
 )
-from xdsl.backend.riscv.register_queue import RegisterQueue
+from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
 from xdsl.dialects import riscv
 from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
 from xdsl.utils.exceptions import DiagnosticException
@@ -16,7 +16,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def test_default_reserved_registers():
-    register_queue = RegisterQueue(
+    register_queue = RiscvRegisterQueue(
         available_int_registers=[], available_float_registers=[]
     )
 
@@ -108,7 +108,7 @@ def test_allocate_with_inout_constraints():
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
 
-    register_queue = RegisterQueue(
+    register_queue = RiscvRegisterQueue(
         available_int_registers=[], available_float_registers=[]
     )
     register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)

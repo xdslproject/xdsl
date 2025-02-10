@@ -37,27 +37,27 @@ from xdsl.transforms import (
 
 OPTIMISE_MEMREF_STREAM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
-    memref_stream_infer_fill.MemrefStreamInferFillPass(),
-    memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
-    memref_stream_fold_fill.MemrefStreamFoldFillPass(),
-    memref_stream_generalize_fill.MemrefStreamGeneralizeFillPass(),
-    memref_stream_interleave.MemrefStreamInterleavePass(),
-    memref_stream_tile_outer_loops.MemrefStreamTileOuterLoopsPass(target_rank=4),
-    memref_streamify.MemrefStreamifyPass(),
-    convert_memref_stream_to_loops.ConvertMemrefStreamToLoopsPass(),
+    memref_stream_infer_fill.MemRefStreamInferFillPass(),
+    memref_stream_unnest_out_parameters.MemRefStreamUnnestOutParametersPass(),
+    memref_stream_fold_fill.MemRefStreamFoldFillPass(),
+    memref_stream_generalize_fill.MemRefStreamGeneralizeFillPass(),
+    memref_stream_interleave.MemRefStreamInterleavePass(),
+    memref_stream_tile_outer_loops.MemRefStreamTileOuterLoopsPass(target_rank=4),
+    memref_streamify.MemRefStreamifyPass(),
+    convert_memref_stream_to_loops.ConvertMemRefStreamToLoopsPass(),
     canonicalize.CanonicalizePass(),
     scf_for_loop_flatten.ScfForLoopFlattenPass(),
 )
 
 LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
-    convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
+    convert_memref_to_riscv.ConvertMemRefToRiscvPass(),
     lower_affine.LowerAffinePass(),
     convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
     convert_arith_to_riscv_snitch.ConvertArithToRiscvSnitchPass(),
     convert_arith_to_riscv.ConvertArithToRiscvPass(),
     convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
-    convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass(),
+    convert_memref_stream_to_snitch_stream.ConvertMemRefStreamToSnitchStreamPass(),
     reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
 )
 
@@ -78,8 +78,8 @@ LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
 
 TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
-    convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
-    memref_stream_legalize.MemrefStreamLegalizePass(),
+    convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
+    memref_stream_legalize.MemRefStreamLegalizePass(),
     *OPTIMISE_MEMREF_STREAM_PASSES,
     *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
     *LOWER_SNITCH_STREAM_TO_ASM_PASSES,

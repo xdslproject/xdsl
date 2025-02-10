@@ -55,7 +55,7 @@ def fold_fills_in_module(module_op: ModuleOp):
 
 
 @dataclass(frozen=True)
-class MemrefStreamFoldFillPass(ModulePass):
+class MemRefStreamFoldFillPass(ModulePass):
     """
     Folds `memref_stream.fill` operations that run immediately before a
     `memref_stream.generic` operation into the init value.

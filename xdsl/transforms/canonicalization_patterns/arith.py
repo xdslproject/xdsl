@@ -50,8 +50,8 @@ class SignlessIntegerBinaryOperationConstantProp(RewritePattern):
 
 def _fold_const_operation(
     op_t: type[arith.FloatingPointLikeBinaryOperation],
-    lhs: builtin.AnyFloatAttr,
-    rhs: builtin.AnyFloatAttr,
+    lhs: builtin.FloatAttr,
+    rhs: builtin.FloatAttr,
 ) -> arith.ConstantOp | None:
     match op_t:
         case arith.AddfOp:
@@ -88,8 +88,8 @@ class FoldConstConstOp(RewritePattern):
         if (
             isinstance(op.lhs.owner, arith.ConstantOp)
             and isinstance(op.rhs.owner, arith.ConstantOp)
-            and isa(l := op.lhs.owner.value, builtin.AnyFloatAttr)
-            and isa(r := op.rhs.owner.value, builtin.AnyFloatAttr)
+            and isa(l := op.lhs.owner.value, builtin.FloatAttr)
+            and isa(r := op.rhs.owner.value, builtin.FloatAttr)
             and (cnst := _fold_const_operation(type(op), l, r))
         ):
             rewriter.replace_matched_op(cnst)
@@ -126,8 +126,8 @@ class FoldConstsByReassociation(RewritePattern):
             or u.fastmath is None
             or arith.FastMathFlag.REASSOC not in op.fastmath.flags
             or arith.FastMathFlag.REASSOC not in u.fastmath.flags
-            or not isa(c1 := const1.value, builtin.AnyFloatAttr)
-            or not isa(c2 := const2.value, builtin.AnyFloatAttr)
+            or not isa(c1 := const1.value, builtin.FloatAttr)
+            or not isa(c2 := const2.value, builtin.FloatAttr)
         ):
             return
 

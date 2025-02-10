@@ -116,5 +116,6 @@ class ApplyIndividualRewritePass(ModulePass):
         pattern.match_and_rewrite(matched_operation, rewriter)
         if not rewriter.has_done_action:
             raise ValueError(
-                f"Invalid rewrite ({self.pattern_name}) for operation ({matched_operation}) at location {self.matched_operation_index}."
+                f"Invalid rewrite ({self.pattern_name}) for operation "
+                f"({matched_operation}) at location {self.matched_operation_index}."
             )

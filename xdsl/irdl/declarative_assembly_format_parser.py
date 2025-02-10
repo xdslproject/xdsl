@@ -195,23 +195,28 @@ class FormatParser(BaseParser):
                     )
                 case VariadicTypeDirective(), VariadicTypeDirective():
                     self.raise_error(
-                        "A variadic type directive cannot be followed by another variadic type directive."
+                        "A variadic type directive cannot be followed by another "
+                        "variadic type directive."
                     )
                 case VariadicOperandDirective(), VariadicOperandDirective():
                     self.raise_error(
-                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                        "A variadic operand variable cannot be followed by another "
+                        "variadic operand variable."
                     )
                 case VariadicRegionDirective(), VariadicRegionDirective():
                     self.raise_error(
-                        "A variadic region variable cannot be followed by another variadic region variable."
+                        "A variadic region variable cannot be followed by another "
+                        "variadic region variable."
                     )
                 case VariadicSuccessorDirective(), VariadicSuccessorDirective():
                     self.raise_error(
-                        "A variadic successor variable cannot be followed by another variadic successor variable."
+                        "A variadic successor variable cannot be followed by another "
+                        "variadic successor variable."
                     )
                 case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
                     self.raise_error(
-                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
+                        "An `attr-dict' directive without keyword cannot be directly "
+                        "followed by a region variable as it is ambiguous."
                     )
                 case _:
                     pass
