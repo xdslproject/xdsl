@@ -36,7 +36,7 @@ class AssemblyPrinter(BasePrinter):
             op.print_assembly(self)
 
 
-class AssemblyPrintable(ABC):
+class AssemblyPrintable(Operation, ABC):
     """
     Base class for operations that can be a part of assembly printing.
     """
