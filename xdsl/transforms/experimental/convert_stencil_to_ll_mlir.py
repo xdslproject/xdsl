@@ -513,11 +513,13 @@ class StencilStoreToSubview(RewritePattern):
         for use in op.field.uses:
             if isa(use.operation, LoadOp):
                 raise VerifyException(
-                    "Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before."
+                    "Cannot lower directly if loading and storing the same field! "
+                    "Try running `stencil-bufferize` before."
                 )
             if isa(use.operation, StoreOp) and use.operation is not op:
                 raise VerifyException(
-                    "Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before."
+                    "Cannot lower directly if storing to the same field multiple "
+                    "times! Try running `stencil-bufferize` before."
                 )
         field = op.field
         assert isa(field.type, FieldType[Attribute])

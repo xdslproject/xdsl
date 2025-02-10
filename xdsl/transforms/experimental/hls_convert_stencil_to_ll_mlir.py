@@ -531,7 +531,10 @@ class ApplyOpToHLS(RewritePattern):
 
         # We replace the temp arguments by HLS streams. Only for the 3D temps
         for k in range(len(apply_clones_lst)):
-            # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing # to external memory # We replace by streams only the 3D temps. The rest should be left as is operand_stream = dict()
+            # Insert the HLS stream operands and their corresponding block arguments for
+            # reading from the shift buffer and writing to external memory.
+            # We replace by streams only the 3D temps.
+            # The rest should be left as is operand_stream = dict()
             current_stream = 0
 
             new_operands_lst: list[OpResult] = []
@@ -1051,7 +1054,8 @@ class PackData(RewritePattern):
         if op.attributes["inout"].data == OUT or (
             op.attributes["inout"].data == IN and ndims == 3
         ):
-            # TODO: this should be generalised by packaging the original type instead of f64. We would need intrinsics to deal with the different types
+            # TODO: this should be generalised by packaging the original type instead of
+            # f64. We would need intrinsics to deal with the different types
             packed_type = LLVMPointerType.typed(
                 LLVMStructType.from_type_list(
                     [LLVMArrayType.from_size_and_type(8, f64)]
@@ -1066,8 +1070,9 @@ class PackData(RewritePattern):
                     assert isinstance(insertvalue.container, OpResult)
                     container_op = insertvalue.container.op
                     if isinstance(container_op, UndefOp):
-                        # We mark the UndefOp to update its type in the next pass and also update the type returned by the insertvalue
-                        # operation that uses it
+                        # We mark the UndefOp to update its type in the next pass and
+                        # also update the type returned by the insertvalue operation
+                        # that uses it
 
                         container_op.attributes["replace"] = IntAttr(0)
 

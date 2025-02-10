@@ -22,8 +22,8 @@ class HashableModule(Hashable):
     def __hash__(self) -> int:
         """
         The hash of the module is a hash of the ordered combination of operation names.
-        As most transformations on IR modify at least one operation, this should be enough
-        to minimise collisions.
+        As most transformations on IR modify at least one operation, this should be
+        enough to minimise collisions.
         """
         hasher = Hasher()
         for op in self.module.walk():

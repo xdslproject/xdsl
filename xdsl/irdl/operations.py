@@ -62,7 +62,7 @@ from .constraints import (  # noqa: TID251
     range_constr_coercion,
     single_range_constr_coercion,
 )
-from .error import IRDLAnnotations, error  # noqa: TID251
+from .error import IRDLAnnotations  # noqa: TID251
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -1547,10 +1547,10 @@ def irdl_op_verify_regions(
             entry_args_types = first_block.arg_types
             try:
                 region_def.entry_args.verify(entry_args_types, constraint_context)
-            except Exception as e:
-                error(
-                    op,
+            except VerifyException as e:
+                op.emit_error(
                     f"region #{i} entry arguments do not verify:\n{e}",
+                    type(e),
                     e,
                 )
 
@@ -1579,15 +1579,15 @@ def irdl_op_verify_arg_list(
         """Verify a single argument."""
         try:
             arg_def.constr.verify(tuple(a.type for a in arg), constraint_context)
-        except Exception as e:
+        except VerifyException as e:
             if len(arg) == 1:
                 pos = f"{arg_idx}"
             else:
                 pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
-            error(
-                op,
-                f"{get_construct_name(construct)} at position "
-                f"{pos} does not verify:\n{e}",
+            op.emit_error(
+                f"{get_construct_name(construct)} at position {pos} does not "
+                f"verify:\n{e}",
+                type(e),
                 e,
             )
 

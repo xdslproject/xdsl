@@ -1241,7 +1241,8 @@ class IndexCastOp(IRDLOperation):
         # exactly one of input or result must be of IndexType, no more, no less.
         if not isinstance(self.input.type, it) ^ isinstance(self.result.type, it):
             raise VerifyException(
-                f"'arith.index_cast' op operand type '{self.input.type}' and result type '{self.input.type}' are cast incompatible"
+                f"'arith.index_cast' op operand type '{self.input.type}' and result "
+                f"type '{self.input.type}' are cast incompatible"
             )
 
 

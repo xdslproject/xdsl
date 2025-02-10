@@ -632,7 +632,8 @@ class Interpreter:
             actual_result_count := len(result.values)
         ):
             raise InterpretationError(
-                f"Number of operation results ({results_count}) doesn't match the number of implementation results ({actual_result_count})."
+                f"Number of operation results ({results_count}) doesn't match the "
+                f"number of implementation results ({actual_result_count})."
             )
         for listener in self.listeners:
             listener.did_interpret_op(op, result.values)

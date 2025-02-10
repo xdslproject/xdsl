@@ -135,8 +135,8 @@ class StreamifyGenericOpPattern(RewritePattern):
 @dataclass(frozen=True)
 class MemRefStreamifyPass(ModulePass):
     """
-    Converts a memref generic on memrefs to a memref generic on streams, by moving it into
-    a streaming region.
+    Converts a memref generic on memrefs to a memref generic on streams, by moving it
+    into a streaming region.
     """
 
     name = "memref-streamify"

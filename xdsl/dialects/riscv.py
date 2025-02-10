@@ -3471,7 +3471,8 @@ class FCvtWuSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 @irdl_op_definition
 class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
-    Move the single-precision value in floating-point register rs1 represented in IEEE 754-2008 encoding to the lower 32 bits of integer register rd.
+    Move the single-precision value in floating-point register rs1 represented in IEEE
+    754-2008 encoding to the lower 32 bits of integer register rd.
 
     ```C
     x[rd] = sext(f[rs1][31:0])
@@ -3486,7 +3487,8 @@ class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 @irdl_op_definition
 class FeqSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
-    Performs a quiet equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
+    Performs a quiet equal comparison between floating-point registers rs1 and rs2 and
+    record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
     The result is 0 if either operand is NaN.
 
@@ -3501,7 +3503,8 @@ class FeqSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 @irdl_op_definition
 class FltSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
-    Performs a quiet less comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
+    Performs a quiet less comparison between floating-point registers rs1 and rs2 and
+    record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
     The result is 0 if either operand is NaN.
 
@@ -3516,7 +3519,8 @@ class FltSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 @irdl_op_definition
 class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
     """
-    Performs a quiet less or equal comparison between floating-point registers rs1 and rs2 and record the Boolean result in integer register rd.
+    Performs a quiet less or equal comparison between floating-point registers rs1 and
+    rs2 and record the Boolean result in integer register rd.
     Only signaling NaN inputs cause an Invalid Operation exception.
     The result is 0 if either operand is NaN.
 
@@ -3531,7 +3535,8 @@ class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 @irdl_op_definition
 class FClassSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
-    Examines the value in floating-point register rs1 and writes to integer register rd a 10-bit mask that indicates the class of the floating-point number.
+    Examines the value in floating-point register rs1 and writes to integer register rd
+    a 10-bit mask that indicates the class of the floating-point number.
     The format of the mask is described in [classify table]_.
     The corresponding bit in rd will be set if the property is true and clear otherwise.
     All other bits in rd are cleared. Note that exactly one bit in rd will be set.
@@ -3562,7 +3567,8 @@ class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 @irdl_op_definition
 class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
-    Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point number in floating-point register rd.
+    Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point
+    number in floating-point register rd.
 
     ```C
     f[rd] = f32_{u32}(x[rs1])
@@ -3577,7 +3583,8 @@ class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 @irdl_op_definition
 class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
-    Move the single-precision value encoded in IEEE 754-2008 standard encoding from the lower 32 bits of integer register rs1 to the floating-point register rd.
+    Move the single-precision value encoded in IEEE 754-2008 standard encoding from the
+    lower 32 bits of integer register rs1 to the floating-point register rd.
 
     ```C
     f[rd] = x[rs1][31:0]
@@ -3809,7 +3816,8 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 @irdl_op_definition
 class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
-    Converts a 32-bit signed integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+    Converts a 32-bit signed integer, in integer register rs1 into a double-precision
+    floating-point number in floating-point register rd.
 
     x[rd] = sext(s32_{f64}(f[rs1]))
 
@@ -3824,7 +3832,8 @@ class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 @irdl_op_definition
 class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
-    Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+    Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision
+    floating-point number in floating-point register rd.
 
     f[rd] = f64_{u32}(x[rs1])
 

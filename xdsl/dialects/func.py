@@ -86,7 +86,8 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
         ):
             if found_operand != operand:
                 raise VerifyException(
-                    f"operand type mismatch: expected operand type {found_operand}, but provided {operand} for operand number {idx}"
+                    f"operand type mismatch: expected operand type {found_operand}, "
+                    f"but provided {operand} for operand number {idx}"
                 )
 
         for idx, (found_res, res) in enumerate(
@@ -94,7 +95,8 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
         ):
             if found_res != res:
                 raise VerifyException(
-                    f"result type mismatch: expected result type {found_res}, but provided {res} for result number {idx}"
+                    f"result type mismatch: expected result type {found_res}, but "
+                    f"provided {res} for result number {idx}"
                 )
 
         return
