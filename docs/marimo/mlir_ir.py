@@ -44,7 +44,7 @@ def _(mo, triangle_text):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""This notebook explains all the components of the above snippet of code.""")
+    mo.md(r"""This notebook explains all the components of the above snippet of code. The sections below are structured by _dialect_, a kind of namespace for related constructs.""")
     return
 
 
@@ -72,7 +72,7 @@ def _(mo, swap_text, xmo):
         {xmo.module_html(swap_text)}
 
         The above function takes two 32-bit integers, and returns them in the opposite order
-        In this snippet, there are two operations, `func.func` for function definition and `func.return` to specify the returned values.
+        In this snippet, there are two operations, `func.func` for function definition and `func.return` to specify the returned values. All operations in MLIR are prefixed with their dialect name.
         """
     )
     return
@@ -178,6 +178,12 @@ def _(add_one_text, mo, xmo):
         {xmo.module_html(add_one_text)}
         """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""MLIR IR is in [SSA form](https://en.wikipedia.org/wiki/Static_single-assignment_form), meaning that each value can only be assigned to once. This property helps reason about the possible runtime data these values can hold, such as whether they are constant, as `%one` in the snippet above.""")
     return
 
 
