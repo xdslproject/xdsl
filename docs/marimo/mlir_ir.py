@@ -563,22 +563,28 @@ def _(mo):
         r"""
         The IRs above are in what's called the _custom format_, a format that allows functions to specify a pretty and concise representation.
         The _generic format_ is a more uniform and verbose representation that unambiguously shows the structure of an operation.
-        Here is the above minimal function in generic format:
+        Here is the above `triangle` function in generic format:
         """
     )
     return
 
 
 @app.cell(hide_code=True)
-def _(Parser, Printer, StringIO, ctx, mo, swap_text):
-    _swap_module = Parser(ctx, swap_text).parse_module()
+def _(Parser, Printer, StringIO, ctx, mo, triangle_text):
+    _triangle_module = Parser(ctx, triangle_text).parse_module()
     _file = StringIO()
-    Printer(print_generic_format=True, stream=_file).print(_swap_module)
+    Printer(print_generic_format=True, stream=_file).print(_triangle_module)
     mo.md(f"""
     ```
     {_file.getvalue()}
     ```
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""In the next notebooks, we'll take a deeper dive into the APIs used to process and construct MLIR IR.""")
     return
 
 
