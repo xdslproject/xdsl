@@ -13,6 +13,29 @@ in the compiler pipeline. Finally, microbenchmarks evaluate properties of the
 implementation, and are desiged to align with
 [existing tests of MLIR](https://www.youtube.com/watch?v=7qvVMUSxqz4).
 
+### List of benchmarks
+
+- End-to-end
+  - [x] Empty program
+  - [x] Constant folding (with and without verifier)
+  - [x] Loop unrolling
+  - [ ] CIRCT workload
+  - [ ] ASL workload
+  - [ ] ...
+- Component
+  - [x] Lexer
+  - [x] Parser
+  - [ ] Pattern rewriter
+  - [ ] Printer
+  - [ ] Verifier
+- Microbenchmarks
+  - [x] IR traversal (direct block iteration and walking)
+  - [x] Dialect loading
+  - [x] Import machinery
+  - [ ] Extensibility through interface/trait lookups
+  - [ ] Operation creation
+  - [ ] ...
+
 ## Automated regression benchmarking with ASV
 
 > airspeed velocity (asv) is a tool for benchmarking Python packages over their

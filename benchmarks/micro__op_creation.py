@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Benchmark rewriting in xDSL."""
 
-# TODO: Define the benchmarks
+def time_op_creation__create() -> None:
+    """."""
+
+def time_op_creation__clone() -> None:
+    """."""
 
 if __name__ == "__main__":
     from collections.abc import Callable
