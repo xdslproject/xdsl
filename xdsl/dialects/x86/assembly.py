@@ -16,7 +16,7 @@ from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 from .attributes import LabelAttr
-from .register import AVXRegisterType, GeneralRegisterType, RFLAGSRegisterType
+from .register import GeneralRegisterType, RFLAGSRegisterType, X86VectorRegisterType
 
 AssemblyInstructionArg: TypeAlias = (
     IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
@@ -43,7 +43,7 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg.register_name
     elif isinstance(arg, RFLAGSRegisterType):
         return arg.register_name
-    elif isinstance(arg, AVXRegisterType):
+    elif isinstance(arg, X86VectorRegisterType):
         return arg.register_name
     elif isinstance(arg, LabelAttr):
         return arg.data
@@ -54,7 +54,7 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         elif isinstance(arg.type, RFLAGSRegisterType):
             reg = arg.type.register_name
             return reg
-        elif isinstance(arg.type, AVXRegisterType):
+        elif isinstance(arg.type, X86VectorRegisterType):
             reg = arg.type.register_name
             return reg
         else:
