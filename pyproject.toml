@@ -58,6 +58,9 @@ xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
 
+[tool.setuptools.packages]
+find = {}
+
 [tool.setuptools.package-data]
 xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
 
