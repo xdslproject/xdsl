@@ -470,6 +470,30 @@ def _(mo, second_info_text, second_input_text, second_text_area):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""Unhide the cell below to see the solution:""")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    # Solution
+
+    fact_impl = """\
+    func.func @factorial(%n: i32) -> i32 {
+      %zero = arith.constant 0 : i32
+      %one = arith.constant 1 : i32
+      %n_plus_one = arith.addi %n, %one : i32
+      %res = scf.for %i = %one to %n_plus_one step %one iter_args(%acc_in = %one) -> (i32) : i32 {
+        %acc_out = arith.muli %acc_in, %i : i32
+        scf.yield %acc_out : i32
+      }
+      func.return %res : i32
+    }"""
+    return (fact_impl,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""## `triangle` revisited""")
     return
 
