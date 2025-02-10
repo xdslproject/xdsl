@@ -8,6 +8,7 @@ from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self, assert_never
 
+from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
@@ -348,17 +349,15 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(HasRegisterConstraints, IRDLOperation, ABC):
+class RISCVAsmOperation(
+    HasRegisterConstraints, IRDLOperation, OneLineAssemblyPrintable, ABC
+):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(self.operands, self.results, ())
-
-    @abstractmethod
-    def assembly_line(self) -> str | None:
-        raise NotImplementedError()
 
 
 class RISCVCustomFormatOperation(IRDLOperation, ABC):
@@ -484,19 +483,10 @@ class RISCVInstruction(RISCVAsmOperation, ABC):
             for arg in self.assembly_line_args()
             if arg is not None
         )
-        return _assembly_line(instruction_name, arg_str, self.comment)
+        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 # region Assembly printing
-
-
-def _append_comment(line: str, comment: StringAttr | None) -> str:
-    if comment is None:
-        return line
-
-    padding = " " * max(0, 48 - len(line))
-
-    return f"{line}{padding} # {comment.data}"
 
 
 def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
@@ -524,26 +514,9 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     assert_never(arg)
 
 
-def _assembly_line(
-    name: str,
-    arg_str: str,
-    comment: StringAttr | None = None,
-    is_indented: bool = True,
-) -> str:
-    code = "    " if is_indented else ""
-    code += name
-    if arg_str:
-        code += f" {arg_str}"
-    code = _append_comment(code, comment)
-    return code
-
-
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
-    for op in module.body.walk():
-        assert isinstance(op, RISCVAsmOperation), f"{op}"
-        asm = op.assembly_line()
-        if asm is not None:
-            print(asm, file=output)
+    printer = AssemblyPrinter(stream=output)
+    printer.print_module(module)
 
 
 def riscv_code(module: ModuleOp) -> str:
@@ -2166,7 +2139,7 @@ class LwOp(RdRsImmIntegerOperation):
         value = _assembly_arg_str(self.rd)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        return AssemblyPrinter.assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -2233,7 +2206,7 @@ class SwOp(RsRsImmIntegerOperation):
         value = _assembly_arg_str(self.rs2)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        return AssemblyPrinter.assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -2630,7 +2603,7 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
         )
 
     def assembly_line(self) -> str | None:
-        return _append_comment(f"{self.label.data}:", self.comment)
+        return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2690,7 +2663,9 @@ class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
         else:
             arg_str = ""
 
-        return _assembly_line(self.directive.data, arg_str, is_indented=False)
+        return AssemblyPrinter.assembly_line(
+            self.directive.data, arg_str, is_indented=False
+        )
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2781,7 +2756,7 @@ class AssemblySectionOp(RISCVAsmOperation):
             printer.print_region(self.data)
 
     def assembly_line(self) -> str | None:
-        return _assembly_line(self.directive.data, "", is_indented=False)
+        return AssemblyPrinter.assembly_line(self.directive.data, "", is_indented=False)
 
 
 @irdl_op_definition
@@ -3628,7 +3603,7 @@ class FLwOp(RdRsImmFloatOperation):
         value = _assembly_arg_str(self.rd)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        return AssemblyPrinter.assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -3662,7 +3637,7 @@ class FSwOp(RsRsImmFloatOperation):
         value = _assembly_arg_str(self.rs2)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        return AssemblyPrinter.assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -3867,11 +3842,11 @@ class FLdOp(RdRsImmFloatOperation):
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
         if isinstance(self.immediate, LabelAttr):
-            return _assembly_line(
+            return AssemblyPrinter.assembly_line(
                 instruction_name, f"{value}, {imm}, {offset}", self.comment
             )
         else:
-            return _assembly_line(
+            return AssemblyPrinter.assembly_line(
                 instruction_name, f"{value}, {imm}({offset})", self.comment
             )
 
@@ -3905,7 +3880,7 @@ class FSdOp(RsRsImmFloatOperation):
         value = _assembly_arg_str(self.rs2)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        return AssemblyPrinter.assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 

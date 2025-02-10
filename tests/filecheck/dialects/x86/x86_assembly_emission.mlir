@@ -148,7 +148,7 @@ x86.directive ".align" "2"
 x86.label "label"
 // CHECK-NEXT: label:
 
-func.func @funcyasm() {
+x86_func.func @funcyasm() {
     %3 = x86.get_register : () -> !x86.reg<rax>
     %4 = x86.get_register : () -> !x86.reg<rdx>
     %rflags = x86.rr.cmp %3, %4 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
