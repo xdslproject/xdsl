@@ -30,6 +30,7 @@ dev = [
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
     "pyright==1.1.393",
+    "sympy==1.13.3",
 ]
 docs = [
     "mkdocs-gen-files>=0.5.0",
