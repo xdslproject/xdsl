@@ -78,7 +78,7 @@ def memory_access_str(
     register: AssemblyInstructionArg, offset: IntegerAttr | None
 ) -> str:
     register_str = assembly_arg_str(register)
-    if offset is not None:
+    if offset is not None and offset.value.data != 0:
         offset_str = assembly_arg_str(offset)
         if offset.value.data > 0:
             mem_acc_str = f"[{register_str}+{offset_str}]"
