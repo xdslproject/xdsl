@@ -45,7 +45,7 @@ builtin.module {
 
 // A graph region that refers to values that are not defined in the module.
 
-// CHECK: value used but not defined: [%1]
+// CHECK: values used but not defined: [%1]
 
 builtin.module {
     %0 = "test.termop"(%1) : (i32) -> i32
