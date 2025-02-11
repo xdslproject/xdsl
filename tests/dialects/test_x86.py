@@ -127,3 +127,98 @@ def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
 def test_sse_register(register: x86.register.SSERegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+
+
+@pytest.mark.parametrize(
+    "OpClass, dest, operand1, operand2",
+    [
+        (
+            x86.ops.RRR_Vfmadd231pdOp,
+            x86.register.YMM0,
+            x86.register.YMM1,
+            x86.register.YMM2,
+        ),
+        (
+            x86.ops.RRR_Vfmadd231psOp,
+            x86.register.YMM0,
+            x86.register.YMM1,
+            x86.register.YMM2,
+        ),
+    ],
+)
+def test_rrr_vfmadds(
+    OpClass: type[
+        x86.ops.RRROperation[
+            x86.register.X86VectorRegisterType,
+            x86.register.X86VectorRegisterType,
+            x86.register.X86VectorRegisterType,
+        ]
+    ],
+    dest: x86.register.X86VectorRegisterType,
+    operand1: x86.register.X86VectorRegisterType,
+    operand2: x86.register.X86VectorRegisterType,
+):
+    output = x86.ops.GetAVXRegisterOp(dest)
+    param1 = x86.ops.GetAVXRegisterOp(operand1)
+    param2 = x86.ops.GetAVXRegisterOp(operand2)
+    op = OpClass(r3=output.result, r1=param1.result, r2=param2.result, result=dest)
+    assert op.r1.type == operand1
+    assert op.r2.type == operand2
+    assert op.r3.type == dest
+
+
+@pytest.mark.parametrize(
+    "OpClass, dest, src",
+    [
+        (
+            x86.ops.MR_VmovupsOp,
+            x86.register.RCX,
+            x86.register.YMM0,
+        ),
+        (
+            x86.ops.MR_VmovapdOp,
+            x86.register.RCX,
+            x86.register.YMM0,
+        ),
+    ],
+)
+def test_mr_vmovs(
+    OpClass: type[
+        x86.ops.M_MR_Operation[
+            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
+        ]
+    ],
+    dest: x86.register.GeneralRegisterType,
+    src: x86.register.X86VectorRegisterType,
+):
+    output = x86.ops.GetRegisterOp(dest)
+    input = x86.ops.GetAVXRegisterOp(src)
+    op = OpClass(r1=output, r2=input, offset=None)
+    assert op.r1.type == dest
+    assert op.r2.type == src
+
+
+@pytest.mark.parametrize(
+    "OpClass, dest, src",
+    [
+        (
+            x86.ops.RM_VmovupsOp,
+            x86.register.YMM0,
+            x86.register.RCX,
+        ),
+    ],
+)
+def test_rm_vmovs(
+    OpClass: type[
+        x86.ops.R_RM_Operation[
+            x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
+        ]
+    ],
+    dest: x86.register.X86VectorRegisterType,
+    src: x86.register.GeneralRegisterType,
+):
+    input = x86.ops.GetRegisterOp(src)
+    output = x86.ops.GetAVXRegisterOp(dest)
+    op = OpClass(r1=output, r2=input, result=dest, offset=None)
+    assert op.r1.type == dest
+    assert op.r2.type == src
