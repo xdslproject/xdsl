@@ -31,7 +31,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo, triangle_text):
     mo.md(fr"""
-    MLIR and xDSL use an encoding of the IR as a textual format for debugging, testing, and storing intermediate representations of programs.
+    MLIR and xDSL use a textual encoding of the IR for debugging, testing, and storing intermediate representations of programs.
     It can be very useful to take a program at some stage of compilation, and inspect it.
     The textual format makes this easy to do.
     Let's look at a representation of a function that sums the first `n` integers:
@@ -67,11 +67,11 @@ def _():
 def _(mo, swap_text, xmo):
     mo.md(
         fr"""
-        The [func dialect](https://mlir.llvm.org/docs/Dialects/Func/) contains building blocks to model functions and function calls.
+        The [func dialect](https://mlir.llvm.org/docs/Dialects/Func/) contains building blocks to model function definitions and calls.
 
         {xmo.module_html(swap_text)}
 
-        The above function takes two 32-bit integers, and returns them in the opposite order
+        The above function takes two 32-bit integers, and returns them in the opposite order.
         In this snippet, there are two operations, `func.func` for function definition and `func.return` to specify the returned values. All operations in MLIR are prefixed with their dialect name.
         """
     )
@@ -390,7 +390,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, triangle_text, xmo):
     mo.md(
         fr"""
@@ -399,8 +399,8 @@ def _(mo, triangle_text, xmo):
         {xmo.module_html(triangle_text)}
 
         Due to the SSA contract, we cannot accumulate by updating a value.
-        Instead, the loop body takes in some number of immutable values and yields the same number of values to use for the next loop.
-        After all the iterations, these values are returned by the operation.
+        Instead, the loop body takes some number of immutable values and yields the same number of values to use for the next loop.
+        When all iterations are complete, these values are returned by the operation.
         """
     )
     return
