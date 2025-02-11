@@ -145,10 +145,7 @@ class Parser(AttrParser):
             value_names = ", ".join(
                 "%" + name for name in self.forward_ssa_references.keys()
             )
-            self.raise_error(f"value used but not defined: [{value_names}]")
-                self.raise_error(f"values used but not defined: [{value_names}]")
-            else:
-                self.raise_error(f"value used but not defined: [{value_names}]")
+            self.raise_error(f"values used but not defined: [{value_names}]")
 
         return module_op
 
