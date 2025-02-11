@@ -44,7 +44,7 @@ def _(mo, triangle_text):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""This notebook explains all the components of the above snippet of code. The sections below are structured by _dialect_, a kind of namespace for related constructs.""")
+    mo.md(r"""This notebook explains all the components of the above snippet of code. The sections below are structured by _dialect_, a namespace for related constructs.""")
     return
 
 
