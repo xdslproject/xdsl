@@ -146,9 +146,9 @@ class Parser(AttrParser):
                 "%" + name for name in self.forward_ssa_references.keys()
             )
             if len(self.forward_ssa_references.keys()) > 1:
-                self.raise_error(f"values {value_names} were used but not defined")
+                self.raise_error(f"values used but not defined: [{value_names}]")
             else:
-                self.raise_error(f"value {value_names} was used but not defined")
+                self.raise_error(f"value used but not defined: [{value_names}]")
 
         return module_op
 
