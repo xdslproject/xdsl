@@ -144,39 +144,49 @@ class ConstantOp(IRDLOperation):
     @overload
     def __init__(
         self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
-        value_type: None = None,
-    ) -> None:
-        ...
-
-    @overload
-    def __init__(
-        self,
         value: IntegerAttr,
-        value_type: None = None,
+        value_type: IntegerType | None = None,
         *,
         truncate_bits: bool = False,
     ) -> None:
+        print("overload int")
         ...
 
     @overload
-    def __init__(self, value: Attribute, value_type: Attribute) -> None:
+    def __init__(
+        self,
+        value: FloatAttr[AnyFloat],
+        value_type: AnyFloat | None = None,
+    ) -> None:
+        print("overload float")
+        ...
+
+    @overload
+    def __init__(
+        self,
+        value: DenseIntOrFPElementsAttr | Attribute,
+        value_type: Attribute | None = None,
+    ) -> None:
+        print("overload attr")
         ...
 
     def __init__(
         self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | Attribute,
+        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr | Attribute,
         value_type: Attribute | None = None,
         *,
         truncate_bits: bool = False,
     ):
+        print("overload all")
         if value_type is None:
-            value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
-            value_type = value.type
+            if isinstance(value, IntegerAttr | FloatAttr):
+                value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
+                value_type = value.type
+
         if isinstance(value, IntegerAttr):
             value_type = cast(IntegerType, value_type)
             value = IntegerAttr(value.value, value_type, truncate_bits=truncate_bits)
-        if isinstance(value, FloatAttr):
+        elif isinstance(value, FloatAttr):
             value_type = cast(AnyFloat, value_type)
             value = FloatAttr(value.value, value_type)
         super().__init__(
