@@ -99,7 +99,7 @@ class RISCVRegisterType(RegisterType):
 
     def verify(self) -> None:
         name = self.spelling.data
-        if not self.is_allocated or name.startswith("j"):
+        if not self.is_allocated or name.startswith("j") or name.startswith("fj"):
             return
         if name not in type(self).abi_index_by_name():
             raise VerifyException(f"{name} not in {self.instruction_set_name()}")
