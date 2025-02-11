@@ -146,7 +146,7 @@ def test_sse_register(register: x86.register.SSERegisterType, name: str):
         ),
     ],
 )
-def test_rrr_vfmadds(
+def test_rrr_vops(
     OpClass: type[
         x86.ops.RRROperation[
             x86.register.X86VectorRegisterType,
@@ -182,7 +182,7 @@ def test_rrr_vfmadds(
         ),
     ],
 )
-def test_mr_vmovs(
+def test_mr_vops(
     OpClass: type[
         x86.ops.M_MR_Operation[
             x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
@@ -218,7 +218,7 @@ def test_mr_vmovs(
         ),
     ],
 )
-def test_rm_vmovs(
+def test_rm_vops(
     OpClass: type[
         x86.ops.R_RM_Operation[
             x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
