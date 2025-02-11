@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     AnyFloatConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
+    FixedBitwidthType,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -17,6 +18,8 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
+    SignlessIntegerConstraint,
     TensorType,
     UnrankedTensorType,
     VectorType,
@@ -52,6 +55,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
+from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -1252,6 +1256,53 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
 
 
 @irdl_op_definition
+class BitcastOp(IRDLOperation):
+    name = "arith.bitcast"
+
+    input = operand_def(
+        signlessIntegerLike
+        | floatingPointLike
+        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
+    )
+    result = result_def(
+        signlessIntegerLike
+        | floatingPointLike
+        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
+    )
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    def __init__(self, in_arg: SSAValue | Operation, target_type: Attribute):
+        super().__init__(operands=[in_arg], result_types=[target_type])
+
+    def verify_(self) -> None:
+        in_type = self.input.type
+        res_type = self.result.type
+
+        if not have_compatible_shape(in_type, res_type):
+            raise VerifyException("operand and result type must have compatible shape")
+
+        t1 = get_element_type_or_self(in_type)
+        t2 = get_element_type_or_self(res_type)
+        if not BitcastOp._are_types_bitcastable(t1, t2):
+            raise VerifyException(
+                "operand and result types must have equal bitwidths or be IndexType"
+            )
+
+    @staticmethod
+    def _are_types_bitcastable(type_a: Attribute, type_b: Attribute) -> bool:
+        if isinstance(type_a, IndexType) or isinstance(type_b, IndexType):
+            return True
+
+        if isinstance(type_a, FixedBitwidthType) and isinstance(
+            type_b, FixedBitwidthType
+        ):
+            return type_a.bitwidth == type_b.bitwidth
+
+        return False
+
+
+@irdl_op_definition
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
@@ -1449,6 +1500,7 @@ Arith = Dialect(
         MaximumfOp,
         MaxnumfOp,
         # Casts
+        BitcastOp,
         IndexCastOp,
         FPToSIOp,
         SIToFPOp,

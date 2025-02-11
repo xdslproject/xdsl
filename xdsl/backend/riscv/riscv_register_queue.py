@@ -24,8 +24,11 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     DEFAULT_INT_REGISTERS = Registers.A[::-1] + Registers.T[::-1]
     DEFAULT_FLOAT_REGISTERS = Registers.FA[::-1] + Registers.FT[::-1]
 
-    _idx: int = 0
+    _j_idx: int = 0
     """Next `j` register index."""
+
+    _fj_idx: int = 0
+    """Next `fj` register index."""
 
     reserved_registers: defaultdict[IntRegisterType | FloatRegisterType, int] = field(
         default_factory=lambda: defaultdict[IntRegisterType | FloatRegisterType, int](
@@ -78,8 +81,13 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         if available_registers:
             reg = available_registers.pop()
         else:
-            reg = reg_type(f"j{self._idx}")
-            self._idx += 1
+            if issubclass(reg_type, IntRegisterType):
+                reg = reg_type(f"j{self._j_idx}")
+                self._j_idx += 1
+            else:
+                reg = reg_type(f"fj{self._fj_idx}")
+                self._fj_idx += 1
+
         assert reg not in self.reserved_registers, (
             f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
         )

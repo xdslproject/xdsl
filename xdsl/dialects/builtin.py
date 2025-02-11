@@ -1818,7 +1818,7 @@ _MemRefTypeElement = TypeVar(
     "_MemRefTypeElement", bound=Attribute, covariant=True, default=Attribute
 )
 _UnrankedMemRefTypeElems = TypeVar(
-    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True
+    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True, default=Attribute
 )
 _UnrankedMemRefTypeElemsInit = TypeVar("_UnrankedMemRefTypeElemsInit", bound=Attribute)
 

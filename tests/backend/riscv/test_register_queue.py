@@ -78,5 +78,7 @@ def test_limit():
     assert not register_queue.pop(riscv.IntRegisterType).register_name.startswith("j")
     assert register_queue.pop(riscv.IntRegisterType).register_name.startswith("j")
 
-    assert not register_queue.pop(riscv.FloatRegisterType).register_name.startswith("j")
-    assert register_queue.pop(riscv.FloatRegisterType).register_name.startswith("j")
+    assert not register_queue.pop(riscv.FloatRegisterType).register_name.startswith(
+        "fj"
+    )
+    assert register_queue.pop(riscv.FloatRegisterType).register_name.startswith("fj")
