@@ -109,18 +109,16 @@ def _(exercise_text, first_text_area, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Unhide the cell below to see the solution:""")
-    return
-
-
-@app.cell(hide_code=True)
-def _():
+def _(mo, xmo):
     second_text = """\
     func.func @first(%arg0: i32, %arg1: i32) -> i32 {
         func.return %arg1 : i32
     }\
     """
+
+    mo.accordion({
+        "Solution": xmo.module_html(second_text)
+    })
     return (second_text,)
 
 
@@ -217,21 +215,17 @@ def _(exercise_text, fma_text_area, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Unhide the cell below to see the solution:""")
-    return
-
-
-@app.cell(hide_code=True)
-def _():
-    # Solution
-
+def _(mo, xmo):
     fma_impl = """\
     func.func @multiply_and_add(%a : i32, %b : i32, %c : i32) -> (i32) {
       %ab = arith.muli %a, %b : i32
       %res = arith.addi %ab, %c : i32
       func.return %res : i32
     }"""
+
+    mo.accordion({
+        "Solution": xmo.module_html(fma_impl)
+    })
     return (fma_impl,)
 
 
@@ -360,15 +354,7 @@ def _(abs_info_text, abs_input_text, abs_text_area, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Unhide the cell below to see the solution:""")
-    return
-
-
-@app.cell(hide_code=True)
-def _():
-    # Solution
-
+def _(mo, xmo):
     abs_impl = """\
     func.func @abs(%a : i32) -> i32 {
         %zero = arith.constant 0 : i32
@@ -381,6 +367,11 @@ def _():
         }
         func.return %res : i32
     }"""
+
+
+    mo.accordion({
+        "Solution": xmo.module_html(abs_impl)
+    })
     return (abs_impl,)
 
 
@@ -475,15 +466,7 @@ def _(mo, second_info_text, second_input_text, second_text_area):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""Unhide the cell below to see the solution:""")
-    return
-
-
-@app.cell(hide_code=True)
-def _():
-    # Solution
-
+def _(mo, xmo):
     fact_impl = """\
     func.func @factorial(%n: i32) -> i32 {
       %zero = arith.constant 0 : i32
@@ -495,6 +478,10 @@ def _():
       }
       func.return %res : i32
     }"""
+
+    mo.accordion({
+        "Solution": xmo.module_html(fact_impl)
+    })
     return (fact_impl,)
 
 
