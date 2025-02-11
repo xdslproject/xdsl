@@ -206,6 +206,16 @@ def test_mr_vmovs(
             x86.register.YMM0,
             x86.register.RCX,
         ),
+        (
+            x86.ops.RM_VbroadcastsdOp,
+            x86.register.YMM0,
+            x86.register.RCX,
+        ),
+        (
+            x86.ops.RM_VbroadcastssOp,
+            x86.register.YMM0,
+            x86.register.RCX,
+        ),
     ],
 )
 def test_rm_vmovs(
