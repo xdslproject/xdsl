@@ -32,7 +32,7 @@ x86_func.func @matmul() {
     %c1_tmp1 = x86.rrr.vfmadd231pd %b_col_0, %a_row_1, %c1_tmp0 : (!x86.avx2reg<ymm8>, !x86.avx2reg<ymm1>, !x86.avx2reg<ymm5>) -> !x86.avx2reg<ymm5>
     %c2_tmp1 = x86.rrr.vfmadd231pd %b_col_0, %a_row_2, %c2_tmp0 : (!x86.avx2reg<ymm8>, !x86.avx2reg<ymm2>, !x86.avx2reg<ymm6>) -> !x86.avx2reg<ymm6>
     %c3_tmp1 = x86.rrr.vfmadd231pd %b_col_0, %a_row_3, %c3_tmp0 : (!x86.avx2reg<ymm8>, !x86.avx2reg<ymm3>, !x86.avx2reg<ymm7>) -> !x86.avx2reg<ymm7>
-    // Load column 0 of B
+    // Load column 1 of B
     %b_col_1 = x86.rm.vbroadcastss %ymm8, %rsi, 4 : (!x86.avx2reg<ymm8>, !x86.reg<rsi>) -> !x86.avx2reg<ymm8>
     // Go brrr
     %c0 = x86.rrr.vfmadd231pd %b_col_1, %a_row_0, %c0_tmp1 : (!x86.avx2reg<ymm8>, !x86.avx2reg<ymm0>, !x86.avx2reg<ymm4>) -> !x86.avx2reg<ymm4>
