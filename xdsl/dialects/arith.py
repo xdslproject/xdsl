@@ -153,7 +153,6 @@ class ConstantOp(IRDLOperation):
         *,
         truncate_bits: bool = False,
     ) -> None:
-        print("overload int")
         ...
 
     @overload
@@ -162,7 +161,6 @@ class ConstantOp(IRDLOperation):
         value: FloatAttr[AnyFloat],
         value_type: AnyFloat | None = None,
     ) -> None:
-        print("overload float")
         ...
 
     @overload
@@ -171,7 +169,6 @@ class ConstantOp(IRDLOperation):
         value: DenseIntOrFPElementsAttr | Attribute,
         value_type: Attribute | None = None,
     ) -> None:
-        print("overload attr")
         ...
 
     def __init__(
@@ -181,7 +178,6 @@ class ConstantOp(IRDLOperation):
         *,
         truncate_bits: bool = False,
     ):
-        print("overload all")
         if value_type is None:
             if isinstance(value, IntegerAttr | FloatAttr):
                 value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
