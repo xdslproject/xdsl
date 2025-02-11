@@ -1,5 +1,6 @@
 // RUN: xdsl-opt -t x86-asm %s | filecheck %s
 
+// C: 4x2xf32 = A: 4x8xf32 * B: 8x2xf32
 x86_func.func @matmul() {
     // Scalar registers loading
     %rdi = x86.get_register : () -> !x86.reg<rdi>
