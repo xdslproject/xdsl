@@ -134,25 +134,25 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def offset(self) -> tuple[int, ...]:
-        data = self.offset_.as_tuple()
+        data = self.offset_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def size(self) -> tuple[int, ...]:
-        data = self.size_.as_tuple()
+        data = self.size_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def source_offset(self) -> tuple[int, ...]:
-        data = self.source_offset_.as_tuple()
+        data = self.source_offset_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_.as_tuple()
+        data = self.neighbor_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
@@ -270,25 +270,25 @@ class ShapeAttr(ParametrizedAttribute):
 
     @property
     def buff_lb(self) -> tuple[int, ...]:
-        data = self.buff_lb_.as_tuple()
+        data = self.buff_lb_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def buff_ub(self) -> tuple[int, ...]:
-        data = self.buff_ub_.as_tuple()
+        data = self.buff_ub_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_lb(self) -> tuple[int, ...]:
-        data = self.core_lb_.as_tuple()
+        data = self.core_lb_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
     @property
     def core_ub(self) -> tuple[int, ...]:
-        data = self.core_ub_.as_tuple()
+        data = self.core_ub_.get_values()
         assert isa(data, tuple[int, ...])
         return data
 
@@ -413,7 +413,7 @@ class RankTopoAttr(ParametrizedAttribute):
         super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
 
     def as_tuple(self) -> tuple[int, ...]:
-        shape = self.shape.as_tuple()
+        shape = self.shape.get_values()
         assert isa(shape, tuple[int, ...])
         return shape
 
@@ -437,7 +437,7 @@ class RankTopoAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
-        printer.print_string("x".join(str(x) for x in self.shape.as_tuple()))
+        printer.print_string("x".join(str(x) for x in self.shape.get_values()))
         printer.print_string(">")
 
 
@@ -471,16 +471,16 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
         )
 
     def _verify(self):
-        assert (
-            len(self.topology.as_tuple()) >= 2
-        ), "GridSlice2d requires at least two dimensions"
+        assert len(self.topology.as_tuple()) >= 2, (
+            "GridSlice2d requires at least two dimensions"
+        )
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 2, "GridSlice2d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology.as_tuple()):
-            assert (
-                size % node_count == 0
-            ), "GridSlice2d requires domain be neatly divisible by shape"
+            assert size % node_count == 0, (
+                "GridSlice2d requires domain be neatly divisible by shape"
+            )
         return (
             *(
                 size // node_count
@@ -519,16 +519,16 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
         )
 
     def _verify(self):
-        assert (
-            len(self.topology.as_tuple()) >= 3
-        ), "GridSlice3d requires at least three dimensions"
+        assert len(self.topology.as_tuple()) >= 3, (
+            "GridSlice3d requires at least three dimensions"
+        )
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 3, "GridSlice3d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology.as_tuple()):
-            assert (
-                size % node_count == 0
-            ), "GridSlice3d requires domain be neatly divisible by shape"
+            assert size % node_count == 0, (
+                "GridSlice3d requires domain be neatly divisible by shape"
+            )
         return (
             *(
                 size // node_count

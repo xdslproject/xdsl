@@ -13,7 +13,7 @@ from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, ShrinkException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
@@ -75,9 +75,18 @@ class xDSLOptMain(CommandLineTool):
                     output_stream.flush()
                 finally:
                     chunk.close()
+        except ShrinkException:
+            assert self.args.shrink
+            print("Success, can shrink")
+            # Exit with value 0 to let shrinkray know that it can shrink
+            exit(0)
         finally:
             if output_stream is not sys.stdout:
                 output_stream.close()
+        if self.args.shrink:
+            print("Failure, can't shrink")
+            # Exit with non-0 value to let shrinkray know that it cannot shrink
+            exit(1)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -107,7 +116,7 @@ class xDSLOptMain(CommandLineTool):
             "-p",
             "--passes",
             required=False,
-            help="Delimited list of passes." f" Available passes are: {pass_names}",
+            help=f"Delimited list of passes. Available passes are: {pass_names}",
             type=str,
             default="",
         )
@@ -139,8 +148,8 @@ class xDSLOptMain(CommandLineTool):
             "--split-input-file",
             default=False,
             action="store_true",
-            help="Split the input file into pieces and process each chunk independently by "
-            " using `// -----`",
+            help="Split the input file into pieces and process each chunk "
+            "independently by using `// -----`",
         )
 
         arg_parser.add_argument(
@@ -169,6 +178,13 @@ class xDSLOptMain(CommandLineTool):
             "--version",
             action="version",
             version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+        )
+
+        arg_parser.add_argument(
+            "--shrink",
+            default=False,
+            action="store_true",
+            help="Return success on exit if ShrinkException was raised.",
         )
 
     def register_pass(
@@ -241,18 +257,28 @@ class xDSLOptMain(CommandLineTool):
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 
-        def _print_to_csl(prog: ModuleOp, output: IO[str]):
+        def _output_csl(prog: ModuleOp, output: IO[str]):
             from xdsl.backend.csl.print_csl import print_to_csl
 
             print_to_csl(prog, output)
 
+        def _output_wgsl(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.wgsl.wgsl_printer import WGSLPrinter
+            from xdsl.dialects import gpu
+
+            for op in prog.ops:
+                if isinstance(op, gpu.ModuleOp):
+                    printer = WGSLPrinter(stream=output)
+                    printer.print(op)
+
         self.available_targets["arm-asm"] = _output_arm_asm
+        self.available_targets["csl"] = _output_csl
         self.available_targets["mlir"] = _output_mlir
-        self.available_targets["riscv-asm"] = _output_riscv_asm
-        self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
+        self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["wat"] = _output_wat
-        self.available_targets["csl"] = _print_to_csl
+        self.available_targets["wgsl"] = _output_wgsl
+        self.available_targets["x86-asm"] = _output_x86_asm
 
     def setup_pipeline(self):
         """

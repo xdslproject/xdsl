@@ -293,6 +293,16 @@ class OperationOp(IRDLOperation):
             raise ValueError("Tried to get qualified name of an unverified OperationOp")
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
+    def get_py_class_name(self) -> str:
+        return (
+            "".join(
+                y[:1].upper() + y[1:]
+                for x in self.sym_name.data.split(".")
+                for y in x.split("_")
+            )
+            + "Op"
+        )
+
 
 def _parse_argument(parser: Parser) -> tuple[VariadicityAttr, SSAValue]:
     variadicity = parser.parse_optional_str_enum(VariadicityEnum)

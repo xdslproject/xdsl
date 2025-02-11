@@ -7,10 +7,9 @@ from typing import ClassVar, Literal, TypeVar, cast, overload
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
-    AnyIntegerAttr,
-    AnyIntegerAttrConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
+    FixedBitwidthType,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -19,6 +18,8 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
+    SignlessIntegerConstraint,
     TensorType,
     UnrankedTensorType,
     VectorType,
@@ -45,6 +46,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    Commutative,
     ConditionallySpeculatable,
     ConstantLike,
     HasCanonicalizationPatternsTrait,
@@ -53,6 +55,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
+from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -131,7 +134,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(_T)
     value = prop_def(
         TypedAttributeConstraint(
-            AnyIntegerAttrConstr
+            IntegerAttr.constr()
             | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
             | BaseAttr(DenseIntOrFPElementsAttr),
             _T,
@@ -145,7 +148,7 @@ class ConstantOp(IRDLOperation):
     @overload
     def __init__(
         self,
-        value: AnyIntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
         value_type: None = None,
     ) -> None: ...
 
@@ -154,11 +157,11 @@ class ConstantOp(IRDLOperation):
 
     def __init__(
         self,
-        value: AnyIntegerAttr | FloatAttr[AnyFloat] | Attribute,
+        value: IntegerAttr | FloatAttr[AnyFloat] | Attribute,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
-            value = cast(AnyIntegerAttr | FloatAttr[AnyFloat], value)
+            value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
             value_type = value.type
         super().__init__(
             operands=[], result_types=[value_type], properties={"value": value}
@@ -166,13 +169,18 @@ class ConstantOp(IRDLOperation):
 
     @staticmethod
     def from_int_and_width(
-        value: int | IntAttr, value_type: int | IntegerType | IndexType
+        value: int | IntAttr,
+        value_type: int | IntegerType | IndexType,
+        *,
+        truncate_bits: bool = False,
     ) -> ConstantOp:
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
         return ConstantOp.create(
             result_types=[value_type],
-            properties={"value": IntegerAttr(value, value_type)},
+            properties={
+                "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
+            },
         )
 
 
@@ -190,6 +198,36 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($result)"
 
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(lhs, rhs)` is an int, then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `lhs` and `rhs`.
+        """
+        return None
+
+    @staticmethod
+    def is_right_zero(attr: IntegerAttr) -> bool:
+        """
+        Returns True only when 'attr' is a right zero for the operation
+        https://en.wikipedia.org/wiki/Absorbing_element
+
+        Note that this depends on the operation and does *not* imply that
+        attr.value.data == 0
+        """
+        return False
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        """
+        Return True only when 'attr' is a right unit/identity for the operation
+        https://en.wikipedia.org/wiki/Identity_element
+        """
+        return False
+
     def __init__(
         self,
         operand1: Operation | SSAValue,
@@ -202,6 +240,22 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
 
     def __hash__(self) -> int:
         return id(self)
+
+
+class SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait
+):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            SignlessIntegerBinaryOperationConstantProp,
+            SignlessIntegerBinaryOperationZeroOrUnitRight,
+        )
+
+        return (
+            SignlessIntegerBinaryOperationConstantProp(),
+            SignlessIntegerBinaryOperationZeroOrUnitRight(),
+        )
 
 
 class SignlessIntegerBinaryOperationWithOverflow(
@@ -313,19 +367,23 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
         printer.print_attribute(self.result.type)
 
 
-class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
-
-        return (AddImmediateZero(),)
-
-
 @irdl_op_definition
 class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.addi"
 
-    traits = traits_def(Pure(), AddiOpHasCanonicalizationPatternsTrait())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs + rhs
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -396,7 +454,23 @@ class AddUIExtendedOp(IRDLOperation):
 class MuliOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.muli"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs * rhs
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
+
+    @staticmethod
+    def is_right_zero(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 class MulExtendedBase(IRDLOperation):
@@ -444,7 +518,17 @@ class MulSIExtendedOp(MulExtendedBase):
 class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.subi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs - rhs
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 class DivUISpeculatable(ConditionallySpeculatable):
@@ -467,7 +551,15 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.divui"
 
-    traits = traits_def(NoMemoryEffect(), DivUISpeculatable())
+    traits = traits_def(
+        NoMemoryEffect(),
+        DivUISpeculatable(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
@@ -479,7 +571,14 @@ class DivSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.divsi"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(
+        NoMemoryEffect(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
@@ -490,21 +589,40 @@ class FloorDivSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.floordivsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
 class CeilDivSIOp(SignlessIntegerBinaryOperation):
     name = "arith.ceildivsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
 class CeilDivUIOp(SignlessIntegerBinaryOperation):
     name = "arith.ceildivui"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(
+        NoMemoryEffect(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr == IntegerAttr(1, attr.type)
 
 
 @irdl_op_definition
@@ -551,21 +669,57 @@ class MaxSIOp(SignlessIntegerBinaryOperation):
 class AndIOp(SignlessIntegerBinaryOperation):
     name = "arith.andi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs & rhs
+
+    @staticmethod
+    def is_right_zero(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
 class OrIOp(SignlessIntegerBinaryOperation):
     name = "arith.ori"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs | rhs
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
 class XOrIOp(SignlessIntegerBinaryOperation):
     name = "arith.xori"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        Commutative(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
+    )
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs ^ rhs
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -577,7 +731,13 @@ class ShLIOp(SignlessIntegerBinaryOperationWithOverflow):
 
     name = "arith.shli"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -590,7 +750,13 @@ class ShRUIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.shrui"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 @irdl_op_definition
@@ -604,7 +770,13 @@ class ShRSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.shrsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+    )
+
+    @staticmethod
+    def is_right_unit(attr: IntegerAttr) -> bool:
+        return attr.value.data == 0
 
 
 class ComparisonOperation(IRDLOperation):
@@ -646,6 +818,14 @@ class ComparisonOperation(IRDLOperation):
     traits = traits_def(Pure())
 
 
+class CmpiHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns import arith
+
+        return (arith.ApplyCmpiPredicateToEqualOperands(),)
+
+
 @irdl_op_definition
 class CmpiOp(ComparisonOperation):
     """
@@ -676,10 +856,12 @@ class CmpiOp(ComparisonOperation):
     """
 
     name = "arith.cmpi"
-    predicate = prop_def(AnyIntegerAttr)
+    predicate = prop_def(IntegerAttr)
     lhs = operand_def(signlessIntegerLike)
     rhs = operand_def(signlessIntegerLike)
     result = result_def(IntegerType(1))
+
+    traits = traits_def(CmpiHasCanonicalizationPatterns(), Pure())
 
     def __init__(
         self,
@@ -766,7 +948,7 @@ class CmpfOp(ComparisonOperation):
     """
 
     name = "arith.cmpf"
-    predicate = prop_def(AnyIntegerAttr)
+    predicate = prop_def(IntegerAttr)
     lhs = operand_def(floatingPointLike)
     rhs = operand_def(floatingPointLike)
     fastmath = prop_def(FastMathFlagsAttr, default_value=FastMathFlagsAttr("none"))
@@ -1044,6 +1226,53 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
 
 
 @irdl_op_definition
+class BitcastOp(IRDLOperation):
+    name = "arith.bitcast"
+
+    input = operand_def(
+        signlessIntegerLike
+        | floatingPointLike
+        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
+    )
+    result = result_def(
+        signlessIntegerLike
+        | floatingPointLike
+        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
+    )
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
+    def __init__(self, in_arg: SSAValue | Operation, target_type: Attribute):
+        super().__init__(operands=[in_arg], result_types=[target_type])
+
+    def verify_(self) -> None:
+        in_type = self.input.type
+        res_type = self.result.type
+
+        if not have_compatible_shape(in_type, res_type):
+            raise VerifyException("operand and result type must have compatible shape")
+
+        t1 = get_element_type_or_self(in_type)
+        t2 = get_element_type_or_self(res_type)
+        if not BitcastOp._are_types_bitcastable(t1, t2):
+            raise VerifyException(
+                "operand and result types must have equal bitwidths or be IndexType"
+            )
+
+    @staticmethod
+    def _are_types_bitcastable(type_a: Attribute, type_b: Attribute) -> bool:
+        if isinstance(type_a, IndexType) or isinstance(type_b, IndexType):
+            return True
+
+        if isinstance(type_a, FixedBitwidthType) and isinstance(
+            type_b, FixedBitwidthType
+        ):
+            return type_a.bitwidth == type_b.bitwidth
+
+        return False
+
+
+@irdl_op_definition
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
@@ -1063,7 +1292,8 @@ class IndexCastOp(IRDLOperation):
         # exactly one of input or result must be of IndexType, no more, no less.
         if not isinstance(self.input.type, it) ^ isinstance(self.result.type, it):
             raise VerifyException(
-                f"'arith.index_cast' op operand type '{self.input.type}' and result type '{self.input.type}' are cast incompatible"
+                f"'arith.index_cast' op operand type '{self.input.type}' and result "
+                f"type '{self.input.type}' are cast incompatible"
             )
 
 
@@ -1240,6 +1470,7 @@ Arith = Dialect(
         MaximumfOp,
         MaxnumfOp,
         # Casts
+        BitcastOp,
         IndexCastOp,
         FPToSIOp,
         SIToFPOp,

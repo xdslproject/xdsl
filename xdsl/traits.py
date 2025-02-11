@@ -175,9 +175,12 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
         if len(region.blocks) > 1:
             raise VerifyException(f"'{op.name}' does not contain single-block regions")
 
+        from xdsl.dialects.builtin import UnregisteredOp
+
         for block in region.blocks:
             if (
                 (last_op := block.last_op) is not None
+                and not isinstance(last_op, UnregisteredOp)
                 and last_op.has_trait(IsTerminator)
                 and not isinstance(last_op, trait.op_type)
             ):
@@ -195,7 +198,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
 
         for block in region.blocks:
             if (last_op := block.last_op) is None or not last_op.has_trait(
-                IsTerminator
+                IsTerminator, value_if_unregistered=False
             ):
                 with ImplicitBuilder(block):
                     trait.op_type.create()
@@ -234,6 +237,26 @@ class IsolatedFromAbove(OpTrait):
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
+
+
+class SymbolUserOpInterface(OpTrait, abc.ABC):
+    """
+    Used to represent operations that reference Symbol operations. This provides the
+    ability to perform safe and efficient verification of symbol uses, as well as
+    additional functionality.
+
+    https://mlir.llvm.org/docs/Interfaces/#symbolinterfaces
+    """
+
+    @abc.abstractmethod
+    def verify(self, op: Operation) -> None:
+        """
+        This method should be adapted to the requirements of specific symbol users per
+        operation.
+
+        It corresponds to the verifySymbolUses in upstream MLIR.
+        """
+        raise NotImplementedError()
 
 
 class SymbolTable(OpTrait):
@@ -684,6 +707,12 @@ class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
 
 
+class Commutative(OpTrait):
+    """
+    A trait that signals that an operation is commutative.
+    """
+
+
 class HasInsnRepresentation(OpTrait, abc.ABC):
     """
     A trait providing information on how to encode an operation using a .insn assember directive.
@@ -700,3 +729,56 @@ class HasInsnRepresentation(OpTrait, abc.ABC):
         Return the insn representation of the operation for printing.
         """
         raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class SameOperandsAndResultType(OpTrait):
+    """Constrain the operation to have the same operands and result type."""
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.utils.type import (
+            get_element_type_or_self,
+            get_encoding,
+            have_compatible_shape,
+        )
+
+        if len(op.results) < 1 or len(op.operands) < 1:
+            raise VerifyException(
+                f"'{op.name}' requires at least one result or operand"
+            )
+
+        result_type0 = get_element_type_or_self(op.result_types[0])
+
+        encoding = get_encoding(op.result_types[0])
+
+        for result_type in op.result_types[1:]:
+            result_type_elem = get_element_type_or_self(result_type)
+            if result_type0 != result_type_elem or not have_compatible_shape(
+                op.result_types[0], result_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            element_encoding = get_encoding(result_type)
+
+            if encoding != element_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )
+
+        for operand_type in op.operand_types:
+            operand_type_elem = get_element_type_or_self(operand_type)
+            if result_type0 != operand_type_elem or not have_compatible_shape(
+                op.result_types[0], operand_type
+            ):
+                raise VerifyException(
+                    f"'{op.name} requires the same type for all operands and results"
+                )
+
+            element_encoding = get_encoding(operand_type)
+
+            if encoding != element_encoding:
+                raise VerifyException(
+                    f"'{op.name} requires the same encoding for all operands and results"
+                )

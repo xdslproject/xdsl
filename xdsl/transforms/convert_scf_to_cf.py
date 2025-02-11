@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import cast
 
 from xdsl.context import MLContext
@@ -15,7 +16,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 from xdsl.traits import IsTerminator
 
 
@@ -59,7 +60,7 @@ class IfLowering(RewritePattern):
         )
 
         rewriter.erase_op(then_terminator)
-        rewriter.inline_region_before(then_region, continue_block)
+        rewriter.inline_region(then_region, BlockInsertPoint.before(continue_block))
 
         # Move blocks from the "else" region (if present) to the region containing
         # 'scf.if', place it before the continuation block and branch to it.  It
@@ -77,7 +78,7 @@ class IfLowering(RewritePattern):
             )
 
             rewriter.erase_op(else_terminator)
-            rewriter.inline_region_before(else_region, continue_block)
+            rewriter.inline_region(else_region, BlockInsertPoint.before(continue_block))
         else:
             else_block = continue_block
 
@@ -115,7 +116,7 @@ class ForLowering(RewritePattern):
         first_body_block = condition_block.split_before(first_op)
         last_body_block = for_op.body.last_block
         assert last_body_block is not None
-        rewriter.inline_region_before(for_op.body, end_block)
+        rewriter.inline_region(for_op.body, BlockInsertPoint.before(end_block))
         iv = condition_block.args[0]
 
         # Append the induction variable stepping logic to the last body block and
@@ -168,7 +169,7 @@ class SwitchLowering(RewritePattern):
         rewriter.replace_op(yield_op, BranchOp(continue_block, *yield_op.operands))
 
         # Inline the region
-        rewriter.inline_region_before(region, continue_block)
+        rewriter.inline_region(region, BlockInsertPoint.before(continue_block))
         return block
 
     @op_type_rewrite_pattern
@@ -190,9 +191,7 @@ class SwitchLowering(RewritePattern):
             self._convert_region(region, continue_block, rewriter)
             for region in op.case_regions
         )
-        case_values: tuple[int, ...] = tuple(
-            cast(int, i.data) for i in op.cases.data.data
-        )
+        case_values = cast(Sequence[int], op.cases.get_values())
 
         # Convert the default region
         default_block = self._convert_region(

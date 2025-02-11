@@ -79,26 +79,26 @@ builtin.module {
 // CHECK-NEXT:   func.func private @memref_test() {
 // CHECK-NEXT:     %{{.*}} = memref.get_global @g : memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = arith.constant 0 : index
-// CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<1xindex>
+// CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{alignment = 0 : i64, operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = arith.constant 42 : index
 // CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] : memref<1xindex>
-// CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] {"nontemporal" = true} : memref<1xindex>
+// CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] {nontemporal = true} : memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] : memref<1xindex>
-// CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] {"nontemporal" = false} : memref<1xindex>
-// CHECK-NEXT:     %{{.*}} = memref.alloc() {"alignment" = 0 : i64} : memref<10x2xindex>
+// CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] {nontemporal = false} : memref<1xindex>
+// CHECK-NEXT:     %{{.*}} = memref.alloc() {alignment = 0 : i64} : memref<10x2xindex>
 // CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}, %{{.*}}] : memref<10x2xindex>
-// CHECK-NEXT:     %{{.*}} = memref.subview %{{.*}}[0, 0] [1, 1] [1, 1] attributes {"hello" = "world"} : memref<10x2xindex> to memref<1x1xindex>
+// CHECK-NEXT:     %{{.*}} = memref.subview %{{.*}}[0, 0] [1, 1] [1, 1] attributes {hello = "world"} : memref<10x2xindex> to memref<1x1xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<?x?xindex>
-// CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<1xindex>
+// CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.memory_space_cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<10x2xindex, 1 : i32>
 // CHECK-NEXT:     %{{.*}} = memref.alloc() : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
-// CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+// CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} = "memref.extract_strided_metadata"(%{{.*}}) : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> (memref<index>, index, index, index, index, index)
 // CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (index, index, index)
-// CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}) {"alignment" = 0 : i64} : memref<?xindex>
-// CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}, %{{.*}}, %{{.*}}) {"alignment" = 0 : i64} : memref<?x?x?xindex>
-// CHECK-NEXT:     %{{.*}} = "memref.alloca"(%{{.*}}) <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 1, 0>}> : (index) -> memref<?xindex>
-// CHECK-NEXT:     %{{.*}} = "memref.alloca"(%{{.*}}, %{{.*}}, %{{.*}}) <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 3, 0>}> : (index, index, index) -> memref<?x?x?xindex>
+// CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}) {alignment = 0 : i64} : memref<?xindex>
+// CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}, %{{.*}}, %{{.*}}) {alignment = 0 : i64} : memref<?x?x?xindex>
+// CHECK-NEXT:     %{{.*}} = "memref.alloca"(%{{.*}}) <{alignment = 0 : i64, operandSegmentSizes = array<i32: 1, 0>}> : (index) -> memref<?xindex>
+// CHECK-NEXT:     %{{.*}} = "memref.alloca"(%{{.*}}, %{{.*}}, %{{.*}}) <{alignment = 0 : i64, operandSegmentSizes = array<i32: 3, 0>}> : (index, index, index) -> memref<?x?x?xindex>
 // CHECK-NEXT:    %{{.*}} = memref.collapse_shape %{{\S*}}
 // CHECK-SAME{LITERAL}: [[0 : i64, 1 : i64]] : memref<10x2xindex> into memref<20xindex>
 // CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
@@ -111,7 +111,7 @@ builtin.module {
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:      %{{.*}} = "test.op"() : () -> memref<32x32xf32>
 // CHECK-NEXT:      %{{.*}} = "test.op"() : () -> f32
-// CHECK-NEXT:      %{{.*}} = "memref.atomic_rmw"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kind" = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
+// CHECK-NEXT:      %{{.*}} = "memref.atomic_rmw"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

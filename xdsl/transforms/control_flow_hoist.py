@@ -57,7 +57,7 @@ class AffineIfHoistPattern(RewritePattern):
             return
         block = op.parent
         if block:
-            cse(block)
+            cse(block, rewriter)
 
 
 class SCFIfHoistPattern(RewritePattern):
@@ -84,7 +84,7 @@ class SCFIfHoistPattern(RewritePattern):
         block = op.parent
         if block:
             # If we hoisted some ops, run CSE on that block to not keep pushing duplicates upward.
-            cse(block)
+            cse(block, rewriter)
 
 
 class ControlFlowHoistPass(ModulePass):

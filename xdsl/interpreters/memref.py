@@ -17,7 +17,7 @@ from xdsl.traits import SymbolTable
 
 
 @register_impls
-class MemrefFunctions(InterpreterFunctions):
+class MemRefFunctions(InterpreterFunctions):
     @impl(memref.AllocOp)
     def run_alloc(
         self, interpreter: Interpreter, op: memref.AllocOp, args: PythonValues
@@ -74,9 +74,9 @@ class MemrefFunctions(InterpreterFunctions):
         initial_value = mem.initial_value
         if not isinstance(initial_value, builtin.DenseIntOrFPElementsAttr):
             raise NotImplementedError(
-                "Memrefs that are not dense int or float arrays are not implemented"
+                "MemRefs that are not dense int or float arrays are not implemented"
             )
-        data = [el.value.data for el in initial_value.data]
+        data = initial_value.get_values()
         shape = initial_value.get_shape()
         assert shape is not None
         xtype = xtype_for_el_type(

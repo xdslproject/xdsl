@@ -15,7 +15,6 @@ from __future__ import annotations
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyIntegerAttr,
     ArrayAttr,
     Attribute,
     BoolAttr,
@@ -62,7 +61,7 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "hlfir.expr"
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr | DeferredAttr | NoneType]]
+    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
     elementType: ParameterDef[IntegerType | AnyFloat | ReferenceType]
 
     def print_parameters(self, printer: Printer) -> None:
@@ -143,7 +142,7 @@ class DeclareOp(IRDLOperation):
       %3 = hfir.declare %arg0(%2) typeparams %1 {uniq_name = "c"} (fir.ref<!fir.array<?x?x!fir.char<1,?>>>, fir.shapeshift<2>, index) -> (fir.box<!fir.array<?x?x!fir.char<1,?>>>, fir.ref<!fir.array<?x?x!fir.char<1,?>>>)
       // ... uses %3#0 as "c"
     }
-    """
+    """  # noqa: E501
 
     name = "hlfir.declare"
     memref = operand_def()
@@ -1028,7 +1027,7 @@ class CharExtremumOp(IRDLOperation):
     minimum or maximum number of characters. Example:
 
     %0 = hlfir.char_extremum min, %arg0, %arg1 : (!fir.ref<!fir.char<1,10>>, !fir.ref<!fir.char<1,20>>) -> !hlfir.expr<!fir.char<1,10>>
-    """
+    """  # noqa E501
 
     name = "hlfir.char_extremum"
     predicate = operand_def()

@@ -35,10 +35,10 @@ def insert_subview(
     location: InsertPoint,
 ):
     """
-    A helper method to insert a subview from the input `memref_val` to one with new upper
-    bounds, given that it will be accessed with the specified affine map.
-    `dim_offsets` are the operands to use to determine the new offset, and `upper_bounds`
-    the new shape.
+    A helper method to insert a subview from the input `memref_val` to one with new
+    upper bounds, given that it will be accessed with the specified affine map.
+    `dim_offsets` are the operands to use to determine the new offset, and
+    `upper_bounds` the new shape.
     Any new operations should be inserted at `location`.
     """
     name_hint_prefix = (
@@ -220,7 +220,7 @@ class TileGenericPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamTileOuterLoopsPass(ModulePass):
+class MemRefStreamTileOuterLoopsPass(ModulePass):
     """
     Materializes loops around memref_stream.generic operations that have greater than
     specified number of non-1 upper bounds.

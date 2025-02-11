@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.context import MLContext
 from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
@@ -31,16 +31,15 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
 
 from ..dialects import toy
 
 # region Helpers
 
-MemrefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
+MemRefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
 
 
-def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
+def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemRefTypeF64:
     """
     Convert the given RankedTensorType into the corresponding MemRefType.
     """
@@ -48,7 +47,7 @@ def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
 
 
 def insert_alloc_and_dealloc(
-    type: MemrefTypeF64, op: Operation, rewriter: PatternRewriter
+    type: MemRefTypeF64, op: Operation, rewriter: PatternRewriter
 ) -> memref.AllocOp:
     """
     Insert an allocation and deallocation for the given MemRefType.
@@ -88,12 +87,12 @@ def build_affine_for(
     `body_builder_fn` is used to build the body of affine.for.
     """
 
-    assert (
-        len(lb_operands) == lb_map.num_dims
-    ), "lower bound operand count does not match the affine map"
-    assert (
-        len(ub_operands) == ub_map.num_dims
-    ), "upper bound operand count does not match the affine map"
+    assert len(lb_operands) == lb_map.num_dims, (
+        "lower bound operand count does not match the affine map"
+    )
+    assert len(ub_operands) == ub_map.num_dims, (
+        "upper bound operand count does not match the affine map"
+    )
     assert step > 0, "step has to be a positive integer constant"
 
     # Create a region and a block for the body.
@@ -114,7 +113,7 @@ def build_affine_for(
         step,
     )
     builder.insert(op)
-    body_builder_fn(Builder.at_end(block), induction_var, rest)
+    body_builder_fn(Builder(InsertPoint.at_end(block)), induction_var, rest)
     return op
 
 
@@ -304,7 +303,7 @@ def lower_op_to_loops(
         store_op = affine.StoreOp(value_to_store, alloc.memref, ivs)
         nested_builder.insert(store_op)
 
-    builder = Builder.before(op)
+    builder = Builder(InsertPoint.before(op))
     build_affine_loop_nest_const(
         builder, lower_bounds, tensor_type.get_shape(), steps, impl_loop
     )
@@ -365,7 +364,7 @@ class ConstantOpLowering(RewritePattern):
 
         # Scalar constant values for elements of the tensor
         constants: list[arith.ConstantOp] = [
-            arith.ConstantOp(FloatAttr(i.value.data, f64)) for i in constant_value.data
+            arith.ConstantOp(FloatAttr(i, f64)) for i in constant_value.get_values()
         ]
 
         # n-d indices of elements
@@ -441,9 +440,9 @@ class PrintOpLowering(RewritePattern):
 class ReturnOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.ReturnOp, rewriter: PatternRewriter):
-        assert (
-            op.input is None
-        ), "During this lowering, we expect that all function calls have been inlined."
+        assert op.input is None, (
+            "During this lowering, we expect that all function calls have been inlined."
+        )
 
         rewriter.replace_matched_op(func.ReturnOp())
 

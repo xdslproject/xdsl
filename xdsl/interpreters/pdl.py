@@ -133,9 +133,9 @@ class PDLMatcher:
             assert isinstance(pdl_op.value_type, OpResult)
             assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
-            assert isa(
-                xdsl_attr, IntegerAttr[IntegerType]
-            ), "Only handle integer types for now"
+            assert isa(xdsl_attr, IntegerAttr[IntegerType]), (
+                "Only handle integer types for now"
+            )
 
             if not self.match_type(
                 pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.type
@@ -233,9 +233,9 @@ class PDLRewritePattern(RewritePattern):
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         pdl_op_val = self.pdl_rewrite_op.root
         assert pdl_op_val is not None, "TODO: handle None root op in pdl.RewriteOp"
-        assert (
-            self.pdl_rewrite_op.body is not None
-        ), "TODO: handle None body op in pdl.RewriteOp"
+        assert self.pdl_rewrite_op.body is not None, (
+            "TODO: handle None body op in pdl.RewriteOp"
+        )
 
         assert isinstance(pdl_op_val, OpResult)
         pdl_op = pdl_op_val.op

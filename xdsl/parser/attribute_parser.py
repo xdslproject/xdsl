@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import math
 import re
-import struct
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
@@ -16,9 +14,7 @@ from xdsl.dialects.builtin import (
     AnyArrayAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyFloatAttr,
     AnyFloatConstr,
-    AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -41,7 +37,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
-    MemrefLayoutAttr,
+    MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
     NoneType,
@@ -53,7 +49,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
@@ -61,16 +57,18 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
-from xdsl.irdl import BaseAttr, base
-from xdsl.parser.base_parser import BaseParser
+from xdsl.irdl import base
 from xdsl.utils.bitwise_casts import (
     convert_u16_to_f16,
     convert_u32_to_f32,
     convert_u64_to_f64,
 )
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.isattr import isattr
-from xdsl.utils.lexer import Position, Span, StringLiteral, Token
+from xdsl.utils.lexer import Position, Span
+from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
+
+from .base_parser import BaseParser  # noqa: TID251
 
 
 @dataclass
@@ -113,7 +111,7 @@ class AttrParser(BaseParser):
                             | [^[]<>(){}\0]+
         """
         if (
-            token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
+            token := self._parse_optional_token(MLIRTokenKind.EXCLAMATION_IDENT)
         ) is not None:
             return self._parse_extended_type_or_attribute(token.text[1:], True)
         return self._parse_optional_builtin_type()
@@ -150,7 +148,7 @@ class AttrParser(BaseParser):
                             | `{` dialect-attribute-contents+ `}`
                             | [^[]<>(){}\0]+
         """
-        if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
+        if (token := self._parse_optional_token(MLIRTokenKind.HASH_IDENT)) is not None:
             return self._parse_extended_type_or_attribute(token.text[1:], False)
         return self._parse_optional_builtin_attr()
 
@@ -178,7 +176,7 @@ class AttrParser(BaseParser):
         attribute_entry := (bare-id | string-literal) `=` attribute
         attribute       := dialect-attribute | builtin-attribute
         """
-        if (name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+        if (name := self._parse_optional_token(MLIRTokenKind.BARE_IDENT)) is not None:
             name = name.span.text
         else:
             name = self.parse_optional_str_literal()
@@ -193,12 +191,24 @@ class AttrParser(BaseParser):
 
         return name, self.parse_attribute()
 
+    def _find_duplicated_key(self, attrs: list[tuple[str, Attribute]]) -> str | None:
+        seen_keys: set[str] = set()
+        for key, _ in attrs:
+            if key in seen_keys:
+                return key
+            seen_keys.add(key)
+        return None
+
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
         attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
         if attrs is None:
             return dict()
+
+        if (key := self._find_duplicated_key(attrs)) is not None:
+            self.raise_error(f"Duplicate key '{key}' in dictionary attribute")
+
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_body(
@@ -224,7 +234,7 @@ class AttrParser(BaseParser):
             attr_name += (
                 "."
                 + self._parse_token(
-                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                    MLIRTokenKind.BARE_IDENT, "Expected attribute name."
                 ).text
             )
         attr_def = self.ctx.get_optional_attr(
@@ -288,7 +298,7 @@ class AttrParser(BaseParser):
             # dialect parser.
             if not is_pretty_name:
                 attr_name_token = self._parse_token(
-                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                    MLIRTokenKind.BARE_IDENT, "Expected attribute name."
                 )
                 starting_opaque_pos = attr_name_token.span.end
 
@@ -314,18 +324,18 @@ class AttrParser(BaseParser):
             start_pos = self.pos
         end_pos: Position = start_pos
 
-        symbols_stack: list[Token.Kind] = []
+        symbols_stack: list[MLIRTokenKind] = []
         parentheses = {
-            Token.Kind.GREATER: Token.Kind.LESS,
-            Token.Kind.R_PAREN: Token.Kind.L_PAREN,
-            Token.Kind.R_SQUARE: Token.Kind.L_SQUARE,
-            Token.Kind.R_BRACE: Token.Kind.L_BRACE,
+            MLIRTokenKind.GREATER: MLIRTokenKind.LESS,
+            MLIRTokenKind.R_PAREN: MLIRTokenKind.L_PAREN,
+            MLIRTokenKind.R_SQUARE: MLIRTokenKind.L_SQUARE,
+            MLIRTokenKind.R_BRACE: MLIRTokenKind.L_BRACE,
         }
         parentheses_names = {
-            Token.Kind.GREATER: "`>`",
-            Token.Kind.R_PAREN: "`)`",
-            Token.Kind.R_SQUARE: "`]`",
-            Token.Kind.R_BRACE: "`}`",
+            MLIRTokenKind.GREATER: "`>`",
+            MLIRTokenKind.R_PAREN: "`)`",
+            MLIRTokenKind.R_SQUARE: "`]`",
+            MLIRTokenKind.R_BRACE: "`}`",
         }
         while True:
             # Opening a new parenthesis
@@ -342,7 +352,7 @@ class AttrParser(BaseParser):
                 # If we don't have any open parenthesis, either we end the parsing if
                 # the parenthesis is a `>`, or we raise an error.
                 if len(symbols_stack) == 0:
-                    if token.kind == Token.Kind.GREATER:
+                    if token.kind == MLIRTokenKind.GREATER:
                         end_pos = self.pos
                         break
                     self.raise_error(
@@ -364,7 +374,7 @@ class AttrParser(BaseParser):
                 continue
 
             # Checking for unexpected EOF
-            if self._parse_optional_token(Token.Kind.EOF) is not None:
+            if self._parse_optional_token(MLIRTokenKind.EOF) is not None:
                 self.raise_error(
                     "Unexpected end of file before closing of attribute body!"
                 )
@@ -383,7 +393,7 @@ class AttrParser(BaseParser):
             builtin-name ::= vector | memref | tensor | complex | tuple
             args ::= <defined by the builtin name>
         """
-        if self._current_token.kind != Token.Kind.BARE_IDENT:
+        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
 
         name = self._current_token.text
@@ -404,7 +414,7 @@ class AttrParser(BaseParser):
 
         if name not in builtin_parsers:
             return None
-        self._consume_token(Token.Kind.BARE_IDENT)
+        self._consume_token(MLIRTokenKind.BARE_IDENT)
 
         self.parse_punctuation("<", " after builtin name")
         # Get the parser for the type, falling back to the unimplemented warning
@@ -421,8 +431,8 @@ class AttrParser(BaseParser):
         Optionally allows to not parse `?` as -1.
         """
         if self._current_token.kind not in (
-            Token.Kind.INTEGER_LIT,
-            Token.Kind.QUESTION,
+            MLIRTokenKind.INTEGER_LIT,
+            MLIRTokenKind.QUESTION,
         ):
             if allow_dynamic:
                 self.raise_error(
@@ -441,12 +451,12 @@ class AttrParser(BaseParser):
 
         # If the integer literal starts with `0x`, this is decomposed into
         # `0` and `x`.
-        int_token = self._consume_token(Token.Kind.INTEGER_LIT)
+        int_token = self._consume_token(MLIRTokenKind.INTEGER_LIT)
         if int_token.text[:2] == "0x":
             self._resume_from(int_token.span.start + 1)
             return 0
 
-        return int_token.get_int_value()
+        return int_token.kind.get_int_value(int_token.span)
 
     def parse_shape_delimiter(self) -> None:
         """
@@ -454,15 +464,14 @@ class AttrParser(BaseParser):
         characters, it will split the token. For instance, 'x1' will be split
         into 'x' and '1'.
         """
-        if self._current_token.kind != Token.Kind.BARE_IDENT:
+        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             self.raise_error(
-                "Expected 'x' in shape delimiter, got "
-                f"{self._current_token.kind.name}"
+                f"Expected 'x' in shape delimiter, got {self._current_token.kind.name}"
             )
 
         if self._current_token.text[0] != "x":
             self.raise_error(
-                "Expected 'x' in shape delimiter, got " f"{self._current_token.text}"
+                f"Expected 'x' in shape delimiter, got {self._current_token.text}"
             )
 
         # Move the lexer to the position after 'x'.
@@ -476,7 +485,10 @@ class AttrParser(BaseParser):
         each dimension is also required to be non-negative.
         """
         dims: list[int] = []
-        while self._current_token.kind in (Token.Kind.INTEGER_LIT, Token.Kind.QUESTION):
+        while self._current_token.kind in (
+            MLIRTokenKind.INTEGER_LIT,
+            MLIRTokenKind.QUESTION,
+        ):
             dim = self.parse_shape_dimension()
             dims.append(dim)
             self.parse_shape_delimiter()
@@ -511,15 +523,15 @@ class AttrParser(BaseParser):
 
     def _parse_memref_attrs(
         self,
-    ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
+    ) -> MemRefType[Attribute] | UnrankedMemRefType[Attribute]:
         shape, type = self.parse_shape()
 
         # Unranked case
         if shape is None:
             if self.parse_optional_punctuation(",") is None:
-                return UnrankedMemrefType.from_type(type)
+                return UnrankedMemRefType.from_type(type)
             memory_space = self.parse_attribute()
-            return UnrankedMemrefType.from_type(type, memory_space)
+            return UnrankedMemRefType.from_type(type, memory_space)
 
         if self.parse_optional_punctuation(",") is None:
             return MemRefType(type, shape)
@@ -530,12 +542,12 @@ class AttrParser(BaseParser):
         # layout is the second one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
-            if not isinstance(memory_or_layout, MemrefLayoutAttr):
+            if not isinstance(memory_or_layout, MemRefLayoutAttr):
                 self.raise_error("Expected a MemRef layout attribute")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # If the argument is a MemrefLayoutAttr, use it as layout
-        if isinstance(memory_or_layout, MemrefLayoutAttr):
+        # If the argument is a MemRefLayoutAttr, use it as layout
+        if isinstance(memory_or_layout, MemRefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
 
         # Otherwise, consider it as the memory space.
@@ -546,7 +558,7 @@ class AttrParser(BaseParser):
         dims: list[int] = []
         num_scalable_dims = 0
         # First, parse the static dimensions
-        while self._current_token.kind == Token.Kind.INTEGER_LIT:
+        while self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
             dims.append(self.parse_shape_dimension(allow_dynamic=False))
             self.parse_shape_delimiter()
 
@@ -622,20 +634,20 @@ class AttrParser(BaseParser):
 
     def _parse_int_or_question(self, context_msg: str = "") -> int | Literal["?"]:
         """Parse either an integer literal, or a '?'."""
-        if self._parse_optional_token(Token.Kind.QUESTION) is not None:
+        if self._parse_optional_token(MLIRTokenKind.QUESTION) is not None:
             return "?"
         if (v := self.parse_optional_integer(allow_boolean=False)) is not None:
             return v
         self.raise_error("Expected an integer literal or `?`" + context_msg)
 
-    def _parse_strided_layout_attr(self, name: Span) -> Attribute:
+    def _parse_strided_layout_attr(self) -> Attribute:
         """
         Parse a strided layout attribute parameters.
         | `<` `[` comma-separated-int-or-question `]`
           (`,` `offset` `:` integer-literal)? `>`
         """
         # Parse stride list
-        self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
+        self._parse_token(MLIRTokenKind.LESS, "Expected `<` after `strided`")
         strides = self.parse_comma_separated_list(
             self.Delimiter.SQUARE,
             lambda: self._parse_int_or_question(" in stride list"),
@@ -648,17 +660,19 @@ class AttrParser(BaseParser):
         strides = [None if stride == "?" else stride for stride in strides]
 
         # Case without offset
-        if self._parse_optional_token(Token.Kind.GREATER) is not None:
+        if self._parse_optional_token(MLIRTokenKind.GREATER) is not None:
             return StridedLayoutAttr(strides)
 
         # Parse the optional offset
         self._parse_token(
-            Token.Kind.COMMA, "Expected end of strided attribute or ',' for offset."
+            MLIRTokenKind.COMMA, "Expected end of strided attribute or ',' for offset."
         )
         self.parse_keyword("offset", " after comma")
-        self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
+        self._parse_token(MLIRTokenKind.COLON, "Expected ':' after 'offset'")
         offset = self._parse_int_or_question(" in stride offset")
-        self._parse_token(Token.Kind.GREATER, "Expected '>' in end of stride attribute")
+        self._parse_token(
+            MLIRTokenKind.GREATER, "Expected '>' in end of stride attribute"
+        )
         return StridedLayoutAttr(strides, None if offset == "?" else offset)
 
     def parse_optional_unit_attr(self) -> Attribute | None:
@@ -666,7 +680,7 @@ class AttrParser(BaseParser):
         Parse a value of `unit` type.
         unit-attribute ::= `unit`
         """
-        if self._current_token.kind != Token.Kind.BARE_IDENT:
+        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
         name = self._current_token.span.text
 
@@ -678,7 +692,7 @@ class AttrParser(BaseParser):
         return None
 
     def _parse_optional_builtin_parametrized_attr(self) -> Attribute | None:
-        if self._current_token.kind != Token.Kind.BARE_IDENT:
+        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
         name = self._current_token.span
         parsers = {
@@ -693,79 +707,8 @@ class AttrParser(BaseParser):
 
         if name.text not in parsers:
             return None
-        self._consume_token(Token.Kind.BARE_IDENT)
-        return parsers[name.text](name)
-
-    def _parse_builtin_dense_attr_hex(
-        self,
-        hex_string: str,
-        type: RankedStructure[AnyDenseElement],
-    ) -> tuple[list[int] | list[float], list[int]]:
-        """
-        Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
-        and its flattened shape, based on the parsed type.
-
-        For instance, a dense<"0x82F5AB0182F5AB00"> attribute will return [28046722, 11269506]
-        for a tensor<2xi32> type.
-
-        Only supports integer types that are multiple of 8, f32 and f64.
-        """
-        element_type = type.element_type
-
-        # Strip off "0x" of hex string
-        stripped_string = hex_string[2:]
-
-        # Convert incoming hex to list of bytes
-        try:
-            byte_list = bytes.fromhex(stripped_string)
-        except ValueError:
-            self.raise_error("Hex string in denseAttr is invalid")
-
-        # Use struct builtin package for unpacking f32, f64
-        format_str: str = ""
-        num_chunks = 0
-        match element_type:
-            case Float32Type():
-                chunk_size = 4
-                num_chunks = len(byte_list) // chunk_size
-                format_str = (
-                    f"@{num_chunks}f"  # @ in format string implies native endianess
-                )
-            case Float64Type():
-                chunk_size = 8
-                num_chunks = len(byte_list) // chunk_size
-                format_str = f"@{num_chunks}d"
-            case IntegerType():
-                if element_type.width.data % 8 != 0:
-                    self.raise_error(
-                        "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
-                    )
-                chunk_size = element_type.width.data // 8
-                num_chunks = len(byte_list) // chunk_size
-            case _:
-                self.raise_error(
-                    "Hex strings for dense literals are only supported for int, f32 and f64 types"
-                )
-
-        data_values: list[int] | list[float] = []
-
-        # Use struct to unpack floats
-        if isattr(element_type, BaseAttr(Float32Type) | BaseAttr(Float64Type)):
-            data_values = list(struct.unpack_from(format_str, byte_list))
-        # Use int for unpacking IntegerType
-        else:
-            for i in range(num_chunks):
-                parsed_int = int.from_bytes(
-                    byte_list[i * chunk_size : (i + 1) * chunk_size],
-                    sys.byteorder,
-                    signed=True,
-                )
-                data_values.append(parsed_int)
-        if len(data_values) == 1:
-            # Splat attribute case, same value everywhere,
-            # Emit values repeatedly and emit empty shape
-            return [data_values[0]] * math.prod(type.get_shape()), []
-        return data_values, [num_chunks]
+        self._consume_token(MLIRTokenKind.BARE_IDENT)
+        return parsers[name.text]()
 
     def _parse_dense_literal_type(
         self,
@@ -834,17 +777,25 @@ class AttrParser(BaseParser):
                 )
             data_values = []
         elif isinstance(dense_contents, str):
-            # Hex-encoded string case
-            # Get values and shape in case of hex_string (requires parsed type)
-            data_values, shape = self._parse_builtin_dense_attr_hex(
-                dense_contents, type
-            )
-            # For splat attributes any shape is fine
-            if shape and type_num_values != shape[0]:
+            # Hex-encoded string case: convert straight to bytes (without the 0x prefix)
+            try:
+                bytes_values = bytes.fromhex(dense_contents[2:])
+            except ValueError:
+                self.raise_error("Hex string in denseAttr is invalid")
+
+            # Handle splat values given in hex
+            if len(bytes_values) == type.element_type.compile_time_size:
+                bytes_values *= type_num_values
+
+            # Create attribute
+            attr = DenseIntOrFPElementsAttr([type, BytesAttr(bytes_values)])
+            if type_num_values != len(attr):
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_num_values} "
-                    f"elements from the type, but got {shape[0]} elements."
+                    f"elements from the type, but got {len(attr)} elements."
                 )
+            return attr
+
         else:
             # Tensor literal case
             dense_values, shape = dense_contents
@@ -866,10 +817,10 @@ class AttrParser(BaseParser):
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
+    def _parse_builtin_dense_attr(self) -> DenseIntOrFPElementsAttr:
         return self.parse_dense_int_or_fp_elements_attr(None)
 
-    def _parse_builtin_opaque_attr(self, _name: Span):
+    def _parse_builtin_opaque_attr(self):
         str_lit_list = self.parse_comma_separated_list(
             self.Delimiter.ANGLE, self.parse_str_literal
         )
@@ -885,7 +836,7 @@ class AttrParser(BaseParser):
 
         return OpaqueAttr.from_strings(*str_lit_list, type=type)
 
-    def _parse_builtin_dense_resource_attr(self, _name: Span) -> DenseResourceAttr:
+    def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
         self.parse_characters("<", " in dense_resource attribute")
         resource_handle = self.parse_identifier(" for resource handle")
         self.parse_characters(">", " in dense_resource attribute")
@@ -893,14 +844,43 @@ class AttrParser(BaseParser):
         type = self.parse_type()
         return DenseResourceAttr.from_params(resource_handle, type)
 
-    def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
+    def _parse_typed_integer(
+        self,
+        type: IntegerType,
+        allow_boolean: bool = True,
+        allow_negative: bool = True,
+        context_msg: str = "",
+    ) -> int:
+        """
+        Parse an (possible negative) integer. The integer can
+        either be decimal or hexadecimal.
+        Optionally allow parsing of 'true' or 'false' into 1 and 0.
+        """
+
+        pos = self.pos
+        res = self.parse_integer(
+            allow_boolean=allow_boolean,
+            allow_negative=allow_negative,
+            context_msg=context_msg,
+        )
+
+        try:
+            type.verify_value(res)
+        except VerifyException as e:
+            self.raise_error(str(e), pos, self.pos)
+
+        return res
+
+    def _parse_builtin_densearray_attr(self) -> DenseArrayBase | None:
         self.parse_characters("<", " in dense array")
+        pos = self.pos
         element_type = self.parse_attribute()
 
         if not isinstance(element_type, IntegerType | AnyFloat):
-            raise ParseError(
-                name,
-                "dense array element type must be an " "integer or floating point type",
+            self.raise_error(
+                "dense array element type must be an integer or floating point type",
+                pos,
+                self.pos,
             )
 
         # Empty array
@@ -909,21 +889,30 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(
-            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
-        )
+        if isinstance(element_type, IntegerType):
+            values = self.parse_comma_separated_list(
+                self.Delimiter.NONE,
+                lambda: self._parse_typed_integer(element_type, allow_boolean=True),
+            )
+            res = DenseArrayBase.create_dense_int(element_type, values)
+        else:
+            values = self.parse_comma_separated_list(
+                self.Delimiter.NONE,
+                lambda: self.parse_float(),
+            )
+            res = DenseArrayBase.create_dense_float(element_type, values)
 
         self.parse_characters(">", " in dense array")
 
-        return DenseArrayBase.from_list(element_type, values)
+        return res
 
-    def _parse_builtin_affine_map(self, _name: Span) -> AffineMapAttr:
+    def _parse_builtin_affine_map(self) -> AffineMapAttr:
         self.parse_characters("<", " in affine_map attribute")
         affine_map = self.parse_affine_map()
         self.parse_characters(">", " in affine_map attribute")
         return AffineMapAttr(affine_map)
 
-    def _parse_builtin_affine_set(self, _name: Span) -> AffineSetAttr:
+    def _parse_builtin_affine_set(self) -> AffineSetAttr:
         self.parse_characters("<", " in affine_set attribute")
         affine_set = self.parse_affine_set()
         self.parse_characters(">", " in affine_set attribute")
@@ -1001,22 +990,22 @@ class AttrParser(BaseParser):
         """
         # boolean case
         if self._current_token.text == "true":
-            token = self._consume_token(Token.Kind.BARE_IDENT)
+            token = self._consume_token(MLIRTokenKind.BARE_IDENT)
             return self._TensorLiteralElement(False, True, token.span)
         if self._current_token.text == "false":
-            token = self._consume_token(Token.Kind.BARE_IDENT)
+            token = self._consume_token(MLIRTokenKind.BARE_IDENT)
             return self._TensorLiteralElement(False, False, token.span)
 
         # checking for negation
-        minus_token = self._parse_optional_token(Token.Kind.MINUS)
+        minus_token = self._parse_optional_token(MLIRTokenKind.MINUS)
 
         # Integer and float case
-        if self._current_token.kind == Token.Kind.FLOAT_LIT:
-            token = self._consume_token(Token.Kind.FLOAT_LIT)
-            value = token.get_float_value()
-        elif self._current_token.kind == Token.Kind.INTEGER_LIT:
-            token = self._consume_token(Token.Kind.INTEGER_LIT)
-            value = token.get_int_value()
+        if self._current_token.kind == MLIRTokenKind.FLOAT_LIT:
+            token = self._consume_token(MLIRTokenKind.FLOAT_LIT)
+            value = token.kind.get_float_value(token.span)
+        elif self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
+            token = self._consume_token(MLIRTokenKind.INTEGER_LIT)
+            value = token.kind.get_int_value(token.span)
         else:
             self.raise_error("Expected either a float, integer, or complex literal")
 
@@ -1083,7 +1072,7 @@ class AttrParser(BaseParser):
         Parse an @-identifier if present, and return its name (without the '@') in a
         string attribute.
         """
-        if (token := self._parse_optional_token(Token.Kind.AT_IDENT)) is None:
+        if (token := self._parse_optional_token(MLIRTokenKind.AT_IDENT)) is None:
             return None
 
         assert len(token.text) > 1, "token should be at least 2 characters long"
@@ -1117,11 +1106,11 @@ class AttrParser(BaseParser):
 
         # Parse nested symbols
         refs: list[StringAttr] = []
-        while self._current_token.kind == Token.Kind.COLON:
+        while self._current_token.kind == MLIRTokenKind.COLON:
             # Parse `::`. As in MLIR, this require to backtrack if a single `:` is given.
             pos = self._current_token.span.start
-            self._consume_token(Token.Kind.COLON)
-            if self._parse_optional_token(Token.Kind.COLON) is None:
+            self._consume_token(MLIRTokenKind.COLON)
+            if self._parse_optional_token(MLIRTokenKind.COLON) is None:
                 self._resume_from(pos)
                 break
 
@@ -1147,7 +1136,7 @@ class AttrParser(BaseParser):
 
     def parse_optional_builtin_int_or_float_attr(
         self,
-    ) -> AnyIntegerAttr | AnyFloatAttr | None:
+    ) -> IntegerAttr | FloatAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
@@ -1159,7 +1148,7 @@ class AttrParser(BaseParser):
             return None
 
         # If no types are given, we take the default ones
-        if self._current_token.kind != Token.Kind.COLON:
+        if self._current_token.kind != MLIRTokenKind.COLON:
             if isinstance(value, float):
                 return FloatAttr(value, Float64Type())
             return IntegerAttr(value, i64)
@@ -1211,9 +1200,11 @@ class AttrParser(BaseParser):
         Parse a string attribute, if present.
           string-attr ::= string-literal
         """
-        token = self._parse_optional_token(Token.Kind.STRING_LIT)
+        token = self._parse_optional_token(MLIRTokenKind.STRING_LIT)
         return (
-            StringAttr(token.get_string_literal_value()) if token is not None else None
+            StringAttr(token.kind.get_string_literal_value(token.span))
+            if token is not None
+            else None
         )
 
     def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
@@ -1245,7 +1236,7 @@ class AttrParser(BaseParser):
             function-type ::= type-list `->` (type | type-list)
             type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
-        if self._current_token.kind != Token.Kind.L_PAREN:
+        if self._current_token.kind != MLIRTokenKind.L_PAREN:
             return None
 
         # Parse the arguments
@@ -1277,7 +1268,7 @@ class AttrParser(BaseParser):
         `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
         `attribute-entry` := (bare-id | string-literal) `=` attribute
         """
-        if self._current_token.kind != Token.Kind.L_BRACE:
+        if self._current_token.kind != MLIRTokenKind.L_BRACE:
             return None
         param = DictionaryAttr.parse_parameter(self)
         return DictionaryAttr(param)
@@ -1302,7 +1293,7 @@ class AttrParser(BaseParser):
           integer-type          ::= (`i` | `si` | `ui`) decimal-literal
           float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
         """
-        if self._current_token.kind != Token.Kind.BARE_IDENT:
+        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
         name = self._current_token.text
 

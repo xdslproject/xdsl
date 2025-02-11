@@ -1,8 +1,7 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
-from xdsl.dialects import arith, func, scf
+from xdsl.dialects import arith, func, math, scf
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
-from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
 from xdsl.ir import Block, SSAValue
 from xdsl.passes import ModulePass

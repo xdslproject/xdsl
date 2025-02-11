@@ -3,10 +3,23 @@ from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects.arith import AddiOp, ConstantOp
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    i32,
+    i64,
+)
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.ir import Block, Region
-from xdsl.traits import CallableOpInterface
+from xdsl.irdl import (
+    IRDLOperation,
+    attr_def,
+    irdl_op_definition,
+    traits_def,
+)
+from xdsl.traits import CallableOpInterface, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -200,14 +213,14 @@ def test_call():
 
     expected = """
 "builtin.module"() ({
-  "func.func"() <{"sym_name" = "func0", "function_type" = (i32, i32) -> i32}> ({
+  "func.func"() <{sym_name = "func0", function_type = (i32, i32) -> i32}> ({
   ^0(%0 : i32, %1 : i32):
-    %2 = "arith.addi"(%0, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+    %2 = "arith.addi"(%0, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) : () -> ()
-  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %2 = "func.call"(%0, %1) <{"callee" = @func0}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+  %1 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %2 = "func.call"(%0, %1) <{callee = @func0}> : (i32, i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 2
@@ -246,19 +259,43 @@ def test_call_II():
 
     expected = """
 "builtin.module"() ({
-  "func.func"() <{"sym_name" = "func1", "function_type" = (i32) -> i32}> ({
+  "func.func"() <{sym_name = "func1", function_type = (i32) -> i32}> ({
   ^0(%0 : i32):
-    %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+    %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
   }) : () -> ()
-  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %1 = "func.call"(%0) <{"callee" = @func1}> : (i32) -> i32
+  %0 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+  %1 = "func.call"(%0) <{callee = @func1}> : (i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 1
     assert len(func0.operands) == 0
 
     assert_print_op(mod, expected, None)
+
+
+def test_call_III():
+    """Call a symbol that is not func.func"""
+
+    @irdl_op_definition
+    class SymbolOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = attr_def(StringAttr)
+
+        traits = traits_def(SymbolOpInterface())
+
+        def __init__(self, name: str):
+            return super().__init__(attributes={"sym_name": StringAttr(name)})
+
+    symop = SymbolOp("foo")
+    call0 = CallOp("foo", [], [])
+    mod = ModuleOp([symop, call0])
+
+    with pytest.raises(
+        VerifyException, match="'@foo' does not reference a valid function"
+    ):
+        mod.verify()
 
 
 def test_return():

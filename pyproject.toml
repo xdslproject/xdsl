@@ -15,7 +15,6 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-    "pip<25.0",
     "toml<0.11",
     "pytest-cov",
     "coverage<8.0.0",
@@ -24,20 +23,23 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.9.26",
-    "pre-commit==4.0.1",
-    "ruff==0.8.0",
-    "asv<0.7",
+    "marimo==0.11.2",
+    "pre-commit==4.1.0",
+    "ruff==0.9.6",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==0.24.0",
-    "pyright==1.1.389",
+    "pytest-asyncio==0.25.3",
+    "pyright==1.1.393",
 ]
-gui = ["textual==0.87.1", "pyclip==0.7"]
-jax = ["jax==0.4.35", "numpy==2.1.3"]
-onnx = ["onnx==1.17.0", "numpy==2.1.3"]
+docs = [
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-material>=9.5.49",
+    "mkdocs>=1.6.1",
+    "mkdocstrings[python]>=0.27.0",
+]
+gui = ["textual==1.0.0", "pyclip==0.7"]
+jax = ["jax==0.5.0", "numpy==2.2.2"]
 riscv = ["riscemu==2.2.7"]
-wgpu = ["wgpu==0.19.2"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -56,6 +58,9 @@ xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
 
+[tool.setuptools.packages]
+find = {}
+
 [tool.setuptools.package-data]
 xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
 
@@ -67,17 +72,14 @@ build-backend = "setuptools.build_meta"
 reportImportCycles = false
 reportMissingModuleSource = false
 enableTypeIgnoreComments = false
+enableExperimentalFeatures = true
 typeCheckingMode = "strict"
-"include" = ["docs", "xdsl", "tests", "bench"]
+extraPaths = ["tests"]
+"include" = ["docs", "xdsl", "tests"]
 "exclude" = [
     "tests/dialects/test_memref.py",
-    "tests/frontend/onnx/test_build_ir.py",
-    "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "xdsl/frontend/onnx/ir_builder.py",
-    "xdsl/frontend/onnx/type.py",
-    "xdsl/interpreters/wgpu.py",
 ]
 "ignore" = [
     "docs/marimo",
@@ -106,7 +108,7 @@ ignore = [
 # TODO: remove this setting and go to default line length of 88
 # Removing this line length results in a large number of errors for doc strings, ideally
 # these should be ignored separately.
-max-line-length = 300
+max-line-length = 130
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
@@ -121,14 +123,15 @@ max-line-length = 300
 "xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
 "xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
+"xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
+"xdsl.parser.generic_parser".msg = "Use xdsl.parser instead."
 
 
 [tool.ruff.lint.per-file-ignores]
 "versioneer.py" = ["ALL"]
 "tests/test_declarative_assembly_format.py" = ["F811"]
-"tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
-"tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
+"**/filecheck/*" = ["F811", "F841", "E501"]
 "docs/xdsl-introduction.ipynb" = ["ALL"]
 "docs/tutorial.ipynb" = ["ALL"]
 "docs/Toy/Toy_Ch3.ipynb" = ["E402"]
@@ -138,14 +141,21 @@ max-line-length = 300
 "docs/irdl.ipynb" = ["ALL"]
 "docs/database_example.ipynb" = ["ALL"]
 "**/{docs/marimo}/*" = ["E501", "I001"]
+"**/__marimo__/*" = ["ALL"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
+"tests/*" = ["E501"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.ruff.format]
-exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
+exclude = [
+    "versioneer.py",
+    "xdsl/_version.py",
+    "docs/marimo/**/*.py",
+    "docs/marimo/**/*.ipynb",
+]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]

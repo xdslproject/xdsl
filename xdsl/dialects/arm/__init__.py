@@ -5,27 +5,27 @@ https://developer.arm.com/documentation/102374/0101/Overview
 
 from typing import IO
 
+from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Dialect
 
-from .ops import ARMOperation, DSMovOp, DSSMulOp, GetRegisterOp
+from .ops import CmpRegOp, DSMovOp, DSSMulOp, GetRegisterOp, LabelOp
 from .register import IntRegisterType
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
-    for op in module.body.walk():
-        assert isinstance(op, ARMOperation), f"{op}"
-        asm = op.assembly_line()
-        if asm is not None:
-            print(asm, file=output)
+    printer = AssemblyPrinter(stream=output)
+    printer.print_module(module)
 
 
 ARM = Dialect(
     "arm",
     [
         GetRegisterOp,
+        CmpRegOp,
         DSMovOp,
         DSSMulOp,
+        LabelOp,
     ],
     [
         IntRegisterType,

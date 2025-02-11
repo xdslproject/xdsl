@@ -7,10 +7,29 @@ builtin.module {
 // CHECK: Varargs specifier `...` must be at the end of the argument definition
 
 // -----
-// CHECK: -----
 
 builtin.module {
     %cc = "test.op"() {"cconv" = #llvm.cconv<invalid>} : () -> ()
 }
 
 // CHECK: Unknown calling convention
+
+// -----
+
+func.func public @main() {
+  %0 = "test.op"() : () -> (!llvm.struct<(i32)>)
+  %1 = "llvm.extractvalue"(%0) {"position" = array<i32: 0>} : (!llvm.struct<(i32)>) -> i32
+  func.return
+}
+
+// CHECK: Expected attribute i64 but got i32
+
+// -----
+
+func.func public @main() {
+  %0, %1 = "test.op"() : () -> (!llvm.struct<(i32)>, i32)
+  %2 = "llvm.insertvalue"(%0, %1) {"position" = array<i32: 0>} : (!llvm.struct<(i32)>, i32) -> !llvm.struct<(i32)>
+  func.return
+}
+
+// CHECK: Expected attribute i64 but got i32

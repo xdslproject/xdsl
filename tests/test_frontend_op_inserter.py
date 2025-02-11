@@ -3,8 +3,8 @@ import pytest
 from xdsl.dialects.affine import ForOp
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import i32
-from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.op_inserter import OpInserter
+from xdsl.frontend.pyast.op_inserter import OpInserter
+from xdsl.frontend.pyast.program import FrontendProgramException
 from xdsl.ir import Block, Region
 
 
@@ -43,7 +43,7 @@ def test_raises_exception_on_op_with_no_blocks_II():
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_region(empty_region)
     assert err.value.msg == (
-        "Trying to set the insertion point from the region without" " blocks."
+        "Trying to set the insertion point from the region without blocks."
     )
 
 

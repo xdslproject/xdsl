@@ -26,7 +26,7 @@ builtin.module {
   }
 
    // CHECK: riscv_func.func @call_void_attributes() {
-   // CHECK-NEXT:   riscv_func.call @call_void_attributes() {"hello" = "world"} : () -> ()
+   // CHECK-NEXT:   riscv_func.call @call_void_attributes() {hello = "world"} : () -> ()
    // CHECK-NEXT:   riscv_func.return
    // CHECK-NEXT: }
 

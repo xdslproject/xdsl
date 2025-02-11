@@ -63,7 +63,7 @@ class ConvertYieldOpPattern(RewritePattern):
         rewriter.replace_matched_op(memref_stream.YieldOp(*op.operands))
 
 
-class ConvertLinalgToMemrefStreamPass(ModulePass):
+class ConvertLinalgToMemRefStreamPass(ModulePass):
     name = "convert-linalg-to-memref-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:

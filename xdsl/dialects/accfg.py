@@ -5,7 +5,6 @@ from enum import Enum
 from typing import cast
 
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     ArrayAttr,
     DictionaryAttr,
     IntegerAttr,
@@ -328,9 +327,9 @@ class SetupOp(IRDLOperation):
             val = parser.parse_operand(f'expected value for field "{name}"')
             parser.parse_punctuation(":")
             typ = parser.parse_type()
-            assert (
-                val.type == typ
-            ), f"ssa value type mismatch! Expected {typ}, got {val.type}"
+            assert val.type == typ, (
+                f"ssa value type mismatch! Expected {typ}, got {val.type}"
+            )
             return name, val
 
         args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(
@@ -422,16 +421,16 @@ class AcceleratorOp(IRDLOperation):
     def field_names(self) -> tuple[str, ...]:
         return tuple(self.fields.data.keys())
 
-    def field_items(self) -> Iterable[tuple[str, AnyIntegerAttr]]:
+    def field_items(self) -> Iterable[tuple[str, IntegerAttr]]:
         for name, val in self.fields.data.items():
-            yield name, cast(AnyIntegerAttr, val)
+            yield name, cast(IntegerAttr, val)
 
     def launch_field_names(self) -> tuple[str, ...]:
         return tuple(self.launch_fields.data.keys())
 
-    def launch_field_items(self) -> Iterable[tuple[str, AnyIntegerAttr]]:
+    def launch_field_items(self) -> Iterable[tuple[str, IntegerAttr]]:
         for name, val in self.launch_fields.data.items():
-            yield name, cast(AnyIntegerAttr, val)
+            yield name, cast(IntegerAttr, val)
 
 
 @irdl_op_definition

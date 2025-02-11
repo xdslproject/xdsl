@@ -22,7 +22,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {"llvm.n
 
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {"llvm.noalias"}, %Y : memref<1x1x8x8xf64> {"llvm.noalias"}) -> memref<1x1x8x8xf64> {
+// CHECK-NEXT:    func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {llvm.noalias}, %Y : memref<1x1x8x8xf64> {llvm.noalias}) -> memref<1x1x8x8xf64> {
 // CHECK-NEXT:      %cst = arith.constant -1.000000e+04 : f64
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index
@@ -81,7 +81,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {"llvm.n
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {"llvm.noalias"}, %Y : memref<1x2x8x8xf64> {"llvm.noalias"}) -> memref<1x2x8x8xf64> {
+// CHECK-NEXT:    func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {llvm.noalias}, %Y : memref<1x2x8x8xf64> {llvm.noalias}) -> memref<1x2x8x8xf64> {
 // CHECK-NEXT:      %cst = arith.constant -1.000000e+04 : f64
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index

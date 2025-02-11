@@ -28,9 +28,9 @@ func.func @test_const_const() {
 
     // CHECK-LABEL: @test_const_const
     // CHECK-NEXT:   %0 = arith.constant 6.139400e+00 : f32
-    // CHECK-NEXT:   %1 = arith.constant -0.14360000000000017 : f32
-    // CHECK-NEXT:   %2 = arith.constant 9.41790285 : f32
-    // CHECK-NEXT:   %3 = arith.constant 0.9542893522202769 : f32
+    // CHECK-NEXT:   %1 = arith.constant -0.143599987 : f32
+    // CHECK-NEXT:   %2 = arith.constant 9.41790295 : f32
+    // CHECK-NEXT:   %3 = arith.constant 0.954289377 : f32
     // CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (f32, f32, f32, f32) -> ()
 }
 
@@ -57,7 +57,7 @@ func.func @test_const_var_const() {
     // CHECK-NEXT:   %b = arith.constant 3.141500e+00 : f32
     // CHECK-NEXT:   %2 = arith.mulf %0, %a : f32
     // CHECK-NEXT:   %3 = arith.mulf %2, %b : f32
-    // CHECK-NEXT:   %4 = arith.constant 21.29352225 : f32
+    // CHECK-NEXT:   %4 = arith.constant 21.2935219 : f32
     // CHECK-NEXT:   %5 = arith.mulf %4, %0 fastmath<fast> : f32
     // CHECK-NEXT:   "test.op"(%3, %5) : (f32, f32) -> ()
 }
@@ -90,3 +90,72 @@ func.func @test_const_var_const() {
 %z = arith.select %x, %y, %y : i64
 
 "test.op"(%z) : (i64) -> ()
+
+%c1 = arith.constant 1 : i32
+%c2 = arith.constant 2 : i32
+%a = "test.op"() : () -> (i32)
+
+%one_times = arith.muli %c1, %a : i32
+%times_one = arith.muli %a, %c1 : i32
+
+// CHECK: "test.op"(%a, %a) {"identity multiplication check"} : (i32, i32) -> ()
+"test.op"(%one_times, %times_one) {"identity multiplication check"} : (i32, i32) -> ()
+
+// CHECK: %times_by_const = arith.muli %a, %c2 : i32
+%times_by_const = arith.muli %c2, %a : i32
+"test.op"(%times_by_const) : (i32) -> ()
+
+// CHECK: %foldable_times = arith.constant 4 : i32
+%foldable_times = arith.muli %c2, %c2 : i32
+"test.op"(%foldable_times) : (i32) -> ()
+
+%c0 = arith.constant 0 : i32
+
+%zero_plus = arith.addi %c0, %a : i32
+%plus_zero = arith.addi %a, %c0 : i32
+
+// CHECK: "test.op"(%a, %a) {"identity addition check"} : (i32, i32) -> ()
+"test.op"(%zero_plus, %plus_zero) {"identity addition check"} : (i32, i32) -> ()
+
+// CHECK: %plus_const = arith.addi %a, %c2 : i32
+%plus_const = arith.addi %c2, %a : i32
+"test.op"(%plus_const) : (i32) -> ()
+
+// CHECK: %foldable_plus = arith.constant 4 : i32
+%foldable_plus = arith.addi %c2, %c2 : i32
+"test.op"(%foldable_plus) : (i32) -> ()
+
+// CHECK: %int = "test.op"() : () -> i32
+%int = "test.op"() : () -> i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%0 = arith.cmpi eq, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%1 = arith.cmpi ne, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%2 = arith.cmpi slt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%3 = arith.cmpi sle, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%4 = arith.cmpi sgt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%5 = arith.cmpi sge, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%6 = arith.cmpi ult, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%7 = arith.cmpi ule, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant false
+%8 = arith.cmpi ugt, %int, %int : i32
+// CHECK-NEXT: %{{.*}} = arith.constant true
+%9 = arith.cmpi uge, %int, %int : i32
+
+"test.op"(%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %int) : (i1, i1, i1, i1, i1, i1, i1, i1, i1, i1, i32) -> ()
+
+// Subtraction is not commutative so should not have the constant swapped to the right
+// CHECK: arith.subi %c2, %a : i32
+%10 = arith.subi %c2, %a : i32
+"test.op"(%10) : (i32) -> ()
+
+// CHECK: %{{.*}} = arith.constant false
+%11 = arith.constant true
+%12 = arith.addi %11, %11 : i1
+"test.op"(%12) : (i1) -> ()

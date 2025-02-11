@@ -29,8 +29,10 @@ from xdsl.dialects.builtin import (
     i1,
 )
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
+from xdsl.utils.comparisons import to_unsigned
 from xdsl.utils.hints import isa
 
 _CSL_KW_SET = {
@@ -235,8 +237,9 @@ class CslPrintContext:
         if id is None:
             return
         with self.descend("comptime") as inner:
+            unsigned_id = to_unsigned(id.value.data, id.type.width.data)
             inner.print(
-                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrap_task_id(kind, id.value.data)}));"
+                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrap_task_id(kind, unsigned_id)}));"
             )
 
     def _memref_global_init(self, init: Attribute, type: str) -> str:
@@ -248,10 +251,10 @@ class CslPrintContext:
             case UnitAttr():
                 return ""
             case DenseIntOrFPElementsAttr():
-                data = init.data.data
-                assert (
-                    len(data) == 1
-                ), f"Memref global initialiser has to have 1 value, got {len(data)}"
+                data = init.get_attrs()
+                assert len(data) == 1, (
+                    f"MemRef global initialiser has to have 1 value, got {len(data)}"
+                )
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:
                 return f"<unknown memref.global init type {other}>"
@@ -341,9 +344,9 @@ class CslPrintContext:
         """
         type = val.type
         assert isa(type, MemRefType[Attribute])
-        assert isinstance(
-            val, OpResult
-        ), "The value provided to _memref_type_to_string must be an op result"
+        assert isinstance(val, OpResult), (
+            "The value provided to _memref_type_to_string must be an op result"
+        )
         dims: list[str] = []
         idx = 0
         for dim in type.get_shape():
@@ -449,8 +452,8 @@ class CslPrintContext:
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
-            case DenseIntOrFPElementsAttr(data=ArrayAttr(data=data), type=typ):
-                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(d) for d in data)} }}"
+            case DenseIntOrFPElementsAttr(type=typ):
+                return f"{self.mlir_type_to_csl_type(typ)} {{ {', '.join(self.attribute_value_to_str(a) for a in attr.iter_attrs())} }}"  # noqa: E501
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -713,7 +716,7 @@ class CslPrintContext:
                     if init is None:
                         init = ""
                     else:
-                        init = f" = { self._get_variable_name_for(init)}"
+                        init = f" = {self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.variables[res] = name.data
                     self.print(f"param {name.data} : {ty}{init};")
@@ -753,36 +756,22 @@ class CslPrintContext:
                         inner.print(f"@rpc(@get_data_task_id({id}));")
                 case csl.GetMemDsdOp(
                     base_addr=base_addr,
-                    offsets=offsets,
-                    strides=strides,
+                    tensor_access=tensor_access,
                     sizes=sizes,
                     result=result,
                 ):
                     sizes_str = ", ".join(
                         self._get_variable_name_for(size) for size in sizes
                     )
+                    t_accesses = (
+                        tensor_access.data
+                        if tensor_access
+                        else AffineMap.identity(len(sizes))
+                    )
+
                     ind_vars = ["d" + str(i) for i in range(len(sizes))]
                     ind_vars_str = ", ".join(ind_vars)
-                    accesses = [
-                        (
-                            f"{str(s)} * "
-                            if strides and (s := strides.data[i].value.data) != 1
-                            else ""
-                        )
-                        + ind_vars[i]
-                        + (f" + {str(offsets.data[i].value.data)}" if offsets else "")
-                        for i in range(len(ind_vars))
-                    ]
-                    if strides and 0 in (
-                        strides_data := [s.value.data for s in strides.data]
-                    ):
-                        non_zero_stride_idx = [
-                            idx for idx, sd in enumerate(strides_data) if sd != 0
-                        ]
-                        # if all except one strides are 0, print only the non-0 part (default to printing all dims)
-                        if len(non_zero_stride_idx) == 1:
-                            accesses = [accesses[non_zero_stride_idx[0]]]
-                    accesses_str = ", ".join(accesses)
+                    accesses_str = ", ".join(str(expr) for expr in t_accesses.results)
                     self.print(
                         f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)}, .{{"
                     )
@@ -811,30 +800,30 @@ class CslPrintContext:
                         f"  .{q_type}_queue = @get_{q_type}_queue({queue_id.value.data}),"
                     )
                     self.print(f"  .fabric_color = {fabric_color},")
-                    if wavelet_index_offset:
+                    if wavelet_index_offset is not None:
                         self.print(f"  .wavelet_index_offset = {wavelet_index_offset},")
-                    if control:
+                    if control is not None:
                         self.print(f"  .control = {control},")
                     self.print("}});")
                 case csl.SetDsdBaseAddrOp(
                     op=input_dsd, base_addr=base_addr, result=result
                 ):
                     self.print(
-                        f"{self._var_use(result)} = @set_dsd_base_addr({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(base_addr)});"
+                        f"{self._var_use(result)} = @set_dsd_base_addr({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(base_addr)});"  # noqa: E501
                     )
                 case csl.IncrementDsdOffsetOp(
                     op=input_dsd, offset=offset, elem_type=elem_type, result=result
                 ):
                     self.print(
-                        f"{self._var_use(result)} = @increment_dsd_offset({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(offset)}, {self.mlir_type_to_csl_type(elem_type)});"
+                        f"{self._var_use(result)} = @increment_dsd_offset({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(offset)}, {self.mlir_type_to_csl_type(elem_type)});"  # noqa: E501
                     )
                 case csl.SetDsdLengthOp(op=input_dsd, length=length, result=result):
                     self.print(
-                        f"{self._var_use(result)} = @set_dsd_length({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(length)});"
+                        f"{self._var_use(result)} = @set_dsd_length({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(length)});"  # noqa: E501
                     )
                 case csl.SetDsdStrideOp(op=input_dsd, stride=stride, result=result):
                     self.print(
-                        f"{self._var_use(result)} = @set_dsd_stride({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(stride)});"
+                        f"{self._var_use(result)} = @set_dsd_stride({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(stride)});"  # noqa: E501
                     )
                 case csl.BuiltinDsdOp(ops=ops):
                     self.print(

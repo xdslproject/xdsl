@@ -21,23 +21,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip' # caching pip dependencies
-        cache-dependency-path: |
-          setup.py
-          requirements.txt
-    - name: Upgrade pip
-      run: |
-        pip install --upgrade pip
-    - name: Install the package locally
-      run: pip install -r requirements.txt
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install the project
+      run: make venv
+
     - name: Run examples/tutorials
       run: |
         # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
-        pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
+        uv run pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --ignore-glob=**/__marimo__/*.ipynb
+
     - name: Test marimo notebooks
       run: |
         make tests-marimo

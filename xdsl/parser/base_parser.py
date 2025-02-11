@@ -3,303 +3,30 @@ This file contains the definition of `BaseParser`, a recursive descent parser
 that is inherited from the different parsers used in xDSL.
 """
 
-from collections.abc import Callable, Iterable
-from contextlib import contextmanager
 from dataclasses import dataclass
-from enum import Enum
-from typing import NoReturn, TypeVar, overload
+from typing import TypeVar
 
-from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import (
-    Lexer,
-    Position,
-    PunctuationSpelling,
-    Span,
-    StringLiteral,
-    Token,
-)
+from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling, StringLiteral
 from xdsl.utils.str_enum import StrEnum
 
-
-@dataclass(init=False)
-class ParserState:
-    """
-    The parser state. It contains the lexer, and the next token to parse.
-    The parser state should be shared between all parsers, so parsers can
-    share the same position.
-    """
-
-    lexer: Lexer
-    current_token: Token
-    dialect_stack: list[str]
-
-    def __init__(self, lexer: Lexer, dialect_stack: list[str] | None = None):
-        if dialect_stack is None:
-            dialect_stack = ["builtin"]
-        self.lexer = lexer
-        self.current_token = lexer.lex()
-        self.dialect_stack = dialect_stack
-
+from .generic_parser import GenericParser  # noqa: TID251
 
 _AnyInvT = TypeVar("_AnyInvT")
 _EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 
 @dataclass
-class BaseParser:
-    """
-    Basic recursive descent parser. It contains parsing methods that are shared
-    between the different parsers.
-
-    Methods named `parse_*` will consume tokens, and throw a `ParseError` if
-    an unexpected token is parsed. Methods marked with `parse_optional` will return
-    None if the first token is unexpected, and will throw a `ParseError` if the
-    first token is expected, but a following token is not.
-
-    Methods with a `context_msg` argument allows to append the context message to the
-    thrown error. For instance, if `',' expected` is returned, setting `context_msg` to
-    `" in integer list"` will throw the error `',' expected in integer list` instead.
-    """
-
-    _parser_state: ParserState
-
-    @overload
-    def raise_error(
-        self,
-        msg: str,
-        at_position: Position,
-        end_position: Position,
-    ) -> NoReturn: ...
-
-    @overload
-    def raise_error(
-        self,
-        msg: str,
-        at_position: Position | Span | None = None,
-    ) -> NoReturn: ...
-
-    @contextmanager
-    def in_angle_brackets(self):
-        self.parse_punctuation("<")
-        try:
-            yield
-        finally:
-            self.parse_punctuation(">")
-
-    def raise_error(
-        self,
-        msg: str,
-        at_position: Span | Position | None = None,
-        end_position: Position | None = None,
-    ) -> NoReturn:
-        """
-        Raise a parsing exception at a specific location.
-        If no location is provided, the current parser state location is used.
-        """
-        if end_position is not None:
-            assert isinstance(at_position, Position)
-            at_position = Span(at_position, end_position, self.lexer.input)
-        if at_position is None:
-            at_position = self._current_token.span
-        elif isinstance(at_position, Position):
-            at_position = Span(at_position, at_position, self.lexer.input)
-
-        raise ParseError(at_position, msg)
-
-    def _resume_from(self, pos: Position | ParserState):
-        """Resume parsing from a given position."""
-        if isinstance(pos, Position):
-            self.lexer.pos = pos
-            self._parser_state.current_token = self.lexer.lex()
-        else:
-            self._parser_state = pos
-
-    @property
-    def _current_token(self) -> Token:
-        """Get the token that is currently being parsed. Do not consume the token."""
-        return self._parser_state.current_token
-
-    @property
-    def lexer(self) -> Lexer:
-        """The lexer used to parse the current input."""
-        return self._parser_state.lexer
-
-    @property
-    def pos(self) -> Position:
-        """
-        Get the starting position of the next token.
-        This skips the whitespaces.
-        """
-        return self._current_token.span.start
-
-    def _consume_token(self, expected_kind: Token.Kind | None = None) -> Token:
-        """
-        Advance the lexer to the next token.
-        Additionally check that the current token was of a specific kind,
-        and assert if it was not.
-        For reporting errors if the token was not of the expected kind,
-        use `_parse_token` instead.
-        """
-        consumed_token = self._current_token
-        if expected_kind is not None:
-            assert consumed_token.kind == expected_kind, "Consumed an unexpected token!"
-        self._parser_state.current_token = self.lexer.lex()
-        return consumed_token
-
-    def _parse_optional_token(self, expected_kind: Token.Kind) -> Token | None:
-        """
-        If the current token is of the expected kind, consume it and return it.
-        Otherwise, return None.
-        """
-        if self._current_token.kind == expected_kind:
-            current_token = self._current_token
-            self._consume_token(expected_kind)
-            return current_token
-        return None
-
-    def _parse_token(self, expected_kind: Token.Kind, error_msg: str) -> Token:
-        """
-        Parse a specific token, and raise an error if it is not present.
-        Returns the token that was parsed.
-        """
-        if self._current_token.kind != expected_kind:
-            self.raise_error(error_msg, self._current_token.span)
-        current_token = self._current_token
-        self._consume_token(expected_kind)
-        return current_token
-
-    def _parse_optional_token_in(
-        self, expected_kinds: Iterable[Token.Kind]
-    ) -> Token | None:
-        """Parse one of the expected tokens if present, and returns it."""
-        if self._current_token.kind not in expected_kinds:
-            return None
-        return self._consume_token()
-
-    def expect(
-        self, try_parse: Callable[[], _AnyInvT | None], error_message: str
-    ) -> _AnyInvT:
-        """
-        This method is used to convert a `parse_optional_*` to a `parse_*`.
-        It will run the parsing function, and raise an error if `None` was returned.
-        """
-        res = try_parse()
-        if res is None:
-            self.raise_error(error_message)
-        return res
-
-    class Delimiter(Enum):
-        """
-        Supported delimiters when parsing lists.
-        """
-
-        PAREN = ("(", ")")
-        ANGLE = ("<", ">")
-        SQUARE = ("[", "]")
-        BRACES = ("{", "}")
-        NONE = None
-
-    def parse_comma_separated_list(
-        self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
-    ) -> list[_AnyInvT]:
-        """
-        Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter. The parsing stops when the delimiter is
-        closed, or when an error is produced. If no delimiter is specified, at
-        least one element is expected to be parsed.
-        """
-        # Parse the opening bracket, and possibly the closing bracket, if a delimiter
-        # was provided
-        match delimiter.value:
-            case None:
-                pass
-            case (left_punctuation, right_punctuation):
-                self.parse_punctuation(left_punctuation, context_msg)
-                if self.parse_optional_punctuation(right_punctuation) is not None:
-                    return []
-
-        # Parse the list of elements
-        elems = [parse()]
-        while self._parse_optional_token(Token.Kind.COMMA) is not None:
-            elems.append(parse())
-
-        # Parse the closing bracket, if a delimiter was provided
-        match delimiter.value:
-            case None:
-                pass
-            case (_, right_punctuation):
-                self.parse_punctuation(right_punctuation, context_msg)
-
-        return elems
-
-    def parse_optional_comma_separated_list(
-        self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
-    ) -> list[_AnyInvT] | None:
-        """
-        Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter. If no opening delimiter was found, return None.
-        The parsing stops when the delimiter is closed, or when an error is produced.
-        The NONE delimiter is not allowed by this method, use
-        `parse_optional_undelimited_comma_separated_list` instead.
-        """
-
-        if delimiter == self.Delimiter.NONE:
-            raise ValueError(
-                "Cannot use `Delimiter.NONE` with "
-                "`parse_optional_comma_separated_list`. Use "
-                "`parse_optional_undelimited_comma_separated_list` instead."
-            )
-
-        # Parse the opening bracket, and possibly the closing bracket
-        left_punctuation, right_punctuation = delimiter.value
-        if self.parse_optional_punctuation(left_punctuation) is None:
-            return None
-        if self.parse_optional_punctuation(right_punctuation) is not None:
-            return []
-
-        # Parse the list of elements
-        elems = [parse()]
-        while self._parse_optional_token(Token.Kind.COMMA) is not None:
-            elems.append(parse())
-
-        # Parse the closing bracket
-        self.parse_punctuation(right_punctuation, context_msg)
-
-        return elems
-
-    def parse_optional_undelimited_comma_separated_list(
-        self,
-        parse_optional: Callable[[], _AnyInvT | None],
-        parse: Callable[[], _AnyInvT],
-    ) -> list[_AnyInvT] | None:
-        """
-        Parses greedily a list of elements separated by commas, if a first element is
-        present. The first element is parsed with `parse_optional`, and the remaining
-        are parsed with `parse`. The parsing stops either if the first element is not
-        present, or if no comma is present after parsing an element.
-        """
-        # Parse the first element, if it exist
-        first_elem = parse_optional()
-        if first_elem is None:
-            return None
-
-        # Parse the remaining elements
-        elems = [first_elem]
-        while self._parse_optional_token(Token.Kind.COMMA) is not None:
-            elems.append(parse())
-
-        return elems
-
+class BaseParser(GenericParser[MLIRTokenKind]):
     def parse_optional_boolean(self) -> bool | None:
         """
         Parse a boolean, if present, with the format `true` or `false`.
         """
-        if self._current_token.kind == Token.Kind.BARE_IDENT:
+        if self._current_token.kind == MLIRTokenKind.BARE_IDENT:
             if self._current_token.text == "true":
-                self._consume_token(Token.Kind.BARE_IDENT)
+                self._consume_token(MLIRTokenKind.BARE_IDENT)
                 return True
             elif self._current_token.text == "false":
-                self._consume_token(Token.Kind.BARE_IDENT)
+                self._consume_token(MLIRTokenKind.BARE_IDENT)
                 return False
         return None
 
@@ -328,16 +55,16 @@ class BaseParser:
         # Parse negative numbers if required
         is_negative = False
         if allow_negative:
-            is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+            is_negative = self._parse_optional_token(MLIRTokenKind.MINUS) is not None
 
         # Parse the actual number
-        if (int_token := self._parse_optional_token(Token.Kind.INTEGER_LIT)) is None:
+        if (int_token := self._parse_optional_token(MLIRTokenKind.INTEGER_LIT)) is None:
             if is_negative:
                 self.raise_error("Expected integer literal after '-'")
             return None
 
         # Get the value and optionally negate it
-        value = int_token.get_int_value()
+        value = int_token.kind.get_int_value(int_token.span)
         if is_negative:
             value = -value
         return value
@@ -369,10 +96,10 @@ class BaseParser:
         """
         is_negative = False
         if allow_negative:
-            is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+            is_negative = self._parse_optional_token(MLIRTokenKind.MINUS) is not None
 
-        if (value := self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
-            value = value.get_float_value()
+        if (value := self._parse_optional_token(MLIRTokenKind.FLOAT_LIT)) is not None:
+            value = value.kind.get_float_value(value.span)
             return -value if is_negative else value
 
     def parse_float(
@@ -397,7 +124,7 @@ class BaseParser:
         Can optionally parse 'true' or 'false' into 1 and 0.
         """
 
-        is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+        is_negative = self._parse_optional_token(MLIRTokenKind.MINUS) is not None
 
         if (
             value := self.parse_optional_integer(
@@ -438,10 +165,10 @@ class BaseParser:
         resolved.
         """
 
-        if (token := self._parse_optional_token(Token.Kind.STRING_LIT)) is None:
+        if (token := self._parse_optional_token(MLIRTokenKind.STRING_LIT)) is None:
             return None
         try:
-            return token.get_string_literal_value()
+            return token.kind.get_string_literal_value(token.span)
         except UnicodeDecodeError:
             return None
 
@@ -465,7 +192,7 @@ class BaseParser:
         resolved.
         """
 
-        if (token := self._parse_optional_token(Token.Kind.BYTES_LIT)) is None:
+        if (token := self._parse_optional_token(MLIRTokenKind.BYTES_LIT)) is None:
             return None
         return StringLiteral.from_span(token.span).bytes_contents
 
@@ -486,7 +213,7 @@ class BaseParser:
         Parse an identifier, if present, with syntax:
             ident ::= (letter|[_]) (letter|digit|[_$.])*
         """
-        if (token := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+        if (token := self._parse_optional_token(MLIRTokenKind.BARE_IDENT)) is not None:
             return token.text
         return None
 
@@ -499,36 +226,14 @@ class BaseParser:
             self.parse_optional_identifier, "identifier expected" + context_msg
         )
 
-    def parse_optional_characters(self, text: str) -> str | None:
-        """
-        Parse a given token text, if present.
-        If the given text is the beginning of the next token, this will still
-        return None.
-        """
-        if self._current_token.text == text:
-            self._consume_token()
-            return text
-        return None
-
-    def parse_characters(self, text: str, context_msg: str = "") -> str:
-        """
-        Parse a given token text.
-        The context message is appended to the error message if the parsing fails.
-        If the given text is the start of the next token, this will still raise
-        an error.
-        """
-        if (res := self.parse_optional_characters(text)) is not None:
-            return res
-        self.raise_error(f"'{text}' expected" + context_msg)
-
     def parse_optional_keyword(self, keyword: str) -> str | None:
         """Parse a specific identifier if it is present"""
 
         if (
-            self._current_token.kind == Token.Kind.BARE_IDENT
+            self._current_token.kind == MLIRTokenKind.BARE_IDENT
             and self._current_token.text == keyword
         ):
-            self._consume_token(Token.Kind.BARE_IDENT)
+            self._consume_token(MLIRTokenKind.BARE_IDENT)
             return keyword
         return None
 
@@ -549,10 +254,10 @@ class BaseParser:
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
-        assert Token.Kind.is_spelling_of_punctuation(punctuation), (
-            "'parse_optional_punctuation' must be " "called with a valid punctuation"
+        assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), (
+            "'parse_optional_punctuation' must be called with a valid punctuation"
         )
-        kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
+        kind = MLIRTokenKind.get_punctuation_kind_from_spelling(punctuation)
         if self._parse_optional_token(kind) is not None:
             return punctuation
         return None
@@ -566,10 +271,10 @@ class BaseParser:
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
-        assert Token.Kind.is_spelling_of_punctuation(
-            punctuation
-        ), "'parse_punctuation' must be called with a valid punctuation"
-        kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
+        assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), (
+            "'parse_punctuation' must be called with a valid punctuation"
+        )
+        kind = MLIRTokenKind.get_punctuation_kind_from_spelling(punctuation)
         self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
         return punctuation
 
@@ -588,12 +293,12 @@ class BaseParser:
     def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
         """Parse a string enum value, if present."""
 
-        if self._current_token.kind != Token.Kind.BARE_IDENT:
+        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
             return None
 
         val = self._current_token.text
         if val not in enum_type.__members__.values():
             return None
 
-        self._consume_token(Token.Kind.BARE_IDENT)
+        self._consume_token(MLIRTokenKind.BARE_IDENT)
         return enum_type(val)

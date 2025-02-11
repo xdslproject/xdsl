@@ -1,4 +1,5 @@
 import typing
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -8,14 +9,14 @@ from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, f64, i32
 from xdsl.dialects.experimental.hls import (
-    HLSExtractStencilValue,
-    HLSStream,
-    HLSStreamRead,
-    HLSStreamWrite,
-    HLSYield,
-    PragmaDataflow,
-    PragmaPipeline,
-    PragmaUnroll,
+    HLSExtractStencilValueOp,
+    HLSStreamOp,
+    HLSStreamReadOp,
+    HLSStreamWriteOp,
+    HLSYieldOp,
+    PragmaDataflowOp,
+    PragmaPipelineOp,
+    PragmaUnrollOp,
 )
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.llvm import (
@@ -48,7 +49,7 @@ class LowerHLSStreamWrite(RewritePattern):
         self.push_duplicate_declaration = False
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: HLSStreamWrite, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: HLSStreamWriteOp, rewriter: PatternRewriter, /):
         elem = op.element
         elem_type = op.element.type
         p_elem_type = LLVMPointerType.typed(elem_type)
@@ -89,7 +90,7 @@ class LowerHLSStreamRead(RewritePattern):
         self.pop_write_data_declaration = False
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: HLSStreamRead, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: HLSStreamReadOp, rewriter: PatternRewriter, /):
         # The stream is an alloca of a struct of the hls_elem_type. hls_elem_type must be extracted from the struct
         assert isinstance(op.operands[0].type, llvm.LLVMPointerType)
         p_struct_hls_elem_type = op.operands[0].type
@@ -169,7 +170,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
         self.set_stream_size_qualifier_stencil_declaration = False
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: HLSStreamOp, rewriter: PatternRewriter, /):
         # We need to make sure that the type gets updated in the operations using the stream
         uses: list[Use] = []
 
@@ -253,7 +254,7 @@ class PragmaPipelineToFunc(RewritePattern):
         self.declared_pipeline_names: set[str] = set()
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: PragmaPipeline, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: PragmaPipelineOp, rewriter: PatternRewriter, /):
         # TODO: can we retrieve data directly without having to go through IntegerAttr -> IntAttr?
         # ii : i32 = op.ii.owner.value.value.data
         ii = cast(Any, op.ii.owner).value.value.data
@@ -281,7 +282,7 @@ class PragmaUnrollToFunc(RewritePattern):
         self.module = op
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: PragmaUnroll, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: PragmaUnrollOp, rewriter: PatternRewriter, /):
         # TODO: can we retrieve data directly without having to go through IntegerAttr -> IntAttr?
         factor = cast(Any, op.factor.owner).value.value.data
 
@@ -324,7 +325,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ParallelOp, rewriter: PatternRewriter, /):
         ii = ConstantOp.from_int_and_width(1, i32)
-        hls_pipeline_op: Operation = PragmaPipeline(ii)
+        hls_pipeline_op: Operation = PragmaPipelineOp(ii)
 
         lb: VarOperand = op.lowerBound
         ub: VarOperand = op.upperBound
@@ -400,7 +401,7 @@ class LowerDataflow(RewritePattern):
     declared_df_functions: bool = False
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: PragmaDataflow, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: PragmaDataflowOp, rewriter: PatternRewriter, /):
         if not self.declared_df_functions:
             start_df_func = FuncOp.external("_start_df_call", [], [i32])
             end_df_func = FuncOp.external("_end_df_call", [], [])
@@ -416,7 +417,9 @@ class LowerDataflow(RewritePattern):
         rewriter.insert_op_before_matched_op(start_df_call)
         rewriter.insert_op_after_matched_op(end_df_call)
 
-        dataflow_ops = [op for op in op.body.block.ops if not isinstance(op, HLSYield)]
+        dataflow_ops = [
+            op for op in op.body.block.ops if not isinstance(op, HLSYieldOp)
+        ]
         for df_op in reversed(dataflow_ops):
             df_op.detach()
             rewriter.insert_op_after_matched_op(df_op)
@@ -428,10 +431,10 @@ class LowerDataflow(RewritePattern):
 class LowerHLSExtractStencilValue(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: HLSExtractStencilValue, rewriter: PatternRewriter, /
+        self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /
     ):
-        indices = [attr.data for attr in op.position.data]
-        assert isa(indices, list[int])
+        indices = op.position.get_values()
+        assert isa(indices, Sequence[int])
 
         assert isinstance(op.container, OpResult)
         assert isinstance(op.container.op, llvm.LoadOp)
@@ -474,14 +477,14 @@ class LowerHLSExtractStencilValue(RewritePattern):
 @dataclass
 class GetHLSStreamInDataflow(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
-        hls_yield = HLSYield.get()
+    def match_and_rewrite(self, op: HLSStreamOp, rewriter: PatternRewriter, /):
+        hls_yield = HLSYieldOp.get()
 
         @Builder.region
         def empty_region(builder: Builder):
             builder.insert(hls_yield)
 
-        dataflow = PragmaDataflow(empty_region)
+        dataflow = PragmaDataflowOp(empty_region)
         rewriter.insert_op_before_matched_op(dataflow)
         op.detach()
         dataflow.body.blocks[0].insert_op_before(op, hls_yield)
