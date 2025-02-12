@@ -20,18 +20,15 @@ from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 CTX = MLContext(allow_unregistered=True)
 
 BENCHMARKS_DIR = Path(__file__).parent
-GENERIC_TEST_MLIR_DIR = BENCHMARKS_DIR / "resources" / "generic_test_mlir"
-RAW_TEST_MLIR_DIR = BENCHMARKS_DIR / "resources" / "raw_test_mlir"
 EXTRA_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
-
 MLIR_FILES: dict[str, Path] = {
-    "apply_pdl_extra_file": GENERIC_TEST_MLIR_DIR
+    "apply_pdl_extra_file": EXTRA_MLIR_DIR
     / "filecheck__transforms__apply-pdl__apply_pdl_extra_file.mlir",
-    "arith-add-immediate-zero": GENERIC_TEST_MLIR_DIR
+    "arith-add-immediate-zero": EXTRA_MLIR_DIR
     / "filecheck__transforms__arith-add-immediate-zero.mlir",
     "large_dense_attr": EXTRA_MLIR_DIR / "large_dense_attr.mlir",
     "large_dense_attr_hex": EXTRA_MLIR_DIR / "large_dense_attr.mlir",
-    "empty_program": RAW_TEST_MLIR_DIR / "xdsl_opt__empty_program.mlir",
+    "empty_program": EXTRA_MLIR_DIR / "xdsl_opt__empty_program.mlir",
 }
 
 class Lexer:
@@ -72,12 +69,6 @@ class Lexer:
         """Time lexing an empty program."""
         Lexer.lex_file(MLIR_FILES["empty_program"])
 
-    def ignore_time_all(self) -> None:
-        """Time lexing all `.mlir` files in xDSL's `tests/` directory."""
-        mlir_files = RAW_TEST_MLIR_DIR.iterdir()
-        for mlir_file in mlir_files:
-            Lexer.lex_file(Path(mlir_file))
-
 
 class Parser:
     """Benchmark the xDSL parser on MLIR files."""
@@ -110,12 +101,6 @@ class Parser:
         """Time parsing a 1024x1024xi8 dense attribute given as a hex string."""
         Parser.parse_file(MLIR_FILES["large_dense_attr_hex"])
 
-    def ignore_time_all(self) -> None:
-        """Time parsing all `.mlir` files in xDSL's `tests/` directory ."""
-        mlir_files = GENERIC_TEST_MLIR_DIR.iterdir()
-        for mlir_file in mlir_files:
-            Parser.parse_file(Path(mlir_file))
-
 
 class PatternRewriter:
     """Benchmark rewriting in xDSL."""
@@ -123,7 +108,7 @@ class PatternRewriter:
     PARSED_FILES: dict[str, ModuleOp] = {
         name: XdslParser(CTX, file.read_text()).parse_module()
         for name, file in MLIR_FILES.items()
-        if file.parent == GENERIC_TEST_MLIR_DIR
+        if "filecheck__transforms" in str(file)
     }
 
     def time_apply_patterns(self) -> None:
@@ -166,12 +151,10 @@ if __name__ == "__main__":
         "Lexer.dense_attr": LEXER.ignore_time_dense_attr,
         "Lexer.dense_attr_hex": LEXER.ignore_time_dense_attr_hex,
         "Lexer.empty_program": LEXER.time_empty_program,
-        "Lexer.all": LEXER.ignore_time_all,
         "Parser.apply_pdl_extra_file": PARSER.time_apply_pdl_extra_file,
         "Parser.add": PARSER.time_add,
         "Parser.dense_attr": PARSER.ignore_time_dense_attr,
         "Parser.dense_attr_hex": PARSER.ignore_time_dense_attr_hex,
-        "Parser.all": PARSER.ignore_time_all,
         "PatternRewriter.apply_patterns": PATTERN_REWRITER.time_apply_patterns,
         "PatternRewriter.lower_scf_to_cf": PATTERN_REWRITER.time_lower_scf_to_cf,
     }

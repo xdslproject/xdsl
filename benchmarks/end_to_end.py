@@ -6,8 +6,6 @@ from pathlib import Path
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 BENCHMARKS_DIR = Path(__file__).parent
-GENERIC_TEST_MLIR_DIR = BENCHMARKS_DIR / "resources" / "generic_test_mlir"
-RAW_TEST_MLIR_DIR = BENCHMARKS_DIR / "resources" / "raw_test_mlir"
 EXTRA_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
 
 
@@ -71,13 +69,13 @@ class Miscellaneous:
     """Benchmark running `xdsl-opt` on miscellaneous workloads."""
 
     MLIR_FILES: dict[str, Path] = {
-        "apply_pdl_extra_file": GENERIC_TEST_MLIR_DIR
+        "apply_pdl_extra_file": EXTRA_MLIR_DIR
         / "filecheck__transforms__apply-pdl__apply_pdl_extra_file.mlir",
-        "arith-add-immediate-zero": GENERIC_TEST_MLIR_DIR
+        "arith-add-immediate-zero": EXTRA_MLIR_DIR
         / "filecheck__transforms__arith-add-immediate-zero.mlir",
         "large_dense_attr": EXTRA_MLIR_DIR / "large_dense_attr.mlir",
         "large_dense_attr_hex": EXTRA_MLIR_DIR / "large_dense_attr.mlir",
-        "empty_program": RAW_TEST_MLIR_DIR / "xdsl_opt__empty_program.mlir",
+        "empty_program": EXTRA_MLIR_DIR / "xdsl_opt__empty_program.mlir",
         "loop_unrolling": EXTRA_MLIR_DIR / "loop_unrolling.mlir",
     }
 
