@@ -22,13 +22,15 @@ class X86RegisterType(RegisterType, ABC):
         if parser.parse_optional_punctuation("<") is not None:
             name = parser.parse_identifier()
             parser.parse_punctuation(">")
+            if not name.startswith("e") and not name.startswith("r"):
+                assert name in cls.abi_index_by_name(), f"{name}"
         else:
             name = ""
         return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
         name = self.spelling.data
-        if not self.is_allocated:
+        if not self.is_allocated or name.startswith("e") or name.startswith("r"):
             return
         if name not in type(self).abi_index_by_name():
             raise VerifyException(f"{name} not in {self.instruction_set_name()}")
