@@ -62,27 +62,6 @@ R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 
 
-def parse_memory_access_offset(parser: Parser) -> IntegerAttr:
-    offset_type = IntegerType(64, Signedness.SIGNED)
-    temp = parse_optional_immediate_value(
-        parser,
-        offset_type,
-    )
-    if temp is None:
-        temp = IntegerAttr(0, offset_type)
-    assert isinstance(temp, IntegerAttr)
-    return temp
-
-
-def parse_comma_memory_access_offset(parser: Parser) -> IntegerAttr:
-    offset_type = IntegerType(64, Signedness.SIGNED)
-    temp = IntegerAttr(0, offset_type)
-    if parser.parse_optional_punctuation(",") is not None:
-        temp = parse_memory_access_offset(parser)
-    assert isinstance(temp, IntegerAttr)
-    return temp
-
-
 class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of x86 assembly printing.
@@ -111,6 +90,27 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
             attributes=attributes,
             regions=regions,
         )
+
+    @classmethod
+    def parse_memory_access_offset(cls, parser: Parser) -> IntegerAttr:
+        offset_type = IntegerType(64, Signedness.SIGNED)
+        temp = parse_optional_immediate_value(
+            parser,
+            offset_type,
+        )
+        if temp is None:
+            temp = IntegerAttr(0, offset_type)
+        assert isinstance(temp, IntegerAttr)
+        return temp
+
+    @classmethod
+    def parse_comma_memory_access_offset(cls, parser: Parser) -> IntegerAttr:
+        offset_type = IntegerType(64, Signedness.SIGNED)
+        temp = IntegerAttr(0, offset_type)
+        if parser.parse_optional_punctuation(",") is not None:
+            temp = cls.parse_memory_access_offset(parser)
+        assert isinstance(temp, IntegerAttr)
+        return temp
 
     @classmethod
     def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
@@ -578,7 +578,7 @@ class R_RM_Operation(
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(R1InvT)
 
@@ -586,7 +586,7 @@ class R_RM_Operation(
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr = 0,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         result: R1InvT,
@@ -613,7 +613,7 @@ class R_RM_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -867,7 +867,7 @@ class M_MR_Operation(
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     def __init__(
         self,
@@ -898,7 +898,7 @@ class M_MR_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -983,7 +983,7 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
 
     r1 = operand_def(R1InvT)
     immediate = attr_def(IntegerAttr)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     def __init__(
         self,
@@ -1022,7 +1022,7 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         attributes = dict[str, Attribute]()
         temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         attributes["immediate"] = temp
-        attributes["offset"] = parse_comma_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_comma_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1178,7 +1178,7 @@ class R_RMI_Operation(
 
     r2 = operand_def(R2InvT)
     immediate = attr_def(IntegerAttr)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     r1 = result_def(R1InvT)
 
@@ -1221,7 +1221,7 @@ class R_RMI_Operation(
         attributes = dict[str, Attribute]()
         temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         attributes["immediate"] = temp
-        attributes["offset"] = parse_comma_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_comma_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1255,7 +1255,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_input = operand_def(GeneralRegisterType("rsp"))
     source = operand_def(R1InvT)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1288,7 +1289,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1313,7 +1314,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     destination = operand_def(
         GeneralRegisterType
     )  # the destination is a pointer to the memory location and the register itself is not modified
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1322,7 +1323,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         destination: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        offset: int | IntegerAttr = 0,
+        offset: int | IntegerAttr,
         rsp_output: GeneralRegisterType,
     ):
         if isinstance(offset, int):
@@ -1396,7 +1397,7 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1466,7 +1467,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     r1 = operand_def(R1InvT)
     rdx_input = operand_def(GeneralRegisterType("rdx"))
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1476,7 +1477,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
         r1: Operation | SSAValue,
         rdx_input: Operation | SSAValue,
         rax_input: Operation | SSAValue,
-        offset: int | IntegerAttr = 0,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1503,7 +1504,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1525,7 +1526,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1534,7 +1535,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
         self,
         r1: Operation | SSAValue,
         rax_input: Operation | SSAValue,
-        offset: int | IntegerAttr = 0,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1819,7 +1820,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1932,7 +1933,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1992,7 +1993,7 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(RFLAGSRegisterType)
 
