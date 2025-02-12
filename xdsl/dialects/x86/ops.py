@@ -62,6 +62,27 @@ R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 
 
+def parse_memory_access_offset(parser: Parser) -> IntegerAttr:
+    offset_type = IntegerType(64, Signedness.SIGNED)
+    temp = parse_optional_immediate_value(
+        parser,
+        offset_type,
+    )
+    if temp is None:
+        temp = IntegerAttr(0, offset_type)
+    assert isinstance(temp, IntegerAttr)
+    return temp
+
+
+def parse_comma_memory_access_offset(parser: Parser) -> IntegerAttr:
+    offset_type = IntegerType(64, Signedness.SIGNED)
+    temp = IntegerAttr(0, offset_type)
+    if parser.parse_optional_punctuation(",") is not None:
+        temp = parse_memory_access_offset(parser)
+    assert isinstance(temp, IntegerAttr)
+    return temp
+
+
 class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of x86 assembly printing.
@@ -592,11 +613,7 @@ class R_RM_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        attributes["offset"] = parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -881,11 +898,7 @@ class M_MR_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        attributes["offset"] = parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1009,18 +1022,13 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         attributes = dict[str, Attribute]()
         temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         attributes["immediate"] = temp
-        if parser.parse_optional_punctuation(",") is not None:
-            temp2 = parse_optional_immediate_value(
-                parser, IntegerType(32, Signedness.SIGNED)
-            )
-            if temp2 is not None:
-                attributes["offset"] = temp2
+        attributes["offset"] = parse_comma_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
-        if self.offset is not None:
+        if self.offset.value.data != 0:
             printer.print(", ")
             print_immediate_value(printer, self.offset)
         return {"immediate", "offset"}
@@ -1213,18 +1221,13 @@ class R_RMI_Operation(
         attributes = dict[str, Attribute]()
         temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         attributes["immediate"] = temp
-        if parser.parse_optional_punctuation(",") is not None:
-            temp2 = parse_optional_immediate_value(
-                parser, IntegerType(32, Signedness.SIGNED)
-            )
-            if temp2 is not None:
-                attributes["offset"] = temp2
+        attributes["offset"] = parse_comma_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
-        if self.offset is not None:
+        if self.offset.value.data != 0:
             printer.print(", ")
             print_immediate_value(printer, self.offset)
         return {"immediate", "offset"}
@@ -1285,11 +1288,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        attributes["offset"] = parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1397,11 +1396,7 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        attributes["offset"] = parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1508,11 +1503,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        attributes["offset"] = parse_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
