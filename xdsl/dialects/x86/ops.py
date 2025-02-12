@@ -92,7 +92,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         )
 
     @classmethod
-    def parse_memory_access_offset(cls, parser: Parser) -> IntegerAttr:
+    def parse_memory_access_offset(cls, parser: Parser) -> Attribute:
         offset_type = IntegerType(64, Signedness.SIGNED)
         temp = parse_optional_immediate_value(
             parser,
@@ -100,16 +100,14 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         )
         if temp is None:
             temp = IntegerAttr(0, offset_type)
-        assert isinstance(temp, IntegerAttr)
         return temp
 
     @classmethod
-    def parse_comma_memory_access_offset(cls, parser: Parser) -> IntegerAttr:
+    def parse_comma_memory_access_offset(cls, parser: Parser) -> Attribute:
         offset_type = IntegerType(64, Signedness.SIGNED)
         temp = IntegerAttr(0, offset_type)
         if parser.parse_optional_punctuation(",") is not None:
             temp = cls.parse_memory_access_offset(parser)
-        assert isinstance(temp, IntegerAttr)
         return temp
 
     @classmethod
