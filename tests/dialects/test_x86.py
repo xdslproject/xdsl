@@ -1,6 +1,7 @@
 import pytest
 
 from xdsl.dialects import x86
+from xdsl.dialects.builtin import IntegerAttr
 
 
 @pytest.mark.parametrize(
@@ -193,7 +194,7 @@ def test_mr_vops(
 ):
     output = x86.ops.GetRegisterOp(dest)
     input = x86.ops.GetAVXRegisterOp(src)
-    op = OpClass(r1=output, r2=input, offset=None)
+    op = OpClass(r1=output, r2=input, offset=IntegerAttr(0, 64))
     assert op.r1.type == dest
     assert op.r2.type == src
 
@@ -229,6 +230,6 @@ def test_rm_vops(
 ):
     input = x86.ops.GetRegisterOp(src)
     output = x86.ops.GetAVXRegisterOp(dest)
-    op = OpClass(r1=output, r2=input, result=dest, offset=None)
+    op = OpClass(r1=output, r2=input, result=dest, offset=IntegerAttr(0, 64))
     assert op.r1.type == dest
     assert op.r2.type == src
