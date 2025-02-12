@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Annotated, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, Generic, TypeAlias, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -73,7 +75,9 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
-_FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
+_FieldTypeElement = TypeVar(
+    "_FieldTypeElement", bound=Attribute, covariant=True, default=Attribute
+)
 
 
 @irdl_attr_definition
@@ -602,11 +606,13 @@ class ApplyOp(IRDLOperation):
         for operand, argument in zip(self.operands, self.region.block.args):
             if operand.type != argument.type:
                 raise VerifyException(
-                    f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                    "Expected argument type to match operand type, got "
+                    f"{argument.type} != {operand.type} at index {argument.index}"
                 )
         if len(self.res) > 0 and len(self.dest) > 0:
             raise VerifyException(
-                "Expected stencil.apply to have all value-semantics result or buffer-semantic destination operands."
+                "Expected stencil.apply to have all value-semantics result or "
+                "buffer-semantic destination operands."
             )
         if len(self.res) > 0:
             res_type = cast(TempType[Attribute], self.res[0].type)
@@ -804,7 +810,7 @@ class CombineOp(IRDLOperation):
                └────────┼─────────┘     └────────┼─────────┘
                         │                        │
     ```
-    """
+    """  # noqa: E501
 
     name = "stencil.combine"
 
@@ -821,7 +827,7 @@ class CombineOp(IRDLOperation):
         CombineOpHasShapeInferencePatternsTrait(),
     )
 
-    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
+    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"  # noqa: E501
 
     irdl_options = [
         AttrSizedOperandSegments(),

@@ -117,8 +117,8 @@ def generate_func_with_pinned_val(
     rewriter: PatternRewriter,
 ):
     """
-    Specializes a function to pin a value to a compile time constant. Assumes the function is top-level
-    inside the module.
+    Specializes a function to pin a value to a compile time constant. Assumes the
+    function is top-level inside the module.
 
     This will do the following things:
     - clone the function

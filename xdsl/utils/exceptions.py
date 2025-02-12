@@ -48,6 +48,21 @@ class InvalidIRException(Exception):
     pass
 
 
+class ShrinkException(Exception):
+    """
+    Exception for test case reduction when used in conjunction with the [Shrink Ray](https://github.com/DRMacIver/shrinkray)
+    reducer.
+
+    To find a reduced version of a test case, raise this exception on the line of code you want to hit,
+    and pass the `--shrink` argument to `xdsl-opt`, by changing its invocation from:
+    `xdsl-opt input_file.mlir -p my,pass,pipeline`
+    to:
+    `shrinkray "xdsl-opt -p my,pass,pipeline --shrink" input_file.mlir`.
+    """
+
+    pass
+
+
 class InterpretationError(Exception):
     """
     An error that can be raised during interpretation, or Interpreter setup.
@@ -87,9 +102,10 @@ class MultipleSpansParseError(ParseError):
     ref_text: str | None
     refs: list[tuple[Span, str | None]]
 
-    def __repr__(self) -> str:
-        res = super().__repr__() + "\n"
-        res += self.ref_text or "With respect to:\n"
+    def __str__(self) -> str:
+        res = self.span.print_with_context(self.msg)
+        if self.ref_text is not None:
+            res += self.ref_text + "\n"
         for span, msg in self.refs:
             res += span.print_with_context(msg) + "\n"
         return res

@@ -1,14 +1,13 @@
 from collections import defaultdict
-from collections.abc import Sequence
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import overload
 
+from xdsl.backend.register_queue import RegisterQueue
 from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, Registers
 
 
 @dataclass
-class RegisterQueue:
+class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     """
     LIFO queue of registers available for allocation.
     """
@@ -25,24 +24,27 @@ class RegisterQueue:
     DEFAULT_INT_REGISTERS = Registers.A[::-1] + Registers.T[::-1]
     DEFAULT_FLOAT_REGISTERS = Registers.FA[::-1] + Registers.FT[::-1]
 
-    _idx: int = 0
+    _j_idx: int = 0
     """Next `j` register index."""
+
+    _fj_idx: int = 0
+    """Next `fj` register index."""
 
     reserved_registers: defaultdict[IntRegisterType | FloatRegisterType, int] = field(
         default_factory=lambda: defaultdict[IntRegisterType | FloatRegisterType, int](
             lambda: 0
         )
-        | {r: 1 for r in RegisterQueue.DEFAULT_RESERVED_REGISTERS}
+        | {r: 1 for r in RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS}
     )
     "Registers unavailable to be used by the register allocator."
 
     available_int_registers: list[IntRegisterType] = field(
-        default_factory=lambda: list(RegisterQueue.DEFAULT_INT_REGISTERS)
+        default_factory=lambda: list(RiscvRegisterQueue.DEFAULT_INT_REGISTERS)
     )
     "Registers that integer values can be allocated to in the current context."
 
     available_float_registers: list[FloatRegisterType] = field(
-        default_factory=lambda: list(RegisterQueue.DEFAULT_FLOAT_REGISTERS)
+        default_factory=lambda: list(RiscvRegisterQueue.DEFAULT_FLOAT_REGISTERS)
     )
     "Registers that floating-point values can be allocated to in the current context."
 
@@ -79,22 +81,17 @@ class RegisterQueue:
         if available_registers:
             reg = available_registers.pop()
         else:
-            reg = reg_type(f"j{self._idx}")
-            self._idx += 1
+            if issubclass(reg_type, IntRegisterType):
+                reg = reg_type(f"j{self._j_idx}")
+                self._j_idx += 1
+            else:
+                reg = reg_type(f"fj{self._fj_idx}")
+                self._fj_idx += 1
+
         assert reg not in self.reserved_registers, (
             f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
         )
         return reg
-
-    @contextmanager
-    def reserve_registers(self, regs: Sequence[IntRegisterType | FloatRegisterType]):
-        for reg in regs:
-            self.reserve_register(reg)
-
-        yield
-
-        for reg in regs:
-            self.unreserve_register(reg)
 
     def reserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
         """
@@ -129,3 +126,12 @@ class RegisterQueue:
         else:
             self.available_int_registers = []
             self.available_float_registers = []
+
+    def exclude_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+        """
+        Removes register from available set, if present.
+        """
+        if reg in self.available_int_registers:
+            self.available_int_registers.remove(reg)
+        if reg in self.available_float_registers:
+            self.available_float_registers.remove(reg)

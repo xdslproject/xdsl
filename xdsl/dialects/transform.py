@@ -549,7 +549,8 @@ class SequenceOp(IRDLOperation):
             self.failure_propagation_mode, FailurePropagationModeAttr
         ) and not isinstance(self.failure_propagation_mode, IntegerAttr):
             raise VerifyException(
-                f"Expected failure_propagation_mode to be of type FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}"
+                "Expected failure_propagation_mode to be of type "
+                f"FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}"
             )
 
 

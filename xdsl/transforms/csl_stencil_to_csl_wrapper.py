@@ -191,7 +191,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         self, args: Sequence[BlockArgument], attrs: ArrayAttr[DictionaryAttr] | None
     ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
         """
-        Args of the top-level function act as the interface to the program and need to be translated to writable buffers.
+        Args of the top-level function act as the interface to the program and need to
+        be translated to writable buffers.
         """
         arg_ops: list[Operation] = []
         arg_op_mapping: list[SSAValue] = []

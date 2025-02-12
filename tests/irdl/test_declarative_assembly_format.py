@@ -2399,6 +2399,44 @@ def test_nested_inference():
     check_roundtrip(program, ctx)
 
 
+def test_nested_inference_variable():
+    """Check that Param<T> infers correctly T when Param<T> is nested in a variable."""
+
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+
+        p: ParameterDef[_T]
+
+        @classmethod
+        def constr(
+            cls, *, p: GenericAttrConstraint[_T] | None = None
+        ) -> ParamAttrConstraint[ParamOne[_T]]:
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
+
+    @irdl_op_definition
+    class ResultTypeIsOperandParamOp(IRDLOperation):
+        T: ClassVar = VarConstraint("T", AnyAttr())
+        U: ClassVar = VarConstraint("U", ParamOne.constr(p=T))
+
+        name = "test.result_type_is_operand_param"
+        res = result_def(T)
+        arg = operand_def(U)
+
+        assembly_format = "$arg attr-dict `:` type($arg)"
+
+    ctx = MLContext()
+    ctx.load_op(ResultTypeIsOperandParamOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> !test.param_one<i32>
+    %1 = test.result_type_is_operand_param %0 : !test.param_one<i32>"""
+    )
+    check_roundtrip(program, ctx)
+
+
 def test_non_verifying_inference():
     """
     Check that non-verifying operands/results will

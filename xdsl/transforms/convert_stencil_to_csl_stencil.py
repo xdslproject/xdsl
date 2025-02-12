@@ -483,7 +483,8 @@ class ConvertApplyOpPattern(RewritePattern):
             for idx, old in enumerate(done_exchange_used_block_args, start=2)
         )
 
-        # add translation from old to new arg index for non-optional args - note, access to accumulator must be handled separately below
+        # add translation from old to new arg index for non-optional args - note, access
+        # to accumulator must be handled separately below
         chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
             receive_chunk.block.args[0]
         )

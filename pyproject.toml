@@ -23,13 +23,14 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.11.0",
+    "marimo==0.11.2",
     "pre-commit==4.1.0",
-    "ruff==0.9.4",
+    "ruff==0.9.6",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
     "pyright==1.1.393",
+    "sympy==1.13.3",
 ]
 docs = [
     "mkdocs-gen-files>=0.5.0",
@@ -65,6 +66,9 @@ xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
+
+[tool.setuptools.packages]
+find = {}
 
 [tool.setuptools.package-data]
 xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
@@ -113,7 +117,7 @@ ignore = [
 # TODO: remove this setting and go to default line length of 88
 # Removing this line length results in a large number of errors for doc strings, ideally
 # these should be ignored separately.
-max-line-length = 300
+max-line-length = 130
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
@@ -136,8 +140,7 @@ max-line-length = 300
 [tool.ruff.lint.per-file-ignores]
 "versioneer.py" = ["ALL"]
 "tests/test_declarative_assembly_format.py" = ["F811"]
-"tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
-"tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
+"**/filecheck/*" = ["F811", "F841", "E501"]
 "docs/xdsl-introduction.ipynb" = ["ALL"]
 "docs/tutorial.ipynb" = ["ALL"]
 "docs/Toy/Toy_Ch3.ipynb" = ["E402"]
@@ -150,6 +153,7 @@ max-line-length = 300
 "**/__marimo__/*" = ["ALL"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
+"tests/*" = ["E501"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

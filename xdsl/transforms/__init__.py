@@ -108,6 +108,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ptr_to_riscv.ConvertPtrToRiscvPass
 
+    def get_convert_ptr_type_offsets():
+        from xdsl.transforms import convert_ptr_type_offsets
+
+        return convert_ptr_type_offsets.ConvertPtrTypeOffsetsPass
+
     def get_convert_qref_to_qssa():
         from xdsl.transforms import convert_qref_to_qssa
 
@@ -520,6 +525,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "convert-ptr-type-offsets": get_convert_ptr_type_offsets,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,

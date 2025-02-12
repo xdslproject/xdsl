@@ -303,7 +303,9 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
             constraint_context.set_variable(self.name, attr)
 
     def get_variable_extractors(self) -> dict[str, VarExtractor[AttributeCovT]]:
-        return {self.name: IdExtractor()}
+        return merge_extractor_dicts(
+            {self.name: IdExtractor()}, self.constraint.get_variable_extractors()
+        )
 
     def infer(self, context: InferenceContext) -> AttributeCovT:
         v = context.variables[self.name]
