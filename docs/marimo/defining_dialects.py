@@ -7,11 +7,11 @@
 
 import marimo
 
-__generated_with = "0.11.0"
+__generated_with = "0.11.2"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
 
@@ -86,7 +86,6 @@ def _():
     from xdsl.builder import Builder, InsertPoint
     from xdsl.transforms.common_subexpression_elimination import cse
     from xdsl.transforms.dead_code_elimination import dce
-
     return (
         Abs,
         Add,
@@ -276,7 +275,6 @@ def _(
 
         def __init__(self, arg: SSAValue):
             raise NotImplementedError("NormOp __init__ is not yet implemented")
-
     return AddcOp, ComplexType, CreateOp, ImOp, MulcOp, NormOp, ReOp
 
 
@@ -391,7 +389,6 @@ def _(
 
             def __init__(self, arg: SSAValue):
                 super().__init__(operands=[arg], result_types=[Float64Type()])
-
     return (dialect_solution,)
 
 
@@ -467,7 +464,6 @@ def _(
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
-
     return emit_ir, print_ir
 
 
@@ -480,7 +476,6 @@ def _(Attribute, ComplexType, Expr, Float64Type, IntegerType):
             return Float64Type()
         else:
             return ComplexType()
-
     return (get_mlir_type,)
 
 
@@ -696,7 +691,6 @@ def _(
             return res
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
-
     return emit_complex_op, emit_integer_op, emit_op, emit_real_op
 
 
@@ -830,7 +824,6 @@ def _(
             # Implement the lowering of norm
             # The formula is `norm(z) = (re(z) * re(z) + im(z) * im(z)) ^ 0.5`
             return
-
     return (
         FoldImCreateOp,
         FoldReCreateOp,
@@ -843,9 +836,7 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You can test your code using the `print_ir_with_complex_lowering` function:"""
-    )
+    mo.md(r"""You can test your code using the `print_ir_with_complex_lowering` function:""")
     return
 
 
@@ -874,7 +865,6 @@ def _(Expr, cse, emit_ir, lower_complex):
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
-
     return (print_ir_with_complex_lowering,)
 
 
@@ -1012,7 +1002,6 @@ def _(
                 pow = rewriter.insert(PowFOp(add, half)).result
 
                 rewriter.replace_matched_op([], new_results=[pow])
-
     return (solution,)
 
 
@@ -1072,7 +1061,6 @@ def _(Expr, cse, dce, emit_ir, lower_complex, optimize):
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
-
     return (print_ir_with_pipeline,)
 
 
