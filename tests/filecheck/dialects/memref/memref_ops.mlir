@@ -71,7 +71,7 @@ builtin.module {
 // CHECK-NEXT:    }
 // CHECK-NEXT:   memref.global @g : memref<1xindex> = dense<0>
 // CHECK-NEXT:   memref.global constant @g_constant : memref<1xindex> = dense<0>
-// CHECK-NEXT:   memref.global @g_with_alignment : memref<1xindex> = dense<0> {"alignment" = 64 : i64}
+// CHECK-NEXT:   memref.global @g_with_alignment : memref<1xindex> = dense<0> {alignment = 64 : i64}
 // CHECK-NEXT:   memref.global "private" @x : memref<2xf32> = dense<0.000000e+00>
 // CHECK-NEXT:   memref.global "private" @y : memref<4xi32>
 // CHECK-NEXT:   memref.global @z : memref<3xf16> = uninitialized

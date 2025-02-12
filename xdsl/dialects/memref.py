@@ -414,7 +414,7 @@ class GlobalOp(IRDLOperation):
     name = "memref.global"
 
     sym_name = prop_def(StringAttr)
-    sym_visibility = prop_def(StringAttr)
+    sym_visibility = prop_def(StringAttr, default_value=StringAttr("public"))
     type = prop_def(MemRefType.constr())
     initial_value = opt_prop_def(
         BaseAttr(DenseIntOrFPElementsAttr) | EqAttrConstraint(UnitAttr())
@@ -533,7 +533,16 @@ class GlobalOp(IRDLOperation):
                 printer.print_string("uninitialized")
             else:
                 DenseIntOrFPElementsAttr.print_without_type(self.initial_value, printer)
-        printer.print_op_attributes(self.attributes)
+        printer.print_op_attributes(
+            self.attributes | self.properties,
+            reserved_attr_names=(
+                "sym_name",
+                "type",
+                "initial_value",
+                "sym_visibility",
+                "constant",
+            ),
+        )
 
 
 @irdl_op_definition
