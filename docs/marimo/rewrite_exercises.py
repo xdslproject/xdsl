@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.11.0"
+__generated_with = "0.11.2"
 app = marimo.App(width="medium")
 
 
@@ -75,7 +75,6 @@ def _():
     from xdsl.dialects.scf import ForOp, YieldOp
     from xdsl.dialects.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
-
     return (
         Abs,
         Add,
@@ -154,7 +153,6 @@ def _(Expr, emit_ir):
 
         # Print a separator
         print("\n\n")
-
     return (print_ir,)
 
 
@@ -170,7 +168,6 @@ def _(Attribute, Expr, Float64Type, IntegerType):
             raise Exception(
                 f"Unknown MLIR type for expression {expr}. Please make sure there cannot be a division by zero, or a power of a negative value."
             )
-
     return (get_mlir_type,)
 
 
@@ -214,7 +211,6 @@ def _(
         # Insert a return statement at the end of the function.
         builder.insert(ReturnOp(result))
         return module
-
     return (emit_ir,)
 
 
@@ -242,7 +238,6 @@ def _(
             return emit_real_op(expr, builder, args)
         else:
             raise Exception("Unknown function to emit IR for MLIR type ", type)
-
     return (emit_op,)
 
 
@@ -403,7 +398,6 @@ def _(
         # Hint: Implement here support for Add, Mul, and Pow (and later Abs and Sum)
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
-
     return emit_integer_op, emit_real_op
 
 
@@ -460,15 +454,12 @@ def _(Operation, PatternRewriter, RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             # Implement `x + -1.0 * y -> x - y` here
             return
-
     return AddTimesMinusOnePattern, SIToFPConstantPattern
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """You can run the optimizations on a SymPy expression in the following code blocks:"""
-    )
+    mo.md("""You can run the optimizations on a SymPy expression in the following code blocks:""")
     return
 
 
@@ -495,7 +486,6 @@ def _(
         region_dce(op.body)
         print("After optimizations:", op)
         print("\n" * 3)
-
     return (test_with_opts,)
 
 
@@ -571,7 +561,6 @@ def _(
             if constant.value.value.data != -1.0:
                 return
             rewriter.replace_op(op, SubfOp(op.lhs, mul.rhs))
-
     return AddTimesMinusOnePatternSolution, SIToFPConstantPatternSolution
 
 
