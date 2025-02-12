@@ -557,7 +557,7 @@ class R_RM_Operation(
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     result = result_def(R1InvT)
 
@@ -565,7 +565,7 @@ class R_RM_Operation(
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr = 0,
         *,
         comment: str | StringAttr | None = None,
         result: R1InvT,
@@ -850,13 +850,13 @@ class M_MR_Operation(
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     def __init__(
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -970,12 +970,12 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
 
     r1 = operand_def(R1InvT)
     immediate = attr_def(IntegerAttr)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     def __init__(
         self,
         r1: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -1170,7 +1170,7 @@ class R_RMI_Operation(
 
     r2 = operand_def(R2InvT)
     immediate = attr_def(IntegerAttr)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     r1 = result_def(R1InvT)
 
@@ -1178,7 +1178,7 @@ class R_RMI_Operation(
         self,
         r2: Operation | SSAValue,
         immediate: int | IntegerAttr,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         r1: R1InvT,
@@ -1252,7 +1252,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_input = operand_def(GeneralRegisterType("rsp"))
     source = operand_def(R1InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1261,7 +1261,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
         source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         rsp_output: GeneralRegisterType,
     ):
         if isinstance(comment, str):
@@ -1314,7 +1314,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     destination = operand_def(
         GeneralRegisterType
     )  # the destination is a pointer to the memory location and the register itself is not modified
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1323,7 +1323,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         destination: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr = 0,
         rsp_output: GeneralRegisterType,
     ):
         if isinstance(offset, int):
@@ -1367,12 +1367,12 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
     """
 
     source = operand_def(R1InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     def __init__(
         self,
         source: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1471,7 +1471,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     r1 = operand_def(R1InvT)
     rdx_input = operand_def(GeneralRegisterType("rdx"))
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1481,7 +1481,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
         r1: Operation | SSAValue,
         rdx_input: Operation | SSAValue,
         rax_input: Operation | SSAValue,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr = 0,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1534,7 +1534,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1543,7 +1543,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
         self,
         r1: Operation | SSAValue,
         rax_input: Operation | SSAValue,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr = 0,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1828,7 +1828,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1836,7 +1836,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         result: RFLAGSRegisterType,
@@ -1941,7 +1941,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1949,7 +1949,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         result: RFLAGSRegisterType,
@@ -2001,14 +2001,14 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr)
 
     result = result_def(RFLAGSRegisterType)
 
     def __init__(
         self,
         r1: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
