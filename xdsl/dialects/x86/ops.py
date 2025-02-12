@@ -84,7 +84,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         pos = parser.pos
         operand_types, result_types = cls.parse_op_type(parser)
         operands = parser.resolve_operands(args, operand_types, pos)
-        return cls.create(
+        return cls.build(
             operands=operands,
             result_types=result_types,
             attributes=attributes,
@@ -92,23 +92,16 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         )
 
     @classmethod
-    def parse_memory_access_offset(cls, parser: Parser) -> Attribute:
-        offset_type = IntegerType(64, Signedness.SIGNED)
-        temp = parse_optional_immediate_value(
+    def parse_optional_memory_access_offset(cls, parser: Parser) -> Attribute | None:
+        return parse_optional_immediate_value(
             parser,
-            offset_type,
+            IntegerType(64, Signedness.SIGNED),
         )
-        if temp is None:
-            temp = IntegerAttr(0, offset_type)
-        return temp
 
     @classmethod
-    def parse_comma_memory_access_offset(cls, parser: Parser) -> Attribute:
-        offset_type = IntegerType(64, Signedness.SIGNED)
-        temp = IntegerAttr(0, offset_type)
+    def parse_comma_memory_access_offset(cls, parser: Parser) -> Attribute | None:
         if parser.parse_optional_punctuation(",") is not None:
-            temp = cls.parse_memory_access_offset(parser)
-        return temp
+            return cls.parse_optional_memory_access_offset(parser)
 
     @classmethod
     def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
@@ -611,7 +604,7 @@ class R_RM_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = cls.parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_optional_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -896,7 +889,7 @@ class M_MR_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = cls.parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_optional_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1287,7 +1280,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = cls.parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_optional_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1365,7 +1358,7 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
     """
 
     source = operand_def(R1InvT)
-    offset = attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     def __init__(
         self,
@@ -1395,7 +1388,7 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = cls.parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_optional_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1502,7 +1495,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = cls.parse_memory_access_offset(parser)
+        attributes["offset"] = cls.parse_optional_memory_access_offset(parser)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
