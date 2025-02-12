@@ -8,7 +8,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
-from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Span
 
 
@@ -114,11 +114,6 @@ class CommandLineTool:
             s = e.span
             e.span = Span(s.start, s.end, s.input, start_offset)
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
-                print(e)
-            else:
-                raise
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
                 print(e)
             else:
                 raise
