@@ -6,7 +6,7 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Sequence, Set
+from collections.abc import Sequence, Set
 from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import cast
@@ -47,7 +47,6 @@ from xdsl.irdl.declarative_assembly_format import (
     FunctionalTypeDirective,
     KeywordDirective,
     OperandDirective,
-    OperandOrResult,
     OperandsDirective,
     OperandVariable,
     OptionalAttributeVariable,
@@ -137,11 +136,6 @@ class FormatParser(BaseParser):
     """The successor variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
-    type_resolutions: dict[
-        tuple[OperandOrResult, int],
-        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
-    ]
-    """Map a variable to a way to infer its type"""
 
     def __init__(self, input: str, op_def: OpDef):
         super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
@@ -153,7 +147,6 @@ class FormatParser(BaseParser):
         self.seen_properties = set[str]()
         self.seen_regions = [False] * len(op_def.regions)
         self.seen_successors = [False] * len(op_def.successors)
-        self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
         """
