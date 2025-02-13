@@ -11,7 +11,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
-    AnyArrayAttr,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -90,7 +89,7 @@ class ChannelOp(IRDLOperation):
     name = "air.channel"
 
     sym_name = prop_def(SymbolRefAttr)
-    size = prop_def(AnyArrayAttr)
+    size = prop_def(ArrayAttr)
 
     def __init__(
         self, sym_name: SymbolRefAttr, size: ArrayAttr[IntegerAttr]
