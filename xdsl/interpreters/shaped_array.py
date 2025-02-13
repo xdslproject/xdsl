@@ -18,7 +18,7 @@ _T = TypeVar("_T")
 @dataclass
 class ShapedArray(Generic[_T]):
     """
-    A helper structure to represent instances of type MemrefType, TensorType, VectorType, etc.
+    A helper structure to represent instances of type MemRefType, TensorType, VectorType, etc.
     in the interpreter.
     """
 

@@ -9,7 +9,7 @@ def test_mpi_baseop():
     """
     alloc0 = memref.AllocOp.get(f64, 32, [100, 14, 14])
     dest = ConstantOp.from_int_and_width(1, i32)
-    unwrap = mpi.UnwrapMemrefOp(alloc0)
+    unwrap = mpi.UnwrapMemRefOp(alloc0)
     req_vec = mpi.AllocateTypeOp(mpi.RequestType, dest)
     req_obj = mpi.VectorGetOp(req_vec, dest)
     tag = ConstantOp.from_int_and_width(1, i32)

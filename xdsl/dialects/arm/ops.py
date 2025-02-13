@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import (
@@ -11,23 +12,14 @@ from xdsl.irdl import (
     result_def,
 )
 
-from .assembly import (
-    AssemblyInstructionArg,
-    append_comment,
-    assembly_arg_str,
-    assembly_line,
-)
+from .assembly import AssemblyInstructionArg, assembly_arg_str
 from .register import IntRegisterType
 
 
-class ARMOperation(IRDLOperation, ABC):
+class ARMOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of ARM assembly printing.
     """
-
-    @abstractmethod
-    def assembly_line(self) -> str | None:
-        raise NotImplementedError()
 
 
 class ARMInstruction(ARMOperation, ABC):
@@ -65,7 +57,7 @@ class ARMInstruction(ARMOperation, ABC):
             for arg in self.assembly_line_args()
             if arg is not None
         )
-        return assembly_line(instruction_name, arg_str, self.comment)
+        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 @irdl_op_definition
@@ -195,4 +187,39 @@ class LabelOp(ARMOperation):
         )
 
     def assembly_line(self) -> str | None:
-        return append_comment(f"{self.label.data}:", self.comment)
+        return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
+
+
+@irdl_op_definition
+class CmpRegOp(ARMInstruction):
+    """
+    Compare (register) subtracts an optionally-shifted register value from a register value.
+    It updates the condition flags based on the result, and discards the result.
+    https://developer.arm.com/documentation/ddi0597/2024-12/Base-Instructions/CMP--register---Compare--register--?lang=en
+    """
+
+    name = "arm.cmp"
+    s1 = operand_def(IntRegisterType)
+    s2 = operand_def(IntRegisterType)
+
+    assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)`"
+
+    def __init__(
+        self,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self):
+        return (self.s1, self.s2)

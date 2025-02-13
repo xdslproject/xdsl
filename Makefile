@@ -11,7 +11,7 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
+VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -28,7 +28,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	XDSL_VERSION_OVERRIDE="0+dynamic" uv sync ${VENV_EXTRAS}
+	uv sync ${VENV_EXTRAS}
 	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi
@@ -63,7 +63,6 @@ pytest-nb: uv-installed
 	uv run pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
 		--ignore=docs/Toy \
-		--ignore-glob=**/__marimo__/*.ipynb \
 		--nbval-current-env
 
 # run tests for Toy tutorial
@@ -163,3 +162,13 @@ coverage-report: uv-installed
 .PHONY: coverage-clean
 coverage-clean: uv-installed
 	uv run coverage erase
+
+# docs
+
+.PHONY: docs-serve
+docs-serve: uv-installed
+	uv run mkdocs serve
+
+.PHONY: docs-build
+docs-build: uv-installed
+	uv run mkdocs build

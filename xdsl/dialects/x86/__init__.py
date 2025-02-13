@@ -98,7 +98,13 @@ from .ops import (
     S_JsOp,
     S_JzOp,
 )
-from .register import AVXRegisterType, GeneralRegisterType, RFLAGSRegisterType
+from .register import (
+    AVX2RegisterType,
+    AVX512RegisterType,
+    GeneralRegisterType,
+    RFLAGSRegisterType,
+    SSERegisterType,
+)
 
 X86 = Dialect(
     "x86",
@@ -202,7 +208,9 @@ X86 = Dialect(
     [
         GeneralRegisterType,
         RFLAGSRegisterType,
-        AVXRegisterType,
+        SSERegisterType,
+        AVX2RegisterType,
+        AVX512RegisterType,
         LabelAttr,
     ],
 )

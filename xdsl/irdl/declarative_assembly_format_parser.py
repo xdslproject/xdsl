@@ -195,23 +195,28 @@ class FormatParser(BaseParser):
                     )
                 case VariadicTypeDirective(), VariadicTypeDirective():
                     self.raise_error(
-                        "A variadic type directive cannot be followed by another variadic type directive."
+                        "A variadic type directive cannot be followed by another "
+                        "variadic type directive."
                     )
                 case VariadicOperandDirective(), VariadicOperandDirective():
                     self.raise_error(
-                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                        "A variadic operand variable cannot be followed by another "
+                        "variadic operand variable."
                     )
                 case VariadicRegionDirective(), VariadicRegionDirective():
                     self.raise_error(
-                        "A variadic region variable cannot be followed by another variadic region variable."
+                        "A variadic region variable cannot be followed by another "
+                        "variadic region variable."
                     )
                 case VariadicSuccessorDirective(), VariadicSuccessorDirective():
                     self.raise_error(
-                        "A variadic successor variable cannot be followed by another variadic successor variable."
+                        "A variadic successor variable cannot be followed by another "
+                        "variadic successor variable."
                     )
                 case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
                     self.raise_error(
-                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
+                        "An `attr-dict' directive without keyword cannot be directly "
+                        "followed by a region variable as it is ambiguous."
                     )
                 case _:
                     pass
@@ -230,6 +235,15 @@ class FormatParser(BaseParser):
                     print_properties=element.print_properties,
                 )
                 return
+
+    @dataclass(frozen=True)
+    class _OperandLengthResolver(VarExtractor[ParsingState]):
+        idx: int
+        inner: VarExtractor[int]
+
+        def extract_var(self, a: ParsingState) -> ConstraintVariableType:
+            assert isinstance(ops := a.operands[self.idx], Sequence)
+            return self.inner.extract_var(len(ops))
 
     @dataclass(frozen=True)
     class _OperandResultExtractor(VarExtractor[ParsingState]):
@@ -275,6 +289,12 @@ class FormatParser(BaseParser):
         """
         extractor_dicts: list[dict[str, VarExtractor[ParsingState]]] = []
         for i, (_, operand_def) in enumerate(self.op_def.operands):
+            extractor_dicts.append(
+                {
+                    v: self._OperandLengthResolver(i, r)
+                    for v, r in operand_def.constr.get_length_extractors().items()
+                }
+            )
             if self.seen_operand_types[i]:
                 extractor_dicts.append(
                     {
