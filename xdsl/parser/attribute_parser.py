@@ -11,7 +11,6 @@ from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyArrayAttr,
     AnyDenseElement,
     AnyFloat,
     AnyFloatConstr,
@@ -1207,7 +1206,7 @@ class AttrParser(BaseParser):
             else None
         )
 
-    def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
+    def _parse_optional_array_attr(self) -> ArrayAttr | None:
         """
         Parse an array attribute, if present, with format:
             array-attr ::= `[` (attribute (`,` attribute)*)? `]`

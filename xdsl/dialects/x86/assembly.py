@@ -74,11 +74,9 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
             printer.print_string_literal(immediate.data)
 
 
-def memory_access_str(
-    register: AssemblyInstructionArg, offset: IntegerAttr | None
-) -> str:
+def memory_access_str(register: AssemblyInstructionArg, offset: IntegerAttr) -> str:
     register_str = assembly_arg_str(register)
-    if offset is not None:
+    if offset.value.data != 0:
         offset_str = assembly_arg_str(offset)
         if offset.value.data > 0:
             mem_acc_str = f"[{register_str}+{offset_str}]"

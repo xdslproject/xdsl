@@ -30,6 +30,7 @@ dev = [
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
     "pyright==1.1.393",
+    "sympy==1.13.3",
 ]
 docs = [
     "mkdocs-gen-files>=0.5.0",
@@ -141,7 +142,6 @@ max-line-length = 130
 "docs/irdl.ipynb" = ["ALL"]
 "docs/database_example.ipynb" = ["ALL"]
 "**/{docs/marimo}/*" = ["E501", "I001"]
-"**/__marimo__/*" = ["ALL"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
 "tests/*" = ["E501"]
