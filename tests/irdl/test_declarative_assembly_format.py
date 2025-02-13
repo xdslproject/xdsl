@@ -2024,7 +2024,7 @@ def test_multiple_optional_regions():
     """Test that a variadic region variable cannot directly follow another variadic region variable."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic region variable cannot be followed by another variadic region variable.",
+        match="An optional/variadic region variable cannot be followed by another region variable.",
     ):
 
         @irdl_op_definition
@@ -2546,11 +2546,8 @@ def test_int_var_inference():
     "variadic_def, format",
     [
         (var_operand_def, "$variadic `,` type($variadic) attr-dict"),
-        (var_operand_def, "type($variadic) `,` attr-dict"),
+        (var_operand_def, "$variadic `:` type($variadic) `,` attr-dict"),
         (var_result_def, "type($variadic) `,` attr-dict"),
-        (opt_operand_def, "$variadic `,` type($variadic) attr-dict"),
-        (opt_operand_def, "type($variadic) `,` attr-dict"),
-        (opt_result_def, "type($variadic) `,` attr-dict"),
     ],
 )
 def test_variadic_comma_safeguard(
@@ -2570,20 +2567,38 @@ def test_variadic_comma_safeguard(
 
 
 @pytest.mark.parametrize(
-    "variadic_def_one",
-    [var_operand_def, var_result_def, opt_operand_def, opt_result_def],
-)
-@pytest.mark.parametrize(
-    "variadic_def_two",
-    [var_operand_def, var_result_def, opt_operand_def, opt_result_def],
+    "variadic_def_one, variadic_def_two, format",
+    [
+        (
+            var_operand_def,
+            var_operand_def,
+            "$variadic_one `and` $variadic_two `:` type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            var_result_def,
+            var_result_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            opt_operand_def,
+            opt_operand_def,
+            "$variadic_one `and` $variadic_two `:` type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            opt_result_def,
+            opt_result_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+    ],
 )
 def test_chained_variadic_types_safeguard(
     variadic_def_one: Callable[[], VarOperand | VarOpResult],
     variadic_def_two: Callable[[], VarOperand | VarOpResult],
+    format: str,
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic type directive cannot be followed by another variadic type directive.",
+        match="An optional/variadic type directive cannot be followed by another type directive.",
     ):
 
         @irdl_op_definition
@@ -2592,7 +2607,7 @@ def test_chained_variadic_types_safeguard(
 
             variadic_one = variadic_def_one()
             variadic_two = variadic_def_two()
-            assembly_format = "type($variadic_one) type($variadic_two) attr-dict"
+            assembly_format = format
 
             irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
 
@@ -2605,7 +2620,7 @@ def test_chained_variadic_operands_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic operand variable cannot be followed by another variadic operand variable.",
+        match="An optional/variadic operand variable cannot be followed by another operand variable.",
     ):
 
         @irdl_op_definition
