@@ -343,7 +343,7 @@ class RiscvFunctions(InterpreterFunctions):
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.DivOp)
-    def run_div_i(
+    def run_div(
         self,
         interpreter: Interpreter,
         op: riscv.DivOp,
