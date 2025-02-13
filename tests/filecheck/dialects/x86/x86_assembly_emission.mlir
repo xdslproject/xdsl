@@ -374,3 +374,31 @@ x86.mr.vmovapd %0, %zmm1, 8 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()
 // CHECK-NEXT: vbroadcastsd zmm0, [rdx]
 %rm_vbroadcastsd_avx512 = x86.rm.vbroadcastsd %zmm0, %1, 8 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vbroadcastsd zmm0, [rdx+8]
+
+%rm_vmovups_avx512 = x86.rm.vmovups %zmm0, %1 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> (!x86.avx512reg<zmm0>)
+// CHECK: vmovups zmm0, [rdx]
+%rm_vmovups_avx2 = x86.rm.vmovups %ymm0, %1 : (!x86.avx2reg<ymm0>, !x86.reg<rdx>) -> (!x86.avx2reg<ymm0>)
+// CHECK-NEXT: vmovups ymm0, [rdx]
+%rm_vmovups_sse = x86.rm.vmovups %xmm0, %1 : (!x86.ssereg<xmm0>, !x86.reg<rdx>) -> (!x86.ssereg<xmm0>)
+// CHECK-NEXT: vmovups xmm0, [rdx]
+
+%rm_vbroadcastss_avx512 = x86.rm.vbroadcastss %zmm0, %1 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> (!x86.avx512reg<zmm0>)
+// CHECK: vbroadcastss zmm0, [rdx]
+%rm_vbroadcastss_avx2 = x86.rm.vbroadcastss %ymm0, %1 : (!x86.avx2reg<ymm0>, !x86.reg<rdx>) -> (!x86.avx2reg<ymm0>)
+// CHECK-NEXT: vbroadcastss ymm0, [rdx]
+%rm_vbroadcastss_sse = x86.rm.vbroadcastss %xmm0, %1 : (!x86.ssereg<xmm0>, !x86.reg<rdx>) -> (!x86.ssereg<xmm0>)
+// CHECK-NEXT: vbroadcastss xmm0, [rdx]
+
+x86.mr.vmovups %0, %zmm1, 0 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()
+// CHECK: vmovups [rax], zmm1
+x86.mr.vmovups %0, %ymm1, 0 : (!x86.reg<rax>, !x86.avx2reg<ymm1>) -> ()
+// CHECK-NEXT: vmovups [rax], ymm1
+x86.mr.vmovups %0, %xmm1, 0 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
+// CHECK-NEXT: vmovups [rax], xmm1
+
+%rrr_vfmadd231ps_sse = x86.rrr.vfmadd231ps %xmm0, %xmm1, %xmm2 : (!x86.ssereg<xmm0>, !x86.ssereg<xmm1>, !x86.ssereg<xmm2>) -> !x86.ssereg<xmm0>
+// CHECK: vfmadd231ps xmm0, xmm1, xmm2
+%rrr_vfmadd231ps_avx2 = x86.rrr.vfmadd231ps %ymm0, %ymm1, %ymm2 : (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm0>
+// CHECK-NEXT: vfmadd231ps ymm0, ymm1, ymm2
+%rrr_vfmadd231ps_avx512 = x86.rrr.vfmadd231ps %zmm0, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
+// CHECK-NEXT: vfmadd231ps zmm0, zmm1, zmm2
