@@ -189,9 +189,6 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         return iter(self.data)
 
 
-AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
-
-
 @irdl_attr_definition
 class StringAttr(Data[str]):
     name = "string"
