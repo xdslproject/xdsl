@@ -166,8 +166,16 @@ class ConstantOp(IRDLOperation):
     @overload
     def __init__(
         self,
-        value: DenseIntOrFPElementsAttr | Attribute,
-        value_type: Attribute | None = None,
+        value: DenseIntOrFPElementsAttr,
+        value_type: None = None,
+    ) -> None:
+        ...
+
+    @overload
+    def __init__(
+        self,
+        value: Attribute,
+        value_type: Attribute,
     ) -> None:
         ...
 
@@ -181,6 +189,8 @@ class ConstantOp(IRDLOperation):
         if value_type is None:
             if isinstance(value, IntegerAttr | FloatAttr):
                 value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
+                value_type = value.type
+            elif isinstance(value, DenseIntOrFPElementsAttr):
                 value_type = value.type
 
         if isinstance(value, IntegerAttr):
