@@ -45,6 +45,22 @@ class CommandLineTool:
         arg_parser.add_argument("--disable-verify", default=False, action="store_true")
 
         arg_parser.add_argument(
+            "--verify-diagnostics",
+            default=False,
+            action="store_true",
+            help="Prints the content of a triggered "
+            "verifier exception and exits with code 0",
+        )
+
+        arg_parser.add_argument(
+            "--parsing-diagnostics",
+            default=False,
+            action="store_true",
+            help="Prints the content of a triggered "
+            "parsing exception and exits with code 0",
+        )
+
+        arg_parser.add_argument(
             "--allow-unregistered-dialect",
             default=False,
             action="store_true",
@@ -113,7 +129,7 @@ class CommandLineTool:
         except ParseError as e:
             s = e.span
             e.span = Span(s.start, s.end, s.input, start_offset)
-            if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
+            if self.args.parsing_diagnostics:
                 print(e)
             else:
                 raise

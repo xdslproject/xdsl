@@ -129,22 +129,6 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
-            "--verify-diagnostics",
-            default=False,
-            action="store_true",
-            help="Prints the content of a triggered "
-            "verifier exception and exits with code 0",
-        )
-
-        arg_parser.add_argument(
-            "--parsing-diagnostics",
-            default=False,
-            action="store_true",
-            help="Prints the content of a triggered "
-            "parsing exception and exits with code 0",
-        )
-
-        arg_parser.add_argument(
             "--split-input-file",
             default=False,
             action="store_true",
