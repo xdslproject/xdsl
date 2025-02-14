@@ -1,7 +1,7 @@
+import warnings
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-from warnings import deprecated
+from typing import TYPE_CHECKING, Any
 
 from xdsl.ir import Dialect
 
@@ -232,5 +232,7 @@ class Context:
         return None
 
 
-@deprecated("Please use Context instead")
-class MLContext(Context): ...
+class MLContext(Context):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        warnings.warn("MLContext is deprecated, please use Context instead")
