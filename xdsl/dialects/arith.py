@@ -151,32 +151,28 @@ class ConstantOp(IRDLOperation):
         self,
         value: IntegerAttr,
         value_type: IntegerType | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
         self,
         value: FloatAttr[AnyFloat],
         value_type: AnyFloat | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
         self,
         value: DenseIntOrFPElementsAttr,
         value_type: RankedStructure[AnyFloat | IntegerType | IndexType] | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
         self,
         value: Attribute,
         value_type: Attribute,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
