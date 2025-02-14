@@ -151,8 +151,6 @@ class ConstantOp(IRDLOperation):
         self,
         value: IntegerAttr,
         value_type: IntegerType | None = None,
-        *,
-        truncate_bits: bool = False,
     ) -> None:
         ...
 
@@ -184,8 +182,6 @@ class ConstantOp(IRDLOperation):
         self,
         value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr | Attribute,
         value_type: Attribute | None = None,
-        *,
-        truncate_bits: bool = False,
     ):
         if value_type is None:
             if isinstance(value, IntegerAttr | FloatAttr):
@@ -196,7 +192,7 @@ class ConstantOp(IRDLOperation):
 
         if isinstance(value, IntegerAttr):
             value_type = cast(IntegerType, value_type)
-            value = IntegerAttr(value.value, value_type, truncate_bits=truncate_bits)
+            value = IntegerAttr(value.value, value_type)
         elif isinstance(value, FloatAttr):
             value_type = cast(AnyFloat, value_type)
             value = FloatAttr(value.value, value_type)

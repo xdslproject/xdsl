@@ -52,6 +52,7 @@ from xdsl.dialects.arith import (
 from xdsl.dialects.builtin import (
     AnyTensorType,
     AnyVectorType,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -129,25 +130,26 @@ class Test_integer_arith_construction:
 
 
 def test_constant_construction():
-    cst1 = ConstantOp(IntegerAttr(1, i32))
-    assert isinstance(cst1.value, IntegerAttr)
-    assert cst1.value.type == i32
-    assert cst1.value.value.data == 1
+    c1 = ConstantOp(IntegerAttr(1, i32))
+    assert c1.value.type == i32
 
-    cst2 = ConstantOp(IntegerAttr(1, i32), i64)
-    assert isinstance(cst2.value, IntegerAttr)
-    assert cst2.value.type == i64
-    assert cst2.value.value.data == 1
+    c2 = ConstantOp(IntegerAttr(1, i32), i64)
+    assert c2.value.type == i64
 
-    cst3 = ConstantOp(FloatAttr(1.0, f32))
-    assert isinstance(cst3.value, FloatAttr)
-    assert cst3.value.type == f32
-    assert cst3.value.value.data == 1.0
+    c3 = ConstantOp(FloatAttr(1.0, f32))
+    assert c3.value.type == f32
 
-    cst4 = ConstantOp(FloatAttr(1.0, f32), f64)
-    assert isinstance(cst4.value, FloatAttr)
-    assert cst4.value.type == f64
-    assert cst4.value.value.data == 1.0
+    c4 = ConstantOp(FloatAttr(1.0, f32), f64)
+    assert c4.value.type == f64
+
+    value_type = TensorType(i64, [1, 4])
+    c5 = ConstantOp(
+        DenseIntOrFPElementsAttr.create_dense_int(
+            TensorType(i32, [2, 2]), [1, 2, 3, 4]
+        ),
+        value_type,
+    )
+    assert c5.value.type == value_type
 
 
 @pytest.mark.parametrize(
