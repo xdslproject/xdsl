@@ -21,6 +21,10 @@ def test_unallocated_register():
     assert not unallocated.is_allocated
     assert unallocated == x86.register.AVX512RegisterType.unallocated()
 
+    unallocated = x86.register.SSERegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.SSERegisterType.unallocated()
+
 
 @pytest.mark.parametrize(
     "register, name",

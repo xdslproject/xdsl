@@ -12,3 +12,8 @@
 
 // CHECK: foo not in AVX512
 "test.op"() { reg = !x86.avx512reg<foo> } : () -> ()
+
+// -----
+
+// CHECK: foo not in SSE
+"test.op"() { reg = !x86.ssereg<foo> } : () -> ()
