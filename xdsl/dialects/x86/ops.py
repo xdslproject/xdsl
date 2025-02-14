@@ -2516,6 +2516,19 @@ class RRR_Vfmadd231pdOp(
 
 
 @irdl_op_definition
+class RRR_Vfmadd231psOp(
+    RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Multiply packed single-precision floating-point elements in r2 and r3, add the
+    intermediate result to r1, and store the final result in r1.
+    https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
+    """
+
+    name = "x86.rrr.vfmadd231ps"
+
+
+@irdl_op_definition
 class RR_VmovapdOp(R_RR_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2 using
@@ -2537,6 +2550,26 @@ class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class MR_VmovupsOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from vector register to memory
+    https://www.felixcloutier.com/x86/movups
+    """
+
+    name = "x86.mr.vmovups"
+
+
+@irdl_op_definition
+class RM_VmovupsOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from memory to vector register
+    https://www.felixcloutier.com/x86/movups
+    """
+
+    name = "x86.rm.vmovups"
+
+
+@irdl_op_definition
 class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
@@ -2544,6 +2577,16 @@ class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterTyp
     """
 
     name = "x86.rm.vbroadcastsd"
+
+
+@irdl_op_definition
+class RM_VbroadcastssOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Broadcast single precision floating-point element to eight locations in memory
+    https://www.felixcloutier.com/x86/vbroadcast
+    """
+
+    name = "x86.rm.vbroadcastss"
 
 
 class GetAnyRegisterOperation(
