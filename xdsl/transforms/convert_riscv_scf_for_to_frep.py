@@ -1,6 +1,6 @@
 from itertools import chain
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, snitch
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -100,7 +100,7 @@ class ConvertRiscvScfForToFrepPass(ModulePass):
 
     name = "convert-riscv-scf-for-to-frep"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

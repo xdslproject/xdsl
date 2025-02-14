@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, scf
 from xdsl.ir import BlockArgument, OpResult, SSAValue
 from xdsl.passes import ModulePass
@@ -77,7 +77,7 @@ class ScfForLoopRangeFoldingPass(ModulePass):
 
     name = "scf-for-loop-range-folding"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             ScfForLoopRangeFolding(),
             apply_recursively=True,

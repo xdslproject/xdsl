@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -68,7 +68,7 @@ class MemRefStreamGeneralizeFillPass(ModulePass):
 
     name = "memref-stream-generalize-fill"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GeneralizeFillPattern(),
             apply_recursively=False,

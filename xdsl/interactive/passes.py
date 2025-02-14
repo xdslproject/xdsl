@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import NamedTuple
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.ir import Dialect
 from xdsl.passes import ModulePass, PipelinePass
@@ -20,11 +20,11 @@ class AvailablePass(NamedTuple):
 
 def get_new_registered_context(
     all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
-) -> MLContext:
+) -> Context:
     """
-    Generates a new MLContext, registers it and returns it.
+    Generates a new Context, registers it and returns it.
     """
-    ctx = MLContext(True)
+    ctx = Context(True)
     for dialect_name, dialect_factory in all_dialects:
         ctx.register_dialect(dialect_name, dialect_factory)
     return ctx
@@ -32,11 +32,11 @@ def get_new_registered_context(
 
 def apply_passes_to_module(
     module: builtin.ModuleOp,
-    ctx: MLContext,
+    ctx: Context,
     passes: tuple[ModulePass, ...],
 ) -> builtin.ModuleOp:
     """
-    Function that takes a ModuleOp, an MLContext and a pass_pipeline, applies the
+    Function that takes a ModuleOp, an Context and a pass_pipeline, applies the
     passes to the ModuleOp and returns the modified ModuleOp.
     """
     pipeline = PipelinePass(passes=passes)
@@ -48,7 +48,7 @@ def iter_condensed_passes(
     input: builtin.ModuleOp,
     all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ):
-    ctx = MLContext(True)
+    ctx = Context(True)
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)

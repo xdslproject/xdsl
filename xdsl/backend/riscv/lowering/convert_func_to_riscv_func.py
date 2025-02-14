@@ -6,7 +6,7 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_a_regs,
     move_to_unallocated_regs,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import func, riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir import Block, Operation, Region
@@ -120,7 +120,7 @@ class LowerReturnOp(RewritePattern):
 class ConvertFuncToRiscvFuncPass(ModulePass):
     name = "convert-func-to-riscv-func"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

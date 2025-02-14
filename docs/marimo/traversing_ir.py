@@ -10,7 +10,7 @@ def _():
     from xdsl.ir import Dialect
     from collections import defaultdict
     from xdsl.dialects import builtin, func, arith, scf
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     from xdsl.parser import Parser
     from xdsl.utils import marimo as xmo
     from collections import Counter
@@ -19,7 +19,7 @@ def _():
         BlockArgument,
         Counter,
         Dialect,
-        MLContext,
+        Context,
         OpResult,
         Parser,
         arith,
@@ -73,9 +73,9 @@ def _(mo, triangle_text):
 
 
 @app.cell
-def _(MLContext, arith, builtin, func, scf):
+def _(Context, arith, builtin, func, scf):
     # The context stores the available abstractions
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(func.Func)
     ctx.load_dialect(arith.Arith)

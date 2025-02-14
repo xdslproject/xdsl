@@ -3,7 +3,7 @@ from io import StringIO
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.passes import ModulePass
 from xdsl.transforms import get_all_passes
@@ -116,7 +116,7 @@ def test_operation_deletion():
             class RemoveConstantPass(ModulePass):
                 name = "remove-constant"
 
-                def apply(self, ctx: MLContext, op: builtin.ModuleOp):
+                def apply(self, ctx: Context, op: builtin.ModuleOp):
                     if op.ops.first is not None:
                         op.ops.first.detach()
 

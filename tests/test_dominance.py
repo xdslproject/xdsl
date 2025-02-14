@@ -1,11 +1,11 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import get_all_dialects
 from xdsl.irdl.dominance import strictly_dominates
 from xdsl.parser import Parser
 
-ctx = MLContext()
+ctx = Context()
 ctx.register_dialect("test", get_all_dialects()["test"])
 
 

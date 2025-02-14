@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 from conftest import assert_print_op
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
@@ -15,7 +15,7 @@ from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 def rewrite_and_compare(
     prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]
 ):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)

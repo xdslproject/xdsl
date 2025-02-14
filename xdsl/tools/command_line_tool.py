@@ -4,7 +4,7 @@ import sys
 from collections.abc import Callable
 from typing import IO
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
@@ -13,7 +13,7 @@ from xdsl.utils.lexer import Span
 
 
 class CommandLineTool:
-    ctx: MLContext
+    ctx: Context
     args: argparse.Namespace
     """
     The argument parsers namespace which holds the parsed commandline

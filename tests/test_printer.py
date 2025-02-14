@@ -6,7 +6,7 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
@@ -49,7 +49,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 def test_simple_forgotten_op():
     """Test that the parsing of an undefined operand gives it a name."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
 
     lit = ConstantOp.from_int_and_width(42, 32)
@@ -64,7 +64,7 @@ def test_simple_forgotten_op():
 
 def test_print_op_location():
     """Test that an op can be printed with its location."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(test.Test)
 
     add = test.TestOp(result_types=[i32])
@@ -136,7 +136,7 @@ def test_op_message():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -171,7 +171,7 @@ def test_two_different_op_messages():
   -----------------
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -206,7 +206,7 @@ def test_two_same_op_messages():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -239,7 +239,7 @@ def test_op_message_with_region():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -272,7 +272,7 @@ def test_op_message_with_region_and_overflow():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -295,7 +295,7 @@ def test_diagnostic():
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -334,7 +334,7 @@ def test_print_custom_name():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -361,7 +361,7 @@ def test_print_clashing_names():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
 
@@ -579,7 +579,7 @@ builtin.module {
 }
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(PlusCustomFormatOp)
@@ -608,7 +608,7 @@ builtin.module {
 }
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(PlusCustomFormatOp)
@@ -637,7 +637,7 @@ def test_custom_format_II():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(PlusCustomFormatOp)
@@ -667,7 +667,7 @@ def test_missing_custom_format():
 }) : () -> ()
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Arith)
     ctx.load_dialect(Builtin)
     ctx.load_op(NoCustomFormatOp)
@@ -719,7 +719,7 @@ def test_custom_format_attr():
   "test.any"() {attr = #test.custom<zero>} : () -> ()
 }) : () -> ()"""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_op(AnyOp)
     ctx.load_attr(CustomFormatAttr)
@@ -737,7 +737,7 @@ def test_dictionary_attr():
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {arg_attrs = {key_one = "value_one", key_two = "value_two", key_three = 72 : i64, unit_attr}} : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
@@ -754,7 +754,7 @@ def test_densearray_attr():
 "func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 0.3400000035762787>} : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
@@ -875,7 +875,7 @@ def test_print_properties_as_attributes():
 "func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
@@ -896,7 +896,7 @@ def test_print_properties_as_attributes_safeguard():
 "func.func"() {extra_attr, sym_name = "test", function_type = i64, sym_visibility = "private"} : () -> ()
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
 
@@ -921,7 +921,7 @@ def test_print_properties_as_attributes_safeguard():
     ],
 )
 def test_symbol_ref(attr: SymbolRefAttr, expected: str):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
 
     printed = StringIO()
@@ -930,7 +930,7 @@ def test_symbol_ref(attr: SymbolRefAttr, expected: str):
 
 
 def test_get_printed_name():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
 
     printer = Printer()
