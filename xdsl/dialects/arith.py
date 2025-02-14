@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
+    RankedStructure,
     SignlessIntegerConstraint,
     TensorType,
     UnrankedTensorType,
@@ -167,7 +168,7 @@ class ConstantOp(IRDLOperation):
     def __init__(
         self,
         value: DenseIntOrFPElementsAttr,
-        value_type: None = None,
+        value_type: RankedStructure[AnyFloat | IntegerType | IndexType] = None,
     ) -> None:
         ...
 
@@ -199,6 +200,8 @@ class ConstantOp(IRDLOperation):
         elif isinstance(value, FloatAttr):
             value_type = cast(AnyFloat, value_type)
             value = FloatAttr(value.value, value_type)
+        elif isinstance(value, DenseIntOrFPElementsAttr):
+            value = DenseIntOrFPElementsAttr(value, value_type)
         super().__init__(
             operands=[], result_types=[value_type], properties={"value": value}
         )
