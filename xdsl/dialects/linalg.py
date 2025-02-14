@@ -864,7 +864,7 @@ class MatmulOp(NamedOpBase):
         add, mul = (
             (arith.AddfOp, arith.MulfOp)
             if isinstance(arg_types[-1], AnyFloat)
-            else (arith.AddiOp, arith.MuliOp)
+            else (arith.AddiOp, arith.MulfOp)
         )
 
         @Builder.implicit_region(arg_types)
