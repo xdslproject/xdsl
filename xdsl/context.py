@@ -125,13 +125,14 @@ class MLContext:
                 return self._get_known_op(name)
 
     def get_optional_op(
-        self, name: str, *, dialect_stack: Sequence[str] = ()
+        self, name: str, *, is_generic: bool = False, dialect_stack: Sequence[str] = ()
     ) -> "type[Operation] | None":
         """
         Get an operation class from its name if it exists or is contained in one of the
         dialects in the dialect stack.
         If the operation is not registered, return None unless unregistered operations
-        are allowed in the context, in which case return an UnregisteredOp.
+        are allowed in the context or the name was found in custom syntax,
+        in which case return an UnregisteredOp.
         """
         # Check if the name is known.
         if op_type := self._get_known_op(name):
@@ -144,7 +145,7 @@ class MLContext:
                 return op_type
 
         # If the context allows unregistered operations then create an UnregisteredOp
-        if self.allow_unregistered:
+        if self.allow_unregistered and is_generic:
             from xdsl.dialects.builtin import UnregisteredOp
 
             op_type = UnregisteredOp.with_name(name)
@@ -152,7 +153,7 @@ class MLContext:
             return op_type
 
     def get_op(
-        self, name: str, *, dialect_stack: Sequence[str] = ()
+        self, name: str, *, dialect_stack: Sequence[str] = (), is_generic: bool = False
     ) -> "type[Operation]":
         """
         Get an operation class from its name if it exists or is contained in one of the
@@ -160,7 +161,9 @@ class MLContext:
         If the operation is not registered, raise an exception unless unregistered
         operations are allowed in the context, in which case return an UnregisteredOp.
         """
-        if op_type := self.get_optional_op(name, dialect_stack=dialect_stack):
+        if op_type := self.get_optional_op(
+            name, dialect_stack=dialect_stack, is_generic=is_generic
+        ):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 

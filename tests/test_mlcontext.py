@@ -52,12 +52,14 @@ def test_get_op_unregistered():
     ctx.load_op(DummyOp)
 
     assert ctx.get_optional_op("test.dummy") == DummyOp
-    op = ctx.get_optional_op("test.dummy2")
+    op = ctx.get_optional_op("test.dummy2", is_generic=True)
     assert op is not None
     assert issubclass(op, UnregisteredOp)
 
     assert ctx.get_op("test.dummy") == DummyOp
     assert issubclass(ctx.get_op("test.dummy2"), UnregisteredOp)
+
+    assert ctx.get_optional_op("test.dummy3") is None
 
 
 def test_get_op_with_dialect_stack():
@@ -82,13 +84,13 @@ def test_get_op_unregistered_with_dialect_stack():
     ctx.load_op(DummyOp)
 
     assert ctx.get_optional_op("dummy", dialect_stack=("test",)) == DummyOp
-    op_type = ctx.get_optional_op("dummy2", dialect_stack=("test",))
+    op_type = ctx.get_optional_op("dummy2", dialect_stack=("test",), is_generic=True)
     assert op_type is not None
     assert issubclass(op_type, UnregisteredOp)
     assert op_type.create().op_name.data == "dummy2"
 
     assert ctx.get_op("dummy", dialect_stack=("test",)) == DummyOp
-    op_type = ctx.get_op("dummy2", dialect_stack=("test",))
+    op_type = ctx.get_op("dummy2", dialect_stack=("test",), is_generic=True)
     assert issubclass(op_type, UnregisteredOp)
     assert op_type.create().op_name.data == "dummy2"
 
