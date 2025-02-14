@@ -2,34 +2,18 @@ from __future__ import annotations
 
 from typing import TypeAlias
 
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-)
-from xdsl.ir import (
-    SSAValue,
-)
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
+from xdsl.ir import SSAValue
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 from .attributes import LabelAttr
-from .register import AVXRegisterType, GeneralRegisterType, RFLAGSRegisterType
+from .register import GeneralRegisterType, RFLAGSRegisterType, X86VectorRegisterType
 
 AssemblyInstructionArg: TypeAlias = (
     IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
 )
-
-
-def append_comment(line: str, comment: StringAttr | None) -> str:
-    if comment is None:
-        return line
-
-    padding = " " * max(0, 48 - len(line))
-
-    return f"{line}{padding} # {comment.data}"
 
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
@@ -43,7 +27,7 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg.register_name
     elif isinstance(arg, RFLAGSRegisterType):
         return arg.register_name
-    elif isinstance(arg, AVXRegisterType):
+    elif isinstance(arg, X86VectorRegisterType):
         return arg.register_name
     elif isinstance(arg, LabelAttr):
         return arg.data
@@ -54,25 +38,11 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         elif isinstance(arg.type, RFLAGSRegisterType):
             reg = arg.type.register_name
             return reg
-        elif isinstance(arg.type, AVXRegisterType):
+        elif isinstance(arg.type, X86VectorRegisterType):
             reg = arg.type.register_name
             return reg
         else:
             raise ValueError(f"Unexpected register type {arg.type}")
-
-
-def assembly_line(
-    name: str,
-    arg_str: str,
-    comment: StringAttr | None = None,
-    is_indented: bool = True,
-) -> str:
-    code = "    " if is_indented else ""
-    code += name
-    if arg_str:
-        code += f" {arg_str}"
-    code = append_comment(code, comment)
-    return code
 
 
 def parse_immediate_value(
@@ -104,11 +74,9 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
             printer.print_string_literal(immediate.data)
 
 
-def memory_access_str(
-    register: AssemblyInstructionArg, offset: IntegerAttr | None
-) -> str:
+def memory_access_str(register: AssemblyInstructionArg, offset: IntegerAttr) -> str:
     register_str = assembly_arg_str(register)
-    if offset is not None:
+    if offset.value.data != 0:
         offset_str = assembly_arg_str(offset)
         if offset.value.data > 0:
             mem_acc_str = f"[{register_str}+{offset_str}]"

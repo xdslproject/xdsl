@@ -189,9 +189,6 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         return iter(self.data)
 
 
-AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
-
-
 @irdl_attr_definition
 class StringAttr(Data[str]):
     name = "string"
@@ -1818,7 +1815,7 @@ _MemRefTypeElement = TypeVar(
     "_MemRefTypeElement", bound=Attribute, covariant=True, default=Attribute
 )
 _UnrankedMemRefTypeElems = TypeVar(
-    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True
+    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True, default=Attribute
 )
 _UnrankedMemRefTypeElemsInit = TypeVar("_UnrankedMemRefTypeElemsInit", bound=Attribute)
 

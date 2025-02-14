@@ -54,9 +54,9 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %zero = riscv.li 0 : !riscv.reg<zero>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %0 = riscv.li 6 : !riscv.reg<j1>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %1 = riscv.li 5 : !riscv.reg<s0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %2 = riscv.fcvt.s.w %0 : (!riscv.reg<j1>) -> !riscv.freg<j3>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %3 = riscv.fcvt.s.w %1 : (!riscv.reg<s0>) -> !riscv.freg<j4>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %4 = riscv.fadd.s %2, %3 : (!riscv.freg<j3>, !riscv.freg<j4>) -> !riscv.freg<j3>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %2 = riscv.fcvt.s.w %0 : (!riscv.reg<j1>) -> !riscv.freg<fj0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %3 = riscv.fcvt.s.w %1 : (!riscv.reg<s0>) -> !riscv.freg<fj1>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %4 = riscv.fadd.s %2, %3 : (!riscv.freg<fj0>, !riscv.freg<fj1>) -> !riscv.freg<fj0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %5 = riscv.add %0, %1 : (!riscv.reg<j1>, !riscv.reg<s0>) -> !riscv.reg<j0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_scf.for %6 : !riscv.reg<j2> = %0 to %1 step %5 {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
