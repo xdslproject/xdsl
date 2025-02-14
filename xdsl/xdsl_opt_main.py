@@ -7,7 +7,7 @@ from io import StringIO
 from itertools import accumulate
 from typing import IO
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
@@ -41,7 +41,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_passes = {}
         self.available_targets = {}
 
-        self.ctx = MLContext()
+        self.ctx = Context()
         self.register_all_dialects()
         self.register_all_frontends()
         self.register_all_passes()

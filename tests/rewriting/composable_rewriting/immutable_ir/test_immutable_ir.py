@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.cf import Cf
@@ -95,7 +95,7 @@ program_attr_and_prop = """
     ],
 )
 def test_immutable_ir(program_str: str):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Test)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)

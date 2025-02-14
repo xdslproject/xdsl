@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.csl import csl, csl_wrapper
@@ -71,6 +71,6 @@ class CslWrapperHoistBuffers(ModulePass):
 
     name = "csl-wrapper-hoist-buffers"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(HoistBuffers())
         module_pass.rewrite_module(op)

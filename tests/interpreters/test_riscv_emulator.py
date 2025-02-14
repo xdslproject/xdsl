@@ -4,7 +4,7 @@ from io import StringIO
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_debug, riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import BlockArgument
@@ -14,7 +14,7 @@ pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
 from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv  # noqa: E402
 
-ctx = MLContext()
+ctx = Context()
 ctx.load_dialect(riscv.RISCV)
 
 

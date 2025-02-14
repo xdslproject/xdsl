@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -86,7 +86,7 @@ class AttrParser(BaseParser):
 
     """
 
-    ctx: MLContext
+    ctx: Context
 
     attribute_aliases: dict[str, Attribute] = field(default_factory=dict)
     """

@@ -18,7 +18,7 @@ def _():
     from xdsl.utils import marimo as xmo
 
     from xdsl.parser import Parser
-    from xdsl.context import MLContext
+    from xdsl.context import Context
 
     from xdsl.dialects.builtin import Builtin
     from xdsl.dialects.arith import Arith
@@ -42,7 +42,7 @@ def _():
         Func,
         FuncOp,
         GreedyRewritePatternApplier,
-        MLContext,
+        Context,
         ModuleOp,
         MuliOp,
         Parser,
@@ -223,8 +223,8 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(Arith, Builtin, Func, MLContext):
-    ctx = MLContext()
+def _(Arith, Builtin, Func, Context):
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(Func)

@@ -30,13 +30,10 @@ from xdsl.irdl import (
     Successor,
     VarExtractor,
     VariadicDef,
-    VarIRConstruct,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.mlir_lexer import PunctuationSpelling
-
-OperandOrResult = Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT]
 
 
 @dataclass

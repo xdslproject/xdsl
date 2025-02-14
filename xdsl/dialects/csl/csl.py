@@ -417,7 +417,6 @@ ColorIdAttr: TypeAlias = IntegerAttr[
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = FloatAttr | IntegerAttr
-ParamAttrConstr = FloatAttr.constr() | IntegerAttr.constr()
 
 
 @irdl_op_definition
@@ -433,7 +432,7 @@ class VariableOp(IRDLOperation):
 
     name = "csl.variable"
 
-    default = opt_prop_def(ParamAttrConstr)
+    default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
     def get_element_type(self):

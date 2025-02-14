@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from math import prod
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     AnyTensorType,
@@ -650,7 +650,7 @@ class ConvertStencilToCslStencilPass(ModulePass):
     # chunks into which to slice communication
     num_chunks: int = 1
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         ConvertArithToVarithPass().apply(ctx, op)
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(

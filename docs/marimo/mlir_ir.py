@@ -8,12 +8,12 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     from xdsl.dialects import builtin, arith, func, scf
     from xdsl.utils import marimo as xmo
     from xdsl.printer import Printer
     from typing import Any
-    return Any, MLContext, Printer, arith, builtin, func, mo, scf, xmo
+    return Any, Context, Printer, arith, builtin, func, mo, scf, xmo
 
 
 @app.cell(hide_code=True)
@@ -615,8 +615,8 @@ def _(ModuleOp, Printer, StringIO):
 
 
 @app.cell(hide_code=True)
-def _(MLContext, arith, builtin, func, scf):
-    ctx = MLContext()
+def _(Context, arith, builtin, func, scf):
+    ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(func.Func)
     ctx.load_dialect(scf.Scf)

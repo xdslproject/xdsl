@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
 from xdsl.ir import SSAValue
@@ -64,5 +64,5 @@ class MemRefStreamFoldFillPass(ModulePass):
 
     name = "memref-stream-fold-fill"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         fold_fills_in_module(op)

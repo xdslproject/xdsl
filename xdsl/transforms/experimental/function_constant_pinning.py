@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, scf
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.ir import Attribute, Block, Operation, Region
@@ -288,5 +288,5 @@ class FunctionConstantPinningPass(ModulePass):
 
     name = "function-constant-pinning"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(FunctionConstantPinning()).rewrite_module(op)
