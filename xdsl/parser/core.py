@@ -711,7 +711,7 @@ class Parser(AttrParser):
             op_name = self.expect(
                 self.parse_optional_str_literal, "operation name expected"
             )
-            op_type = self._get_op_by_name(op_name)
+            op_type = self._get_op_by_name(op_name, is_generic=True)
             dialect_name = op_type.dialect_name()
             self._parser_state.dialect_stack.append(dialect_name)
             op = self._parse_generic_operation(op_type)
@@ -736,17 +736,19 @@ class Parser(AttrParser):
 
         return op
 
-    def _get_op_by_name(self, name: str) -> type[Operation]:
+    def _get_op_by_name(
+        self, name: str, *, is_generic: bool = False
+    ) -> type[Operation]:
         """
         Get an operation type by its name.
         Raises an error if the operation is not registered, and if unregistered
-        dialects are not allowed.
+        dialects are not allowed or the name was encountered in custom syntax.
         """
         if op_type := self.ctx.get_optional_op(
-            name, dialect_stack=self._parser_state.dialect_stack
+            name, dialect_stack=self._parser_state.dialect_stack, is_generic=is_generic
         ):
             return op_type
-        self.raise_error(f"Operation {name} is not registered")
+        self.raise_error(f"Operation {name} is not registered.")
 
     def _parse_op_result(self) -> tuple[Span, int]:
         """
