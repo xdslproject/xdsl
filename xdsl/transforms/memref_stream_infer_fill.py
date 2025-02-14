@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute
@@ -78,7 +78,7 @@ class MemRefStreamInferFillPass(ModulePass):
 
     name = "memref-stream-infer-fill"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             InferFillPattern(),
             apply_recursively=False,

@@ -7,7 +7,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal, overload
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -93,7 +93,7 @@ class Parser(AttrParser):
 
     def __init__(
         self,
-        ctx: MLContext,
+        ctx: Context,
         input: str,
         name: str = "<unknown>",
     ) -> None:

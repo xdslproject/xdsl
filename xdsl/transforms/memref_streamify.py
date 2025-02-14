@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import Block, Region
@@ -143,7 +143,7 @@ class MemRefStreamifyPass(ModulePass):
 
     streams: int = field(default=3)
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             StreamifyGenericOpPattern(self.streams),
             apply_recursively=False,

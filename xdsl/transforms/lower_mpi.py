@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import prod
 from typing import TypeVar, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
 from xdsl.dialects.builtin import (
     IndexType,
@@ -837,7 +837,7 @@ class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
 class LowerMPIPass(ModulePass):
     name = "lower-mpi"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         # TODO: how to get the lib info in here?
         lib_info = MpiLibraryInfo()
         walker1 = PatternRewriteWalker(

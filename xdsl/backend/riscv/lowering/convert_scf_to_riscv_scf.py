@@ -4,7 +4,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv_scf, scf
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -42,7 +42,7 @@ class ScfYieldLowering(RewritePattern):
 class ConvertScfToRiscvPass(ModulePass):
     name = "convert-scf-to-riscv-scf"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

@@ -24,7 +24,7 @@ def _():
         ConvertSnitchStreamToSnitch,
     )
     from xdsl.builder import ImplicitBuilder
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
@@ -63,7 +63,7 @@ def _():
         ConvertSnitchStreamToSnitch,
         ImplicitBuilder,
         LowerSnitchPass,
-        MLContext,
+        Context,
         MLIROptPass,
         MemRefType,
         ModuleOp,
@@ -247,8 +247,8 @@ def _(mo):
 
 
 @app.cell
-def _(MLContext, get_all_dialects):
-    linalg_ctx = MLContext()
+def _(Context, get_all_dialects):
+    linalg_ctx = Context()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         linalg_ctx.register_dialect(dialect_name, dialect_factory)

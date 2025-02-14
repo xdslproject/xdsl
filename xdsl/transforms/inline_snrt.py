@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Operation, SSAValue
@@ -675,7 +675,7 @@ class InlineSnrtPass(SnrtConstants, ModulePass):
 
     name = "inline-snrt"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

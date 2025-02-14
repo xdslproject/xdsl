@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -413,7 +413,7 @@ class MemRefToDsdPass(ModulePass):
 
     name = "memref-to-dsd"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

@@ -5,7 +5,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_matched_op_results,
     cast_operands_to_regs,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
@@ -495,7 +495,7 @@ class LowerArithTruncFOp(RewritePattern):
 class ConvertArithToRiscvPass(ModulePass):
     name = "convert-arith-to-riscv"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

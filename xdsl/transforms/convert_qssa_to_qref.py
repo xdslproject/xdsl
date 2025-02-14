@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.qssa import QssaBase
 from xdsl.passes import ModulePass
@@ -32,5 +32,5 @@ class ConvertQssaToQRef(ModulePass):
 
     name = "convert-qssa-to-qref"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(ConvertQssaToQRefPattern()).rewrite_module(op)

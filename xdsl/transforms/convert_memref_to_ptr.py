@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
@@ -335,7 +335,7 @@ class ConvertMemRefToPtr(ModulePass):
 
     lower_func: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
         ).rewrite_module(op)

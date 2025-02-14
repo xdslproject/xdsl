@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, scf
 from xdsl.dialects.builtin import (
     FunctionType,
@@ -294,7 +294,7 @@ class CslStencilHandleAsyncControlFlow(ModulePass):
 
     name = "csl-stencil-handle-async-flow"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

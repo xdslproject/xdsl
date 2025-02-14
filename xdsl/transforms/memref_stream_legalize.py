@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -198,7 +198,7 @@ class MemRefStreamLegalizePass(ModulePass):
 
     name = "memref-stream-legalize"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([MemRefStreamGenericLegalize()]),
             apply_recursively=False,
