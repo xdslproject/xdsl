@@ -4,7 +4,7 @@ from math import prod
 from typing import TypeVar, cast
 from warnings import warn
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
@@ -668,7 +668,7 @@ class ResultTypeConversion(TypeConversionPattern):
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         return_targets: dict[ApplyOp, list[SSAValue | None]] = return_target_analysis(
             op
         )

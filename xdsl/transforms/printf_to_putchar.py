@@ -1,5 +1,5 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, func, math, scf
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
@@ -212,7 +212,7 @@ class PrintfToPutcharPass(ModulePass):
     name = "printf-to-putchar"
 
     # lower to func.call
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         # Check if there are any printints
         contains_printint = any(
             isinstance(op_in_module, PrintIntOp) for op_in_module in op.walk()

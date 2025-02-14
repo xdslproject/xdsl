@@ -7,7 +7,7 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -428,7 +428,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
 class ConvertMemRefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         contains_malloc = PatternRewriteWalker(ConvertMemRefAllocOp()).rewrite_module(
             op
         )

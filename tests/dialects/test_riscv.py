@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -239,7 +239,7 @@ def test_float_register():
 
 
 def test_riscv_parse_immediate_value():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(riscv.RISCV)
 
     prog = """riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""

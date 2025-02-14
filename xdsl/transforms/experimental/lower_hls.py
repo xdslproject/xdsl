@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, f64, i32
@@ -494,7 +494,7 @@ class GetHLSStreamInDataflow(RewritePattern):
 class LowerHLSPass(ModulePass):
     name = "lower-hls"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         def gen_greedy_walkers(
             passes: list[RewritePattern],
         ) -> list[PatternRewriteWalker]:

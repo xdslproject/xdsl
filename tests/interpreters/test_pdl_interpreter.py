@@ -1,5 +1,5 @@
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, pdl, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -19,7 +19,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 def test_interpreter_functions():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
+    interpreter.register_implementations(PDLRewriteFunctions(Context()))
 
     c0 = TestSSAValue(i32)
     c1 = TestSSAValue(i32)
@@ -63,7 +63,7 @@ def test_native_constraint():
     def even_length_string(attr: Attribute) -> bool:
         return isinstance(attr, StringAttr) and len(attr.data) == 4
 
-    ctx = MLContext()
+    ctx = Context()
     PDLMatcher.native_constraints["even_length_string"] = even_length_string
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
@@ -501,7 +501,7 @@ def test_native_constraint_constant_parameter():
             and len(attr.data) == size.value.data
         )
 
-    ctx = MLContext()
+    ctx = Context()
     PDLMatcher.native_constraints["length_string"] = length_string
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))

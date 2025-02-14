@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import (
     builtin,
     riscv,
@@ -195,7 +195,7 @@ class LowerStreamingRegionOp(RewritePattern):
 class ConvertSnitchStreamToSnitch(ModulePass):
     name = "convert-snitch-stream-to-snitch"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         # StridedWrite and StridePattern ops are rewritten to remove their results, so we
         # have to first lower the ops that use the results in `stream`, and then the ops
         # themselves.

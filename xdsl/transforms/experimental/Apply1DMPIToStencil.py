@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
 from xdsl.ir import Operation, TypeAttribute
 from xdsl.irdl import Operand
@@ -219,7 +219,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         rewriter.insert_op_after_matched_op(mpi_operations)
 
 
-def Apply1DMpi(ctx: MLContext, module: builtin.ModuleOp):
+def Apply1DMpi(ctx: Context, module: builtin.ModuleOp):
     applyMPI = ApplyMPIToExternalLoad()
     walker1 = PatternRewriteWalker(
         GreedyRewritePatternApplier(

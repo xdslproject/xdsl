@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
@@ -167,7 +167,7 @@ class LinalgToCsl(ModulePass):
 
     name = "linalg-to-csl"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
