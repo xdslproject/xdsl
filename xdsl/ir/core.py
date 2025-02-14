@@ -36,7 +36,7 @@ from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.irdl import GenericAttrConstraint, ParamAttrDef
+    from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
@@ -297,12 +297,6 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
-
-    @classmethod
-    def constr(cls) -> GenericAttrConstraint[Self]:
-        from xdsl.irdl import BaseAttr
-
-        return BaseAttr(cls)
 
 
 class TypeAttribute(Attribute):

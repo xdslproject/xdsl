@@ -5,5 +5,10 @@
 
 // -----
 
-// CHECK: foo not in x86AVX
-"test.op"() { reg = !x86.avxreg<foo> } : () -> ()
+// CHECK: foo not in AVX2
+"test.op"() { reg = !x86.avx2reg<foo> } : () -> ()
+
+// -----
+
+// CHECK: foo not in AVX512
+"test.op"() { reg = !x86.avx512reg<foo> } : () -> ()

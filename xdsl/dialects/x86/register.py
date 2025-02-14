@@ -263,7 +263,7 @@ class AVX512RegisterType(X86VectorRegisterType):
 
     @classmethod
     def instruction_set_name(cls) -> str:
-        return "x86AVX512"
+        return "AVX512"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
