@@ -182,9 +182,9 @@ class ConstantOp(IRDLOperation):
         if value_type is None:
             if isinstance(value, IntegerAttr | FloatAttr):
                 value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
-                value_type = value.type
+                value_type = value.get_type()
             elif isinstance(value, DenseIntOrFPElementsAttr):
-                value_type = value.type
+                value_type = value.get_type()
 
         if isinstance(value, IntegerAttr):
             value_type = cast(IntegerType, value_type)
