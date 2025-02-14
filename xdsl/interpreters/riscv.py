@@ -353,7 +353,7 @@ class RiscvFunctions(InterpreterFunctions):
         lhs = to_signed(args[0], self.bitwidth)
         rhs = to_signed(args[1], self.bitwidth)
 
-        results = (lhs / rhs,)
+        results = (lhs // rhs,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SwOp)
