@@ -168,7 +168,7 @@ class ConstantOp(IRDLOperation):
     def __init__(
         self,
         value: DenseIntOrFPElementsAttr,
-        value_type: RankedStructure[AnyFloat | IntegerType | IndexType] = None,
+        value_type: RankedStructure[AnyFloat | IntegerType | IndexType] | None = None,
     ) -> None:
         ...
 
@@ -201,7 +201,11 @@ class ConstantOp(IRDLOperation):
             value_type = cast(AnyFloat, value_type)
             value = FloatAttr(value.value, value_type)
         elif isinstance(value, DenseIntOrFPElementsAttr):
-            value = DenseIntOrFPElementsAttr(value, value_type)
+            value_type = cast(
+                RankedStructure[AnyFloat | IntegerType | IndexType], value_type
+            )
+            value = DenseIntOrFPElementsAttr.from_list(value_type, value.get_values())
+
         super().__init__(
             operands=[], result_types=[value_type], properties={"value": value}
         )
