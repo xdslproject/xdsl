@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import math
 import re
-import struct
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
@@ -13,12 +11,9 @@ from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyArrayAttr,
     AnyDenseElement,
     AnyFloat,
-    AnyFloatAttr,
     AnyFloatConstr,
-    AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -41,7 +36,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
-    MemrefLayoutAttr,
+    MemRefLayoutAttr,
     MemRefType,
     NoneAttr,
     NoneType,
@@ -53,7 +48,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
@@ -61,7 +56,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
-from xdsl.irdl import BaseAttr, base
+from xdsl.irdl import base
 from xdsl.utils.bitwise_casts import (
     convert_u16_to_f16,
     convert_u32_to_f32,
@@ -195,12 +190,24 @@ class AttrParser(BaseParser):
 
         return name, self.parse_attribute()
 
+    def _find_duplicated_key(self, attrs: list[tuple[str, Attribute]]) -> str | None:
+        seen_keys: set[str] = set()
+        for key, _ in attrs:
+            if key in seen_keys:
+                return key
+            seen_keys.add(key)
+        return None
+
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
         attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
         if attrs is None:
             return dict()
+
+        if (key := self._find_duplicated_key(attrs)) is not None:
+            self.raise_error(f"Duplicate key '{key}' in dictionary attribute")
+
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_body(
@@ -515,15 +522,15 @@ class AttrParser(BaseParser):
 
     def _parse_memref_attrs(
         self,
-    ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
+    ) -> MemRefType[Attribute] | UnrankedMemRefType[Attribute]:
         shape, type = self.parse_shape()
 
         # Unranked case
         if shape is None:
             if self.parse_optional_punctuation(",") is None:
-                return UnrankedMemrefType.from_type(type)
+                return UnrankedMemRefType.from_type(type)
             memory_space = self.parse_attribute()
-            return UnrankedMemrefType.from_type(type, memory_space)
+            return UnrankedMemRefType.from_type(type, memory_space)
 
         if self.parse_optional_punctuation(",") is None:
             return MemRefType(type, shape)
@@ -534,12 +541,12 @@ class AttrParser(BaseParser):
         # layout is the second one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
-            if not isinstance(memory_or_layout, MemrefLayoutAttr):
+            if not isinstance(memory_or_layout, MemRefLayoutAttr):
                 self.raise_error("Expected a MemRef layout attribute")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # If the argument is a MemrefLayoutAttr, use it as layout
-        if isinstance(memory_or_layout, MemrefLayoutAttr):
+        # If the argument is a MemRefLayoutAttr, use it as layout
+        if isinstance(memory_or_layout, MemRefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
 
         # Otherwise, consider it as the memory space.
@@ -702,77 +709,6 @@ class AttrParser(BaseParser):
         self._consume_token(MLIRTokenKind.BARE_IDENT)
         return parsers[name.text]()
 
-    def _parse_builtin_dense_attr_hex(
-        self,
-        hex_string: str,
-        type: RankedStructure[AnyDenseElement],
-    ) -> tuple[list[int] | list[float], list[int]]:
-        """
-        Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
-        and its flattened shape, based on the parsed type.
-
-        For instance, a dense<"0x82F5AB0182F5AB00"> attribute will return [28046722, 11269506]
-        for a tensor<2xi32> type.
-
-        Only supports integer types that are multiple of 8, f32 and f64.
-        """
-        element_type = type.element_type
-
-        # Strip off "0x" of hex string
-        stripped_string = hex_string[2:]
-
-        # Convert incoming hex to list of bytes
-        try:
-            byte_list = bytes.fromhex(stripped_string)
-        except ValueError:
-            self.raise_error("Hex string in denseAttr is invalid")
-
-        # Use struct builtin package for unpacking f32, f64
-        format_str: str = ""
-        num_chunks = 0
-        match element_type:
-            case Float32Type():
-                chunk_size = 4
-                num_chunks = len(byte_list) // chunk_size
-                format_str = (
-                    f"@{num_chunks}f"  # @ in format string implies native endianess
-                )
-            case Float64Type():
-                chunk_size = 8
-                num_chunks = len(byte_list) // chunk_size
-                format_str = f"@{num_chunks}d"
-            case IntegerType():
-                if element_type.width.data % 8 != 0:
-                    self.raise_error(
-                        "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
-                    )
-                chunk_size = element_type.width.data // 8
-                num_chunks = len(byte_list) // chunk_size
-            case _:
-                self.raise_error(
-                    "Hex strings for dense literals are only supported for int, f32 and f64 types"
-                )
-
-        data_values: list[int] | list[float] = []
-
-        # Use struct to unpack floats
-        if isattr(element_type, BaseAttr(Float32Type) | BaseAttr(Float64Type)):
-            data_values = list(struct.unpack_from(format_str, byte_list))
-        # Use int for unpacking IntegerType
-        else:
-            for i in range(num_chunks):
-                parsed_int = int.from_bytes(
-                    byte_list[i * chunk_size : (i + 1) * chunk_size],
-                    sys.byteorder,
-                    signed=True,
-                )
-                data_values.append(parsed_int)
-        if len(data_values) == 1:
-            # Splat attribute case, same value everywhere,
-            # Emit values repeatedly and emit empty shape
-            return [data_values[0]] * math.prod(type.get_shape()), []
-        return data_values, [num_chunks]
-
     def _parse_dense_literal_type(
         self,
     ) -> (
@@ -840,17 +776,25 @@ class AttrParser(BaseParser):
                 )
             data_values = []
         elif isinstance(dense_contents, str):
-            # Hex-encoded string case
-            # Get values and shape in case of hex_string (requires parsed type)
-            data_values, shape = self._parse_builtin_dense_attr_hex(
-                dense_contents, type
-            )
-            # For splat attributes any shape is fine
-            if shape and type_num_values != shape[0]:
+            # Hex-encoded string case: convert straight to bytes (without the 0x prefix)
+            try:
+                bytes_values = bytes.fromhex(dense_contents[2:])
+            except ValueError:
+                self.raise_error("Hex string in denseAttr is invalid")
+
+            # Handle splat values given in hex
+            if len(bytes_values) == type.element_type.compile_time_size:
+                bytes_values *= type_num_values
+
+            # Create attribute
+            attr = DenseIntOrFPElementsAttr([type, BytesAttr(bytes_values)])
+            if type_num_values != len(attr):
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_num_values} "
-                    f"elements from the type, but got {shape[0]} elements."
+                    f"elements from the type, but got {len(attr)} elements."
                 )
+            return attr
+
         else:
             # Tensor literal case
             dense_values, shape = dense_contents
@@ -1191,7 +1135,7 @@ class AttrParser(BaseParser):
 
     def parse_optional_builtin_int_or_float_attr(
         self,
-    ) -> AnyIntegerAttr | AnyFloatAttr | None:
+    ) -> IntegerAttr | FloatAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
@@ -1262,7 +1206,7 @@ class AttrParser(BaseParser):
             else None
         )
 
-    def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
+    def _parse_optional_array_attr(self) -> ArrayAttr | None:
         """
         Parse an array attribute, if present, with format:
             array-attr ::= `[` (attribute (`,` attribute)*)? `]`

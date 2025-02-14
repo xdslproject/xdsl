@@ -1,37 +1,13 @@
 import marimo
 
-__generated_with = "0.10.9"
-app = marimo.App(width="full", auto_download=["ipynb"])
+__generated_with = "0.11.2"
+app = marimo.App(width="medium", auto_download=["ipynb"])
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
-    return (mo,)
-
-
-@app.cell
-def _():
     import xdsl.utils.marimo as xmo
-    return (xmo,)
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        """
-        # Compiling `linalg` to Snitch
-
-        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
-
-        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
-        """
-    )
-    return
-
-
-@app.cell
-def _():
     # Import all the necessary functionality from xDSL for this notebook
     # If you see an error about xdsl not being defined run this cell manually
 
@@ -50,13 +26,12 @@ def _():
     from xdsl.builder import ImplicitBuilder
     from xdsl.context import MLContext
     from xdsl.dialects import arith, func, linalg
-    from xdsl.dialects.builtin import AffineMap, ArrayAttr, AffineMapAttr, MemRefType, ModuleOp, f64
+    from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
     from xdsl.interpreters.utils.ptr import TypedPtr
     from xdsl.ir import Attribute, Block, Region, SSAValue
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
-    from xdsl.traits import CallableOpInterface
     from xdsl.transforms import (
         arith_add_fastmath,
         convert_linalg_to_loops,
@@ -81,10 +56,8 @@ def _():
     return (
         AffineMap,
         AffineMapAttr,
-        ArrayAttr,
         Attribute,
         Block,
-        CallableOpInterface,
         CanonicalizePass,
         ConvertRiscvScfToRiscvCfPass,
         ConvertSnitchStreamToSnitch,
@@ -120,9 +93,25 @@ def _():
         loop_hoist_memref,
         lower_affine,
         memref_streamify,
+        mo,
         reconcile_unrealized_casts,
         riscv_code,
+        xmo,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        """
+        # Compiling `linalg` to Snitch
+
+        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
+
+        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
+        """
+    )
+    return
 
 
 @app.cell
@@ -218,7 +207,7 @@ def _(mo):
     return k, m, max_val, min_val, n
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(k, m, mo, n):
     mo.md(
         f"""
@@ -251,7 +240,7 @@ def _(k, m, mo, n):
     return a_shape, b_shape, c_shape
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""### Compiling to RISC-V""")
     return
@@ -266,7 +255,7 @@ def _(MLContext, get_all_dialects):
     return dialect_factory, dialect_name, linalg_ctx
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""We can take this representation, and lower to RISC-V-specific dialects:""")
     return
@@ -289,7 +278,7 @@ def _(
         [
             convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
-            convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
+            convert_memref_to_riscv.ConvertMemRefToRiscvPass(),
             convert_arith_to_riscv.ConvertArithToRiscvPass(),
             convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
             reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
@@ -304,7 +293,7 @@ def _(
     return lower_to_riscv, riscv_ctx, riscv_html, riscv_module
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -370,7 +359,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, riscv_asm_module, riscv_code, xmo):
     riscv_asm = riscv_code(riscv_asm_module)
 
@@ -383,7 +372,7 @@ def _(mo, riscv_asm_module, riscv_code, xmo):
     return (riscv_asm,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -409,7 +398,7 @@ def _(
 
     convert_linalg_to_snitch = PipelinePass(
         [
-            convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
+            convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
             *OPTIMISE_MEMREF_STREAM_PASSES,
             *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
@@ -432,7 +421,7 @@ def _(
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:""")
     return
@@ -484,7 +473,7 @@ def _(mo, riscv_code, snitch_asm_module, xmo):
     return (snitch_asm,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -497,254 +486,49 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(TypedPtr, a_shape, b_shape, c_shape, mo, riscv_ctx, riscv_module):
+    from math import prod
+
     from xdsl.interpreter import Interpreter, OpCounter
     from xdsl.interpreters import register_implementations
     from xdsl.interpreters.shaped_array import ShapedArray
-    return Interpreter, OpCounter, ShapedArray, register_implementations
-
-
-@app.cell
-def _():
-    from dataclasses import dataclass, field
-    return dataclass, field
-
-
-@app.cell
-def _(Interpreter, Operation, PythonValues, dataclass, field):
-    from xdsl.dialects import riscv, riscv_cf, riscv_func
-
-    SKIPPED_OPS = {
-        riscv.GetRegisterOp,
-        riscv_cf.BranchOp,
-        riscv.LabelOp,
-    }
-    """Ops that do not contribute to the cycle count calculation"""
-
-    CYCLES_PER_OP = {
-        riscv.MulOp: 1,
-        riscv.MVOp: 1,
-        riscv.LiOp: 1,
-        riscv.AddOp: 1,
-        riscv.FLdOp: 1,
-        riscv.FMulDOp: 1,
-        riscv.FAddDOp: 1,
-        riscv.FSdOp: 1,
-        riscv.AddiOp: 1,
-        riscv_cf.BltOp: 1,
-        riscv.ReturnOp: 1,
-        riscv_func.ReturnOp: 1,
-    }
-
-
-    @dataclass
-    class SnitchCycleEstimator(Interpreter.Listener):
-
-        cycles: int = field(default=0)
-
-        def will_interpret_op(self, op: Operation, args: PythonValues):
-            if type(op) in SKIPPED_OPS:
-                return
-            self.cycles += CYCLES_PER_OP[type(op)]
-    return (
-        CYCLES_PER_OP,
-        SKIPPED_OPS,
-        SnitchCycleEstimator,
-        riscv,
-        riscv_cf,
-        riscv_func,
-    )
-
-
-@app.cell
-def _():
-    import abc
-    return (abc,)
-
-
-@app.cell
-def _(ModuleOp, abc):
-    class CostModel(abc.ABC):
-
-        @abc.abstractmethod
-        def estimate_cost(self, module: ModuleOp) -> int | None:
-            ...
-    return (CostModel,)
-
-
-@app.cell
-def _(CostModel, MLContext, ModuleOp):
-    from xdsl.passes import ModulePass
-
-    class LensCostModel(CostModel):
-
-        inner: CostModel
-        pass_pipeline: tuple[ModulePass, ...]
-
-        def __init__(self, inner: CostModel, pass_pipeline: tuple[ModulePass, ...]):
-            self.inner = inner
-            self.pass_pipeline = pass_pipeline
-
-        def estimate_cost(self, module: ModuleOp, ctx: MLContext) -> int | None:
-            module_copy = module.clone()
-            ctx_copy = ctx.clone()
-
-            for p in self.pass_pipeline:
-                p.apply(ctx_copy, module_copy)
-
-            return self.inner.estimate_cost(module_copy, ctx_copy)
-    return LensCostModel, ModulePass
-
-
-@app.cell
-def _(
-    Attribute,
-    CallableOpInterface,
-    CostModel,
-    Interpreter,
-    MLContext,
-    ModuleOp,
-    SnitchCycleEstimator,
-    register_implementations,
-):
-    class SnitchCycleCostModel(CostModel):
-
-        func_name: str
-        params: tuple[Attribute, ...]
-
-        def __init__(self, func_name: str, params: tuple[Attribute, ...]):
-            self.func_name = func_name
-            self.params = params
-
-        def estimate_cost(self, module: ModuleOp, ctx: MLContext) -> int | None:
-            snitch_cycle_estimator = SnitchCycleEstimator()
-            interpreter = Interpreter(module, listeners=(snitch_cycle_estimator,))
-
-            register_implementations(interpreter, ctx, include_wgpu=False, include_onnx=False)
-
-            op = interpreter.get_op_for_symbol(self.func_name)
-            trait = op.get_trait(CallableOpInterface)
-            assert trait is not None
-
-            args = tuple(
-                interpreter.value_for_attribute(attr, attr_type)
-                for attr, attr_type in zip(
-                    self.params, trait.get_argument_types(op)
-                )
-            )
-
-            interpreter.call_op(op, args)
-
-            return snitch_cycle_estimator.cycles
-    return (SnitchCycleCostModel,)
-
-
-@app.cell
-def _():
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
-    return (DenseIntOrFPElementsAttr,)
-
-
-@app.cell
-def _(a_shape, b_shape, c_shape):
-    from math import prod
 
     a_len = prod(a_shape)
     b_len = prod(b_shape)
     c_len = prod(c_shape)
-    return a_len, b_len, c_len, prod
 
+    a_shaped = ShapedArray(TypedPtr.new_float64([i + 1 for i in range(a_len)]), a_shape)
+    b_shaped = ShapedArray(TypedPtr.new_float64([(i + 1) / 100 for i in range(b_len)]), b_shape)
+    riscv_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-@app.cell
-def _(
-    DenseIntOrFPElementsAttr,
-    a_len,
-    a_shape,
-    b_len,
-    b_shape,
-    c_len,
-    c_shape,
-    f64,
-):
-    a_attr = DenseIntOrFPElementsAttr.tensor_from_list([i + 1 for i in range(a_len)], f64, a_shape)
-    b_attr = DenseIntOrFPElementsAttr.tensor_from_list([(i + 1) / 100 for i in range(b_len)], f64, b_shape)
-    c_attr = DenseIntOrFPElementsAttr.tensor_from_list([0.0] * c_len, f64, c_shape)
-    a_attr, b_attr, c_attr
-    return a_attr, b_attr, c_attr
-
-
-@app.cell
-def _(
-    SnitchCycleCostModel,
-    a_attr,
-    b_attr,
-    c_attr,
-    riscv_asm_ctx,
-    riscv_asm_module,
-):
-    cost_model = SnitchCycleCostModel("matmul", (a_attr, b_attr, c_attr))
-
-    cycles = cost_model.estimate_cost(riscv_asm_module, riscv_asm_ctx)
-
-    cycles
-    return cost_model, cycles
-
-
-@app.cell
-def _(
-    Interpreter,
-    OpCounter,
-    ShapedArray,
-    SnitchCycleEstimator,
-    TypedPtr,
-    a_attr,
-    a_shape,
-    b_attr,
-    b_shape,
-    c_attr,
-    c_shape,
-    f64,
-    mo,
-    register_implementations,
-    riscv,
-    riscv_asm_module,
-    riscv_ctx,
-):
     riscv_op_counter = OpCounter()
-    riscv_cycle_estimator = SnitchCycleEstimator()
-    riscv_interpreter = Interpreter(riscv_asm_module, listeners=(riscv_cycle_estimator, riscv_op_counter))
+    riscv_interpreter = Interpreter(riscv_module, listeners=(riscv_op_counter,))
 
-    register_implementations(riscv_interpreter, riscv_ctx, include_wgpu=False, include_onnx=False)
+    register_implementations(riscv_interpreter, riscv_ctx)
 
-    riscv_a = riscv_interpreter.value_for_attribute(a_attr, riscv.Registers.A0)
-    riscv_b = riscv_interpreter.value_for_attribute(b_attr, riscv.Registers.A1)
-    riscv_c = riscv_interpreter.value_for_attribute(c_attr, riscv.Registers.A2)
-
-    riscv_a_shaped = ShapedArray(TypedPtr(riscv_a, xtype=f64), a_shape)
-    riscv_b_shaped = ShapedArray(TypedPtr(riscv_b, xtype=f64), b_shape)
-    riscv_c_shaped = ShapedArray(TypedPtr(riscv_c, xtype=f64), c_shape)
-
-    riscv_interpreter.call_op("matmul", (riscv_a, riscv_b, riscv_c))
+    riscv_interpreter.call_op("matmul", (a_shaped.data_ptr.raw, b_shaped.data_ptr.raw, riscv_c_shaped.data_ptr.raw))
 
     mo.md(f"""
     **RISC-V Results:**
 
-    A: {riscv_a_shaped}
+    A: {a_shaped}
 
-    B: {riscv_b_shaped}
+    B: {b_shaped}
 
     C: {riscv_c_shaped}
-
-    Cycles: {riscv_cycle_estimator.cycles}
     """)
     return (
-        riscv_a,
-        riscv_a_shaped,
-        riscv_b,
-        riscv_b_shaped,
-        riscv_c,
+        Interpreter,
+        OpCounter,
+        ShapedArray,
+        a_len,
+        a_shaped,
+        b_len,
+        b_shaped,
+        c_len,
+        prod,
+        register_implementations,
         riscv_c_shaped,
-        riscv_cycle_estimator,
         riscv_interpreter,
         riscv_op_counter,
     )
@@ -756,18 +540,13 @@ def _(
     OpCounter,
     ShapedArray,
     TypedPtr,
-    a_attr,
-    a_shape,
-    b_attr,
-    b_shape,
-    c_attr,
+    a_shaped,
+    b_shaped,
     c_len,
     c_shape,
-    f64,
     mo,
     register_implementations,
-    riscv,
-    riscv_interpreter,
+    riscv_c_shaped,
     snitch_stream_ctx,
     snitch_stream_module,
 ):
@@ -778,41 +557,31 @@ def _(
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-    snitch_a = riscv_interpreter.value_for_attribute(a_attr, riscv.Registers.A0)
-    snitch_b = riscv_interpreter.value_for_attribute(b_attr, riscv.Registers.A1)
-    snitch_c = riscv_interpreter.value_for_attribute(c_attr, riscv.Registers.A2)
+    register_implementations(snitch_interpreter, snitch_stream_ctx)
 
-    snitch_a_shaped = ShapedArray(TypedPtr(snitch_a, xtype=f64), a_shape)
-    snitch_b_shaped = ShapedArray(TypedPtr(snitch_b, xtype=f64), b_shape)
-    snitch_c_shaped = ShapedArray(TypedPtr(snitch_c, xtype=f64), c_shape)
-
-    register_implementations(snitch_interpreter, snitch_stream_ctx, include_wgpu=False, include_onnx=False)
-
-    snitch_interpreter.call_op("matmul", (snitch_a, snitch_b, snitch_c))
+    snitch_interpreter.call_op(
+        "matmul",
+        (
+            a_shaped.data_ptr.raw,
+            b_shaped.data_ptr.raw,
+            snitch_c_shaped.data_ptr.raw,
+        ),
+    )
 
     mo.md(f"""
 
     **Snitch Results:**
 
-    A: {snitch_a_shaped}
+    A: {a_shaped}
 
-    B: {snitch_b_shaped}
+    B: {b_shaped}
 
-    C: {snitch_c_shaped}
+    C: {riscv_c_shaped}
     """)
-    return (
-        snitch_a,
-        snitch_a_shaped,
-        snitch_b,
-        snitch_b_shaped,
-        snitch_c,
-        snitch_c_shaped,
-        snitch_interpreter,
-        snitch_op_counter,
-    )
+    return snitch_c_shaped, snitch_interpreter, snitch_op_counter
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
     rv_dict = dict(riscv_op_counter.ops)
     sn_dict = dict(snitch_op_counter.ops)

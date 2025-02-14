@@ -72,7 +72,7 @@ class PipelineGenericPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamInterleavePass(ModulePass):
+class MemRefStreamInterleavePass(ModulePass):
     """
     Tiles the innermost parallel dimension of a `memref_stream.generic`.
     If specified, the `pipeline-depth` parameter specifies the number of operations in the

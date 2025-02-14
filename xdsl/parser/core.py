@@ -145,10 +145,7 @@ class Parser(AttrParser):
             value_names = ", ".join(
                 "%" + name for name in self.forward_ssa_references.keys()
             )
-            if len(self.forward_block_references.keys()) > 1:
-                self.raise_error(f"values {value_names} were used but not defined")
-            else:
-                self.raise_error(f"value {value_names} was used but not defined")
+            self.raise_error(f"values used but not defined: [{value_names}]")
 
         return module_op
 
@@ -646,6 +643,7 @@ class Parser(AttrParser):
         """
         begin_pos = self.lexer.pos
         attr = self._parse_builtin_dict_attr()
+
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:
                 self.raise_error(
@@ -792,13 +790,18 @@ class Parser(AttrParser):
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
         """
-        if self.parse_optional_punctuation("<") is not None:
-            entries = self.parse_comma_separated_list(
-                self.Delimiter.BRACES, self._parse_attribute_entry
-            )
-            self.parse_punctuation(">")
-            return dict(entries)
-        return dict()
+        if self.parse_optional_punctuation("<") is None:
+            return dict()
+
+        entries = self.parse_comma_separated_list(
+            self.Delimiter.BRACES, self._parse_attribute_entry
+        )
+        self.parse_punctuation(">")
+
+        if (key := self._find_duplicated_key(entries)) is not None:
+            self.raise_error(f"Duplicate key '{key}' in properties dictionary")
+
+        return dict(entries)
 
     def resolve_operands(
         self,

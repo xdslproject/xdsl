@@ -110,7 +110,7 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass
-class ConvertMemrefToPtrOp(RewritePattern):
+class ConvertMemRefToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
@@ -131,7 +131,7 @@ class ConvertPtrToRiscvPass(ModulePass):
                     ConvertPtrAddOp(),
                     ConvertStoreOp(),
                     ConvertLoadOp(),
-                    ConvertMemrefToPtrOp(),
+                    ConvertMemRefToPtrOp(),
                 ]
             ),
         ).rewrite_module(op)

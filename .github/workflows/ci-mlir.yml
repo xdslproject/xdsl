@@ -27,12 +27,6 @@ jobs:
         path: xdsl
         fetch-depth: 2
 
-    - name: Install native dependencies
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: mesa-vulkan-drivers
-        version: 1.0
-
     - name: Install uv
       uses: astral-sh/setup-uv@v5
       with:
@@ -114,13 +108,6 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
-
-    - name: Test ONNX-dependent marimo notebooks
-      run: |
-        cd xdsl
-        # Add mlir-opt to the path
-        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        uv run make tests-marimo-onnx
 
     - name: Combine coverage data
       run: |

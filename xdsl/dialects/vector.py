@@ -133,28 +133,34 @@ class FMAOp(IRDLOperation):
 
         if self.res.type.element_type != self.lhs.type.element_type:
             raise VerifyException(
-                "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
+                "Result vector type must match with all source vectors. Found "
+                "different types for result vector and lhs vector."
             )
         elif self.res.type.element_type != self.rhs.type.element_type:
             raise VerifyException(
-                "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
+                "Result vector type must match with all source vectors. Found "
+                "different types for result vector and rhs vector."
             )
         elif self.res.type.element_type != self.acc.type.element_type:
             raise VerifyException(
-                "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
+                "Result vector type must match with all source vectors. Found "
+                "different types for result vector and acc vector."
             )
 
         if res_shape != lhs_shape:
             raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
+                "Result vector shape must match with all source vector shapes. Found "
+                "different shapes for result vector and lhs vector."
             )
         elif res_shape != rhs_shape:
             raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
+                "Result vector shape must match with all source vector shapes. Found "
+                "different shapes for result vector and rhs vector."
             )
         elif res_shape != acc_shape:
             raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
+                "Result vector shape must match with all source vector shapes. Found "
+                "different shapes for result vector and acc vector."
             )
 
     @staticmethod

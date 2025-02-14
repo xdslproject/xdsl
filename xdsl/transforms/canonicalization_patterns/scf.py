@@ -17,7 +17,8 @@ from xdsl.transforms.canonicalization_patterns.utils import (
 class RehoistConstInLoops(RewritePattern):
     """
     Carry out const definitions from the loops.
-    In the future this will probably be done by the pattern rewriter itself, like it's done in the MLIR's applyPatternsAndFoldGreedily.
+    In the future this will probably be done by the pattern rewriter itself, like it's
+    done in the MLIR's applyPatternsAndFoldGreedily.
     """
 
     @op_type_rewrite_pattern

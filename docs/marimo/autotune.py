@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.2"
 app = marimo.App(width="full")
 
 
@@ -172,7 +172,7 @@ def _(linalg_ctx, linalg_module, xmo):
 
     memref_stream_passes = PipelinePass(
         [
-            convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
+            convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
         ]
     )
@@ -205,7 +205,7 @@ def _(PipelinePass, memref_stream_ctx, memref_stream_module, mo, xmo):
 
     riscv_passes = PipelinePass(
         [
-            convert_memref_stream_to_loops.ConvertMemrefStreamToLoopsPass(),
+            convert_memref_stream_to_loops.ConvertMemRefStreamToLoopsPass(),
             *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
             *LOWER_SNITCH_STREAM_TO_ASM_PASSES,
         ]
@@ -359,9 +359,7 @@ def _(
             snitch_cycle_estimator = SnitchCycleEstimator()
             interpreter = Interpreter(module, listeners=(snitch_cycle_estimator,))
 
-            register_implementations(
-                interpreter, ctx, include_wgpu=False, include_onnx=False
-            )
+            register_implementations(interpreter, ctx)
 
             op = interpreter.get_op_for_symbol(self.func_name)
             trait = op.get_trait(CallableOpInterface)
@@ -457,7 +455,7 @@ def _(
     interleaved_ctx = memref_stream_ctx.clone()
     interleaved_module = memref_stream_module.clone()
 
-    memref_stream_interleave.MemrefStreamInterleavePass().apply(
+    memref_stream_interleave.MemRefStreamInterleavePass().apply(
         interleaved_ctx, interleaved_module
     )
 
@@ -558,9 +556,46 @@ def _():
 
 
 @app.cell
-def _():
-    from xdsl.interpreters.onnx import to_dtype
-    return (to_dtype,)
+def _(
+    Float32Type,
+    Float64Type,
+    IntAttr,
+    IntegerType,
+    PackableType,
+    np,
+    ptr,
+):
+
+    def to_dtype(
+        xtype: PackableType[int] | PackableType[float],
+    ) -> type[np.int32] | type[np.int64] | type[np.float32] | type[np.float64]:
+        match xtype:
+            case IntegerType(width=IntAttr(data=32)):
+                return np.int32
+            case IntegerType(width=IntAttr(data=64)):
+                return np.int64
+            case Float32Type():
+                return np.float32
+            case Float64Type():
+                return np.float64
+            case _:
+                raise NotImplementedError()
+
+
+    def from_dtype(
+        dtype: np.dtype[np.float32 | np.float64 | np.int32 | np.int64],
+    ) -> PackableType[float] | PackableType[int]:
+        if dtype == np.float32:
+            return ptr.float32
+        elif dtype == np.float64:
+            return ptr.float64
+        elif dtype == np.float32:
+            return ptr.int32
+        elif dtype == np.float64:
+            return ptr.int64
+        else:
+            raise NotImplementedError()
+    return from_dtype, to_dtype
 
 
 @app.cell
@@ -747,7 +782,7 @@ def _(
         _interleaved_ctx = _memref_stream_ctx.clone()
         _interleaved_module = _memref_stream_module.clone()
 
-        memref_stream_interleave.MemrefStreamInterleavePass().apply(
+        memref_stream_interleave.MemRefStreamInterleavePass().apply(
             _interleaved_ctx, _interleaved_module
         )
 
