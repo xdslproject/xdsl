@@ -2,6 +2,7 @@ from xdsl.ir import Dialect
 
 from .attributes import LabelAttr
 from .ops import (
+    AssemblySectionOp,
     DirectiveOp,
     GetAVXRegisterOp,
     GetRegisterOp,
@@ -113,6 +114,7 @@ from .register import (
 X86 = Dialect(
     "x86",
     [
+        AssemblySectionOp,
         RR_AddOp,
         RR_SubOp,
         RR_ImulOp,

@@ -15,20 +15,17 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
 )
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    OptSingleBlockRegion,
     Successor,
     attr_def,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    region_def,
     result_def,
     successor_def,
     traits_def,
@@ -36,7 +33,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsolatedFromAbove, IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 
 from .assembly import (
@@ -70,6 +67,59 @@ class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
+
+
+@irdl_op_definition
+class AssemblySectionOp(X86AsmOperation):
+    name = "x86.assembly_section"
+    directive = attr_def(StringAttr)
+    data = region_def("single_block")
+
+    traits = traits_def(NoTerminator(), IsolatedFromAbove())
+
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        region: OptSingleBlockRegion = None,
+    ):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if region is None:
+            region = Region(Block())
+
+        super().__init__(
+            regions=[region],
+            attributes={
+                "directive": directive,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> AssemblySectionOp:
+        directive = parser.parse_str_literal()
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive",))
+        region = parser.parse_optional_region()
+
+        if region is None:
+            region = Region(Block())
+        section = AssemblySectionOp(directive, region)
+        if attr_dict is not None:
+            section.attributes |= attr_dict.data
+
+        return section
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_string_literal(self.directive.data)
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=("directive",), print_keyword=True
+        )
+        printer.print_string(" ")
+        if self.data.block.ops:
+            printer.print_region(self.data)
+
+    def assembly_line(self) -> str | None:
+        return AssemblyPrinter.assembly_line(self.directive.data, "", is_indented=False)
 
 
 class X86CustomFormatOperation(IRDLOperation, ABC):
