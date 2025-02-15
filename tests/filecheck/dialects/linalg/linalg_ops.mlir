@@ -159,12 +159,12 @@ linalg.quantized_matmul ins(%5, %6, %7, %8 : tensor<64x9216xi8>, tensor<9216x409
 // CHECK-GENERIC-NEXT:     %{{.*}} = "test.op"() : () -> tensor<64x4096xi32>
 
 // CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.quantized_matmul"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 4, 1>}> ({
-// CHECK-GENERIC-NEXT:       ^11(%41 : i8, %42 : i8, %43 : i32, %44 : i32, %45 : i32):
-// CHECK-GENERIC-NEXT:         %46 = "arith.extsi"(%41) : (i8) -> i32
-// CHECK-GENERIC-NEXT:         %47 = "arith.subi"(%46, %43) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
-// CHECK-GENERIC-NEXT:         %48 = "arith.extsi"(%42) : (i8) -> i32
-// CHECK-GENERIC-NEXT:         %49 = "arith.subi"(%48, %44) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
-// CHECK-GENERIC-NEXT:         %50 = "arith.muli"(%47, %49) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
-// CHECK-GENERIC-NEXT:         %51 = "arith.addi"(%45, %50) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
-//  CHECK-GENERIC-NEXT:        "linalg.yield"(%51) : (i32) -> ()
+// CHECK-GENERIC-NEXT:       ^11(%{{.*}}  : i8, %{{.*}}  : i8, %{{.*}}  : i32, %{{.*}}  : i32, %{{.*}}  : i32):
+// CHECK-GENERIC-NEXT:         %{{.*}} = "arith.extsi"(%{{.*}}) : (i8) -> i32
+// CHECK-GENERIC-NEXT:         %{{.*}} = "arith.subi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:         %{{.*}} = "arith.extsi"(%{{.*}}) : (i8) -> i32
+// CHECK-GENERIC-NEXT:         %{{.*}} = "arith.subi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:         %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:         %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+//  CHECK-GENERIC-NEXT:        "linalg.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-GENERIC-NEXT:       }) {linalg.memoized_indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> ()>, affine_map<(d0, d1, d2) -> (d0, d1)>]} : (tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32, tensor<64x4096xi32>) -> tensor<64x4096xi32>
