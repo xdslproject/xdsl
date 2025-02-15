@@ -302,7 +302,9 @@ def split_ops(
                         rem.remove(use.operation)
 
     # find constants in `a` needed outside of `a`
-    cnst_exports = [cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp)]
+    cnst_exports = tuple(
+        cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp)
+    )
 
     # `a` exports one value plus any number of constants - duplicate exported constants and return op split
     if len(a_exports) == 1 + len(cnst_exports):
@@ -310,7 +312,7 @@ def split_ops(
         for op in ops:
             if op in a:
                 recv_chunk_ops.append(op)
-                if op in cnst_exports:
+                if op in cnst_exports and isinstance(op, arith.ConstantOp):
                     # create a copy of the constant in the second region
                     done_exch_ops.append(cln := op.clone())
                     # rewire ops of the second region to use the copied constant
