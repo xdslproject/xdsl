@@ -27,13 +27,20 @@ return_passing_register = x86.register.RAX
 class LowerFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
-        if op.body.blocks.first is None:
+        first_block = op.body.blocks.first
+
+        if first_block is None:
             raise ValueError("Cannot lower external functions (not implemented)")
+
+        for arg in first_block.args:
+            if isinstance(arg.type, builtin.ShapedType):
+                raise ValueError(
+                    "Cannot lower shaped function parameters (not implemented)"
+                )
 
         num_inputs = len(op.function_type.inputs.data)
         num_passing_args = num_inputs if num_inputs <= 6 else 6
 
-        first_block = op.body.blocks.first
         insertion_point = InsertPoint.at_start(first_block)
 
         # Get the 6 first parameters (if any) from general registers
@@ -59,21 +66,18 @@ class LowerFuncOp(RewritePattern):
                 actual_registers.append(mov_op.result)
                 rewriter.insert_op([get_reg_op, mov_op], insertion_point)
 
+        # Cast the registers to whatever type is needed
         for arg, register in zip(first_block.args, actual_registers):
-            if isinstance(arg.type, builtin.ShapedType):
-                raise ValueError(
-                    "Cannot lower shaped function parameters (not implemented)"
-                )
             cast_op = builtin.UnrealizedConversionCastOp.get((register,), (arg.type,))
             arg.replace_by(cast_op.results[0])
             rewriter.insert_op(cast_op, insertion_point)
 
+        # Create the new function
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         block = new_region.blocks.first
         assert isinstance(block, Block)
         for a in block.args:
             block.erase_arg(a)
-
         new_func = x86_func.FuncOp(
             op.sym_name.data,
             new_region,
