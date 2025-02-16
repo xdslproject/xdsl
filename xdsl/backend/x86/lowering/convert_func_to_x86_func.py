@@ -27,32 +27,45 @@ return_passing_register = x86.register.RAX
 class LowerFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
-        num_inputs = len(op.function_type.inputs.data)
-        if num_inputs > 6:
-            raise ValueError(
-                "Cannot lower func.func with more than 6 inputs (not implemented)"
-            )
         if op.body.blocks.first is None:
             raise ValueError("Cannot lower external functions (not implemented)")
 
-        reg_args_types = arg_passing_registers[0:num_inputs]
-        first_block = op.body.blocks.first
+        num_inputs = len(op.function_type.inputs.data)
+        num_passing_args = num_inputs if num_inputs <= 6 else 6
 
+        first_block = op.body.blocks.first
         insertion_point = InsertPoint.at_start(first_block)
 
+        # Get the 6 first parameters (if any) from general registers
+        reg_args_types = arg_passing_registers[0:num_passing_args]
         actual_registers: list[SSAValue] = []
         for register_type in reg_args_types:
             get_reg_op = x86.ops.GetRegisterOp(register_type)
             rewriter.insert_op(get_reg_op, insertion_point)
             actual_registers.append(get_reg_op.result)
 
+        # Get the other parameters (if any) from the stack
+        if num_inputs > 6:
+            get_sp_op = x86.ops.GetRegisterOp(x86.register.RSP)
+            rewriter.insert_op(get_sp_op, insertion_point)
+            for i in range(num_inputs - 6):
+                get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
+                mov_op = x86.RM_MovOp(
+                    r1=get_reg_op.result,
+                    r2=get_sp_op.result,
+                    offset=8 * (i + 1),
+                    result=x86.register.GeneralRegisterType(""),
+                )
+                actual_registers.append(mov_op.result)
+                rewriter.insert_op([get_reg_op, mov_op], insertion_point)
+
         for arg, register in zip(first_block.args, actual_registers):
             if isinstance(arg.type, builtin.ShapedType):
                 raise ValueError(
                     "Cannot lower shaped function parameters (not implemented)"
                 )
-            arg.replace_by(register)
             cast_op = builtin.UnrealizedConversionCastOp.get((register,), (arg.type,))
+            arg.replace_by(cast_op.results[0])
             rewriter.insert_op(cast_op, insertion_point)
 
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
