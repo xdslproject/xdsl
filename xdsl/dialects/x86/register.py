@@ -43,14 +43,22 @@ X86_INDEX_BY_NAME = {
     "rbp": 5,
     "rsi": 6,
     "rdi": 7,
-    "r8": 8,
-    "r9": 9,
-    "r10": 10,
-    "r11": 11,
-    "r12": 12,
-    "r13": 13,
-    "r14": 14,
-    "r15": 15,
+    "eax": 8,
+    "ecx": 9,
+    "edx": 10,
+    "ebx": 11,
+    "esp": 12,
+    "ebp": 13,
+    "esi": 14,
+    "edi": 15,
+    "r8": 16,
+    "r9": 17,
+    "r10": 18,
+    "r11": 19,
+    "r12": 20,
+    "r13": 21,
+    "r14": 22,
+    "r15": 23,
 }
 
 
@@ -84,6 +92,16 @@ RSP = GeneralRegisterType("rsp")
 RBP = GeneralRegisterType("rbp")
 RSI = GeneralRegisterType("rsi")
 RDI = GeneralRegisterType("rdi")
+
+EAX = GeneralRegisterType("eax")
+ECX = GeneralRegisterType("ecx")
+EDX = GeneralRegisterType("edx")
+EBX = GeneralRegisterType("ebx")
+ESP = GeneralRegisterType("esp")
+EBP = GeneralRegisterType("ebp")
+ESI = GeneralRegisterType("esi")
+EDI = GeneralRegisterType("edi")
+
 R8 = GeneralRegisterType("r8")
 R9 = GeneralRegisterType("r9")
 R10 = GeneralRegisterType("r10")
