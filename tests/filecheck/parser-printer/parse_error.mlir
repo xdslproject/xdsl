@@ -21,4 +21,4 @@ module {
     "test.op"() [^unknown_successor]: () -> ()
 }
 
-// CHECK: Unknown location of span region ends with missing block declarations for block(s) unknown_successor.
+// CHECK: reference to block "^unknown_successor" without implementation
