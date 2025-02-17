@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Self
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     IntAttr,
