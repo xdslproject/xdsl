@@ -11,13 +11,7 @@ from pathlib import Path
 from typing import Any, cast
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
-PROFILERS = (
-    "run",
-    "timeit",
-    "snakeviz",
-    "viztracer",
-    "flameprof"
-)
+PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
 
 
 def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
@@ -25,16 +19,14 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
     parser = ArgumentParser()
 
     parser.add_argument(
-        "test",
-        choices=benchmark_names,
-        help="the name of the benchmark to run"
+        "test", choices=benchmark_names, help="the name of the benchmark to run"
     )
     parser.add_argument(
         "profiler",
         choices=PROFILERS,
         nargs="?",
         default=PROFILERS[0],
-        help="the profiler to use"
+        help="the profiler to use",
     )
     parser.add_argument(
         "-o",
@@ -44,10 +36,7 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
         help="the directory into which to write out the profile files",
     )
     parser.add_argument(
-        "-q",
-        "--quiet",
-        action="store_true",
-        help="don't show the profiler's UI"
+        "-q", "--quiet", action="store_true", help="don't show the profiler's UI"
     )
 
     return parser
@@ -60,9 +49,7 @@ def get_benchmark(
     return (args.test, benchmarks[args.test])
 
 
-def run_benchmark(
-    args: Namespace, benchmarks: dict[str, Callable[[], Any]]
-) -> None:
+def run_benchmark(args: Namespace, benchmarks: dict[str, Callable[[], Any]]) -> None:
     """Directly run a benchmark."""
     name, test = get_benchmark(args, benchmarks)
     start_time = time.time()

@@ -17,52 +17,41 @@ class ConstantFolding:
 
     def time_100(self) -> None:
         """Time constant folding for 100 items."""
-        xDSLOptMain(
-            args=[
-                ConstantFolding.WORKLOAD_100,
-                "-p", "canonicalize"
-            ]
-        ).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(args=[ConstantFolding.WORKLOAD_100, "-p", "canonicalize"]).run()  # type: ignore[no-untyped-call]
 
     def time_100_unverified(self) -> None:
         """Time constant folding for 100 items without the verifier."""
         xDSLOptMain(
             args=[
                 ConstantFolding.WORKLOAD_100,
-                "-p", "canonicalize", "--disable-verify",
+                "-p",
+                "canonicalize",
+                "--disable-verify",
             ]
         ).run()  # type: ignore[no-untyped-call]
 
     def time_100_none(self) -> None:
         """Time applying no optimisations for 100 items."""
-        xDSLOptMain(
-            args=[ConstantFolding.WORKLOAD_100]
-        ).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(args=[ConstantFolding.WORKLOAD_100]).run()  # type: ignore[no-untyped-call]
 
     def ignore_time_1000(self) -> None:
         """Time constant folding for 1000 items."""
-        xDSLOptMain(
-            args=[
-                ConstantFolding.WORKLOAD_1000,
-                "-p", "canonicalize"
-            ]
-        ).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(args=[ConstantFolding.WORKLOAD_1000, "-p", "canonicalize"]).run()  # type: ignore[no-untyped-call]
 
     def ignore_time_1000_unverified(self) -> None:
         """Time constant folding for 1000 items without the verifier."""
         xDSLOptMain(
             args=[
                 ConstantFolding.WORKLOAD_1000,
-                "-p", "canonicalize", "--disable-verify",
+                "-p",
+                "canonicalize",
+                "--disable-verify",
             ]
         ).run()  # type: ignore[no-untyped-call]
 
     def ignore_time_1000_none(self) -> None:
         """Time applying no optimisations for 1000 items."""
-        xDSLOptMain(
-            args=[ConstantFolding.WORKLOAD_1000]
-        ).run()  # type: ignore[no-untyped-call]
-
+        xDSLOptMain(args=[ConstantFolding.WORKLOAD_1000]).run()  # type: ignore[no-untyped-call]
 
 
 class Miscellaneous:
@@ -81,54 +70,70 @@ class Miscellaneous:
 
     def time_empty_program(self) -> None:
         """Time running the empty program."""
-        xDSLOptMain(args=[
-            str(Miscellaneous.MLIR_FILES["empty_program"]),
-            "-p", "constant-fold-interp"
-        ]).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(
+            args=[
+                str(Miscellaneous.MLIR_FILES["empty_program"]),
+                "-p",
+                "constant-fold-interp",
+            ]
+        ).run()  # type: ignore[no-untyped-call]
 
     def time_loop_unrolling(self) -> None:
         """Time running a loop unrolling example."""
-        xDSLOptMain(args=[
-            str(Miscellaneous.MLIR_FILES["loop_unrolling"]),
-            "-p", "canonicalize"
-        ]).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(
+            args=[str(Miscellaneous.MLIR_FILES["loop_unrolling"]), "-p", "canonicalize"]
+        ).run()  # type: ignore[no-untyped-call]
 
     def time_apply_pdl_extra_file(self) -> None:
         """Time running the `apply_pdl_extra_file.mlir` file."""
-        xDSLOptMain(args=[
-            str(Miscellaneous.MLIR_FILES["apply_pdl_extra_file"]),
-            "-p", "canonicalize"
-        ]).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(
+            args=[
+                str(Miscellaneous.MLIR_FILES["apply_pdl_extra_file"]),
+                "-p",
+                "canonicalize",
+            ]
+        ).run()  # type: ignore[no-untyped-call]
 
     def time_add(self) -> None:
         """Time running the `arith-add-immediate-zero.mlir` file."""
-        xDSLOptMain(args=[
-            str(Miscellaneous.MLIR_FILES["arith-add-immediate-zero"]),
-            "-p", "canonicalize"
-        ]).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(
+            args=[
+                str(Miscellaneous.MLIR_FILES["arith-add-immediate-zero"]),
+                "-p",
+                "canonicalize",
+            ]
+        ).run()  # type: ignore[no-untyped-call]
 
     def ignore_time_dense_attr(self) -> None:
         """Time running a 1024x1024xi8 dense attribute."""
-        xDSLOptMain(args=[
-            str(Miscellaneous.MLIR_FILES["large_dense_attr"]),
-            "-p", "canonicalize"
-        ]).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(
+            args=[
+                str(Miscellaneous.MLIR_FILES["large_dense_attr"]),
+                "-p",
+                "canonicalize",
+            ]
+        ).run()  # type: ignore[no-untyped-call]
 
     def ignore_time_dense_attr_hex(self) -> None:
         """Time running a 1024x1024xi8 dense attribute given as a hex string."""
-        xDSLOptMain(args=[
-            str(Miscellaneous.MLIR_FILES["large_dense_attr_hex"]),
-            "-p", "canonicalize"
-        ]).run()  # type: ignore[no-untyped-call]
+        xDSLOptMain(
+            args=[
+                str(Miscellaneous.MLIR_FILES["large_dense_attr_hex"]),
+                "-p",
+                "canonicalize",
+            ]
+        ).run()  # type: ignore[no-untyped-call]
 
 
 class CIRCT:
     """Benchmark running `xdsl-opt` on CIRCT workloads."""
+
     ...
 
 
 class ASL:
     """Benchmark running `xdsl-opt` on ASL workloads."""
+
     ...
 
 

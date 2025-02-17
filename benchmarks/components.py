@@ -31,6 +31,7 @@ MLIR_FILES: dict[str, Path] = {
     "empty_program": EXTRA_MLIR_DIR / "xdsl_opt__empty_program.mlir",
 }
 
+
 class Lexer:
     """Benchmark the xDSL lexer on MLIR files."""
 
@@ -128,11 +129,13 @@ class PatternRewriter:
 
 class Printer:
     """Benchmark printing in xDSL."""
+
     ...
 
 
 class Verifier:
     """Benchmark verifying in xDSL."""
+
     ...
 
 
