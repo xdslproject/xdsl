@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
 
 from xdsl.backend.register_type import RegisterType
-from xdsl.ir import Attribute
 from xdsl.irdl import (
     irdl_attr_definition,
 )
-from xdsl.parser import AttrParser
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -16,15 +13,6 @@ class X86RegisterType(RegisterType, ABC):
     """
     The abstract class for all x86 register types.
     """
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        if parser.parse_optional_punctuation("<") is not None:
-            name = parser.parse_identifier()
-            parser.parse_punctuation(">")
-        else:
-            name = ""
-        return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
         name = self.spelling.data

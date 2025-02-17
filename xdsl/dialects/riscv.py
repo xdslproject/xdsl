@@ -86,17 +86,6 @@ class RISCVRegisterType(RegisterType):
     A RISC-V register type.
     """
 
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        if parser.parse_optional_punctuation("<") is not None:
-            name = parser.parse_identifier()
-            parser.parse_punctuation(">")
-            if not name.startswith("j"):
-                assert name in cls.abi_index_by_name(), f"{name}"
-        else:
-            name = ""
-        return cls._parameters_from_spelling(name)
-
     def verify(self) -> None:
         name = self.spelling.data
         if not self.is_allocated or name.startswith("j") or name.startswith("fj"):
