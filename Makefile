@@ -164,8 +164,24 @@ coverage-report: uv-installed
 coverage-clean: uv-installed
 	uv run coverage erase
 
-# docs
+# generate asv benchmark regression website
+.PHONY: asv
+asv: uv-installed
+	uv run asv run
 
+.PHONY: asv-html
+asv-html: uv-installed
+	uv run asv publish
+
+.PHONY: asv-preview
+asv-preview: uv-installed .asv/html
+	uv run asv preview
+
+.PHONY: asv-clean
+asv-clean: .asv
+	rm -rf .asv/html .asv/results/$(shell hostname)
+
+# docs
 .PHONY: docs-serve
 docs-serve: uv-installed
 	uv run mkdocs serve
