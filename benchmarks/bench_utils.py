@@ -3,6 +3,7 @@
 
 import cProfile
 import subprocess
+import time
 import timeit
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
@@ -11,6 +12,7 @@ from typing import Any, cast
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = (
+    "run",
     "timeit",
     "snakeviz",
     "viztracer",
@@ -30,6 +32,8 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
     parser.add_argument(
         "profiler",
         choices=PROFILERS,
+        nargs="?",
+        default=PROFILERS[0],
         help="the profiler to use"
     )
     parser.add_argument(
@@ -54,6 +58,16 @@ def get_benchmark(
 ) -> tuple[str, Callable[[], None]]:
     """Get the benchmark to profile."""
     return (args.test, benchmarks[args.test])
+
+
+def run_benchmark(
+    args: Namespace, benchmarks: dict[str, Callable[[], Any]]
+) -> None:
+    """Directly run a benchmark."""
+    name, test = get_benchmark(args, benchmarks)
+    start_time = time.time()
+    test()
+    print(f"Test {name} ran in: {time.time() - start_time:.5f}s")
 
 
 def timeit_benchmark(
@@ -112,6 +126,8 @@ def profile(
     args = parse_arguments(list(benchmarks.keys())).parse_args(args=argv)
 
     match args.profiler:
+        case "run":
+            run_benchmark(args, benchmarks)
         case "timeit":
             timeit_benchmark(args, benchmarks)
         case "snakeviz":
