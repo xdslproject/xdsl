@@ -10,8 +10,8 @@ from xdsl.utils.test_value import TestSSAValue
 
 def test_riscv_interpreter():
     module_op = ModuleOp([])
-    register = riscv.IntRegisterType.unallocated()
-    fregister = riscv.FloatRegisterType.unallocated()
+    register = riscv.IntRegisterType()
+    fregister = riscv.FloatRegisterType()
 
     riscv_functions = RiscvFunctions()
     riscv_debug_functions = RiscvDebugFunctions()

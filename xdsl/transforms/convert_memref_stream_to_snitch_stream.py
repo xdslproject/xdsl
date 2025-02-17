@@ -162,7 +162,7 @@ class StreamOpLowering(RewritePattern):
         new_operands = cast_operands_to_regs(rewriter)
         new_inputs = new_operands[: len(op.inputs)]
         new_outputs = new_operands[len(op.inputs) :]
-        freg = riscv.FloatRegisterType.unallocated()
+        freg = riscv.FloatRegisterType()
 
         rewriter.replace_matched_op(
             new_op := snitch_stream.StreamingRegionOp(

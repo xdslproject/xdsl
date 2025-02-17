@@ -21,7 +21,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
 )
 
-_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
+_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType()
 
 
 @dataclass
