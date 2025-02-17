@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    Dialect,
     Operation,
     SSAValue,
 )
