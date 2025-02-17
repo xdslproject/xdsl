@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from typing import Self
 
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -78,3 +79,24 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     @abstractmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def infinite_register_name(cls, index: int) -> str:
+        """
+        Provide the spelling for a register at the given index in the "infinite"
+        register set.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def infinite_register(cls, index: int) -> Self:
+        """
+        Provide the register at the given index in the "infinite" register set.
+        """
+        spelling = cls.infinite_register_name(index)
+        res = cls(spelling)
+        assert isinstance(res.index, NoneAttr), (
+            f"Invalid 'infinite' register name {spelling}"
+        )
+        return res

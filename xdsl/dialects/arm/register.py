@@ -35,6 +35,10 @@ class IntRegisterType(ARMRegisterType):
     def abi_index_by_name(cls) -> dict[str, int]:
         return ARM_INDEX_BY_NAME
 
+    @classmethod
+    def infinite_register_name(cls, index: int):
+        return f"inf_{index}"
+
 
 UNALLOCATED_INT = IntRegisterType("")
 X0 = IntRegisterType("x0")

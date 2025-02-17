@@ -156,6 +156,10 @@ class IntRegisterType(RISCVRegisterType):
     def a_register(cls, index: int) -> IntRegisterType:
         return Registers.A[index]
 
+    @classmethod
+    def infinite_register_name(cls, index: int):
+        return f"j_{index}"
+
 
 RV32F_INDEX_BY_NAME = {
     "ft0": 0,
@@ -212,6 +216,10 @@ class FloatRegisterType(RISCVRegisterType):
     @classmethod
     def a_register(cls, index: int) -> FloatRegisterType:
         return Registers.FA[index]
+
+    @classmethod
+    def infinite_register_name(cls, index: int):
+        return f"fj_{index}"
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
