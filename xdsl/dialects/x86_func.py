@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import FunctionType, StringAttr
 from xdsl.dialects.utils import (
     parse_func_op_like,
-    print_func_op_like,
 )
 from xdsl.dialects.x86.ops import X86AsmOperation, X86Instruction
 from xdsl.ir import Attribute, Dialect, Operation, Region
@@ -103,14 +102,13 @@ class FuncOp(X86AsmOperation):
             visibility = self.sym_visibility.data
             printer.print_string(f" {visibility}")
 
-        print_func_op_like(
-            printer,
-            self.sym_name,
-            self.function_type,
-            self.body,
-            self.attributes,
-            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+        printer.print(f" @{self.sym_name.data}")
+        printer.print_function_type(
+            self.function_type.inputs.data, self.function_type.outputs.data
         )
+        if self.body.blocks:
+            printer.print(" ")
+            printer.print_region(self.body, False, False)
 
     def assembly_line(self) -> str | None:
         if self.body.blocks:
