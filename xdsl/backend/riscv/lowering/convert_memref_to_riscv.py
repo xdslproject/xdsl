@@ -127,7 +127,7 @@ def get_strided_pointer(
                         offset_op := riscv.MulOp(
                             increment,
                             stride_op.rd,
-                            rd=riscv.IntRegisterType.unallocated(),
+                            rd=riscv.IntRegisterType(),
                         ),
                     )
                 )
@@ -141,11 +141,7 @@ def get_strided_pointer(
             continue
 
         # Otherwise sum up the products.
-        ops.append(
-            add_op := riscv.AddOp(
-                head, increment, rd=riscv.IntRegisterType.unallocated()
-            )
-        )
+        ops.append(add_op := riscv.AddOp(head, increment, rd=riscv.IntRegisterType()))
         add_op.rd.name_hint = "pointer_offset"
         head = add_op.rd
 
@@ -158,12 +154,10 @@ def get_strided_pointer(
             offset_bytes := riscv.MulOp(
                 head,
                 bytes_per_element_op.rd,
-                rd=riscv.IntRegisterType.unallocated(),
+                rd=riscv.IntRegisterType(),
                 comment="multiply by element size",
             ),
-            ptr := riscv.AddOp(
-                src_ptr, offset_bytes, rd=riscv.IntRegisterType.unallocated()
-            ),
+            ptr := riscv.AddOp(src_ptr, offset_bytes, rd=riscv.IntRegisterType()),
         ]
     )
 
@@ -377,9 +371,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
             )
             return
 
-        src = UnrealizedConversionCastOp.get(
-            (source,), (riscv.IntRegisterType.unallocated(),)
-        )
+        src = UnrealizedConversionCastOp.get((source,), (riscv.IntRegisterType(),))
         src_rd = src.results[0]
 
         if offset is None:
@@ -393,7 +385,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),
-                            (riscv.IntRegisterType.unallocated(),),
+                            (riscv.IntRegisterType(),),
                         )
                     )
                     index_val = cast_index_op.results[0]

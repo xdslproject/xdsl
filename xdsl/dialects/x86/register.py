@@ -60,10 +60,6 @@ class GeneralRegisterType(X86RegisterType):
     name = "x86.reg"
 
     @classmethod
-    def unallocated(cls) -> GeneralRegisterType:
-        return UNALLOCATED_GENERAL
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "x86"
 
@@ -114,10 +110,6 @@ class RFLAGSRegisterType(X86RegisterType):
     name = "x86.rflags"
 
     @classmethod
-    def unallocated(cls) -> RFLAGSRegisterType:
-        return UNALLOCATED_RFLAGS
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "x86"
 
@@ -145,10 +137,6 @@ class SSERegisterType(X86VectorRegisterType):
     """
 
     name = "x86.ssereg"
-
-    @classmethod
-    def unallocated(cls) -> SSERegisterType:
-        return UNALLOCATED_SSE
 
     @classmethod
     def instruction_set_name(cls) -> str:
@@ -207,10 +195,6 @@ class AVX2RegisterType(X86VectorRegisterType):
     name = "x86.avx2reg"
 
     @classmethod
-    def unallocated(cls) -> AVX2RegisterType:
-        return UNALLOCATED_AVX2
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "AVX2"
 
@@ -265,10 +249,6 @@ class AVX512RegisterType(X86VectorRegisterType):
     """
 
     name = "x86.avx512reg"
-
-    @classmethod
-    def unallocated(cls) -> AVX512RegisterType:
-        return UNALLOCATED_AVX512
 
     @classmethod
     def instruction_set_name(cls) -> str:

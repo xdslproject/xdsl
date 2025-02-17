@@ -28,9 +28,7 @@ def test_simple():
         def body():
             six = riscv.LiOp(6).rd
             seven = riscv.LiOp(7).rd
-            forty_two = riscv.MulOp(
-                six, seven, rd=riscv.IntRegisterType.unallocated()
-            ).rd
+            forty_two = riscv.MulOp(six, seven, rd=riscv.IntRegisterType()).rd
             riscv_debug.PrintfOp("{}", (forty_two,))
             riscv.ReturnOp()
 

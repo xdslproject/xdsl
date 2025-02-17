@@ -3,8 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
-from typing_extensions import Self
-
 from xdsl.dialects.builtin import (
     IntAttr,
     NoneAttr,
@@ -28,7 +26,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     index: ParameterDef[IntAttr | NoneAttr]
     spelling: ParameterDef[StringAttr]
 
-    def __init__(self, spelling: str):
+    def __init__(self, spelling: str = ""):
         super().__init__(self._parameters_from_spelling(spelling))
 
     @classmethod
@@ -41,11 +39,6 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         index = cls.abi_index_by_name().get(spelling)
         index_attr = NoneAttr() if index is None else IntAttr(index)
         return index_attr, StringAttr(spelling)
-
-    @classmethod
-    @abstractmethod
-    def unallocated(cls) -> Self:
-        raise NotImplementedError()
 
     @property
     def register_name(self) -> str:

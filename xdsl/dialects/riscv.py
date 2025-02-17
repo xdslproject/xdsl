@@ -145,10 +145,6 @@ class IntRegisterType(RISCVRegisterType):
     name = "riscv.reg"
 
     @classmethod
-    def unallocated(cls) -> IntRegisterType:
-        return Registers.UNALLOCATED_INT
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "RV32I"
 
@@ -204,10 +200,6 @@ class FloatRegisterType(RISCVRegisterType):
     """
 
     name = "riscv.freg"
-
-    @classmethod
-    def unallocated(cls) -> FloatRegisterType:
-        return Registers.UNALLOCATED_FLOAT
 
     @classmethod
     def instruction_set_name(cls) -> str:
@@ -632,7 +624,7 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -754,7 +746,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -815,7 +807,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -1133,7 +1125,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -1211,7 +1203,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -1287,7 +1279,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -1367,7 +1359,7 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -2504,7 +2496,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -2963,7 +2955,7 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType.unallocated()
+            rd = FloatRegisterType()
         elif isinstance(rd, str):
             rd = FloatRegisterType(rd)
         if isinstance(comment, str):
@@ -3002,7 +2994,7 @@ class RdRsRsFloatFloatIntegerOperation(
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -3045,7 +3037,7 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated()
+            rd = IntRegisterType()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -3152,7 +3144,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = FloatRegisterType.unallocated()
+            rd = FloatRegisterType()
         elif isinstance(rd, str):
             rd = FloatRegisterType(rd)
         if isinstance(comment, str):

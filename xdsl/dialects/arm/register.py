@@ -28,10 +28,6 @@ class IntRegisterType(ARMRegisterType):
     name = "arm.reg"
 
     @classmethod
-    def unallocated(cls) -> IntRegisterType:
-        return UNALLOCATED_INT
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "arm"
 
