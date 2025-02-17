@@ -1,5 +1,3 @@
-from typing import override
-
 import pytest
 
 from xdsl.backend.register_type import RegisterType
@@ -25,7 +23,6 @@ class TestRegister(RegisterType):
         return {"x0": 0}
 
     @classmethod
-    @override
     def infinite_register_name(cls, index: int) -> str:
         return f"x{index}"
 
