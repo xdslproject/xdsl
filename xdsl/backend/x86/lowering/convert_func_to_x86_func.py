@@ -24,6 +24,8 @@ arg_passing_registers = [
 
 return_passing_register = x86.register.RAX
 
+stack_entry_size_in_bytes = 8
+
 
 class LowerFuncOp(RewritePattern):
     @op_type_rewrite_pattern
@@ -70,7 +72,7 @@ class LowerFuncOp(RewritePattern):
                 mov_op = x86.RM_MovOp(
                     r1=get_reg_op.result,
                     r2=get_sp_op.result,
-                    offset=8 * (i + 1),
+                    offset=stack_entry_size_in_bytes * (i + 1),
                     result=x86.register.GeneralRegisterType(""),
                 )
                 actual_registers.append(mov_op.result)
