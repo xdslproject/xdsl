@@ -61,6 +61,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
 
+    def get_convert_func_to_x86_func():
+        from xdsl.backend.x86.lowering import convert_func_to_x86_func
+
+        return convert_func_to_x86_func.ConvertFuncToX86FuncPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -507,6 +512,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-varith": get_convert_arith_to_varith,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-func-to-x86-func": get_convert_func_to_x86_func,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
