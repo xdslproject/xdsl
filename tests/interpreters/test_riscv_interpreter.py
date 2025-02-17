@@ -102,6 +102,15 @@ def test_riscv_interpreter():
     ) == (-1,)
 
     assert interpreter.run_op(
+        riscv.SllOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (3, 2),
+    ) == (12,)
+
+    assert interpreter.run_op(
         riscv.MulOp(
             TestSSAValue(register),
             TestSSAValue(register),
@@ -109,6 +118,15 @@ def test_riscv_interpreter():
         ),
         (2, 3),
     ) == (6,)
+
+    assert interpreter.run_op(
+        riscv.DivOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (6, 3),
+    ) == (2,)
 
     # Buffer to be modified by the interpreter
     buffer = RawPtr.zeros(16)
