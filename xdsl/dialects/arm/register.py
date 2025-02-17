@@ -1,27 +1,15 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Sequence
 
 from xdsl.backend.register_type import RegisterType
-from xdsl.ir import Attribute
 from xdsl.irdl import irdl_attr_definition
-from xdsl.parser import AttrParser
 
 
 class ARMRegisterType(RegisterType, abc.ABC):
     """
     The abstract class for all ARM register types.
     """
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        if parser.parse_optional_punctuation("<"):
-            name = parser.parse_identifier()
-            parser.parse_punctuation(">")
-        else:
-            name = ""
-        return cls._parameters_from_spelling(name)
 
     def verify(self):
         # No verification for now

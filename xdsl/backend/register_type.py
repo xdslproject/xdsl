@@ -38,10 +38,8 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Returns the parameter list required to construct a register instance from the given spelling.
         """
-        index_attr = NoneAttr()
         index = cls.abi_index_by_name().get(spelling)
-        if index is not None:
-            index_attr = IntAttr(index)
+        index_attr = NoneAttr() if index is None else IntAttr(index)
         return index_attr, StringAttr(spelling)
 
     @classmethod
@@ -62,9 +60,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return bool(self.spelling.data)
 
     @classmethod
-    @abstractmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        raise NotImplementedError()
+        if parser.parse_optional_punctuation("<"):
+            name = parser.parse_identifier()
+            parser.parse_punctuation(">")
+        else:
+            name = ""
+        return cls._parameters_from_spelling(name)
 
     def print_parameters(self, printer: Printer) -> None:
         if self.spelling.data:
