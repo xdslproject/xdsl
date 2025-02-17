@@ -11,7 +11,7 @@ func.func @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, %6: i32
   func.return %g: i32
 }
 // CHECK:       builtin.module {
-// CHECK-NEXT:    x86_func.func @foo_int() {
+// CHECK-NEXT:    x86_func.func @foo_int() -> () {
 // CHECK-NEXT:      %0 = x86.get_register : () -> !x86.reg<rdi>
 // CHECK-NEXT:      %1 = x86.get_register : () -> !x86.reg<rsi>
 // CHECK-NEXT:      %2 = x86.get_register : () -> !x86.reg<rdx>
