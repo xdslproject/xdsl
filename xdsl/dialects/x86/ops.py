@@ -84,11 +84,18 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         pos = parser.pos
         operand_types, result_types = cls.parse_op_type(parser)
         operands = parser.resolve_operands(args, operand_types, pos)
-        return cls.create(
+        return cls.build(
             operands=operands,
             result_types=result_types,
             attributes=attributes,
             regions=regions,
+        )
+
+    @classmethod
+    def parse_optional_memory_access_offset(cls, parser: Parser) -> Attribute | None:
+        return parse_optional_immediate_value(
+            parser,
+            IntegerType(64, Signedness.SIGNED),
         )
 
     @classmethod
@@ -557,7 +564,7 @@ class R_RM_Operation(
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(R1InvT)
 
@@ -565,7 +572,7 @@ class R_RM_Operation(
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         result: R1InvT,
@@ -592,11 +599,8 @@ class R_RM_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -850,13 +854,13 @@ class M_MR_Operation(
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     def __init__(
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -881,11 +885,8 @@ class M_MR_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -970,12 +971,12 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
 
     r1 = operand_def(R1InvT)
     immediate = attr_def(IntegerAttr)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     def __init__(
         self,
         r1: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -1010,17 +1011,14 @@ class M_MI_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, 
         temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         attributes["immediate"] = temp
         if parser.parse_optional_punctuation(",") is not None:
-            temp2 = parse_optional_immediate_value(
-                parser, IntegerType(32, Signedness.SIGNED)
-            )
-            if temp2 is not None:
-                attributes["offset"] = temp2
+            if offset := cls.parse_optional_memory_access_offset(parser):
+                attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
-        if self.offset is not None:
+        if self.offset.value.data != 0:
             printer.print(", ")
             print_immediate_value(printer, self.offset)
         return {"immediate", "offset"}
@@ -1170,7 +1168,7 @@ class R_RMI_Operation(
 
     r2 = operand_def(R2InvT)
     immediate = attr_def(IntegerAttr)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     r1 = result_def(R1InvT)
 
@@ -1178,7 +1176,7 @@ class R_RMI_Operation(
         self,
         r2: Operation | SSAValue,
         immediate: int | IntegerAttr,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         r1: R1InvT,
@@ -1214,17 +1212,14 @@ class R_RMI_Operation(
         temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         attributes["immediate"] = temp
         if parser.parse_optional_punctuation(",") is not None:
-            temp2 = parse_optional_immediate_value(
-                parser, IntegerType(32, Signedness.SIGNED)
-            )
-            if temp2 is not None:
-                attributes["offset"] = temp2
+            if offset := cls.parse_optional_memory_access_offset(parser):
+                attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
         print_immediate_value(printer, self.immediate)
-        if self.offset is not None:
+        if self.offset.value.data != 0:
             printer.print(", ")
             print_immediate_value(printer, self.offset)
         return {"immediate", "offset"}
@@ -1252,7 +1247,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_input = operand_def(GeneralRegisterType("rsp"))
     source = operand_def(R1InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1261,7 +1257,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
         source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         rsp_output: GeneralRegisterType,
     ):
         if isinstance(comment, str):
@@ -1285,11 +1281,8 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1314,7 +1307,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     destination = operand_def(
         GeneralRegisterType
     )  # the destination is a pointer to the memory location and the register itself is not modified
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
@@ -1323,7 +1316,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         destination: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr,
         rsp_output: GeneralRegisterType,
     ):
         if isinstance(offset, int):
@@ -1367,12 +1360,12 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
     """
 
     source = operand_def(R1InvT)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     def __init__(
         self,
         source: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1397,11 +1390,8 @@ class M_M_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1471,7 +1461,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     r1 = operand_def(R1InvT)
     rdx_input = operand_def(GeneralRegisterType("rdx"))
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1481,7 +1471,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
         r1: Operation | SSAValue,
         rdx_input: Operation | SSAValue,
         rax_input: Operation | SSAValue,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1508,11 +1498,8 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
-        if temp is not None:
-            attributes["offset"] = temp
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1534,7 +1521,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     rax_input = operand_def(GeneralRegisterType("rax"))
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     rdx_output = result_def(GeneralRegisterType("rdx"))
     rax_output = result_def(GeneralRegisterType("rax"))
@@ -1543,7 +1530,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
         self,
         r1: Operation | SSAValue,
         rax_input: Operation | SSAValue,
-        offset: int | IntegerAttr | None = None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         rdx_output: GeneralRegisterType,
@@ -1828,7 +1815,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1836,7 +1823,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         result: RFLAGSRegisterType,
@@ -1941,7 +1928,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     r2 = operand_def(GeneralRegisterType)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(RFLAGSRegisterType)
 
@@ -1949,7 +1936,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         result: RFLAGSRegisterType,
@@ -2001,14 +1988,14 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     r1 = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
-    offset = opt_attr_def(IntegerAttr)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     result = result_def(RFLAGSRegisterType)
 
     def __init__(
         self,
         r1: Operation | SSAValue,
-        offset: int | IntegerAttr | None,
+        offset: int | IntegerAttr,
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
@@ -2529,6 +2516,19 @@ class RRR_Vfmadd231pdOp(
 
 
 @irdl_op_definition
+class RRR_Vfmadd231psOp(
+    RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Multiply packed single-precision floating-point elements in r2 and r3, add the
+    intermediate result to r1, and store the final result in r1.
+    https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
+    """
+
+    name = "x86.rrr.vfmadd231ps"
+
+
+@irdl_op_definition
 class RR_VmovapdOp(R_RR_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2 using
@@ -2550,6 +2550,26 @@ class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class MR_VmovupsOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from vector register to memory
+    https://www.felixcloutier.com/x86/movups
+    """
+
+    name = "x86.mr.vmovups"
+
+
+@irdl_op_definition
+class RM_VmovupsOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from memory to vector register
+    https://www.felixcloutier.com/x86/movups
+    """
+
+    name = "x86.rm.vmovups"
+
+
+@irdl_op_definition
 class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
@@ -2557,6 +2577,16 @@ class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterTyp
     """
 
     name = "x86.rm.vbroadcastsd"
+
+
+@irdl_op_definition
+class RM_VbroadcastssOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Broadcast single precision floating-point element to eight locations in memory
+    https://www.felixcloutier.com/x86/vbroadcast
+    """
+
+    name = "x86.rm.vbroadcastss"
 
 
 class GetAnyRegisterOperation(

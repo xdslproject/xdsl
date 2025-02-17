@@ -23,7 +23,7 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.11.2",
+    "marimo==0.11.4",
     "pre-commit==4.1.0",
     "ruff==0.9.6",
     "nbconvert>=7.7.2,<8.0.0",
@@ -39,7 +39,7 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
 ]
 gui = ["textual==1.0.0", "pyclip==0.7"]
-jax = ["jax==0.5.0", "numpy==2.2.2"]
+jax = ["jax==0.5.0", "numpy==2.2.3"]
 riscv = ["riscemu==2.2.7"]
 bench = [
     "asv>=0.6.4",
@@ -150,7 +150,6 @@ max-line-length = 130
 "docs/irdl.ipynb" = ["ALL"]
 "docs/database_example.ipynb" = ["ALL"]
 "**/{docs/marimo}/*" = ["E501", "I001"]
-"**/__marimo__/*" = ["ALL"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
 "tests/*" = ["E501"]

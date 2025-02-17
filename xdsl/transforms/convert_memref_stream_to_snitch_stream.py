@@ -4,7 +4,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import (
     builtin,
     memref,
@@ -245,7 +245,7 @@ class ConvertMemRefStreamToSnitchStreamPass(ModulePass):
 
     name = "convert-memref-stream-to-snitch-stream"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

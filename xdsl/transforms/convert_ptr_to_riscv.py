@@ -5,7 +5,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     register_type_for_type,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import ptr, riscv
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -123,7 +123,7 @@ class ConvertMemRefToPtrOp(RewritePattern):
 class ConvertPtrToRiscvPass(ModulePass):
     name = "convert-ptr-to-riscv"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

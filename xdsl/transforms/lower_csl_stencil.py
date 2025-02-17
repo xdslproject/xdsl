@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -539,7 +539,7 @@ class LowerCslStencil(ModulePass):
 
     name = "lower-csl-stencil"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

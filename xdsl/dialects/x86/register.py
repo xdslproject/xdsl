@@ -22,20 +22,19 @@ class X86RegisterType(RegisterType, ABC):
         if parser.parse_optional_punctuation("<") is not None:
             name = parser.parse_identifier()
             parser.parse_punctuation(">")
-            if not name.startswith("e") and not name.startswith("r"):
-                assert name in cls.abi_index_by_name(), f"{name}"
         else:
             name = ""
         return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
         name = self.spelling.data
-        if not self.is_allocated or name.startswith("e") or name.startswith("r"):
+        if not self.is_allocated:
             return
         if name not in type(self).abi_index_by_name():
             raise VerifyException(f"{name} not in {self.instruction_set_name()}")
 
 
+# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 X86_INDEX_BY_NAME = {
     "rax": 0,
     "rcx": 1,
@@ -45,6 +44,14 @@ X86_INDEX_BY_NAME = {
     "rbp": 5,
     "rsi": 6,
     "rdi": 7,
+    "eax": 0,
+    "ecx": 1,
+    "edx": 2,
+    "ebx": 3,
+    "esp": 4,
+    "ebp": 5,
+    "esi": 6,
+    "edi": 7,
     "r8": 8,
     "r9": 9,
     "r10": 10,
@@ -86,6 +93,16 @@ RSP = GeneralRegisterType("rsp")
 RBP = GeneralRegisterType("rbp")
 RSI = GeneralRegisterType("rsi")
 RDI = GeneralRegisterType("rdi")
+
+EAX = GeneralRegisterType("eax")
+ECX = GeneralRegisterType("ecx")
+EDX = GeneralRegisterType("edx")
+EBX = GeneralRegisterType("ebx")
+ESP = GeneralRegisterType("esp")
+EBP = GeneralRegisterType("ebp")
+ESI = GeneralRegisterType("esi")
+EDI = GeneralRegisterType("edi")
+
 R8 = GeneralRegisterType("r8")
 R9 = GeneralRegisterType("r9")
 R10 = GeneralRegisterType("r10")
@@ -154,6 +171,7 @@ class SSERegisterType(X86VectorRegisterType):
         return SSE_INDEX_BY_NAME
 
 
+# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 SSE_INDEX_BY_NAME = {
     "xmm0": 0,
     "xmm1": 1,
@@ -213,6 +231,7 @@ class AVX2RegisterType(X86VectorRegisterType):
         return AVX2_INDEX_BY_NAME
 
 
+# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 AVX2_INDEX_BY_NAME = {
     "ymm0": 0,
     "ymm1": 1,
@@ -265,13 +284,14 @@ class AVX512RegisterType(X86VectorRegisterType):
 
     @classmethod
     def instruction_set_name(cls) -> str:
-        return "x86AVX512"
+        return "AVX512"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return X86AVX512_INDEX_BY_NAME
 
 
+# See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 X86AVX512_INDEX_BY_NAME = {
     "zmm0": 0,
     "zmm1": 1,

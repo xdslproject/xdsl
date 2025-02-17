@@ -7,11 +7,10 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyArrayAttr,
     AnyDenseElement,
     AnyFloat,
     AnyFloatConstr,
@@ -87,7 +86,7 @@ class AttrParser(BaseParser):
 
     """
 
-    ctx: MLContext
+    ctx: Context
 
     attribute_aliases: dict[str, Attribute] = field(default_factory=dict)
     """
@@ -1207,7 +1206,7 @@ class AttrParser(BaseParser):
             else None
         )
 
-    def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
+    def _parse_optional_array_attr(self) -> ArrayAttr | None:
         """
         Parse an array attribute, if present, with format:
             array-attr ::= `[` (attribute (`,` attribute)*)? `]`

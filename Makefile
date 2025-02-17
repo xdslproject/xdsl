@@ -64,7 +64,6 @@ pytest-nb: uv-installed
 	uv run pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
 		--ignore=docs/Toy \
-		--ignore-glob=**/__marimo__/*.ipynb \
 		--nbval-current-env
 
 # run tests for Toy tutorial

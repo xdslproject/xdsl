@@ -6,7 +6,7 @@ inputs are constant, replacing the computation with a constant value.
 from dataclasses import dataclass
 from typing import Any, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter
@@ -83,7 +83,7 @@ class ConstantFoldInterpPass(ModulePass):
 
     name = "constant-fold-interp"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         interpreter = Interpreter(op)
         register_implementations(interpreter, ctx)
         pattern = ConstantFoldInterpPattern(interpreter)

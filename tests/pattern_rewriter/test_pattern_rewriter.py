@@ -5,7 +5,7 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
 from xdsl.dialects.builtin import (
@@ -48,7 +48,7 @@ def rewrite_and_compare(
     block_created: int = 0,
     expect_rewrite: bool = True,
 ):
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
@@ -577,7 +577,7 @@ def test_operation_deletion_reversed():
 def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
 
@@ -1776,7 +1776,7 @@ Error while applying pattern: Expected operation to not be erroneous!
                 raise ValueError("Expected operation to not be erroneous!")
             return
 
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
