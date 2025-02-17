@@ -110,12 +110,6 @@ class MultipleSpansParseError(ParseError):
             res += span.print_with_context(msg) + "\n"
         return res
 
-    def __str__(self) -> str:
-        res = ""
-        for span, msg in self.refs:
-            res += span.print_with_context(msg) + "\n"
-        return res
-
 
 class PassPipelineParseError(BaseException):
     def __init__(self, token: Token, msg: str):
