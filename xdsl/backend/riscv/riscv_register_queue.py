@@ -131,7 +131,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         """
         Removes register from available set, if present.
         """
-        if reg in self.available_int_registers:
+        if isinstance(reg, IntRegisterType) and reg in self.available_int_registers:
             self.available_int_registers.remove(reg)
-        if reg in self.available_float_registers:
+        if isinstance(reg, FloatRegisterType) and reg in self.available_float_registers:
             self.available_float_registers.remove(reg)
