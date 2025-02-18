@@ -562,7 +562,7 @@ def _(builtin, mo):
     The IR for the `triangle` snippet contains four attributes: `@triangle`, `0`, `1` and `i32`.
     The `i32` attribute is the type of integer values that fit in a register on the target platform.
     As the IR presented here is independent of the machine on which it will be executed on, we do not yet specify the bitwidth of the integer.
-    In MLIR, the common way to represent integers of 16, 32, 64, or other bitwidths is, respectively, `i16`, `i32`, `i64`, etc.
+    In MLIR, the common way to represent integers of 16, 32, 64, or other bitwidths is, respectively, with the types of `i16`, `i32`, `i64`, etc.
     The `@triangle` attribute is a symbol name, denoting the name of the function.
 
     There are many other attributes, and a lot of them are part of the `builtin` dialect.
