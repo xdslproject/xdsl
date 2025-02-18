@@ -24,5 +24,8 @@ class TestRegister(RegisterType):
 
 
 def test_register_clashes():
-    with pytest.raises(AssertionError, match="Invalid 'infinite' register name x"):
+    with pytest.raises(
+        AssertionError,
+        match="Invalid 'infinite' register name: x0 clashes with finite register set",
+    ):
         TestRegister.infinite_register(0)

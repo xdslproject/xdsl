@@ -96,9 +96,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Provide the register at the given index in the "infinite" register set.
         """
-        spelling = cls.infinite_register_prefix()
-        res = cls(spelling + str(index))
+        spelling = cls.infinite_register_prefix() + str(index)
+        res = cls(spelling)
         assert isinstance(res.index, NoneAttr), (
-            f"Invalid 'infinite' register name {spelling}"
+            f"Invalid 'infinite' register name: {spelling} clashes with finite register set"
         )
         return res
