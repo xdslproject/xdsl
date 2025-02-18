@@ -191,8 +191,7 @@ def _(add_one_text, mo, xmo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""MLIR IR is in [SSA
-        form](https://en.wikipedia.org/wiki/Static_single-assignment_form), meaning that each value can only be assigned to _once_. This property helps reason about the possible runtime data these values can hold, such as whether they are constant, like the SSA value `%one` in the snippet above."""
+        r"""MLIR IR is in [SSA form](https://en.wikipedia.org/wiki/Static_single-assignment_form), meaning that each value can only be assigned to _once_. This property helps reason about the possible runtime data these values can hold, such as whether they are constant, like the SSA value `%one` in the snippet above."""
     )
     return
 
