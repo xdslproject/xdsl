@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.0"
+__generated_with = "0.11.5"
 app = marimo.App(width="medium")
 
 
@@ -13,7 +13,6 @@ def _():
     from xdsl.utils import marimo as xmo
     from xdsl.printer import Printer
     from typing import Any
-
     return Any, Context, Printer, arith, builtin, func, mo, scf, xmo
 
 
@@ -46,9 +45,7 @@ def _(mo, triangle_text):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""This notebook explains all the components of the above snippet of code. The sections below are structured by _dialect_, which represents a namespace for related abstractions and constructs."""
-    )
+    mo.md(r"""This notebook explains all the components of the above snippet of code. The sections below are structured by _dialect_, which represents a namespace for related abstractions and constructs.""")
     return
 
 
@@ -160,9 +157,7 @@ def _(add_one_text, mo, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""The `i` in `arith.addi` above stands for integer. Some of the operations, like for addition (`addi`/`addf`), subtraction (`subi`/`subf`), multiplication (`muli`/`mulf`), and others have both integer and floating point variants."""
-    )
+    mo.md(r"""The `i` in `arith.addi` above stands for integer. Some of the operations, like for addition (`addi`/`addf`), subtraction (`subi`/`subf`), multiplication (`muli`/`mulf`), and others have both integer and floating point variants.""")
     return
 
 
@@ -190,9 +185,7 @@ def _(add_one_text, mo, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""MLIR IR is in [SSA form](https://en.wikipedia.org/wiki/Static_single-assignment_form), meaning that each value can only be assigned to _once_. This property helps reason about the possible runtime data these values can hold, such as whether they are constant, like the SSA value `%one` in the snippet above."""
-    )
+    mo.md(r"""MLIR IR is in [SSA form](https://en.wikipedia.org/wiki/Static_single-assignment_form), meaning that each value can only be assigned to _once_. This property helps reason about the possible runtime data these values can hold, such as whether they are constant, like the SSA value `%one` in the snippet above.""")
     return
 
 
@@ -250,12 +243,8 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, select_text, xmo):
-    mo.md(
-        r"""
-        The [`scf` dialect](https://mlir.llvm.org/docs/Dialects/Scf/) contains operations for structured control flow.
-        """
-    )
+def _(mo):
+    mo.md(r"""The [`scf` dialect](https://mlir.llvm.org/docs/Dialects/Scf/) contains operations for structured control flow.""")
     return
 
 
@@ -620,9 +609,7 @@ def _(Parser, Printer, StringIO, ctx, mo, triangle_text):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""In the next notebooks, we will take a deeper dive into the APIs used to process and construct MLIR IR."""
-    )
+    mo.md(r"""In the next notebooks, we will take a deeper dive into the APIs used to process and construct MLIR IR.""")
     return
 
 
@@ -632,7 +619,6 @@ def _(ModuleOp, Printer, StringIO):
         io = StringIO()
         Printer(io, print_generic_format=True).print(module)
         return io.getvalue()
-
     return (print_generic,)
 
 
@@ -693,7 +679,6 @@ def _(Any, ModuleOp):
             res = res[0]
 
         return res
-
     return (run_func,)
 
 
@@ -732,7 +717,6 @@ def _(Any, Parser, ctx, run_func):
     ```
     """
         return info_text
-
     return (exercise_text,)
 
 
