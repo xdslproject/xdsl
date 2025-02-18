@@ -46,16 +46,16 @@ def test_reserve_register():
     register_queue = RiscvRegisterQueue()
 
     register_queue.reserve_register(riscv.IntRegisterType("j0"))
-    assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 1
+    assert register_queue.reserved_int_registers[riscv.IntRegisterType("j0")] == 1
 
     register_queue.reserve_register(riscv.IntRegisterType("j0"))
-    assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 2
+    assert register_queue.reserved_int_registers[riscv.IntRegisterType("j0")] == 2
 
     register_queue.unreserve_register(riscv.IntRegisterType("j0"))
-    assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 1
+    assert register_queue.reserved_int_registers[riscv.IntRegisterType("j0")] == 1
 
     register_queue.unreserve_register(riscv.IntRegisterType("j0"))
-    assert riscv.IntRegisterType("j0") not in register_queue.reserved_registers
+    assert riscv.IntRegisterType("j0") not in register_queue.reserved_int_registers
     assert riscv.IntRegisterType("j0") not in register_queue.available_int_registers
 
     # Check assertion error when reserving an available register

@@ -1,5 +1,5 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, func, get_all_dialects
 from xdsl.dialects.builtin import (
     IndexType,
@@ -50,7 +50,7 @@ def test_operation_counter_with_parsing_text():
 }
 """
 
-    ctx = MLContext(True)
+    ctx = Context(True)
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
     parser = Parser(ctx, text)
@@ -79,7 +79,7 @@ def test_get_diff_operation_count():
 }
 """
 
-    ctx = MLContext(True)
+    ctx = Context(True)
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
     parser = Parser(ctx, input_text)

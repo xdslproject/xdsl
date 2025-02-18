@@ -4,6 +4,28 @@ from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
 
 
+def test_unallocated_register():
+    unallocated = x86.register.GeneralRegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.GeneralRegisterType()
+
+    unallocated = x86.register.RFLAGSRegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.RFLAGSRegisterType()
+
+    unallocated = x86.register.AVX2RegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.AVX2RegisterType()
+
+    unallocated = x86.register.AVX512RegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.AVX512RegisterType()
+
+    unallocated = x86.register.SSERegisterType("")
+    assert not unallocated.is_allocated
+    assert unallocated == x86.register.SSERegisterType()
+
+
 @pytest.mark.parametrize(
     "register, name",
     [
@@ -15,6 +37,14 @@ from xdsl.dialects.builtin import IntegerAttr
         (x86.register.RBP, "rbp"),
         (x86.register.RSI, "rsi"),
         (x86.register.RDI, "rdi"),
+        (x86.register.EAX, "eax"),
+        (x86.register.ECX, "ecx"),
+        (x86.register.EDX, "edx"),
+        (x86.register.EBX, "ebx"),
+        (x86.register.ESP, "esp"),
+        (x86.register.EBP, "ebp"),
+        (x86.register.ESI, "esi"),
+        (x86.register.EDI, "edi"),
         (x86.register.R8, "r8"),
         (x86.register.R9, "r9"),
         (x86.register.R10, "r10"),
@@ -28,6 +58,7 @@ from xdsl.dialects.builtin import IntegerAttr
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+    assert register.instruction_set_name() == "x86"
 
 
 def test_rflags_register():
@@ -76,6 +107,7 @@ def test_rflags_register():
 def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+    assert register.instruction_set_name() == "AVX512"
 
 
 @pytest.mark.parametrize(
@@ -102,6 +134,7 @@ def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
 def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+    assert register.instruction_set_name() == "AVX2"
 
 
 @pytest.mark.parametrize(
@@ -128,6 +161,7 @@ def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
 def test_sse_register(register: x86.register.SSERegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+    assert register.instruction_set_name() == "SSE"
 
 
 @pytest.mark.parametrize(

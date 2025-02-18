@@ -53,6 +53,8 @@ from xdsl.irdl import (
     GenericData,
     InferenceContext,
     IntConstraint,
+    IRDLAttrConstraint,
+    IRDLGenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -1637,7 +1639,7 @@ class UnregisteredOp(Operation, ABC):
         """
         Return a new unregistered operation type given a name.
         This function should not be called directly. Use methods from
-        `MLContext` to get an `UnregisteredOp` type.
+        `Context` to get an `UnregisteredOp` type.
         """
 
         class UnregisteredOpWithNameOp(UnregisteredOp):
@@ -1713,7 +1715,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
         Return a new unregistered attribute type given a name and a
         boolean indicating if the attribute can be a type.
         This function should not be called directly. Use methods from
-        `MLContext` to get an `UnregisteredAttr` type.
+        `Context` to get an `UnregisteredAttr` type.
         """
 
         @irdl_attr_definition
@@ -1951,10 +1953,10 @@ class MemRefType(
     def constr(
         cls,
         *,
-        shape: GenericAttrConstraint[Attribute] | None = None,
-        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
-        layout: GenericAttrConstraint[Attribute] | None = None,
-        memory_space: GenericAttrConstraint[Attribute] | None = None,
+        shape: IRDLAttrConstraint | None = None,
+        element_type: IRDLGenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        layout: IRDLAttrConstraint | None = None,
+        memory_space: IRDLAttrConstraint | None = None,
     ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
         if (
             shape is None

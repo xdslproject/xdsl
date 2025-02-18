@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    Dialect,
     Operation,
     SSAValue,
 )
@@ -179,7 +178,7 @@ class X86Instruction(X86AsmOperation):
         By default, the name of the instruction is the same as the name of the operation.
         """
 
-        return Dialect.split_name(self.name)[1]
+        return self.name.split(".")[-1]
 
     def assembly_line(self) -> str | None:
         # default assembly code generator

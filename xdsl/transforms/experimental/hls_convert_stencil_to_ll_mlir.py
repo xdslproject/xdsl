@@ -2,7 +2,7 @@ import typing
 from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, scf, stencil
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
@@ -1271,7 +1271,7 @@ class QualifyInterfacesPass(RewritePattern):
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         module: builtin.ModuleOp = op
         shift_streams: list[list[HLSStreamOp]] = []
         out_data_streams: list[HLSStreamOp] = []

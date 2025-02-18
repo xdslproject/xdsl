@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import IO, Any, ClassVar
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
@@ -219,7 +219,7 @@ class PDLRewritePattern(RewritePattern):
     interpreter: Interpreter
 
     def __init__(
-        self, pdl_rewrite_op: pdl.RewriteOp, ctx: MLContext, file: IO[str] | None = None
+        self, pdl_rewrite_op: pdl.RewriteOp, ctx: Context, file: IO[str] | None = None
     ):
         pdl_pattern = pdl_rewrite_op.parent_op()
         assert isinstance(pdl_pattern, pdl.PatternOp)
@@ -271,7 +271,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
     values.
     """
 
-    ctx: MLContext
+    ctx: Context
     _rewriter: PatternRewriter | None = field(default=None)
 
     @property

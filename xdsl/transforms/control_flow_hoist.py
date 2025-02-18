@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from itertools import chain
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, scf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, SSAValue
@@ -94,7 +94,7 @@ class ControlFlowHoistPass(ModulePass):
 
     name = "control-flow-hoist"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

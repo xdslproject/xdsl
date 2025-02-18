@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -231,15 +231,15 @@ def test_float_register():
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
     with pytest.raises(VerifyException, match="Operation does not verify"):
-        riscv.FAddSOp(a1, a2, rd=riscv.FloatRegisterType.unallocated()).verify()
+        riscv.FAddSOp(a1, a2, rd=riscv.FloatRegisterType()).verify()
 
     f1 = TestSSAValue(riscv.Registers.FT0)
     f2 = TestSSAValue(riscv.Registers.FT1)
-    riscv.FAddSOp(f1, f2, rd=riscv.FloatRegisterType.unallocated()).verify()
+    riscv.FAddSOp(f1, f2, rd=riscv.FloatRegisterType()).verify()
 
 
 def test_riscv_parse_immediate_value():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(riscv.RISCV)
 
     prog = """riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""

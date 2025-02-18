@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from math import prod
 from typing import Any, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, riscv, riscv_snitch
 from xdsl.dialects.builtin import (
     Float16Type,
@@ -21,7 +21,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
 )
 
-_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
+_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType()
 
 
 @dataclass
@@ -81,7 +81,7 @@ lower_arith_addf = LowerBinaryFloatVectorOp(
 class ConvertArithToRiscvSnitchPass(ModulePass):
     name = "convert-arith-to-riscv-snitch"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

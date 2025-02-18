@@ -1,6 +1,6 @@
 from itertools import chain
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, snitch
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -61,9 +61,7 @@ class ScfForLowering(RewritePattern):
         rewriter.erase_block_argument(indvar)
         rewriter.replace_matched_op(
             (
-                iter_count := riscv.SubOp(
-                    op.ub, op.lb, rd=riscv.IntRegisterType.unallocated()
-                ),
+                iter_count := riscv.SubOp(op.ub, op.lb, rd=riscv.IntRegisterType()),
                 iter_count_minus_one := riscv.AddiOp(iter_count, -1),
                 riscv_snitch.FrepOuterOp(
                     iter_count_minus_one,
@@ -100,7 +98,7 @@ class ConvertRiscvScfForToFrepPass(ModulePass):
 
     name = "convert-riscv-scf-for-to-frep"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import ParallelOp, ReduceOp
@@ -140,7 +140,7 @@ class ScfParallelLoopTilingPass(ModulePass):
 
     parallel_loop_tile_sizes: tuple[int, ...]
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [ScfParallelLoopTilingPattern(tuple(self.parallel_loop_tile_sizes))]

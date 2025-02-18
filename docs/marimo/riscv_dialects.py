@@ -13,13 +13,13 @@ def _():
     from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func
     from xdsl.printer import Printer
     from xdsl.parser import Parser
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     import difflib
     return (
         Block,
         Builder,
         InsertPoint,
-        MLContext,
+        Context,
         Parser,
         Printer,
         Region,
@@ -527,8 +527,8 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(MLContext, builtin, riscv, riscv_cf, riscv_func):
-    ctx = MLContext()
+def _(Context, builtin, riscv, riscv_cf, riscv_func):
+    ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(riscv.RISCV)
     ctx.load_dialect(riscv_cf.RISCV_Cf)

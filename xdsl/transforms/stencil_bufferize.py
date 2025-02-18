@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import Any, TypeVar, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.experimental.dmp import SwapOp
 from xdsl.dialects.stencil import (
@@ -574,7 +574,7 @@ class StencilBufferize(ModulePass):
 
     name = "stencil-bufferize"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

@@ -9,7 +9,7 @@ from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
 from xdsl.builder import Builder, InsertPoint
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -471,7 +471,7 @@ class LowerToAffinePass(ModulePass):
 
     name = "toy-to-builtin"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
