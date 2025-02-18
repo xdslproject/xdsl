@@ -83,10 +83,11 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
     @classmethod
     @abstractmethod
-    def infinite_register_name(cls, index: int) -> str:
+    def infinite_register_prefix(cls) -> str:
         """
-        Provide the spelling for a register at the given index in the "infinite"
-        register set.
+        Provide the prefix for the spelling for a register at the given index in the
+        "infinite" register set.
+        For a prefix `x`, the spelling of the first infinite register will be `x0`.
         """
         raise NotImplementedError()
 
@@ -95,8 +96,8 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Provide the register at the given index in the "infinite" register set.
         """
-        spelling = cls.infinite_register_name(index)
-        res = cls(spelling)
+        spelling = cls.infinite_register_prefix()
+        res = cls(spelling + str(index))
         assert isinstance(res.index, NoneAttr), (
             f"Invalid 'infinite' register name {spelling}"
         )

@@ -36,8 +36,8 @@ class IntRegisterType(ARMRegisterType):
         return ARM_INDEX_BY_NAME
 
     @classmethod
-    def infinite_register_name(cls, index: int):
-        return f"inf_{index}"
+    def infinite_register_prefix(cls):
+        return "inf"
 
 
 UNALLOCATED_INT = IntRegisterType("")

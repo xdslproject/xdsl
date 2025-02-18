@@ -6,10 +6,6 @@ from xdsl.irdl import irdl_attr_definition
 
 @irdl_attr_definition
 class TestRegister(RegisterType):
-    """
-    A RISC-V register type.
-    """
-
     name = "test.reg"
 
     def verify(self) -> None: ...
@@ -23,10 +19,10 @@ class TestRegister(RegisterType):
         return {"x0": 0}
 
     @classmethod
-    def infinite_register_name(cls, index: int) -> str:
-        return f"x{index}"
+    def infinite_register_prefix(cls):
+        return "x"
 
 
-def test_register_type():
-    with pytest.raises(AssertionError):
+def test_register_clashes():
+    with pytest.raises(AssertionError, match="Invalid 'infinite' register name x"):
         TestRegister.infinite_register(0)
