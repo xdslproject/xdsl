@@ -2450,7 +2450,7 @@ wheels = [
 
 [[package]]
 name = "textual"
-version = "2.0.3"
+version = "2.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py", extra = ["linkify", "plugins"] },
@@ -2458,9 +2458,9 @@ dependencies = [
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/7f/51ab95f597daae04f347fdffc522aaa17138725648e565f1c1bed927e4c7/textual-2.0.3.tar.gz", hash = "sha256:b7239077407ed9764b83faa1feff64c88c338e68a9b67beb8de35571757fbf16", size = 1591724 }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/d7/b45464bf3e8362190b817e1fa60cce3d7004369e4a2ec0f0d28c7fa3d83d/textual-2.0.4.tar.gz", hash = "sha256:128177fc6d63d0f3236e374e28d68f4343bd2e996825da2a6f122d9fbf017d31", size = 1591729 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/b2/e1c61760c7e00ec5a80a32f62b4db45377c77ff35a446025d5f3079c3f03/textual-2.0.3-py3-none-any.whl", hash = "sha256:32e4bc2f065bfa5f3aeb58e28fbfe95424d25d6d079f0802327b85dcea5bbe4b", size = 679485 },
+    { url = "https://files.pythonhosted.org/packages/93/68/7f26c55e7c5818eed5c1912106e1392bf1edfb1b7ef342b35930fa559f2d/textual-2.0.4-py3-none-any.whl", hash = "sha256:0a151c060586eb4fb091584fab58f0706daa51cf27330efef548bc14f3c6aa66", size = 679459 },
 ]
 
 [[package]]
@@ -2828,7 +2828,7 @@ requires-dist = [
     { name = "riscemu", marker = "extra == 'riscv'", specifier = "==2.2.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.9.6" },
     { name = "sympy", marker = "extra == 'dev'", specifier = "==1.13.3" },
-    { name = "textual", marker = "extra == 'gui'", specifier = "==2.0.3" },
+    { name = "textual", marker = "extra == 'gui'", specifier = "==2.0.4" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.7.0" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
