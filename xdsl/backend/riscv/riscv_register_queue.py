@@ -85,10 +85,10 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
             reg = available_registers.pop()
         else:
             if issubclass(reg_type, IntRegisterType):
-                reg = reg_type(f"j{self._j_idx}")
+                reg = reg_type(f"j_{self._j_idx}")
                 self._j_idx += 1
             else:
-                reg = reg_type(f"fj{self._fj_idx}")
+                reg = reg_type(f"fj_{self._fj_idx}")
                 self._fj_idx += 1
 
         reserved_registers = (

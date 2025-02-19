@@ -23,7 +23,7 @@ def test_default_reserved_registers():
     unallocated = riscv.Registers.UNALLOCATED_INT
 
     def j(index: int):
-        return riscv.IntRegisterType(f"j{index}")
+        return riscv.IntRegisterType(f"j_{index}")
 
     assert register_queue.pop(riscv.IntRegisterType) == j(0)
 
@@ -62,7 +62,7 @@ def test_default_reserved_registers():
     with pytest.raises(
         DiagnosticException,
         match=re.escape(
-            "Cannot allocate registers to the same register ['!riscv.reg<j2>', '!riscv.reg<j3>']"
+            "Cannot allocate registers to the same register ['!riscv.reg<j_2>', '!riscv.reg<j_3>']"
         ),
     ):
         register_allocator.allocate_same((d0, d1))
@@ -74,7 +74,7 @@ def test_default_reserved_registers():
     with pytest.raises(
         DiagnosticException,
         match=re.escape(
-            "Cannot allocate registers to the same register ['!riscv.reg', '!riscv.reg<j2>', '!riscv.reg<j3>']"
+            "Cannot allocate registers to the same register ['!riscv.reg', '!riscv.reg<j_2>', '!riscv.reg<j_3>']"
         ),
     ):
         register_allocator.allocate_same((e0, e1, e2))
@@ -116,18 +116,18 @@ def test_allocate_with_inout_constraints():
     # All new registers. The result register is reused by the allocator for the operand.
     op0 = MyInstructionOp.get("", "", "", "")
     register_allocator.process_riscv_op(op0)
-    assert op0.rs0.type == riscv.IntRegisterType("j1")
-    assert op0.rs1.type == riscv.IntRegisterType("j0")
-    assert op0.rd0.type == riscv.IntRegisterType("j1")
-    assert op0.rd1.type == riscv.IntRegisterType("j0")
+    assert op0.rs0.type == riscv.IntRegisterType("j_1")
+    assert op0.rs1.type == riscv.IntRegisterType("j_0")
+    assert op0.rd0.type == riscv.IntRegisterType("j_1")
+    assert op0.rd1.type == riscv.IntRegisterType("j_0")
 
     # One register reserved for inout parameter, the allocator should allocate the output
     # to the same register.
     op1 = MyInstructionOp.get("", "", "", "a0")
     register_allocator.process_riscv_op(op1)
-    assert op1.rs0.type == riscv.IntRegisterType("j2")
+    assert op1.rs0.type == riscv.IntRegisterType("j_2")
     assert op1.rs1.type == riscv.IntRegisterType("a0")
-    assert op1.rd0.type == riscv.IntRegisterType("j2")
+    assert op1.rd0.type == riscv.IntRegisterType("j_2")
     assert op1.rd1.type == riscv.IntRegisterType("a0")
 
 
