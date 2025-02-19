@@ -69,7 +69,7 @@ class GeneralRegisterType(X86RegisterType):
 
     @classmethod
     def infinite_register_prefix(cls):
-        return "inf_reg"
+        return "inf_reg_"
 
 
 UNALLOCATED_GENERAL = GeneralRegisterType("")
@@ -123,7 +123,7 @@ class RFLAGSRegisterType(X86RegisterType):
 
     @classmethod
     def infinite_register_prefix(cls):
-        return "inf_rflags"
+        return "inf_rflags_"
 
 
 UNALLOCATED_RFLAGS = RFLAGSRegisterType("")
@@ -156,7 +156,7 @@ class SSERegisterType(X86VectorRegisterType):
 
     @classmethod
     def infinite_register_prefix(cls):
-        return "inf_sse"
+        return "inf_sse_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
@@ -216,7 +216,7 @@ class AVX2RegisterType(X86VectorRegisterType):
 
     @classmethod
     def infinite_register_prefix(cls):
-        return "inf_avx2"
+        return "inf_avx2_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
@@ -276,7 +276,7 @@ class AVX512RegisterType(X86VectorRegisterType):
 
     @classmethod
     def infinite_register_prefix(cls):
-        return "inf_avx512"
+        return "inf_avx512_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers

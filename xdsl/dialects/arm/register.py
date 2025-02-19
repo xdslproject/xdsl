@@ -37,7 +37,7 @@ class IntRegisterType(ARMRegisterType):
 
     @classmethod
     def infinite_register_prefix(cls):
-        return "inf"
+        return "inf_"
 
 
 UNALLOCATED_INT = IntRegisterType("")
