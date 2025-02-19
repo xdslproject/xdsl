@@ -67,6 +67,10 @@ class GeneralRegisterType(X86RegisterType):
     def abi_index_by_name(cls) -> dict[str, int]:
         return X86_INDEX_BY_NAME
 
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_reg_"
+
 
 UNALLOCATED_GENERAL = GeneralRegisterType("")
 RAX = GeneralRegisterType("rax")
@@ -117,6 +121,10 @@ class RFLAGSRegisterType(X86RegisterType):
     def abi_index_by_name(cls) -> dict[str, int]:
         return RFLAGS_INDEX_BY_NAME
 
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_rflags_"
+
 
 UNALLOCATED_RFLAGS = RFLAGSRegisterType("")
 RFLAGS = RFLAGSRegisterType("rflags")
@@ -145,6 +153,10 @@ class SSERegisterType(X86VectorRegisterType):
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return SSE_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_sse_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
@@ -202,6 +214,10 @@ class AVX2RegisterType(X86VectorRegisterType):
     def abi_index_by_name(cls) -> dict[str, int]:
         return AVX2_INDEX_BY_NAME
 
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_avx2_"
+
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
 AVX2_INDEX_BY_NAME = {
@@ -257,6 +273,10 @@ class AVX512RegisterType(X86VectorRegisterType):
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return X86AVX512_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_avx512_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
