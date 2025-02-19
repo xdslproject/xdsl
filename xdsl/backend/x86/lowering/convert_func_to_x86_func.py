@@ -1,7 +1,7 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, func, x86, x86_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Block, SSAValue
+from xdsl.ir import Attribute, Block, BlockArgument, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -30,70 +30,72 @@ STACK_SLOT_SIZE_BYTES = 8
 class LowerFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
-        first_block = op.body.blocks.first
-
-        if first_block is None:
+        if op.body.blocks.first is None:
             raise DiagnosticException(
                 "Cannot lower external functions (not implemented)"
             )
 
-        for arg in first_block.args:
-            if isinstance(arg.type, builtin.ShapedType):
+        for ty in op.function_type.inputs.data:
+            if isinstance(ty, builtin.ShapedType):
                 raise DiagnosticException(
                     "Cannot lower shaped function parameters (not implemented)"
                 )
-            elif (
-                isinstance(arg.type, builtin.FixedBitwidthType)
-                and arg.type.bitwidth > 64
-            ):
+            elif isinstance(ty, builtin.FixedBitwidthType) and ty.bitwidth > 64:
                 raise DiagnosticException(
                     "Cannot lower function parameters bigger than 64 bits (not implemented)"
                 )
 
         num_inputs = len(op.function_type.inputs.data)
         num_passing_args = num_inputs if num_inputs <= 6 else 6
+        reg_args_types = arg_passing_registers[0:num_passing_args]
+
+        new_region = rewriter.move_region_contents_to_new_regions(op.body)
+        first_block = new_region.blocks.first
+        assert isinstance(first_block, Block)
 
         insertion_point = InsertPoint.at_start(first_block)
 
-        # Get the 6 first parameters (if any) from general registers
-        reg_args_types = arg_passing_registers[0:num_passing_args]
-        actual_registers: list[SSAValue] = []
-        for register_type in reg_args_types:
-            get_reg_op = x86.ops.GetRegisterOp(register_type)
-            rewriter.insert_op(get_reg_op, insertion_point)
-            actual_registers.append(get_reg_op.result)
+        params_mapping: list[tuple[BlockArgument, SSAValue]] = []
 
-        # Get the other parameters (if any) from the stack
-        if num_inputs > 6:
-            get_sp_op = x86.ops.GetRegisterOp(x86.register.RSP)
-            rewriter.insert_op(get_sp_op, insertion_point)
-            for i in range(num_inputs - 6):
-                get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
-                mov_op = x86.RM_MovOp(
-                    r1=get_reg_op.result,
-                    r2=get_sp_op.result,
-                    offset=STACK_SLOT_SIZE_BYTES * (i + 1),
-                    result=x86.register.GeneralRegisterType(""),
-                )
-                actual_registers.append(mov_op.result)
-                rewriter.insert_op([get_reg_op, mov_op], insertion_point)
+        # Build the basic block header
+        for i, register_type in enumerate(reg_args_types):
+            arg = first_block.args[i]
+            register = first_block.insert_arg(register_type, i)
+            params_mapping.append((arg, register))
+        sp_tmp_index = num_inputs if num_inputs < 6 else 6
+        sp = first_block.insert_arg(x86.register.RSP, sp_tmp_index)
 
-        # Cast the registers to whatever type is needed
-        for arg, register in zip(first_block.args, actual_registers):
-            cast_op = builtin.UnrealizedConversionCastOp.get((register,), (arg.type,))
-            arg.replace_by(cast_op.results[0])
-            rewriter.insert_op(cast_op, insertion_point)
+        # Load the stack-carried parameters in registers
+        for i in range(num_inputs - 6):
+            arg = first_block.args[6 + i + 1]
+            assert sp != arg
+            get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
+            register = get_reg_op.result
+            mov_op = x86.RM_MovOp(
+                r1=register,
+                r2=sp,
+                offset=STACK_SLOT_SIZE_BYTES * (i + 1),
+                result=x86.register.GeneralRegisterType(""),
+            )
+            rewriter.insert_op([get_reg_op, mov_op], insertion_point)
+            params_mapping.append((arg, register))
 
-        # Create the new function
-        new_region = rewriter.move_region_contents_to_new_regions(op.body)
-        block = new_region.blocks.first
-        assert isinstance(block, Block)
-        for a in block.args:
-            block.erase_arg(a)
+        for old_param, new_param in params_mapping:
+            cast_op = builtin.UnrealizedConversionCastOp.get(
+                (new_param,), (old_param.type,)
+            )
+            rewriter.insert_op([cast_op], insertion_point)
+            old_param.replace_by(cast_op.results[0])
+            first_block.erase_arg(old_param)
+
+        outputs_types: list[Attribute] = []
+        if len(op.function_type.outputs.data) == 1:
+            outputs_types.append(return_passing_register)
+
         new_func = x86_func.FuncOp(
             op.sym_name.data,
             new_region,
-            ([], []),
+            (reg_args_types + [x86.register.RSP], outputs_types),
             visibility=op.sym_visibility,
         )
 
