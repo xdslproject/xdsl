@@ -165,19 +165,19 @@ def _(mo):
 def _():
     less_than_text = """\
     func.func @less_than(%a: i32, %b: i32) -> i1 {
-      %slt = arith.cmpi slt, %lhs, %rhs : i1
+      %slt = arith.cmpi slt, %lhs, %rhs : i32
       func.return %slt : i1
     }"""
     return (less_than_text,)
 
 
 @app.cell(hide_code=True)
-def _(add_one_text, mo, xmo):
+def _(less_than_text, mo, xmo):
     mo.md(
         rf"""
         The `arith` dialect also contains operations for comparisons. The function below returns the value `true` if a is less than b when the 32-bit values passed in are interpreted as signed integers. Note that the signedness is communicated by the operation itself, not the types of the operands:
 
-        {xmo.module_html(add_one_text)}
+        {xmo.module_html(less_than_text)}
         """
     )
     return
