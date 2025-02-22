@@ -6,6 +6,7 @@ import pytest
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
+    BOOL_ATTRS,
     AnyTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -436,17 +437,27 @@ def test_array_len_and_iter_attr():
 
 
 @pytest.mark.parametrize(
-    "attr, dims, num_scalable_dims",
+    "attr, dims, scalable_dims, num_scalable_dims",
     [
-        (i32, (1, 2), 0),
-        (i32, (1, 2), 1),
-        (i32, (1, 1, 3), 0),
-        (i64, (1, 1, 3), 2),
-        (i64, (), 0),
+        (i32, (1, 2), [False, False], 0),
+        (i32, (1, 2), [True, False], 1),
+        (i32, (1, 1, 3), [False, False, False], 0),
+        (i64, (1, 1, 3), [True, False, True], 2),
+        (i64, (1, 1, 3), None, 0),
+        (i64, (), [], 0),
     ],
 )
-def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims: int):
-    vec = VectorType(attr, dims, num_scalable_dims)
+def test_vector_constructor(
+    attr: Attribute,
+    dims: list[int],
+    scalable_dims: list[bool] | None,
+    num_scalable_dims: int,
+):
+    if scalable_dims is not None:
+        scalable_dims_attr = ArrayAttr(BOOL_ATTRS[s] for s in scalable_dims)
+    else:
+        scalable_dims_attr = None
+    vec = VectorType(attr, dims, scalable_dims_attr)
 
     assert vec.get_num_dims() == len(dims)
     assert vec.get_num_scalable_dims() == num_scalable_dims
@@ -454,19 +465,21 @@ def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims:
 
 
 @pytest.mark.parametrize(
-    "dims, num_scalable_dims",
+    "dims, scalable_dims",
     [
-        ([], 1),
-        ([1, 2], 3),
-        ([1], 2),
+        ([], [True]),
+        ([1, 2], [False]),
     ],
 )
-def test_vector_verifier_fail(dims: list[int], num_scalable_dims: int):
-    with pytest.raises(VerifyException):
-        VectorType(i32, dims, num_scalable_dims)
-
-    with pytest.raises(VerifyException):
-        VectorType(i32, dims, -1)
+def test_vector_verifier_fail(dims: list[int], scalable_dims: list[bool]):
+    with pytest.raises(
+        VerifyException,
+        match=(
+            f"Number of scalable dimension specifiers {len(scalable_dims)} must equal "
+            f"to number of dimensions {len(dims)}."
+        ),
+    ):
+        VectorType(i32, dims, ArrayAttr(BOOL_ATTRS[s] for s in scalable_dims))
 
 
 def test_vector_rank_constraint_verify():
