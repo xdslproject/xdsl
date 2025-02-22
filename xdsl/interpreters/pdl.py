@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import IO, Any, ClassVar
 
+from xdsl.builder import InsertPoint
 from xdsl.context import Context
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
@@ -225,7 +226,7 @@ class PDLRewritePattern(RewritePattern):
         assert isinstance(pdl_pattern, pdl.PatternOp)
         pdl_module = pdl_pattern.parent_op()
         assert isinstance(pdl_module, ModuleOp)
-        self.functions = PDLRewriteFunctions(ctx)
+        self.functions = PDLRewriteFunctions(ctx, pdl_rewrite_op=pdl_rewrite_op)
         self.interpreter = Interpreter(pdl_module, file=file)
         self.interpreter.register_implementations(self.functions)
         self.pdl_rewrite_op = pdl_rewrite_op
@@ -273,6 +274,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
     ctx: Context
     _rewriter: PatternRewriter | None = field(default=None)
+    pdl_rewrite_op: pdl.RewriteOp | None = field(default=None)
 
     @property
     def rewriter(self) -> PatternRewriter:
@@ -341,6 +343,18 @@ class PDLRewriteFunctions(InterpreterFunctions):
             properties=properties,
         )
 
+        # Get the root operation that was matched
+        if self.pdl_rewrite_op is None:
+            raise InterpretationError(
+                "pdl_rewrite_op was not provided to PDLRewriteFunctions"
+            )
+        if self.pdl_rewrite_op.root is None:
+            raise InterpretationError("rewrite op does not contain a valid root")
+        root_op = interpreter.get_values((self.pdl_rewrite_op.root,))[0]
+
+        # Insert the new operation before the root operation
+        self.rewriter.insert_op(result_op, InsertPoint.before(root_op))
+
         return (result_op,)
 
     @impl(pdl.ResultOp)
@@ -368,7 +382,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
-            rewriter.replace_op(old, new_op)
+            rewriter.replace_op(old, (), new_op.results)
         elif len(op.repl_values):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
