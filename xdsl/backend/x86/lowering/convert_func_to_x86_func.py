@@ -46,8 +46,7 @@ class LowerFuncOp(RewritePattern):
                 )
 
         num_inputs = len(op.function_type.inputs.data)
-        num_passing_args = num_inputs if num_inputs <= 6 else 6
-        reg_args_types = arg_passing_registers[0:num_passing_args]
+        reg_args_types = arg_passing_registers[:min(num_inputs,6)]
 
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         first_block = new_region.blocks.first
