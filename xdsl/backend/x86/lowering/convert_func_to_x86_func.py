@@ -1,7 +1,7 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, func, x86, x86_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute, Block, BlockArgument, SSAValue
+from xdsl.ir import Attribute, Block
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -46,7 +46,7 @@ class LowerFuncOp(RewritePattern):
                 )
 
         num_inputs = len(op.function_type.inputs.data)
-        reg_args_types = arg_passing_registers[:min(num_inputs,6)]
+        reg_args_types = arg_passing_registers[: min(num_inputs, 6)]
 
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         first_block = new_region.blocks.first
@@ -54,19 +54,20 @@ class LowerFuncOp(RewritePattern):
 
         insertion_point = InsertPoint.at_start(first_block)
 
-        params_mapping: list[tuple[BlockArgument, SSAValue]] = []
-
-        # Build the basic block header
+        # Load the register-carried parameters
         for i, register_type in enumerate(reg_args_types):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
-            params_mapping.append((arg, register))
+            cast_op = builtin.UnrealizedConversionCastOp.get((register,), (arg.type,))
+            rewriter.insert_op([cast_op], insertion_point)
+            arg.replace_by(cast_op.results[0])
+            first_block.erase_arg(arg)
         sp_tmp_index = num_inputs if num_inputs < 6 else 6
         sp = first_block.insert_arg(x86.register.RSP, sp_tmp_index)
 
-        # Load the stack-carried parameters in registers
+        # Load the stack-carried parameters
         for i in range(num_inputs - 6):
-            arg = first_block.args[6 + i + 1]
+            arg = first_block.args[6 + 1]
             assert sp != arg
             get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
             mov_op = x86.RM_MovOp(
@@ -75,16 +76,12 @@ class LowerFuncOp(RewritePattern):
                 offset=STACK_SLOT_SIZE_BYTES * (i + 1),
                 result=x86.register.GeneralRegisterType(""),
             )
-            rewriter.insert_op([get_reg_op, mov_op], insertion_point)
-            params_mapping.append((arg, mov_op.result))
-
-        for old_param, new_param in params_mapping:
             cast_op = builtin.UnrealizedConversionCastOp.get(
-                (new_param,), (old_param.type,)
+                (mov_op.result,), (arg.type,)
             )
-            rewriter.insert_op([cast_op], insertion_point)
-            old_param.replace_by(cast_op.results[0])
-            first_block.erase_arg(old_param)
+            rewriter.insert_op([get_reg_op, mov_op, cast_op], insertion_point)
+            arg.replace_by(cast_op.results[0])
+            first_block.erase_arg(arg)
 
         outputs_types: list[Attribute] = []
         if len(op.function_type.outputs.data) == 1:
