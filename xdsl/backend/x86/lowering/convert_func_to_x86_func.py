@@ -69,15 +69,14 @@ class LowerFuncOp(RewritePattern):
             arg = first_block.args[6 + i + 1]
             assert sp != arg
             get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
-            register = get_reg_op.result
             mov_op = x86.RM_MovOp(
-                r1=register,
+                r1=get_reg_op.result,
                 r2=sp,
                 offset=STACK_SLOT_SIZE_BYTES * (i + 1),
                 result=x86.register.GeneralRegisterType(""),
             )
             rewriter.insert_op([get_reg_op, mov_op], insertion_point)
-            params_mapping.append((arg, register))
+            params_mapping.append((arg, mov_op.result))
 
         for old_param, new_param in params_mapping:
             cast_op = builtin.UnrealizedConversionCastOp.get(
