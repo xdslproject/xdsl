@@ -72,8 +72,10 @@ class LowerFuncOp(RewritePattern):
             x86.register.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS)
         )
 
-        # If needed, load the stack-carried parameters by greedily
-        # consuming the 7th argument of the basic block
+        # If needed, load the stack-carried parameters by iteratively
+        # consuming the 7th argument of the basic block. Once the 7th argument
+        # has been read from the stack, it is removed from the
+        # basic block arguments, and the former 8th becomes the 7th.
         for i in range(num_inputs - MAX_REG_PASSING_INPUTS):
             arg = first_block.args[MAX_REG_PASSING_INPUTS + 1]
             assert sp != arg
