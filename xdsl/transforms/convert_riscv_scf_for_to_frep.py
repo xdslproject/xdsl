@@ -61,9 +61,7 @@ class ScfForLowering(RewritePattern):
         rewriter.erase_block_argument(indvar)
         rewriter.replace_matched_op(
             (
-                iter_count := riscv.SubOp(
-                    op.ub, op.lb, rd=riscv.IntRegisterType.unallocated()
-                ),
+                iter_count := riscv.SubOp(op.ub, op.lb, rd=riscv.IntRegisterType()),
                 iter_count_minus_one := riscv.AddiOp(iter_count, -1),
                 riscv_snitch.FrepOuterOp(
                     iter_count_minus_one,

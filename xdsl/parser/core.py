@@ -100,7 +100,7 @@ class Parser(AttrParser):
         super().__init__(ParserState(MLIRLexer(Input(input, name))), ctx)
         self.ssa_values = dict()
         self.blocks = dict()
-        self.forward_block_references = dict()
+        self.forward_block_references = defaultdict(list)
         self.forward_ssa_references = dict()
 
     def parse_module(self, allow_implicit_module: bool = True) -> ModuleOp:
@@ -561,8 +561,8 @@ class Parser(AttrParser):
             region.add_block(block)
 
         # Finally, check that all forward block references have been resolved.
-        if len(self.forward_block_references) > 0:
-            pos = self.lexer.pos
+        if self.forward_block_references:
+            pos = self.pos
             raise MultipleSpansParseError(
                 Span(pos, pos + 1, self.lexer.input),
                 "region ends with missing block declarations for block(s) {}".format(

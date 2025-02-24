@@ -23,13 +23,13 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.11.4",
+    "marimo==0.11.8",
     "pre-commit==4.1.0",
-    "ruff==0.9.6",
+    "ruff==0.9.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
-    "pyright==1.1.393",
+    "pyright==1.1.394",
     "sympy==1.13.3",
 ]
 docs = [
@@ -38,7 +38,7 @@ docs = [
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
 ]
-gui = ["textual==1.0.0", "pyclip==0.7"]
+gui = ["textual==2.1.1", "pyclip==0.7"]
 jax = ["jax==0.5.0", "numpy==2.2.3"]
 riscv = ["riscemu==2.2.7"]
 
@@ -97,7 +97,7 @@ target-version = "py310"
 extend-include = ["*.ipynb", "*.pyi"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP"]
 ignore = [
     "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
@@ -144,7 +144,9 @@ max-line-length = 130
 "**/{docs/marimo}/*" = ["E501", "I001"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
-"tests/*" = ["E501"]
+"tests/*" = ["E501", "INP"]
+"docs/marimo/**" = ["INP"]
+"scripts/**" = ["INP"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -162,6 +164,7 @@ python_files = ["tests/*test_*.py", "docs/*test_*.py"]
 python_classes = "Test_*"
 python_functions = "test_*"
 addopts = ["--durations=20", "--maxfail=5"]
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.versioneer]
 VCS = "git"

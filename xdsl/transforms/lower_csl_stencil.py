@@ -503,10 +503,9 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             rewriter.erase_op(e, safe_erase=False)
 
         # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
-        assert (elem_t := accumulator.type.get_element_type()) in [
-            Float16Type(),
-            Float32Type(),
-        ]
+        assert isinstance(
+            (elem_t := accumulator.type.get_element_type()), Float16Type | Float32Type
+        )
         zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
         mov_op = csl.FmovsOp if elem_t == Float32Type() else csl.FmovhOp
         rewriter.insert_op(

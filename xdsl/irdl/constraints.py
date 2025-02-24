@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator, Sequence, Set
 from dataclasses import KW_ONLY, dataclass, field
 from inspect import isclass
-from typing import Generic, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import assert_never
 
@@ -18,6 +18,9 @@ from xdsl.ir import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
+
+if TYPE_CHECKING:
+    from xdsl.irdl import IRDLAttrConstraint
 
 
 @dataclass
@@ -563,10 +566,12 @@ class ParamAttrConstraint(
     def __init__(
         self,
         base_attr: type[ParametrizedAttributeCovT],
-        param_constrs: Sequence[(Attribute | type[Attribute] | AttrConstraint | None)],
+        param_constrs: Sequence[IRDLAttrConstraint | None],
     ):
+        from xdsl.irdl import irdl_to_attr_constraint
+
         constrs = tuple(
-            attr_constr_coercion(constr) if constr is not None else AnyAttr()
+            irdl_to_attr_constraint(constr) if constr is not None else AnyAttr()
             for constr in param_constrs
         )
         object.__setattr__(self, "base_attr", base_attr)
