@@ -20,10 +20,10 @@ func.func @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, %6: i32
 // CHECK-NEXT:      %11 = builtin.unrealized_conversion_cast %4 : !x86.reg<r8> to i32
 // CHECK-NEXT:      %12 = builtin.unrealized_conversion_cast %5 : !x86.reg<r9> to i32
 // CHECK-NEXT:      %13 = x86.get_register : () -> !x86.reg
-// CHECK-NEXT:      %14 = x86.rm.mov %13, %6, 8 : (!x86.reg, !x86.reg<rsp>) -> !x86.reg
+// CHECK-NEXT:      %14 = x86.rm.mov %13, %6, 8 {comment = "Load the 7th argument of the function"} : (!x86.reg, !x86.reg<rsp>) -> !x86.reg
 // CHECK-NEXT:      %15 = builtin.unrealized_conversion_cast %14 : !x86.reg to i32
 // CHECK-NEXT:      %16 = x86.get_register : () -> !x86.reg
-// CHECK-NEXT:      %17 = x86.rm.mov %16, %6, 16 : (!x86.reg, !x86.reg<rsp>) -> !x86.reg
+// CHECK-NEXT:      %17 = x86.rm.mov %16, %6, 16 {comment = "Load the 8th argument of the function"} : (!x86.reg, !x86.reg<rsp>) -> !x86.reg
 // CHECK-NEXT:      %18 = builtin.unrealized_conversion_cast %17 : !x86.reg to i32
 // CHECK-NEXT:      %a = "test.op"(%7, %8) : (i32, i32) -> i32
 // CHECK-NEXT:      %b = "test.op"(%a, %9) : (i32, i32) -> i32

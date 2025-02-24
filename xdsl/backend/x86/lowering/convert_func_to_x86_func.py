@@ -85,6 +85,7 @@ class LowerFuncOp(RewritePattern):
                 r2=sp,
                 offset=STACK_SLOT_SIZE_BYTES * (i + 1),
                 result=x86.register.GeneralRegisterType(""),
+                comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
             cast_op = builtin.UnrealizedConversionCastOp.get(
                 (mov_op.result,), (arg.type,)
