@@ -19,7 +19,6 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
-    RankedStructure,
     SignlessIntegerConstraint,
     TensorType,
     UnrankedTensorType,
@@ -149,30 +148,18 @@ class ConstantOp(IRDLOperation):
     @overload
     def __init__(
         self,
-        value: IntegerAttr,
-        value_type: IntegerType | None = None,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        value: FloatAttr[AnyFloat],
-        value_type: AnyFloat | None = None,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        value: DenseIntOrFPElementsAttr,
-        value_type: RankedStructure[AnyFloat | IntegerType | IndexType] | None = None,
-    ) -> None: ...
+        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value_type: None = None,
+    ) -> None:
+        ...
 
     @overload
     def __init__(
         self,
         value: Attribute,
         value_type: Attribute,
-    ) -> None: ...
+    ) -> None:
+        ...
 
     def __init__(
         self,
@@ -180,23 +167,14 @@ class ConstantOp(IRDLOperation):
         value_type: Attribute | None = None,
     ):
         if value_type is None:
-            if isinstance(value, IntegerAttr | FloatAttr):
-                value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
+            if isinstance(value, IntegerAttr):
+                value = cast(IntegerAttr[IntegerType | IndexType], value)
+                value_type = value.get_type()
+            elif isinstance(value, FloatAttr):
+                value = cast(FloatAttr[AnyFloat], value)
                 value_type = value.get_type()
             elif isinstance(value, DenseIntOrFPElementsAttr):
                 value_type = value.get_type()
-
-        if isinstance(value, IntegerAttr):
-            value_type = cast(IntegerType, value_type)
-            value = IntegerAttr(value.value, value_type)
-        elif isinstance(value, FloatAttr):
-            value_type = cast(AnyFloat, value_type)
-            value = FloatAttr(value.value, value_type)
-        elif isinstance(value, DenseIntOrFPElementsAttr):
-            value_type = cast(
-                RankedStructure[AnyFloat | IntegerType | IndexType], value_type
-            )
-            value = DenseIntOrFPElementsAttr.from_list(value_type, value.get_values())
 
         super().__init__(
             operands=[], result_types=[value_type], properties={"value": value}

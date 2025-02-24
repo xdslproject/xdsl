@@ -133,22 +133,11 @@ def test_constant_construction():
     c1 = ConstantOp(IntegerAttr(1, i32))
     assert c1.value.type == i32
 
-    c2 = ConstantOp(IntegerAttr(1, i32), i64)
-    assert c2.value.type == i64
-
     c3 = ConstantOp(FloatAttr(1.0, f32))
     assert c3.value.type == f32
 
-    c4 = ConstantOp(FloatAttr(1.0, f32), f64)
-    assert c4.value.type == f64
-
-    value_type = TensorType(i64, [1, 4])
-    c5 = ConstantOp(
-        DenseIntOrFPElementsAttr.create_dense_int(
-            TensorType(i32, [2, 2]), [1, 2, 3, 4]
-        ),
-        value_type,
-    )
+    value_type = TensorType(i32, [2, 2])
+    c5 = ConstantOp(DenseIntOrFPElementsAttr.create_dense_int(value_type, [1, 2, 3, 4]))
     assert c5.value.type == value_type
 
 
