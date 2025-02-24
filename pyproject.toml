@@ -97,7 +97,7 @@ target-version = "py310"
 extend-include = ["*.ipynb", "*.pyi"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP"]
 ignore = [
     "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
@@ -144,7 +144,9 @@ max-line-length = 130
 "**/{docs/marimo}/*" = ["E501", "I001"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
-"tests/*" = ["E501"]
+"tests/*" = ["E501", "INP"]
+"docs/marimo/**" = ["INP"]
+"scripts/**" = ["INP"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
