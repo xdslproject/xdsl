@@ -1058,8 +1058,7 @@ class VectorType(
         return len(self.shape.data)
 
     def get_num_scalable_dims(self) -> int:
-        # Data for BoolAttr True is -1
-        return -sum(d.value.data for d in self.scalable_dims)
+        return sum(bool(d.value) for d in self.scalable_dims)
 
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape)
