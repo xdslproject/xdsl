@@ -138,6 +138,7 @@ pyright: uv-installed
 .PHONY: coverage
 coverage: coverage-tests coverage-filecheck-tests
 	uv run coverage combine --append
+	uv run coverage report
 
 # use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
@@ -147,7 +148,7 @@ coverage-tests: uv-installed
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
 coverage-filecheck-tests: uv-installed
-	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
+	COVERAGE_FILE="${COVERAGE_FILE}.filecheck" uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
 .PHONY: coverage-report-html
