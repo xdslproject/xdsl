@@ -669,8 +669,8 @@ class Printer(BasePrinter):
 
     def _print_vector_dim(self, pair: tuple[IntAttr, BoolAttr]):
         """
-        Helper method to print a vector dimension either as static (`x`) or scalable
-        (`[x]`).
+        Helper method to print a vector dimension either as static (`4`) or scalable
+        (`[4]`).
         """
         dim, scalable = pair
         if scalable.value:
