@@ -31,6 +31,8 @@ return_passing_register = x86.register.RAX
 # MAX_REG_PASSING_INPUTS) are passed using the stack.
 MAX_REG_PASSING_INPUTS = 6
 
+# For now, we reserve 8 bytes for each argument passed via the stack.
+# Therefore, input variables requiring more than 64 bits are not allowed.
 STACK_SLOT_SIZE_BYTES = 8
 
 
