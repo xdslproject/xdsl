@@ -514,3 +514,43 @@ def test_native_constraint_constant_parameter():
 
     assert new_input_module_false.is_structurally_equivalent(ModuleOp([]))
     assert new_input_module_true.is_structurally_equivalent(input_module_true)
+
+
+def test_insert_operation_without_replace():
+    """Test that operations created in a rewrite region are inserted by default."""
+
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module():
+        test.TestOp.create(properties={"attr": StringAttr("original")})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(1, None).body):
+            attr = pdl.AttributeOp(StringAttr("original")).output
+            op = pdl.OperationOp(
+                op_name="test.op",
+                attribute_value_names=ArrayAttr([StringAttr("attr")]),
+                attribute_values=[attr],
+            ).op
+            with ImplicitBuilder(pdl.RewriteOp(op).body):
+                # Create a new operation but don't use it in a replace
+                pdl.OperationOp(op_name="test.op", type_values=())
+                pdl.EraseOp(op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    # Apply the pattern
+    new_module = input_module.clone()
+    pattern_walker.rewrite_module(new_module)
+
+    # The original op should be erased and the new op should be inserted
+    expected_module = ModuleOp([test.TestOp()])
+    assert new_module.is_structurally_equivalent(expected_module)
