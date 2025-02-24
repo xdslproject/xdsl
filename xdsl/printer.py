@@ -673,7 +673,7 @@ class Printer(BasePrinter):
         (`[4]`).
         """
         dim, scalable = pair
-        if scalable.value:
+        if scalable:
             self.print_string(f"[{dim.data}]")
         else:
             self.print_string(f"{dim.data}")
