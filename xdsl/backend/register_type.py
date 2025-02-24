@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     IntAttr,
     NoneAttr,
@@ -78,3 +80,25 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     @abstractmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def infinite_register_prefix(cls) -> str:
+        """
+        Provide the prefix for the spelling for a register at the given index in the
+        "infinite" register set.
+        For a prefix `x`, the spelling of the first infinite register will be `x0`.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def infinite_register(cls, index: int) -> Self:
+        """
+        Provide the register at the given index in the "infinite" register set.
+        """
+        spelling = cls.infinite_register_prefix() + str(index)
+        res = cls(spelling)
+        assert isinstance(res.index, NoneAttr), (
+            f"Invalid 'infinite' register name: {spelling} clashes with finite register set"
+        )
+        return res
