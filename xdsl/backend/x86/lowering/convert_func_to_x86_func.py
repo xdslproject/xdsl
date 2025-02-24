@@ -24,6 +24,11 @@ arg_passing_registers = [
 
 return_passing_register = x86.register.RAX
 
+
+# According to x86 calling conventions, the maximum number of
+# registers available for passing function arguments. Other function
+# arguments (when the function have more arguments than
+# MAX_REG_PASSING_INPUTS) are passed using the stack.
 MAX_REG_PASSING_INPUTS = 6
 
 STACK_SLOT_SIZE_BYTES = 8
