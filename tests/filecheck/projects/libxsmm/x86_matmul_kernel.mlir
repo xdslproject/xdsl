@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -t x86-asm %s | filecheck %s
 
-// C: 4x2xf32 = A: 4x8xf32 * B: 8x2xf32
+// C: 4x4xf32 = A: 4x8xf32 * B: 8x4xf32
 x86_func.func @matmul() {
     // General registers loading; according to the x86 calling
     // conventions, rdi, rsi and rcx always contain the first
