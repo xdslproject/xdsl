@@ -51,6 +51,8 @@
 %value_1 = "test.op"() : () -> !transform.any_value
 // CHECK: %type = "transform.get_type"(%value_1) : (!transform.any_value) -> !transform.type
 %type = "transform.get_type"(%value_1) : (!transform.any_value) -> !transform.type
+// CHECK: %type_1 = "transform.get_type"(%value_1) <{elemental}> : (!transform.any_value) -> !transform.type
+%type_1 = "transform.get_type"(%value_1) <{elemental}> : (!transform.any_value) -> !transform.type
 
 %target = "test.op"() : () -> !transform.any_value
 // CHECK: %included = "transform.include"(%target) <{target = @foo, failure_propagation_mode = false}> : (!transform.any_value) -> !transform.any_value
