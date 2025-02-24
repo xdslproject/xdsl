@@ -38,7 +38,7 @@ docs = [
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
 ]
-gui = ["textual==2.1.0", "pyclip==0.7"]
+gui = ["textual==2.1.1", "pyclip==0.7"]
 jax = ["jax==0.5.0", "numpy==2.2.3"]
 riscv = ["riscemu==2.2.7"]
 
