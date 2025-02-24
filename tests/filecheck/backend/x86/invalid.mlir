@@ -5,7 +5,7 @@ func.func @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, %6: i32
 
 // -----
 
-// CHECK: Cannot lower function parameters bigger than 64 bits (not implemented)
+// CHECK: Cannot lower function parameters bigger than 8 bytes (not implemented)
 func.func @f(%a: i128) -> () {
   func.return
 }

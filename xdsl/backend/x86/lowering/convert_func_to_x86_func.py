@@ -55,7 +55,7 @@ class LowerFuncOp(RewritePattern):
                 and ty.bitwidth > STACK_SLOT_SIZE_BYTES * 8
             ):
                 raise DiagnosticException(
-                    "Cannot lower function parameters bigger than 64 bits (not implemented)"
+                    f"Cannot lower function parameters bigger than {STACK_SLOT_SIZE_BYTES} bytes (not implemented)"
                 )
 
         num_inputs = len(op.function_type.inputs.data)
