@@ -31,8 +31,9 @@ return_passing_register = x86.register.RAX
 # MAX_REG_PASSING_INPUTS) are passed using the stack.
 MAX_REG_PASSING_INPUTS = 6
 
-# For now, we reserve 8 bytes for each argument passed via the stack.
-# Therefore, input variables requiring more than 64 bits are not allowed.
+# For now, we reserve a pre-defined number of bytes for each argument
+# passed via the stack. Therefore, input variables requiring more than
+# STACK_SLOT_SIZE_BYTES bytes are not allowed.
 STACK_SLOT_SIZE_BYTES = 8
 
 
@@ -49,7 +50,10 @@ class LowerFuncOp(RewritePattern):
                 raise DiagnosticException(
                     "Cannot lower shaped function parameters (not implemented)"
                 )
-            elif isinstance(ty, builtin.FixedBitwidthType) and ty.bitwidth > 64:
+            elif (
+                isinstance(ty, builtin.FixedBitwidthType)
+                and ty.bitwidth > STACK_SLOT_SIZE_BYTES * 8
+            ):
                 raise DiagnosticException(
                     "Cannot lower function parameters bigger than 64 bits (not implemented)"
                 )
