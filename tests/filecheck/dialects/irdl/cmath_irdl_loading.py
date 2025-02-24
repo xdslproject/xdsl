@@ -1,5 +1,7 @@
 # RUN: python %s | filecheck %s
 
+from pathlib import Path
+
 from xdsl.context import Context
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.irdl.irdl import DialectOp
@@ -19,7 +21,9 @@ if __name__ == "__main__":
         ctx.register_dialect(n, f)
 
     # Open the IRDL description of cmath, parse it
-    f = open("tests/filecheck/dialects/irdl/cmath.irdl.mlir")
+
+    file_path = Path(__file__).parent / "cmath.irdl.mlir"
+    f = file_path.open()
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
 
@@ -32,7 +36,7 @@ if __name__ == "__main__":
     ctx.register_dialect("cmath", lambda: dialect)
 
     # Roundtrip a cmath file!
-    f = open("tests/filecheck/dialects/cmath/cmath_ops.mlir")
+    f = (Path(__file__).parent.parent / "cmath" / "cmath_ops.mlir").open()
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
     module.verify()

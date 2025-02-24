@@ -1,3 +1,7 @@
+// RUN: true
+
+// Support file for apply_pdl_extra_file.mlir
+
 pdl.pattern : benefit(1) {
     %zero_attr = pdl.attribute = 0
     %root = pdl.operation "test.op" {"attr" = %zero_attr}
