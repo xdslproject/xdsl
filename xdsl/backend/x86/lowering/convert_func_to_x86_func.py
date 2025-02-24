@@ -24,6 +24,8 @@ arg_passing_registers = [
 
 return_passing_register = x86.register.RAX
 
+MAX_REG_PASSING_INPUTS = 6
+
 STACK_SLOT_SIZE_BYTES = 8
 
 
@@ -46,7 +48,9 @@ class LowerFuncOp(RewritePattern):
                 )
 
         num_inputs = len(op.function_type.inputs.data)
-        reg_args_types = arg_passing_registers[: min(num_inputs, 6)]
+        reg_args_types = arg_passing_registers[
+            : min(num_inputs, MAX_REG_PASSING_INPUTS)
+        ]
 
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         first_block = new_region.blocks.first
@@ -62,12 +66,16 @@ class LowerFuncOp(RewritePattern):
             rewriter.insert_op([cast_op], insertion_point)
             arg.replace_by(cast_op.results[0])
             first_block.erase_arg(arg)
-        sp_tmp_index = num_inputs if num_inputs < 6 else 6
-        sp = first_block.insert_arg(x86.register.RSP, sp_tmp_index)
 
-        # Load the stack-carried parameters
-        for i in range(num_inputs - 6):
-            arg = first_block.args[6 + 1]
+        # The last argument of the basic block should be the stack pointer
+        sp = first_block.insert_arg(
+            x86.register.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS)
+        )
+
+        # If needed, load the stack-carried parameters by greedily
+        # consuming the 7th argument of the basic block
+        for i in range(num_inputs - MAX_REG_PASSING_INPUTS):
+            arg = first_block.args[MAX_REG_PASSING_INPUTS + 1]
             assert sp != arg
             get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
             mov_op = x86.RM_MovOp(
