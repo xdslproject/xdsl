@@ -50,12 +50,9 @@ class LowerFuncOp(RewritePattern):
                 raise DiagnosticException(
                     "Cannot lower shaped function parameters (not implemented)"
                 )
-            elif (
-                isinstance(ty, builtin.FixedBitwidthType)
-                and ty.bitwidth > STACK_SLOT_SIZE_BYTES * 8
-            ):
+            elif isinstance(ty, builtin.FixedBitwidthType) and ty.bitwidth > 64:
                 raise DiagnosticException(
-                    f"Cannot lower function parameters bigger than {STACK_SLOT_SIZE_BYTES} bytes (not implemented)"
+                    "Cannot lower function parameters bigger than 64 bits (not implemented)"
                 )
 
         num_inputs = len(op.function_type.inputs.data)
