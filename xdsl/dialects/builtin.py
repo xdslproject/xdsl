@@ -782,27 +782,6 @@ class IntegerAttr(
 
 
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
-TRUE_ATTR = BoolAttr(True, i1)
-"""
-One-bit attribute representing the true value.
-Represented by the integer -1.
-"""
-
-FALSE_ATTR = BoolAttr(False, i1)
-"""
-One-bit attribute representing the true value.
-Represented by the integer 0.
-"""
-
-BOOL_ATTRS = (FALSE_ATTR, TRUE_ATTR)
-"""
-Tuple of the false and true bool attributes, for convenience.
-
-```python
-BOOL_ATTRS[False] == FALSE_ATTR
-BOOL_ATTRS[True] == TRUE_ATTR
-```
-"""
 
 
 class _FloatType(StructPackableType[float], FixedBitwidthType, ABC):

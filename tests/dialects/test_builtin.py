@@ -6,7 +6,6 @@ import pytest
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
-    BOOL_ATTRS,
     AnyTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -454,7 +453,7 @@ def test_vector_constructor(
     num_scalable_dims: int,
 ):
     if scalable_dims is not None:
-        scalable_dims_attr = ArrayAttr(BOOL_ATTRS[s] for s in scalable_dims)
+        scalable_dims_attr = ArrayAttr(BoolAttr.from_bool(s) for s in scalable_dims)
     else:
         scalable_dims_attr = None
     vec = VectorType(attr, dims, scalable_dims_attr)
@@ -479,7 +478,7 @@ def test_vector_verifier_fail(dims: list[int], scalable_dims: list[bool]):
             f"to number of dimensions {len(dims)}."
         ),
     ):
-        VectorType(i32, dims, ArrayAttr(BOOL_ATTRS[s] for s in scalable_dims))
+        VectorType(i32, dims, ArrayAttr(BoolAttr.from_bool(s) for s in scalable_dims))
 
 
 def test_vector_rank_constraint_verify():

@@ -9,7 +9,6 @@ from typing import Any, Literal, NoReturn, cast
 import xdsl.parser as affine_parser
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
-    BOOL_ATTRS,
     AffineMapAttr,
     AffineSetAttr,
     AnyDenseElement,
@@ -20,6 +19,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BoolAttr,
     BytesAttr,
     ComplexType,
     DenseArrayBase,
@@ -577,7 +577,7 @@ class AttrParser(BaseParser):
         if type is None:
             self.raise_error("Expected vector element type")
 
-        scalable_dims_attr = ArrayAttr(BOOL_ATTRS[s] for s in scalable_dims)
+        scalable_dims_attr = ArrayAttr(BoolAttr.from_bool(s) for s in scalable_dims)
 
         return VectorType(type, dims, scalable_dims_attr)
 
