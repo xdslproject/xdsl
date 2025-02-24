@@ -104,11 +104,11 @@
   // CHECK: (vector<4xf32>, vector<f32>, vector<1x12xi32>)
 
   "func.func"() ({
-    ^bb0(%arg0: vector<[4]xf32>, %arg1: vector<[4x4]xf32>, %arg2: vector<12x[2x3]xi32>):
+    ^bb0(%arg0: vector<[4]xf32>, %arg1: vector<[4]x[4]xf32>, %arg2: vector<12x[2]x[3]xi32>):
     "func.return"() : () -> ()
-  }) {function_type = (vector<[4]xf32>, vector<[4x4]xf32>, vector<12x[2x3]xi32>) -> (), sym_name = "nd_vector_type"} : () -> ()
+  }) {function_type = (vector<[4]xf32>, vector<[4]x[4]xf32>, vector<12x[2]x[3]xi32>) -> (), sym_name = "nd_vector_type"} : () -> ()
 
-  // CHECK: (vector<[4]xf32>, vector<[4x4]xf32>, vector<12x[2x3]xi32>)
+  // CHECK: (vector<[4]xf32>, vector<[4]x[4]xf32>, vector<12x[2]x[3]xi32>)
 
 
   "func.func"() ({

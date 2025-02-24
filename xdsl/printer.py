@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BoolAttr,
     BytesAttr,
     ComplexType,
     DenseArrayBase,
@@ -530,29 +531,15 @@ class Printer(BasePrinter):
 
         if isinstance(attribute, VectorType):
             attribute = cast(AnyVectorType, attribute)
-            shape = attribute.get_shape()
-
-            # Separate the dimensions between the static and the scalable ones
-            if attribute.get_num_scalable_dims() == 0:
-                static_dimensions = shape
-                scalable_dimensions = ()
-            else:
-                static_dimensions = shape[: -attribute.get_num_scalable_dims()]
-                scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
 
             self.print_string("vector<")
-            if len(static_dimensions) != 0:
-                self.print_list(
-                    static_dimensions, lambda x: self.print_string(f"{x}"), "x"
-                )
-                self.print_string("x")
 
-            if len(scalable_dimensions) != 0:
-                self.print_string("[")
-                self.print_list(
-                    scalable_dimensions, lambda x: self.print_string(f"{x}"), "x"
-                )
-                self.print_string("]")
+            self.print_list(
+                zip(attribute.shape, attribute.scalable_dims, strict=True),
+                self._print_vector_dim,
+                delimiter="x",
+            )
+            if attribute.shape.data:
                 self.print_string("x")
 
             self.print_attribute(attribute.element_type)
@@ -679,6 +666,17 @@ class Printer(BasePrinter):
             self.print_string(">")
 
         return
+
+    def _print_vector_dim(self, pair: tuple[IntAttr, BoolAttr]):
+        """
+        Helper method to print a vector dimension either as static (`4`) or scalable
+        (`[4]`).
+        """
+        dim, scalable = pair
+        if scalable:
+            self.print_string(f"[{dim.data}]")
+        else:
+            self.print_string(f"{dim.data}")
 
     def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:
