@@ -341,6 +341,9 @@ class PDLRewriteFunctions(InterpreterFunctions):
             properties=properties,
         )
 
+        # Insert the new operation before the root operation
+        self.rewriter.insert_op_before_matched_op(result_op)
+
         return (result_op,)
 
     @impl(pdl.ResultOp)
@@ -368,7 +371,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
-            rewriter.replace_op(old, new_op)
+            rewriter.replace_op(old, new_ops=[], new_results=new_op.results)
         elif len(op.repl_values):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
