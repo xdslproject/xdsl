@@ -482,6 +482,12 @@ csl.func @builtins() {
   csl.activate local, 1 : ui6
   csl.activate control, 42 : ui6
 
+  %base_dsd, %test = "test.op"() : () -> (!csl<dsd mem1d_dsd>, i16)
+  %test_si = csl.mlir.signedness_cast %test : i16 to ui16
+  %new_dsd0 = "csl.set_dsd_length"(%base_dsd, %test) : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+  //%new_dsd1 = "csl.set_dsd_length"(%base_dsd, %test_si) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
+
+
   csl.return
 }
 
