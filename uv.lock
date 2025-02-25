@@ -1,10 +1,11 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
-    "python_full_version < '3.11'",
-    "python_full_version == '3.11.*'",
-    "python_full_version == '3.12.*'",
     "python_full_version >= '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version == '3.11.*'",
+    "python_full_version < '3.11'",
 ]
 
 [[package]]
@@ -163,7 +164,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asv-runner" },
     { name = "build" },
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "json5" },
     { name = "pympler", marker = "platform_python_implementation != 'PyPy'" },
     { name = "pyyaml", marker = "platform_python_implementation != 'PyPy'" },
@@ -426,7 +427,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -789,7 +790,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -1180,7 +1181,7 @@ version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "ghp-import" },
     { name = "jinja2" },
     { name = "markdown" },
@@ -1884,8 +1885,8 @@ name = "pyclip"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pasteboard", marker = "platform_system == 'Darwin'" },
-    { name = "pywin32", marker = "platform_system == 'Windows'" },
+    { name = "pasteboard", marker = "sys_platform == 'darwin'" },
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/65/8a/98ed02d81dea4b2211a4746724d7a271264b701c991fed503c246de52864/pyclip-0.7.0.tar.gz", hash = "sha256:57602047a4ceab709bdcd42f3dde6449a3349b95c16154cfdce27376a2072491", size = 13639 }
 wheels = [
@@ -1991,7 +1992,7 @@ name = "pympler"
 version = "1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pywin32", marker = "platform_system == 'Windows'" },
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/dd/37/c384631908029676d8e7213dd956bb686af303a80db7afbc9be36bc49495/pympler-1.1.tar.gz", hash = "sha256:1eaa867cb8992c218430f1708fdaccda53df064144d1c5656b1e6f1ee6000424", size = 179954 }
 wheels = [
@@ -2897,7 +2898,6 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0.28.0+67.gea484090.dirty"
 source = { editable = "." }
 dependencies = [
     { name = "immutabledict" },
@@ -2977,6 +2977,7 @@ requires-dist = [
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<4.13" },
 ]
+provides-extras = ["dev", "docs", "gui", "jax", "riscv", "bench"]
 
 [[package]]
 name = "yarl"
