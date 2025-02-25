@@ -33,6 +33,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     TensorType,
+    i8,
+    i16,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
@@ -1255,7 +1257,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(IntegerType(16))
+    offset = operand_def(i16)
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
@@ -1283,7 +1285,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(IntegerType(16))
+    length = operand_def(i16)
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
@@ -1311,7 +1313,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
-    stride = operand_def(IntegerType(8))
+    stride = operand_def(i8)
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())
