@@ -87,10 +87,8 @@ class LowerFuncOp(RewritePattern):
         for i in range(num_inputs - MAX_REG_PASSING_INPUTS):
             arg = first_block.args[MAX_REG_PASSING_INPUTS + 1]
             assert sp != arg
-            get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
             mov_op = x86.RM_MovOp(
-                r1=get_reg_op.result,
-                r2=sp,
+                r1=sp,
                 offset=STACK_SLOT_SIZE_BYTES * (i + 1),
                 result=x86.register.GeneralRegisterType(""),
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
@@ -98,7 +96,7 @@ class LowerFuncOp(RewritePattern):
             cast_op = builtin.UnrealizedConversionCastOp.get(
                 (mov_op.result,), (arg.type,)
             )
-            rewriter.insert_op([get_reg_op, mov_op, cast_op], insertion_point)
+            rewriter.insert_op([mov_op, cast_op], insertion_point)
             arg.replace_by(cast_op.results[0])
             first_block.erase_arg(arg)
 

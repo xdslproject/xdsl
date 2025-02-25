@@ -609,6 +609,59 @@ class R_RM_Operation(
         return {"offset"}
 
 
+class R_M_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one register and one memory access with an optional offset.
+    """
+
+    r1 = operand_def(R1InvT)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    result = result_def(R2InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R2InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.r1, self.offset)
+        destination = assembly_arg_str(self.result)
+        return (destination, memory_access)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
 @irdl_op_definition
 class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
@@ -688,11 +741,11 @@ class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_MovOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_MovOp(R_M_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
-    Copies the value from the memory location pointed to by r2 into r1.
+    Copies the value from the memory location pointed to by operand register into output register.
     ```C
-    x[r1] = [x[r2]]
+    x[output] = [x[operand]]
     ```
     https://www.felixcloutier.com/x86/mov
     """
@@ -2559,7 +2612,7 @@ class MR_VmovupsOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
-class RM_VmovupsOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class RM_VmovupsOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed single precision floating-point values from memory to vector register
     https://www.felixcloutier.com/x86/movups
@@ -2569,7 +2622,7 @@ class RM_VmovupsOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class RM_VbroadcastsdOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
     https://www.felixcloutier.com/x86/vbroadcast
@@ -2579,7 +2632,7 @@ class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterTyp
 
 
 @irdl_op_definition
-class RM_VbroadcastssOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class RM_VbroadcastssOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Broadcast single precision floating-point element to eight locations in memory
     https://www.felixcloutier.com/x86/vbroadcast
