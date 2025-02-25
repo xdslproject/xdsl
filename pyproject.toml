@@ -196,4 +196,7 @@ exclude_lines = [
     "raise RuntimeError",
 ]
 format = "markdown"
+# Converts some errors to warnings
+# we should investigate whether this is still necessary once the online codecov reporting is fixed
+# https://github.com/nedbat/coveragepy/blob/1aecfa7ae2a81aa9c278cbb43718ae7e4bdcf5b5/coverage/report_core.py#L108
 ignore_errors = true
