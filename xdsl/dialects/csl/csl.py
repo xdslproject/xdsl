@@ -1255,7 +1255,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(i16_value)
+    offset = operand_def(IntegerType(16))
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
@@ -1283,7 +1283,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(u16_value)
+    length = operand_def(IntegerType(16))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
@@ -1311,7 +1311,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
-    stride = operand_def(IntegerType(8, Signedness.SIGNED))
+    stride = operand_def(IntegerType(8))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())

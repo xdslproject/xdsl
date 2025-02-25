@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     NoneAttr,
-    Signedness,
     StridedLayoutAttr,
     UnrealizedConversionCastOp,
 )
@@ -194,7 +193,7 @@ class LowerSubviewOpPass(RewritePattern):
         static_sizes = cast(Sequence[int], subview.static_sizes.get_values())
 
         if static_sizes[0] == memref.SubviewOp.DYNAMIC_INDEX:
-            ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], csl.u16_value))
+            ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], IntegerType(16)))
             ops.append(
                 curr_op := csl.SetDsdLengthOp.build(
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
@@ -206,7 +205,7 @@ class LowerSubviewOpPass(RewritePattern):
                 len_op := arith.ConstantOp(
                     IntegerAttr(
                         static_sizes[0],
-                        csl.u16_value,
+                        IntegerType(16),
                     )
                 )
             )
@@ -227,11 +226,7 @@ class LowerSubviewOpPass(RewritePattern):
         static_strides = cast(Sequence[int], subview.static_strides.get_values())
 
         if static_strides[0] == memref.SubviewOp.DYNAMIC_INDEX:
-            ops.append(
-                cast_op := arith.IndexCastOp(
-                    subview.strides[0], IntegerType(8, Signedness.SIGNED)
-                )
-            )
+            ops.append(cast_op := arith.IndexCastOp(subview.strides[0], IntegerType(8)))
             ops.append(
                 csl.SetDsdStrideOp.build(
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
@@ -243,7 +238,7 @@ class LowerSubviewOpPass(RewritePattern):
                 stride_op := arith.ConstantOp(
                     IntegerAttr(
                         static_strides[0],
-                        IntegerType(8, Signedness.SIGNED),
+                        IntegerType(8),
                     )
                 )
             )
@@ -264,7 +259,9 @@ class LowerSubviewOpPass(RewritePattern):
         static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
 
         if subview.offsets:
-            ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value))
+            ops.append(
+                cast_op := arith.IndexCastOp(subview.offsets[0], IntegerType(16))
+            )
             ops.append(
                 csl.IncrementDsdOffsetOp.build(
                     operands=[curr_op, cast_op],
@@ -283,7 +280,7 @@ class LowerSubviewOpPass(RewritePattern):
                 offset_op := arith.ConstantOp(
                     IntegerAttr(
                         static_offsets[0],
-                        csl.i16_value,
+                        IntegerType(16),
                     )
                 )
             )

@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
-    Signedness,
     SymbolRefAttr,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
@@ -32,7 +31,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
-u32 = IntegerType(32, Signedness.UNSIGNED)
+u32 = IntegerType(32)
 
 
 @dataclass()
