@@ -92,7 +92,7 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        uv run pytest -W error --cov --cov-config=.coveragerc .
+        uv run pytest -W error --cov .
 
     - name: Execute lit tests
       run: |

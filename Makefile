@@ -142,7 +142,7 @@ coverage: coverage-tests coverage-filecheck-tests
 # use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
 coverage-tests: uv-installed
-	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov --cov-config=.coveragerc
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov
 
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests

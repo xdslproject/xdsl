@@ -1038,26 +1038,27 @@ class VectorType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[AttributeCovT]
-    num_scalable_dims: ParameterDef[IntAttr]
+    scalable_dims: ParameterDef[ArrayAttr[BoolAttr]]
 
     def __init__(
         self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
-        num_scalable_dims: int | IntAttr = 0,
+        scalable_dims: ArrayAttr[BoolAttr] | None = None,
     ) -> None:
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        if isinstance(num_scalable_dims, int):
-            num_scalable_dims = IntAttr(num_scalable_dims)
-        super().__init__([shape, element_type, num_scalable_dims])
+        if scalable_dims is None:
+            false = BoolAttr(False, i1)
+            scalable_dims = ArrayAttr(false for _ in shape)
+        super().__init__([shape, element_type, scalable_dims])
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_num_scalable_dims(self) -> int:
-        return self.num_scalable_dims.data
+        return sum(bool(d.value) for d in self.scalable_dims)
 
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape)
@@ -1066,16 +1067,12 @@ class VectorType(
         return self.element_type
 
     def verify(self):
-        if self.get_num_scalable_dims() < 0:
+        num_dims = len(self.shape)
+        num_scalable_dims = len(self.scalable_dims)
+        if num_dims != num_scalable_dims:
             raise VerifyException(
-                f"Number of scalable dimensions {self.get_num_dims()} cannot"
-                " be negative"
-            )
-        if self.get_num_scalable_dims() > self.get_num_dims():
-            raise VerifyException(
-                f"Number of scalable dimensions {self.get_num_scalable_dims()}"
-                " cannot be larger than number of dimensions"
-                f" {self.get_num_dims()}"
+                f"Number of scalable dimension specifiers {num_scalable_dims} must "
+                f"equal to number of dimensions {num_dims}."
             )
 
 
