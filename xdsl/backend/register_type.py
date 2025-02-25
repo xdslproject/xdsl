@@ -29,17 +29,37 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     spelling: ParameterDef[StringAttr]
 
     def __init__(self, spelling: str = ""):
-        super().__init__(self._parameters_from_spelling(spelling))
+        params = self._parameters_from_spelling(spelling)
+        if params is None:
+            raise ValueError(
+                f"Invalid register spelling {spelling} for class {type(self).__name__}"
+            )
+        super().__init__(params)
 
     @classmethod
     def _parameters_from_spelling(
         cls, spelling: str
-    ) -> tuple[IntAttr | NoneAttr, StringAttr]:
+    ) -> tuple[IntAttr | NoneAttr, StringAttr] | None:
         """
         Returns the parameter list required to construct a register instance from the given spelling.
         """
+        if not spelling:
+            return NoneAttr(), StringAttr(spelling)
         index = cls.abi_index_by_name().get(spelling)
-        index_attr = NoneAttr() if index is None else IntAttr(index)
+        if index is None:
+            # Try to decode as infinite register
+            prefix = cls.infinite_register_prefix()
+            if spelling.startswith(prefix):
+                suffix = spelling[len(prefix) :]
+                # infinite registers go from -1 to -inf
+                try:
+                    index = ~int(suffix)
+                except ValueError:
+                    return None
+            else:
+                return None
+
+        index_attr = IntAttr(index)
         return index_attr, StringAttr(spelling)
 
     @property
@@ -57,11 +77,21 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         if parser.parse_optional_punctuation("<"):
+            start_pos = parser.pos
             name = parser.parse_identifier()
+            end_pos = parser.pos
             parser.parse_punctuation(">")
+            params = cls._parameters_from_spelling(name)
+            if params is None:
+                parser.raise_error(
+                    f"Invalid register spelling {name} for class {cls.__name__}",
+                    at_position=start_pos,
+                    end_position=end_pos,
+                )
         else:
-            name = ""
-        return cls._parameters_from_spelling(name)
+            params = (StringAttr(""), NoneAttr())
+
+        return params
 
     def print_parameters(self, printer: Printer) -> None:
         if self.spelling.data:
@@ -98,7 +128,8 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         spelling = cls.infinite_register_prefix() + str(index)
         res = cls(spelling)
-        assert isinstance(res.index, NoneAttr), (
+        assert isinstance(res.index, IntAttr)
+        assert res.index.data < 0, (
             f"Invalid 'infinite' register name: {spelling} clashes with finite register set"
         )
         return res
