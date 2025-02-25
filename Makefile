@@ -11,7 +11,7 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs
+VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs --extra bench
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -39,7 +39,7 @@ venv: ${VENV_DIR}/
 
 # remove all caches
 .PHONY: clean-caches
-clean-caches: coverage-clean
+clean-caches: coverage-clean asv-clean
 	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
@@ -163,8 +163,24 @@ coverage-report: uv-installed
 coverage-clean: uv-installed
 	uv run coverage erase
 
-# docs
+# generate asv benchmark regression website
+.PHONY: asv
+asv: uv-installed
+	uv run asv run
 
+.PHONY: asv-html
+asv-html: uv-installed
+	uv run asv publish
+
+.PHONY: asv-preview
+asv-preview: uv-installed .asv/html
+	uv run asv preview
+
+.PHONY: asv-clean
+asv-clean: .asv
+	rm -rf .asv/
+
+# docs
 .PHONY: docs-serve
 docs-serve: uv-installed
 	uv run mkdocs serve
