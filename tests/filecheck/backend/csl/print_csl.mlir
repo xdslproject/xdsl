@@ -145,8 +145,8 @@
     %value2 = arith.constant 200 : i32
     %toggle = arith.constant 1 : i1
     %A = memref.get_global @A : memref<24xf32>
-    %dsd1 = "csl.get_mem_dsd"(%A, %value1) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
-    %dsd2 = "csl.get_mem_dsd"(%A, %value2) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %dsd1 = "csl.get_mem_dsd"(%A, %value1) : (memref<24xf32>, i32) -> !csl<dsd mem1d_dsd>
+    %dsd2 = "csl.get_mem_dsd"(%A, %value2) : (memref<24xf32>, i32) -> !csl<dsd mem1d_dsd>
     %selected_dsd = arith.select %toggle, %dsd1, %dsd2 : !csl<dsd mem1d_dsd>
     csl.return %selected_dsd : !csl<dsd mem1d_dsd>
   }
@@ -623,10 +623,10 @@ csl.func @builtins() {
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn select() mem1d_dsd {
 // CHECK-NEXT:   const dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
-// CHECK-NEXT:     .tensor_access = | d0 | { @as(i32, 100) } -> A[ d0 ]
+// CHECK-NEXT:     .tensor_access = | d0 | { 100 } -> A[ d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   const dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
-// CHECK-NEXT:     .tensor_access = | d0 | { @as(i32, 200) } -> A[ d0 ]
+// CHECK-NEXT:     .tensor_access = | d0 | { 200 } -> A[ d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   return (if (true) dsd1 else dsd2);
 // CHECK-NEXT: }
@@ -754,15 +754,15 @@ csl.func @builtins() {
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn ctrlflow() void {
-// CHECK-NEXT:   const i32_value : i32 = @as(i32, 100);
+// CHECK-NEXT:   const i32_value : i32 = 100;
 // CHECK-NEXT:   if (false) {
-// CHECK-NEXT:     const v1 : i32 = @as(i32, 2);
+// CHECK-NEXT:     const v1 : i32 = 2;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   else {
-// CHECK-NEXT:     const v1 : i32 = @as(i32, 3);
+// CHECK-NEXT:     const v1 : i32 = 3;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   if (true) {
-// CHECK-NEXT:     const v1 : i32 = @as(i32, 4);
+// CHECK-NEXT:     const v1 : i32 = 4;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   var i32ret : i32;
 // CHECK-NEXT:   if (false) {
