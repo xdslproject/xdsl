@@ -7,10 +7,10 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
-    IntegerType,
     MemRefType,
     ModuleOp,
     SymbolRefAttr,
+    i32,
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
@@ -30,8 +30,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
-
-u32 = IntegerType(32)
 
 
 @dataclass()
@@ -165,7 +163,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # create csl.vars for loop var and iter_args outside the parent func
         rewriter.insert_op(
-            iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, u32)),
+            iv := csl.VariableOp.from_value(IntegerAttr(op.lb.op.value.value, i32)),
             InsertPoint.before(parent_func),
         )
         iter_vars = [csl.VariableOp.from_type(arg_t) for arg_t in op.iter_args.types]
@@ -184,7 +182,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # for-loop condition func
         with ImplicitBuilder(cond_func.body.block):
-            ub = arith.ConstantOp.from_int_and_width(op.ub.op.value.value, u32)
+            ub = arith.ConstantOp.from_int_and_width(op.ub.op.value.value, i32)
             iv_load = csl.LoadVarOp(iv)
             iv_load.res.name_hint = f"{iv.res.name_hint}_cond"
             cond = arith.CmpiOp(iv_load, ub, "slt")
@@ -199,7 +197,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # for-loop inc func
         with ImplicitBuilder(inc_func.body.block):
-            step = arith.ConstantOp.from_int_and_width(op.step.op.value.value, u32)
+            step = arith.ConstantOp.from_int_and_width(op.step.op.value.value, i32)
             iv_load = csl.LoadVarOp(iv)
             iv_load.res.name_hint = f"{iv.res.name_hint}_inc"
             stepped = arith.AddiOp(iv_load, step)
