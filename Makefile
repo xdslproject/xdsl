@@ -39,7 +39,7 @@ venv: ${VENV_DIR}/
 
 # remove all caches
 .PHONY: clean-caches
-clean-caches: coverage-clean
+clean-caches: coverage-clean asv-clean
 	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
