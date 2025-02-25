@@ -743,7 +743,7 @@ class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 @irdl_op_definition
 class RM_MovOp(R_M_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
-    Copies the value from the memory location pointed to by operand register into output register.
+    Copies the value from the memory location pointed to by source register into destination register.
     ```C
     x[output] = [x[operand]]
     ```
