@@ -61,10 +61,7 @@ def test_riscv_interpreter():
     assert interpreter.run_op(riscv.LiOp("label1"), ()) == (
         TypedPtr.new_int32((59,)).raw,
     )
-    assert interpreter.run_op(
-        riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType()),
-        (42,),
-    ) == (42,)
+    assert interpreter.run_op(riscv.MVOp(TestSSAValue(register)), (42,)) == (42,)
 
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), 5), (0,)) == (1,)
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), 5), (10,)) == (0,)
@@ -75,20 +72,12 @@ def test_riscv_interpreter():
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), -10), (5,)) == (1,)
 
     assert interpreter.run_op(
-        riscv.AddOp(
-            TestSSAValue(register),
-            TestSSAValue(register),
-            rd=riscv.IntRegisterType(),
-        ),
+        riscv.AddOp(TestSSAValue(register), TestSSAValue(register)),
         (1, 2),
     ) == (3,)
 
     assert interpreter.run_op(
-        riscv.AddiOp(
-            TestSSAValue(register),
-            2,
-            rd=riscv.IntRegisterType(),
-        ),
+        riscv.AddiOp(TestSSAValue(register), 2),
         (1,),
     ) == (3,)
 
@@ -96,7 +85,6 @@ def test_riscv_interpreter():
         riscv.SubOp(
             TestSSAValue(register),
             TestSSAValue(register),
-            rd=riscv.IntRegisterType(),
         ),
         (1, 2),
     ) == (-1,)
@@ -105,7 +93,6 @@ def test_riscv_interpreter():
         riscv.SllOp(
             TestSSAValue(register),
             TestSSAValue(register),
-            rd=riscv.IntRegisterType(),
         ),
         (3, 2),
     ) == (12,)
@@ -114,7 +101,6 @@ def test_riscv_interpreter():
         riscv.MulOp(
             TestSSAValue(register),
             TestSSAValue(register),
-            rd=riscv.IntRegisterType(),
         ),
         (2, 3),
     ) == (6,)
@@ -123,7 +109,6 @@ def test_riscv_interpreter():
         riscv.DivOp(
             TestSSAValue(register),
             TestSSAValue(register),
-            rd=riscv.IntRegisterType(),
         ),
         (6, 3),
     ) == (2,)
@@ -168,7 +153,6 @@ def test_riscv_interpreter():
         riscv.FMulSOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (12.0,)
@@ -180,7 +164,6 @@ def test_riscv_interpreter():
             TestSSAValue(fregister),
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0, 5.0),
     ) == (17.0,)
@@ -189,7 +172,6 @@ def test_riscv_interpreter():
         riscv.FAddDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (7.0,)
@@ -198,7 +180,6 @@ def test_riscv_interpreter():
         riscv.FSubDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (-1.0,)
@@ -207,7 +188,6 @@ def test_riscv_interpreter():
         riscv.FMulDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (12.0,)
@@ -216,7 +196,6 @@ def test_riscv_interpreter():
         riscv.FDivDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (0.75,)
@@ -225,7 +204,6 @@ def test_riscv_interpreter():
         riscv.FMinDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (1, 2),
     ) == (1,)
@@ -234,13 +212,12 @@ def test_riscv_interpreter():
         riscv.FMaxDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType(),
         ),
         (1, 2),
     ) == (2,)
 
     assert interpreter.run_op(
-        riscv.FMVOp(TestSSAValue(register), rd=riscv.FloatRegisterType()),
+        riscv.FMVOp(TestSSAValue(register)),
         (42.0,),
     ) == (42.0,)
 
@@ -248,7 +225,7 @@ def test_riscv_interpreter():
     # the top line is the one that should pass, the other is the same as riscemu
     # assert interpreter.run_op(riscv.FMvWXOp(TestSSAValue(fregister)), (3,)) == (3.0,)
     assert interpreter.run_op(
-        riscv.FMvWXOp(TestSSAValue(fregister), rd=riscv.FloatRegisterType()),
+        riscv.FMvWXOp(TestSSAValue(fregister)),
         (convert_f32_to_u32(3.0),),
     ) == (3.0,)
 
@@ -287,7 +264,7 @@ def test_riscv_interpreter():
     ) == (5.0,)
 
     assert interpreter.run_op(
-        riscv.FCvtDWOp(TestSSAValue(register), rd=riscv.FloatRegisterType()),
+        riscv.FCvtDWOp(TestSSAValue(register)),
         (42,),
     ) == (42.0,)
 

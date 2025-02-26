@@ -38,9 +38,7 @@ class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
         oper1, oper2 = cast_operands_to_regs(rewriter)
-        rewriter.replace_matched_op(
-            riscv.AddOp(oper1, oper2, rd=riscv.IntRegisterType())
-        )
+        rewriter.replace_matched_op(riscv.AddOp(oper1, oper2))
 
 
 @dataclass
