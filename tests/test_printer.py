@@ -59,7 +59,7 @@ def test_simple_forgotten_op():
 
     expected = """%0 = "arith.addi"(%1, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32"""
 
-    assert_print_op(add, expected, None)
+    assert_print_op(add, expected)
 
 
 def test_print_op_location():
@@ -73,7 +73,7 @@ def test_print_op_location():
 
     expected = """%0 = "test.op"() : () -> i32 loc(unknown)"""
 
-    assert_print_op(add, expected, None, print_debuginfo=True)
+    assert_print_op(add, expected, print_debuginfo=True)
 
 
 @irdl_op_definition
@@ -92,7 +92,7 @@ def test_unit_attr():
 
     unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
 
-    assert_print_op(unit_op, expected, None)
+    assert_print_op(unit_op, expected)
 
 
 def test_added_unit_attr():
@@ -105,7 +105,7 @@ def test_added_unit_attr():
         attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
     )
 
-    assert_print_op(unitop, expected, None)
+    assert_print_op(unitop, expected)
 
 
 #  ____  _                             _   _
@@ -148,7 +148,7 @@ def test_op_message():
     assert first_op is not None
     diagnostic.add_message(first_op, "Test message")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_two_different_op_messages():
@@ -183,7 +183,7 @@ def test_two_different_op_messages():
     diagnostic.add_message(first_op, "Test message 1")
     diagnostic.add_message(second_op, "Test message 2")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_two_same_op_messages():
@@ -219,7 +219,7 @@ def test_two_same_op_messages():
     diagnostic.add_message(first_op, "Test message 1")
     diagnostic.add_message(first_op, "Test message 2")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_op_message_with_region():
@@ -249,7 +249,7 @@ def test_op_message_with_region():
     diagnostic = Diagnostic()
     diagnostic.add_message(module, "Test")
 
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_op_message_with_region_and_overflow():
@@ -281,7 +281,7 @@ def test_op_message_with_region_and_overflow():
 
     diagnostic = Diagnostic()
     diagnostic.add_message(module, "Test long message")
-    assert_print_op(module, expected, diagnostic)
+    assert_print_op(module, expected, diagnostic=diagnostic)
 
 
 def test_diagnostic():
@@ -341,7 +341,7 @@ def test_print_custom_name():
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected)
 
 
 def test_print_clashing_names():
@@ -373,7 +373,7 @@ def test_print_clashing_names():
         k = test.TestOp.create(result_types=[i32])
         k.results[0].name_hint = "i_1"
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected)
 
 
 def test_print_custom_block_arg_name():
@@ -587,7 +587,7 @@ builtin.module {
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, print_generic_format=False)
+    assert_print_op(module, expected, print_generic_format=False)
 
 
 def test_custom_format():
@@ -616,7 +616,7 @@ builtin.module {
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, print_generic_format=False)
+    assert_print_op(module, expected, print_generic_format=False)
 
 
 def test_custom_format_II():
@@ -645,7 +645,7 @@ def test_custom_format_II():
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, print_generic_format=True)
+    assert_print_op(module, expected, print_generic_format=True)
 
 
 @irdl_op_definition
@@ -727,7 +727,7 @@ def test_custom_format_attr():
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected)
 
 
 def test_dictionary_attr():
@@ -744,7 +744,7 @@ def test_dictionary_attr():
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, prog, None)
+    assert_print_op(parsed, prog)
 
 
 def test_densearray_attr():
@@ -761,7 +761,7 @@ def test_densearray_attr():
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, prog, None)
+    assert_print_op(parsed, prog)
 
 
 def test_float():
@@ -882,7 +882,7 @@ def test_print_properties_as_attributes():
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
-    assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+    assert_print_op(parsed, retro_prog, print_properties_as_attributes=True)
 
 
 def test_print_properties_as_attributes_safeguard():
@@ -906,7 +906,7 @@ def test_print_properties_as_attributes_safeguard():
         ValueError,
         match="Properties sym_name would overwrite the attributes of the same names.",
     ):
-        assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+        assert_print_op(parsed, retro_prog, print_properties_as_attributes=True)
 
 
 @pytest.mark.parametrize(
@@ -959,8 +959,8 @@ def test_get_printed_name():
 def assert_print_op(
     operation: Operation,
     expected: str,
-    diagnostic: Diagnostic | None,
     *,
+    diagnostic: Diagnostic | None = None,
     print_generic_format: bool = True,
     print_debuginfo: bool = False,
     print_properties_as_attributes: bool = False,
