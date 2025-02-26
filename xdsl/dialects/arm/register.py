@@ -40,7 +40,7 @@ class IntRegisterType(ARMRegisterType):
         return "inf_"
 
 
-UNALLOCATED_INT = IntRegisterType("")
+UNALLOCATED_INT = IntRegisterType.unallocated()
 X0 = IntRegisterType("x0")
 X1 = IntRegisterType("x1")
 X2 = IntRegisterType("x2")

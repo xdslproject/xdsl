@@ -33,7 +33,7 @@ def cast_to_regs(values: Iterable[SSAValue]) -> tuple[list[Operation], list[SSAV
         if not isinstance(value.type, riscv.RISCVRegisterType):
             register_type = register_type_for_type(value.type)
             cast_op = builtin.UnrealizedConversionCastOp.get(
-                (value,), (register_type(""),)
+                (value,), (register_type.unallocated(),)
             )
             new_ops.append(cast_op)
             value = cast_op.results[0]
@@ -133,7 +133,9 @@ def move_to_unallocated_regs(
 
     for value, value_type in zip(values, value_types, strict=True):
         register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(value, value_type, register_type(""))
+        move_op, new_value = move_ops_for_value(
+            value, value_type, register_type.unallocated()
+        )
         new_ops.append(move_op)
         new_values.append(new_value)
 
@@ -212,7 +214,9 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
 
     for arg in block.args:
         register_type = register_type_for_type(arg.type)
-        move_op, new_value = move_ops_for_value(arg, arg.type, register_type(""))
+        move_op, new_value = move_ops_for_value(
+            arg, arg.type, register_type.unallocated()
+        )
         cast_op = builtin.UnrealizedConversionCastOp.get((new_value,), (arg.type,))
         new_ops.append(move_op)
         new_ops.append(cast_op)
