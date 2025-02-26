@@ -166,7 +166,7 @@ exclude = [
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]
 python_classes = "Test_*"
 python_functions = "test_*"
-addopts = ["--durations=20", "--maxfail=5"]
+addopts = ["--durations=20", "--maxfail=5", "--import-mode=importlib"]
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.versioneer]
