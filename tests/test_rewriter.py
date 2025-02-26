@@ -1,7 +1,7 @@
 from collections.abc import Callable
+from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.context import Context
 from xdsl.dialects import test
@@ -9,6 +9,7 @@ from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
@@ -26,7 +27,11 @@ def rewrite_and_compare(
     rewriter = Rewriter()
     transformation(module, rewriter)
 
-    assert_print_op(module, expected_prog, None)
+    file = StringIO()
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print(module)
+
+    assert file.getvalue().strip() == expected_prog.strip()
 
 
 def test_operation_deletion():
