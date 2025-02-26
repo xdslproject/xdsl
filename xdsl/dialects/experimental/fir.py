@@ -2094,7 +2094,7 @@ class StringLitOp(IRDLOperation):
     to Fortran's CHARACTER type, including a LEN.  We support CHARACTER values
     of different KINDs (different constant sizes).
 
-    ```
+    ```mlir
     %1 = fir.string_lit "Hello, World!"(13) : !fir.char<1> // ASCII
     %2 = fir.string_lit [158, 2345](2) : !fir.char<2>      // Wide chars
     ```

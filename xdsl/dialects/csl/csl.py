@@ -1897,7 +1897,7 @@ class AddressOfOp(IRDLOperation):
         - A many pointer to the array element type
 
         E.g.
-        ```mlir
+        ```zig
             const x: [10]f32;
             const arr_ptr: *[10]f32 = &x;
             const elem_ptr: [*]f32 = &x;
