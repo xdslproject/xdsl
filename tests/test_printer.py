@@ -3,7 +3,6 @@ from __future__ import annotations
 from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
@@ -26,6 +25,7 @@ from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
     Block,
+    Operation,
     ParametrizedAttribute,
     Region,
 )
@@ -587,7 +587,7 @@ builtin.module {
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, False)
+    assert_print_op(module, expected, None, print_generic_format=False)
 
 
 def test_custom_format():
@@ -616,7 +616,7 @@ builtin.module {
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, False)
+    assert_print_op(module, expected, None, print_generic_format=False)
 
 
 def test_custom_format_II():
@@ -954,3 +954,66 @@ def test_get_printed_name():
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)
     assert f"%{picked_name}" == printed.getvalue()
+
+
+def assert_print_op(
+    operation: Operation,
+    expected: str,
+    diagnostic: Diagnostic | None,
+    *,
+    print_generic_format: bool = True,
+    print_debuginfo: bool = False,
+    print_properties_as_attributes: bool = False,
+    indent_num_spaces: int = 2,
+):
+    """
+    Utility function that helps to check the printing of an operation compared to
+    some string.
+
+    ### Example:
+
+    To check that an operation, e.g. `arith.addi` prints as expected:
+
+    .. code-block:: py
+        expected = \"\"\"
+
+        builtin.module() {
+        %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
+        -----------------------^^^^^^^^^^----------------------------------------------------------------
+        | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+        -------------------------------------------------------------------------------------------------
+        ------------------------------------------^^^^^^^^^^---------------------------------------------
+        | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+        -------------------------------------------------------------------------------------------------
+        %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+        }\"\"\"
+
+
+    we call:
+
+    .. code-block:: python
+
+        assert_print_op(add, expected)
+
+    Additional options can be passed to the printer using keyword arguments:
+
+    .. code-block:: python
+
+        assert_print_op(add, expected, indent_num_spaces=4)
+
+    """
+
+    file = StringIO("")
+    if diagnostic is None:
+        diagnostic = Diagnostic()
+    printer = Printer(
+        stream=file,
+        print_generic_format=print_generic_format,
+        print_properties_as_attributes=print_properties_as_attributes,
+        print_debuginfo=print_debuginfo,
+        diagnostic=diagnostic,
+        indent_num_spaces=indent_num_spaces,
+    )
+
+    printer.print(operation)
+    assert file.getvalue().strip() == expected.strip()
