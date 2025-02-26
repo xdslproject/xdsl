@@ -1893,15 +1893,18 @@ class AddressOfOp(IRDLOperation):
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
         """
         Verify that if the address of a memref is taken, the resulting pointer is either:
-            A single pointer to the array type or
-            A many pointer to the array element type
+        - A single pointer to the array type or
+        - A many pointer to the array element type
+
         E.g.
+        ```zig
             const x: [10]f32;
             const arr_ptr: *[10]f32 = &x;
             const elem_ptr: [*]f32 = &x;
             // const invalid: [*]i32 = &x;
             // const invalid: *f32 = &x;
             // const invalid: [*][10]f32 = &x;
+        ```
         """
 
         # GetDsdOp(DsdType(DsdKind("mem4d_dsd")), self.prev_op.prev_op.results[0],
