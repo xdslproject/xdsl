@@ -46,8 +46,8 @@ def test_riscv_interpreter():
             ),
         ]
     )
-    register = riscv.IntRegisterType.unallocated()
-    fregister = riscv.FloatRegisterType.unallocated()
+    register = riscv.IntRegisterType()
+    fregister = riscv.FloatRegisterType()
 
     riscv_functions = RiscvFunctions(
         custom_instructions={"my_custom_instruction": my_custom_instruction},
@@ -62,7 +62,7 @@ def test_riscv_interpreter():
         TypedPtr.new_int32((59,)).raw,
     )
     assert interpreter.run_op(
-        riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
+        riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType()),
         (42,),
     ) == (42,)
 
@@ -78,7 +78,7 @@ def test_riscv_interpreter():
         riscv.AddOp(
             TestSSAValue(register),
             TestSSAValue(register),
-            rd=riscv.IntRegisterType.unallocated(),
+            rd=riscv.IntRegisterType(),
         ),
         (1, 2),
     ) == (3,)
@@ -87,7 +87,7 @@ def test_riscv_interpreter():
         riscv.AddiOp(
             TestSSAValue(register),
             2,
-            rd=riscv.IntRegisterType.unallocated(),
+            rd=riscv.IntRegisterType(),
         ),
         (1,),
     ) == (3,)
@@ -96,19 +96,37 @@ def test_riscv_interpreter():
         riscv.SubOp(
             TestSSAValue(register),
             TestSSAValue(register),
-            rd=riscv.IntRegisterType.unallocated(),
+            rd=riscv.IntRegisterType(),
         ),
         (1, 2),
     ) == (-1,)
 
     assert interpreter.run_op(
+        riscv.SllOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType(),
+        ),
+        (3, 2),
+    ) == (12,)
+
+    assert interpreter.run_op(
         riscv.MulOp(
             TestSSAValue(register),
             TestSSAValue(register),
-            rd=riscv.IntRegisterType.unallocated(),
+            rd=riscv.IntRegisterType(),
         ),
         (2, 3),
     ) == (6,)
+
+    assert interpreter.run_op(
+        riscv.DivOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType(),
+        ),
+        (6, 3),
+    ) == (2,)
 
     # Buffer to be modified by the interpreter
     buffer = RawPtr.zeros(16)
@@ -150,7 +168,7 @@ def test_riscv_interpreter():
         riscv.FMulSOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (12.0,)
@@ -162,7 +180,7 @@ def test_riscv_interpreter():
             TestSSAValue(fregister),
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0, 5.0),
     ) == (17.0,)
@@ -171,7 +189,7 @@ def test_riscv_interpreter():
         riscv.FAddDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (7.0,)
@@ -180,7 +198,7 @@ def test_riscv_interpreter():
         riscv.FSubDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (-1.0,)
@@ -189,7 +207,7 @@ def test_riscv_interpreter():
         riscv.FMulDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (12.0,)
@@ -198,7 +216,7 @@ def test_riscv_interpreter():
         riscv.FDivDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (3.0, 4.0),
     ) == (0.75,)
@@ -207,7 +225,7 @@ def test_riscv_interpreter():
         riscv.FMinDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (1, 2),
     ) == (1,)
@@ -216,13 +234,13 @@ def test_riscv_interpreter():
         riscv.FMaxDOp(
             TestSSAValue(fregister),
             TestSSAValue(fregister),
-            rd=riscv.FloatRegisterType.unallocated(),
+            rd=riscv.FloatRegisterType(),
         ),
         (1, 2),
     ) == (2,)
 
     assert interpreter.run_op(
-        riscv.FMVOp(TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()),
+        riscv.FMVOp(TestSSAValue(register), rd=riscv.FloatRegisterType()),
         (42.0,),
     ) == (42.0,)
 
@@ -230,9 +248,7 @@ def test_riscv_interpreter():
     # the top line is the one that should pass, the other is the same as riscemu
     # assert interpreter.run_op(riscv.FMvWXOp(TestSSAValue(fregister)), (3,)) == (3.0,)
     assert interpreter.run_op(
-        riscv.FMvWXOp(
-            TestSSAValue(fregister), rd=riscv.FloatRegisterType.unallocated()
-        ),
+        riscv.FMvWXOp(TestSSAValue(fregister), rd=riscv.FloatRegisterType()),
         (convert_f32_to_u32(3.0),),
     ) == (3.0,)
 
@@ -271,9 +287,7 @@ def test_riscv_interpreter():
     ) == (5.0,)
 
     assert interpreter.run_op(
-        riscv.FCvtDWOp(
-            TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()
-        ),
+        riscv.FCvtDWOp(TestSSAValue(register), rd=riscv.FloatRegisterType()),
         (42,),
     ) == (42.0,)
 
@@ -291,7 +305,7 @@ def test_riscv_interpreter():
 
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
 
-    get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType.unallocated())
+    get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType())
     with pytest.raises(
         InterpretationError,
         match="Cannot get value for unallocated register !riscv.reg",
@@ -318,7 +332,7 @@ def test_get_data():
 
 def test_cast():
     module_op = ModuleOp([])
-    fregister = riscv.FloatRegisterType.unallocated()
+    fregister = riscv.FloatRegisterType()
 
     riscv_functions = RiscvFunctions()
     interpreter = Interpreter(module_op)

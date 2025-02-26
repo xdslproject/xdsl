@@ -1,7 +1,7 @@
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyIntegerAttr,
+    IntegerAttr,
 )
 from xdsl.dialects.csl import csl
 from xdsl.ir import OpResult
@@ -34,7 +34,7 @@ class GetDsdAndOffsetFolding(RewritePattern):
         if (
             isinstance(offset_op.offset, OpResult)
             and isinstance(cnst := offset_op.offset.op, arith.ConstantOp)
-            and isa(attr_val := cnst.value, AnyIntegerAttr)
+            and isa(attr_val := cnst.value, IntegerAttr)
         ):
             tensor_access = AffineMap.from_callable(
                 lambda x: (x + attr_val.value.data,)
@@ -101,7 +101,7 @@ class GetDsdAndStrideFolding(RewritePattern):
         if (
             isinstance(stride_op.stride, OpResult)
             and isinstance(cnst := stride_op.stride.op, arith.ConstantOp)
-            and isa(attr_val := cnst.value, AnyIntegerAttr)
+            and isa(attr_val := cnst.value, IntegerAttr)
         ):
             tensor_access = AffineMap.from_callable(
                 lambda x: (x * attr_val.value.data,)

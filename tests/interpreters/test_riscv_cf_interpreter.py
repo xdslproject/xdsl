@@ -5,7 +5,7 @@ from xdsl.interpreters.riscv_cf import RiscvCfFunctions
 from xdsl.ir import Block
 from xdsl.utils.test_value import TestSSAValue
 
-register = riscv.IntRegisterType.unallocated()
+register = riscv.IntRegisterType()
 module_op = ModuleOp([])
 
 

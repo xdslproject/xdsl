@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import TestSSAValue
 
 INDEX_TYPE = builtin.IndexType()
-REGISTER_TYPE = riscv.IntRegisterType.unallocated()
+REGISTER_TYPE = riscv.IntRegisterType()
 
 
 def test_register_type_for_type():

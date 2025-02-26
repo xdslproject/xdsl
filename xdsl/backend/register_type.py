@@ -3,8 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
-from typing_extensions import Self
-
 from xdsl.dialects.builtin import (
     IntAttr,
     NoneAttr,
@@ -28,7 +26,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     index: ParameterDef[IntAttr | NoneAttr]
     spelling: ParameterDef[StringAttr]
 
-    def __init__(self, spelling: str):
+    def __init__(self, spelling: str = ""):
         super().__init__(self._parameters_from_spelling(spelling))
 
     @classmethod
@@ -38,16 +36,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Returns the parameter list required to construct a register instance from the given spelling.
         """
-        index_attr = NoneAttr()
         index = cls.abi_index_by_name().get(spelling)
-        if index is not None:
-            index_attr = IntAttr(index)
+        index_attr = NoneAttr() if index is None else IntAttr(index)
         return index_attr, StringAttr(spelling)
-
-    @classmethod
-    @abstractmethod
-    def unallocated(cls) -> Self:
-        raise NotImplementedError()
 
     @property
     def register_name(self) -> str:
@@ -62,9 +53,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return bool(self.spelling.data)
 
     @classmethod
-    @abstractmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        raise NotImplementedError()
+        if parser.parse_optional_punctuation("<"):
+            name = parser.parse_identifier()
+            parser.parse_punctuation(">")
+        else:
+            name = ""
+        return cls._parameters_from_spelling(name)
 
     def print_parameters(self, printer: Printer) -> None:
         if self.spelling.data:

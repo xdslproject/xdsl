@@ -7,13 +7,13 @@ from io import StringIO
 from itertools import accumulate
 from typing import IO
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, ShrinkException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
@@ -41,7 +41,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_passes = {}
         self.available_targets = {}
 
-        self.ctx = MLContext()
+        self.ctx = Context()
         self.register_all_dialects()
         self.register_all_frontends()
         self.register_all_passes()
@@ -75,9 +75,18 @@ class xDSLOptMain(CommandLineTool):
                     output_stream.flush()
                 finally:
                     chunk.close()
+        except ShrinkException:
+            assert self.args.shrink
+            print("Success, can shrink")
+            # Exit with value 0 to let shrinkray know that it can shrink
+            exit(0)
         finally:
             if output_stream is not sys.stdout:
                 output_stream.close()
+        if self.args.shrink:
+            print("Failure, can't shrink")
+            # Exit with non-0 value to let shrinkray know that it cannot shrink
+            exit(1)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -139,8 +148,8 @@ class xDSLOptMain(CommandLineTool):
             "--split-input-file",
             default=False,
             action="store_true",
-            help="Split the input file into pieces and process each chunk independently by "
-            " using `// -----`",
+            help="Split the input file into pieces and process each chunk "
+            "independently by using `// -----`",
         )
 
         arg_parser.add_argument(
@@ -169,6 +178,13 @@ class xDSLOptMain(CommandLineTool):
             "--version",
             action="version",
             version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+        )
+
+        arg_parser.add_argument(
+            "--shrink",
+            default=False,
+            action="store_true",
+            help="Return success on exit if ShrinkException was raised.",
         )
 
     def register_pass(

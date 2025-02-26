@@ -58,7 +58,7 @@ def test_read_write():
 
 
 def test_frep_carried_vars():
-    float_register = riscv.IntRegisterType.unallocated()
+    float_register = riscv.IntRegisterType()
     acc_reg_type = riscv.Registers.FT[3]
 
     @ModuleOp

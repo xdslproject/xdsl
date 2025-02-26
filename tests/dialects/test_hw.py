@@ -6,7 +6,7 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
     HW,
@@ -343,7 +343,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
 }
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(HW)
 
     module_op = Parser(ctx, MODULE_CTX).parse_module()

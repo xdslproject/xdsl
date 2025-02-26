@@ -3,7 +3,7 @@ from typing import Literal
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass, get_pass_argument_names_and_types
 
@@ -28,7 +28,7 @@ class CustomPass(ModulePass):
 
     optional_bool: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -36,7 +36,7 @@ class CustomPass(ModulePass):
 class EmptyPass(ModulePass):
     name = "empty"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -48,7 +48,7 @@ class SimplePass(ModulePass):
     b: int | None
     c: int = 5
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -56,7 +56,9 @@ class SimplePass(ModulePass):
     "str_arg, pass_arg",
     [
         (
-            """number=int|float single_number=int int_list=tuple[int, ...] non_init_thing=int str_thing=str nullable_str=str|None literal=no optional_bool=false""",
+            "number=int|float single_number=int int_list=tuple[int, ...] "
+            "non_init_thing=int str_thing=str nullable_str=str|None literal=no "
+            "optional_bool=false",
             CustomPass,
         ),
         ("", EmptyPass),

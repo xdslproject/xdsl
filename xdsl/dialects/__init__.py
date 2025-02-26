@@ -149,7 +149,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return LTL
 
     def get_math():
-        from xdsl.dialects.experimental.math import Math
+        from xdsl.dialects.math import Math
 
         return Math
 
@@ -159,9 +159,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return MemRef
 
     def get_memref_stream():
-        from xdsl.dialects.memref_stream import MemrefStream
+        from xdsl.dialects.memref_stream import MemRefStream
 
-        return MemrefStream
+        return MemRefStream
 
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
@@ -284,7 +284,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Stim
 
     def get_symref():
-        from xdsl.frontend.symref import Symref
+        from xdsl.frontend.pyast.symref import Symref
 
         return Symref
 
@@ -322,6 +322,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.x86 import X86
 
         return X86
+
+    def get_x86_func():
+        from xdsl.dialects.x86_func import X86_FUNC
+
+        return X86_FUNC
 
     def get_transform():
         from xdsl.dialects.transform import Transform
@@ -392,6 +397,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "vector": get_vector,
         "wasm": get_wasm,
         "x86": get_x86,
+        "x86_func": get_x86_func,
         "transform": get_transform,
     }
 

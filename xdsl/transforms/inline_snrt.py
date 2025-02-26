@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Operation, SSAValue
@@ -109,7 +109,7 @@ class LowerDMAStart1D(RewritePattern):
             return snrt_dma_start_1d_wideptr((size_t)dst, (size_t)src, size);
         }
         """
-        reg_t = riscv.IntRegisterType.unallocated()
+        reg_t = riscv.IntRegisterType()
         rewriter.replace_matched_op(
             [
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
@@ -197,7 +197,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
         P.S. We only implement taking the top branch for now.
         """
-        reg_t = riscv.IntRegisterType.unallocated()
+        reg_t = riscv.IntRegisterType()
         rewriter.replace_matched_op(
             [
                 # "Take an ui64 and split it in two 32 bit-wide RISC-V registers"
@@ -231,7 +231,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
 
 class LowerDMAStart2DBase(RewritePattern, ABC):
-    any_reg = riscv.IntRegisterType.unallocated()
+    any_reg = riscv.IntRegisterType()
 
     def generate_dma_instructions(
         self,
@@ -675,7 +675,7 @@ class InlineSnrtPass(SnrtConstants, ModulePass):
 
     name = "inline-snrt"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

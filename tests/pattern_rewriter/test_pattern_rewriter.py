@@ -5,7 +5,7 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
 from xdsl.dialects.builtin import (
@@ -33,7 +33,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
 def rewrite_and_compare(
@@ -48,7 +48,7 @@ def rewrite_and_compare(
     block_created: int = 0,
     expect_rewrite: bool = True,
 ):
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
@@ -577,7 +577,7 @@ def test_operation_deletion_reversed():
 def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
 
@@ -1225,7 +1225,7 @@ def test_inline_region_before():
             if op.parent is None:
                 return
 
-            rewriter.inline_region_before(op.regions[0], op.parent)
+            rewriter.inline_region(op.regions[0], BlockInsertPoint.before(op.parent))
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1272,7 +1272,7 @@ def test_inline_region_after():
             if op.parent is None:
                 return
 
-            rewriter.inline_region_after(op.regions[0], op.parent)
+            rewriter.inline_region(op.regions[0], BlockInsertPoint.after(op.parent))
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1320,7 +1320,9 @@ def test_inline_region_at_start():
             if parent_region is None:
                 return
 
-            rewriter.inline_region_at_start(op.regions[0], parent_region)
+            rewriter.inline_region(
+                op.regions[0], BlockInsertPoint.at_start(parent_region)
+            )
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1368,7 +1370,9 @@ def test_inline_region_at_end():
             if parent_region is None:
                 return
 
-            rewriter.inline_region_at_end(op.regions[0], parent_region)
+            rewriter.inline_region(
+                op.regions[0], BlockInsertPoint.at_end(parent_region)
+            )
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1772,7 +1776,7 @@ Error while applying pattern: Expected operation to not be erroneous!
                 raise ValueError("Expected operation to not be erroneous!")
             return
 
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)

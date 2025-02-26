@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -43,10 +43,10 @@ class HoistIndexTimesConstantOp(RewritePattern):
                         [
                             shift := riscv.LiOp(constant),
                             new_lb := riscv.AddOp(
-                                op.lb, shift, rd=riscv.IntRegisterType.unallocated()
+                                op.lb, shift, rd=riscv.IntRegisterType()
                             ),
                             new_ub := riscv.AddOp(
-                                op.ub, shift, rd=riscv.IntRegisterType.unallocated()
+                                op.ub, shift, rd=riscv.IntRegisterType()
                             ),
                         ]
                     )
@@ -56,13 +56,13 @@ class HoistIndexTimesConstantOp(RewritePattern):
                         [
                             factor := riscv.LiOp(constant),
                             new_lb := riscv.MulOp(
-                                op.lb, factor, rd=riscv.IntRegisterType.unallocated()
+                                op.lb, factor, rd=riscv.IntRegisterType()
                             ),
                             new_ub := riscv.MulOp(
-                                op.ub, factor, rd=riscv.IntRegisterType.unallocated()
+                                op.ub, factor, rd=riscv.IntRegisterType()
                             ),
                             new_step := riscv.MulOp(
-                                op.step, factor, rd=riscv.IntRegisterType.unallocated()
+                                op.step, factor, rd=riscv.IntRegisterType()
                             ),
                         ]
                     )
@@ -82,7 +82,7 @@ class RiscvScfLoopRangeFoldingPass(ModulePass):
 
     name = "riscv-scf-loop-range-folding"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             HoistIndexTimesConstantOp(),
             apply_recursively=False,

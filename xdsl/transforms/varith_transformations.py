@@ -2,7 +2,7 @@ import collections
 from dataclasses import dataclass
 from typing import Literal, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, varith
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -242,7 +242,7 @@ class ConvertArithToVarithPass(ModulePass):
 
     name = "convert-arith-to-varith"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -263,7 +263,7 @@ class ConvertVarithToArithPass(ModulePass):
 
     name = "convert-varith-to-arith"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             VarithToArithPattern(),
             apply_recursively=False,
@@ -280,7 +280,7 @@ class VarithFuseRepeatedOperandsPass(ModulePass):
     min_reps: int = 2
     """The minimum number of times an operand needs to be repeated before being fused."""
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             FuseRepeatedAddArgsPattern(self.min_reps),
             apply_recursively=False,

@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
@@ -33,7 +33,7 @@ class CanonicalizePass(ModulePass):
 
     name = "canonicalize"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pattern = GreedyRewritePatternApplier(
             [RemoveUnusedOperations(), CanonicalizationRewritePattern()]
         )

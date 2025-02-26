@@ -12,8 +12,7 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyFloat,
-    AnyFloatAttr,
-    AnyUnrankedMemrefType,
+    AnyUnrankedMemRefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -28,6 +27,7 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
+    FloatAttr,
     FunctionType,
     IndexType,
     IntAttr,
@@ -44,7 +44,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
@@ -333,7 +333,7 @@ class Printer(BasePrinter):
                     self.print_string(chr(byte))
         self.print_string('"')
 
-    def print_float_attr(self, attribute: AnyFloatAttr):
+    def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
     def print_float(self, value: float, type: AnyFloat):
@@ -608,8 +608,8 @@ class Printer(BasePrinter):
             self.print_string(">")
             return
 
-        if isinstance(attribute, UnrankedMemrefType):
-            attribute = cast(AnyUnrankedMemrefType, attribute)
+        if isinstance(attribute, UnrankedMemRefType):
+            attribute = cast(AnyUnrankedMemRefType, attribute)
             self.print_string("memref<*x")
             self.print_attribute(attribute.element_type)
             if not isinstance(attribute.memory_space, NoneAttr):

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -54,7 +54,7 @@ class UnnestOutParametersPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamUnnestOutParametersPass(ModulePass):
+class MemRefStreamUnnestOutParametersPass(ModulePass):
     """
     Converts the affine maps of memref_stream.generic out parameters from taking all the
     indices to only taking "parallel" ones.
@@ -62,7 +62,7 @@ class MemrefStreamUnnestOutParametersPass(ModulePass):
 
     name = "memref-stream-unnest-out-parameters"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             UnnestOutParametersPattern(),
             apply_recursively=False,
