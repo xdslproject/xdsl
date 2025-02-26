@@ -176,11 +176,11 @@ class ConvertMemRefStoreOp(RewritePattern):
 
         rewriter.insert_op_before_matched_op(ops)
         match value.type:
-            case riscv.Registers.UNALLOCATED_INT:
+            case riscv.IntRegisterType():
                 new_op = riscv.SwOp(
                     ptr, value, 0, comment=f"store int value to memref of shape {shape}"
                 )
-            case riscv.Registers.UNALLOCATED_FLOAT:
+            case riscv.FloatRegisterType():
                 float_type = cast(AnyFloat, memref_type.element_type)
                 match float_type:
                     case Float32Type():

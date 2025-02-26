@@ -48,11 +48,11 @@ class ConvertStoreOp(RewritePattern):
         addr, value = cast_operands_to_regs(rewriter)
 
         match value.type:
-            case riscv.Registers.UNALLOCATED_INT:
+            case riscv.IntRegisterType():
                 new_op = riscv.SwOp(
                     addr, value, 0, comment="store int value to pointer"
                 )
-            case riscv.Registers.UNALLOCATED_FLOAT:
+            case riscv.FloatRegisterType():
                 float_type = cast(AnyFloat, op.value.type)
                 match float_type:
                     case Float32Type():
