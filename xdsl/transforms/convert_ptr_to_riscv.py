@@ -30,7 +30,7 @@ from xdsl.utils.exceptions import DiagnosticException
 class PtrTypeConversion(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: ptr.PtrType) -> riscv.IntRegisterType:
-        return riscv.IntRegisterType()
+        return riscv.Registers.UNALLOCATED_INT
 
 
 @dataclass
@@ -112,7 +112,9 @@ class ConvertMemRefToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
-            UnrealizedConversionCastOp.get([op.source], [riscv.IntRegisterType()])
+            UnrealizedConversionCastOp.get(
+                (op.source,), (riscv.Registers.UNALLOCATED_INT,)
+            )
         )
 
 

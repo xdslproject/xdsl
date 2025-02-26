@@ -46,8 +46,8 @@ def test_riscv_interpreter():
             ),
         ]
     )
-    register = riscv.IntRegisterType()
-    fregister = riscv.FloatRegisterType()
+    register = riscv.Registers.UNALLOCATED_INT
+    fregister = riscv.Registers.UNALLOCATED_FLOAT
 
     riscv_functions = RiscvFunctions(
         custom_instructions={"my_custom_instruction": my_custom_instruction},
@@ -282,7 +282,7 @@ def test_riscv_interpreter():
 
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
 
-    get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType())
+    get_non_zero = riscv.GetRegisterOp(riscv.Registers.UNALLOCATED_INT)
     with pytest.raises(
         InterpretationError,
         match="Cannot get value for unallocated register !riscv.reg",
@@ -309,13 +309,12 @@ def test_get_data():
 
 def test_cast():
     module_op = ModuleOp([])
-    fregister = riscv.FloatRegisterType()
 
     riscv_functions = RiscvFunctions()
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
-    assert interpreter.cast_value(fregister, f64, 42.0) == 42.0
+    assert interpreter.cast_value(riscv.Registers.UNALLOCATED_FLOAT, f64, 42.0) == 42.0
 
 
 def test_register_contents():

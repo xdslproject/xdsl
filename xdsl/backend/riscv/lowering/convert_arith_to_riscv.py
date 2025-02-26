@@ -29,8 +29,8 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.comparisons import signed_lower_bound, signed_upper_bound
 
-_INT_REGISTER_TYPE = riscv.IntRegisterType()
-_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType()
+_INT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_INT
+_FLOAT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_FLOAT
 
 
 class LowerArithConstant(RewritePattern):

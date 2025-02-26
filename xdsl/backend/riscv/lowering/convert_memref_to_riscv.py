@@ -366,7 +366,9 @@ class ConvertMemRefSubviewOp(RewritePattern):
             )
             return
 
-        src = UnrealizedConversionCastOp.get((source,), (riscv.IntRegisterType(),))
+        src = UnrealizedConversionCastOp.get(
+            (source,), (riscv.Registers.UNALLOCATED_INT,)
+        )
         src_rd = src.results[0]
 
         if offset is None:
@@ -380,7 +382,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),
-                            (riscv.IntRegisterType(),),
+                            (riscv.Registers.UNALLOCATED_INT,),
                         )
                     )
                     index_val = cast_index_op.results[0]
