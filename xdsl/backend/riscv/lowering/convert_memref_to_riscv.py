@@ -176,11 +176,11 @@ class ConvertMemRefStoreOp(RewritePattern):
 
         rewriter.insert_op_before_matched_op(ops)
         match value.type:
-            case riscv.IntRegisterType():
+            case riscv.Registers.UNALLOCATED_INT:
                 new_op = riscv.SwOp(
                     ptr, value, 0, comment=f"store int value to memref of shape {shape}"
                 )
-            case riscv.FloatRegisterType():
+            case riscv.Registers.UNALLOCATED_FLOAT:
                 float_type = cast(AnyFloat, memref_type.element_type)
                 match float_type:
                     case Float32Type():
@@ -366,7 +366,9 @@ class ConvertMemRefSubviewOp(RewritePattern):
             )
             return
 
-        src = UnrealizedConversionCastOp.get((source,), (riscv.IntRegisterType(),))
+        src = UnrealizedConversionCastOp.get(
+            (source,), (riscv.Registers.UNALLOCATED_INT,)
+        )
         src_rd = src.results[0]
 
         if offset is None:
@@ -380,7 +382,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),
-                            (riscv.IntRegisterType(),),
+                            (riscv.Registers.UNALLOCATED_INT,),
                         )
                     )
                     index_val = cast_index_op.results[0]

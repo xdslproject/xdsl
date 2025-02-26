@@ -7,23 +7,23 @@ from xdsl.dialects.builtin import IntegerAttr
 def test_unallocated_register():
     unallocated = x86.register.GeneralRegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.GeneralRegisterType()
+    assert unallocated == x86.register.UNALLOCATED_GENERAL
 
     unallocated = x86.register.RFLAGSRegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.RFLAGSRegisterType()
+    assert unallocated == x86.register.UNALLOCATED_RFLAGS
 
     unallocated = x86.register.AVX2RegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX2RegisterType()
+    assert unallocated == x86.register.UNALLOCATED_AVX2
 
     unallocated = x86.register.AVX512RegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX512RegisterType()
+    assert unallocated == x86.register.UNALLOCATED_AVX512
 
     unallocated = x86.register.SSERegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.SSERegisterType()
+    assert unallocated == x86.register.UNALLOCATED_SSE
 
 
 @pytest.mark.parametrize(

@@ -109,7 +109,7 @@ class LowerDMAStart1D(RewritePattern):
             return snrt_dma_start_1d_wideptr((size_t)dst, (size_t)src, size);
         }
         """
-        reg_t = riscv.IntRegisterType()
+        reg_t = riscv.Registers.UNALLOCATED_INT
         rewriter.replace_matched_op(
             [
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
@@ -197,7 +197,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
         P.S. We only implement taking the top branch for now.
         """
-        reg_t = riscv.IntRegisterType()
+        reg_t = riscv.Registers.UNALLOCATED_INT
         rewriter.replace_matched_op(
             [
                 # "Take an ui64 and split it in two 32 bit-wide RISC-V registers"
@@ -231,7 +231,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
 
 class LowerDMAStart2DBase(RewritePattern, ABC):
-    any_reg = riscv.IntRegisterType()
+    any_reg = riscv.Registers.UNALLOCATED_INT
 
     def generate_dma_instructions(
         self,

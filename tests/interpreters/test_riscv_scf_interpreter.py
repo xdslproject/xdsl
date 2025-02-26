@@ -10,7 +10,7 @@ from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.ir import BlockArgument
 
 index = IndexType()
-register = riscv.IntRegisterType()
+register = riscv.Registers.UNALLOCATED_INT
 
 
 def sum_to_for_fn(n: int) -> int:
