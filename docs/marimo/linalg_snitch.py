@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.11.2"
-app = marimo.App(width="medium", auto_download=["ipynb"])
+__generated_with = "0.11.10"
+app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
@@ -59,11 +59,11 @@ def _():
         Attribute,
         Block,
         CanonicalizePass,
+        Context,
         ConvertRiscvScfToRiscvCfPass,
         ConvertSnitchStreamToSnitch,
         ImplicitBuilder,
         LowerSnitchPass,
-        Context,
         MLIROptPass,
         MemRefType,
         ModuleOp,
