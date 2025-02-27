@@ -1,6 +1,24 @@
 // RUN: xdsl-opt -p convert-func-to-x86-func --split-input-file  %s | filecheck %s
 
-func.func @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, %6: i32, %7: i32) -> i32 {
+
+func.func @foo_const() -> i32 {
+  %0 = "test.op"(): () -> i32
+  func.return %0: i32
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    x86_func.func @foo_const(%0 : !x86.reg<rsp>) -> !x86.reg<rax> {
+// CHECK-NEXT:      %1 = "test.op"() : () -> i32
+// CHECK-NEXT:      %2 = builtin.unrealized_conversion_cast %1 : i32 to !x86.reg
+// CHECK-NEXT:      %3 = x86.get_register : () -> !x86.reg<rax>
+// CHECK-NEXT:      %4 = x86.rr.mov %2, %3 : (!x86.reg, !x86.reg<rax>) -> !x86.reg<rax>
+// CHECK-NEXT:      x86_func.ret
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+// -----
+
+func.func public @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, %6: i32, %7: i32) -> i32 {
   %a = "test.op"(%0,%1): (i32,i32) -> i32
   %b = "test.op" (%a,%2): (i32,i32) -> i32
   %c = "test.op" (%b,%3): (i32,i32) -> i32
@@ -12,7 +30,8 @@ func.func @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, %6: i32
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    x86_func.func @foo_int(%0 : !x86.reg<rdi>, %1 : !x86.reg<rsi>, %2 : !x86.reg<rdx>, %3 : !x86.reg<rcx>, %4 : !x86.reg<r8>, %5 : !x86.reg<r9>, %6 : !x86.reg<rsp>) -> !x86.reg<rax> {
+// CHECK-NEXT:    x86.directive ".global" "foo_int"
+// CHECK-NEXT:    x86_func.func public @foo_int(%0 : !x86.reg<rdi>, %1 : !x86.reg<rsi>, %2 : !x86.reg<rdx>, %3 : !x86.reg<rcx>, %4 : !x86.reg<r8>, %5 : !x86.reg<r9>, %6 : !x86.reg<rsp>) -> !x86.reg<rax> {
 // CHECK-NEXT:      %7 = builtin.unrealized_conversion_cast %0 : !x86.reg<rdi> to i32
 // CHECK-NEXT:      %8 = builtin.unrealized_conversion_cast %1 : !x86.reg<rsi> to i32
 // CHECK-NEXT:      %9 = builtin.unrealized_conversion_cast %2 : !x86.reg<rdx> to i32
