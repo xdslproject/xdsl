@@ -55,12 +55,31 @@ from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
+IntegerTensorType: TypeAlias = TensorType[IntegerType]
+
 # region Abstract Base Classes
 
 
 class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
     # TODO: Remove this constraint for complex types.
     T: ClassVar = VarConstraint("T", base(AnyTensorType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    result = result_def(T)
+
+    def __init__(
+        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
+    ):
+        if result_type is None:
+            result_type = lhs.type
+        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
+    # TODO: Remove this constraint for complex types.
+    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -271,11 +290,8 @@ class AfterAllOp(IRDLOperation):
         super().__init__(operands=[inputs], result_types=(TokenType(),))
 
 
-IntegerTensorType: TypeAlias = TensorType[IntegerType]
-
-
 @irdl_op_definition
-class AndOp(IRDLOperation):
+class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
     Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
     Depending on the element type, does the following:
@@ -288,19 +304,35 @@ class AndOp(IRDLOperation):
 
     name = "stablehlo.and"
 
-    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+@irdl_op_definition
+class OrOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise Or of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
 
-    result = result_def(T)
+    For booleans: logical OR.
+    For integers: bitwise OR.
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
-        if result_type is None:
-            result_type = lhs.type
-        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#or
+    """
+
+    name = "stablehlo.or"
+
+
+@irdl_op_definition
+class XorOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise XOR of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For booleans: logical XOR.
+    For integers: bitwise XOR.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor
+    """
+
+    name = "stablehlo.xor"
 
 
 # TODO: Change to SI32 once StableHLO adopts signful integer semantics
@@ -483,6 +515,8 @@ StableHLO = Dialect(
         AddOp,
         AfterAllOp,
         AndOp,
+        OrOp,
+        XorOp,
         BitcastConvertOp,
         CaseOp,
         MultiplyOp,

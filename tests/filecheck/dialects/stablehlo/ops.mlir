@@ -36,6 +36,12 @@
 // CHECK: %and = "stablehlo.and"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
 %and = "stablehlo.and"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
 
+// CHECK: %or = "stablehlo.or"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
+%or = "stablehlo.or"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
+
+// CHECK: %xor = "stablehlo.xor"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
+%xor = "stablehlo.xor"(%t0, %t0) : (tensor<i32>, tensor<i32>) -> tensor<i32>
+
 // %bitcast = "stablehlo.bitcast_convert"(%t0) : (tensor<i32>) -> tensor<2xi16>
 %bitcast = "stablehlo.bitcast_convert"(%t0) : (tensor<i32>) -> tensor<2xi16>
 
