@@ -32,6 +32,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         super().__init__(self._parameters_from_spelling(spelling))
 
     @classmethod
+    def unallocated(cls) -> Self:
+        """
+        Returns an unallocated register of this type.
+        """
+        return cls("")
+
+    @classmethod
     def _parameters_from_spelling(
         cls, spelling: str
     ) -> tuple[IntAttr | NoneAttr, StringAttr]:

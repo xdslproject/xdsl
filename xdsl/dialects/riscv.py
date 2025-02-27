@@ -231,7 +231,7 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
-    UNALLOCATED_INT = IntRegisterType("")
+    UNALLOCATED_INT = IntRegisterType.unallocated()
     ZERO = IntRegisterType("zero")
     RA = IntRegisterType("ra")
     SP = IntRegisterType("sp")
@@ -266,7 +266,7 @@ class Registers(ABC):
     T5 = IntRegisterType("t5")
     T6 = IntRegisterType("t6")
 
-    UNALLOCATED_FLOAT = FloatRegisterType("")
+    UNALLOCATED_FLOAT = FloatRegisterType.unallocated()
     FT0 = FloatRegisterType("ft0")
     FT1 = FloatRegisterType("ft1")
     FT2 = FloatRegisterType("ft2")
