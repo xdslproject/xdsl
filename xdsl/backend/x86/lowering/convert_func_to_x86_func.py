@@ -1,6 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, func, x86, x86_func
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.ir import Attribute, Block
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -54,6 +54,10 @@ class LowerFuncOp(RewritePattern):
                 raise DiagnosticException(
                     "Cannot lower function parameters bigger than 64 bits (not implemented)"
                 )
+
+        if op.sym_visibility == StringAttr("public"):
+            directive_op = x86.DirectiveOp(".global", op.sym_name)
+            rewriter.insert_op_before_matched_op(directive_op)
 
         num_inputs = len(op.function_type.inputs.data)
         reg_args_types = arg_passing_registers[
