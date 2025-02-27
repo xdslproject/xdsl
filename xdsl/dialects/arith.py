@@ -52,6 +52,7 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
+    SameOperandsAndResultType,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
@@ -61,7 +62,6 @@ boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
-_FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
 CMPI_COMPARISON_OPERATIONS = [
     "eq",
@@ -374,6 +374,7 @@ class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
@@ -519,7 +520,9 @@ class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.subi"
 
     traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+        Pure(),
+        SameOperandsAndResultType(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
     @staticmethod
@@ -554,6 +557,7 @@ class DivUIOp(SignlessIntegerBinaryOperation):
     traits = traits_def(
         NoMemoryEffect(),
         DivUISpeculatable(),
+        SameOperandsAndResultType(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
@@ -573,6 +577,7 @@ class DivSIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(
         NoMemoryEffect(),
+        SameOperandsAndResultType(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
@@ -590,7 +595,9 @@ class FloorDivSIOp(SignlessIntegerBinaryOperation):
     name = "arith.floordivsi"
 
     traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+        Pure(),
+        SameOperandsAndResultType(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
     @staticmethod
@@ -603,7 +610,9 @@ class CeilDivSIOp(SignlessIntegerBinaryOperation):
     name = "arith.ceildivsi"
 
     traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+        Pure(),
+        SameOperandsAndResultType(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
     @staticmethod
@@ -617,6 +626,7 @@ class CeilDivUIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(
         NoMemoryEffect(),
+        SameOperandsAndResultType(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
@@ -629,40 +639,42 @@ class CeilDivUIOp(SignlessIntegerBinaryOperation):
 class RemUIOp(SignlessIntegerBinaryOperation):
     name = "arith.remui"
 
+    traits = traits_def(SameOperandsAndResultType())
+
 
 @irdl_op_definition
 class RemSIOp(SignlessIntegerBinaryOperation):
     name = "arith.remsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
 
 @irdl_op_definition
 class MinUIOp(SignlessIntegerBinaryOperation):
     name = "arith.minui"
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
 
 @irdl_op_definition
 class MaxUIOp(SignlessIntegerBinaryOperation):
     name = "arith.maxui"
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
 
 @irdl_op_definition
 class MinSIOp(SignlessIntegerBinaryOperation):
     name = "arith.minsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
 
 @irdl_op_definition
 class MaxSIOp(SignlessIntegerBinaryOperation):
     name = "arith.maxsi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
 
 @irdl_op_definition
@@ -672,6 +684,7 @@ class AndIOp(SignlessIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
@@ -691,6 +704,7 @@ class OrIOp(SignlessIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
@@ -710,6 +724,7 @@ class XOrIOp(SignlessIntegerBinaryOperation):
     traits = traits_def(
         Pure(),
         Commutative(),
+        SameOperandsAndResultType(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
@@ -732,7 +747,9 @@ class ShLIOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.shli"
 
     traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+        Pure(),
+        SameOperandsAndResultType(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
     @staticmethod
@@ -751,7 +768,9 @@ class ShRUIOp(SignlessIntegerBinaryOperation):
     name = "arith.shrui"
 
     traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+        Pure(),
+        SameOperandsAndResultType(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
     @staticmethod
@@ -771,7 +790,9 @@ class ShRSIOp(SignlessIntegerBinaryOperation):
     name = "arith.shrsi"
 
     traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
+        Pure(),
+        SameOperandsAndResultType(),
+        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
 
     @staticmethod
