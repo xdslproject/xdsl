@@ -41,9 +41,7 @@ docs = [
 gui = ["textual==2.1.2", "pyclip==0.7"]
 jax = ["jax==0.5.1", "numpy==2.2.3"]
 riscv = ["riscemu==2.2.7"]
-bench = [
-    "asv>=0.6.4",
-]
+bench = ["asv>=0.6.4", "viztracer>=1.0.2", "orjson>=3.10.15"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
