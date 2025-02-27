@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.10"
 app = marimo.App()
 
 
@@ -24,6 +24,9 @@ def _():
     from xdsl.dialects.arith import Arith
     from xdsl.dialects.func import Func
 
+    from xdsl.ir import Operation
+
+    from xdsl.rewriter import Rewriter
     from xdsl.pattern_rewriter import (
         PatternRewriter,
         RewritePattern,
@@ -33,22 +36,23 @@ def _():
     from xdsl.dialects.arith import AddiOp, ConstantOp, MuliOp
     from xdsl.dialects.builtin import ModuleOp
     from xdsl.dialects.func import FuncOp
-
     return (
         AddiOp,
         Arith,
         Builtin,
         ConstantOp,
+        Context,
         Func,
         FuncOp,
         GreedyRewritePatternApplier,
-        Context,
         ModuleOp,
         MuliOp,
+        Operation,
         Parser,
         PatternRewriteWalker,
         PatternRewriter,
         RewritePattern,
+        Rewriter,
         mo,
         xmo,
     )
@@ -184,7 +188,6 @@ def _(
             # last operation added, so here the `arith.addi`
             add = AddiOp(x, x)
             rewriter.replace_matched_op([add])
-
     return AddZeroPattern, MulTwoPattern
 
 
@@ -218,12 +221,11 @@ def _(
         merged_pattern = GreedyRewritePatternApplier(AddZeroPattern(), MulTwoPattern())
         walker = PatternRewriteWalker(merged_pattern)
         walker.rewrite_module(module)
-
     return (apply_all_rewrites,)
 
 
 @app.cell(hide_code=True)
-def _(Arith, Builtin, Func, Context):
+def _(Arith, Builtin, Context, Func):
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
