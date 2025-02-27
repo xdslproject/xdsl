@@ -11,6 +11,11 @@ def test_assembly_arg_str_ARMRegister():
     assert assembly_arg_str(arg) == "x0"
 
 
+def test_assembly_arg_str_str():
+    arg = "string_arg"
+    assert assembly_arg_str(arg) == "string_arg"
+
+
 def test_assembly_arg_str_SSAValue_valid():
     arg = TestSSAValue(IntRegisterType("x1"))
     assert assembly_arg_str(arg) == "x1"
