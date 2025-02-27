@@ -589,7 +589,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
 
 @dataclass(eq=False)
-class OpResult(SSAValue):
+class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
     """A reference to an SSA variable defined by an operation result."""
 
     op: Operation
@@ -607,7 +607,7 @@ class OpResult(SSAValue):
 
 
 @dataclass(eq=False)
-class BlockArgument(SSAValue):
+class BlockArgument(Generic[AttributeCovT], SSAValue[AttributeCovT]):
     """A reference to an SSA variable defined by a basic block argument."""
 
     block: Block
