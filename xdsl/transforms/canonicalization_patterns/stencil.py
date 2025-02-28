@@ -1,7 +1,7 @@
 from typing import cast
 
 from xdsl.dialects import stencil
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -65,7 +65,7 @@ class ApplyUnusedOperands(RewritePattern):
         new = stencil.ApplyOp.get(
             operands,
             block := Block(arg_types=bbargs_type),
-            [cast(stencil.TempType[Attribute], r.type) for r in op.res],
+            [r.type for r in op.res],
         )
 
         rewriter.inline_block(op.region.block, InsertPoint.at_start(block), block.args)
@@ -98,7 +98,7 @@ class ApplyUnusedResults(RewritePattern):
         new = stencil.ApplyOp.build(
             operands=[op.args, op.dest],
             regions=[Region(block)],
-            result_types=[[cast(stencil.TempType[Attribute], r.type) for r in results]],
+            result_types=[[r.type for r in results]],
             properties=op.properties.copy(),
             attributes=op.attributes.copy(),
         )

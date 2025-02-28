@@ -35,7 +35,7 @@ def update_result_size(
     """
     if isinstance(value.owner, ApplyOp):
         apply = value.owner
-        res_types = (cast(TempType[Attribute], r.type) for r in apply.res)
+        res_types = (r.type for r in apply.res)
         newsize = reduce(
             StencilBoundsAttr.union,
             (
@@ -48,9 +48,7 @@ def update_result_size(
             ),
         )
         for res in apply.res:
-            newtype = TempType(
-                newsize, cast(TempType[Attribute], res.type).element_type
-            )
+            newtype = TempType(newsize, res.type.element_type)
             if newtype != res.type:
                 rewriter.modify_value_type(res, newtype)
             for use in res.uses:
@@ -70,15 +68,9 @@ class CombineOpShapeInference(RewritePattern):
         lowerext_res = op.results_[len(op.lower) : len(op.lower) + len(op.lowerext)]
         upperext_res = op.results_[len(op.lower) + len(op.lowerext) :]
 
-        combined_bounds = [
-            cast(TempType[Attribute], r.type).bounds for r in combined_res
-        ]
-        lowerext_bounds = [
-            cast(TempType[Attribute], r.type).bounds for r in lowerext_res
-        ]
-        upperext_bounds = [
-            cast(TempType[Attribute], r.type).bounds for r in upperext_res
-        ]
+        combined_bounds = [r.type.bounds for r in combined_res]
+        lowerext_bounds = [r.type.bounds for r in lowerext_res]
+        upperext_bounds = [r.type.bounds for r in upperext_res]
 
         lower_bounds = list[StencilBoundsAttr | None]()
         upper_bounds = list[StencilBoundsAttr | None]()

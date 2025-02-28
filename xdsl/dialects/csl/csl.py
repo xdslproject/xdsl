@@ -1147,8 +1147,6 @@ class GetMemDsdOp(_GetDsdOp):
     )
 
     def verify_(self) -> None:
-        if not isinstance(self.result.type, DsdType):
-            raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException("DSD type must be memory DSD")
         if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
@@ -1190,8 +1188,6 @@ class GetFabDsdOp(_GetDsdOp):
     wavelet_index_offset = opt_prop_def(BoolAttr)
 
     def verify_(self) -> None:
-        if not isinstance(self.result.type, DsdType):
-            raise VerifyException("DSD type is not DsdType")
         if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
             raise VerifyException("DSD type must be fabric DSD")
         if len(self.sizes) != 1:
@@ -1226,8 +1222,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
             or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
         ):
@@ -1266,8 +1261,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
             or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
         ):
@@ -1293,8 +1287,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data == DsdKind.mem4d_dsd
         ):
             raise VerifyException(
@@ -1321,8 +1314,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-            not isinstance(self.result.type, DsdType)
-            or not isinstance(self.op.type, DsdType)
+            not isinstance(self.op.type, DsdType)
             or self.result.type.data != DsdKind.mem1d_dsd
         ):
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
@@ -1926,9 +1918,6 @@ class AddressOfOp(IRDLOperation):
             )
 
     def verify_(self) -> None:
-        if not isinstance(self.res.type, PtrType):
-            raise VerifyException("Result type must be a pointer")
-
         val_ty = self.value.type
         res_ty = self.res.type
         if isa(val_ty, MemRefType[Attribute]):

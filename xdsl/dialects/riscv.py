@@ -1184,8 +1184,6 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.type, IntRegisterType):
-            return
         if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
@@ -1329,8 +1327,6 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
 
     def verify_(self) -> None:
         if self.writeonly is None:
-            return
-        if not isinstance(self.rd.type, IntRegisterType):
             return
         if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(

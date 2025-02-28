@@ -12,7 +12,6 @@ from xdsl.interpreter import (
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
-from xdsl.ir import Attribute
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -24,7 +23,6 @@ class TensorFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         result_type = op.tensor.type
         assert isinstance(result_type, TensorType)
-        result_type = cast(TensorType[Attribute], result_type)
         result_shape = list(result_type.get_shape())
         xtype = xtype_for_el_type(result_type.element_type, interpreter.index_bitwidth)
         return (
