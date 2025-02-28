@@ -173,8 +173,8 @@ class StencilReroutingPattern(RewritePattern):
         )
 
         # Update the bounds if needed
-        producer_bounds = cast(TempType[Attribute], producer.res[0].type).bounds
-        consumer_bounds = cast(TempType[Attribute], consumer.res[0].type).bounds
+        producer_bounds = producer.res[0].type.bounds
+        consumer_bounds = consumer.res[0].type.bounds
         if isinstance(producer_bounds, StencilBoundsAttr):
             new_bounds = producer_bounds | consumer_bounds
         elif isinstance(consumer_bounds, StencilBoundsAttr):

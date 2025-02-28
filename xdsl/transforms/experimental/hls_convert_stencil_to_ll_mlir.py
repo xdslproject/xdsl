@@ -665,7 +665,7 @@ class ApplyOpToHLS(RewritePattern):
         self.module.body.block.add_op(get_number_chunks)
         self.module.body.block.add_op(get_chunk_size)
 
-        ndims: int = typing.cast(TempType[Attribute], op.res[0].type).get_num_dims()
+        ndims: int = op.res[0].type.get_num_dims()
 
         rewriter.erase_op(return_op)
         for new_return_component in new_return_component_lst:

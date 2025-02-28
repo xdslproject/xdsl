@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_func
@@ -55,7 +54,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(gr)
             res = gr.res
 
-            mv = riscv.MVOp(res, rd=cast(riscv.IntRegisterType, op.result.type))
+            mv = riscv.MVOp(res, rd=op.result.type)
             ops.append(mv)
             new_results = mv.results
 

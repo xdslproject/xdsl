@@ -19,8 +19,6 @@ class DmpSwapShapeInference(RewritePattern):
         if not op.swapped_values:
             return
         swap_t = op.swapped_values.type
-        if not isa(swap_t, stencil.TempType):
-            return
         if op.input_stencil.type != swap_t:
             rewrite.replace_value_with_new_type(op.input_stencil, swap_t)
             rewrite.handle_operation_modification(op)

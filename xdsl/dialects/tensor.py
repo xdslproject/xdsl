@@ -257,18 +257,16 @@ class ReshapeOp(IRDLOperation):
         return reshape
 
     def verify_(self) -> None:
-        if (
-            not isinstance(source_type := self.source.type, TensorType)
-            or not isinstance(shape_type := self.shape.type, TensorType)
-            or not isinstance(res_type := self.result.type, TensorType)
-        ):
+        if not isinstance(
+            source_type := self.source.type, TensorType
+        ) or not isinstance(shape_type := self.shape.type, TensorType):
             raise ValueError(
                 "tensor elementwise operation operands and result must be of type TensorType"
             )
 
         source_type = cast(TensorType[Attribute], source_type)
         shape_type = cast(TensorType[Attribute], shape_type)
-        res_type = cast(TensorType[Attribute], res_type)
+        res_type = self.result.type
 
         if source_type.element_type != res_type.element_type:
             raise VerifyException(

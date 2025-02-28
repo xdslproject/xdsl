@@ -730,7 +730,7 @@ class TransposeOp(IRDLOperation):
     def verify_(self) -> None:
         # Operand and result types are checked before the custom `verify_`
         o_type = cast(TensorType[Attribute], self.operand.type)
-        r_type = cast(TensorType[Attribute], self.result.type)
+        r_type = self.result.type
 
         o_shape = o_type.get_shape()
         r_shape = r_type.get_shape()

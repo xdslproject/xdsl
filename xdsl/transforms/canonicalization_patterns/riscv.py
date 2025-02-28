@@ -14,33 +14,21 @@ from xdsl.pattern_rewriter import (
 class RemoveRedundantMv(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MVOp, rewriter: PatternRewriter) -> None:
-        if (
-            op.rd.type == op.rs.type
-            and isinstance(op.rd.type, riscv.RISCVRegisterType)
-            and op.rd.type.is_allocated
-        ):
+        if op.rd.type == op.rs.type and op.rd.type.is_allocated:
             rewriter.replace_matched_op([], [op.rs])
 
 
 class RemoveRedundantFMv(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FMVOp, rewriter: PatternRewriter) -> None:
-        if (
-            op.rd.type == op.rs.type
-            and isinstance(op.rd.type, riscv.RISCVRegisterType)
-            and op.rd.type.is_allocated
-        ):
+        if op.rd.type == op.rs.type and op.rd.type.is_allocated:
             rewriter.replace_matched_op([], [op.rs])
 
 
 class RemoveRedundantFMvD(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FMvDOp, rewriter: PatternRewriter) -> None:
-        if (
-            op.rd.type == op.rs.type
-            and isinstance(op.rd.type, riscv.RISCVRegisterType)
-            and op.rd.type.is_allocated
-        ):
+        if op.rd.type == op.rs.type and op.rd.type.is_allocated:
             rewriter.replace_matched_op([], [op.rs])
 
 
@@ -114,7 +102,7 @@ class AddImmediateZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddiOp, rewriter: PatternRewriter) -> None:
         if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
 
 
@@ -124,7 +112,7 @@ class AddImmediateConstant(RewritePattern):
         if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
             op.immediate, IntegerAttr
         ):
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.LiOp(
                     rs1.value.data + op.immediate.value.data,
@@ -196,7 +184,7 @@ class ShiftLeftImmediate(RewritePattern):
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.LiOp(
                     op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd
@@ -213,7 +201,7 @@ class LoadWordWithKnownOffset(RewritePattern):
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.LwOp(
                     op.rs1.op.rs1,
@@ -251,7 +239,7 @@ class LoadFloatWordWithKnownOffset(RewritePattern):
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
-            rd = cast(riscv.FloatRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.FLwOp(
                     op.rs1.op.rs1,
@@ -289,7 +277,7 @@ class LoadDoubleWithKnownOffset(RewritePattern):
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
-            rd = cast(riscv.FloatRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.FLdOp(
                     op.rs1.op.rs1,
@@ -368,7 +356,7 @@ class FuseMultiplyAddD(RewritePattern):
         else:
             return
 
-        rd = cast(riscv.FloatRegisterType, op.rd.type)
+        rd = op.rd.type
         rewriter.replace_matched_op(
             riscv.FMAddDOp(
                 mul.rs1,
@@ -477,7 +465,7 @@ class LoadImmediate0(RewritePattern):
         if not (isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0):
             return
 
-        rd = cast(riscv.IntRegisterType, op.rd.type)
+        rd = op.rd.type
         if rd == riscv.Registers.ZERO:
             rewriter.replace_matched_op(riscv.GetRegisterOp(riscv.Registers.ZERO))
         else:

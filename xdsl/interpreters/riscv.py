@@ -585,9 +585,6 @@ class RiscvFunctions(InterpreterFunctions):
     ) -> PythonValues:
         attr = op.res.type
 
-        if not isinstance(attr, riscv.RISCVRegisterType):
-            raise InterpretationError(f"Unexpected type {attr}, expected register type")
-
         if not attr.is_allocated:
             raise InterpretationError(
                 f"Cannot get value for unallocated register {attr}"
