@@ -133,7 +133,7 @@ class InferAddOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            op.res.type = op.lhs.type
+            op.res.type = op_lhs_type
 
 
 @irdl_op_definition
@@ -312,7 +312,7 @@ class InferMulOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert op_lhs_type.get_shape() == op_res_type.get_shape()
         else:
-            op.res.type = op.lhs.type
+            op.res.type = op_lhs_type
 
 
 @irdl_op_definition

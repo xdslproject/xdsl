@@ -356,7 +356,7 @@ class ConstantOpLowering(RewritePattern):
         # When lowering the constant operation, we allocate and assign the constant
         # values to a corresponding memref allocation.
 
-        tensor_type = cast(toy.TensorTypeF64, op.res.type)
+        tensor_type = op.res.type
         memref_type = convert_tensor_to_memref(tensor_type)
         alloc = insert_alloc_and_dealloc(memref_type, op, rewriter)
 

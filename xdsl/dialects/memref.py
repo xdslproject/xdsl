@@ -206,9 +206,6 @@ class AllocOp(IRDLOperation):
 
     def verify_(self) -> None:
         memref_type = self.memref.type
-        if not isinstance(memref_type, MemRefType):
-            raise VerifyException("expected result to be a memref")
-        memref_type = cast(MemRefType[Attribute], memref_type)
 
         dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
@@ -345,9 +342,6 @@ class AllocaOp(IRDLOperation):
 
     def verify_(self) -> None:
         memref_type = self.memref.type
-        if not isinstance(memref_type, MemRefType):
-            raise VerifyException("expected result to be a memref")
-        memref_type = cast(MemRefType[Attribute], memref_type)
 
         dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):

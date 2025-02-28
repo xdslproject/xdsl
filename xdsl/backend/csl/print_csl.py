@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Literal, cast
+from typing import IO, Literal
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
@@ -682,13 +682,11 @@ class CslPrintContext:
                     self.variables[res] = f"({arr_name}[{idx_args}])"
                 case csl.AddressOfOp(value=val, res=res):
                     val_name = self._get_variable_name_for(val)
-                    ty = cast(csl.PtrType, res.type)
-                    use = self._var_use(res, ty.constness.data.value)
+                    use = self._var_use(res, res.type.constness.data.value)
                     self.print(f"{use} = &{val_name};")
 
                 case csl.AddressOfFnOp(fn_name=name, res=res):
-                    ty = cast(csl.PtrType, res.type)
-                    use = self._var_use(res, ty.constness.data.value)
+                    use = self._var_use(res, res.type.constness.data.value)
                     self.print(f"{use} = &{name.string_value()};")
                 case csl.DirectionOp(dir=d, res=res):
                     self._print_or_promote_to_inline_expr(res, str.upper(d.data))

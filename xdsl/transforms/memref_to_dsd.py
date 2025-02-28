@@ -371,8 +371,7 @@ class CslVarUpdate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.VariableOp, rewriter: PatternRewriter, /):
         if (
-            not isinstance(op.res.type, csl.VarType)
-            or not isa(elem_t := op.res.type.get_element_type(), MemRefType[Attribute])
+            not isa(elem_t := op.res.type.get_element_type(), MemRefType[Attribute])
             or op.default
         ):
             return
