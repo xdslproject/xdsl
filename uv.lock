@@ -1007,7 +1007,7 @@ wheels = [
 
 [[package]]
 name = "marimo"
-version = "0.11.10"
+version = "0.11.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1029,9 +1029,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/2f/f553e584827be28a8ccf0742d503fb20e81f22a7b3e0f7d491db456dedca/marimo-0.11.10.tar.gz", hash = "sha256:cba355ad69a20bca5d064e5322946d329893e7c10ca870d9e7ce7624d3f5f2b5", size = 10638632 }
+sdist = { url = "https://files.pythonhosted.org/packages/06/52/e7eec0869e3bbded38c30bcdf0ea358fcd0994ba9fff2539ad8188e8bf08/marimo-0.11.11.tar.gz", hash = "sha256:38cb8c94f62cd5b70123260a0d0b31c0bc715e59c1f3d93d5c86f6c162cfdd3e", size = 10639329 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/7e/67982fdf811b3df323aedd43d7cfa51f05d4787ec06de5671e448e73d7fc/marimo-0.11.10-py3-none-any.whl", hash = "sha256:baa15897c8044b24f00541889225f1f69d97adf9b3b1262d4bc72364e224e593", size = 10982850 },
+    { url = "https://files.pythonhosted.org/packages/be/31/59d7b8f55f2ba25e032ff627355fe956603fa5fc98684a90dae56bb411c3/marimo-0.11.11-py3-none-any.whl", hash = "sha256:30ce99ad405b6adfad93a7fbf452b07be4c805f92c8edfd446bda24177a7611f", size = 10984518 },
 ]
 
 [[package]]
@@ -2954,7 +2954,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.1" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.10" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.11" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.49" },
