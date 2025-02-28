@@ -1,8 +1,9 @@
 import pytest
 
-from xdsl.dialects.builtin import StringAttr, i32
+from xdsl.dialects.builtin import IntegerType, StringAttr, i32
 from xdsl.ir import Block, BlockArgument, SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
+from xdsl.utils.test_value import TestSSAValue
 
 
 @irdl_op_definition
@@ -59,3 +60,16 @@ def test_invalid_ssa_vals(name: str):
     val = BlockArgument(i32, Block(), 0)
     with pytest.raises(ValueError):
         val.name_hint = name
+
+
+def test_typed_ssavalue():
+    """
+    Check that SSAValue type hinting works as expected.
+    This is a type hinting test.
+    """
+    value = TestSSAValue(i32)
+
+    def foo(arg: SSAValue[IntegerType]):
+        pass
+
+    foo(value)
