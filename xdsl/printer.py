@@ -89,10 +89,10 @@ class Printer(BasePrinter):
     maps SSA Values to their "allocated" names
     """
     _ssa_names: list[dict[str, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=lambda: [dict[str, int]()], init=False
     )
     _block_names: list[dict[Block, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=lambda: [dict[Block, int]()], init=False
     )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
