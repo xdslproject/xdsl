@@ -2517,17 +2517,13 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | Imm32Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2998,45 +2994,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
-class RdRsRsFloatFloatIntegerOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
-    """
-    A base class for RV32F operations that take
-    two floating-point input registers and an integer destination register.
-    """
-
-    rd = result_def(IntRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        *,
-        rd: IntRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rs1, rs2],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[rd],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs1, self.rs2
-
-
 class RdRsRsFloatFloatIntegerOperationWithFastMath(
     RISCVCustomFormatOperation, RISCVInstruction, ABC
 ):
@@ -3057,14 +3014,10 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
