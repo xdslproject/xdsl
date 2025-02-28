@@ -4,8 +4,9 @@
 # https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
+enable-beta-ecosystems: true
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values
+  - package-ecosystem: "uv" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
@@ -14,6 +15,6 @@ updates:
       - "math-fehr"
       - "georgebisbas"
     commit-message:
-      prefix: "pip prod"
-      prefix-development: "pip dev"
+      prefix: "uv prod"
+      prefix-development: "uv dev"
       include: "scope"
