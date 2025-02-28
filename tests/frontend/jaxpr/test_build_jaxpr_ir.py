@@ -16,7 +16,8 @@ def test_id():
     def id(a: jnp.ndarray) -> jnp.ndarray:
         return a
 
-    id_jaxpr = make_jaxpr(id)(five_ones)
+    jaxpr_factory = make_jaxpr(id)
+    id_jaxpr = jaxpr_factory(five_ones)
 
     builder = IRGen()
 

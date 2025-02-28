@@ -77,6 +77,16 @@ from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.mlir_lexer import MLIRLexer
 
 
+def _ssa_name_scopes() -> list[dict[str, int]]:
+    """Helper method necessary due to Pyright"""
+    return [{}]
+
+
+def _block_name_scopes() -> list[dict[Block, int]]:
+    """Helper method necessary due to Pyright"""
+    return [{}]
+
+
 @dataclass(eq=False, repr=False)
 class Printer(BasePrinter):
     print_generic_format: bool = field(default=False)
@@ -89,10 +99,10 @@ class Printer(BasePrinter):
     maps SSA Values to their "allocated" names
     """
     _ssa_names: list[dict[str, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=_ssa_name_scopes, init=False
     )
     _block_names: list[dict[Block, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=_block_name_scopes, init=False
     )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
