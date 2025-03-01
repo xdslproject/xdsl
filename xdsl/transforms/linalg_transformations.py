@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import AffineMapAttr, DenseIntOrFPElementsAttr, ModuleOp
 from xdsl.ir import BlockArgument, OpResult, SSAValue
@@ -17,7 +17,7 @@ from xdsl.pattern_rewriter import (
 
 def build_generic_fma(
     mul_op1: SSAValue, mul_op2: SSAValue, add_op: SSAValue, out: SSAValue
-) -> linalg.Generic:
+) -> linalg.GenericOp:
     inputs = (mul_op1, mul_op2, add_op)
     outputs = (out,)
 
@@ -25,11 +25,11 @@ def build_generic_fma(
 
     @Builder.implicit_region(arg_types)
     def body(args: tuple[BlockArgument, ...]) -> None:
-        m = arith.Mulf(args[0], args[1])
-        a = arith.Addf(m, args[2])
+        m = arith.MulfOp(args[0], args[1])
+        a = arith.AddfOp(m, args[2])
         linalg.YieldOp(a)
 
-    return linalg.Generic(
+    return linalg.GenericOp(
         inputs,
         outputs,
         body,
@@ -90,10 +90,10 @@ class FuseMultiplyAddPass(RewritePattern):
         """
         return (
             isinstance(op, OpResult)
-            and isinstance(op.op, arith.Constant)
+            and isinstance(op.op, arith.ConstantOp)
             and (
                 not isinstance(v := op.op.value, DenseIntOrFPElementsAttr)
-                or v.data.data.count(v.data.data[0]) == len(v.data.data)
+                or v.is_splat()
             )
         )
 
@@ -112,7 +112,7 @@ class LinalgFuseMultiplyAddPass(ModulePass):
     require_erasable_mul: bool = False
     """Set to only fuse ops if the multiply has no other use and can be erased"""
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             FuseMultiplyAddPass(self.require_scalar_factor, self.require_erasable_mul),
             apply_recursively=False,

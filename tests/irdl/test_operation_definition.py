@@ -4,7 +4,7 @@ from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     BoolAttr,
     DenseArrayBase,
@@ -410,7 +410,7 @@ def test_range_var_fail_not_satisfy_constraint():
 
 
 @irdl_op_definition
-class OperationWithoutProperty(IRDLOperation):
+class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
     prop1 = prop_def(Attribute)
@@ -418,7 +418,7 @@ class OperationWithoutProperty(IRDLOperation):
 
 # Check that an operation cannot accept properties that are not defined
 def test_unknown_property():
-    op = OperationWithoutProperty.create(properties={"prop1": i32, "prop2": i32})
+    op = WithoutPropOp.create(properties={"prop1": i32, "prop2": i32})
     with pytest.raises(
         VerifyException, match="property 'prop2' is not defined by the operation"
     ):
@@ -852,7 +852,9 @@ class OptionlessMultipleVarOp(IRDLOperation):
 def test_no_multiple_var_option():
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
+        match="Operation test.multiple_var_op defines more than two variadic operands, "
+        "but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments "
+        "PyRDL options.",
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
 
@@ -871,28 +873,28 @@ class DefaultOp(IRDLOperation):
 
 
 def test_default_accessors():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(DefaultOp)
 
     parsed = Parser(ctx, "test.default").parse_operation()
 
     assert isinstance(parsed, DefaultOp)
 
-    assert parsed.prop.value.data == 0
+    assert not parsed.prop.value.data
 
     assert parsed.properties.get("opt_prop") is None
 
-    assert parsed.opt_prop.value.data == 1
+    assert parsed.opt_prop.value.data
 
-    assert parsed.attr.value.data == 0
+    assert not parsed.attr.value.data
 
     assert parsed.attributes.get("opt_attr") is None
 
-    assert parsed.opt_attr.value.data == 1
+    assert parsed.opt_attr.value.data
 
 
 def test_generic_accessors():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(DefaultOp)
 
     parsed = Parser(
@@ -901,14 +903,14 @@ def test_generic_accessors():
 
     assert isinstance(parsed, DefaultOp)
 
-    assert parsed.prop.value.data == 0
+    assert not parsed.prop.value.data
 
     assert parsed.properties.get("opt_prop") is None
 
-    assert parsed.opt_prop.value.data == 1
+    assert parsed.opt_prop.value.data
 
-    assert parsed.attr.value.data == 0
+    assert not parsed.attr.value.data
 
     assert parsed.attributes.get("opt_attr") is None
 
-    assert parsed.opt_attr.value.data == 1
+    assert parsed.opt_attr.value.data

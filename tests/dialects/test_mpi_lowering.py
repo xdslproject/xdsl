@@ -13,9 +13,9 @@ from xdsl.transforms import lower_mpi
 info = lower_mpi.MpiLibraryInfo()
 
 
-def extract_func_call(ops: list[Operation], name: str = "MPI_") -> func.Call | None:
+def extract_func_call(ops: list[Operation], name: str = "MPI_") -> func.CallOp | None:
     for op in ops:
-        if isinstance(op, func.Call) and op.callee.string_value().startswith(name):
+        if isinstance(op, func.CallOp) and op.callee.string_value().startswith(name):
             return op
 
 
@@ -25,14 +25,14 @@ def check_emitted_function_signature(
     types: tuple[type[Attribute] | None, ...],
 ):
     call = extract_func_call(ops, name)
-    assert call is not None, f"Missing {func.Call.name} op to {name} in output!"
+    assert call is not None, f"Missing {func.CallOp.name} op to {name} in output!"
     assert len(call.arguments) == len(types)
     for arg, arg_type in zip(call.arguments, types):
         # check that the argument type is correct (if constraint present)
         if arg_type is not None:
-            assert isinstance(
-                arg.type, arg_type
-            ), f"Expected argument to be of type {arg_type} (got {arg.type} instead)"
+            assert isinstance(arg.type, arg_type), (
+                f"Expected argument to be of type {arg_type} (got {arg.type} instead)"
+            )
 
 
 @irdl_op_definition
@@ -46,14 +46,14 @@ class CreateTestValsOp(IRDLOperation):
 
 
 def test_lower_mpi_init():
-    ops, result = lower_mpi.LowerMpiInit(info).lower(mpi.Init.build())
+    ops, result = lower_mpi.LowerMpiInit(info).lower(mpi.InitOp.build())
 
     assert len(result) == 0
     assert len(ops) == 2
 
     nullop, call = ops
 
-    assert isinstance(call, func.Call)
+    assert isinstance(call, func.CallOp)
     assert isinstance(nullop, llvm.ZeroOp)
     assert call.callee.string_value() == "MPI_Init"
     assert len(call.arguments) == 2
@@ -61,14 +61,14 @@ def test_lower_mpi_init():
 
 
 def test_lower_mpi_finalize():
-    ops, result = lower_mpi.LowerMpiFinalize(info).lower(mpi.Finalize.build())
+    ops, result = lower_mpi.LowerMpiFinalize(info).lower(mpi.FinalizeOp.build())
 
     assert len(result) == 0
     assert len(ops) == 1
 
     (call,) = ops
 
-    assert isinstance(call, func.Call)
+    assert isinstance(call, func.CallOp)
     assert call.callee.string_value() == "MPI_Finalize"
     assert len(call.arguments) == 0
 
@@ -76,7 +76,7 @@ def test_lower_mpi_finalize():
 def test_lower_mpi_wait_no_status():
     (request,) = CreateTestValsOp.get(mpi.RequestType()).results
 
-    ops, result = lower_mpi.LowerMpiWait(info).lower(mpi.Wait(request))
+    ops, result = lower_mpi.LowerMpiWait(info).lower(mpi.WaitOp(request))
 
     assert len(result) == 0
     call = extract_func_call(ops)
@@ -89,7 +89,7 @@ def test_lower_mpi_wait_with_status():
     (request,) = CreateTestValsOp.get(mpi.RequestType()).results
 
     ops, result = lower_mpi.LowerMpiWait(info).lower(
-        mpi.Wait(request, ignore_status=False)
+        mpi.WaitOp(request, ignore_status=False)
     )
 
     assert len(result) == 1
@@ -104,7 +104,7 @@ def test_lower_mpi_wait_with_status():
 
 
 def test_lower_mpi_comm_rank():
-    ops, result = lower_mpi.LowerMpiCommRank(info).lower(mpi.CommRank())
+    ops, result = lower_mpi.LowerMpiCommRank(info).lower(mpi.CommRankOp())
 
     assert len(result) == 1
     assert result[0] is not None
@@ -120,7 +120,7 @@ def test_lower_mpi_comm_rank():
 
 
 def test_lower_mpi_comm_size():
-    ops, result = lower_mpi.LowerMpiCommSize(info).lower(mpi.CommSize())
+    ops, result = lower_mpi.LowerMpiCommSize(info).lower(mpi.CommSizeOp())
 
     assert len(result) == 1
     assert result[0] is not None
@@ -141,7 +141,7 @@ def test_lower_mpi_send():
     ).results
 
     ops, result = lower_mpi.LowerMpiSend(info).lower(
-        mpi.Send(buff, size, dtype, dest, tag)
+        mpi.SendOp(buff, size, dtype, dest, tag)
     )
     """
     Check for function with signature like:
@@ -165,7 +165,7 @@ def test_lower_mpi_isend():
     ).results
 
     ops, result = lower_mpi.LowerMpiIsend(info).lower(
-        mpi.Isend(ptr, count, dtype, dest, tag, req)
+        mpi.IsendOp(ptr, count, dtype, dest, tag, req)
     )
     """
     Check for function with signature like:
@@ -201,7 +201,7 @@ def test_lower_mpi_recv_no_status():
     """
 
     ops, result = lower_mpi.LowerMpiRecv(info).lower(
-        mpi.Recv(buff, count, dtype, source, tag, ignore_status=True)
+        mpi.RecvOp(buff, count, dtype, source, tag, ignore_status=True)
     )
 
     assert len(result) == 0
@@ -231,7 +231,7 @@ def test_lower_mpi_recv_with_status():
     """
 
     ops, result = lower_mpi.LowerMpiRecv(info).lower(
-        mpi.Recv(buff, count, dtype, source, tag, ignore_status=False)
+        mpi.RecvOp(buff, count, dtype, source, tag, ignore_status=False)
     )
 
     assert len(result) == 1
@@ -261,7 +261,7 @@ def test_lower_mpi_irecv():
     """
 
     ops, result = lower_mpi.LowerMpiIrecv(info).lower(
-        mpi.Irecv(ptr, count, dtype, source, tag, req)
+        mpi.IrecvOp(ptr, count, dtype, source, tag, req)
     )
 
     # recv has no results
@@ -292,7 +292,7 @@ def test_lower_mpi_reduce():
     """
 
     ops, result = lower_mpi.LowerMpiReduce(info).lower(
-        mpi.Reduce(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM, root)
+        mpi.ReduceOp(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM, root)
     )
 
     # reduce has no results
@@ -323,7 +323,7 @@ def test_lower_mpi_all_reduce_no_send_buffer():
     """
 
     ops, result = lower_mpi.LowerMpiAllreduce(info).lower(
-        mpi.Allreduce(None, ptr, count, dtype, mpi.MpiOp.MPI_SUM)
+        mpi.AllreduceOp(None, ptr, count, dtype, mpi.MpiOp.MPI_SUM)
     )
 
     # allreduce has no results
@@ -348,10 +348,10 @@ def test_mpi_waitall():
         llvm.LLVMPointerType.opaque(), i32, mpi.DataType()
     ).results
 
-    dummy = arith.Constant.from_int_and_width(4, 32)
+    dummy = arith.ConstantOp.from_int_and_width(4, 32)
     alloc_request_op = mpi.AllocateTypeOp(mpi.RequestType, dummy)
     req_op: Operand = alloc_request_op.results[0]
-    waitall = mpi.Waitall(req_op, count)
+    waitall = mpi.WaitallOp(req_op, count)
 
     assert waitall.operands[0] == req_op
     assert waitall.operands[1] == count
@@ -369,7 +369,7 @@ def test_lower_mpi_bcast():
     """
 
     ops, result = lower_mpi.LowerMpiBcast(info).lower(
-        mpi.Bcast(ptr, count, dtype, root)
+        mpi.BcastOp(ptr, count, dtype, root)
     )
 
     # bcast has no results

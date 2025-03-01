@@ -1171,7 +1171,7 @@ class InstanceOp(IRDLOperation):
                 "inner_sym",
             )
         )
-        attributes = attributes_attr.data if attributes_attr is not None else {}
+        attributes = dict(attributes_attr.data) if attributes_attr is not None else {}
 
         operands = tuple(port[1] for port in input_ports)
         result_types = tuple(port[1] for port in output_ports)

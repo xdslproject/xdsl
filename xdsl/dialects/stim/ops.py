@@ -50,15 +50,20 @@ class QubitAttr(StimPrintable, ParametrizedAttribute, TypeAttribute):
 @irdl_attr_definition
 class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
     """
-    This attribute provides a way to indicate the required connectivity or layout of `physical` qubits.
+    This attribute provides a way to indicate the required connectivity or layout of
+    `physical` qubits.
 
     It consists of two parameters:
-        1. A co-ordinate array (currently it only anticipates a pair of qubits, but this is not fixed)
-        2. A value associated with a qubit referred to in a circuit.
+     1. A co-ordinate array (currently it only anticipates a pair of qubits, but this is
+     not fixed)
+     2. A value associated with a qubit referred to in a circuit.
 
-    The co-ordinates may be used as a physical address of a qubit, or the relative address with respect to some known physical address.
+    The co-ordinates may be used as a physical address of a qubit, or the relative
+    address with respect to some known physical address.
 
-    Operations that attach this as a property may represent the lattice-like structure of a physical quantum computer by having a property with an ArrayAttr[QubitCoordsAttr].
+    Operations that attach this as a property may represent the lattice-like structure
+    of a physical quantum computer by having a property with an
+    ArrayAttr[QubitCoordsAttr].
     """
 
     name = "stim.qubit_coord"

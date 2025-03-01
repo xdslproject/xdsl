@@ -38,16 +38,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Returns the parameter list required to construct a register instance from the given spelling.
         """
-        index_attr = NoneAttr()
         index = cls.abi_index_by_name().get(spelling)
-        if index is not None:
-            index_attr = IntAttr(index)
+        index_attr = NoneAttr() if index is None else IntAttr(index)
         return index_attr, StringAttr(spelling)
-
-    @classmethod
-    @abstractmethod
-    def unallocated(cls) -> Self:
-        raise NotImplementedError()
 
     @property
     def register_name(self) -> str:
@@ -62,9 +55,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return bool(self.spelling.data)
 
     @classmethod
-    @abstractmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        raise NotImplementedError()
+        if parser.parse_optional_punctuation("<"):
+            name = parser.parse_identifier()
+            parser.parse_punctuation(">")
+        else:
+            name = ""
+        return cls._parameters_from_spelling(name)
 
     def print_parameters(self, printer: Printer) -> None:
         if self.spelling.data:
@@ -83,3 +80,25 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     @abstractmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def infinite_register_prefix(cls) -> str:
+        """
+        Provide the prefix for the spelling for a register at the given index in the
+        "infinite" register set.
+        For a prefix `x`, the spelling of the first infinite register will be `x0`.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def infinite_register(cls, index: int) -> Self:
+        """
+        Provide the register at the given index in the "infinite" register set.
+        """
+        spelling = cls.infinite_register_prefix() + str(index)
+        res = cls(spelling)
+        assert isinstance(res.index, NoneAttr), (
+            f"Invalid 'infinite' register name: {spelling} clashes with finite register set"
+        )
+        return res

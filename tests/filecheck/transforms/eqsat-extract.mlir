@@ -50,7 +50,7 @@ func.func @non_trivial(%a : index, %b : index) -> index {
 // CHECK-NEXT:      %one_eq = eqsat.eclass %one : index
 // CHECK-NEXT:      %two = arith.constant 2 : index
 // CHECK-NEXT:      %a_shift_one = arith.shli %a, %one_eq : index
-// CHECK-NEXT:      %a_times_two = arith.muli %a, %two {"eqsat_cost" = #builtin.int<2>} : index
+// CHECK-NEXT:      %a_times_two = arith.muli %a, %two {eqsat_cost = #builtin.int<2>} : index
 // CHECK-NEXT:      %res_eq = eqsat.eclass %a_shift_one, %a_times_two : index
 // CHECK-NEXT:      func.return %res_eq : index
 // CHECK-NEXT:    }

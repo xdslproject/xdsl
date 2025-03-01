@@ -1,11 +1,7 @@
 import pytest
-from conftest import assert_print_op
 
-from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import builtin, func
-from xdsl.dialects.arith import (
-    Addf,
-)
+from xdsl.builder import Builder
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -14,7 +10,6 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     MemRefType,
-    ModuleOp,
     bf16,
     f16,
     f32,
@@ -23,9 +18,6 @@ from xdsl.dialects.builtin import (
     f128,
     i32,
     i64,
-)
-from xdsl.dialects.func import (
-    FuncOp,
 )
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -46,7 +38,7 @@ from xdsl.dialects.stencil import (
     StoreResultOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -654,75 +646,3 @@ def test_access_patterns():
     assert len(tuple(t1_acc.get_diagonals())) == 2
     assert t0_acc.max_distance() == 1
     assert t1_acc.max_distance() == 1
-
-
-# TODO: Move to a notebook at some point with proper documentation
-def test_1d3pt_stencil_construct():
-    """
-    An example 1d-3pt stencil implementation from XDSL Python-land
-    using the stencil dialect
-    """
-
-    shape = (8,)
-    space_order = 2
-    r = space_order // 2
-    symbolic_shape = (0 - r, shape[0] - r)
-
-    # Domain with halo shape
-    temp0 = TempType(len(shape), f32)
-
-    # Computational domain shape
-    field0 = FieldType([symbolic_shape], f32)
-
-    @ModuleOp
-    @Builder.implicit_region
-    def module():
-        # The kernel body
-        with ImplicitBuilder(func0 := FuncOp("kernel", ([field0, field0], [])).body):
-            field_in = func0.block.args[0]
-            field_out = func0.block.args[1]
-            # Load the input field's values
-            load0 = LoadOp.get(field_in)
-
-            # The computation region
-            with ImplicitBuilder(
-                (
-                    apply := ApplyOp.get(
-                        [load0], Region(Block(arg_types=[temp0])), [temp0]
-                    )
-                ).region
-            ) as args:
-                temp_in = args[0]
-                # Stencil computation
-                stencil_acs_l = AccessOp.get(temp_in, (-1,))
-                stencil_acs_c = AccessOp.get(temp_in, (0,))
-                stencil_acs_r = AccessOp.get(temp_in, (1,))
-                stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
-                stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
-                # Define the return operation
-                ReturnOp.get([stencil_comp1])
-
-            # Apply the computation to the loaded values
-            # Store the computed values to the output field
-            StoreOp.get(apply.results[0], field_out, StencilBoundsAttr(((0, 6),)))
-            func.Return()
-
-    expected = """
-builtin.module {
-  func.func @kernel(%0 : !stencil.field<[-1,7]xf32>, %1 : !stencil.field<[-1,7]xf32>) {
-    %2 = stencil.load %0 : !stencil.field<[-1,7]xf32> -> !stencil.temp<?xf32>
-    %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf32>) -> (!stencil.temp<?xf32>) {
-      %5 = stencil.access %4[-1] : !stencil.temp<?xf32>
-      %6 = stencil.access %4[0] : !stencil.temp<?xf32>
-      %7 = stencil.access %4[1] : !stencil.temp<?xf32>
-      %8 = arith.addf %5, %6 : f32
-      %9 = arith.addf %8, %7 : f32
-      stencil.return %9 : f32
-    }
-    stencil.store %3 to %1(<[0], [6]>) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
-    func.return
-  }
-}
-"""  # noqa
-
-    assert_print_op(module, expected, None, print_generic_format=False)

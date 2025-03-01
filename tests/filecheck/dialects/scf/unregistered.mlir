@@ -1,22 +1,24 @@
-// RUN: xdsl-opt %s --print-op-generic --allow-unregistered-dialect | xdsl-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt %s --split-input-file --print-op-generic --allow-unregistered-dialect | xdsl-opt --allow-unregistered-dialect | filecheck %s
 
-// CHECK:      func.func @for_unregistered() {
-// CHECK-NEXT:   %lb = arith.constant 0 : index
-// CHECK-NEXT:   %ub = arith.constant 42 : index
-// CHECK-NEXT:   %s = arith.constant 3 : index
-// CHECK-NEXT:   scf.for %iv = %lb to %ub step %s {
-// CHECK-NEXT:     "unregistered_op"() : () -> ()
+// CHECK:        %0 = arith.constant 0 : index
+// CHECK-NEXT:   scf.for %iv = %0 to %0 step %0 {
+// CHECK-NEXT:       "unregistered_op"() : () -> ()
 // CHECK-NEXT:   }
-// CHECK-NEXT:   func.return
-// CHECK-NEXT: }
 
-func.func @for_unregistered() {
-  %lb = arith.constant 0 : index
-  %ub = arith.constant 42 : index
-  %s = arith.constant 3 : index
-  scf.for %iv = %lb to %ub step %s {
+%0 = arith.constant 0 : index
+scf.for %iv = %0 to %0 step %0 {
     "unregistered_op"() : () -> ()
     scf.yield
-  }
-  func.return
+}
+
+// -----
+
+// CHECK:        %0 = arith.constant 0 : index
+// CHECK-NEXT:   scf.for %iv = %0 to %0 step %0 {
+// CHECK-NEXT:       "unregistered_op"() : () -> ()
+// CHECK-NEXT:   }
+
+%0 = arith.constant 0 : index
+scf.for %iv = %0 to %0 step %0 {
+    "unregistered_op"() : () -> ()
 }

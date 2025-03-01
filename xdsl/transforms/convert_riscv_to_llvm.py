@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, UnrealizedConversionCastOp
 from xdsl.dialects.llvm import InlineAsmOp
@@ -151,5 +151,5 @@ class ConvertRiscvToLLVMPass(ModulePass):
 
     xlen: int = 32
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(RiscvToLLVMPattern(self.xlen)).rewrite_module(op)

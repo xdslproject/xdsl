@@ -45,6 +45,8 @@ from xdsl.utils.hints import (
 )
 
 from .attributes import (  # noqa: TID251
+    IRDLAttrConstraint,
+    IRDLGenericAttrConstraint,
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
 )
@@ -53,7 +55,6 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     ConstraintContext,
     ConstraintVar,
-    GenericAttrConstraint,
     GenericRangeConstraint,
     RangeConstraint,
     RangeOf,
@@ -61,7 +62,7 @@ from .constraints import (  # noqa: TID251
     range_constr_coercion,
     single_range_constr_coercion,
 )
-from .error import IRDLAnnotations, error  # noqa: TID251
+from .error import IRDLAnnotations  # noqa: TID251
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -520,25 +521,17 @@ class _OpDefField(Generic[_ClsT]):
 
 
 class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    param: RangeConstraint | IRDLAttrConstraint
 
-    def __init__(
-        self,
-        cls: type[_ClsT],
-        param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar,
-    ):
+    def __init__(self, cls: type[_ClsT], param: RangeConstraint | IRDLAttrConstraint):
         super().__init__(cls)
         self.param = param
 
 
 class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
+    param: IRDLAttrConstraint
 
-    def __init__(
-        self,
-        cls: type[_ClsT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
-    ):
+    def __init__(self, cls: type[_ClsT], param: IRDLAttrConstraint):
         super().__init__(cls)
         self.param = param
 
@@ -567,7 +560,7 @@ class _AttrOrPropFieldDef(
     def __init__(
         self,
         cls: type[AttrOrPropInvT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        param: IRDLAttrConstraint,
         ir_name: str | None = None,
         default_value: Attribute | None = None,
     ):
@@ -585,24 +578,12 @@ class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
-    entry_args: (
-        GenericRangeConstraint[Attribute]
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-    )
+    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint
 
     def __init__(
         self,
         cls: type[RegionDef],
-        entry_args: (
-            GenericRangeConstraint[Attribute]
-            | AttrConstraint
-            | Attribute
-            | type[Attribute]
-            | TypeVar
-        ),
+        entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint,
     ):
         super().__init__(cls)
         self.entry_args = entry_args
@@ -615,7 +596,7 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
 
 
 def result_def(
-    constraint: (AttrConstraint | Attribute | type[Attribute] | TypeVar) = Attribute,
+    constraint: IRDLAttrConstraint = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -628,9 +609,7 @@ def result_def(
 
 
 def var_result_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: RangeConstraint | IRDLAttrConstraint = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -643,9 +622,7 @@ def var_result_def(
 
 
 def opt_result_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: RangeConstraint | IRDLAttrConstraint = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -658,7 +635,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -675,7 +652,7 @@ def prop_def(
 
 @overload
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: None = None,
     *,
     prop_name: str | None = None,
@@ -687,7 +664,7 @@ def opt_prop_def(
 
 @overload
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     prop_name: str | None = None,
@@ -698,7 +675,7 @@ def opt_prop_def(
 
 
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     prop_name: str | None = None,
@@ -714,7 +691,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: (type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT]),
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -733,7 +710,7 @@ def attr_def(
 
 @overload
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: None = None,
     *,
     attr_name: str | None = None,
@@ -745,7 +722,7 @@ def opt_attr_def(
 
 @overload
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: Attribute,
     *,
     attr_name: str | None = None,
@@ -756,7 +733,7 @@ def opt_attr_def(
 
 
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: IRDLGenericAttrConstraint[AttributeInvT],
     default_value: Attribute | None = None,
     *,
     attr_name: str | None = None,
@@ -774,7 +751,7 @@ def opt_attr_def(
 
 
 def operand_def(
-    constraint: (AttrConstraint | Attribute | type[Attribute] | TypeVar) = Attribute,
+    constraint: IRDLAttrConstraint = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -787,9 +764,7 @@ def operand_def(
 
 
 def var_operand_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: RangeConstraint | IRDLAttrConstraint = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -802,9 +777,7 @@ def var_operand_def(
 
 
 def opt_operand_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: RangeConstraint | IRDLAttrConstraint = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -819,13 +792,9 @@ def opt_operand_def(
 def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: (
-        GenericRangeConstraint[Attribute]
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-    ) = RangeOf(AnyAttr()),
+    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
+        AnyAttr()
+    ),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -840,13 +809,9 @@ def region_def(
 def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: (
-        GenericRangeConstraint[Attribute]
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-    ) = RangeOf(AnyAttr()),
+    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
+        AnyAttr()
+    ),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -861,13 +826,9 @@ def var_region_def(
 def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
-    entry_args: (
-        GenericRangeConstraint[Attribute]
-        | AttrConstraint
-        | Attribute
-        | type[Attribute]
-        | TypeVar
-    ) = RangeOf(AnyAttr()),
+    entry_args: GenericRangeConstraint[Attribute] | IRDLAttrConstraint = RangeOf(
+        AnyAttr()
+    ),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -1112,13 +1073,7 @@ class OpDef:
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_constraint(
-                    pyrdl_constr: (
-                        AttrConstraint
-                        | Attribute
-                        | type[Attribute]
-                        | TypeVar
-                        | ConstraintVar
-                    ),
+                    pyrdl_constr: IRDLAttrConstraint,
                 ) -> AttrConstraint:
                     constraint = irdl_list_to_attr_constraint(
                         (pyrdl_constr,),
@@ -1130,17 +1085,11 @@ class OpDef:
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_range_constraint(
-                    pyrdl_constr: (
-                        RangeConstraint
-                        | AttrConstraint
-                        | Attribute
-                        | type[Attribute]
-                        | TypeVar
-                        | ConstraintVar
-                    ),
+                    pyrdl_constr: RangeConstraint | IRDLAttrConstraint,
                 ) -> RangeConstraint:
                     if isinstance(pyrdl_constr, GenericRangeConstraint):
-                        return pyrdl_constr
+                        # Pyright does not know the type of the generic range constraint
+                        return cast(RangeConstraint, pyrdl_constr)
                     return RangeOf(get_constraint(pyrdl_constr))
 
                 field_names.add(field_name)
@@ -1436,7 +1385,7 @@ def get_variadic_sizes_from_attr(
             f"{size_attribute_name} {container_name} is expected to "
             "be a DenseArrayBase of i32"
         )
-    def_sizes = cast(list[int], [size_attr.data for size_attr in attribute.data.data])
+    def_sizes = cast(Sequence[int], attribute.get_values())
 
     if len(def_sizes) != len(defs):
         raise VerifyException(
@@ -1507,8 +1456,7 @@ def get_variadic_sizes(
     if len(variadic_defs) == 1:
         if len(args) - len(defs) + 1 < 0:
             raise VerifyException(
-                f"Expected at least {len(defs) - 1} "
-                f"{def_type_name}s, got {len(defs)}"
+                f"Expected at least {len(defs) - 1} {def_type_name}s, got {len(defs)}"
             )
         return [len(args) - len(defs) + 1]
 
@@ -1601,10 +1549,10 @@ def irdl_op_verify_regions(
             entry_args_types = first_block.arg_types
             try:
                 region_def.entry_args.verify(entry_args_types, constraint_context)
-            except Exception as e:
-                error(
-                    op,
+            except VerifyException as e:
+                op.emit_error(
                     f"region #{i} entry arguments do not verify:\n{e}",
+                    type(e),
                     e,
                 )
 
@@ -1633,15 +1581,15 @@ def irdl_op_verify_arg_list(
         """Verify a single argument."""
         try:
             arg_def.constr.verify(tuple(a.type for a in arg), constraint_context)
-        except Exception as e:
+        except VerifyException as e:
             if len(arg) == 1:
                 pos = f"{arg_idx}"
             else:
                 pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
-            error(
-                op,
-                f"{get_construct_name(construct)} at position "
-                f"{pos} does not verify:\n{e}",
+            op.emit_error(
+                f"{get_construct_name(construct)} at position {pos} does not "
+                f"verify:\n{e}",
+                type(e),
                 e,
             )
 
@@ -2099,9 +2047,9 @@ def get_accessors_from_op_def(
 def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     """Decorator used on classes to define a new operation definition."""
 
-    assert issubclass(
-        cls, IRDLOperation
-    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
+    assert issubclass(cls, IRDLOperation), (
+        f"class {cls.__name__} should be a subclass of IRDLOperation"
+    )
 
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))

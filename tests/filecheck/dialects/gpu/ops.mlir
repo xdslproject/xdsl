@@ -80,45 +80,45 @@ builtin.module attributes {"gpu.container_module"} {
     }) : () -> ()
 }
 
-// CHECK:      builtin.module attributes {"gpu.container_module"} {
-// CHECK-NEXT:     "gpu.module"() <{"sym_name" = "gpu"}> ({
+// CHECK:      builtin.module attributes {gpu.container_module} {
+// CHECK-NEXT:     "gpu.module"() <{sym_name = "gpu"}> ({
 // CHECK-NEXT:         func.func @kernel() {
-// CHECK-NEXT:             %{{.*}} = arith.constant {"proc" = #gpu<processor thread_x>} 13 : index
-// CHECK-NEXT:             %{{.*}} = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
+// CHECK-NEXT:             %{{.*}} = arith.constant {proc = #gpu<processor thread_x>} 13 : index
+// CHECK-NEXT:             %{{.*}} = arith.constant {loopdim = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
 
-// CHECK-NEXT:             %{{.*}} = memref.alloc() {"alignment" = 0 : i64} : memref<10x10xi32>
+// CHECK-NEXT:             %{{.*}} = memref.alloc() {alignment = 0 : i64} : memref<10x10xi32>
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>
 // CHECK-NEXT:             "gpu.host_register"(%{{.*}}) : (memref<*xi32>) -> ()
 // CHECK-NEXT:             "gpu.host_unregister"(%{{.*}}) : (memref<*xi32>) -> ()
 
  // CHECK-NEXT:            %{{.*}} = "gpu.wait"() : () -> !gpu.async.token
 
-// CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{"dimension" = #gpu<dim x>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{"dimension" = #gpu<dim y>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{"dimension" = #gpu<dim z>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{dimension = #gpu<dim x>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{dimension = #gpu<dim y>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{dimension = #gpu<dim z>}> : () -> index
 
-// CHECK-NEXT:             %{{.*}} = "gpu.block_dim"() <{"dimension" = #gpu<dim x>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.block_dim"() <{"dimension" = #gpu<dim y>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.block_dim"() <{"dimension" = #gpu<dim z>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.block_dim"() <{dimension = #gpu<dim x>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.block_dim"() <{dimension = #gpu<dim y>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.block_dim"() <{dimension = #gpu<dim z>}> : () -> index
 
-// CHECK-NEXT:             %{{.*}} = "gpu.block_id"() <{"dimension" = #gpu<dim x>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.block_id"() <{"dimension" = #gpu<dim y>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.block_id"() <{"dimension" = #gpu<dim z>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.block_id"() <{dimension = #gpu<dim x>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.block_id"() <{dimension = #gpu<dim y>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.block_id"() <{dimension = #gpu<dim z>}> : () -> index
 
-// CHECK-NEXT:             %{{.*}} = "gpu.global_id"() <{"dimension" = #gpu<dim x>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.global_id"() <{"dimension" = #gpu<dim y>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.global_id"() <{"dimension" = #gpu<dim z>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.global_id"() <{dimension = #gpu<dim x>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.global_id"() <{dimension = #gpu<dim y>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.global_id"() <{dimension = #gpu<dim z>}> : () -> index
 
-// CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() <{"dimension" = #gpu<dim x>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() <{"dimension" = #gpu<dim y>}> : () -> index
-// CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() <{"dimension" = #gpu<dim z>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() <{dimension = #gpu<dim x>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() <{dimension = #gpu<dim y>}> : () -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() <{dimension = #gpu<dim z>}> : () -> index
 
-// CHECK-NEXT:             %gmemref = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<10x10xi32>
-// CHECK-NEXT:             %gdmemref = "gpu.alloc"(%griddimx, %griddimy, %griddimz) <{"operandSegmentSizes" = array<i32: 0, 3, 0>}> : (index, index, index) -> memref<?x?x?xf64>
+// CHECK-NEXT:             %gmemref = "gpu.alloc"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> : () -> memref<10x10xi32>
+// CHECK-NEXT:             %gdmemref = "gpu.alloc"(%griddimx, %griddimy, %griddimz) <{operandSegmentSizes = array<i32: 0, 3, 0>}> : (index, index, index) -> memref<?x?x?xf64>
 
-// CHECK-NEXT:            "gpu.memcpy"(%memref, %gmemref) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<10x10xi32>) -> ()
+// CHECK-NEXT:            "gpu.memcpy"(%memref, %gmemref) {operandSegmentSizes = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<10x10xi32>) -> ()
 
-// CHECK-NEXT:            "gpu.dealloc"(%gdmemref) {"operandSegmentSizes" = array<i32: 0, 1>} : (memref<?x?x?xf64>) -> ()
+// CHECK-NEXT:            "gpu.dealloc"(%gdmemref) {operandSegmentSizes = array<i32: 0, 1>} : (memref<?x?x?xf64>) -> ()
 
 // CHECK-NEXT:             %{{.*}} = "gpu.lane_id"() : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.num_subgroups"() : () -> index
@@ -129,7 +129,7 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:             %{{.*}} = "gpu.subgroup_id"() : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.subgroup_size"() : () -> index
 
-// CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op mul>}> ({
+// CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{op = #gpu<all_reduce_op mul>}> ({
 // CHECK-NEXT:             }) : (index) -> index
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
@@ -138,24 +138,24 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:             }) : (index) -> index
 
-// CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>}> ({
 // CHECK-NEXT:             ^{{\S+}}(%{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
 // CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
 // CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
 // CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index):
-// CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
+// CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{op = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:                 }) : (index) -> index
 // CHECK-NEXT:                 %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) : (index, index, index, index, index, index) -> ()
-// CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kernel" = @gpu::@foo, "operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0>}> : (index, index, index, index, index, index, i32, index) -> ()
+// CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{kernel = @gpu::@foo, operandSegmentSizes = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0>}> : (index, index, index, index, index, index, i32, index) -> ()
 
 // CHECK-NEXT:             func.return
 // CHECK-NEXT:         }
-// CHECK-NEXT:         "gpu.func"() <{"function_type" = (index) -> (), "kernel"}> ({
+// CHECK-NEXT:         "gpu.func"() <{function_type = (index) -> (), kernel}> ({
 // CHECK-NEXT:         ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:             "gpu.return"() : () -> ()
-// CHECK-NEXT:         }) {"sym_name" = "foo", "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>} : () -> ()
+// CHECK-NEXT:         }) {sym_name = "foo", gpu.known_block_size = array<i32: 128, 1, 1>, gpu.known_grid_size = array<i32: 128, 1, 1>} : () -> ()
 // CHECK-NEXT:          "gpu.module_end"() : () -> ()
 // CHECK-NEXT:     }) : () -> ()
 

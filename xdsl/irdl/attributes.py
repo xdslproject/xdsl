@@ -11,9 +11,11 @@ from dataclasses import dataclass
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
+    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
+    TypeAlias,
     TypeVar,
     Union,
     cast,
@@ -21,6 +23,10 @@ from typing import (
     get_origin,
     get_type_hints,
 )
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
 
 from xdsl.ir import (
     Attribute,
@@ -257,8 +263,30 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     )
 
 
+IRDLGenericAttrConstraint: TypeAlias = (
+    GenericAttrConstraint[AttributeInvT]
+    | Attribute
+    | type[AttributeInvT]
+    | "TypeForm[AttributeInvT]"
+    | ConstraintVar
+    | TypeVar
+)
+"""
+Attribute constraints represented using the IRDL python frontend. Attribute constraints
+can either be:
+- An instance of `AttrConstraint` representing a constraint on an attribute.
+- An instance of `Attribute` representing an equality constraint on an attribute.
+- A type representing a specific attribute class.
+- A TypeForm that can represent both unions and generic attributes.
+- A `ConstraintVar` representing a constraint variable.
+"""
+
+IRDLAttrConstraint = IRDLGenericAttrConstraint[Attribute]
+"""See `IRDLGenericAttrConstraint`."""
+
+
 def irdl_list_to_attr_constraint(
-    pyrdl_constraints: Sequence[Any],
+    pyrdl_constraints: Sequence[IRDLAttrConstraint],
     *,
     allow_type_var: bool = False,
 ) -> AttrConstraint:
@@ -295,7 +323,7 @@ def irdl_list_to_attr_constraint(
 
 
 def irdl_to_attr_constraint(
-    irdl: Any,
+    irdl: IRDLAttrConstraint,
     *,
     allow_type_var: bool = False,
 ) -> AttrConstraint:

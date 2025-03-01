@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import Any, TypeVar, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.experimental.dmp import SwapOp
 from xdsl.dialects.stencil import (
@@ -389,7 +389,7 @@ class BufferAlloc(RewritePattern):
     %forward = stencil.load %alloc : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>
     // [...]
     ```
-    """
+    """  # noqa: E501
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
@@ -431,7 +431,7 @@ class CombineStoreFold(RewritePattern):
     stencil.store %1 to %dest1 (<[16], [32]>) : !stencil.temp<[16,32]xf64> to !stencil.field<[-2,34]xf64>
     stencil.store %2 to %dest2 (<[0], [16]>) : !stencil.temp<[0,16]xf64> to !stencil.field<[-2,34]xf64>
     ```
-    """
+    """  # noqa: E501
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter):
@@ -574,7 +574,7 @@ class StencilBufferize(ModulePass):
 
     name = "stencil-bufferize"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

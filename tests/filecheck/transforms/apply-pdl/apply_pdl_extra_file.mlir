@@ -3,5 +3,5 @@
 "test.op"() {attr = 0} : () -> ()
 
 //CHECK:         builtin.module {
-// CHECK-NEXT:      "test.op"() {"attr" = 1 : i64} : () -> ()
+// CHECK-NEXT:      "test.op"() {attr = 1 : i64} : () -> ()
 // CHECK-NEXT:   }

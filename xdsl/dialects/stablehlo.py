@@ -277,7 +277,8 @@ IntegerTensorType: TypeAlias = TensorType[IntegerType]
 @irdl_op_definition
 class AndOp(IRDLOperation):
     """
-    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor. Depending on the element type, does the following:
+    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
 
     For booleans: logical AND.
     For integers: bitwise AND.
@@ -448,7 +449,7 @@ class TransposeOp(IRDLOperation):
         )
 
     def get_permutation(self) -> tuple[int, ...]:
-        return cast(tuple[int, ...], self.permutation.as_tuple())
+        return cast(tuple[int, ...], self.permutation.get_values())
 
     def verify_(self) -> None:
         # Operand and result types are checked before the custom `verify_`

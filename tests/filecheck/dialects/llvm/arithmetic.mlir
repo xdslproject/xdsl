@@ -1,9 +1,9 @@
 // RUN: XDSL_ROUNDTRIP
 
-%arg0, %arg1 = "test.op"() : () -> (i32, i32)
+%arg0, %arg1, %f1 = "test.op"() : () -> (i32, i32, f32)
 
 %add_both = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nsw, nuw>} : i32
-// CHECK: %add_both = llvm.add %arg0, %arg1 {"overflowFlags" = #llvm.overflow<nsw,nuw>} : i32
+// CHECK: %add_both = llvm.add %arg0, %arg1 {overflowFlags = #llvm.overflow<nsw,nuw>} : i32
 
 %add_both_pretty = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
 // CHECK: %add_both_pretty = llvm.add %arg0, %arg1 overflow<nsw,nuw> : i32
@@ -121,3 +121,23 @@
 
 %icmp_uge = llvm.icmp "uge" %arg0, %arg1 : i32
 // CHECK: %icmp_uge = llvm.icmp "uge" %arg0, %arg1 : i32
+
+// float arith:
+
+%fmul = llvm.fmul %f1, %f1 : f32
+// CHECK: %fmul = llvm.fmul %f1, %f1 : f32
+
+%fmul_fast = llvm.fmul %f1, %f1 {fastmathFlags = #llvm.fastmath<fast>} : f32
+// CHECK: %fmul_fast = llvm.fmul %f1, %f1 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+%fdiv = llvm.fdiv %f1, %f1 : f32
+// CHECK: %fdiv = llvm.fdiv %f1, %f1 : f32
+
+%fadd = llvm.fadd %f1, %f1 : f32
+// CHECK: %fadd = llvm.fadd %f1, %f1 : f32
+
+%fsub = llvm.fsub %f1, %f1 : f32
+// CHECK: %fsub = llvm.fsub %f1, %f1 : f32
+
+%frem = llvm.frem %f1, %f1 : f32
+// CHECK: %frem = llvm.frem %f1, %f1 : f32

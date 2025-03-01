@@ -10,7 +10,7 @@ from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.ir import BlockArgument
 
 index = IndexType()
-register = riscv.IntRegisterType.unallocated()
+register = riscv.Registers.UNALLOCATED_INT
 
 
 def sum_to_for_fn(n: int) -> int:
@@ -36,11 +36,11 @@ def sum_to_for_op():
         @Builder.implicit_region((register, register))
         def for_loop_region(args: tuple[BlockArgument, ...]):
             (i, acc) = args
-            res = riscv.AddOp(i, acc, rd=riscv.IntRegisterType.unallocated())
+            res = riscv.AddOp(i, acc)
             riscv_scf.YieldOp(res)
 
         result = riscv_scf.ForOp(lb, ub, step, (initial,), for_loop_region)
-        func.Return(result)
+        func.ReturnOp(result)
 
 
 # Python implementation of `sum_to_while_op`
@@ -66,14 +66,14 @@ def sum_to_while_op():
         @Builder.implicit_region((register, register, register, register))
         def before_region(args: tuple[BlockArgument, ...]):
             (acc0, i0, ub0, step0) = args
-            cond = riscv.SltOp(i0, ub0, rd=riscv.IntRegisterType.unallocated()).rd
+            cond = riscv.SltOp(i0, ub0).rd
             riscv_scf.ConditionOp(cond, acc0, i0, ub0, step0)
 
         @Builder.implicit_region((register, register, register, register))
         def after_region(args: tuple[BlockArgument, ...]):
             (acc1, i1, ub1, step1) = args
-            res = riscv.AddOp(i1, acc1, rd=riscv.IntRegisterType.unallocated()).rd
-            i2 = riscv.AddOp(i1, step1, rd=riscv.IntRegisterType.unallocated()).rd
+            res = riscv.AddOp(i1, acc1).rd
+            i2 = riscv.AddOp(i1, step1).rd
             riscv_scf.YieldOp(res, i2, ub1, step1)
 
         result, *_ = riscv_scf.WhileOp(
@@ -82,7 +82,7 @@ def sum_to_while_op():
             before_region,
             after_region,
         ).res
-        func.Return(result)
+        func.ReturnOp(result)
 
 
 def interp(module_op: ModuleOp, func_name: str, n: int) -> int:

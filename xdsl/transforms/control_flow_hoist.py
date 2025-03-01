@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from itertools import chain
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, scf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, SSAValue
@@ -43,7 +43,7 @@ class AffineIfHoistPattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: affine.If, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: affine.IfOp, rewriter: PatternRewriter):
         # Easy bail out for now
         if not (is_speculatable(op) and is_side_effect_free(op)):
             return
@@ -57,7 +57,7 @@ class AffineIfHoistPattern(RewritePattern):
             return
         block = op.parent
         if block:
-            cse(block)
+            cse(block, rewriter)
 
 
 class SCFIfHoistPattern(RewritePattern):
@@ -66,7 +66,7 @@ class SCFIfHoistPattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.If, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: scf.IfOp, rewriter: PatternRewriter):
         # Easy bail out for now
         if not (is_speculatable(op) and is_side_effect_free(op)):
             return
@@ -84,7 +84,7 @@ class SCFIfHoistPattern(RewritePattern):
         block = op.parent
         if block:
             # If we hoisted some ops, run CSE on that block to not keep pushing duplicates upward.
-            cse(block)
+            cse(block, rewriter)
 
 
 class ControlFlowHoistPass(ModulePass):
@@ -94,7 +94,7 @@ class ControlFlowHoistPass(ModulePass):
 
     name = "control-flow-hoist"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

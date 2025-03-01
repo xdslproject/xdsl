@@ -35,16 +35,16 @@
 }) : () -> ()
 
 // CHECK: "builtin.module"() ({
-// CHECK-NEXT:   "func.func"() <{"function_type" = (memref<?x?xi64>, memref<?x?xi64>) -> memref<?x?xi64>, "sym_name" = "matmul", "sym_visibility" = "private"}> ({
+// CHECK-NEXT:   "func.func"() <{function_type = (memref<?x?xi64>, memref<?x?xi64>) -> memref<?x?xi64>, sym_name = "matmul", sym_visibility = "private"}> ({
 // CHECK-NEXT:   ^0(%{{.+}} : memref<?x?xi64>, %{{.+}} : memref<?x?xi64>):
-// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{"value" = 0 : index}> : () -> index
-// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{"value" = 1 : index}> : () -> index
+// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{value = 0 : index}> : () -> index
+// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{value = 1 : index}> : () -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
-// CHECK-NEXT:     %{{.+}} = "memref.alloca"(%{{.+}}, %{{.+}}) <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 2, 0>}> : (index, index) -> memref<?x?xi64>
-// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{"value" = 0 : i64}> : () -> i64
+// CHECK-NEXT:     %{{.+}} = "memref.alloca"(%{{.+}}, %{{.+}}) <{alignment = 0 : i64, operandSegmentSizes = array<i32: 2, 0>}> : (index, index) -> memref<?x?xi64>
+// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{value = 0 : i64}> : () -> i64
 // CHECK-NEXT:     "scf.for"(%{{.+}}, %{{.+}}, %{{.+}}) ({
 // CHECK-NEXT:     ^1(%{{.+}} : index):
 // CHECK-NEXT:       "scf.for"(%{{.+}}, %{{.+}}, %{{.+}}) ({
@@ -55,8 +55,8 @@
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
 // CHECK-NEXT:           %{{.+}} = "memref.load"(%{{.+}}, %{{.+}}, %{{.+}}) : (memref<?x?xi64>, index, index) -> i64
-// CHECK-NEXT:           %{{.+}} = "arith.muli"(%{{.+}}, %{{.+}}) <{"overflowFlags" = #arith.overflow<none>}> : (i64, i64) -> i64
-// CHECK-NEXT:           %{{.+}} = "arith.addi"(%{{.+}}, %{{.+}}) <{"overflowFlags" = #arith.overflow<none>}> : (i64, i64) -> i64
+// CHECK-NEXT:           %{{.+}} = "arith.muli"(%{{.+}}, %{{.+}}) <{overflowFlags = #arith.overflow<none>}> : (i64, i64) -> i64
+// CHECK-NEXT:           %{{.+}} = "arith.addi"(%{{.+}}, %{{.+}}) <{overflowFlags = #arith.overflow<none>}> : (i64, i64) -> i64
 // CHECK-NEXT:           "memref.store"(%{{.+}}, %{{.+}}, %{{.+}}, %{{.+}}) : (i64, memref<?x?xi64>, index, index) -> ()
 // CHECK-NEXT:           "scf.yield"() : () -> ()
 // CHECK-NEXT:         }) : (index, index, index) -> ()

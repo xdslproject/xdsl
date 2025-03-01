@@ -9,7 +9,7 @@
       "affine.yield"() : () -> ()
     }) : () -> ()
 
-    // CHECK:      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (256)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+    // CHECK:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, upperBoundMap = affine_map<() -> (256)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
     // CHECK-NEXT: ^0(%{{.*}} : index):
     // CHECK-NEXT:   "affine.yield"() : () -> ()
     // CHECK-NEXT: }) : () -> ()
@@ -35,12 +35,12 @@
       "affine.yield"() : () -> ()
     }) : (index) -> ()
 
-    // CHECK:      %res = "affine.for"(%{{.*}}) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 1>}> ({
+    // CHECK:      %res = "affine.for"(%{{.*}}) <{lowerBoundMap = affine_map<() -> (-10)>, upperBoundMap = affine_map<() -> (10)>, step = 1 : index, operandSegmentSizes = array<i32: 0, 0, 1>}> ({
     // CHECK-NEXT: ^1(%{{.*}} : index, %{{.*}} : !test.type<"int">):
     // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !test.type<"int">
     // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (!test.type<"int">) -> ()
     // CHECK-NEXT: }) : (!test.type<"int">) -> !test.type<"int">
-    // CHECK:      "affine.parallel"(%N) <{"lowerBoundsMap" = affine_map<() -> (0)>, "lowerBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>, "upperBoundsGroups" = dense<1> : vector<1xi32>, "steps" = [1 : i64], "reductions" = []}> ({
+    // CHECK:      "affine.parallel"(%N) <{lowerBoundsMap = affine_map<() -> (0)>, lowerBoundsGroups = dense<1> : vector<1xi32>, upperBoundsMap = affine_map<()[s0] -> (s0)>, upperBoundsGroups = dense<1> : vector<1xi32>, steps = [1 : i64], reductions = []}> ({
     // CHECK-NEXT: ^{{.*}}(%{{.*}} : index):
     // CHECK-NEXT:   "affine.yield"() : () -> ()
     // CHECK-NEXT: }) : (index) -> ()
@@ -52,7 +52,7 @@
 
     // CHECK:      %memref = "test.op"() : () -> memref<2x3xf64>
     // CHECK-NEXT: %value = "test.op"() : () -> f64
-    // CHECK-NEXT: "affine.store"(%value, %memref) <{"map" = affine_map<() -> (0, 0)>}> : (f64, memref<2x3xf64>) -> ()
+    // CHECK-NEXT: "affine.store"(%value, %memref) <{map = affine_map<() -> (0, 0)>}> : (f64, memref<2x3xf64>) -> ()
 
     %zero = "test.op"() : () -> index
     %2 = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%zero)[%zero]
@@ -61,8 +61,8 @@
 
     // CHECK:      %zero = "test.op"() : () -> index
     // CHECK-NEXT: %{{.*}} = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%{{.*}})[%{{.*}}]
-    // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{"map" = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
-    // CHECK-NEXT: %same_value = "affine.load"(%memref, %zero, %zero) <{"map" = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
+    // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{map = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
+    // CHECK-NEXT: %same_value = "affine.load"(%memref, %zero, %zero) <{map = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
 
     func.func @empty() {
     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
@@ -82,19 +82,19 @@
     func.return
   }
 // CHECK:    func.func @empty() {
-// CHECK-NEXT:      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
+// CHECK-NEXT:      "affine.for"() <{lowerBoundMap = affine_map<() -> (0)>, step = 1 : index, upperBoundMap = affine_map<() -> (10)>, operandSegmentSizes = array<i32: 0, 0, 0>}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : index):
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      "affine.if"() ({
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:      }) {"condition" = affine_set<() : (0 == 0)>} : () -> ()
+// CHECK-NEXT:      }) {condition = affine_set<() : (0 == 0)>} : () -> ()
 // CHECK-NEXT:      "affine.if"() ({
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:        "affine.yield"() : () -> ()
-// CHECK-NEXT:      }) {"condition" = affine_set<() : (0 == 0)>} : () -> ()
+// CHECK-NEXT:      }) {condition = affine_set<() : (0 == 0)>} : () -> ()
 
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
@@ -113,7 +113,7 @@
 // CHECK-NEXT:        "affine.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:        "affine.yield"(%{{.*}}) : (f32) -> ()
-// CHECK-NEXT:      }) {"condition" = affine_set<() : (0 == 0)>} : () -> f32
+// CHECK-NEXT:      }) {condition = affine_set<() : (0 == 0)>} : () -> f32
 // CHECK-NEXT:      func.return %{{.*}} : f32
 // CHECK-NEXT:    }
 

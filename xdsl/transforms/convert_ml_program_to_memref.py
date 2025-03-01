@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import bufferization, memref, ml_program
 from xdsl.dialects.builtin import (
     ModuleOp,
@@ -20,7 +20,7 @@ from xdsl.pattern_rewriter import (
 class ConvertGlobalPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: ml_program.Global, rewriter: PatternRewriter
+        self, op: ml_program.GlobalOp, rewriter: PatternRewriter
     ) -> None:
         if op.value is None:
             raise NotImplementedError(
@@ -31,7 +31,7 @@ class ConvertGlobalPattern(RewritePattern):
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
-                memref.Global.get(
+                memref.GlobalOp.get(
                     op.sym_name,
                     new_type,
                     op.value,
@@ -45,20 +45,20 @@ class ConvertGlobalPattern(RewritePattern):
 class ConvertGlobalLoadConst(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: ml_program.GlobalLoadConstant, rewriter: PatternRewriter
+        self, op: ml_program.GlobalLoadConstantOp, rewriter: PatternRewriter
     ) -> None:
         assert isinstance(op_type := op.result.type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
-                mem := memref.GetGlobal(op.global_attr, new_type),
+                mem := memref.GetGlobalOp(op.global_attr, new_type),
                 bufferization.ToTensorOp(mem.memref),
             )
         )
 
 
-class ConvertMlProgramToMemrefPass(ModulePass):
+class ConvertMlProgramToMemRefPass(ModulePass):
     """
     Converts operations in the `ml_program` dialect to `memref`.
     `ml_program` operations are at the `tensor` level of abstraction, so some of the
@@ -68,7 +68,7 @@ class ConvertMlProgramToMemrefPass(ModulePass):
 
     name = "convert-ml-program-to-memref"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
