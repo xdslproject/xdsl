@@ -1,5 +1,7 @@
 site_name: xDSL
 
+strict: true
+
 theme:
   name: "material"
   features:
