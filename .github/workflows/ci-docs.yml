@@ -34,5 +34,5 @@ jobs:
       run: VENV_EXTRAS="--all-extras" make venv
 
     - name: Build documentation
-      run: mkdocs build --strict
+      run: uv run mkdocs build --strict
       # The --strict flag ensures the build fails on warnings
