@@ -72,7 +72,7 @@ class GeneralRegisterType(X86RegisterType):
         return "inf_reg_"
 
 
-UNALLOCATED_GENERAL = GeneralRegisterType("")
+UNALLOCATED_GENERAL = GeneralRegisterType.unallocated()
 RAX = GeneralRegisterType("rax")
 RCX = GeneralRegisterType("rcx")
 RDX = GeneralRegisterType("rdx")
@@ -126,7 +126,7 @@ class RFLAGSRegisterType(X86RegisterType):
         return "inf_rflags_"
 
 
-UNALLOCATED_RFLAGS = RFLAGSRegisterType("")
+UNALLOCATED_RFLAGS = RFLAGSRegisterType.unallocated()
 RFLAGS = RFLAGSRegisterType("rflags")
 
 
@@ -179,7 +179,7 @@ SSE_INDEX_BY_NAME = {
     "xmm15": 15,
 }
 
-UNALLOCATED_SSE = SSERegisterType("")
+UNALLOCATED_SSE = SSERegisterType.unallocated()
 XMM0 = SSERegisterType("xmm0")
 XMM1 = SSERegisterType("xmm1")
 XMM2 = SSERegisterType("xmm2")
@@ -239,7 +239,7 @@ AVX2_INDEX_BY_NAME = {
     "ymm15": 15,
 }
 
-UNALLOCATED_AVX2 = AVX2RegisterType("")
+UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
 YMM0 = AVX2RegisterType("ymm0")
 YMM1 = AVX2RegisterType("ymm1")
 YMM2 = AVX2RegisterType("ymm2")
@@ -315,7 +315,7 @@ X86AVX512_INDEX_BY_NAME = {
     "zmm31": 31,
 }
 
-UNALLOCATED_AVX512 = AVX512RegisterType("")
+UNALLOCATED_AVX512 = AVX512RegisterType.unallocated()
 ZMM0 = AVX512RegisterType("zmm0")
 ZMM1 = AVX512RegisterType("zmm1")
 ZMM2 = AVX512RegisterType("zmm2")
