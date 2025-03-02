@@ -51,7 +51,6 @@ from xdsl.irdl import (
     ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
-    InferenceContext,
     IntConstraint,
     IRDLAttrConstraint,
     IRDLGenericAttrConstraint,
@@ -329,7 +328,7 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
 
-    def infer(self, context: InferenceContext) -> IntAttr:
+    def infer(self, context: ConstraintContext) -> IntAttr:
         return IntAttr(self.int_constraint.infer(context))
 
     def get_unique_base(self) -> type[Attribute] | None:
