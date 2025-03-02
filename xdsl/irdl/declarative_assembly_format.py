@@ -21,7 +21,6 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
-    ConstraintVariableType,
     InferenceContext,
     IRDLOperation,
     IRDLOperationInvT,
@@ -51,7 +50,7 @@ class ParsingState:
     successors: list[Successor | None | Sequence[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
-    variables: dict[str, ConstraintVariableType]
+    context: InferenceContext
 
     def __init__(self, op_def: OpDef):
         self.operands = [None] * len(op_def.operands)
@@ -61,7 +60,7 @@ class ParsingState:
         self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
-        self.variables = {}
+        self.context = InferenceContext()
 
 
 @dataclass
@@ -169,7 +168,9 @@ class FormatProgram:
         )
 
     def resolve_constraint_variables(self, state: ParsingState):
-        state.variables = {v: r.extract_var(state) for v, r in self.extractors.items()}
+        state.context = InferenceContext(
+            {v: r.extract_var(state) for v, r in self.extractors.items()}
+        )
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
@@ -183,7 +184,7 @@ class FormatProgram:
                 operand = state.operands[i]
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
                 operand_type = operand_def.constr.infer(
-                    InferenceContext(state.variables),
+                    state.context,
                     length=range_length,
                 )
                 resolved_operand_type: Attribute | Sequence[Attribute]
@@ -205,7 +206,7 @@ class FormatProgram:
         ):
             if result_type is None:
                 inferred_result_types = result_def.constr.infer(
-                    InferenceContext(state.variables), length=None
+                    state.context, length=None
                 )
                 resolved_result_type: Attribute | Sequence[Attribute]
                 if isinstance(result_def, OptionalDef):
