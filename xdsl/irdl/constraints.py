@@ -83,7 +83,7 @@ class ConstraintContext:
 
 _AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
 
-ConstraintVariableType: TypeAlias = Attribute | Sequence[Attribute] | int
+ConstraintVariableType: TypeAlias = Attribute | tuple[Attribute, ...] | int
 """
 Possible types that a constraint variable can have.
 """
@@ -790,7 +790,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
 
     def get_variable_extractors(
         self,
-    ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
+    ) -> dict[str, VarExtractor[tuple[AttributeCovT, ...]]]:
         """
         Get a dictionary of constraint variables to extractors for these variables,
         which provide a method to obtain the value of each constraint variable from
@@ -817,7 +817,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
 
     def infer(
         self, context: InferenceContext, *, length: int | None
-    ) -> Sequence[AttributeCovT]:
+    ) -> tuple[AttributeCovT, ...]:
         """
         Infer the attribute given the the values for all variables, and possibly
         the length of the range if known.
@@ -863,17 +863,17 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
 
     def get_variable_extractors(
         self,
-    ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
-        return {self.name: IdExtractor[Sequence[AttributeCovT]]()}
+    ) -> dict[str, VarExtractor[tuple[AttributeCovT, ...]]]:
+        return {self.name: IdExtractor[tuple[AttributeCovT, ...]]()}
 
     def can_infer(self, var_constraint_names: Set[str], *, length_known: bool) -> bool:
         return self.name in var_constraint_names
 
     def infer(
         self, context: InferenceContext, *, length: int | None
-    ) -> Sequence[AttributeCovT]:
+    ) -> tuple[AttributeCovT, ...]:
         v = context.variables[self.name]
-        return cast(Sequence[AttributeCovT], v)
+        return cast(tuple[AttributeCovT, ...], v)
 
 
 @dataclass(frozen=True)
@@ -908,7 +908,7 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
         context: InferenceContext,
         *,
         length: int | None,
-    ) -> Sequence[AttributeCovT]:
+    ) -> tuple[AttributeCovT, ...]:
         if length is None:
             length = self.length.infer(context)
         attr = self.constr.infer(context)
@@ -933,15 +933,15 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
         self.constr.verify(attrs[0], constraint_context)
 
     @dataclass(frozen=True)
-    class _Extractor(VarExtractor[Sequence[AttributeInvT]]):
+    class _Extractor(VarExtractor[tuple[AttributeInvT, ...]]):
         inner: VarExtractor[AttributeInvT]
 
-        def extract_var(self, a: Sequence[AttributeInvT]) -> ConstraintVariableType:
+        def extract_var(self, a: tuple[AttributeInvT, ...]) -> ConstraintVariableType:
             return self.inner.extract_var(a[0])
 
     def get_variable_extractors(
         self,
-    ) -> dict[str, VarExtractor[Sequence[AttributeCovT]]]:
+    ) -> dict[str, VarExtractor[tuple[AttributeCovT, ...]]]:
         return {
             v: self._Extractor(r)
             for v, r in self.constr.get_variable_extractors().items()
@@ -954,7 +954,7 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
 
     def infer(
         self, context: InferenceContext, *, length: int | None
-    ) -> Sequence[AttributeCovT]:
+    ) -> tuple[AttributeCovT, ...]:
         return (self.constr.infer(context),)
 
 

@@ -239,7 +239,7 @@ class FormatParser(BaseParser):
     class _OperandResultExtractor(VarExtractor[ParsingState]):
         idx: int
         is_operand: bool
-        inner: VarExtractor[Sequence[Attribute]]
+        inner: VarExtractor[tuple[Attribute, ...]]
 
         def extract_var(self, a: ParsingState) -> ConstraintVariableType:
             if self.is_operand:
@@ -249,6 +249,8 @@ class FormatParser(BaseParser):
             assert types is not None
             if isinstance(types, Attribute):
                 types = (types,)
+            else:
+                types = tuple(types)
             return self.inner.extract_var(types)
 
     @dataclass(frozen=True)
