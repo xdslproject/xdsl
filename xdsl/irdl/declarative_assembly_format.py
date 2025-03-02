@@ -168,9 +168,18 @@ class FormatProgram:
         )
 
     def resolve_constraint_variables(self, state: ParsingState):
-        state.context = InferenceContext(
-            {v: r.extract_var(state) for v, r in self.extractors.items()}
-        )
+        ctx = InferenceContext()
+        for k, e in self.extractors.items():
+            v = e.extract_var(state)
+            match v:
+                case Attribute():
+                    ctx.variables[k] = v
+                case int():
+                    ctx.int_variables[k] = v
+                case _:
+                    ctx.range_variables[k] = tuple(v)
+
+        state.context = ctx
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
