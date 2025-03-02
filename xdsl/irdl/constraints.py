@@ -91,9 +91,19 @@ Possible types that a constraint variable can have.
 
 @dataclass
 class InferenceContext:
-    variables: dict[str, ConstraintVariableType] = field(default_factory=dict)
+    variables: dict[str, Attribute] = field(default_factory=dict)
     """
     A mapping from variable names to the inferred attribute or attribute sequence.
+    """
+
+    range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    """
+    A mapping from variable names to the inferred attribute sequence.
+    """
+
+    int_variables: dict[str, int] = field(default_factory=dict)
+    """
+    A mapping from variable names to the inferred integer.
     """
 
 
@@ -767,7 +777,7 @@ class IntVarConstraint(IntConstraint):
         self,
         context: InferenceContext,
     ) -> int:
-        v = context.variables[self.name]
+        v = context.int_variables[self.name]
         assert isinstance(v, int)
         return v
 
@@ -872,7 +882,7 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
     def infer(
         self, context: InferenceContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
-        v = context.variables[self.name]
+        v = context.range_variables[self.name]
         return cast(Sequence[AttributeCovT], v)
 
 
