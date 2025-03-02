@@ -168,7 +168,7 @@ class FormatProgram:
         )
 
     def resolve_constraint_variables(self, state: ParsingState):
-        ctx = InferenceContext()
+        ctx = ConstraintContext()
         for k, e in self.extractors.items():
             v = e.extract_var(state)
             match v:
