@@ -21,7 +21,7 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
-    InferenceContext,
+    ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
@@ -50,7 +50,7 @@ class ParsingState:
     successors: list[Successor | None | Sequence[Successor]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
-    context: InferenceContext
+    context: ConstraintContext
 
     def __init__(self, op_def: OpDef):
         self.operands = [None] * len(op_def.operands)
@@ -60,7 +60,7 @@ class ParsingState:
         self.successors = [None] * len(op_def.successors)
         self.attributes = {}
         self.properties = {}
-        self.context = InferenceContext()
+        self.context = ConstraintContext()
 
 
 @dataclass
@@ -168,16 +168,16 @@ class FormatProgram:
         )
 
     def resolve_constraint_variables(self, state: ParsingState):
-        ctx = InferenceContext()
+        ctx = ConstraintContext()
         for k, e in self.extractors.items():
             v = e.extract_var(state)
             match v:
                 case Attribute():
-                    ctx.variables[k] = v
+                    ctx.set_variable(k, v)
                 case int():
-                    ctx.int_variables[k] = v
+                    ctx.set_int_variable(k, v)
                 case _:
-                    ctx.range_variables[k] = tuple(v)
+                    ctx.set_range_variable(k, tuple(v))
 
         state.context = ctx
 
