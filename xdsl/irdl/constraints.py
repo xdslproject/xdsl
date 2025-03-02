@@ -57,16 +57,16 @@ class ConstraintContext:
         self._int_variables[key] = i
 
     @property
-    def variables(self) -> Sequence[str]:
-        return tuple(self._variables.keys())
+    def variables(self) -> Set[str]:
+        return self._variables.keys()
 
     @property
-    def range_variables(self) -> Sequence[str]:
-        return tuple(self._range_variables.keys())
+    def range_variables(self) -> Set[str]:
+        return self._range_variables.keys()
 
     @property
-    def int_variables(self) -> Sequence[str]:
-        return tuple(self._int_variables.keys())
+    def int_variables(self) -> Set[str]:
+        return self._int_variables.keys()
 
     def copy(self):
         return ConstraintContext(
