@@ -113,6 +113,39 @@ class AffineExpr:
 
         raise ValueError("Unreachable")
 
+    def as_constant(self) -> AffineConstantExpr | None:
+        """
+        Simplifies the `self` to an AffineConstantExpr if possible, otherwise returns None.
+        """
+
+        if isinstance(self, AffineConstantExpr):
+            return self
+        if isinstance(self, AffineDimExpr):
+            return None
+        if isinstance(self, AffineSymExpr):
+            return None
+
+        if isinstance(self, AffineBinaryOpExpr):
+            lhs = self.lhs.as_constant()
+            if lhs is None:
+                return None
+            rhs = self.rhs.as_constant()
+            if rhs is None:
+                return None
+
+            if self.kind == AffineBinaryOpKind.Add:
+                return AffineConstantExpr(lhs.value + rhs.value)
+            elif self.kind == AffineBinaryOpKind.Mul:
+                return AffineConstantExpr(lhs.value * rhs.value)
+            elif self.kind == AffineBinaryOpKind.Mod:
+                return AffineConstantExpr(lhs.value % rhs.value)
+            elif self.kind == AffineBinaryOpKind.FloorDiv:
+                return AffineConstantExpr(lhs.value // rhs.value)
+            elif self.kind == AffineBinaryOpKind.CeilDiv:
+                return AffineConstantExpr(-(-lhs.value // rhs.value))
+
+        raise ValueError("Unreachable")
+
     def _try_fold_constant(
         self, other: AffineExpr, kind: AffineBinaryOpKind
     ) -> AffineExpr | None:

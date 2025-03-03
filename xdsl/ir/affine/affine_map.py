@@ -175,6 +175,40 @@ class AffineMap:
             results=results,
         )
 
+    def compose_with_values(self, values: Sequence[int]) -> tuple[int, ...]:
+        """
+        Returns the results of composing `self` with the given constants `values`.
+        This is the same as composing self with a map of constant expressions with the values of `values`.
+
+        Prerequisites:
+        - `self` must not have symbols
+        - `self` must have the same number of dimensions as the number of given `values`
+
+        Example:
+        ```
+        map1: (d0, d1) -> (d0 + 1, d1 - 1) composed with (1, 2 ) gives (2, 1)
+        ```
+        """
+
+        if self.num_symbols != 0:
+            raise ValueError(
+                "Cannot compose a AffineMap with values if the map has symbols."
+            )
+
+        expressions: list[AffineExpr] = []
+        for value in values:
+            expressions.append(AffineExpr.constant(value))
+        result_map = self.compose(AffineMap(0, 0, tuple(expressions)))
+
+        result: list[int] = list()
+
+        for res in result_map.results:
+            as_constant = res.as_constant()
+            assert as_constant is not None
+            result.append(as_constant.value)
+
+        return tuple(result)
+
     def inverse_permutation(self) -> AffineMap | None:
         """
         Returns a map of codomain to domain dimensions such that the first
