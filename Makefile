@@ -179,11 +179,7 @@ asv-preview: uv-installed .asv/html
 
 .PHONY: asv-clean
 asv-clean: .asv
-<<<<<<< HEAD
 	rm -rf .asv/html .asv/results/$(shell hostname)
-=======
-	rm -rf .asv/
->>>>>>> main
 
 # docs
 .PHONY: docs-serve
