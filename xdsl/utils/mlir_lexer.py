@@ -258,12 +258,17 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         return match
 
     _whitespace_regex = re.compile(r"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
+    _first_whitespace_chars = set((ord("\n"), ord(" "), ord("\t"), ord("\r"), ord("/")))
 
     def _consume_whitespace(self) -> None:
         """
         Consume whitespace and comments.
         """
-        self._consume_regex(self._whitespace_regex)
+        first = self.input.slice(self.pos, self.pos + 1)
+        if first is None:
+            return
+        if ord(first) in self._first_whitespace_chars:
+            self._consume_regex(self._whitespace_regex)
 
     def _form_token(self, kind: MLIRTokenKind, start_pos: Position) -> MLIRToken:
         """
