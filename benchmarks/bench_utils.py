@@ -2,9 +2,9 @@
 """Utilities for profiling ASV benchmarks with a variety of tools."""
 
 import cProfile
+import gc
 import subprocess
 import time
-import gc
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
@@ -19,7 +19,7 @@ def warmed_timeit(
     func: Callable[[], Any],
     setup: Callable[[], Any] | None = None,
     number: int = 100,
-    warmup: int = 3
+    warmup: int = 3,
 ) -> tuple[float, float, float]:
     """Time the contents of a class method with setup and warmup.
 
@@ -102,28 +102,28 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
 
 def get_benchmark_runs(
     args: Namespace,
-    benchmarks: dict[str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]]
+    benchmarks: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ],
 ) -> list[tuple[str, Callable[[], None], Callable[[], None] | None]]:
     """Get the benchmark to profile."""
     if args.test == "all":
         return [
-            (name, test[0], test[1]) if isinstance(test, tuple)
-            else (name, test, None)
+            (name, test[0], test[1]) if isinstance(test, tuple) else (name, test, None)
             for name, test in benchmarks.items()
         ]
 
     name = args.test
     test = benchmarks[name]
-    return [
-        (name, test[0], test[1]) if isinstance(test, tuple)
-        else (name, test, None)
-    ]
+    return [(name, test[0], test[1]) if isinstance(test, tuple) else (name, test, None)]
 
 
 def run_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]],
-    warmup: bool = False
+    benchmarks: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ],
+    warmup: bool = False,
 ) -> None:
     """Directly run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
@@ -141,7 +141,9 @@ def run_benchmark(
 
 def timeit_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]]
+    benchmarks: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ],
 ) -> None:
     """Use a custom function based on timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
@@ -152,8 +154,10 @@ def timeit_benchmark(
 
 def cprofile_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]],
-    warmup: bool = False
+    benchmarks: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ],
+    warmup: bool = False,
 ) -> Path:
     """Use cProfile to profile a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
@@ -177,8 +181,10 @@ def cprofile_benchmark(
 
 def viztracer_benchmark(
     args: Namespace,
-    benchmarks: dict[str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]],
-    warmup: bool = False
+    benchmarks: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ],
+    warmup: bool = False,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
@@ -215,8 +221,10 @@ def show(
 
 
 def profile(
-    benchmarks: dict[str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]],
-    argv: list[str] | None = None
+    benchmarks: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ],
+    argv: list[str] | None = None,
 ) -> None:
     """Run the selected profiler."""
     if not benchmarks:

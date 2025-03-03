@@ -64,18 +64,20 @@ if __name__ == "__main__":
     from bench_utils import profile
 
     PATTERN_REWRITER = PatternRewrite()
-    BENCHMARKS: dict[str, Callable[[], None] | tuple[Callable[[], None], Callable[[], Any]]] = {
+    BENCHMARKS: dict[
+        str, Callable[[], None] | tuple[Callable[[], None], Callable[[], Any]]
+    ] = {
         "PatternRewriter.constant_folding_20": (
             PATTERN_REWRITER.time_constant_folding_20,
-            PATTERN_REWRITER.setup_constant_folding_20
+            PATTERN_REWRITER.setup_constant_folding_20,
         ),
         "PatternRewriter.constant_folding_100": (
             PATTERN_REWRITER.time_constant_folding_100,
-            PATTERN_REWRITER.setup_constant_folding_100
+            PATTERN_REWRITER.setup_constant_folding_100,
         ),
         "PatternRewriter.constant_folding_1000": (
             PATTERN_REWRITER.time_constant_folding_1000,
-            PATTERN_REWRITER.setup_constant_folding_1000
+            PATTERN_REWRITER.setup_constant_folding_1000,
         ),
     }
     profile(BENCHMARKS)
