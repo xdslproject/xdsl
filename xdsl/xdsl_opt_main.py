@@ -5,7 +5,7 @@ from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
 from itertools import accumulate
-from typing import IO
+from typing import IO, Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
@@ -176,8 +176,7 @@ class xDSLOptMain(CommandLineTool):
         arg_parser.add_argument(
             "-v",
             "--version",
-            action="version",
-            version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+            action=VersionAction,
         )
 
         arg_parser.add_argument(
@@ -371,3 +370,18 @@ class xDSLOptMain(CommandLineTool):
 
         self.available_targets[self.args.target](prog, output)
         return output.getvalue()
+
+
+class VersionAction(argparse.Action):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(nargs=0, *args, **kwargs)
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        version_str = f"xdsl-opt built from xdsl version {version('xdsl')}\n"
+        parser.exit(message=version_str)
