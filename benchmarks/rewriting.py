@@ -58,6 +58,53 @@ class PatternRewrite:
         CANONICALIZE_PASS.apply(CTX, self.workload_constant_1000)
 
 
+class RewritingMicrobenchmarks:
+    def time_get_variadic_sizes(self) -> None:
+        """Time getting the variadic size of an operation.
+
+        (1/60th)
+        """
+        pass
+
+    def time_populate_worklist(self) -> None:
+        """."""
+        # Walk region
+        # Push to worklist
+
+    def time_remove_unused_operation(self) -> None:
+        """."""
+        # is_trivially_dead
+
+    def time_canonicalisation_pattern_rewrite(self) -> None:
+        """."""
+        # operation get_trait (other ubenchmark?)
+
+    # pattern_rewriter_init
+
+    # worklist pop
+
+    # insertpoint before
+
+    # ParameterisedAttributeInit
+
+    # const_evaluate_operand
+
+    # PatternRewriter.insert_op
+
+    # SSAValue.replace_by
+
+    # PatternRewriter.erase_op
+
+    # result_only_effects
+
+    # LiveSet.propagate_region_liveness
+
+    # LiveSet.delete_dead
+
+    # def time_(self) -> None:
+    #     """."""
+
+
 if __name__ == "__main__":
     from collections.abc import Callable
 
