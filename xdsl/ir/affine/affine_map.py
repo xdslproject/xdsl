@@ -251,6 +251,60 @@ class AffineMap:
             new_dims, new_symbols, result_num_dims, self.num_symbols
         )
 
+    def is_function_of_dim(self, position: int) -> bool:
+        """
+        Return `True` if `self` is a function of the given dimension
+        """
+        return position in self.used_dims()
+
+    def used_dims(self) -> set[int]:
+        """
+        Return all dimensions used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d0}
+        (d0, d1, d2) -> (d0, d2) gives {d0, d2}
+        ```
+        """
+        result: set[int] = set()
+
+        for expr in self.results:
+            result = result.union(expr.used_dims())
+
+        return result
+
+    def unused_dims(self) -> set[int]:
+        """
+        Return all dimensions not used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d1}
+        (d0, d1, d2) -> (d0, d2) gives {d1}
+        ```
+        """
+        dims = {i for i in range(self.num_dims)}
+
+        return dims.difference(self.used_dims())
+
+    def unused_dims_bit_vector(self) -> tuple[bool, ...]:
+        """
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is unused in the map, otherwise it is False.
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives (False, True)
+        (d0, d1, d2) -> (d0, d2) gives (False, True, False)
+        ```
+        """
+
+        unused_dims = self.unused_dims()
+        return tuple(
+            True if position in unused_dims else False
+            for position in range(self.num_dims)
+        )
+
     def __str__(self) -> str:
         # Create comma seperated list of dims.
         dims = ["d" + str(i) for i in range(self.num_dims)]
