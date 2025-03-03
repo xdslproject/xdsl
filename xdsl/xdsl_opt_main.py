@@ -383,5 +383,5 @@ class VersionAction(argparse.Action):
         values: Any,
         option_string: str | None = None,
     ) -> None:
-        version_str = f"xdsl-opt built from xdsl version {version('xdsl')}\n"
-        parser.exit(message=version_str)
+        print(f"xdsl-opt built from xdsl version {version('xdsl')}\n")
+        parser.exit()
