@@ -2,17 +2,22 @@
 """Utilities for profiling ASV benchmarks with a variety of tools."""
 
 import cProfile
+import dis
 import gc
+import inspect
 import subprocess
+import sys
+import textwrap
 import time
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
 from statistics import mean, median, stdev
+from types import CodeType
 from typing import Any, cast
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
-PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
+PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof", "dis")
 
 
 def warmed_timeit(
@@ -68,6 +73,67 @@ def warmed_timeit(
         median(times) - mean(offset),
         stdev(times) + stdev(offset),
     )
+
+
+def get_called_functions(
+    func: Callable[[], Any], repeats: bool = True
+) -> list[tuple[str, CodeType | None, int]]:
+    """Get called functions and their stack depths."""
+    names: list[CodeType] = []
+    objs: list[CodeType | None] = []
+    depths: list[int] = []
+    stack: list[str] = []
+
+    def trace_calls(frame, event, _arg):
+        if event == "call":
+            # Get the function name
+            func_name = frame.f_code.co_name
+
+            # Get the function object (if it's a method, try to get it from locals)
+            func_obj = frame.f_globals.get(frame.f_code.co_name)
+            if func_obj is None and "self" in frame.f_locals:
+                instance = frame.f_locals["self"]
+                func_obj = getattr(instance.__class__, frame.f_code.co_name, None)
+            if not inspect.isfunction(func_obj):
+                func_obj = None
+
+            if repeats or func_name not in names:
+                names.append(func_name)
+                objs.append(func_obj)
+                depths.append(len(stack))
+            stack.append(func_name)
+
+        elif event == "return":
+            stack.pop()
+        return trace_calls
+
+    sys.settrace(trace_calls)
+    func()
+    sys.settrace(None)
+    return list(zip(names, objs, depths))
+
+
+def print_bytecode(func: Callable[[], Any], indent: int = 4, repeats: bool = False):
+    """Disassemble a function and all functions it calls."""
+    for name, obj, depth in get_called_functions(func, repeats=repeats):
+        print(f"{' ' * depth * indent}// {'=' * 43}")
+        print(f"{' ' * depth * indent}// Disassembling `{name}`:")
+        print(f"{' ' * depth * indent}// {'=' * 43}")
+        try:
+            if not obj:
+                raise OSError("could not get source code")
+            source = textwrap.dedent(inspect.getsource(obj))
+            print(
+                " " * depth * indent
+                + "// >>> "
+                + f"\n{' ' * depth * indent}// >>> ".join(source.split("\n"))
+            )
+            print(f"{' ' * depth * indent}// {'=' * 43}")
+            bytecode = dis.Bytecode(obj).dis()
+            print(bytecode)
+        except OSError:
+            print(" " * depth * indent + ">>> # Unable to retrieve function body!")
+        print()
 
 
 def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
@@ -184,7 +250,7 @@ def viztracer_benchmark(
     benchmarks: dict[
         str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
     ],
-    warmup: bool = False,
+    warmup: bool = True,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
@@ -203,6 +269,19 @@ def viztracer_benchmark(
     with VizTracer(output_file=str(output_prof)):
         test()
     return output_prof
+
+
+def dis_benchmark(
+    args: Namespace,
+    benchmarks: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ],
+):
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    if len(benchmark_runs) != 1:
+        raise ValueError("Cannot profile multiple benchmarks together")
+    _name, test, _ = benchmark_runs[0]
+    print_bytecode(test)
 
 
 def show(
@@ -246,5 +325,7 @@ def profile(
         case "viztracer":
             output_prof = viztracer_benchmark(args, benchmarks)
             show(args, output_prof, tool="vizviewer")
+        case "dis":
+            dis_benchmark(args, benchmarks)
         case _:
             raise ValueError("Invalid command!")
