@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.11.2"
+__generated_with = "0.11.10"
 app = marimo.App(width="medium")
 
 
@@ -35,7 +35,7 @@ def _():
     )
     from sympy.core.symbol import Symbol
 
-    from xdsl.ir import Operation, SSAValue, Region, Block, ParametrizedAttribute
+    from xdsl.ir import Attribute, Operation, SSAValue, Region, Block, ParametrizedAttribute
     from xdsl.pattern_rewriter import (
         PatternRewriter,
         RewritePattern,
@@ -80,6 +80,7 @@ def _():
         Add,
         AddfOp,
         AddiOp,
+        Attribute,
         Block,
         Builder,
         ConstantOp,

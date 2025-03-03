@@ -109,8 +109,8 @@ builtin.module {
 // CHECK-NEXT:       %42 = memref.subview %accumulator[%offset_1] [255] [1] : memref<510xf32> to memref<255xf32, strided<[1], offset: ?>>
 // CHECK-NEXT:       %43 = arith.constant 4 : i16
 // CHECK-NEXT:       %44 = "csl.get_mem_dsd"(%accumulator, %43, %29, %31) <{tensor_access = affine_map<(d0, d1, d2) -> (d2)>}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
-// CHECK-NEXT:       %45 = arith.index_cast %offset_1 : index to si16
-// CHECK-NEXT:       %46 = "csl.increment_dsd_offset"(%44, %45) <{elem_type = f32}> : (!csl<dsd mem4d_dsd>, si16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:       %45 = arith.index_cast %offset_1 : index to i16
+// CHECK-NEXT:       %46 = "csl.increment_dsd_offset"(%44, %45) <{elem_type = f32}> : (!csl<dsd mem4d_dsd>, i16) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       %47 = "csl.member_call"(%34) <{field = "getRecvBufDsd"}> : (!csl.imported_module) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:       "csl.fadds"(%46, %46, %47) : (!csl<dsd mem4d_dsd>, !csl<dsd mem4d_dsd>, !csl<dsd mem4d_dsd>) -> ()
 // CHECK-NEXT:       csl.return
@@ -309,8 +309,8 @@ builtin.module {
 // CHECK-NEXT:      %88 = memref.subview %accumulator_1[%offset_3] [510] [1] : memref<510xf32> to memref<510xf32, strided<[1], offset: ?>>
 // CHECK-NEXT:      %89 = arith.constant 4 : i16
 // CHECK-NEXT:      %90 = "csl.get_mem_dsd"(%accumulator_1, %89, %arg3_1, %arg5_1) <{tensor_access = affine_map<(d0, d1, d2) -> (d2)>}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
-// CHECK-NEXT:      %91 = arith.index_cast %offset_3 : index to si16
-// CHECK-NEXT:      %92 = "csl.increment_dsd_offset"(%90, %91) <{elem_type = f32}> : (!csl<dsd mem4d_dsd>, si16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:      %91 = arith.index_cast %offset_3 : index to i16
+// CHECK-NEXT:      %92 = "csl.increment_dsd_offset"(%90, %91) <{elem_type = f32}> : (!csl<dsd mem4d_dsd>, i16) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:      %93 = "csl.member_call"(%69) <{field = "getRecvBufDsd"}> : (!csl.imported_module) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:      "csl.fadds"(%92, %92, %93) : (!csl<dsd mem4d_dsd>, !csl<dsd mem4d_dsd>, !csl<dsd mem4d_dsd>) -> ()
 // CHECK-NEXT:      "memref.copy"(%88, %88) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>) -> ()

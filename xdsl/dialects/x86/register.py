@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
 
 from xdsl.backend.register_type import RegisterType
-from xdsl.ir import Attribute
 from xdsl.irdl import (
     irdl_attr_definition,
 )
-from xdsl.parser import AttrParser
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -16,15 +13,6 @@ class X86RegisterType(RegisterType, ABC):
     """
     The abstract class for all x86 register types.
     """
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        if parser.parse_optional_punctuation("<") is not None:
-            name = parser.parse_identifier()
-            parser.parse_punctuation(">")
-        else:
-            name = ""
-        return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
         name = self.spelling.data
@@ -72,16 +60,16 @@ class GeneralRegisterType(X86RegisterType):
     name = "x86.reg"
 
     @classmethod
-    def unallocated(cls) -> GeneralRegisterType:
-        return UNALLOCATED_GENERAL
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "x86"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return X86_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_reg_"
 
 
 UNALLOCATED_GENERAL = GeneralRegisterType("")
@@ -126,16 +114,16 @@ class RFLAGSRegisterType(X86RegisterType):
     name = "x86.rflags"
 
     @classmethod
-    def unallocated(cls) -> RFLAGSRegisterType:
-        return UNALLOCATED_RFLAGS
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "x86"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return RFLAGS_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_rflags_"
 
 
 UNALLOCATED_RFLAGS = RFLAGSRegisterType("")
@@ -159,16 +147,16 @@ class SSERegisterType(X86VectorRegisterType):
     name = "x86.ssereg"
 
     @classmethod
-    def unallocated(cls) -> SSERegisterType:
-        return UNALLOCATED_SSE
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "SSE"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return SSE_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_sse_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
@@ -219,16 +207,16 @@ class AVX2RegisterType(X86VectorRegisterType):
     name = "x86.avx2reg"
 
     @classmethod
-    def unallocated(cls) -> AVX2RegisterType:
-        return UNALLOCATED_AVX2
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "AVX2"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return AVX2_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_avx2_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
@@ -279,16 +267,16 @@ class AVX512RegisterType(X86VectorRegisterType):
     name = "x86.avx512reg"
 
     @classmethod
-    def unallocated(cls) -> AVX512RegisterType:
-        return UNALLOCATED_AVX512
-
-    @classmethod
     def instruction_set_name(cls) -> str:
         return "AVX512"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return X86AVX512_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_avx512_"
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers

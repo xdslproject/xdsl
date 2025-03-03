@@ -10,9 +10,9 @@ VENV_DIR ?= .venv
 # use activated venv if any
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
-# allow providing options to uv, such as overriding which extras are installed
-VENV_OPTIONS ?= --extra gui --extra dev --extra bench --extra jax --extra riscv --extra docs
-# VENV_OPTIONS ?= -p pypy3
+# allow overriding which extras are installed
+VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs --extra bench
+VENV_EXTRAS ?= --extra dev =--extra bench
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -29,7 +29,7 @@ uv-installed:
 # set up the venv with all dependencies for development
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
-	uv sync ${VENV_OPTIONS}
+	uv sync ${VENV_EXTRAS}
 	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi
@@ -40,7 +40,7 @@ venv: ${VENV_DIR}/
 
 # remove all caches
 .PHONY: clean-caches
-clean-caches: coverage-clean
+clean-caches: coverage-clean asv-clean
 	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
@@ -143,7 +143,7 @@ coverage: coverage-tests coverage-filecheck-tests
 # use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
 coverage-tests: uv-installed
-	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov --cov-config=.coveragerc
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov
 
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
@@ -179,7 +179,11 @@ asv-preview: uv-installed .asv/html
 
 .PHONY: asv-clean
 asv-clean: .asv
+<<<<<<< HEAD
 	rm -rf .asv/html .asv/results/$(shell hostname)
+=======
+	rm -rf .asv/
+>>>>>>> main
 
 # docs
 .PHONY: docs-serve

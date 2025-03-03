@@ -42,12 +42,8 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     rewriter.insert_op_before_matched_op(
                         [
                             shift := riscv.LiOp(constant),
-                            new_lb := riscv.AddOp(
-                                op.lb, shift, rd=riscv.IntRegisterType.unallocated()
-                            ),
-                            new_ub := riscv.AddOp(
-                                op.ub, shift, rd=riscv.IntRegisterType.unallocated()
-                            ),
+                            new_lb := riscv.AddOp(op.lb, shift),
+                            new_ub := riscv.AddOp(op.ub, shift),
                         ]
                     )
                 case riscv.MulOp():
@@ -55,15 +51,9 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     rewriter.insert_op_before_matched_op(
                         [
                             factor := riscv.LiOp(constant),
-                            new_lb := riscv.MulOp(
-                                op.lb, factor, rd=riscv.IntRegisterType.unallocated()
-                            ),
-                            new_ub := riscv.MulOp(
-                                op.ub, factor, rd=riscv.IntRegisterType.unallocated()
-                            ),
-                            new_step := riscv.MulOp(
-                                op.step, factor, rd=riscv.IntRegisterType.unallocated()
-                            ),
+                            new_lb := riscv.MulOp(op.lb, factor),
+                            new_ub := riscv.MulOp(op.ub, factor),
+                            new_step := riscv.MulOp(op.step, factor),
                         ]
                     )
 

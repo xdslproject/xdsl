@@ -19,6 +19,7 @@ func.func @f(%a: memref<1xf32>) -> () {
 
 // -----
 
+// CHECK: Cannot lower func.return with more than 1 argument (not implemented)
 func.func @foo_int() -> (i32,i32) {
   %a = "test.op"(): () -> i32
   func.return %a,%a: i32,i32

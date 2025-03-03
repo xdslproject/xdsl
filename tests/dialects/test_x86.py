@@ -7,23 +7,23 @@ from xdsl.dialects.builtin import IntegerAttr
 def test_unallocated_register():
     unallocated = x86.register.GeneralRegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.GeneralRegisterType.unallocated()
+    assert unallocated == x86.register.UNALLOCATED_GENERAL
 
     unallocated = x86.register.RFLAGSRegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.RFLAGSRegisterType.unallocated()
+    assert unallocated == x86.register.UNALLOCATED_RFLAGS
 
     unallocated = x86.register.AVX2RegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX2RegisterType.unallocated()
+    assert unallocated == x86.register.UNALLOCATED_AVX2
 
     unallocated = x86.register.AVX512RegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX512RegisterType.unallocated()
+    assert unallocated == x86.register.UNALLOCATED_AVX512
 
     unallocated = x86.register.SSERegisterType("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.SSERegisterType.unallocated()
+    assert unallocated == x86.register.UNALLOCATED_SSE
 
 
 @pytest.mark.parametrize(
@@ -255,15 +255,14 @@ def test_mr_vops(
 )
 def test_rm_vops(
     OpClass: type[
-        x86.ops.R_RM_Operation[
-            x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
+        x86.ops.R_M_Operation[
+            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
         ]
     ],
     dest: x86.register.X86VectorRegisterType,
     src: x86.register.GeneralRegisterType,
 ):
     input = x86.ops.GetRegisterOp(src)
-    output = x86.ops.GetAVXRegisterOp(dest)
-    op = OpClass(r1=output, r2=input, result=dest, offset=IntegerAttr(0, 64))
-    assert op.r1.type == dest
-    assert op.r2.type == src
+    op = OpClass(r1=input, result=dest, offset=IntegerAttr(0, 64))
+    assert op.r1.type == src
+    assert op.result.type == dest

@@ -21,8 +21,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
 )
 
-_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
-
 
 @dataclass
 class LowerBinaryFloatVectorOp(RewritePattern):
@@ -44,8 +42,12 @@ class LowerBinaryFloatVectorOp(RewritePattern):
         operand_type = cast(VectorType[Any], operand_type)
         scalar_type = operand_type.element_type
 
-        lhs = UnrealizedConversionCastOp.get((op.lhs,), (_FLOAT_REGISTER_TYPE,))
-        rhs = UnrealizedConversionCastOp.get((op.rhs,), (_FLOAT_REGISTER_TYPE,))
+        lhs = UnrealizedConversionCastOp.get(
+            (op.lhs,), (riscv.Registers.UNALLOCATED_FLOAT,)
+        )
+        rhs = UnrealizedConversionCastOp.get(
+            (op.rhs,), (riscv.Registers.UNALLOCATED_FLOAT,)
+        )
 
         match scalar_type:
             case Float64Type():
@@ -67,7 +69,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
         if op.fastmath is not None:
             rv_flags = riscv.FastMathFlagsAttr(op.fastmath.data)
 
-        new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE, fastmath=rv_flags)
+        new_op = cls(lhs, rhs, rd=riscv.Registers.UNALLOCATED_FLOAT, fastmath=rv_flags)
         cast_op = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
 
         rewriter.replace_matched_op((lhs, rhs, new_op, cast_op))
