@@ -106,7 +106,7 @@ class FormatLexer(MLIRLexer):
         return super().lex()
 
     # Authorize `-` in bare identifier
-    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
+    bare_identifier_suffix_regex = re.compile(rb"[a-zA-Z0-9_$.\-]*")
 
 
 @dataclass(init=False)
@@ -708,7 +708,7 @@ class FormatParser(BaseParser):
         if self.parse_optional_characters("`"):
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
-            ]
+            ].decode()
             if whitespace != " " and whitespace != "":
                 self.raise_error(
                     "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"

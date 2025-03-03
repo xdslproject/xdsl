@@ -246,7 +246,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         """
         self.pos += size
 
-    def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
+    def _consume_regex(self, regex: re.Pattern[bytes]) -> re.Match[bytes] | None:
         """
         Advance the lexer position to the end of the next match of the given
         regular expression.
@@ -257,7 +257,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         self.pos = match.end()
         return match
 
-    _whitespace_regex = re.compile(r"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
+    _whitespace_regex = re.compile(rb"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
 
     def _consume_whitespace(self) -> None:
         """
@@ -356,8 +356,8 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             f"Unexpected character: {current_char}",
         )
 
-    IDENTIFIER_SUFFIX = r"[a-zA-Z0-9_$.]*"
-    bare_identifier_regex = re.compile(r"[a-zA-Z_]" + IDENTIFIER_SUFFIX)
+    IDENTIFIER_SUFFIX = rb"[a-zA-Z0-9_$.]*"
+    bare_identifier_regex = re.compile(rb"[a-zA-Z_]" + IDENTIFIER_SUFFIX)
     bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX)
 
     def _lex_bare_identifier(self, start_pos: Position) -> MLIRToken:
@@ -401,7 +401,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             "@ identifier expected to start with letter, '_', or '\"'.",
         )
 
-    _suffix_id = re.compile(r"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
+    _suffix_id = re.compile(rb"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
 
     def _lex_prefixed_ident(self, start_pos: Position) -> MLIRToken:
         """
@@ -444,7 +444,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         return self._form_token(kind, start_pos)
 
-    _unescaped_characters_regex = re.compile(r'[^"\\\n\v\f]*')
+    _unescaped_characters_regex = re.compile(rb'[^"\\\n\v\f]*')
 
     def _lex_string_literal(self, start_pos: Position) -> MLIRToken:
         """
@@ -496,9 +496,9 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             "End of file reached before closing string literal.",
         )
 
-    _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
-    _digits_star_regex = re.compile(r"[0-9]*")
-    _fractional_suffix_regex = re.compile(r"\.[0-9]*([eE][+-]?[0-9]+)?")
+    _hexdigits_star_regex = re.compile(rb"[0-9a-fA-F]*")
+    _digits_star_regex = re.compile(rb"[0-9]*")
+    _fractional_suffix_regex = re.compile(rb"\.[0-9]*([eE][+-]?[0-9]+)?")
 
     def _lex_number(self, start_pos: Position) -> MLIRToken:
         """

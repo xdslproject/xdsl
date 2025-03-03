@@ -317,7 +317,7 @@ class Printer(BasePrinter):
         Prints the provided string as an identifier if it is one,
         and as a string literal otherwise.
         """
-        if MLIRLexer.bare_identifier_regex.fullmatch(string) is None:
+        if MLIRLexer.bare_identifier_regex.fullmatch(string.encode()) is None:
             self.print_string_literal(string)
             return
         self.print_string(string)
@@ -687,7 +687,7 @@ class Printer(BasePrinter):
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
         # Print the name without quotes if it is a bare identifier
-        if MLIRLexer.bare_identifier_regex.fullmatch(attr_tuple[0]):
+        if MLIRLexer.bare_identifier_regex.fullmatch(attr_tuple[0].encode()):
             self.print_string(attr_tuple[0])
         else:
             self.print_string(f'"{attr_tuple[0]}"')
