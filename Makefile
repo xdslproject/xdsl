@@ -167,7 +167,7 @@ coverage-clean: uv-installed
 # generate asv benchmark regression website
 .PHONY: asv
 asv: uv-installed
-	uv run asv run
+	uv run asv run --show-stderr
 
 .PHONY: asv-html
 asv-html: uv-installed
