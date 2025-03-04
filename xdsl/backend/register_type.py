@@ -18,6 +18,7 @@ from xdsl.ir import (
 from xdsl.irdl import ParameterDef
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
@@ -75,7 +76,40 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
                 printer.print_string(self.register_name.data)
 
     def verify(self) -> None:
-        raise NotImplementedError()
+        name = self.register_name.data
+
+        if not name:
+            # Unallocated, expect NoneAttr
+            if isinstance(self.index, NoneAttr):
+                return
+            raise VerifyException(
+                f"Invalid index {self.index.data} for unallocated register."
+            )
+
+        expected_index = type(self).abi_index_by_name().get(name)
+        is_infinite = name.startswith(self.infinite_register_prefix())
+
+        if expected_index is None:
+            if is_infinite:
+                return
+
+            raise VerifyException(
+                f"Invalid register name {name} for register set "
+                f"{self.instruction_set_name()}."
+            )
+
+        if isinstance(self.index, NoneAttr):
+            if is_infinite:
+                return
+
+            raise VerifyException(
+                f"Missing index for register {name}, expected {expected_index}."
+            )
+
+        if expected_index != self.index.data:
+            raise VerifyException(
+                f"Invalid index for register {name} {self.index.data}, expected {expected_index}."
+            )
 
     @classmethod
     @abstractmethod
@@ -101,7 +135,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     def infinite_register(cls, index: int) -> Self:
         """
         Provide the register at the given index in the "infinite" register set.
+        Index must be positive.
         """
+        assert index >= 0, f"Infinite index must be positive, got {index}."
         register_name = cls.infinite_register_prefix() + str(index)
         res = cls.from_name(register_name)
         assert isinstance(res.index, NoneAttr), (

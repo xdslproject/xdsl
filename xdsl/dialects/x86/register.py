@@ -6,20 +6,12 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.irdl import (
     irdl_attr_definition,
 )
-from xdsl.utils.exceptions import VerifyException
 
 
 class X86RegisterType(RegisterType, ABC):
     """
     The abstract class for all x86 register types.
     """
-
-    def verify(self) -> None:
-        name = self.register_name.data
-        if not self.is_allocated:
-            return
-        if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
@@ -134,8 +126,6 @@ class X86VectorRegisterType(X86RegisterType):
     """
     The abstract class for all x86 vector register types.
     """
-
-    pass
 
 
 @irdl_attr_definition
