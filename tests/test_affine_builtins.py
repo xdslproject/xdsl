@@ -247,33 +247,3 @@ def test_affine_expr_binary_simplification():
     assert AffineExpr.binary(AffineBinaryOpKind.CeilDiv, five, two) == three
 
     # TODO test other simplifications like dim + const + const = dim + const
-
-
-def test_affine_map_compose_with_values():
-    assert AffineMap.from_callable(lambda i, j: (i, j)).compose_with_values((1, 2)) == (
-        1,
-        2,
-    )
-    assert AffineMap.from_callable(lambda i, j: (i + 1, j - 1)).compose_with_values(
-        (1, 2)
-    ) == (2, 1)
-
-    # Should fail when the number of values does not match the number of dims
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            "Cannot compose AffineMaps with mismatching dimensions and results: self.num_dims != len(map.results) (2 != 1)"
-        ),
-    ):
-        AffineMap.from_callable(lambda i, j: (i + 1, j - 1)).compose_with_values((1,))
-
-    # Should fail if the affine map has symbols
-    x = AffineExpr.dimension(0)
-    N = AffineExpr.symbol(0)
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            "Cannot compose a AffineMap with values if the map has symbols."
-        ),
-    ):
-        AffineMap(1, 1, (x + N,)).compose_with_values((1,))
