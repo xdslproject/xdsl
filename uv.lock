@@ -10,11 +10,11 @@ resolution-markers = [
 
 [[package]]
 name = "aiohappyeyeballs"
-version = "2.4.6"
+version = "2.4.8"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/08/07/508f9ebba367fc3370162e53a3cfd12f5652ad79f0e0bfdf9f9847c6f159/aiohappyeyeballs-2.4.6.tar.gz", hash = "sha256:9b05052f9042985d32ecbe4b59a77ae19c006a78f1344d7fdad69d28ded3d0b0", size = 21726 }
+sdist = { url = "https://files.pythonhosted.org/packages/de/7c/79a15272e88d2563c9d63599fa59f05778975f35b255bf8f90c8b12b4ada/aiohappyeyeballs-2.4.8.tar.gz", hash = "sha256:19728772cb12263077982d2f55453babd8bec6a052a926cd5c0c42796da8bf62", size = 22337 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/4c/03fb05f56551828ec67ceb3665e5dc51638042d204983a03b0a1541475b6/aiohappyeyeballs-2.4.6-py3-none-any.whl", hash = "sha256:147ec992cf873d74f5062644332c539fcd42956dc69453fe5204195e560517e1", size = 14543 },
+    { url = "https://files.pythonhosted.org/packages/52/0e/b187e2bb3eeb2644515109657c4474d65a84e7123de249bf1e8467d04a65/aiohappyeyeballs-2.4.8-py3-none-any.whl", hash = "sha256:6cac4f5dd6e34a9644e69cf9021ef679e4394f54e58a183056d12009e42ea9e3", size = 15005 },
 ]
 
 [[package]]
@@ -807,7 +807,7 @@ dependencies = [
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython", version = "8.33.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "ipython", version = "9.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "ipython", version = "9.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "jupyter-client" },
     { name = "jupyter-core" },
     { name = "matplotlib-inline" },
@@ -850,7 +850,7 @@ wheels = [
 
 [[package]]
 name = "ipython"
-version = "9.0.0"
+version = "9.0.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -870,9 +870,9 @@ dependencies = [
     { name = "traitlets", marker = "python_full_version >= '3.11'" },
     { name = "typing-extensions", marker = "python_full_version == '3.11.*'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/de/39/264894738a202ddaf6abae39b3f84671ddee23fd292dbb3e10039e70300c/ipython-9.0.0.tar.gz", hash = "sha256:9368d65b3d4a471e9a698fed3ea486bbf6737e45111e915279c971b77f974397", size = 4364165 }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/33/1901c9a842b301d8674f367dee597e654e402548a903faf7280aae8fc2d4/ipython-9.0.1.tar.gz", hash = "sha256:377ea91c8226b48dc9021ac9846a64761abc7ddf74c5efe38e6eb06f6e052f3a", size = 4365847 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/a1/894e4c0b6ac994045c6edeb2b6fdf69c59f20fcd2e348a42f4e40889181c/ipython-9.0.0-py3-none-any.whl", hash = "sha256:2cce23069b830a54a5b9d3d66ccd6433047c1503a7b9a3b34593c0b5c2c08477", size = 592040 },
+    { url = "https://files.pythonhosted.org/packages/28/39/fda74f8215ef94a812dd780073c61a826a88a01e51f627a3454f7ae6951d/ipython-9.0.1-py3-none-any.whl", hash = "sha256:3e878273824b52e0a2280ed84f8193aba8c4ba9a6f45a438348a3d5ef1a34bd0", size = 600186 },
 ]
 
 [[package]]
@@ -1063,7 +1063,7 @@ wheels = [
 
 [[package]]
 name = "marimo"
-version = "0.11.13"
+version = "0.11.14"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1085,9 +1085,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/62/709b7c288c6be55dd0c75727fbc2d69adea305de807f219b5e5a0a3e2460/marimo-0.11.13.tar.gz", hash = "sha256:e5cef8593dbfe577088bbec659090cf4cbeca7785261eb8c625c74360c821477", size = 10644867 }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/3d/4628d060c4308d30bd921c443f5f5b8d17aa852df6899f68f816b01873d5/marimo-0.11.14.tar.gz", hash = "sha256:48029ff904d8516b2ff9ba815f657d4787f33e2a7ece64b976693095e588b8b1", size = 10653462 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/18/bafdd907f03f636ce67d13cad4de77213edb1c29e5e0bd4ab3f530bf1a55/marimo-0.11.13-py3-none-any.whl", hash = "sha256:b5c0bee4ede7cd21f22ce6405974be2375be08da7a85b9b5495ca668b14510d8", size = 10989347 },
+    { url = "https://files.pythonhosted.org/packages/c2/e9/bc5a3f9ae136b18577b1044acc3e98f36377a3454750e23dbe78b5082726/marimo-0.11.14-py3-none-any.whl", hash = "sha256:466e9fd024009d476b697db7ef5e27496e6a72dcbce0a46737eff1b02f50d186", size = 11001076 },
 ]
 
 [[package]]
@@ -1529,11 +1529,11 @@ wheels = [
 
 [[package]]
 name = "narwhals"
-version = "1.28.0"
+version = "1.29.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ba/65/cc4f1d02d418e587fc5b9b31f3cbb8db83f4b35f91d7b59adfa8d947f644/narwhals-1.28.0.tar.gz", hash = "sha256:a2213fa44a039f724278fb15609889319e7c240403413f2606cc856c8d8f708d", size = 252143 }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/f7/caa23ebc4aed3ef2314441c44e1d842e701adc6af57587ffda9263c03b6e/narwhals-1.29.0.tar.gz", hash = "sha256:1021c345d56c66ff0cc8e6d03ca8c543d01ffc411630973a5cb69ee86824d823", size = 248349 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/aa/eedf2ade0c16a60541ca7acd48665c62dc0d11e1e910467b6c7e6b1eda34/narwhals-1.28.0-py3-none-any.whl", hash = "sha256:45d909ad6240944d447b0dae38074c5a919830dff3868d57b05a5526c1f06fe4", size = 308950 },
+    { url = "https://files.pythonhosted.org/packages/ee/f6/1fcd6b3d0e21d9b75e71ae68fbc92bbb9b9b1f4f33dd81c61d8f53378b30/narwhals-1.29.0-py3-none-any.whl", hash = "sha256:653aa8e5eb435816e7b50c8def17e7e5e3324c2ffd8a3eec03fef85792e9cf5e", size = 305214 },
 ]
 
 [[package]]
@@ -3058,7 +3058,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.5.1" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.13" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.11.14" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.49" },
