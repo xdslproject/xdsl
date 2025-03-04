@@ -145,7 +145,7 @@ def _(mo):
 def _(riscv):
     # Explictly constructing registers
 
-    riscv.IntRegisterType("zero"), riscv.IntRegisterType("a1"), riscv.IntRegisterType("s2"), riscv.IntRegisterType("t3")
+    riscv.IntRegisterType.from_spelling("zero"), riscv.IntRegisterType.from_spelling("a1"), riscv.IntRegisterType.from_spelling("s2"), riscv.IntRegisterType.from_spelling("t3")
     return
 
 

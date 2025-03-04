@@ -157,7 +157,9 @@ def cast_ops_for_values(
     for value in values:
         if not isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType):
             new_type = register_type_for_type(value.type)
-            cast_op = builtin.UnrealizedConversionCastOp.get((value,), (new_type(""),))
+            cast_op = builtin.UnrealizedConversionCastOp.get(
+                (value,), (new_type.unallocated(),)
+            )
             new_ops.append(cast_op)
             new_value = cast_op.results[0]
             new_value.name_hint = value.name_hint
@@ -244,6 +246,6 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
             InsertPoint.at_start(block),
         )
 
-        arg.type = register_type_for_type(arg.type)("")
+        arg.type = register_type_for_type(arg.type).unallocated()
         arg.replace_by(new_val.results[0])
         new_val.operands[new_val.results[0].index] = arg

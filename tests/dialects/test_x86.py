@@ -5,23 +5,23 @@ from xdsl.dialects.builtin import IntegerAttr
 
 
 def test_unallocated_register():
-    unallocated = x86.register.GeneralRegisterType("")
+    unallocated = x86.register.GeneralRegisterType.from_spelling("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_GENERAL
 
-    unallocated = x86.register.RFLAGSRegisterType("")
+    unallocated = x86.register.RFLAGSRegisterType.from_spelling("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_RFLAGS
 
-    unallocated = x86.register.AVX2RegisterType("")
+    unallocated = x86.register.AVX2RegisterType.from_spelling("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_AVX2
 
-    unallocated = x86.register.AVX512RegisterType("")
+    unallocated = x86.register.AVX512RegisterType.from_spelling("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_AVX512
 
-    unallocated = x86.register.SSERegisterType("")
+    unallocated = x86.register.SSERegisterType.from_spelling("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_SSE
 
