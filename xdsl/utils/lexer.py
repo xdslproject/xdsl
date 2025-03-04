@@ -13,17 +13,21 @@ The position correspond to the character index in the file.
 """
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class Input:
     """
     Used to keep track of the input when parsing.
     """
 
-    content: str = field(repr=False)
+    content: bytes = field(repr=False)
     name: str
     len: int = field(init=False, repr=False)
 
-    def __post_init__(self):
+    def __init__(self, content: str | bytes, name: str) -> None:
+        if isinstance(content, str):
+            content = content.encode()
+        object.__setattr__(self, "content", content)
+        object.__setattr__(self, "name", name)
         object.__setattr__(self, "len", len(self.content))
 
     def __len__(self):
@@ -35,35 +39,35 @@ class Input:
         line_no = span.line_offset
         source = self.content
         while True:
-            next_start = source.find("\n", start)
+            next_start = source.find(b"\n", start)
             line_no += 1
             # Handle eof
             if next_start == -1:
                 if span.start > len(source):
                     return None
-                return [source[start:]], start, line_no
+                return [source[start:].decode()], start, line_no
             # As long as the next newline comes before the spans start we can continue
             if next_start < span.start:
                 start = next_start + 1
                 continue
             # If the whole span is on one line, we are good as well
             if next_start >= span.end:
-                return [source[start:next_start]], start, line_no
+                return [source[start:next_start].decode()], start, line_no
             while next_start < span.end:
-                next_start = source.find("\n", next_start + 1)
+                next_start = source.find(b"\n", next_start + 1)
                 if next_start == -1:
                     next_start = span.end
-            return source[start:next_start].split("\n"), start, line_no
+            return source[start:next_start].decode().split("\n"), start, line_no
 
     def at(self, i: Position) -> str | None:
         if i >= self.len:
             return None
-        return self.content[i]
+        return self.content[i : i + 1].decode()
 
     def slice(self, start: Position, end: Position) -> str | None:
         if end > self.len or start < 0:
             return None
-        return self.content[start:end]
+        return self.content[start:end].decode()
 
 
 @dataclass(frozen=True)
@@ -100,7 +104,7 @@ class Span:
 
     @property
     def text(self):
-        return self.input.content[self.start : self.end]
+        return self.input.content[self.start : self.end].decode()
 
     def get_line_col(self) -> tuple[int, int]:
         info = self.input.get_lines_containing(self)

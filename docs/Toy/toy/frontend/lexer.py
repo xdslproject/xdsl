@@ -49,7 +49,6 @@ SINGLE_CHAR_TOKENS = {
     "/": ToyTokenKind.OPERATOR,
 }
 
-IDENTIFIER_CHARS = re.compile(r"[\w]|[\d]|_")
 SPECIAL_CHARS = set(",")
 
 
@@ -85,7 +84,7 @@ class ToyLexer(Lexer[ToyTokenKind]):
         """
         self.pos += size
 
-    def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
+    def _consume_regex(self, regex: re.Pattern[bytes]) -> re.Match[bytes] | None:
         """
         Advance the lexer position to the end of the next match of the given
         regular expression.
@@ -96,7 +95,7 @@ class ToyLexer(Lexer[ToyTokenKind]):
         self.pos = match.end()
         return match
 
-    _whitespace_regex = re.compile(r"((#[^\n]*(\n)?)|(\s+))*", re.ASCII)
+    _whitespace_regex = re.compile(rb"((#[^\n]*(\n)?)|(\s+))*", re.ASCII)
 
     def _consume_whitespace(self) -> None:
         """
@@ -132,7 +131,7 @@ class ToyLexer(Lexer[ToyTokenKind]):
             f"Unexpected character: {current_char}",
         )
 
-    IDENTIFIER_SUFFIX = r"[a-zA-Z0-9_$.]*"
+    IDENTIFIER_SUFFIX = rb"[a-zA-Z0-9_$.]*"
     bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX)
 
     def _lex_bare_identifier(self, start_pos: Position) -> ToyToken:
@@ -146,9 +145,9 @@ class ToyLexer(Lexer[ToyTokenKind]):
 
         return self._form_token(ToyTokenKind.IDENTIFIER, start_pos)
 
-    _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
-    _digits_star_regex = re.compile(r"[0-9]*")
-    _fractional_suffix_regex = re.compile(r"\.[0-9]*([eE][+-]?[0-9]+)?")
+    _hexdigits_star_regex = re.compile(rb"[0-9a-fA-F]*")
+    _digits_star_regex = re.compile(rb"[0-9]*")
+    _fractional_suffix_regex = re.compile(rb"\.[0-9]*([eE][+-]?[0-9]+)?")
 
     def _lex_number(self, start_pos: Position) -> ToyToken:
         """

@@ -222,7 +222,7 @@ def _check_enum_constraints(
         raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
 
     for v in enum_type:
-        if MLIRLexer.bare_identifier_suffix_regex.fullmatch(v) is None:
+        if MLIRLexer.bare_identifier_suffix_regex.fullmatch(v.encode()) is None:
             raise ValueError(
                 "All StrEnum values of an EnumAttribute must be parsable as an identifer."
             )

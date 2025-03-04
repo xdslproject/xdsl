@@ -29,7 +29,7 @@ def loc(token: Token[Any]) -> Location:
     prev_end = 0
 
     for line, newline_match in enumerate(
-        re.finditer(_NEWLINE, token.span.input.content)
+        re.finditer(_NEWLINE, token.span.input.content.decode())
     ):
         len_line = newline_match.start() - prev_end
         if remaining < len_line:

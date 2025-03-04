@@ -59,19 +59,19 @@ class StimParser:
 
     @property
     def remaining(self) -> str:
-        return self.input.content[self.pos :]
+        return self.input.content[self.pos :].decode()
 
     # region Base parsing functions
 
     def parse_optional_chars(self, chars: str):
-        if self.input.content.startswith(chars, self.pos):
+        if self.input.content.startswith(chars.encode(), self.pos):
             self.pos += len(chars)
             return chars
 
     def parse_optional_pattern(self, pattern: re.Pattern[str]):
-        if (match := pattern.match(self.input.content, self.pos)) is not None:
+        if (match := pattern.match(self.input.content.decode(), self.pos)) is not None:
             self.pos = match.regs[0][1]
-            return self.input.content[match.pos : self.pos]
+            return self.input.content[match.pos : self.pos].decode()
 
     # endregion
 
