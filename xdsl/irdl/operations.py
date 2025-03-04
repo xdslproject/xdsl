@@ -65,6 +65,7 @@ from .constraints import (  # noqa: TID251
 from .error import IRDLAnnotations  # noqa: TID251
 
 if TYPE_CHECKING:
+    from xdsl.irdl.declarative_assembly_format import FormatProgram
     from xdsl.parser import Parser
     from xdsl.printer import Printer
 
@@ -937,7 +938,8 @@ class OpDef:
     In some cases, the attribute name is not a valid Python identifier,
     or is already used by the operation, so we need to use a different name.
     """
-    assembly_format: str | None = field(default=None)
+
+    assembly_program: FormatProgram | None = field(default=None)
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -1163,9 +1165,20 @@ class OpDef:
 
                 raise wrong_field_exception(field_name)
 
-        op_def.assembly_format = pyrdl_def.assembly_format
+        if pyrdl_def.assembly_format is not None:
+            from xdsl.irdl.declarative_assembly_format import FormatProgram
+
+            try:
+                op_def.assembly_program = FormatProgram.from_str(
+                    pyrdl_def.assembly_format, op_def
+                )
+            except ParseError as e:
+                raise PyRDLOpDefinitionError(
+                    "Error during the parsing of the assembly format: ", e.args
+                ) from e
+
         assert inspect.ismethod(Operation.parse)
-        if op_def.assembly_format is not None and (
+        if pyrdl_def.assembly_format is not None and (
             pyrdl_def.print != Operation.print
             or not inspect.ismethod(pyrdl_def.parse)
             or pyrdl_def.parse.__func__ != Operation.parse.__func__
@@ -1912,6 +1925,19 @@ def irdl_op_arg_definition(
         )
 
 
+@classmethod
+def _parse_with_format(
+    cls: type[IRDLOperationInvT], parser: Parser
+) -> IRDLOperationInvT:
+    p = cls.get_irdl_definition().assembly_program
+    return p.parse(parser, cls)  # pyright: ignore[reportOptionalMemberAccess]
+
+
+def _print_with_format(self: IRDLOperation, printer: Printer):
+    p = self.get_irdl_definition().assembly_program
+    return p.print(printer, self)  # pyright: ignore[reportOptionalMemberAccess]
+
+
 def _optional_attribute_field(attribute_name: str, default_value: Attribute | None):
     """Returns the getter and setter for an optional operation attribute."""
 
@@ -2015,27 +2041,9 @@ def get_accessors_from_op_def(
 
     new_attrs["get_irdl_definition"] = get_irdl_definition
 
-    if op_def.assembly_format is not None:
-        from xdsl.irdl.declarative_assembly_format import FormatProgram
-
-        try:
-            assembly_program = FormatProgram.from_str(op_def.assembly_format, op_def)
-        except ParseError as e:
-            raise PyRDLOpDefinitionError(
-                "Error during the parsing of the assembly format: ", e.args
-            ) from e
-
-        @classmethod
-        def parse_with_format(
-            cls: type[IRDLOperationInvT], parser: Parser
-        ) -> IRDLOperationInvT:
-            return assembly_program.parse(parser, cls)
-
-        def print_with_format(self: IRDLOperation, printer: Printer):
-            return assembly_program.print(printer, self)
-
-        new_attrs["parse"] = parse_with_format
-        new_attrs["print"] = print_with_format
+    if op_def.assembly_program is not None:
+        new_attrs["parse"] = _parse_with_format
+        new_attrs["print"] = _print_with_format
 
     if custom_verify is not None:
 
