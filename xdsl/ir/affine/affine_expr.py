@@ -37,6 +37,31 @@ class AffineExpr:
     def symbol(position: int) -> AffineExpr:
         return AffineSymExpr(position)
 
+    @staticmethod
+    def binary(
+        kind: AffineBinaryOpKind,
+        lhs: AffineExpr,
+        rhs: AffineExpr,
+    ) -> AffineExpr:
+        """
+        The difference between creating an `AffineBinaryOpExpr` with this function
+        and creating an `AffineBinaryOpExpr` using its constructor
+        is that simplifications are automatically applied in this function.
+        """
+
+        if kind == AffineBinaryOpKind.Add:
+            return lhs + rhs
+        elif kind == AffineBinaryOpKind.Mul:
+            return lhs * rhs
+        elif kind == AffineBinaryOpKind.Mod:
+            return lhs % rhs
+        elif kind == AffineBinaryOpKind.FloorDiv:
+            return lhs // rhs
+        elif kind == AffineBinaryOpKind.CeilDiv:
+            return -(-lhs // rhs)
+
+        raise ValueError("Unreachable")
+
     def compose(self, map: AffineMap) -> AffineExpr:
         """
         Compose with an AffineMap.
@@ -78,7 +103,7 @@ class AffineExpr:
             lhs = self.lhs.replace_dims_and_symbols(new_dims, new_symbols)
             rhs = self.rhs.replace_dims_and_symbols(new_dims, new_symbols)
 
-            return AffineBinaryOpExpr(
+            return AffineExpr.binary(
                 lhs=lhs,
                 rhs=rhs,
                 kind=self.kind,
@@ -110,39 +135,6 @@ class AffineExpr:
                 return lhs // rhs
             elif self.kind == AffineBinaryOpKind.CeilDiv:
                 return -(-lhs // rhs)
-
-        raise ValueError("Unreachable")
-
-    def as_constant(self) -> AffineConstantExpr | None:
-        """
-        Simplifies the `self` to an AffineConstantExpr if possible, otherwise returns None.
-        """
-
-        if isinstance(self, AffineConstantExpr):
-            return self
-        if isinstance(self, AffineDimExpr):
-            return None
-        if isinstance(self, AffineSymExpr):
-            return None
-
-        if isinstance(self, AffineBinaryOpExpr):
-            lhs = self.lhs.as_constant()
-            if lhs is None:
-                return None
-            rhs = self.rhs.as_constant()
-            if rhs is None:
-                return None
-
-            if self.kind == AffineBinaryOpKind.Add:
-                return AffineConstantExpr(lhs.value + rhs.value)
-            elif self.kind == AffineBinaryOpKind.Mul:
-                return AffineConstantExpr(lhs.value * rhs.value)
-            elif self.kind == AffineBinaryOpKind.Mod:
-                return AffineConstantExpr(lhs.value % rhs.value)
-            elif self.kind == AffineBinaryOpKind.FloorDiv:
-                return AffineConstantExpr(lhs.value // rhs.value)
-            elif self.kind == AffineBinaryOpKind.CeilDiv:
-                return AffineConstantExpr(-(-lhs.value // rhs.value))
 
         raise ValueError("Unreachable")
 

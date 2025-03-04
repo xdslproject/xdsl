@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
 
-from xdsl.ir.affine import AffineDimExpr, AffineExpr
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
 
@@ -203,9 +203,8 @@ class AffineMap:
         result: list[int] = list()
 
         for res in result_map.results:
-            as_constant = res.as_constant()
-            assert as_constant is not None
-            result.append(as_constant.value)
+            assert isinstance(res, AffineConstantExpr)
+            result.append(res.value)
 
         return tuple(result)
 

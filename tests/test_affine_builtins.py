@@ -5,11 +5,8 @@ import pytest
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
     AffineBinaryOpKind,
-    AffineConstantExpr,
-    AffineDimExpr,
     AffineExpr,
     AffineMap,
-    AffineSymExpr,
 )
 
 
@@ -124,6 +121,21 @@ def test_compose_expr():
     assert expr.compose(map) == expected
 
 
+def test_compose_expr_recursive_simplification():
+    d = [AffineExpr.dimension(i) for i in range(4)]
+
+    # Tests simplifications that require recursion
+    add1 = (d[0] + d[1]) + (d[2] + d[3])
+    assert add1.compose(
+        AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))
+    ) == AffineExpr.constant(10)
+
+    add2 = d[0] + d[1] + d[2] + d[3]
+    assert add2.compose(
+        AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))
+    ) == AffineExpr.constant(10)
+
+
 def test_compose_map():
     map1 = AffineMap.from_callable(
         lambda d0, d1, s0, s1: (d0 + 1 + s1, d1 - 1 - s0), dim_symbol_split=(2, 2)
@@ -220,68 +232,21 @@ def test_compress_dims():
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
 
 
-def test_affine_expr_as_constant():
+def test_affine_expr_binary_simplification():
+    one = AffineExpr.constant(1)
+    two = AffineExpr.constant(2)
+    three = AffineExpr.constant(3)
+    five = AffineExpr.constant(5)
+    six = AffineExpr.constant(6)
+
     # Should return AffineConstExpr when both lhs and rhs are AffineConstantExpr
-    assert AffineBinaryOpExpr(
-        AffineBinaryOpKind.Add, AffineConstantExpr(1), AffineConstantExpr(1)
-    ).as_constant() == AffineConstantExpr(2)
-    assert AffineBinaryOpExpr(
-        AffineBinaryOpKind.Mul, AffineConstantExpr(2), AffineConstantExpr(3)
-    ).as_constant() == AffineConstantExpr(6)
-    assert AffineBinaryOpExpr(
-        AffineBinaryOpKind.Mod, AffineConstantExpr(5), AffineConstantExpr(2)
-    ).as_constant() == AffineConstantExpr(1)
-    assert AffineBinaryOpExpr(
-        AffineBinaryOpKind.FloorDiv, AffineConstantExpr(5), AffineConstantExpr(2)
-    ).as_constant() == AffineConstantExpr(2)
-    assert AffineBinaryOpExpr(
-        AffineBinaryOpKind.CeilDiv, AffineConstantExpr(5), AffineConstantExpr(2)
-    ).as_constant() == AffineConstantExpr(3)
+    assert AffineExpr.binary(AffineBinaryOpKind.Add, one, one) == two
+    assert AffineExpr.binary(AffineBinaryOpKind.Mul, two, three) == six
+    assert AffineExpr.binary(AffineBinaryOpKind.Mod, five, two) == one
+    assert AffineExpr.binary(AffineBinaryOpKind.FloorDiv, five, two) == two
+    assert AffineExpr.binary(AffineBinaryOpKind.CeilDiv, five, two) == three
 
-    # Should return None if either lhs or rhs cannot be constant folded
-    assert (
-        AffineBinaryOpExpr(
-            AffineBinaryOpKind.Add,
-            AffineConstantExpr(1),
-            AffineDimExpr(0),
-        ).as_constant()
-        is None
-    )
-    assert (
-        AffineBinaryOpExpr(
-            AffineBinaryOpKind.Add,
-            AffineDimExpr(0),
-            AffineConstantExpr(1),
-        ).as_constant()
-        is None
-    )
-    assert (
-        AffineBinaryOpExpr(
-            AffineBinaryOpKind.Add,
-            AffineSymExpr(0),
-            AffineConstantExpr(1),
-        ).as_constant()
-        is None
-    )
-    assert (
-        AffineBinaryOpExpr(
-            AffineBinaryOpKind.Add,
-            AffineConstantExpr(1),
-            AffineSymExpr(0),
-        ).as_constant()
-        is None
-    )
-
-    # Test recursion
-    assert AffineBinaryOpExpr(
-        AffineBinaryOpKind.Add,
-        AffineConstantExpr(1),
-        AffineBinaryOpExpr(
-            AffineBinaryOpKind.Mul,
-            AffineConstantExpr(2),
-            AffineConstantExpr(3),
-        ),
-    ).as_constant() == AffineConstantExpr(7)
+    # TODO test other simplifications like dim + const + const = dim + const
 
 
 def test_affine_map_compose_with_values():
