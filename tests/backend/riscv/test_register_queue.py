@@ -25,12 +25,16 @@ def test_default_reserved_registers():
 def test_push_j_register():
     register_queue = RiscvRegisterQueue()
 
-    register_queue.push(riscv.IntRegisterType("j_0"))
-    assert riscv.IntRegisterType("j_0") == register_queue.available_int_registers[-1]
-
-    register_queue.push(riscv.FloatRegisterType("j_0"))
+    register_queue.push(riscv.IntRegisterType.infinite_register(0))
     assert (
-        riscv.FloatRegisterType("j_0") == register_queue.available_float_registers[-1]
+        riscv.IntRegisterType.infinite_register(0)
+        == register_queue.available_int_registers[-1]
+    )
+
+    register_queue.push(riscv.FloatRegisterType.infinite_register(0))
+    assert (
+        riscv.FloatRegisterType.infinite_register(0)
+        == register_queue.available_float_registers[-1]
     )
 
 
@@ -47,18 +51,39 @@ def test_push_register():
 def test_reserve_register():
     register_queue = RiscvRegisterQueue()
 
-    register_queue.reserve_register(riscv.IntRegisterType("j_0"))
-    assert register_queue.reserved_int_registers[riscv.IntRegisterType("j_0")] == 1
+    register_queue.reserve_register(riscv.IntRegisterType.infinite_register(0))
+    assert (
+        register_queue.reserved_int_registers[
+            riscv.IntRegisterType.infinite_register(0)
+        ]
+        == 1
+    )
 
-    register_queue.reserve_register(riscv.IntRegisterType("j_0"))
-    assert register_queue.reserved_int_registers[riscv.IntRegisterType("j_0")] == 2
+    register_queue.reserve_register(riscv.IntRegisterType.infinite_register(0))
+    assert (
+        register_queue.reserved_int_registers[
+            riscv.IntRegisterType.infinite_register(0)
+        ]
+        == 2
+    )
 
-    register_queue.unreserve_register(riscv.IntRegisterType("j_0"))
-    assert register_queue.reserved_int_registers[riscv.IntRegisterType("j_0")] == 1
+    register_queue.unreserve_register(riscv.IntRegisterType.infinite_register(0))
+    assert (
+        register_queue.reserved_int_registers[
+            riscv.IntRegisterType.infinite_register(0)
+        ]
+        == 1
+    )
 
-    register_queue.unreserve_register(riscv.IntRegisterType("j_0"))
-    assert riscv.IntRegisterType("j_0") not in register_queue.reserved_int_registers
-    assert riscv.IntRegisterType("j_0") not in register_queue.available_int_registers
+    register_queue.unreserve_register(riscv.IntRegisterType.infinite_register(0))
+    assert (
+        riscv.IntRegisterType.infinite_register(0)
+        not in register_queue.reserved_int_registers
+    )
+    assert (
+        riscv.IntRegisterType.infinite_register(0)
+        not in register_queue.available_int_registers
+    )
 
     # Check assertion error when reserving an available register
     reg = register_queue.pop(riscv.IntRegisterType)
