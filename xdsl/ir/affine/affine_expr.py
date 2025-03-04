@@ -58,7 +58,7 @@ class AffineExpr:
         elif kind == AffineBinaryOpKind.FloorDiv:
             return lhs // rhs
         elif kind == AffineBinaryOpKind.CeilDiv:
-            return -(-lhs // rhs)
+            return lhs.ceil_div(rhs)
 
         raise ValueError("Unreachable")
 
