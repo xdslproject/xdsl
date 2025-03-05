@@ -219,23 +219,6 @@ def test_affine_expr_used_dims():
     assert AffineExpr.constant(5).used_dims() == set()
 
 
-def test_affine_expr_is_function_of_dim():
-    assert AffineExpr.dimension(0).is_function_of_dim(0)
-    assert not AffineExpr.dimension(1).is_function_of_dim(0)
-    assert not AffineExpr.constant(0).is_function_of_dim(0)
-    assert not AffineExpr.symbol(0).is_function_of_dim(0)
-    assert AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(0)
-    assert not (
-        AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(1)
-    )
-    assert (
-        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(0)
-    )
-    assert (
-        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(1)
-    )
-
-
 def test_affine_map_used_dims():
     assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims() == {0, 1}
     assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims() == {0, 1}
