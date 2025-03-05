@@ -151,12 +151,10 @@ class ConstantOp(IRDLOperation):
         self,
         value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
         value_type: None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    def __init__(self, value: Attribute, value_type: Attribute) -> None:
-        ...
+    def __init__(self, value: Attribute, value_type: Attribute) -> None: ...
 
     def __init__(
         self,
