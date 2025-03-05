@@ -35,7 +35,7 @@ def test_add_op():
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
-    assert isinstance(riscv.IntRegisterType("j_1").index, NoneAttr)
+    assert isinstance(riscv.IntRegisterType.infinite_register(1).index, NoneAttr)
 
 
 def test_csr_op():

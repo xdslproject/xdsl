@@ -23,13 +23,13 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.11.11",
+    "marimo==0.11.14",
     "pre-commit==4.1.0",
-    "ruff==0.9.8",
+    "ruff==0.9.9",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
-    "pyright==1.1.395",
+    "pyright==1.1.396",
     "sympy==1.13.3",
 ]
 docs = [
