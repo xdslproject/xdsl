@@ -300,6 +300,9 @@ class AffineExpr:
         return {expr.position for expr in self.dfs() if isinstance(expr, AffineDimExpr)}
 
     def is_function_of_dim(self, position: int) -> bool:
+        """
+        Return `True` is `self` is a function of the given dimension
+        """
         return position in self.used_dims()
 
 
