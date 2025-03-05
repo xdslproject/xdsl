@@ -516,7 +516,7 @@ def infer_transfer_op_mask_type(
     affine_map: AffineMap,
 ) -> VectorType[I1]:
     inverse_permutation_map = affine_map.compress_dims(
-        affine_map.unused_dims_bit_vector()
+        affine_map.used_dims_bit_vector()
     ).inverse_permutation()
 
     assert inverse_permutation_map
@@ -593,10 +593,13 @@ class TransferReadOp(IRDLOperation, VectorTransferOp):
         if len(self.indices) != self.source.type.get_num_dims():
             raise VerifyException("Expected an index for each memref/tensor dimension.")
 
-        inferred_mask_type = infer_transfer_op_mask_type(
-            self.result.type,
-            self.permutation_map.data,
-        )
+        if mask_type:
+            inferred_mask_type = infer_transfer_op_mask_type(
+                self.result.type,
+                self.permutation_map.data,
+            )
+        else:
+            inferred_mask_type = VectorType(i1, [])
 
         verify_transfer_op(
             self,
@@ -678,10 +681,13 @@ class TransferWriteOp(IRDLOperation, VectorTransferOp):
                 f'"{self.name}" should not have broadcast dimensions.'
             )
 
-        inferred_mask_type = infer_transfer_op_mask_type(
-            self.vector.type,
-            self.permutation_map.data,
-        )
+        if mask_type:
+            inferred_mask_type = infer_transfer_op_mask_type(
+                self.vector.type,
+                self.permutation_map.data,
+            )
+        else:
+            inferred_mask_type = VectorType(i1, [])
 
         verify_transfer_op(
             self,
