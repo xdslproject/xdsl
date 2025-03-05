@@ -274,8 +274,8 @@ class AffineMap:
 
         Example:
         ```
-        (d0, d1) -> (d0) gives (False, True)
-        (d0, d1, d2) -> (d0, d2) gives (False, True, False)
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
         ```
         """
 
