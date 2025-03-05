@@ -93,12 +93,12 @@ def test_allocate_with_inout_constraints():
         def get(cls, rs0: str, rs1: str, rd0: str, rd1: str) -> Self:
             return cls.build(
                 operands=(
-                    TestSSAValue(riscv.IntRegisterType(rs0)),
-                    TestSSAValue(riscv.IntRegisterType(rs1)),
+                    TestSSAValue(riscv.IntRegisterType.from_spelling(rs0)),
+                    TestSSAValue(riscv.IntRegisterType.from_spelling(rs1)),
                 ),
                 result_types=(
-                    riscv.IntRegisterType(rd0),
-                    riscv.IntRegisterType(rd1),
+                    riscv.IntRegisterType.from_spelling(rd0),
+                    riscv.IntRegisterType.from_spelling(rd1),
                 ),
             )
 
@@ -125,9 +125,9 @@ def test_allocate_with_inout_constraints():
     op1 = MyInstructionOp.get("", "", "", "a0")
     register_allocator.process_riscv_op(op1)
     assert op1.rs0.type == riscv.IntRegisterType.infinite_register(2)
-    assert op1.rs1.type == riscv.IntRegisterType("a0")
+    assert op1.rs1.type == riscv.IntRegisterType.from_spelling("a0")
     assert op1.rd0.type == riscv.IntRegisterType.infinite_register(2)
-    assert op1.rd1.type == riscv.IntRegisterType("a0")
+    assert op1.rd1.type == riscv.IntRegisterType.from_spelling("a0")
 
 
 def test_count_reg_types():
