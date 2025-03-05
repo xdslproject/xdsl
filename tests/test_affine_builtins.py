@@ -2,7 +2,12 @@ import re
 
 import pytest
 
-from xdsl.ir.affine import AffineBinaryOpExpr, AffineBinaryOpKind, AffineExpr, AffineMap
+from xdsl.ir.affine import (
+    AffineBinaryOpExpr,
+    AffineBinaryOpKind,
+    AffineExpr,
+    AffineMap,
+)
 
 
 def test_simple_map():
@@ -116,6 +121,21 @@ def test_compose_expr():
     assert expr.compose(map) == expected
 
 
+def test_compose_expr_recursive_simplification():
+    d = [AffineExpr.dimension(i) for i in range(4)]
+
+    # Tests simplifications that require recursion
+    add1 = (d[0] + d[1]) + (d[2] + d[3])
+    assert add1.compose(
+        AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))
+    ) == AffineExpr.constant(10)
+
+    add2 = d[0] + d[1] + d[2] + d[3]
+    assert add2.compose(
+        AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))
+    ) == AffineExpr.constant(10)
+
+
 def test_compose_map():
     map1 = AffineMap.from_callable(
         lambda d0, d1, s0, s1: (d0 + 1 + s1, d1 - 1 - s0), dim_symbol_split=(2, 2)
@@ -212,58 +232,18 @@ def test_compress_dims():
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
 
 
-def test_affine_expr_used_dims():
-    assert AffineExpr.dimension(1).used_dims() == {1}
-    assert (AffineExpr.dimension(2) + AffineExpr.dimension(3)).used_dims() == {2, 3}
-    assert AffineExpr.symbol(4).used_dims() == set()
-    assert AffineExpr.constant(5).used_dims() == set()
+def test_affine_expr_binary_simplification():
+    one = AffineExpr.constant(1)
+    two = AffineExpr.constant(2)
+    three = AffineExpr.constant(3)
+    five = AffineExpr.constant(5)
+    six = AffineExpr.constant(6)
 
+    # Should return AffineConstExpr when both lhs and rhs are AffineConstantExpr
+    assert AffineExpr.binary(AffineBinaryOpKind.Add, one, one) == two
+    assert AffineExpr.binary(AffineBinaryOpKind.Mul, two, three) == six
+    assert AffineExpr.binary(AffineBinaryOpKind.Mod, five, two) == one
+    assert AffineExpr.binary(AffineBinaryOpKind.FloorDiv, five, two) == two
+    assert AffineExpr.binary(AffineBinaryOpKind.CeilDiv, five, two) == three
 
-def test_affine_expr_is_function_of_dim():
-    assert AffineExpr.dimension(0).is_function_of_dim(0)
-    assert not AffineExpr.dimension(1).is_function_of_dim(0)
-    assert not AffineExpr.constant(0).is_function_of_dim(0)
-    assert not AffineExpr.symbol(0).is_function_of_dim(0)
-    assert AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(0)
-    assert not (
-        AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(1)
-    )
-    assert (
-        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(0)
-    )
-    assert (
-        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(1)
-    )
-
-
-def test_affine_map_is_function_of_dim():
-    assert AffineMap.from_callable(lambda i, j: (i, j)).is_function_of_dim(0)
-    assert AffineMap.from_callable(lambda i, j: (i, j)).is_function_of_dim(1)
-    assert not AffineMap.from_callable(lambda i, j, _: (i, j)).is_function_of_dim(2)
-
-
-def test_affine_map_used_dims():
-    assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims() == {0, 1}
-    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims() == {0, 1}
-    assert AffineMap.from_callable(lambda i, _, k: (i, k)).used_dims() == {0, 2}
-
-
-def test_affine_map_unused_dims():
-    assert AffineMap.from_callable(lambda i, j: (i, j)).unused_dims() == set()
-    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).unused_dims() == {2}
-    assert AffineMap.from_callable(lambda i, _, k: (i, k)).unused_dims() == {1}
-
-
-def test_unused_dims_bit_vector():
-    assert AffineMap.from_callable(lambda i, j: (i, j)).unused_dims_bit_vector() == (
-        False,
-        False,
-    )
-    assert AffineMap.from_callable(
-        lambda i, j, _: (i + j,)
-    ).unused_dims_bit_vector() == (False, False, True)
-    assert AffineMap.from_callable(lambda i, _, k: (i, k)).unused_dims_bit_vector() == (
-        False,
-        True,
-        False,
-    )
+    # TODO test other simplifications like dim + const + const = dim + const

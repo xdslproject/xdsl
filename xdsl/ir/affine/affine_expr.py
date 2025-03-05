@@ -37,6 +37,31 @@ class AffineExpr:
     def symbol(position: int) -> AffineExpr:
         return AffineSymExpr(position)
 
+    @staticmethod
+    def binary(
+        kind: AffineBinaryOpKind,
+        lhs: AffineExpr,
+        rhs: AffineExpr,
+    ) -> AffineExpr:
+        """
+        The difference between creating an `AffineBinaryOpExpr` with this function
+        and creating an `AffineBinaryOpExpr` using its constructor
+        is that simplifications are automatically applied in this function.
+        """
+
+        if kind == AffineBinaryOpKind.Add:
+            return lhs + rhs
+        elif kind == AffineBinaryOpKind.Mul:
+            return lhs * rhs
+        elif kind == AffineBinaryOpKind.Mod:
+            return lhs % rhs
+        elif kind == AffineBinaryOpKind.FloorDiv:
+            return lhs // rhs
+        elif kind == AffineBinaryOpKind.CeilDiv:
+            return lhs.ceil_div(rhs)
+
+        raise ValueError("Unreachable")
+
     def compose(self, map: AffineMap) -> AffineExpr:
         """
         Compose with an AffineMap.
@@ -78,7 +103,7 @@ class AffineExpr:
             lhs = self.lhs.replace_dims_and_symbols(new_dims, new_symbols)
             rhs = self.rhs.replace_dims_and_symbols(new_dims, new_symbols)
 
-            return AffineBinaryOpExpr(
+            return AffineExpr.binary(
                 lhs=lhs,
                 rhs=rhs,
                 kind=self.kind,
