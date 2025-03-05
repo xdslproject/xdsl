@@ -51,8 +51,9 @@ from xdsl.irdl import (
     ConstraintVariableType,
     GenericAttrConstraint,
     GenericData,
-    InferenceContext,
     IntConstraint,
+    IRDLAttrConstraint,
+    IRDLGenericAttrConstraint,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
@@ -187,9 +188,6 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
-
-
-AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
@@ -330,7 +328,7 @@ class IntAttrConstraint(GenericAttrConstraint[IntAttr]):
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.int_constraint.can_infer(var_constraint_names)
 
-    def infer(self, context: InferenceContext) -> IntAttr:
+    def infer(self, context: ConstraintContext) -> IntAttr:
         return IntAttr(self.int_constraint.infer(context))
 
     def get_unique_base(self) -> type[Attribute] | None:
@@ -1039,26 +1037,27 @@ class VectorType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[AttributeCovT]
-    num_scalable_dims: ParameterDef[IntAttr]
+    scalable_dims: ParameterDef[ArrayAttr[BoolAttr]]
 
     def __init__(
         self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
-        num_scalable_dims: int | IntAttr = 0,
+        scalable_dims: ArrayAttr[BoolAttr] | None = None,
     ) -> None:
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        if isinstance(num_scalable_dims, int):
-            num_scalable_dims = IntAttr(num_scalable_dims)
-        super().__init__([shape, element_type, num_scalable_dims])
+        if scalable_dims is None:
+            false = BoolAttr(False, i1)
+            scalable_dims = ArrayAttr(false for _ in shape)
+        super().__init__([shape, element_type, scalable_dims])
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_num_scalable_dims(self) -> int:
-        return self.num_scalable_dims.data
+        return sum(bool(d.value) for d in self.scalable_dims)
 
     def get_shape(self) -> tuple[int, ...]:
         return tuple(i.data for i in self.shape)
@@ -1067,16 +1066,12 @@ class VectorType(
         return self.element_type
 
     def verify(self):
-        if self.get_num_scalable_dims() < 0:
+        num_dims = len(self.shape)
+        num_scalable_dims = len(self.scalable_dims)
+        if num_dims != num_scalable_dims:
             raise VerifyException(
-                f"Number of scalable dimensions {self.get_num_dims()} cannot"
-                " be negative"
-            )
-        if self.get_num_scalable_dims() > self.get_num_dims():
-            raise VerifyException(
-                f"Number of scalable dimensions {self.get_num_scalable_dims()}"
-                " cannot be larger than number of dimensions"
-                f" {self.get_num_dims()}"
+                f"Number of scalable dimension specifiers {num_scalable_dims} must "
+                f"equal to number of dimensions {num_dims}."
             )
 
 
@@ -1640,7 +1635,7 @@ class UnregisteredOp(Operation, ABC):
         """
         Return a new unregistered operation type given a name.
         This function should not be called directly. Use methods from
-        `MLContext` to get an `UnregisteredOp` type.
+        `Context` to get an `UnregisteredOp` type.
         """
 
         class UnregisteredOpWithNameOp(UnregisteredOp):
@@ -1716,7 +1711,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
         Return a new unregistered attribute type given a name and a
         boolean indicating if the attribute can be a type.
         This function should not be called directly. Use methods from
-        `MLContext` to get an `UnregisteredAttr` type.
+        `Context` to get an `UnregisteredAttr` type.
         """
 
         @irdl_attr_definition
@@ -1818,7 +1813,7 @@ _MemRefTypeElement = TypeVar(
     "_MemRefTypeElement", bound=Attribute, covariant=True, default=Attribute
 )
 _UnrankedMemRefTypeElems = TypeVar(
-    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True
+    "_UnrankedMemRefTypeElems", bound=Attribute, covariant=True, default=Attribute
 )
 _UnrankedMemRefTypeElemsInit = TypeVar("_UnrankedMemRefTypeElemsInit", bound=Attribute)
 
@@ -1954,10 +1949,10 @@ class MemRefType(
     def constr(
         cls,
         *,
-        shape: GenericAttrConstraint[Attribute] | None = None,
-        element_type: GenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
-        layout: GenericAttrConstraint[Attribute] | None = None,
-        memory_space: GenericAttrConstraint[Attribute] | None = None,
+        shape: IRDLAttrConstraint | None = None,
+        element_type: IRDLGenericAttrConstraint[_MemRefTypeElement] = AnyAttr(),
+        layout: IRDLAttrConstraint | None = None,
+        memory_space: IRDLAttrConstraint | None = None,
     ) -> GenericAttrConstraint[MemRefType[_MemRefTypeElement]]:
         if (
             shape is None

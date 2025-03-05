@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, arith, memref, memref_stream, scf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -35,10 +35,10 @@ def insert_subview(
     location: InsertPoint,
 ):
     """
-    A helper method to insert a subview from the input `memref_val` to one with new upper
-    bounds, given that it will be accessed with the specified affine map.
-    `dim_offsets` are the operands to use to determine the new offset, and `upper_bounds`
-    the new shape.
+    A helper method to insert a subview from the input `memref_val` to one with new
+    upper bounds, given that it will be accessed with the specified affine map.
+    `dim_offsets` are the operands to use to determine the new offset, and
+    `upper_bounds` the new shape.
     Any new operations should be inserted at `location`.
     """
     name_hint_prefix = (
@@ -230,7 +230,7 @@ class MemRefStreamTileOuterLoopsPass(ModulePass):
 
     target_rank: int = field()
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             TileGenericPattern(self.target_rank),
         ).rewrite_module(op)

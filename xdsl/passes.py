@@ -5,7 +5,7 @@ from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import Any, ClassVar, TypeVar, Union, get_args, get_origin
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.utils.hints import isa, type_repr
 from xdsl.utils.parse_pipeline import (
@@ -49,7 +49,7 @@ class ModulePass(ABC):
     name: ClassVar[str]
 
     @abstractmethod
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None: ...
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None: ...
 
     @classmethod
     def from_pass_spec(cls: type[ModulePassT], spec: PipelinePassSpec) -> ModulePassT:
@@ -182,7 +182,7 @@ class PipelinePass(ModulePass):
     the next pass.
     """
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if not self.passes:
             # Early exit to avoid fetching a non-existing last pass.
             return

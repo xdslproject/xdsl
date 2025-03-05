@@ -61,6 +61,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
 
+    def get_convert_func_to_x86_func():
+        from xdsl.backend.x86.lowering import convert_func_to_x86_func
+
+        return convert_func_to_x86_func.ConvertFuncToX86FuncPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -108,15 +113,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ptr_to_riscv.ConvertPtrToRiscvPass
 
-    def get_convert_qref_to_qssa():
-        from xdsl.transforms import convert_qref_to_qssa
+    def get_convert_ptr_type_offsets():
+        from xdsl.transforms import convert_ptr_type_offsets
 
-        return convert_qref_to_qssa.ConvertQRefToQssa
-
-    def get_convert_qssa_to_qref():
-        from xdsl.transforms import convert_qssa_to_qref
-
-        return convert_qssa_to_qref.ConvertQssaToQRef
+        return convert_ptr_type_offsets.ConvertPtrTypeOffsetsPass
 
     def get_convert_riscv_scf_for_to_frep():
         from xdsl.transforms import convert_riscv_scf_for_to_frep
@@ -502,6 +502,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-arith-to-varith": get_convert_arith_to_varith,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-func-to-x86-func": get_convert_func_to_x86_func,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
@@ -511,8 +512,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
-        "convert-qref-to-qssa": get_convert_qref_to_qssa,
-        "convert-qssa-to-qref": get_convert_qssa_to_qref,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-riscv-to-llvm": get_convert_riscv_to_llvm,
@@ -520,6 +519,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "convert-ptr-type-offsets": get_convert_ptr_type_offsets,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-varith-to-arith": get_convert_varith_to_arith,

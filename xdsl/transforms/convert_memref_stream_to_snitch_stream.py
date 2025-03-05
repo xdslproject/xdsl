@@ -4,7 +4,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import (
     builtin,
     memref,
@@ -162,7 +162,7 @@ class StreamOpLowering(RewritePattern):
         new_operands = cast_operands_to_regs(rewriter)
         new_inputs = new_operands[: len(op.inputs)]
         new_outputs = new_operands[len(op.inputs) :]
-        freg = riscv.FloatRegisterType.unallocated()
+        freg = riscv.Registers.UNALLOCATED_FLOAT
 
         rewriter.replace_matched_op(
             new_op := snitch_stream.StreamingRegionOp(
@@ -245,7 +245,7 @@ class ConvertMemRefStreamToSnitchStreamPass(ModulePass):
 
     name = "convert-memref-stream-to-snitch-stream"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

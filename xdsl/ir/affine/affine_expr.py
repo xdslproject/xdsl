@@ -43,7 +43,10 @@ class AffineExpr:
 
         Returns the composition of this AffineExpr with map.
 
-        Prerequisites: this and map are composable, i.e. that the number of AffineDimExpr of this is smaller than the number of results of map. If a result of a map does not have a corresponding AffineDimExpr, that result simply does not appear in the produced AffineExpr.
+        Prerequisites: this and map are composable, i.e. that the number of
+        AffineDimExpr of this is smaller than the number of results of map.
+        If a result of a map does not have a corresponding AffineDimExpr, that result
+        simply does not appear in the produced AffineExpr.
 
         Example:
         ```

@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -12,13 +12,13 @@ from xdsl.dialects.builtin import (
     Float32Type,
     IntAttr,
     IntegerAttr,
-    IntegerType,
     MemRefType,
     ModuleOp,
     NoneAttr,
-    Signedness,
     StridedLayoutAttr,
     UnrealizedConversionCastOp,
+    i8,
+    i16,
 )
 from xdsl.dialects.csl.csl import ZerosOpAttr
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
@@ -194,7 +194,7 @@ class LowerSubviewOpPass(RewritePattern):
         static_sizes = cast(Sequence[int], subview.static_sizes.get_values())
 
         if static_sizes[0] == memref.SubviewOp.DYNAMIC_INDEX:
-            ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], csl.u16_value))
+            ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], i16))
             ops.append(
                 curr_op := csl.SetDsdLengthOp.build(
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
@@ -206,7 +206,7 @@ class LowerSubviewOpPass(RewritePattern):
                 len_op := arith.ConstantOp(
                     IntegerAttr(
                         static_sizes[0],
-                        csl.u16_value,
+                        i16,
                     )
                 )
             )
@@ -227,11 +227,7 @@ class LowerSubviewOpPass(RewritePattern):
         static_strides = cast(Sequence[int], subview.static_strides.get_values())
 
         if static_strides[0] == memref.SubviewOp.DYNAMIC_INDEX:
-            ops.append(
-                cast_op := arith.IndexCastOp(
-                    subview.strides[0], IntegerType(8, Signedness.SIGNED)
-                )
-            )
+            ops.append(cast_op := arith.IndexCastOp(subview.strides[0], i8))
             ops.append(
                 csl.SetDsdStrideOp.build(
                     operands=[curr_op, cast_op], result_types=[subview.source.type]
@@ -243,7 +239,7 @@ class LowerSubviewOpPass(RewritePattern):
                 stride_op := arith.ConstantOp(
                     IntegerAttr(
                         static_strides[0],
-                        IntegerType(8, Signedness.SIGNED),
+                        i8,
                     )
                 )
             )
@@ -264,7 +260,7 @@ class LowerSubviewOpPass(RewritePattern):
         static_offsets = cast(Sequence[int], subview.static_offsets.get_values())
 
         if subview.offsets:
-            ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value))
+            ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))
             ops.append(
                 csl.IncrementDsdOffsetOp.build(
                     operands=[curr_op, cast_op],
@@ -283,7 +279,7 @@ class LowerSubviewOpPass(RewritePattern):
                 offset_op := arith.ConstantOp(
                     IntegerAttr(
                         static_offsets[0],
-                        csl.i16_value,
+                        i16,
                     )
                 )
             )
@@ -413,7 +409,7 @@ class MemRefToDsdPass(ModulePass):
 
     name = "memref-to-dsd"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

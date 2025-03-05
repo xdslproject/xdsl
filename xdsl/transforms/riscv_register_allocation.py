@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
 from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
@@ -36,7 +36,7 @@ class RISCVRegisterAllocation(ModulePass):
     Inserts a comment with register allocation info in the IR.
     """
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         allocator_strategies = {
             "LivenessBlockNaive": RegisterAllocatorLivenessBlockNaive,
         }

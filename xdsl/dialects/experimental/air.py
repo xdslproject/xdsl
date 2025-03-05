@@ -11,7 +11,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
-    AnyArrayAttr,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -90,7 +89,7 @@ class ChannelOp(IRDLOperation):
     name = "air.channel"
 
     sym_name = prop_def(SymbolRefAttr)
-    size = prop_def(AnyArrayAttr)
+    size = prop_def(ArrayAttr)
 
     def __init__(
         self, sym_name: SymbolRefAttr, size: ArrayAttr[IntegerAttr]
@@ -138,7 +137,7 @@ class ChannelGetOp(IRDLOperation):
             ],
         )
 
-    assembly_format = "(`async` `[` $async_dependencies^ `]`)? $chan_name `[` $indices `]` `(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `)` attr-dict `:` `(` type($dst) `)`"
+    assembly_format = "(`async` `[` $async_dependencies^ `]`)? $chan_name `[` $indices `]` `(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `)` attr-dict `:` `(` type($dst) `)`"  # noqa: E501
 
 
 @irdl_op_definition
@@ -181,7 +180,7 @@ class ChannelPutOp(IRDLOperation):
             result_types=[AsyncTokenAttr()],
         )
 
-    assembly_format = "(`async` `[` $async_dependencies^ `]`)? $chan_name `[` $indices `]` `(` $src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)` attr-dict `:` `(` type($src) `)`"
+    assembly_format = "(`async` `[` $async_dependencies^ `]`)? $chan_name `[` $indices `]` `(` $src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)` attr-dict `:` `(` type($src) `)`"  # noqa: E501
 
 
 @irdl_op_definition
@@ -284,7 +283,7 @@ class DmaMemcpyNdOp(IRDLOperation):
             result_types=[AsyncTokenAttr()],
         )
 
-    assembly_format = "(`async` $async_dependencies^)? `(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `,` $src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)`  attr-dict `:` `(` type($dst) `,` type($src) `)`"
+    assembly_format = "(`async` $async_dependencies^)? `(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `,` $src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)`  attr-dict `:` `(` type($dst) `,` type($src) `)`"  # noqa: E501
 
 
 @irdl_op_definition

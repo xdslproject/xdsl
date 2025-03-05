@@ -20,7 +20,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintContext,
     GenericAttrConstraint,
-    InferenceContext,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -53,7 +52,7 @@ class TensorFromMemRefConstraint(
         return self.memref_constraint.can_infer(var_constraint_names)
 
     def infer(
-        self, context: InferenceContext
+        self, context: ConstraintContext
     ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
         memref_type = self.memref_constraint.infer(context)
         if isinstance(memref_type, MemRefType):
@@ -120,7 +119,7 @@ class AllocTensorOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    assembly_format = "`(` $dynamic_sizes `)` ( `copy` `(` $copy^ `)`)? (`size_hint` `=` $size_hint^)? attr-dict `:` type($tensor)"
+    assembly_format = "`(` $dynamic_sizes `)` ( `copy` `(` $copy^ `)`)? (`size_hint` `=` $size_hint^)? attr-dict `:` type($tensor)"  # noqa E501
 
     def __init__(
         self,
@@ -216,7 +215,7 @@ class MaterializeInDestinationOp(IRDLOperation):
     restrict = opt_prop_def(UnitAttr)
     writable = opt_prop_def(UnitAttr)
 
-    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"
+    assembly_format = "$source `in` (`restrict` $restrict^)? (`writable` $writable^)? $dest attr-dict `:` functional-type(operands, results)"  # noqa: E501
 
 
 Bufferization = Dialect(

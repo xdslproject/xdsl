@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, arith, builtin, memref, scf
 from xdsl.ir import Operation, SSAValue
 from xdsl.ir.affine import (
@@ -158,7 +158,7 @@ class LowerAffineApply(RewritePattern):
 class LowerAffinePass(ModulePass):
     name = "lower-affine"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

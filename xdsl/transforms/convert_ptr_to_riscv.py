@@ -5,7 +5,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     register_type_for_type,
 )
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import ptr, riscv
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -30,7 +30,7 @@ from xdsl.utils.exceptions import DiagnosticException
 class PtrTypeConversion(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: ptr.PtrType) -> riscv.IntRegisterType:
-        return riscv.IntRegisterType.unallocated()
+        return riscv.Registers.UNALLOCATED_INT
 
 
 @dataclass
@@ -38,9 +38,7 @@ class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
         oper1, oper2 = cast_operands_to_regs(rewriter)
-        rewriter.replace_matched_op(
-            riscv.AddOp(oper1, oper2, rd=riscv.IntRegisterType.unallocated())
-        )
+        rewriter.replace_matched_op(riscv.AddOp(oper1, oper2))
 
 
 @dataclass
@@ -115,7 +113,7 @@ class ConvertMemRefToPtrOp(RewritePattern):
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
             UnrealizedConversionCastOp.get(
-                [op.source], [riscv.IntRegisterType.unallocated()]
+                (op.source,), (riscv.Registers.UNALLOCATED_INT,)
             )
         )
 
@@ -123,7 +121,7 @@ class ConvertMemRefToPtrOp(RewritePattern):
 class ConvertPtrToRiscvPass(ModulePass):
     name = "convert-ptr-to-riscv"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

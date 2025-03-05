@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, func, stencil
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
@@ -82,7 +82,7 @@ class StencilShapeMinimize(ModulePass):
 
     restrict: tuple[int, ...] | None = None
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if self.restrict:
             PatternRewriteWalker(
                 GreedyRewritePatternApplier(

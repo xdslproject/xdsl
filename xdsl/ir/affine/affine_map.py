@@ -115,7 +115,10 @@ class AffineMap:
         result_num_symbols: int,
     ) -> AffineMap:
         """
-        This method substitutes any uses of dimensions and symbols (e.g. dim#0 with dimReplacements[0]) in subexpressions and returns the modified expression mapping.  Because this can be used to eliminate dims and symbols, the client needs to specify the number of dims and symbols in the result.
+        This method substitutes any uses of dimensions and symbols (e.g. dim#0 with
+        dimReplacements[0]) in subexpressions and returns the modified expression
+        mapping.  Because this can be used to eliminate dims and symbols, the client
+        needs to specify the number of dims and symbols in the result.
 
         The returned map always has the same number of results.
         """
@@ -133,9 +136,12 @@ class AffineMap:
         """
         Returns the `AffineMap` resulting from composing `self` with `other`.
 
-        The resulting `AffineMap` has as many dimensions as `other` and as many symbols as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
+        The resulting `AffineMap` has as many dimensions as `other` and as many symbols
+        as the concatenation of `self` and `other` (in which case the symbols of `self`
+        come first).
 
-        Prerequisites: The maps are composable, i.e. that the number of dimensions of `self` matches the number of results of `other`.
+        Prerequisites: The maps are composable, i.e. that the number of dimensions of
+        `self` matches the number of results of `other`.
 
         Example:
         ```

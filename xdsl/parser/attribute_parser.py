@@ -7,11 +7,10 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyArrayAttr,
     AnyDenseElement,
     AnyFloat,
     AnyFloatConstr,
@@ -20,6 +19,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BoolAttr,
     BytesAttr,
     ComplexType,
     DenseArrayBase,
@@ -87,7 +87,7 @@ class AttrParser(BaseParser):
 
     """
 
-    ctx: MLContext
+    ctx: Context
 
     attribute_aliases: dict[str, Attribute] = field(default_factory=dict)
     """
@@ -556,31 +556,30 @@ class AttrParser(BaseParser):
 
     def _parse_vector_attrs(self) -> AnyVectorType:
         dims: list[int] = []
-        num_scalable_dims = 0
-        # First, parse the static dimensions
-        while self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
-            dims.append(self.parse_shape_dimension(allow_dynamic=False))
-            self.parse_shape_delimiter()
+        scalable_dims: list[bool] = []
 
-        # Then, parse the scalable dimensions, if any
-        if self.parse_optional_punctuation("[") is not None:
-            # Parse the scalable dimensions
-            dims.append(self.parse_shape_dimension(allow_dynamic=False))
-            num_scalable_dims += 1
-
-            while self.parse_optional_punctuation("]") is None:
-                self.parse_shape_delimiter()
+        while True:
+            if self._current_token.kind == MLIRTokenKind.INTEGER_LIT:
+                # Static dimension
                 dims.append(self.parse_shape_dimension(allow_dynamic=False))
-                num_scalable_dims += 1
-
-            # Parse the `x` between the scalable dimensions and the type
-            self.parse_shape_delimiter()
+                scalable_dims.append(False)
+                self.parse_shape_delimiter()
+            elif self.parse_optional_punctuation("[") is not None:
+                # Scalable dimension
+                dims.append(self.parse_shape_dimension(allow_dynamic=False))
+                scalable_dims.append(True)
+                self.parse_punctuation("]")
+                self.parse_shape_delimiter()
+            else:
+                break
 
         type = self.parse_optional_type()
         if type is None:
-            self.raise_error("Expected the vector element types!")
+            self.raise_error("Expected vector element type")
 
-        return VectorType(type, dims, num_scalable_dims)
+        scalable_dims_attr = ArrayAttr(BoolAttr.from_bool(s) for s in scalable_dims)
+
+        return VectorType(type, dims, scalable_dims_attr)
 
     def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape, type = self.parse_shape()
@@ -1207,7 +1206,7 @@ class AttrParser(BaseParser):
             else None
         )
 
-    def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
+    def _parse_optional_array_attr(self) -> ArrayAttr | None:
         """
         Parse an array attribute, if present, with format:
             array-attr ::= `[` (attribute (`,` attribute)*)? `]`

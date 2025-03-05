@@ -1,38 +1,13 @@
 import marimo
 
-__generated_with = "0.10.9"
-app = marimo.App(width="medium", auto_download=["ipynb"])
+__generated_with = "0.11.10"
+app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
-    return (mo,)
-
-
-@app.cell
-def _():
     import xdsl.utils.marimo as xmo
-    return (xmo,)
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        """
-        \
-        # Compiling `linalg` to Snitch
-
-        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
-
-        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
-        """
-    )
-    return
-
-
-@app.cell
-def _():
     # Import all the necessary functionality from xDSL for this notebook
     # If you see an error about xdsl not being defined run this cell manually
 
@@ -49,7 +24,7 @@ def _():
         ConvertSnitchStreamToSnitch,
     )
     from xdsl.builder import ImplicitBuilder
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
@@ -84,11 +59,11 @@ def _():
         Attribute,
         Block,
         CanonicalizePass,
+        Context,
         ConvertRiscvScfToRiscvCfPass,
         ConvertSnitchStreamToSnitch,
         ImplicitBuilder,
         LowerSnitchPass,
-        MLContext,
         MLIROptPass,
         MemRefType,
         ModuleOp,
@@ -118,9 +93,25 @@ def _():
         loop_hoist_memref,
         lower_affine,
         memref_streamify,
+        mo,
         reconcile_unrealized_casts,
         riscv_code,
+        xmo,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        """
+        # Compiling `linalg` to Snitch
+
+        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
+
+        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
+        """
+    )
+    return
 
 
 @app.cell
@@ -216,7 +207,7 @@ def _(mo):
     return k, m, max_val, min_val, n
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(k, m, mo, n):
     mo.md(
         f"""
@@ -249,22 +240,22 @@ def _(k, m, mo, n):
     return a_shape, b_shape, c_shape
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""### Compiling to RISC-V""")
     return
 
 
 @app.cell
-def _(MLContext, get_all_dialects):
-    linalg_ctx = MLContext()
+def _(Context, get_all_dialects):
+    linalg_ctx = Context()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         linalg_ctx.register_dialect(dialect_name, dialect_factory)
     return dialect_factory, dialect_name, linalg_ctx
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""We can take this representation, and lower to RISC-V-specific dialects:""")
     return
@@ -302,7 +293,7 @@ def _(
     return lower_to_riscv, riscv_ctx, riscv_html, riscv_module
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -368,7 +359,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, riscv_asm_module, riscv_code, xmo):
     riscv_asm = riscv_code(riscv_asm_module)
 
@@ -381,7 +372,7 @@ def _(mo, riscv_asm_module, riscv_code, xmo):
     return (riscv_asm,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -430,7 +421,7 @@ def _(
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:""")
     return
@@ -482,7 +473,7 @@ def _(mo, riscv_code, snitch_asm_module, xmo):
     return (snitch_asm,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
@@ -590,7 +581,7 @@ def _(
     return snitch_c_shaped, snitch_interpreter, snitch_op_counter
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
     rv_dict = dict(riscv_op_counter.ops)
     sn_dict = dict(snitch_op_counter.ops)

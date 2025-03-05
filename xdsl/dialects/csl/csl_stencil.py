@@ -357,7 +357,8 @@ class ApplyOp(IRDLOperation):
         for operand, argument in zip(self.operands, op_args):
             if operand.type != argument.type:
                 raise VerifyException(
-                    f"Expected argument type of {type(self)} to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                    f"Expected argument type of {type(self)} to match operand type, "
+                    f"got {argument.type} != {operand.type} at index {argument.index}"
                 )
 
         # typecheck required (only) block arguments
@@ -569,21 +570,26 @@ class AccessOp(IRDLOperation):
             if isa(self.op.type, memref.MemRefType[Attribute]):
                 if not self.result.type == self.op.type:
                     raise VerifyException(
-                        f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
+                        f"{type(self)} access to own data requires{self.op.type} but "
+                        f"found {self.result.type}"
                     )
             elif isattr(self.op.type, stencil.StencilTypeConstr):
                 if not self.result.type == self.op.type.get_element_type():
                     raise VerifyException(
-                        f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
+                        f"{type(self)} access to own data requires "
+                        f"{self.op.type.get_element_type()} but found "
+                        f"{self.result.type}"
                     )
             else:
                 raise VerifyException(
-                    f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
+                    f"{type(self)} access to own data requires type "
+                    f"stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
         else:
             if not isattr(self.op.type, AnyTensorTypeConstr | MemRefType.constr()):
                 raise VerifyException(
-                    f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
+                    f"{type(self)} access to neighbor data requires type "
+                    f"memref.MemRefType or TensorType but found {self.op.type}"
                 )
 
         # As promised by HasAncestor(ApplyOp)

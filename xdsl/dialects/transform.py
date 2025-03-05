@@ -29,7 +29,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -297,7 +296,7 @@ class GetTypeOp(IRDLOperation):
 
     name = "transform.get_type"
 
-    elemental = prop_def(UnitAttr)
+    elemental = opt_prop_def(UnitAttr)
     value = operand_def(TransformValueHandleType)
     type_param = result_def(TransformParamHandleType)
 
@@ -438,7 +437,7 @@ class ParamConstantOp(IRDLOperation):
 
     name = "transform.param.constant"
 
-    value = attr_def(Attribute)
+    value = prop_def(Attribute)
     param = result_def(ParamType)
 
     def __init__(self, value: Attribute, param_type: TypeAttribute):
@@ -549,7 +548,8 @@ class SequenceOp(IRDLOperation):
             self.failure_propagation_mode, FailurePropagationModeAttr
         ) and not isinstance(self.failure_propagation_mode, IntegerAttr):
             raise VerifyException(
-                f"Expected failure_propagation_mode to be of type FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}"
+                "Expected failure_propagation_mode to be of type "
+                f"FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}"
             )
 
 

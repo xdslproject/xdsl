@@ -147,28 +147,34 @@ class FMAOp(IRDLOperation):
 
         if self.res.type.element_type != self.lhs.type.element_type:
             raise VerifyException(
-                "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
+                "Result vector type must match with all source vectors. Found "
+                "different types for result vector and lhs vector."
             )
         elif self.res.type.element_type != self.rhs.type.element_type:
             raise VerifyException(
-                "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
+                "Result vector type must match with all source vectors. Found "
+                "different types for result vector and rhs vector."
             )
         elif self.res.type.element_type != self.acc.type.element_type:
             raise VerifyException(
-                "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
+                "Result vector type must match with all source vectors. Found "
+                "different types for result vector and acc vector."
             )
 
         if res_shape != lhs_shape:
             raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
+                "Result vector shape must match with all source vector shapes. Found "
+                "different shapes for result vector and lhs vector."
             )
         elif res_shape != rhs_shape:
             raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
+                "Result vector shape must match with all source vector shapes. Found "
+                "different shapes for result vector and rhs vector."
             )
         elif res_shape != acc_shape:
             raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
+                "Result vector shape must match with all source vector shapes. Found "
+                "different shapes for result vector and acc vector."
             )
 
     @staticmethod
@@ -411,16 +417,19 @@ def verify_permutation_map(
         if isa(expr, AffineConstantExpr):
             if expr.value != 0:
                 raise VerifyException(
-                    f'"{op.name}" requires a projected permutation_map (at most one dim or the zero constant can appear in each result)'
+                    f'"{op.name}" requires a projected permutation_map '
+                    "(at most one dim or the zero constant can appear in each result)"
                 )
             continue
         if not isa(expr, AffineDimExpr):
             raise VerifyException(
-                f'"{op.name}" requires a projected permutation_map (at most one dim or the zero constant can appear in each result)'
+                f'"{op.name}" requires a projected permutation_map '
+                "(at most one dim or the zero constant can appear in each result)"
             )
         if seen[expr.position]:
             raise VerifyException(
-                f'"{op.name}" requires a permutation_map that is a permutation (found one dim used more than once)'
+                f'"{op.name}" requires a permutation_map that is a permutation '
+                "(found one dim used more than once)"
             )
         seen[expr.position] = True
 
@@ -460,7 +469,8 @@ def verify_transfer_op(
             result_vec_size = vector_element_type.bitwidth * minor_size
             if result_vec_size % element_type.bitwidth != 0:
                 raise VerifyException(
-                    f'"{op.name}" requires the bitwidth of the minor 1-D vector to be an integral multiple of the bitwidth of the source element type'
+                    f'"{op.name}" requires the bitwidth of the minor 1-D vector to be '
+                    "an integral multiple of the bitwidth of the source element type"
                 )
 
         # Check that permutation map results match rank of vector type.
@@ -479,7 +489,8 @@ def verify_transfer_op(
 
     if len(in_bounds) != len(permutation_map.results):
         raise VerifyException(
-            f'"{op.name}" expects the optional in_bounds attr of same rank as permutation_map results: {str(permutation_map)} vs in_bounds of of size {len(in_bounds)}'
+            f'"{op.name}" expects the optional in_bounds attr of same rank as permutation_map results: '
+            f"{str(permutation_map)} vs in_bounds of of size {len(in_bounds)}"
         )
 
     for i in range(len(permutation_map.results)):

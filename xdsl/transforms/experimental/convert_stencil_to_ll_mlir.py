@@ -4,7 +4,7 @@ from math import prod
 from typing import TypeVar, cast
 from warnings import warn
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
@@ -513,11 +513,13 @@ class StencilStoreToSubview(RewritePattern):
         for use in op.field.uses:
             if isa(use.operation, LoadOp):
                 raise VerifyException(
-                    "Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before."
+                    "Cannot lower directly if loading and storing the same field! "
+                    "Try running `stencil-bufferize` before."
                 )
             if isa(use.operation, StoreOp) and use.operation is not op:
                 raise VerifyException(
-                    "Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before."
+                    "Cannot lower directly if storing to the same field multiple "
+                    "times! Try running `stencil-bufferize` before."
                 )
         field = op.field
         assert isa(field.type, FieldType[Attribute])
@@ -666,7 +668,7 @@ class ResultTypeConversion(TypeConversionPattern):
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         return_targets: dict[ApplyOp, list[SSAValue | None]] = return_target_analysis(
             op
         )
