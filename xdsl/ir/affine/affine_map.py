@@ -4,9 +4,8 @@ import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
-from typing import cast
 
-from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr
+from xdsl.ir.affine import AffineDimExpr, AffineExpr
 
 AffineExprBuilderT = AffineExpr | int
 
@@ -175,17 +174,6 @@ class AffineMap:
             num_symbols=num_symbols,
             results=results,
         )
-
-    def compose_with_values(self, values: Sequence[int]) -> tuple[int, ...]:
-        """
-        Same as SmallVector<int64_t, 4> AffineMap::compose(ArrayRef<int64_t> values) const from AffineMap.cpp
-        """
-        assert self.num_symbols == 0
-        expressions: list[AffineExpr] = []
-        for value in values:
-            expressions.append(AffineExpr.constant(value))
-        result_map = self.compose(AffineMap(0, 0, tuple(expressions)))
-        return tuple(cast(AffineConstantExpr, res).value for res in result_map.results)
 
     def inverse_permutation(self) -> AffineMap | None:
         """
