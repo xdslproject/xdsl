@@ -28,8 +28,15 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     index: ParameterDef[IntAttr | NoneAttr]
     spelling: ParameterDef[StringAttr]
 
-    def __init__(self, spelling: str = ""):
+    def __init__(self, spelling: str):
         super().__init__(self._parameters_from_spelling(spelling))
+
+    @classmethod
+    def unallocated(cls) -> Self:
+        """
+        Returns an unallocated register of this type.
+        """
+        return cls("")
 
     @classmethod
     def _parameters_from_spelling(

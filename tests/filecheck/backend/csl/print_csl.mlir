@@ -141,14 +141,12 @@
   }
 
   csl.func @select() -> !csl<dsd mem1d_dsd> {
-    %c100 = arith.constant 100 : i32
-    %value1 = csl.mlir.signedness_cast %c100 : i32 to si32
-    %c200 = arith.constant 200 : i32
-    %value2 = csl.mlir.signedness_cast %c200 : i32 to si32
+    %value1 = arith.constant 100 : i32
+    %value2 = arith.constant 200 : i32
     %toggle = arith.constant 1 : i1
     %A = memref.get_global @A : memref<24xf32>
-    %dsd1 = "csl.get_mem_dsd"(%A, %value1) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
-    %dsd2 = "csl.get_mem_dsd"(%A, %value2) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+    %dsd1 = "csl.get_mem_dsd"(%A, %value1) : (memref<24xf32>, i32) -> !csl<dsd mem1d_dsd>
+    %dsd2 = "csl.get_mem_dsd"(%A, %value2) : (memref<24xf32>, i32) -> !csl<dsd mem1d_dsd>
     %selected_dsd = arith.select %toggle, %dsd1, %dsd2 : !csl<dsd mem1d_dsd>
     csl.return %selected_dsd : !csl<dsd mem1d_dsd>
   }
@@ -351,21 +349,17 @@ csl.func @gemv() {
 csl.func @ctrlflow() {
   %0 = arith.constant 0 : i1
   %1 = arith.constant 1 : i1
-  %c100 = arith.constant 100 : i32
-  %i32_value = csl.mlir.signedness_cast %c100 : i32 to si32
+  %i32_value = arith.constant 100 : i32
   "scf.if"(%0) ({
-    %c2 = arith.constant 2 : i32
-    %2 = csl.mlir.signedness_cast %c2 : i32 to si32
+    %2 = arith.constant 2 : i32
     scf.yield
   }, {
-    %c3 = arith.constant 3 : i32
-    %3 = csl.mlir.signedness_cast %c3 : i32 to si32
+    %3 = arith.constant 3 : i32
     scf.yield
   }) : (i1) -> ()
 
   "scf.if"(%1) ({
-    %c4 = arith.constant 4 : i32
-    %4 = csl.mlir.signedness_cast %c4 : i32 to si32
+    %4 = arith.constant 4 : i32
     scf.yield
   }, {
     scf.yield
@@ -432,9 +426,9 @@ csl.func @builtins() {
   %src_dsd2 = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
 
   %dsd_1d2 = "csl.set_dsd_base_addr"(%dest_dsd, %A) : (!csl<dsd mem1d_dsd>, memref<24xf32>) -> !csl<dsd mem1d_dsd>
-  %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %i16_value) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
-  %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-  %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %i8_value) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
+  %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %c10b) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+  %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %c12) : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+  %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %c10a) : (!csl<dsd mem1d_dsd>, i8) -> !csl<dsd mem1d_dsd>
 
   %fabin_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 2 : ui5 , "queue_id" = 0 : i3}> : (si32) -> !csl<dsd fabin_dsd>
   %fabout_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 3 : ui5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (si32) -> !csl<dsd fabout_dsd>
@@ -629,10 +623,10 @@ csl.func @builtins() {
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn select() mem1d_dsd {
 // CHECK-NEXT:   const dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
-// CHECK-NEXT:     .tensor_access = | d0 | { @as(i32, 100) } -> A[ d0 ]
+// CHECK-NEXT:     .tensor_access = | d0 | { 100 } -> A[ d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   const dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd, .{
-// CHECK-NEXT:     .tensor_access = | d0 | { @as(i32, 200) } -> A[ d0 ]
+// CHECK-NEXT:     .tensor_access = | d0 | { 200 } -> A[ d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   return (if (true) dsd1 else dsd2);
 // CHECK-NEXT: }
@@ -760,15 +754,15 @@ csl.func @builtins() {
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn ctrlflow() void {
-// CHECK-NEXT:   const i32_value : i32 = @as(i32, 100);
+// CHECK-NEXT:   const i32_value : i32 = 100;
 // CHECK-NEXT:   if (false) {
-// CHECK-NEXT:     const v1 : i32 = @as(i32, 2);
+// CHECK-NEXT:     const v1 : i32 = 2;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   else {
-// CHECK-NEXT:     const v1 : i32 = @as(i32, 3);
+// CHECK-NEXT:     const v1 : i32 = 3;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   if (true) {
-// CHECK-NEXT:     const v1 : i32 = @as(i32, 4);
+// CHECK-NEXT:     const v1 : i32 = 4;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   var i32ret : i32;
 // CHECK-NEXT:   if (false) {
@@ -796,6 +790,7 @@ csl.func @builtins() {
 // CHECK-NEXT: }
 // CHECK-NEXT: {{ *}}
 // CHECK-NEXT: fn builtins() void {
+// CHECK-NEXT:   const i8_value : i8 = @as(i8, 10);
 // CHECK-NEXT:   const i16_value : i16 = @as(i16, 10);
 // CHECK-NEXT:   const u16_value : u16 = @as(u16, 12);
 // CHECK-NEXT:   const i32_value : i32 = @as(i32, 100);
@@ -822,9 +817,9 @@ csl.func @builtins() {
 // CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
 // CHECK-NEXT:   });
 // CHECK-NEXT:   const dsd_1d2 : mem1d_dsd = @set_dsd_base_addr(dest_dsd, A);
-// CHECK-NEXT:   const dsd_1d3 : mem1d_dsd = @increment_dsd_offset(dsd_1d2, i16_value, f32);
-// CHECK-NEXT:   const dsd_1d4 : mem1d_dsd = @set_dsd_length(dsd_1d3, u16_value);
-// CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, @as(i8, 10));
+// CHECK-NEXT:   const dsd_1d3 : mem1d_dsd = @increment_dsd_offset(dsd_1d2, 10, f32);
+// CHECK-NEXT:   const dsd_1d4 : mem1d_dsd = @set_dsd_length(dsd_1d3, 12);
+// CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, 10);
 // CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .input_queue = @get_input_queue(0),

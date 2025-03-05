@@ -548,7 +548,7 @@ class Interpreter:
     """
     _impls: _InterpreterFunctionImpls = field(default_factory=_InterpreterFunctionImpls)
     _ctx: ScopedDict[SSAValue, Any] = field(
-        default_factory=lambda: ScopedDict(name="root")
+        default_factory=lambda: ScopedDict[SSAValue, Any](name="root")
     )
     """
     Object holding the Python values associated with SSAValues during an
