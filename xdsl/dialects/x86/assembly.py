@@ -24,23 +24,23 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     elif isinstance(arg, str):
         return arg
     elif isinstance(arg, GeneralRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     elif isinstance(arg, RFLAGSRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     elif isinstance(arg, X86VectorRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     elif isinstance(arg, LabelAttr):
         return arg.data
     else:
         if isinstance(arg.type, GeneralRegisterType):
             reg = arg.type.register_name
-            return reg
+            return reg.data
         elif isinstance(arg.type, RFLAGSRegisterType):
             reg = arg.type.register_name
-            return reg
+            return reg.data
         elif isinstance(arg.type, X86VectorRegisterType):
             reg = arg.type.register_name
-            return reg
+            return reg.data
         else:
             raise ValueError(f"Unexpected register type {arg.type}")
 

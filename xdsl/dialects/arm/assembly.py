@@ -8,11 +8,11 @@ AssemblyInstructionArg: TypeAlias = ARMRegisterType | SSAValue
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     if isinstance(arg, ARMRegisterType):
-        reg = arg.register_name
+        reg = arg.register_name.data
         return reg
     else:  # SSAValue
         if isinstance(arg.type, ARMRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         else:
             raise ValueError(f"Unexpected argument type {type(arg)}")

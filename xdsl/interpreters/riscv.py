@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    StringAttr,
 )
 from xdsl.interpreter import (
     Interpreter,
@@ -76,7 +77,7 @@ class RiscvFunctions(InterpreterFunctions):
         registers = RiscvFunctions.registers(interpreter)
 
         if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name}")
+            raise InterpretationError(f"Value not found for register name {name.data}")
 
         stored_value = registers[name]
 
@@ -148,7 +149,7 @@ class RiscvFunctions(InterpreterFunctions):
         )
 
     @staticmethod
-    def registers(interpreter: Interpreter) -> dict[str, Any]:
+    def registers(interpreter: Interpreter) -> dict[StringAttr, Any]:
         return interpreter.get_data(
             RiscvFunctions,
             REGISTERS_KEY,
@@ -597,7 +598,7 @@ class RiscvFunctions(InterpreterFunctions):
         registers = RiscvFunctions.registers(interpreter)
 
         if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name}")
+            raise InterpretationError(f"Value not found for register name {name.data}")
 
         stored_value = registers[name]
 

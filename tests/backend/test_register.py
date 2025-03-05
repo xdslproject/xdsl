@@ -33,4 +33,4 @@ def test_register_clashes():
 
 def test_unallocated_register():
     assert not TestRegister.unallocated().is_allocated
-    assert TestRegister.from_spelling("x0").is_allocated
+    assert TestRegister.from_name("x0").is_allocated

@@ -27,11 +27,11 @@ def test_add_op():
     assert isinstance(a0.type, riscv.IntRegisterType)
     assert isinstance(a1.type, riscv.IntRegisterType)
     assert isinstance(a2.type, riscv.IntRegisterType)
-    assert a0.type.spelling.data == "a0"
+    assert a0.type.register_name.data == "a0"
     assert a0.type.index == IntAttr(10)
-    assert a1.type.spelling.data == "a1"
+    assert a1.type.register_name.data == "a1"
     assert a1.type.index == IntAttr(11)
-    assert a2.type.spelling.data == "a2"
+    assert a2.type.register_name.data == "a2"
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
@@ -224,9 +224,9 @@ def test_immediate_shift_inst():
 
 def test_float_register():
     with pytest.raises(VerifyException, match="not in"):
-        riscv.IntRegisterType.from_spelling("ft9")
+        riscv.IntRegisterType.from_name("ft9")
     with pytest.raises(VerifyException, match="not in"):
-        riscv.FloatRegisterType.from_spelling("a0")
+        riscv.FloatRegisterType.from_name("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)

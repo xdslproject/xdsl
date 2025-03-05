@@ -5,23 +5,23 @@ from xdsl.dialects.builtin import IntegerAttr
 
 
 def test_unallocated_register():
-    unallocated = x86.register.GeneralRegisterType.from_spelling("")
+    unallocated = x86.register.GeneralRegisterType.from_name("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_GENERAL
 
-    unallocated = x86.register.RFLAGSRegisterType.from_spelling("")
+    unallocated = x86.register.RFLAGSRegisterType.from_name("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_RFLAGS
 
-    unallocated = x86.register.AVX2RegisterType.from_spelling("")
+    unallocated = x86.register.AVX2RegisterType.from_name("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_AVX2
 
-    unallocated = x86.register.AVX512RegisterType.from_spelling("")
+    unallocated = x86.register.AVX512RegisterType.from_name("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_AVX512
 
-    unallocated = x86.register.SSERegisterType.from_spelling("")
+    unallocated = x86.register.SSERegisterType.from_name("")
     assert not unallocated.is_allocated
     assert unallocated == x86.register.UNALLOCATED_SSE
 
@@ -57,14 +57,14 @@ def test_unallocated_register():
 )
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "x86"
 
 
 def test_rflags_register():
     rflags = x86.register.RFLAGS
     assert rflags.is_allocated
-    assert rflags.register_name == "rflags"
+    assert rflags.register_name.data == "rflags"
 
 
 @pytest.mark.parametrize(
@@ -106,7 +106,7 @@ def test_rflags_register():
 )
 def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "AVX512"
 
 
@@ -133,7 +133,7 @@ def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
 )
 def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "AVX2"
 
 
@@ -160,7 +160,7 @@ def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
 )
 def test_sse_register(register: x86.register.SSERegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "SSE"
 
 

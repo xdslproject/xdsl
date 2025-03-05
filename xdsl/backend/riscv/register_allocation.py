@@ -47,7 +47,7 @@ def gather_allocated(
                 isinstance(param.type, IntRegisterType | FloatRegisterType)
                 and param.type.is_allocated
             ):
-                if not param.type.register_name.startswith("j"):
+                if not param.type.register_name.data.startswith("j"):
                     allocated.add(param.type)
 
     return allocated
@@ -80,9 +80,9 @@ def reg_types(regs: Iterable[Attribute]) -> tuple[set[str], set[str]]:
 
     for reg in regs:
         if isinstance(reg, IntRegisterType):
-            int_regs.add(reg.spelling.data)
+            int_regs.add(reg.register_name.data)
         elif isinstance(reg, FloatRegisterType):
-            float_regs.add(reg.spelling.data)
+            float_regs.add(reg.register_name.data)
 
     return int_regs, float_regs
 
