@@ -7,12 +7,12 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def test_assembly_arg_str_ARMRegister():
-    arg = IntRegisterType.from_spelling("x0")
+    arg = IntRegisterType.from_name("x0")
     assert assembly_arg_str(arg) == "x0"
 
 
 def test_assembly_arg_str_SSAValue_valid():
-    arg = TestSSAValue(IntRegisterType.from_spelling("x1"))
+    arg = TestSSAValue(IntRegisterType.from_name("x1"))
     assert assembly_arg_str(arg) == "x1"
 
 
