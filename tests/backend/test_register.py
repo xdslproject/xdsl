@@ -6,6 +6,32 @@ from xdsl.irdl import irdl_attr_definition
 from xdsl.utils.exceptions import VerifyException
 
 
+def test_register_clashes():
+    @irdl_attr_definition
+    class ClashRegister(RegisterType):
+        name = "test.reg_clash"
+
+        def verify(self) -> None: ...
+
+        @classmethod
+        def instruction_set_name(cls) -> str:
+            return "TEST"
+
+        @classmethod
+        def abi_index_by_name(cls) -> dict[str, int]:
+            return {"x0": 0}
+
+        @classmethod
+        def infinite_register_prefix(cls):
+            return "x"
+
+    with pytest.raises(
+        AssertionError,
+        match="Invalid 'infinite' register name: x0 clashes with finite register set",
+    ):
+        ClashRegister.infinite_register(0)
+
+
 @irdl_attr_definition
 class TestRegister(RegisterType):
     name = "test.reg"
@@ -16,24 +42,43 @@ class TestRegister(RegisterType):
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return {"x0": 0, "y0": 1}
+        return {"x0": 0, "x1": 1}
 
     @classmethod
     def infinite_register_prefix(cls):
-        return "x"
-
-
-def test_register_clashes():
-    with pytest.raises(
-        AssertionError,
-        match="Invalid 'infinite' register name: x0 clashes with finite register set",
-    ):
-        TestRegister.infinite_register(0)
+        return "y"
 
 
 def test_unallocated_register():
     assert not TestRegister.unallocated().is_allocated
     assert TestRegister.from_name("x0").is_allocated
+
+
+def test_register_from_string():
+    # Register with valid ABI name is fine
+    assert TestRegister.from_name("x0").register_name == StringAttr("x0")
+    assert TestRegister.from_name("x0").index == IntAttr(0)
+    assert TestRegister.from_name("x1").register_name == StringAttr("x1")
+    assert TestRegister.from_name("x1").index == IntAttr(1)
+
+    # Register with infinite ABI name is fine
+    assert TestRegister.from_name("y0").register_name == StringAttr("y0")
+    assert TestRegister.from_name("y0").index == IntAttr(-1)
+    assert TestRegister.from_name("y1").register_name == StringAttr("y1")
+    assert TestRegister.from_name("y1").index == IntAttr(-2)
+
+    # Infinite prefix but not a number
+    with pytest.raises(
+        VerifyException,
+        match="Invalid register name yy for register set TEST",
+    ):
+        TestRegister.from_name("yy")
+
+    # Incorrect name
+    with pytest.raises(
+        VerifyException, match="Invalid register name z0 for register set TEST"
+    ):
+        TestRegister.from_name("z0")
 
 
 def test_invalid_register_name():
@@ -55,11 +100,11 @@ def test_invalid_index():
         TestRegister(IntAttr(1), StringAttr(""))
 
     with pytest.raises(
-        VerifyException, match="Missing index for register y0, expected 1."
+        VerifyException, match="Missing index for register x1, expected 1."
     ):
-        TestRegister(NoneAttr(), StringAttr("y0"))
+        TestRegister(NoneAttr(), StringAttr("x1"))
 
     with pytest.raises(
-        VerifyException, match="Invalid index 2 for register y0, expected 1."
+        VerifyException, match="Invalid index 2 for register x1, expected 1."
     ):
-        TestRegister(IntAttr(2), StringAttr("y0"))
+        TestRegister(IntAttr(2), StringAttr("x1"))

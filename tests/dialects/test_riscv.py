@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     ModuleOp,
-    NoneAttr,
     Signedness,
     i32,
 )
@@ -35,7 +34,7 @@ def test_add_op():
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
-    assert isinstance(riscv.IntRegisterType.infinite_register(1).index, NoneAttr)
+    assert riscv.IntRegisterType.infinite_register(1).index == IntAttr(-2)
 
 
 def test_csr_op():
