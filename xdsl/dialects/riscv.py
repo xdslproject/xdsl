@@ -70,8 +70,7 @@ from xdsl.utils.hints import isa
 
 def is_non_zero(reg: IntRegisterType) -> bool:
     """
-    Returns True if the register is not allocated, and is known to not be the x0/ZERO
-    register.
+    Returns True if the register is allocated, and is not the x0/ZERO register.
     """
     return (
         reg.is_allocated and not isinstance(reg.index, NoneAttr) and reg.index.data != 0
