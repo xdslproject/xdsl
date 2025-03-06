@@ -223,9 +223,13 @@ def test_immediate_shift_inst():
 
 
 def test_float_register():
-    with pytest.raises(VerifyException, match="not in"):
+    with pytest.raises(
+        VerifyException, match="Invalid register name ft9 for register set RV32I."
+    ):
         riscv.IntRegisterType.from_name("ft9")
-    with pytest.raises(VerifyException, match="not in"):
+    with pytest.raises(
+        VerifyException, match="Invalid register name a0 for register set RV32F."
+    ):
         riscv.FloatRegisterType.from_name("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
