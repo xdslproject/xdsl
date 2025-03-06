@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, Literal, TypeVar, cast, overload
+from typing import ClassVar, Literal, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,
