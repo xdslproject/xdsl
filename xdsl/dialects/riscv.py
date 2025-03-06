@@ -87,7 +87,7 @@ class RISCVRegisterType(RegisterType):
     """
 
     def verify(self) -> None:
-        name = self.spelling.data
+        name = self.register_name.data
         if not self.is_allocated or name.startswith(self.infinite_register_prefix()):
             return
         if name not in type(self).abi_index_by_name():
@@ -232,73 +232,73 @@ class Registers(ABC):
     """Namespace for named register constants."""
 
     UNALLOCATED_INT = IntRegisterType.unallocated()
-    ZERO = IntRegisterType.from_spelling("zero")
-    RA = IntRegisterType.from_spelling("ra")
-    SP = IntRegisterType.from_spelling("sp")
-    GP = IntRegisterType.from_spelling("gp")
-    TP = IntRegisterType.from_spelling("tp")
-    T0 = IntRegisterType.from_spelling("t0")
-    T1 = IntRegisterType.from_spelling("t1")
-    T2 = IntRegisterType.from_spelling("t2")
-    FP = IntRegisterType.from_spelling("fp")
-    S0 = IntRegisterType.from_spelling("s0")
-    S1 = IntRegisterType.from_spelling("s1")
-    A0 = IntRegisterType.from_spelling("a0")
-    A1 = IntRegisterType.from_spelling("a1")
-    A2 = IntRegisterType.from_spelling("a2")
-    A3 = IntRegisterType.from_spelling("a3")
-    A4 = IntRegisterType.from_spelling("a4")
-    A5 = IntRegisterType.from_spelling("a5")
-    A6 = IntRegisterType.from_spelling("a6")
-    A7 = IntRegisterType.from_spelling("a7")
-    S2 = IntRegisterType.from_spelling("s2")
-    S3 = IntRegisterType.from_spelling("s3")
-    S4 = IntRegisterType.from_spelling("s4")
-    S5 = IntRegisterType.from_spelling("s5")
-    S6 = IntRegisterType.from_spelling("s6")
-    S7 = IntRegisterType.from_spelling("s7")
-    S8 = IntRegisterType.from_spelling("s8")
-    S9 = IntRegisterType.from_spelling("s9")
-    S10 = IntRegisterType.from_spelling("s10")
-    S11 = IntRegisterType.from_spelling("s11")
-    T3 = IntRegisterType.from_spelling("t3")
-    T4 = IntRegisterType.from_spelling("t4")
-    T5 = IntRegisterType.from_spelling("t5")
-    T6 = IntRegisterType.from_spelling("t6")
+    ZERO = IntRegisterType.from_name("zero")
+    RA = IntRegisterType.from_name("ra")
+    SP = IntRegisterType.from_name("sp")
+    GP = IntRegisterType.from_name("gp")
+    TP = IntRegisterType.from_name("tp")
+    T0 = IntRegisterType.from_name("t0")
+    T1 = IntRegisterType.from_name("t1")
+    T2 = IntRegisterType.from_name("t2")
+    FP = IntRegisterType.from_name("fp")
+    S0 = IntRegisterType.from_name("s0")
+    S1 = IntRegisterType.from_name("s1")
+    A0 = IntRegisterType.from_name("a0")
+    A1 = IntRegisterType.from_name("a1")
+    A2 = IntRegisterType.from_name("a2")
+    A3 = IntRegisterType.from_name("a3")
+    A4 = IntRegisterType.from_name("a4")
+    A5 = IntRegisterType.from_name("a5")
+    A6 = IntRegisterType.from_name("a6")
+    A7 = IntRegisterType.from_name("a7")
+    S2 = IntRegisterType.from_name("s2")
+    S3 = IntRegisterType.from_name("s3")
+    S4 = IntRegisterType.from_name("s4")
+    S5 = IntRegisterType.from_name("s5")
+    S6 = IntRegisterType.from_name("s6")
+    S7 = IntRegisterType.from_name("s7")
+    S8 = IntRegisterType.from_name("s8")
+    S9 = IntRegisterType.from_name("s9")
+    S10 = IntRegisterType.from_name("s10")
+    S11 = IntRegisterType.from_name("s11")
+    T3 = IntRegisterType.from_name("t3")
+    T4 = IntRegisterType.from_name("t4")
+    T5 = IntRegisterType.from_name("t5")
+    T6 = IntRegisterType.from_name("t6")
 
     UNALLOCATED_FLOAT = FloatRegisterType.unallocated()
-    FT0 = FloatRegisterType.from_spelling("ft0")
-    FT1 = FloatRegisterType.from_spelling("ft1")
-    FT2 = FloatRegisterType.from_spelling("ft2")
-    FT3 = FloatRegisterType.from_spelling("ft3")
-    FT4 = FloatRegisterType.from_spelling("ft4")
-    FT5 = FloatRegisterType.from_spelling("ft5")
-    FT6 = FloatRegisterType.from_spelling("ft6")
-    FT7 = FloatRegisterType.from_spelling("ft7")
-    FS0 = FloatRegisterType.from_spelling("fs0")
-    FS1 = FloatRegisterType.from_spelling("fs1")
-    FA0 = FloatRegisterType.from_spelling("fa0")
-    FA1 = FloatRegisterType.from_spelling("fa1")
-    FA2 = FloatRegisterType.from_spelling("fa2")
-    FA3 = FloatRegisterType.from_spelling("fa3")
-    FA4 = FloatRegisterType.from_spelling("fa4")
-    FA5 = FloatRegisterType.from_spelling("fa5")
-    FA6 = FloatRegisterType.from_spelling("fa6")
-    FA7 = FloatRegisterType.from_spelling("fa7")
-    FS2 = FloatRegisterType.from_spelling("fs2")
-    FS3 = FloatRegisterType.from_spelling("fs3")
-    FS4 = FloatRegisterType.from_spelling("fs4")
-    FS5 = FloatRegisterType.from_spelling("fs5")
-    FS6 = FloatRegisterType.from_spelling("fs6")
-    FS7 = FloatRegisterType.from_spelling("fs7")
-    FS8 = FloatRegisterType.from_spelling("fs8")
-    FS9 = FloatRegisterType.from_spelling("fs9")
-    FS10 = FloatRegisterType.from_spelling("fs10")
-    FS11 = FloatRegisterType.from_spelling("fs11")
-    FT8 = FloatRegisterType.from_spelling("ft8")
-    FT9 = FloatRegisterType.from_spelling("ft9")
-    FT10 = FloatRegisterType.from_spelling("ft10")
-    FT11 = FloatRegisterType.from_spelling("ft11")
+    FT0 = FloatRegisterType.from_name("ft0")
+    FT1 = FloatRegisterType.from_name("ft1")
+    FT2 = FloatRegisterType.from_name("ft2")
+    FT3 = FloatRegisterType.from_name("ft3")
+    FT4 = FloatRegisterType.from_name("ft4")
+    FT5 = FloatRegisterType.from_name("ft5")
+    FT6 = FloatRegisterType.from_name("ft6")
+    FT7 = FloatRegisterType.from_name("ft7")
+    FS0 = FloatRegisterType.from_name("fs0")
+    FS1 = FloatRegisterType.from_name("fs1")
+    FA0 = FloatRegisterType.from_name("fa0")
+    FA1 = FloatRegisterType.from_name("fa1")
+    FA2 = FloatRegisterType.from_name("fa2")
+    FA3 = FloatRegisterType.from_name("fa3")
+    FA4 = FloatRegisterType.from_name("fa4")
+    FA5 = FloatRegisterType.from_name("fa5")
+    FA6 = FloatRegisterType.from_name("fa6")
+    FA7 = FloatRegisterType.from_name("fa7")
+    FS2 = FloatRegisterType.from_name("fs2")
+    FS3 = FloatRegisterType.from_name("fs3")
+    FS4 = FloatRegisterType.from_name("fs4")
+    FS5 = FloatRegisterType.from_name("fs5")
+    FS6 = FloatRegisterType.from_name("fs6")
+    FS7 = FloatRegisterType.from_name("fs7")
+    FS8 = FloatRegisterType.from_name("fs8")
+    FS9 = FloatRegisterType.from_name("fs9")
+    FS10 = FloatRegisterType.from_name("fs10")
+    FS11 = FloatRegisterType.from_name("fs11")
+    FT8 = FloatRegisterType.from_name("ft8")
+    FT9 = FloatRegisterType.from_name("ft9")
+    FT10 = FloatRegisterType.from_name("ft10")
+    FT11 = FloatRegisterType.from_name("ft11")
 
     # register classes:
 
@@ -488,15 +488,15 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     elif isinstance(arg, str):
         return arg
     elif isinstance(arg, IntRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     elif isinstance(arg, FloatRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     else:
         if isinstance(arg.type, IntRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         elif isinstance(arg.type, FloatRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         else:
             raise ValueError(f"Unexpected register type {arg.type}")
@@ -1189,7 +1189,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1263,7 +1263,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if self.rs1.type.is_allocated and self.rs1.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.type.spelling.data}'"
+                f"not '{self.rs1.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1335,7 +1335,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
