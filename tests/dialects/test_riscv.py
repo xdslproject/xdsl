@@ -35,7 +35,7 @@ def test_add_op():
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
-    assert isinstance(riscv.IntRegisterType("j_1").index, NoneAttr)
+    assert isinstance(riscv.IntRegisterType.infinite_register(1).index, NoneAttr)
 
 
 def test_csr_op():
@@ -224,9 +224,9 @@ def test_immediate_shift_inst():
 
 def test_float_register():
     with pytest.raises(VerifyException, match="not in"):
-        riscv.IntRegisterType("ft9")
+        riscv.IntRegisterType.from_spelling("ft9")
     with pytest.raises(VerifyException, match="not in"):
-        riscv.FloatRegisterType("a0")
+        riscv.FloatRegisterType.from_spelling("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)

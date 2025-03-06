@@ -50,6 +50,9 @@ from .assembly import (
 )
 from .attributes import LabelAttr
 from .register import (
+    RAX,
+    RDX,
+    RSP,
     GeneralRegisterType,
     RFLAGSRegisterType,
     X86RegisterType,
@@ -326,9 +329,9 @@ class R_PushOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.r.push"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     source = operand_def(R1InvT)
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -362,9 +365,9 @@ class R_PopOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.r.pop"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     destination = result_def(R1InvT)
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -481,11 +484,11 @@ class R_IDivOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.r.idiv"
 
     r1 = operand_def(R1InvT)
-    rdx_input = operand_def(GeneralRegisterType("rdx"))
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rdx_input = operand_def(RDX)
+    rax_input = operand_def(RAX)
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,
@@ -525,10 +528,10 @@ class R_ImulOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.r.imul"
 
     r1 = operand_def(GeneralRegisterType)
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rax_input = operand_def(RAX)
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,
@@ -1297,11 +1300,11 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.m.push"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     source = operand_def(R1InvT)
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -1355,12 +1358,12 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.m.pop"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     destination = operand_def(
         GeneralRegisterType
     )  # the destination is a pointer to the memory location and the register itself is not modified
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -1511,12 +1514,12 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.m.idiv"
 
     r1 = operand_def(R1InvT)
-    rdx_input = operand_def(GeneralRegisterType("rdx"))
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rdx_input = operand_def(RDX)
+    rax_input = operand_def(RAX)
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,
@@ -1572,11 +1575,11 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.m.imul"
 
     r1 = operand_def(GeneralRegisterType)
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rax_input = operand_def(RAX)
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,

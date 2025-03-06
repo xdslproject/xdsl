@@ -231,74 +231,74 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
-    UNALLOCATED_INT = IntRegisterType("")
-    ZERO = IntRegisterType("zero")
-    RA = IntRegisterType("ra")
-    SP = IntRegisterType("sp")
-    GP = IntRegisterType("gp")
-    TP = IntRegisterType("tp")
-    T0 = IntRegisterType("t0")
-    T1 = IntRegisterType("t1")
-    T2 = IntRegisterType("t2")
-    FP = IntRegisterType("fp")
-    S0 = IntRegisterType("s0")
-    S1 = IntRegisterType("s1")
-    A0 = IntRegisterType("a0")
-    A1 = IntRegisterType("a1")
-    A2 = IntRegisterType("a2")
-    A3 = IntRegisterType("a3")
-    A4 = IntRegisterType("a4")
-    A5 = IntRegisterType("a5")
-    A6 = IntRegisterType("a6")
-    A7 = IntRegisterType("a7")
-    S2 = IntRegisterType("s2")
-    S3 = IntRegisterType("s3")
-    S4 = IntRegisterType("s4")
-    S5 = IntRegisterType("s5")
-    S6 = IntRegisterType("s6")
-    S7 = IntRegisterType("s7")
-    S8 = IntRegisterType("s8")
-    S9 = IntRegisterType("s9")
-    S10 = IntRegisterType("s10")
-    S11 = IntRegisterType("s11")
-    T3 = IntRegisterType("t3")
-    T4 = IntRegisterType("t4")
-    T5 = IntRegisterType("t5")
-    T6 = IntRegisterType("t6")
+    UNALLOCATED_INT = IntRegisterType.unallocated()
+    ZERO = IntRegisterType.from_spelling("zero")
+    RA = IntRegisterType.from_spelling("ra")
+    SP = IntRegisterType.from_spelling("sp")
+    GP = IntRegisterType.from_spelling("gp")
+    TP = IntRegisterType.from_spelling("tp")
+    T0 = IntRegisterType.from_spelling("t0")
+    T1 = IntRegisterType.from_spelling("t1")
+    T2 = IntRegisterType.from_spelling("t2")
+    FP = IntRegisterType.from_spelling("fp")
+    S0 = IntRegisterType.from_spelling("s0")
+    S1 = IntRegisterType.from_spelling("s1")
+    A0 = IntRegisterType.from_spelling("a0")
+    A1 = IntRegisterType.from_spelling("a1")
+    A2 = IntRegisterType.from_spelling("a2")
+    A3 = IntRegisterType.from_spelling("a3")
+    A4 = IntRegisterType.from_spelling("a4")
+    A5 = IntRegisterType.from_spelling("a5")
+    A6 = IntRegisterType.from_spelling("a6")
+    A7 = IntRegisterType.from_spelling("a7")
+    S2 = IntRegisterType.from_spelling("s2")
+    S3 = IntRegisterType.from_spelling("s3")
+    S4 = IntRegisterType.from_spelling("s4")
+    S5 = IntRegisterType.from_spelling("s5")
+    S6 = IntRegisterType.from_spelling("s6")
+    S7 = IntRegisterType.from_spelling("s7")
+    S8 = IntRegisterType.from_spelling("s8")
+    S9 = IntRegisterType.from_spelling("s9")
+    S10 = IntRegisterType.from_spelling("s10")
+    S11 = IntRegisterType.from_spelling("s11")
+    T3 = IntRegisterType.from_spelling("t3")
+    T4 = IntRegisterType.from_spelling("t4")
+    T5 = IntRegisterType.from_spelling("t5")
+    T6 = IntRegisterType.from_spelling("t6")
 
-    UNALLOCATED_FLOAT = FloatRegisterType("")
-    FT0 = FloatRegisterType("ft0")
-    FT1 = FloatRegisterType("ft1")
-    FT2 = FloatRegisterType("ft2")
-    FT3 = FloatRegisterType("ft3")
-    FT4 = FloatRegisterType("ft4")
-    FT5 = FloatRegisterType("ft5")
-    FT6 = FloatRegisterType("ft6")
-    FT7 = FloatRegisterType("ft7")
-    FS0 = FloatRegisterType("fs0")
-    FS1 = FloatRegisterType("fs1")
-    FA0 = FloatRegisterType("fa0")
-    FA1 = FloatRegisterType("fa1")
-    FA2 = FloatRegisterType("fa2")
-    FA3 = FloatRegisterType("fa3")
-    FA4 = FloatRegisterType("fa4")
-    FA5 = FloatRegisterType("fa5")
-    FA6 = FloatRegisterType("fa6")
-    FA7 = FloatRegisterType("fa7")
-    FS2 = FloatRegisterType("fs2")
-    FS3 = FloatRegisterType("fs3")
-    FS4 = FloatRegisterType("fs4")
-    FS5 = FloatRegisterType("fs5")
-    FS6 = FloatRegisterType("fs6")
-    FS7 = FloatRegisterType("fs7")
-    FS8 = FloatRegisterType("fs8")
-    FS9 = FloatRegisterType("fs9")
-    FS10 = FloatRegisterType("fs10")
-    FS11 = FloatRegisterType("fs11")
-    FT8 = FloatRegisterType("ft8")
-    FT9 = FloatRegisterType("ft9")
-    FT10 = FloatRegisterType("ft10")
-    FT11 = FloatRegisterType("ft11")
+    UNALLOCATED_FLOAT = FloatRegisterType.unallocated()
+    FT0 = FloatRegisterType.from_spelling("ft0")
+    FT1 = FloatRegisterType.from_spelling("ft1")
+    FT2 = FloatRegisterType.from_spelling("ft2")
+    FT3 = FloatRegisterType.from_spelling("ft3")
+    FT4 = FloatRegisterType.from_spelling("ft4")
+    FT5 = FloatRegisterType.from_spelling("ft5")
+    FT6 = FloatRegisterType.from_spelling("ft6")
+    FT7 = FloatRegisterType.from_spelling("ft7")
+    FS0 = FloatRegisterType.from_spelling("fs0")
+    FS1 = FloatRegisterType.from_spelling("fs1")
+    FA0 = FloatRegisterType.from_spelling("fa0")
+    FA1 = FloatRegisterType.from_spelling("fa1")
+    FA2 = FloatRegisterType.from_spelling("fa2")
+    FA3 = FloatRegisterType.from_spelling("fa3")
+    FA4 = FloatRegisterType.from_spelling("fa4")
+    FA5 = FloatRegisterType.from_spelling("fa5")
+    FA6 = FloatRegisterType.from_spelling("fa6")
+    FA7 = FloatRegisterType.from_spelling("fa7")
+    FS2 = FloatRegisterType.from_spelling("fs2")
+    FS3 = FloatRegisterType.from_spelling("fs3")
+    FS4 = FloatRegisterType.from_spelling("fs4")
+    FS5 = FloatRegisterType.from_spelling("fs5")
+    FS6 = FloatRegisterType.from_spelling("fs6")
+    FS7 = FloatRegisterType.from_spelling("fs7")
+    FS8 = FloatRegisterType.from_spelling("fs8")
+    FS9 = FloatRegisterType.from_spelling("fs9")
+    FS10 = FloatRegisterType.from_spelling("fs10")
+    FS11 = FloatRegisterType.from_spelling("fs11")
+    FT8 = FloatRegisterType.from_spelling("ft8")
+    FT9 = FloatRegisterType.from_spelling("ft9")
+    FT10 = FloatRegisterType.from_spelling("ft10")
+    FT11 = FloatRegisterType.from_spelling("ft11")
 
     # register classes:
 
@@ -538,7 +538,7 @@ class RdRsRsOperation(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RDInvT,
+        rd: RDInvT = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -2517,17 +2517,13 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | Imm32Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2998,45 +2994,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
-class RdRsRsFloatFloatIntegerOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
-    """
-    A base class for RV32F operations that take
-    two floating-point input registers and an integer destination register.
-    """
-
-    rd = result_def(IntRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        *,
-        rd: IntRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rs1, rs2],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[rd],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs1, self.rs2
-
-
 class RdRsRsFloatFloatIntegerOperationWithFastMath(
     RISCVCustomFormatOperation, RISCVInstruction, ABC
 ):
@@ -3057,14 +3014,10 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
