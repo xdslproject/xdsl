@@ -92,7 +92,7 @@ class RISCVRegisterType(RegisterType):
         raise NotImplementedError()
 
 
-_RV32I_NAMED_INDEX_BY_NAME = {
+_RV32I_ABI_INDEX_BY_NAME = {
     "zero": 0,
     "ra": 1,
     "sp": 2,
@@ -128,7 +128,7 @@ _RV32I_NAMED_INDEX_BY_NAME = {
     "t6": 31,
 }
 _RV32I_X_INDEX_BY_NAME = {f"x{i}": i for i in range(32)}
-RV32I_INDEX_BY_NAME = _RV32I_NAMED_INDEX_BY_NAME | _RV32I_X_INDEX_BY_NAME
+RV32I_INDEX_BY_NAME = _RV32I_ABI_INDEX_BY_NAME | _RV32I_X_INDEX_BY_NAME
 
 
 @irdl_attr_definition
@@ -156,7 +156,7 @@ class IntRegisterType(RISCVRegisterType):
         return "j_"
 
 
-_RV32F_NAMED_INDEX_BY_NAME = {
+_RV32F_ABI_INDEX_BY_NAME = {
     "ft0": 0,
     "ft1": 1,
     "ft2": 2,
@@ -191,7 +191,7 @@ _RV32F_NAMED_INDEX_BY_NAME = {
     "ft11": 31,
 }
 _RV32F_F_INDEX_BY_NAME = {f"f{i}": i for i in range(32)}
-RV32F_INDEX_BY_NAME = _RV32F_NAMED_INDEX_BY_NAME | _RV32F_F_INDEX_BY_NAME
+RV32F_INDEX_BY_NAME = _RV32F_ABI_INDEX_BY_NAME | _RV32F_F_INDEX_BY_NAME
 
 
 @irdl_attr_definition
