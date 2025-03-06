@@ -5,25 +5,25 @@ from xdsl.dialects.builtin import IntegerAttr
 
 
 def test_unallocated_register():
-    unallocated = x86.register.GeneralRegisterType("")
+    unallocated = x86.register.GeneralRegisterType.from_name("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.GeneralRegisterType()
+    assert unallocated == x86.register.UNALLOCATED_GENERAL
 
-    unallocated = x86.register.RFLAGSRegisterType("")
+    unallocated = x86.register.RFLAGSRegisterType.from_name("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.RFLAGSRegisterType()
+    assert unallocated == x86.register.UNALLOCATED_RFLAGS
 
-    unallocated = x86.register.AVX2RegisterType("")
+    unallocated = x86.register.AVX2RegisterType.from_name("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX2RegisterType()
+    assert unallocated == x86.register.UNALLOCATED_AVX2
 
-    unallocated = x86.register.AVX512RegisterType("")
+    unallocated = x86.register.AVX512RegisterType.from_name("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX512RegisterType()
+    assert unallocated == x86.register.UNALLOCATED_AVX512
 
-    unallocated = x86.register.SSERegisterType("")
+    unallocated = x86.register.SSERegisterType.from_name("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.SSERegisterType()
+    assert unallocated == x86.register.UNALLOCATED_SSE
 
 
 @pytest.mark.parametrize(
@@ -57,14 +57,14 @@ def test_unallocated_register():
 )
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "x86"
 
 
 def test_rflags_register():
     rflags = x86.register.RFLAGS
     assert rflags.is_allocated
-    assert rflags.register_name == "rflags"
+    assert rflags.register_name.data == "rflags"
 
 
 @pytest.mark.parametrize(
@@ -106,7 +106,7 @@ def test_rflags_register():
 )
 def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "AVX512"
 
 
@@ -133,7 +133,7 @@ def test_avx512_register(register: x86.register.AVX512RegisterType, name: str):
 )
 def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "AVX2"
 
 
@@ -160,7 +160,7 @@ def test_avx2_register(register: x86.register.AVX2RegisterType, name: str):
 )
 def test_sse_register(register: x86.register.SSERegisterType, name: str):
     assert register.is_allocated
-    assert register.register_name == name
+    assert register.register_name.data == name
     assert register.instruction_set_name() == "SSE"
 
 
@@ -255,15 +255,14 @@ def test_mr_vops(
 )
 def test_rm_vops(
     OpClass: type[
-        x86.ops.R_RM_Operation[
-            x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
+        x86.ops.R_M_Operation[
+            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
         ]
     ],
     dest: x86.register.X86VectorRegisterType,
     src: x86.register.GeneralRegisterType,
 ):
     input = x86.ops.GetRegisterOp(src)
-    output = x86.ops.GetAVXRegisterOp(dest)
-    op = OpClass(r1=output, r2=input, result=dest, offset=IntegerAttr(0, 64))
-    assert op.r1.type == dest
-    assert op.r2.type == src
+    op = OpClass(r1=input, result=dest, offset=IntegerAttr(0, 64))
+    assert op.r1.type == src
+    assert op.result.type == dest

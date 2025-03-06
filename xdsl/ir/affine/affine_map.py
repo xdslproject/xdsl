@@ -251,6 +251,41 @@ class AffineMap:
             new_dims, new_symbols, result_num_dims, self.num_symbols
         )
 
+    def used_dims(self) -> set[int]:
+        """
+        Return all dimensions used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d0}
+        (d0, d1, d2) -> (d0, d2) gives {d0, d2}
+        ```
+        """
+        return {
+            expr.position
+            for res_expr in self.results
+            for expr in res_expr.dfs()
+            if isinstance(expr, AffineDimExpr)
+        }
+
+    def used_dims_bit_vector(self) -> tuple[bool, ...]:
+        """
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is used in the map, otherwise it is False.
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
+        ```
+        """
+
+        used_dims = [False] * self.num_dims
+        for res_expr in self.results:
+            for expr in res_expr.dfs():
+                if isinstance(expr, AffineDimExpr):
+                    used_dims[expr.position] = True
+        return tuple(used_dims)
+
     def __str__(self) -> str:
         # Create comma seperated list of dims.
         dims = ["d" + str(i) for i in range(self.num_dims)]

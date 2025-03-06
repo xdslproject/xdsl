@@ -193,21 +193,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Ptr
 
-    def get_quantum():
-        from xdsl.dialects.quantum import QUANTUM
-
-        return QUANTUM
-
-    def get_qref():
-        from xdsl.dialects.qref import QREF
-
-        return QREF
-
-    def get_qssa():
-        from xdsl.dialects.qssa import QSSA
-
-        return QSSA
-
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
 
@@ -366,9 +351,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "pdl": get_pdl,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
-        "quantum": get_quantum,
-        "qref": get_qref,
-        "qssa": get_qssa,
         "riscv": get_riscv,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,

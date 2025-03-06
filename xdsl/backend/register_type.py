@@ -26,33 +26,39 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
 
     index: ParameterDef[IntAttr | NoneAttr]
-    spelling: ParameterDef[StringAttr]
+    register_name: ParameterDef[StringAttr]
 
-    def __init__(self, spelling: str = ""):
-        super().__init__(self._parameters_from_spelling(spelling))
+    def __init__(self, index: IntAttr | NoneAttr, register_name: StringAttr):
+        super().__init__((index, register_name))
 
     @classmethod
-    def _parameters_from_spelling(
-        cls, spelling: str
+    def unallocated(cls) -> Self:
+        """
+        Returns an unallocated register of this type.
+        """
+        return cls(NoneAttr(), StringAttr(""))
+
+    @classmethod
+    def _parameters_from_name(
+        cls, register_name: StringAttr
     ) -> tuple[IntAttr | NoneAttr, StringAttr]:
         """
-        Returns the parameter list required to construct a register instance from the given spelling.
+        Returns the parameter list required to construct a register instance from the given register_name.
         """
-        index = cls.abi_index_by_name().get(spelling)
+        index = cls.abi_index_by_name().get(register_name.data)
         index_attr = NoneAttr() if index is None else IntAttr(index)
-        return index_attr, StringAttr(spelling)
+        return index_attr, register_name
 
-    @property
-    def register_name(self) -> str:
-        """Returns name if allocated, raises ValueError if not"""
-        if not self.is_allocated:
-            raise ValueError("Cannot get name for unallocated register")
-        return self.spelling.data
+    @classmethod
+    def from_name(cls, register_name: StringAttr | str) -> Self:
+        if not isinstance(register_name, StringAttr):
+            register_name = StringAttr(register_name)
+        return cls(*cls._parameters_from_name(register_name))
 
     @property
     def is_allocated(self) -> bool:
         """Returns true if the register is allocated, otherwise false"""
-        return bool(self.spelling.data)
+        return bool(self.register_name.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -61,12 +67,12 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
             parser.parse_punctuation(">")
         else:
             name = ""
-        return cls._parameters_from_spelling(name)
+        return cls._parameters_from_name(StringAttr(name))
 
     def print_parameters(self, printer: Printer) -> None:
-        if self.spelling.data:
+        if self.register_name.data:
             with printer.in_angle_brackets():
-                printer.print_string(self.spelling.data)
+                printer.print_string(self.register_name.data)
 
     def verify(self) -> None:
         raise NotImplementedError()
@@ -85,9 +91,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     @abstractmethod
     def infinite_register_prefix(cls) -> str:
         """
-        Provide the prefix for the spelling for a register at the given index in the
+        Provide the prefix for the name for a register at the given index in the
         "infinite" register set.
-        For a prefix `x`, the spelling of the first infinite register will be `x0`.
+        For a prefix `x`, the name of the first infinite register will be `x0`.
         """
         raise NotImplementedError()
 
@@ -96,9 +102,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Provide the register at the given index in the "infinite" register set.
         """
-        spelling = cls.infinite_register_prefix() + str(index)
-        res = cls(spelling)
+        register_name = cls.infinite_register_prefix() + str(index)
+        res = cls.from_name(register_name)
         assert isinstance(res.index, NoneAttr), (
-            f"Invalid 'infinite' register name: {spelling} clashes with finite register set"
+            f"Invalid 'infinite' register name: {register_name} clashes with finite register set"
         )
         return res

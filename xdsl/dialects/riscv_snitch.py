@@ -601,7 +601,7 @@ class DMCopyOp(RISCVCustomFormatOperation, RISCVInstruction):
         self,
         size: SSAValue | Operation,
         config: SSAValue | Operation,
-        result_type: IntRegisterType = IntRegisterType(),
+        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[size, config], result_types=[result_type])
 
@@ -623,7 +623,7 @@ class DMStatOp(RISCVCustomFormatOperation, RISCVInstruction):
     def __init__(
         self,
         status: SSAValue | Operation,
-        result_type: IntRegisterType = IntRegisterType(),
+        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         super().__init__(operands=[status], result_types=[result_type])
 
@@ -647,7 +647,7 @@ class DMCopyImmOp(RISCVInstruction):
         self,
         size: SSAValue | Operation,
         config: int | UImm5Attr,
-        result_type: IntRegisterType = IntRegisterType(),
+        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         if isinstance(config, int):
             config = IntegerAttr(config, IntegerType(5, signedness=Signedness.UNSIGNED))
@@ -700,7 +700,7 @@ class DMStatImmOp(RISCVInstruction):
     def __init__(
         self,
         status: int | UImm5Attr,
-        result_type: IntRegisterType = IntRegisterType(),
+        result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         if isinstance(status, int):
             status = IntegerAttr(status, IntegerType(5, signedness=Signedness.UNSIGNED))

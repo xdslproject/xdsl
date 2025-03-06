@@ -33,7 +33,7 @@ def cast_to_regs(values: Iterable[SSAValue]) -> tuple[list[Operation], list[SSAV
         if not isinstance(value.type, riscv.RISCVRegisterType):
             register_type = register_type_for_type(value.type)
             cast_op = builtin.UnrealizedConversionCastOp.get(
-                (value,), (register_type(),)
+                (value,), (register_type.unallocated(),)
             )
             new_ops.append(cast_op)
             value = cast_op.results[0]
@@ -133,7 +133,9 @@ def move_to_unallocated_regs(
 
     for value, value_type in zip(values, value_types, strict=True):
         register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(value, value_type, register_type())
+        move_op, new_value = move_ops_for_value(
+            value, value_type, register_type.unallocated()
+        )
         new_ops.append(move_op)
         new_values.append(new_value)
 
@@ -155,7 +157,9 @@ def cast_ops_for_values(
     for value in values:
         if not isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType):
             new_type = register_type_for_type(value.type)
-            cast_op = builtin.UnrealizedConversionCastOp.get((value,), (new_type(),))
+            cast_op = builtin.UnrealizedConversionCastOp.get(
+                (value,), (new_type.unallocated(),)
+            )
             new_ops.append(cast_op)
             new_value = cast_op.results[0]
             new_value.name_hint = value.name_hint
@@ -212,7 +216,9 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
 
     for arg in block.args:
         register_type = register_type_for_type(arg.type)
-        move_op, new_value = move_ops_for_value(arg, arg.type, register_type())
+        move_op, new_value = move_ops_for_value(
+            arg, arg.type, register_type.unallocated()
+        )
         cast_op = builtin.UnrealizedConversionCastOp.get((new_value,), (arg.type,))
         new_ops.append(move_op)
         new_ops.append(cast_op)
@@ -240,6 +246,6 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
             InsertPoint.at_start(block),
         )
 
-        arg.type = register_type_for_type(arg.type)()
+        arg.type = register_type_for_type(arg.type).unallocated()
         arg.replace_by(new_val.results[0])
         new_val.operands[new_val.results[0].index] = arg

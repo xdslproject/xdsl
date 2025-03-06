@@ -1,6 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, func, x86, x86_func
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.ir import Attribute, Block
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -55,6 +55,10 @@ class LowerFuncOp(RewritePattern):
                     "Cannot lower function parameters bigger than 64 bits (not implemented)"
                 )
 
+        if op.sym_visibility == StringAttr("public"):
+            directive_op = x86.DirectiveOp(".global", op.sym_name)
+            rewriter.insert_op_before_matched_op(directive_op)
+
         num_inputs = len(op.function_type.inputs.data)
         reg_args_types = arg_passing_registers[
             : min(num_inputs, MAX_REG_PASSING_INPUTS)
@@ -87,18 +91,16 @@ class LowerFuncOp(RewritePattern):
         for i in range(num_inputs - MAX_REG_PASSING_INPUTS):
             arg = first_block.args[MAX_REG_PASSING_INPUTS + 1]
             assert sp != arg
-            get_reg_op = x86.ops.GetRegisterOp(x86.register.GeneralRegisterType(""))
             mov_op = x86.RM_MovOp(
-                r1=get_reg_op.result,
-                r2=sp,
+                r1=sp,
                 offset=STACK_SLOT_SIZE_BYTES * (i + 1),
-                result=x86.register.GeneralRegisterType(""),
+                result=x86.register.UNALLOCATED_GENERAL,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
             cast_op = builtin.UnrealizedConversionCastOp.get(
                 (mov_op.result,), (arg.type,)
             )
-            rewriter.insert_op([get_reg_op, mov_op, cast_op], insertion_point)
+            rewriter.insert_op([mov_op, cast_op], insertion_point)
             arg.replace_by(cast_op.results[0])
             first_block.erase_arg(arg)
 
@@ -141,7 +143,7 @@ class LowerReturnOp(RewritePattern):
             )
 
         cast_op = builtin.UnrealizedConversionCastOp.get(
-            (return_value,), (x86.register.GeneralRegisterType(""),)
+            (return_value,), (x86.register.UNALLOCATED_GENERAL,)
         )
         get_reg_op = x86.ops.GetRegisterOp(return_passing_register)
         mov_op = x86.ops.RR_MovOp(cast_op, get_reg_op, result=return_passing_register)

@@ -87,8 +87,8 @@ class RISCVRegisterType(RegisterType):
     """
 
     def verify(self) -> None:
-        name = self.spelling.data
-        if not self.is_allocated or name.startswith("j") or name.startswith("fj"):
+        name = self.register_name.data
+        if not self.is_allocated or name.startswith(self.infinite_register_prefix()):
             return
         if name not in type(self).abi_index_by_name():
             raise VerifyException(f"{name} not in {self.instruction_set_name()}")
@@ -231,74 +231,74 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
-    UNALLOCATED_INT = IntRegisterType("")
-    ZERO = IntRegisterType("zero")
-    RA = IntRegisterType("ra")
-    SP = IntRegisterType("sp")
-    GP = IntRegisterType("gp")
-    TP = IntRegisterType("tp")
-    T0 = IntRegisterType("t0")
-    T1 = IntRegisterType("t1")
-    T2 = IntRegisterType("t2")
-    FP = IntRegisterType("fp")
-    S0 = IntRegisterType("s0")
-    S1 = IntRegisterType("s1")
-    A0 = IntRegisterType("a0")
-    A1 = IntRegisterType("a1")
-    A2 = IntRegisterType("a2")
-    A3 = IntRegisterType("a3")
-    A4 = IntRegisterType("a4")
-    A5 = IntRegisterType("a5")
-    A6 = IntRegisterType("a6")
-    A7 = IntRegisterType("a7")
-    S2 = IntRegisterType("s2")
-    S3 = IntRegisterType("s3")
-    S4 = IntRegisterType("s4")
-    S5 = IntRegisterType("s5")
-    S6 = IntRegisterType("s6")
-    S7 = IntRegisterType("s7")
-    S8 = IntRegisterType("s8")
-    S9 = IntRegisterType("s9")
-    S10 = IntRegisterType("s10")
-    S11 = IntRegisterType("s11")
-    T3 = IntRegisterType("t3")
-    T4 = IntRegisterType("t4")
-    T5 = IntRegisterType("t5")
-    T6 = IntRegisterType("t6")
+    UNALLOCATED_INT = IntRegisterType.unallocated()
+    ZERO = IntRegisterType.from_name("zero")
+    RA = IntRegisterType.from_name("ra")
+    SP = IntRegisterType.from_name("sp")
+    GP = IntRegisterType.from_name("gp")
+    TP = IntRegisterType.from_name("tp")
+    T0 = IntRegisterType.from_name("t0")
+    T1 = IntRegisterType.from_name("t1")
+    T2 = IntRegisterType.from_name("t2")
+    FP = IntRegisterType.from_name("fp")
+    S0 = IntRegisterType.from_name("s0")
+    S1 = IntRegisterType.from_name("s1")
+    A0 = IntRegisterType.from_name("a0")
+    A1 = IntRegisterType.from_name("a1")
+    A2 = IntRegisterType.from_name("a2")
+    A3 = IntRegisterType.from_name("a3")
+    A4 = IntRegisterType.from_name("a4")
+    A5 = IntRegisterType.from_name("a5")
+    A6 = IntRegisterType.from_name("a6")
+    A7 = IntRegisterType.from_name("a7")
+    S2 = IntRegisterType.from_name("s2")
+    S3 = IntRegisterType.from_name("s3")
+    S4 = IntRegisterType.from_name("s4")
+    S5 = IntRegisterType.from_name("s5")
+    S6 = IntRegisterType.from_name("s6")
+    S7 = IntRegisterType.from_name("s7")
+    S8 = IntRegisterType.from_name("s8")
+    S9 = IntRegisterType.from_name("s9")
+    S10 = IntRegisterType.from_name("s10")
+    S11 = IntRegisterType.from_name("s11")
+    T3 = IntRegisterType.from_name("t3")
+    T4 = IntRegisterType.from_name("t4")
+    T5 = IntRegisterType.from_name("t5")
+    T6 = IntRegisterType.from_name("t6")
 
-    UNALLOCATED_FLOAT = FloatRegisterType("")
-    FT0 = FloatRegisterType("ft0")
-    FT1 = FloatRegisterType("ft1")
-    FT2 = FloatRegisterType("ft2")
-    FT3 = FloatRegisterType("ft3")
-    FT4 = FloatRegisterType("ft4")
-    FT5 = FloatRegisterType("ft5")
-    FT6 = FloatRegisterType("ft6")
-    FT7 = FloatRegisterType("ft7")
-    FS0 = FloatRegisterType("fs0")
-    FS1 = FloatRegisterType("fs1")
-    FA0 = FloatRegisterType("fa0")
-    FA1 = FloatRegisterType("fa1")
-    FA2 = FloatRegisterType("fa2")
-    FA3 = FloatRegisterType("fa3")
-    FA4 = FloatRegisterType("fa4")
-    FA5 = FloatRegisterType("fa5")
-    FA6 = FloatRegisterType("fa6")
-    FA7 = FloatRegisterType("fa7")
-    FS2 = FloatRegisterType("fs2")
-    FS3 = FloatRegisterType("fs3")
-    FS4 = FloatRegisterType("fs4")
-    FS5 = FloatRegisterType("fs5")
-    FS6 = FloatRegisterType("fs6")
-    FS7 = FloatRegisterType("fs7")
-    FS8 = FloatRegisterType("fs8")
-    FS9 = FloatRegisterType("fs9")
-    FS10 = FloatRegisterType("fs10")
-    FS11 = FloatRegisterType("fs11")
-    FT8 = FloatRegisterType("ft8")
-    FT9 = FloatRegisterType("ft9")
-    FT10 = FloatRegisterType("ft10")
-    FT11 = FloatRegisterType("ft11")
+    UNALLOCATED_FLOAT = FloatRegisterType.unallocated()
+    FT0 = FloatRegisterType.from_name("ft0")
+    FT1 = FloatRegisterType.from_name("ft1")
+    FT2 = FloatRegisterType.from_name("ft2")
+    FT3 = FloatRegisterType.from_name("ft3")
+    FT4 = FloatRegisterType.from_name("ft4")
+    FT5 = FloatRegisterType.from_name("ft5")
+    FT6 = FloatRegisterType.from_name("ft6")
+    FT7 = FloatRegisterType.from_name("ft7")
+    FS0 = FloatRegisterType.from_name("fs0")
+    FS1 = FloatRegisterType.from_name("fs1")
+    FA0 = FloatRegisterType.from_name("fa0")
+    FA1 = FloatRegisterType.from_name("fa1")
+    FA2 = FloatRegisterType.from_name("fa2")
+    FA3 = FloatRegisterType.from_name("fa3")
+    FA4 = FloatRegisterType.from_name("fa4")
+    FA5 = FloatRegisterType.from_name("fa5")
+    FA6 = FloatRegisterType.from_name("fa6")
+    FA7 = FloatRegisterType.from_name("fa7")
+    FS2 = FloatRegisterType.from_name("fs2")
+    FS3 = FloatRegisterType.from_name("fs3")
+    FS4 = FloatRegisterType.from_name("fs4")
+    FS5 = FloatRegisterType.from_name("fs5")
+    FS6 = FloatRegisterType.from_name("fs6")
+    FS7 = FloatRegisterType.from_name("fs7")
+    FS8 = FloatRegisterType.from_name("fs8")
+    FS9 = FloatRegisterType.from_name("fs9")
+    FS10 = FloatRegisterType.from_name("fs10")
+    FS11 = FloatRegisterType.from_name("fs11")
+    FT8 = FloatRegisterType.from_name("ft8")
+    FT9 = FloatRegisterType.from_name("ft9")
+    FT10 = FloatRegisterType.from_name("ft10")
+    FT11 = FloatRegisterType.from_name("ft11")
 
     # register classes:
 
@@ -488,15 +488,15 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     elif isinstance(arg, str):
         return arg
     elif isinstance(arg, IntRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     elif isinstance(arg, FloatRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     else:
         if isinstance(arg.type, IntRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         elif isinstance(arg.type, FloatRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         else:
             raise ValueError(f"Unexpected register type {arg.type}")
@@ -538,7 +538,7 @@ class RdRsRsOperation(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RDInvT,
+        rd: RDInvT = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -554,6 +554,34 @@ class RdRsRsOperation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
+
+
+class RdRsRsIntegerOperation(
+    Generic[RS1InvT, RS2InvT], RdRsRsOperation[IntRegisterType, RS1InvT, RS2InvT], ABC
+):
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs1, rs2, rd=rd, comment=comment)
+
+
+class RdRsRsFloatOperation(
+    Generic[RS1InvT, RS2InvT], RdRsRsOperation[FloatRegisterType, RS1InvT, RS2InvT], ABC
+):
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs1, rs2, rd=rd, comment=comment)
 
 
 class RdRsRsFloatOperationWithFastMath(
@@ -576,7 +604,7 @@ class RdRsRsFloatOperationWithFastMath(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: FloatRegisterType,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         fastmath: FastMathFlagsAttr | None = None,
         comment: str | StringAttr | None = None,
     ):
@@ -624,17 +652,13 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | IntegerAttr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -680,15 +704,13 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | SImm20Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -745,7 +767,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         rs1: Operation | SSAValue,
         immediate: int | SImm12Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -753,10 +775,6 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -806,7 +824,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | UImm5Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -814,10 +832,6 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -870,16 +884,13 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | SImm12Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-
-        if isinstance(rd, str):
-            rd = IntRegisterType(rd)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -941,6 +952,32 @@ class RdRsOperation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs
+
+
+class RdRsIntegerOperation(
+    Generic[RSInvT], RdRsOperation[IntRegisterType, RSInvT], ABC
+):
+    def __init__(
+        self,
+        rs: Operation | SSAValue,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs, rd=rd, comment=comment)
+
+
+class RdRsFloatOperation(
+    Generic[RSInvT], RdRsOperation[FloatRegisterType, RSInvT], ABC
+):
+    def __init__(
+        self,
+        rs: Operation | SSAValue,
+        *,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(rs, rd=rd, comment=comment)
 
 
 class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -1129,13 +1166,9 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         csr: IntegerAttr,
         *,
         writeonly: bool = False,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1156,7 +1189,7 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1207,13 +1240,9 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         csr: IntegerAttr,
         *,
         readonly: bool = False,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1234,7 +1263,7 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         if self.rs1.type.is_allocated and self.rs1.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.type.spelling.data}'"
+                f"not '{self.rs1.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1283,13 +1312,9 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         immediate: IntegerAttr,
         *,
         writeonly: bool = False,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1310,7 +1335,7 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
         if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -1363,13 +1388,9 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         csr: IntegerAttr,
         immediate: IntegerAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1602,7 +1623,7 @@ class MVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
+class MVOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction to copy contents of one int register to another.
 
@@ -1626,7 +1647,7 @@ class FMVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+class FMVOp(RdRsFloatOperation[FloatRegisterType]):
     """
     A pseudo instruction to copy contents of one float register to another.
 
@@ -1660,7 +1681,7 @@ class AddOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Adds the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
@@ -1681,7 +1702,7 @@ class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SltOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
     are treated as signed numbers, else 0 is written to rd.
@@ -1695,7 +1716,7 @@ class SltOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SltuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
     are treated as unsigned numbers, else 0 is written to rd.
@@ -1717,7 +1738,7 @@ class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
 
 
 @irdl_op_definition
-class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise AND on registers rs1 and rs2 and place the result in rd.
 
@@ -1740,7 +1761,7 @@ class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
 
 
 @irdl_op_definition
-class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class OrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise OR on registers rs1 and rs2 and place the result in rd.
 
@@ -1766,7 +1787,7 @@ class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
 
 
 @irdl_op_definition
-class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class XorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
 
@@ -1781,7 +1802,7 @@ class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SllOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SllOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of register rs2.
@@ -1795,7 +1816,7 @@ class SllOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SrlOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SrlOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Logical right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of register rs2.
@@ -1820,7 +1841,7 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SubOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Subtracts the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
@@ -1836,7 +1857,7 @@ class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SraOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class SraOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of register rs2.
@@ -2355,7 +2376,7 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
     and places the lower XLEN bits in the destination register.
@@ -2370,7 +2391,7 @@ class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class MulhOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
     and places the upper XLEN bits in the destination register.
@@ -2383,7 +2404,7 @@ class MulhOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 
 
 @irdl_op_definition
-class MulhsuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
@@ -2396,7 +2417,7 @@ class MulhsuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType
 
 
 @irdl_op_definition
-class MulhuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
@@ -2410,7 +2431,7 @@ class MulhuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]
 
 ## Division Operations
 @irdl_op_definition
-class DivOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
     rounding towards zero.
@@ -2423,7 +2444,7 @@ class DivOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class DivuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer division of rs1 by rs2,
     rounding towards zero.
@@ -2436,7 +2457,7 @@ class DivuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 
 
 @irdl_op_definition
-class RemOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %s x[rs2]
@@ -2448,7 +2469,7 @@ class RemOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class RemuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %u x[rs2]
@@ -2496,17 +2517,13 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | Imm32Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2959,13 +2976,9 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs2: Operation | SSAValue,
         rs3: Operation | SSAValue,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = FloatRegisterType()
-        elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2979,45 +2992,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2, self.rs3
-
-
-class RdRsRsFloatFloatIntegerOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
-    """
-    A base class for RV32F operations that take
-    two floating-point input registers and an integer destination register.
-    """
-
-    rd = result_def(IntRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        *,
-        rd: IntRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rs1, rs2],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[rd],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs1, self.rs2
 
 
 class RdRsRsFloatFloatIntegerOperationWithFastMath(
@@ -3040,14 +3014,10 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -3143,7 +3113,7 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | Imm12Attr | str | LabelAttr,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -3151,10 +3121,6 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
-        if rd is None:
-            rd = FloatRegisterType()
-        elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -3304,7 +3270,7 @@ class FDivSOp(RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class FSqrtSOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+class FSqrtSOp(RdRsFloatOperation[FloatRegisterType]):
     """
     Perform single-precision floating-point square root.
 
@@ -3319,9 +3285,7 @@ class FSqrtSOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FSgnJSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class FSgnJSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is rs2’s sign bit.
@@ -3337,9 +3301,7 @@ class FSgnJSOp(
 
 
 @irdl_op_definition
-class FSgnJNSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class FSgnJNSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is opposite of rs2’s sign bit.
@@ -3355,9 +3317,7 @@ class FSgnJNSOp(
 
 
 @irdl_op_definition
-class FSgnJXSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class FSgnJXSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is XOR of sign bit of rs1 and rs2.
@@ -3403,7 +3363,7 @@ class FMaxSOp(RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class FCvtWSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FCvtWSOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in integer register rd.
 
@@ -3418,7 +3378,7 @@ class FCvtWSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FCvtWuSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FCvtWuSOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in unsigned integer register rd.
 
@@ -3433,7 +3393,7 @@ class FCvtWuSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FMvXWOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Move the single-precision value in floating-point register rs1 represented in IEEE
     754-2008 encoding to the lower 32 bits of integer register rd.
@@ -3497,7 +3457,7 @@ class FleSOp(RdRsRsFloatFloatIntegerOperationWithFastMath):
 
 
 @irdl_op_definition
-class FClassSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
+class FClassSOp(RdRsIntegerOperation[FloatRegisterType]):
     """
     Examines the value in floating-point register rs1 and writes to integer register rd
     a 10-bit mask that indicates the class of the floating-point number.
@@ -3514,7 +3474,7 @@ class FClassSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtSWOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit signed integer, in integer register rs1 into a floating-point number in floating-point register rd.
 
@@ -3529,7 +3489,7 @@ class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtSWuOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point
     number in floating-point register rd.
@@ -3545,7 +3505,7 @@ class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FMvWXOp(RdRsFloatOperation[IntRegisterType]):
     """
     Move the single-precision value encoded in IEEE 754-2008 standard encoding from the
     lower 32 bits of integer register rs1 to the floating-point register rd.
@@ -3778,7 +3738,7 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
-class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtDWOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit signed integer, in integer register rs1 into a double-precision
     floating-point number in floating-point register rd.
@@ -3794,7 +3754,7 @@ class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+class FCvtDWuOp(RdRsFloatOperation[IntRegisterType]):
     """
     Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision
     floating-point number in floating-point register rd.
@@ -3883,7 +3843,7 @@ class FMvDHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+class FMvDOp(RdRsFloatOperation[FloatRegisterType]):
     """
     A pseudo instruction to copy 64 bits of one float register to another.
 
@@ -3912,9 +3872,7 @@ class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class VFAddSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class VFAddSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Perform a pointwise single-precision floating-point addition over vectors.
 
@@ -3928,9 +3886,7 @@ class VFAddSOp(
 
 
 @irdl_op_definition
-class VFMulSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class VFMulSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
     """
     Perform a pointwise single-precision floating-point multiplication over vectors.
 
