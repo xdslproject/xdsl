@@ -117,7 +117,7 @@ class PrintCharOp(IRDLOperation):
         ascii_value = ord(char)
         if ascii_value > 128:
             raise ValueError("Only ascii characters are supported")
-        char_constant = arith.Constant.from_int_and_width(ascii_value, i8)
+        char_constant = arith.ConstantOp.from_int_and_width(ascii_value, i8)
         return PrintCharOp(char_constant)
 
 

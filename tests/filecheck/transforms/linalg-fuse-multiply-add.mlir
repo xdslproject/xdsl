@@ -14,7 +14,7 @@ builtin.module {
 
 // CHECK-NEXT: builtin.module {
 // CHECK-NEXT:   %t0, %t1, %t2, %t3 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>)
-// CHECK-NEXT:   %c = arith.constant dense<2.997925e+08> : tensor<8xf32>
+// CHECK-NEXT:   %c = arith.constant dense<0x4D8EF3C4> : tensor<8xf32>
 // CHECK-NEXT:   %0 = linalg.mul ins(%c, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%c : tensor<8xf32>) -> tensor<8xf32>
 // CHECK-NEXT:   %1 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%t0, %t1, %t2 : tensor<8xf32>, tensor<8xf32>, tensor<8xf32>) outs(%t0 : tensor<8xf32>) {
 // CHECK-NEXT:   ^0(%2 : f32, %3 : f32, %4 : f32, %5 : f32):
@@ -34,7 +34,7 @@ builtin.module {
 
 // SCALAR-NEXT: builtin.module {
 // SCALAR-NEXT:   %t0, %t1, %t2, %t3 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>)
-// SCALAR-NEXT:   %c = arith.constant dense<2.997925e+08> : tensor<8xf32>
+// SCALAR-NEXT:   %c = arith.constant dense<0x4D8EF3C4> : tensor<8xf32>
 // SCALAR-NEXT:   %0 = linalg.mul ins(%t0, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%t0 : tensor<8xf32>) -> tensor<8xf32>
 // SCALAR-NEXT:   %1 = linalg.mul ins(%c, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%c : tensor<8xf32>) -> tensor<8xf32>
 // SCALAR-NEXT:   %2 = linalg.add ins(%0, %t2 : tensor<8xf32>, tensor<8xf32>) outs(%0 : tensor<8xf32>) -> tensor<8xf32>
@@ -50,7 +50,7 @@ builtin.module {
 
 // FOLD-MUL-NEXT: builtin.module {
 // FOLD-MUL-NEXT:   %t0, %t1, %t2, %t3 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, tensor<8xf32>)
-// FOLD-MUL-NEXT:   %c = arith.constant dense<2.997925e+08> : tensor<8xf32>
+// FOLD-MUL-NEXT:   %c = arith.constant dense<0x4D8EF3C4> : tensor<8xf32>
 // FOLD-MUL-NEXT:   %0 = linalg.mul ins(%c, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%c : tensor<8xf32>) -> tensor<8xf32>
 // FOLD-MUL-NEXT:   %1 = linalg.generic {indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%t0, %t1, %t2 : tensor<8xf32>, tensor<8xf32>, tensor<8xf32>) outs(%t0 : tensor<8xf32>) {
 // FOLD-MUL-NEXT:   ^0(%2 : f32, %3 : f32, %4 : f32, %5 : f32):

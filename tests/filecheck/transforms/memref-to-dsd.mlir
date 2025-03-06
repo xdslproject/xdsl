@@ -3,7 +3,7 @@
 builtin.module {
 "csl.module"() <{"kind" = #csl<module_kind program>}> ({
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT: "csl.module"() <{"kind" = #csl<module_kind program>}> ({
+// CHECK-NEXT: "csl.module"() <{kind = #csl<module_kind program>}> ({
 
   %0 = "test.op"() : () -> (index)
   %a = memref.alloc() {"alignment" = 64 : i64} : memref<512xf32>
@@ -32,26 +32,26 @@ builtin.module {
 // CHECK-NEXT: %c = "csl.zeros"() : () -> memref<1024xf32>
 // CHECK-NEXT: %c_size = arith.constant 1024 : i16
 // CHECK-NEXT: %c_dsd = "csl.get_mem_dsd"(%c, %c_size) : (memref<1024xf32>, i16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %d = arith.constant 510 : ui16
-// CHECK-NEXT: %d_1 = "csl.set_dsd_length"(%a_dsd, %d) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %e = arith.constant 510 : ui16
-// CHECK-NEXT: %e_1 = "csl.set_dsd_length"(%a_dsd, %e) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %e_2 = arith.constant 2 : si16
-// CHECK-NEXT: %e_3 = "csl.increment_dsd_offset"(%e_1, %e_2) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %d = arith.constant 510 : i16
+// CHECK-NEXT: %d_1 = "csl.set_dsd_length"(%a_dsd, %d) : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %e = arith.constant 510 : i16
+// CHECK-NEXT: %e_1 = "csl.set_dsd_length"(%a_dsd, %e) : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %e_2 = arith.constant 2 : i16
+// CHECK-NEXT: %e_3 = "csl.increment_dsd_offset"(%e_1, %e_2) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.fadds"(%b_dsd, %d_1, %e_3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-// CHECK-NEXT: %f = arith.constant 510 : ui16
-// CHECK-NEXT: %f_1 = "csl.set_dsd_length"(%c_dsd, %f) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %f_2 = arith.constant 2 : si8
-// CHECK-NEXT: %f_3 = "csl.set_dsd_stride"(%f_1, %f_2) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %f_4 = arith.constant 1 : si16
-// CHECK-NEXT: %f_5 = "csl.increment_dsd_offset"(%f_3, %f_4) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %f = arith.constant 510 : i16
+// CHECK-NEXT: %f_1 = "csl.set_dsd_length"(%c_dsd, %f) : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %f_2 = arith.constant 2 : i8
+// CHECK-NEXT: %f_3 = "csl.set_dsd_stride"(%f_1, %f_2) : (!csl<dsd mem1d_dsd>, i8) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %f_4 = arith.constant 1 : i16
+// CHECK-NEXT: %f_5 = "csl.increment_dsd_offset"(%f_3, %f_4) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.fadds"(%b_dsd, %b_dsd, %f_5) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT: %1 = "csl.addressof"(%a) : (memref<512xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
 // CHECK-NEXT: %2 = "csl.addressof"(%b) : (memref<510xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
 // CHECK-NEXT: %3 = "csl.addressof"(%c) : (memref<1024xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
-// CHECK-NEXT: "csl.export"(%1) <{"var_name" = "a", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
-// CHECK-NEXT: "csl.export"(%2) <{"var_name" = "b", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
-// CHECK-NEXT: "csl.export"(%2) <{"var_name" = "c", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT: "csl.export"(%1) <{var_name = "a", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT: "csl.export"(%2) <{var_name = "b", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT: "csl.export"(%2) <{var_name = "c", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 
 
   %23 = memref.alloc() {"alignment" = 64 : i64} : memref<10xi32>
@@ -78,18 +78,18 @@ builtin.module {
 // CHECK-NEXT: %11 = arith.constant 510 : index
 // CHECK-NEXT: %12 = arith.constant 1 : index
 // CHECK-NEXT: %13 = arith.constant 2 : index
-// CHECK-NEXT: %14 = arith.index_cast %11 : index to ui16
-// CHECK-NEXT: %15 = "csl.set_dsd_length"(%b_dsd, %14) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %16 = arith.index_cast %12 : index to si8
-// CHECK-NEXT: %17 = "csl.set_dsd_stride"(%15, %16) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %18 = arith.index_cast %10 : index to si16
-// CHECK-NEXT: %19 = "csl.increment_dsd_offset"(%17, %18) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %20 = arith.index_cast %11 : index to ui16
-// CHECK-NEXT: %21 = "csl.set_dsd_length"(%c_dsd, %20) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %22 = arith.index_cast %13 : index to si8
-// CHECK-NEXT: %23 = "csl.set_dsd_stride"(%21, %22) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: %24 = arith.index_cast %12 : index to si16
-// CHECK-NEXT: %25 = "csl.increment_dsd_offset"(%23, %24) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %14 = arith.index_cast %11 : index to i16
+// CHECK-NEXT: %15 = "csl.set_dsd_length"(%b_dsd, %14) : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %16 = arith.index_cast %12 : index to i8
+// CHECK-NEXT: %17 = "csl.set_dsd_stride"(%15, %16) : (!csl<dsd mem1d_dsd>, i8) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %18 = arith.index_cast %10 : index to i16
+// CHECK-NEXT: %19 = "csl.increment_dsd_offset"(%17, %18) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %20 = arith.index_cast %11 : index to i16
+// CHECK-NEXT: %21 = "csl.set_dsd_length"(%c_dsd, %20) : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %22 = arith.index_cast %13 : index to i8
+// CHECK-NEXT: %23 = "csl.set_dsd_stride"(%21, %22) : (!csl<dsd mem1d_dsd>, i8) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %24 = arith.index_cast %12 : index to i16
+// CHECK-NEXT: %25 = "csl.increment_dsd_offset"(%23, %24) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
 
 %31 = "test.op"() : () -> (!csl<dsd mem1d_dsd>)
 %32 = builtin.unrealized_conversion_cast %31 : !csl<dsd mem1d_dsd> to memref<255xf32>
@@ -120,7 +120,19 @@ builtin.module {
 // CHECK-NEXT: %31 = memref.load %b[%13] : memref<510xf32>
 // CHECK-NEXT: "test.op"(%31) : (f32) -> ()
 
+%39 = memref.alloc() {"alignment" = 64 : i64} : memref<3x64xf32>
+%40 = "memref.subview"(%39, %0) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: 2, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>}> : (memref<3x64xf32>, index) -> memref<32xf32, strided<[1], offset: ?>>
+
+// CHECK-NEXT: %32 = "csl.zeros"() : () -> memref<3x64xf32>
+// CHECK-NEXT: %33 = arith.constant 3 : i16
+// CHECK-NEXT: %34 = arith.constant 64 : i16
+// CHECK-NEXT: %35 = "csl.get_mem_dsd"(%32, %33, %34) : (memref<3x64xf32>, i16, i16) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT: %36 = arith.constant 32 : i16
+// CHECK-NEXT: %37 = "csl.get_mem_dsd"(%32, %36) <{tensor_access = affine_map<(d0) -> (2, d0)>}> : (memref<3x64xf32>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: %38 = arith.index_cast %0 : index to i16
+// CHECK-NEXT: %39 = "csl.increment_dsd_offset"(%37, %38) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+
 }) {sym_name = "program"} :  () -> ()
 }
-// CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
+// CHECK-NEXT: }) {sym_name = "program"} :  () -> ()
 // CHECK-NEXT: }

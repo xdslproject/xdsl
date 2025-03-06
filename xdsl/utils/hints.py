@@ -2,6 +2,7 @@ import types
 from collections.abc import Iterable, Sequence
 from inspect import isclass
 from typing import (
+    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
@@ -17,10 +18,13 @@ from typing import (
 from xdsl.ir import ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 
+if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
 _T = TypeVar("_T")
 
 
-def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
+def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     from xdsl.irdl import ConstraintContext
 
     """
@@ -89,7 +93,9 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 
     if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
-        constraint = irdl_to_attr_constraint(hint)
+        constraint = irdl_to_attr_constraint(
+            hint  # pyright: ignore[reportArgumentType]
+        )
         try:
             constraint.verify(arg, ConstraintContext())
             return True
@@ -99,7 +105,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     raise ValueError(f"isa: unsupported type hint '{hint}' {get_origin(hint)}")
 
 
-def assert_isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
+def assert_isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     """
     Check if `arg` is of the type described by `hint`.
     For now, only lists, dictionaries, unions,

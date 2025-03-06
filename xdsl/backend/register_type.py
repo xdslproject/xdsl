@@ -28,26 +28,32 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     index: ParameterDef[IntAttr | NoneAttr]
     spelling: ParameterDef[StringAttr]
 
-    def __init__(self, spelling: str):
-        super().__init__(self._parameters_from_spelling(spelling))
+    def __init__(self, index: IntAttr | NoneAttr, spelling: StringAttr):
+        super().__init__((index, spelling))
+
+    @classmethod
+    def unallocated(cls) -> Self:
+        """
+        Returns an unallocated register of this type.
+        """
+        return cls(NoneAttr(), StringAttr(""))
 
     @classmethod
     def _parameters_from_spelling(
-        cls, spelling: str
+        cls, spelling: StringAttr
     ) -> tuple[IntAttr | NoneAttr, StringAttr]:
         """
         Returns the parameter list required to construct a register instance from the given spelling.
         """
-        index_attr = NoneAttr()
-        index = cls.abi_index_by_name().get(spelling)
-        if index is not None:
-            index_attr = IntAttr(index)
-        return index_attr, StringAttr(spelling)
+        index = cls.abi_index_by_name().get(spelling.data)
+        index_attr = NoneAttr() if index is None else IntAttr(index)
+        return index_attr, spelling
 
     @classmethod
-    @abstractmethod
-    def unallocated(cls) -> Self:
-        raise NotImplementedError()
+    def from_spelling(cls, spelling: StringAttr | str) -> Self:
+        if not isinstance(spelling, StringAttr):
+            spelling = StringAttr(spelling)
+        return cls(*cls._parameters_from_spelling(spelling))
 
     @property
     def register_name(self) -> str:
@@ -62,9 +68,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return bool(self.spelling.data)
 
     @classmethod
-    @abstractmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        raise NotImplementedError()
+        if parser.parse_optional_punctuation("<"):
+            name = parser.parse_identifier()
+            parser.parse_punctuation(">")
+        else:
+            name = ""
+        return cls._parameters_from_spelling(StringAttr(name))
 
     def print_parameters(self, printer: Printer) -> None:
         if self.spelling.data:
@@ -83,3 +93,25 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     @abstractmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def infinite_register_prefix(cls) -> str:
+        """
+        Provide the prefix for the spelling for a register at the given index in the
+        "infinite" register set.
+        For a prefix `x`, the spelling of the first infinite register will be `x0`.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def infinite_register(cls, index: int) -> Self:
+        """
+        Provide the register at the given index in the "infinite" register set.
+        """
+        spelling = cls.infinite_register_prefix() + str(index)
+        res = cls.from_spelling(spelling)
+        assert isinstance(res.index, NoneAttr), (
+            f"Invalid 'infinite' register name: {spelling} clashes with finite register set"
+        )
+        return res

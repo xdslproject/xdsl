@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import affine, arith, memref, memref_stream, scf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -35,10 +35,10 @@ def insert_subview(
     location: InsertPoint,
 ):
     """
-    A helper method to insert a subview from the input `memref_val` to one with new upper
-    bounds, given that it will be accessed with the specified affine map.
-    `dim_offsets` are the operands to use to determine the new offset, and `upper_bounds`
-    the new shape.
+    A helper method to insert a subview from the input `memref_val` to one with new
+    upper bounds, given that it will be accessed with the specified affine map.
+    `dim_offsets` are the operands to use to determine the new offset, and
+    `upper_bounds` the new shape.
     Any new operations should be inserted at `location`.
     """
     name_hint_prefix = (
@@ -94,7 +94,7 @@ def insert_subview(
                 f"Unsupported layout attr for tiling {layout_attr}"
             )
 
-    subview_op = memref.Subview.get(
+    subview_op = memref.SubviewOp.get(
         memref_val,
         offset_vals,
         dest_shape,
@@ -122,20 +122,20 @@ def materialize_loop(
         )
 
     ops: list[Operation] = [
-        zero_op := arith.Constant(IntegerAttr.from_index_int_value(0)),
-        one_op := arith.Constant(IntegerAttr.from_index_int_value(1)),
-        ub_op := arith.Constant(generic_op.bounds.data[index]),
+        zero_op := arith.ConstantOp(IntegerAttr.from_index_int_value(0)),
+        one_op := arith.ConstantOp(IntegerAttr.from_index_int_value(1)),
+        ub_op := arith.ConstantOp(generic_op.bounds.data[index]),
     ]
     zero_val = zero_op.result
     zero_val.name_hint = "c0"
     one_op.result.name_hint = "c1"
     ub_op.result.name_hint = "ub"
 
-    for_block = Block((yield_op := scf.Yield(),), arg_types=(IndexType(),))
+    for_block = Block((yield_op := scf.YieldOp(),), arg_types=(IndexType(),))
 
     loc = InsertPoint.before(yield_op)
 
-    ops.append(scf.For(zero_op, ub_op, one_op, (), Region(for_block)))
+    ops.append(scf.ForOp(zero_op, ub_op, one_op, (), Region(for_block)))
 
     index_val = for_block.args[0]
     index_val.name_hint = "i"
@@ -220,7 +220,7 @@ class TileGenericPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamTileOuterLoopsPass(ModulePass):
+class MemRefStreamTileOuterLoopsPass(ModulePass):
     """
     Materializes loops around memref_stream.generic operations that have greater than
     specified number of non-1 upper bounds.
@@ -230,7 +230,7 @@ class MemrefStreamTileOuterLoopsPass(ModulePass):
 
     target_rank: int = field()
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             TileGenericPattern(self.target_rank),
         ).rewrite_module(op)

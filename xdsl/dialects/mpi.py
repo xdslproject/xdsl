@@ -3,7 +3,9 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (
@@ -110,7 +112,7 @@ class DataType(ParametrizedAttribute, TypeAttribute):
 
 VectorWrappable = RequestType | StatusType | DataType
 VectorWrappableConstr = base(RequestType) | base(StatusType) | base(DataType)
-_VectorT = TypeVar("_VectorT", bound=VectorWrappable)
+_VectorT = TypeVar("_VectorT", bound=VectorWrappable, default=VectorWrappable)
 
 
 @irdl_attr_definition
@@ -146,7 +148,7 @@ class MPIBaseOp(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class Reduce(MPIBaseOp):
+class ReduceOp(MPIBaseOp):
     """
     This wraps the MPI_Reduce function (blocking reduction)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html
@@ -196,7 +198,7 @@ class Reduce(MPIBaseOp):
 
 
 @irdl_op_definition
-class Allreduce(MPIBaseOp):
+class AllreduceOp(MPIBaseOp):
     """
     This wraps the MPI_Allreduce function (blocking all reduction)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
@@ -252,7 +254,7 @@ class Allreduce(MPIBaseOp):
 
 
 @irdl_op_definition
-class Bcast(MPIBaseOp):
+class BcastOp(MPIBaseOp):
     """
     This wraps the MPI_Bcast function (blocking broadcast)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html
@@ -295,7 +297,7 @@ class Bcast(MPIBaseOp):
 
 
 @irdl_op_definition
-class Isend(MPIBaseOp):
+class IsendOp(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html
@@ -343,7 +345,7 @@ class Isend(MPIBaseOp):
 
 
 @irdl_op_definition
-class Send(MPIBaseOp):
+class SendOp(MPIBaseOp):
     """
     This wraps the MPI_Send function (blocking send)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Send.html
@@ -388,7 +390,7 @@ class Send(MPIBaseOp):
 
 
 @irdl_op_definition
-class Irecv(MPIBaseOp):
+class IrecvOp(MPIBaseOp):
     """
     This wraps the MPI_Irecv function (nonblocking receive).
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html
@@ -437,7 +439,7 @@ class Irecv(MPIBaseOp):
 
 
 @irdl_op_definition
-class Recv(MPIBaseOp):
+class RecvOp(MPIBaseOp):
     """
     This wraps the MPI_Recv function (blocking receive).
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Recv.html
@@ -487,7 +489,7 @@ class Recv(MPIBaseOp):
 
 
 @irdl_op_definition
-class Test(MPIBaseOp):
+class TestOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Test function (test for completion of request)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Test.html
@@ -513,7 +515,7 @@ class Test(MPIBaseOp):
 
 
 @irdl_op_definition
-class Wait(MPIBaseOp):
+class WaitOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Wait function (blocking wait for request)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Wait.html
@@ -540,7 +542,7 @@ class Wait(MPIBaseOp):
 
 
 @irdl_op_definition
-class Waitall(MPIBaseOp):
+class WaitallOp(MPIBaseOp):
     """
     Class for wrapping the MPI_Waitall function (blocking wait for requests)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html
@@ -570,7 +572,7 @@ class Waitall(MPIBaseOp):
 
 
 @irdl_op_definition
-class GetStatusField(MPIBaseOp):
+class GetStatusFieldOp(MPIBaseOp):
     """
     Accessors for the MPI_Status struct
 
@@ -599,7 +601,7 @@ class GetStatusField(MPIBaseOp):
 
 
 @irdl_op_definition
-class CommRank(MPIBaseOp):
+class CommRankOp(MPIBaseOp):
     """
     Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns
     the rank of the communicator
@@ -616,7 +618,7 @@ class CommRank(MPIBaseOp):
 
 
 @irdl_op_definition
-class CommSize(MPIBaseOp):
+class CommSizeOp(MPIBaseOp):
     """
     Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns
     the size of the communicator
@@ -633,7 +635,7 @@ class CommSize(MPIBaseOp):
 
 
 @irdl_op_definition
-class Init(MPIBaseOp):
+class InitOp(MPIBaseOp):
     """
     This represents a bare MPI_Init call with both args being nullptr
     """
@@ -642,7 +644,7 @@ class Init(MPIBaseOp):
 
 
 @irdl_op_definition
-class Finalize(MPIBaseOp):
+class FinalizeOp(MPIBaseOp):
     """
     This represents an MPI_Finalize call with both args being nullptr
     """
@@ -651,7 +653,7 @@ class Finalize(MPIBaseOp):
 
 
 @irdl_op_definition
-class UnwrapMemrefOp(MPIBaseOp):
+class UnwrapMemRefOp(MPIBaseOp):
     """
     This Op can be used as a helper to get memrefs into MPI calls.
 
@@ -833,21 +835,22 @@ class GatherOp(MPIBaseOp):
 MPI = Dialect(
     "mpi",
     [
-        Isend,
-        Irecv,
-        Test,
-        Recv,
-        Send,
-        Reduce,
-        Allreduce,
-        Bcast,
-        Wait,
-        Waitall,
-        GetStatusField,
-        Init,
-        Finalize,
-        CommRank,
-        UnwrapMemrefOp,
+        CommSizeOp,
+        IsendOp,
+        IrecvOp,
+        TestOp,
+        RecvOp,
+        SendOp,
+        ReduceOp,
+        AllreduceOp,
+        BcastOp,
+        WaitOp,
+        WaitallOp,
+        GetStatusFieldOp,
+        InitOp,
+        FinalizeOp,
+        CommRankOp,
+        UnwrapMemRefOp,
         GetDtypeOp,
         AllocateTypeOp,
         VectorGetOp,

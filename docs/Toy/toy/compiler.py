@@ -5,7 +5,7 @@ from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRis
 from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
 )
-from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemRefToRiscvPass
 from xdsl.backend.riscv.lowering.convert_print_format_to_riscv_debug import (
     ConvertPrintFormatToRiscvDebugPass,
 )
@@ -13,7 +13,7 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
     ConvertRiscvScfToRiscvCfPass,
 )
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import (
     affine,
     arith,
@@ -35,14 +35,14 @@ from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldin
 
 from .dialects import toy
 from .frontend.ir_gen import IRGen
-from .frontend.parser import Parser
+from .frontend.parser import ToyParser
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.shape_inference import ShapeInferencePass
 
 
-def context() -> MLContext:
-    ctx = MLContext()
+def context() -> Context:
+    ctx = Context()
     ctx.load_dialect(affine.Affine)
     ctx.load_dialect(arith.Arith)
     ctx.load_dialect(Builtin)
@@ -56,15 +56,15 @@ def context() -> MLContext:
     return ctx
 
 
-def parse_toy(program: str, ctx: MLContext | None = None) -> ModuleOp:
+def parse_toy(program: str, ctx: Context | None = None) -> ModuleOp:
     mlir_gen = IRGen()
-    module_ast = Parser(Path("in_memory"), program).parseModule()
+    module_ast = ToyParser(Path("in_memory"), program).parseModule()
     module_op = mlir_gen.ir_gen_module(module_ast)
     return module_op
 
 
 def transform(
-    ctx: MLContext,
+    ctx: Context,
     module_op: ModuleOp,
     *,
     target: str = "riscv-assembly",
@@ -99,7 +99,7 @@ def transform(
         return
 
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
-    ConvertMemrefToRiscvPass().apply(ctx, module_op)
+    ConvertMemRefToRiscvPass().apply(ctx, module_op)
     ConvertPrintFormatToRiscvDebugPass().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
     ConvertScfToRiscvPass().apply(ctx, module_op)

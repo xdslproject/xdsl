@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
@@ -14,7 +14,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
-from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 @dataclass
@@ -34,7 +33,7 @@ class ReplacePass(ModulePass):
     before: ClassVar[str]
     after: ClassVar[str]
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(ReplacePattern(self.before, self.after)).rewrite_module(op)
 
 
@@ -68,12 +67,7 @@ def test_get_all_available_passes():
         tuple((p.name, p) for p in (ABPass, ACPass, BCPass, BDPass)),
         '"test.op"() {key="a"} : () -> ()',
         # Transforms the above op from "a" to "b" before testing passes
-        (
-            (
-                ABPass,
-                PipelinePassSpec(name="ab", args={}),
-            ),
-        ),
+        (ABPass(),),
         condense_mode=True,
         rewrite_by_names_dict={
             "test.op": {
@@ -87,25 +81,15 @@ def test_get_all_available_passes():
         (
             AvailablePass(
                 display_name="bc",
-                module_pass=BCPass,
-                pass_spec=None,
+                module_pass=BCPass(),
             ),
             AvailablePass(
                 display_name="bd",
-                module_pass=BDPass,
-                pass_spec=None,
+                module_pass=BDPass(),
             ),
             AvailablePass(
-                display_name='TestOp("test.op"() {"key" = "b"} : () -> ()):test.op:be',
-                module_pass=ApplyIndividualRewritePass,
-                pass_spec=PipelinePassSpec(
-                    "apply-individual-rewrite",
-                    {
-                        "matched_operation_index": (1,),
-                        "operation_name": ("test.op",),
-                        "pattern_name": ("be",),
-                    },
-                ),
+                display_name='TestOp("test.op"() {key = "b"} : () -> ()):test.op:be',
+                module_pass=ApplyIndividualRewritePass(1, "test.op", "be"),
             ),
         )
     )

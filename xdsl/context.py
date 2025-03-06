@@ -1,6 +1,7 @@
-from collections.abc import Callable, Iterable
+import warnings
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from xdsl.ir import Dialect
 
@@ -9,7 +10,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class MLContext:
+class Context:
     """Contains structures for operations/attributes registration."""
 
     allow_unregistered: bool = field(default=False)
@@ -25,8 +26,8 @@ class MLContext:
     only load the respective Python files when the dialect is actually used.
     """
 
-    def clone(self) -> "MLContext":
-        return MLContext(
+    def clone(self) -> "Context":
+        return Context(
             self.allow_unregistered,
             self._loaded_dialects.copy(),
             self._loaded_ops.copy(),
@@ -112,17 +113,9 @@ class MLContext:
             raise Exception(f"Attribute {attr.name} has already been loaded")
         self._loaded_attrs[attr.name] = attr
 
-    def get_optional_op(self, name: str) -> "type[Operation] | None":
-        """
-        Get an operation class from its name if it exists.
-        If the operation is not registered, return None unless unregistered operations
-        are allowed in the context, in which case return an UnregisteredOp.
-        """
-        # If the operation is already loaded, returns it.
+    def _get_known_op(self, name: str) -> "type[Operation] | None":
         if name in self._loaded_ops:
             return self._loaded_ops[name]
-
-        # Otherwise, check if the operation dialect is registered.
         if "." in name:
             dialect_name, _ = Dialect.split_name(name)
             if (
@@ -130,25 +123,45 @@ class MLContext:
                 and dialect_name not in self._loaded_dialects
             ):
                 self.load_registered_dialect(dialect_name)
-                return self.get_optional_op(name)
+                return self._get_known_op(name)
 
-        # If the dialect is unregistered, but the context allows unregistered
-        # operations, return an UnregisteredOp.
+    def get_optional_op(
+        self, name: str, *, dialect_stack: Sequence[str] = ()
+    ) -> "type[Operation] | None":
+        """
+        Get an operation class from its name if it exists or is contained in one of the
+        dialects in the dialect stack.
+        If the operation is not registered, return None unless unregistered operations
+        are allowed in the context, in which case return an UnregisteredOp.
+        """
+        # Check if the name is known.
+        if op_type := self._get_known_op(name):
+            return op_type
+
+        # Check appending each dialect in the dialect stack.
+        for dialect_name in reversed(dialect_stack):
+            dialect_and_name = f"{dialect_name}.{name}"
+            if op_type := self._get_known_op(dialect_and_name):
+                return op_type
+
+        # If the context allows unregistered operations then create an UnregisteredOp
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
 
             op_type = UnregisteredOp.with_name(name)
             self._loaded_ops[name] = op_type
             return op_type
-        return None
 
-    def get_op(self, name: str) -> "type[Operation]":
+    def get_op(
+        self, name: str, *, dialect_stack: Sequence[str] = ()
+    ) -> "type[Operation]":
         """
-        Get an operation class from its name.
+        Get an operation class from its name if it exists or is contained in one of the
+        dialects in the dialect stack.
         If the operation is not registered, raise an exception unless unregistered
         operations are allowed in the context, in which case return an UnregisteredOp.
         """
-        if op_type := self.get_optional_op(name):
+        if op_type := self.get_optional_op(name, dialect_stack=dialect_stack):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
@@ -217,3 +230,9 @@ class MLContext:
         if name in self._loaded_dialects:
             return self._loaded_dialects[name]
         return None
+
+
+class MLContext(Context):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        warnings.warn("MLContext is deprecated, please use Context instead")

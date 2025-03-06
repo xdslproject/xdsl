@@ -1,8 +1,7 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
-from xdsl.dialects import arith, func, scf
+from xdsl.context import Context
+from xdsl.dialects import arith, func, math, scf
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
-from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
 from xdsl.ir import Block, SSAValue
 from xdsl.passes import ModulePass
@@ -25,9 +24,9 @@ class LowerPrintCharToPutchar(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PrintCharOp, rewriter: PatternRewriter, /):
-        func_call = func.Call("putchar", [op.char], [i32])
+        func_call = func.CallOp("putchar", [op.char], [i32])
         cast_op = arith.ExtUIOp(op.char, i32)
-        func_call = func.Call("putchar", [cast_op], [i32])
+        func_call = func.CallOp("putchar", [cast_op], [i32])
         # Add empty new_results, since a result is necessary for linking
         # putchar, but the result does not exist anywhere.
         rewriter.replace_matched_op([cast_op, func_call], new_results=[])
@@ -41,7 +40,7 @@ class ConvertPrintIntToItoa(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PrintIntOp, rewriter: PatternRewriter, /):
-        func_call = func.Call("mlir_itoa", [op.int], [])
+        func_call = func.CallOp("mlir_itoa", [op.int], [])
         rewriter.replace_matched_op(func_call)
 
 
@@ -80,9 +79,9 @@ def get_mlir_itoa():
         """
         before_block = Block(arg_types=(i32, i32))
         after_block = Block(arg_types=(i32, i32))
-        digit_init = arith.Constant.from_int_and_width(0, i32)
-        one = arith.Constant.from_int_and_width(1, i32)
-        while_loop = scf.While(
+        digit_init = arith.ConstantOp.from_int_and_width(0, i32)
+        one = arith.ConstantOp.from_int_and_width(1, i32)
+        while_loop = scf.WhileOp(
             [absolute_value, digit_init],
             [i32, i32],
             [before_block],
@@ -90,13 +89,13 @@ def get_mlir_itoa():
         )
         with ImplicitBuilder(before_block) as (running_integer, digits):
             # Stop when you reach zero
-            is_zero = arith.Cmpi(running_integer, zero, "ne")
-            scf.Condition(is_zero, running_integer, digits)
+            is_zero = arith.CmpiOp(running_integer, zero, "ne")
+            scf.ConditionOp(is_zero, running_integer, digits)
         with ImplicitBuilder(after_block) as (running_integer, previous_digits):
-            ten = arith.Constant.from_int_and_width(10, 32)
-            new_integer = arith.DivUI(running_integer, ten)
-            digits = arith.Addi(previous_digits, one)
-            scf.Yield(new_integer, digits)
+            ten = arith.ConstantOp.from_int_and_width(10, 32)
+            new_integer = arith.DivUIOp(running_integer, ten)
+            digits = arith.AddiOp(previous_digits, one)
+            scf.YieldOp(new_integer, digits)
 
         return while_loop.results[1]
 
@@ -116,24 +115,24 @@ def get_mlir_itoa():
         """
         is_negative_block = Block()
         is_positive_block = Block()
-        is_negative = arith.Cmpi(integer, zero, "slt")
+        is_negative = arith.CmpiOp(integer, zero, "slt")
 
         # Either way get the absolute value of the number
-        absolute_value = scf.If(
+        absolute_value = scf.IfOp(
             is_negative, [i32], [is_negative_block], [is_positive_block]
         )
         # If the value is negative, print the minus sign, return abs value
         with ImplicitBuilder(is_negative_block):
             PrintCharOp.from_constant_char("-")
-            negative_input = arith.Subi(zero, integer)
-            scf.Yield(negative_input)
+            negative_input = arith.SubiOp(zero, integer)
+            scf.YieldOp(negative_input)
         # If the value is positive, just return value itself as abs value
         with ImplicitBuilder(is_positive_block):
-            scf.Yield(integer)
+            scf.YieldOp(integer)
 
         return absolute_value.results[0]
 
-    def print_digits(digits: SSAValue, absolute_value: SSAValue) -> scf.For:
+    def print_digits(digits: SSAValue, absolute_value: SSAValue) -> scf.ForOp:
         """
         Return an scf.for loop that prints all digits of the given value.
         In python code:
@@ -142,28 +141,28 @@ def get_mlir_itoa():
             digit = (absolute_value // (10**position)) % 10
             print(digit)
         """
-        zero_index = arith.Constant.from_int_and_width(0, IndexType())
-        one_index = arith.Constant.from_int_and_width(1, IndexType())
+        zero_index = arith.ConstantOp.from_int_and_width(0, IndexType())
+        one_index = arith.ConstantOp.from_int_and_width(1, IndexType())
         digits_index = arith.IndexCastOp(digits, IndexType())
         loop_body = Block(arg_types=(IndexType(),))
 
         # Print all from most significant to least
-        for_loop = scf.For(zero_index, digits_index, one_index, (), loop_body)
+        for_loop = scf.ForOp(zero_index, digits_index, one_index, (), loop_body)
         with ImplicitBuilder(loop_body) as (index_var,):
-            one = arith.Constant.from_int_and_width(1, i32)
-            size_minus_one = arith.Subi(digits, one)
+            one = arith.ConstantOp.from_int_and_width(1, i32)
+            size_minus_one = arith.SubiOp(digits, one)
             index_var_int = arith.IndexCastOp(index_var, i32)
-            position = arith.Subi(size_minus_one, index_var_int)
+            position = arith.SubiOp(size_minus_one, index_var_int)
             # digit = (num // (10**pos)) % 10
-            ten = arith.Constant.from_int_and_width(10, i32)
+            ten = arith.ConstantOp.from_int_and_width(10, i32)
             i_0 = math.IPowIOp(ten, position)
-            i_1 = arith.DivUI(absolute_value, i_0)
-            digit = arith.RemUI(i_1, ten)
-            ascii_offset = arith.Constant.from_int_and_width(ord("0"), i32)
-            char = arith.Addi(digit, ascii_offset)
+            i_1 = arith.DivUIOp(absolute_value, i_0)
+            digit = arith.RemUIOp(i_1, ten)
+            ascii_offset = arith.ConstantOp.from_int_and_width(ord("0"), i32)
+            char = arith.AddiOp(digit, ascii_offset)
             char_i8 = arith.TruncIOp(char, i8)
             PrintCharOp(char_i8)
-            scf.Yield()
+            scf.YieldOp()
         return for_loop
 
     # Beginning of mlir_itoa declaration
@@ -180,11 +179,11 @@ def get_mlir_itoa():
     """
     mlir_itoa_func = func.FuncOp("mlir_itoa", ((i32,), ()))
     with ImplicitBuilder(mlir_itoa_func.body) as (integer,):
-        zero = arith.Constant.from_int_and_width(0, i32)
+        zero = arith.ConstantOp.from_int_and_width(0, i32)
         is_zero_block = Block()
         is_not_zero_block = Block()
-        is_zero = arith.Cmpi(integer, zero, "eq")
-        scf.If(
+        is_zero = arith.CmpiOp(integer, zero, "eq")
+        scf.IfOp(
             is_zero,
             [],
             [is_zero_block],
@@ -193,7 +192,7 @@ def get_mlir_itoa():
         # If the value is zero, just print one zero
         with ImplicitBuilder(is_zero_block):
             PrintCharOp.from_constant_char("0")
-            scf.Yield()
+            scf.YieldOp()
         # Otherwise continue with itoa
         with ImplicitBuilder(is_not_zero_block):
             # Print minus sign if negative and return absolute value
@@ -202,9 +201,9 @@ def get_mlir_itoa():
             digits = get_number_of_digits(absolute_value)
             print_digits(digits, absolute_value)
             # Yield from is_not_zero_block
-            scf.Yield()
+            scf.YieldOp()
         # Return from itoa function
-        func.Return()
+        func.ReturnOp()
 
     return mlir_itoa_func
 
@@ -213,7 +212,7 @@ class PrintfToPutcharPass(ModulePass):
     name = "printf-to-putchar"
 
     # lower to func.call
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         # Check if there are any printints
         contains_printint = any(
             isinstance(op_in_module, PrintIntOp) for op_in_module in op.walk()

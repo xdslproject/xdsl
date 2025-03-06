@@ -1,8 +1,12 @@
+from collections.abc import Callable
+from typing import cast
+
 import pytest
 
 try:
     from jax import make_jaxpr  # pyright: ignore[reportUnknownVariableType]
     from jax import numpy as jnp
+    from jax._src.core import ClosedJaxpr
 except ImportError as exc:
     print(exc)
     pytest.skip("jax is an optional dependency", allow_module_level=True)
@@ -16,7 +20,8 @@ def test_id():
     def id(a: jnp.ndarray) -> jnp.ndarray:
         return a
 
-    id_jaxpr = make_jaxpr(id)(five_ones)
+    jaxpr_factory = cast(Callable[..., ClosedJaxpr], make_jaxpr(id))  # pyright: ignore
+    id_jaxpr: ClosedJaxpr = jaxpr_factory(five_ones)
 
     builder = IRGen()
 

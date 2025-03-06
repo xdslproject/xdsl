@@ -1,32 +1,13 @@
 import marimo
 
-__generated_with = "0.8.20"
+__generated_with = "0.11.10"
 app = marimo.App(width="medium")
 
 
-@app.cell
-def __():
+@app.cell(hide_code=True)
+def _():
     import marimo as mo
-    return (mo,)
-
-
-@app.cell
-def __(mo):
-    mo.md(
-        """
-        \
-        # Compiling `linalg` to Snitch
-
-        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
-
-        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
-        """
-    )
-    return
-
-
-@app.cell
-def __():
+    import xdsl.utils.marimo as xmo
     # Import all the necessary functionality from xDSL for this notebook
     # If you see an error about xdsl not being defined run this cell manually
 
@@ -43,7 +24,7 @@ def __():
         ConvertSnitchStreamToSnitch,
     )
     from xdsl.builder import ImplicitBuilder
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
@@ -78,11 +59,11 @@ def __():
         Attribute,
         Block,
         CanonicalizePass,
+        Context,
         ConvertRiscvScfToRiscvCfPass,
         ConvertSnitchStreamToSnitch,
         ImplicitBuilder,
         LowerSnitchPass,
-        MLContext,
         MLIROptPass,
         MemRefType,
         ModuleOp,
@@ -112,13 +93,29 @@ def __():
         loop_hoist_memref,
         lower_affine,
         memref_streamify,
+        mo,
         reconcile_unrealized_casts,
         riscv_code,
+        xmo,
     )
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        """
+        # Compiling `linalg` to Snitch
+
+        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
+
+        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
+        """
+    )
+    return
+
+
 @app.cell
-def __(
+def _(
     AffineMap,
     AffineMapAttr,
     Block,
@@ -134,7 +131,7 @@ def __(
     func,
     linalg,
     mo,
-    module_html,
+    xmo,
 ):
     a_type = MemRefType(f64, a_shape)
     b_type = MemRefType(f64, b_shape)
@@ -147,7 +144,7 @@ def __(
         b.name_hint = "B"
         c.name_hint = "C"
         body = Region(Block(arg_types = (f64, f64, f64)))
-        linalg.Generic(
+        linalg.GenericOp(
             inputs=(a, b),
             outputs=(c,),
             body=body,
@@ -163,8 +160,8 @@ def __(
             )
         )
         with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
-            prod_val = arith.Mulf(a_val, b_val).result
-            acc_new_val = arith.Addf(acc_old_val, prod_val).result
+            prod_val = arith.MulfOp(a_val, b_val).result
+            acc_new_val = arith.AddfOp(acc_old_val, prod_val).result
             linalg.YieldOp(acc_new_val)
             # Add more name hints to make it easier to track how values are lowered
             a_val.name_hint = "a"
@@ -172,7 +169,7 @@ def __(
             acc_old_val.name_hint = "acc_old"
             prod_val.name_hint = "prod"
             acc_new_val.name_hint = "acc_new"
-        func.Return()
+        func.ReturnOp()
 
     linalg_module = ModuleOp((kernel_op,))
 
@@ -180,7 +177,7 @@ def __(
 
     Here is matrix multiplication defined in the `linalg` dialect, with the iteration space decoupled from the computation:
 
-    {module_html(linalg_module)}
+    {xmo.module_html(linalg_module)}
     """)
     return (
         a,
@@ -201,7 +198,7 @@ def __(
 
 
 @app.cell
-def __(mo):
+def _(mo):
     min_val = 1
     max_val = 10
     m = mo.ui.slider(min_val, max_val, value=2, label="M")
@@ -210,8 +207,8 @@ def __(mo):
     return k, m, max_val, min_val, n
 
 
-@app.cell
-def __(k, m, mo, n):
+@app.cell(hide_code=True)
+def _(k, m, mo, n):
     mo.md(
         f"""
         We can parametrize the shapes of the matrices operated on:
@@ -227,7 +224,7 @@ def __(k, m, mo, n):
 
 
 @app.cell
-def __(k, m, mo, n):
+def _(k, m, mo, n):
     a_shape = (m.value, k.value)
     b_shape = (k.value, n.value)
     c_shape = (m.value, n.value)
@@ -243,60 +240,61 @@ def __(k, m, mo, n):
     return a_shape, b_shape, c_shape
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md("""### Compiling to RISC-V""")
     return
 
 
 @app.cell
-def __(MLContext, get_all_dialects):
-    ctx = MLContext()
+def _(Context, get_all_dialects):
+    linalg_ctx = Context()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
-    return ctx, dialect_factory, dialect_name
+        linalg_ctx.register_dialect(dialect_name, dialect_factory)
+    return dialect_factory, dialect_name, linalg_ctx
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md("""We can take this representation, and lower to RISC-V-specific dialects:""")
     return
 
 
 @app.cell
-def __(
+def _(
     PipelinePass,
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
     convert_linalg_to_loops,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
+    linalg_ctx,
     linalg_module,
-    pipeline_accordion,
     reconcile_unrealized_casts,
+    xmo,
 ):
     lower_to_riscv = PipelinePass(
         [
             convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
-            convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
+            convert_memref_to_riscv.ConvertMemRefToRiscvPass(),
             convert_arith_to_riscv.ConvertArithToRiscvPass(),
             convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
             reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
         ]
     )
 
-    riscv_module, riscv_accordion = pipeline_accordion(
-        tuple(("", p) for p in lower_to_riscv.passes), linalg_module
+    riscv_ctx, riscv_module, riscv_html = xmo.pipeline_html(
+        linalg_ctx, linalg_module, tuple(("", p) for p in lower_to_riscv.passes)
     )
 
-    riscv_accordion
-    return lower_to_riscv, riscv_accordion, riscv_module
+    riscv_html
+    return lower_to_riscv, riscv_ctx, riscv_html, riscv_module
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         """
         #### Register allocation
@@ -308,12 +306,13 @@ def __(mo):
 
 
 @app.cell
-def __(
+def _(
     CanonicalizePass,
     PipelinePass,
     RISCVRegisterAllocation,
-    pipeline_accordion,
+    riscv_ctx,
     riscv_module,
+    xmo,
 ):
     allocate_registers = PipelinePass(
         [
@@ -322,21 +321,22 @@ def __(
         ]
     )
 
-    regalloc_module, regalloc_accordion = pipeline_accordion(
-        tuple(("", p) for p in allocate_registers.passes), riscv_module
+    regalloc_ctx, regalloc_module, regalloc_html = xmo.pipeline_html(
+        riscv_ctx, riscv_module, tuple(("", p) for p in allocate_registers.passes),
     )
 
-    regalloc_accordion
-    return allocate_registers, regalloc_accordion, regalloc_module
+    regalloc_html
+    return allocate_registers, regalloc_ctx, regalloc_html, regalloc_module
 
 
 @app.cell
-def __(
+def _(
     CanonicalizePass,
     ConvertRiscvScfToRiscvCfPass,
     PipelinePass,
-    pipeline_accordion,
+    regalloc_ctx,
     regalloc_module,
+    xmo,
 ):
     lower_to_asm = PipelinePass(
         [
@@ -345,35 +345,35 @@ def __(
         ]
     )
 
-    riscv_asm_module, assembly_accordion = pipeline_accordion(
-        (("", lower_to_asm),), regalloc_module
+    riscv_asm_ctx, riscv_asm_module, assembly_html = xmo.pipeline_html(
+        regalloc_ctx, regalloc_module, (("", lower_to_asm),),
     )
 
-    assembly_accordion
-    return assembly_accordion, lower_to_asm, riscv_asm_module
+    assembly_html
+    return assembly_html, lower_to_asm, riscv_asm_ctx, riscv_asm_module
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.""")
     return
 
 
-@app.cell
-def __(asm_html, mo, riscv_asm_module, riscv_code):
+@app.cell(hide_code=True)
+def _(mo, riscv_asm_module, riscv_code, xmo):
     riscv_asm = riscv_code(riscv_asm_module)
 
     mo.md(f"""\
     **RISC-V Assembly:**
 
-    {asm_html(riscv_asm)}
+    {xmo.asm_html(riscv_asm)}
     """
     )
     return (riscv_asm,)
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         """
         ### Compiling to Snitch
@@ -385,19 +385,20 @@ def __(mo):
 
 
 @app.cell
-def __(
+def _(
     PipelinePass,
     arith_add_fastmath,
     convert_linalg_to_memref_stream,
     convert_riscv_scf_for_to_frep,
+    linalg_ctx,
     linalg_module,
-    pipeline_accordion,
+    xmo,
 ):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES, OPTIMISE_MEMREF_STREAM_PASSES
 
     convert_linalg_to_snitch = PipelinePass(
         [
-            convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
+            convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
             *OPTIMISE_MEMREF_STREAM_PASSES,
             *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
@@ -405,44 +406,46 @@ def __(
         ]
     )
 
-    snitch_stream_module, snitch_stream_accordion = pipeline_accordion(
-        tuple(("", p) for p in convert_linalg_to_snitch.passes), linalg_module
+    snitch_stream_ctx, snitch_stream_module, snitch_stream_html = xmo.pipeline_html(
+        linalg_ctx, linalg_module, tuple(("", p) for p in convert_linalg_to_snitch.passes),
     )
 
-    snitch_stream_accordion
+    snitch_stream_html
     return (
         LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
         OPTIMISE_MEMREF_STREAM_PASSES,
         convert_linalg_to_snitch,
-        snitch_stream_accordion,
+        snitch_stream_ctx,
+        snitch_stream_html,
         snitch_stream_module,
     )
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md("""We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:""")
     return
 
 
 @app.cell
-def __(pipeline_accordion, snitch_stream_module):
+def _(snitch_stream_ctx, snitch_stream_module, xmo):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_SNITCH_STREAM_TO_ASM_PASSES
 
-    snitch_asm_module, snitch_asm_accordion = pipeline_accordion(
-        tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES), snitch_stream_module
+    snitch_asm_ctx, snitch_asm_module, snitch_asm_html = xmo.pipeline_html(
+        snitch_stream_ctx, snitch_stream_module, tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES)
     )
 
-    snitch_asm_accordion
+    snitch_asm_html
     return (
         LOWER_SNITCH_STREAM_TO_ASM_PASSES,
-        snitch_asm_accordion,
+        snitch_asm_ctx,
+        snitch_asm_html,
         snitch_asm_module,
     )
 
 
 @app.cell
-def __(k, m, mo, n):
+def _(k, m, mo, n):
     mo.md(
         f"""
         We can see how changing our input sizes affects the assembly produced:
@@ -458,20 +461,20 @@ def __(k, m, mo, n):
 
 
 @app.cell
-def __(asm_html, mo, riscv_code, snitch_asm_module):
+def _(mo, riscv_code, snitch_asm_module, xmo):
     snitch_asm = riscv_code(snitch_asm_module)
 
     mo.md(f"""\
     **Snitch Assembly:**
 
-    {asm_html(snitch_asm)}
+    {xmo.asm_html(snitch_asm)}
     """
     )
     return (snitch_asm,)
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         """
         ### Interpreting the assembly using xDSL
@@ -483,7 +486,7 @@ def __(mo):
 
 
 @app.cell
-def __(TypedPtr, a_shape, b_shape, c_shape, ctx, mo, riscv_module):
+def _(TypedPtr, a_shape, b_shape, c_shape, mo, riscv_ctx, riscv_module):
     from math import prod
 
     from xdsl.interpreter import Interpreter, OpCounter
@@ -499,9 +502,9 @@ def __(TypedPtr, a_shape, b_shape, c_shape, ctx, mo, riscv_module):
     riscv_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
     riscv_op_counter = OpCounter()
-    riscv_interpreter = Interpreter(riscv_module, listener=riscv_op_counter)
+    riscv_interpreter = Interpreter(riscv_module, listeners=(riscv_op_counter,))
 
-    register_implementations(riscv_interpreter, ctx, include_wgpu=False, include_onnx=False)
+    register_implementations(riscv_interpreter, riscv_ctx)
 
     riscv_interpreter.call_op("matmul", (a_shaped.data_ptr.raw, b_shaped.data_ptr.raw, riscv_c_shaped.data_ptr.raw))
 
@@ -532,7 +535,7 @@ def __(TypedPtr, a_shape, b_shape, c_shape, ctx, mo, riscv_module):
 
 
 @app.cell
-def __(
+def _(
     Interpreter,
     OpCounter,
     ShapedArray,
@@ -541,20 +544,20 @@ def __(
     b_shaped,
     c_len,
     c_shape,
-    ctx,
     mo,
     register_implementations,
     riscv_c_shaped,
+    snitch_stream_ctx,
     snitch_stream_module,
 ):
     snitch_op_counter = OpCounter()
     snitch_interpreter = Interpreter(
-        snitch_stream_module, listener=snitch_op_counter
+        snitch_stream_module, listeners=(snitch_op_counter,)
     )
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
-    register_implementations(snitch_interpreter, ctx, include_wgpu=False, include_onnx=False)
+    register_implementations(snitch_interpreter, snitch_stream_ctx)
 
     snitch_interpreter.call_op(
         "matmul",
@@ -578,8 +581,8 @@ def __(
     return snitch_c_shaped, snitch_interpreter, snitch_op_counter
 
 
-@app.cell
-def __(k, m, mo, n, riscv_op_counter, snitch_op_counter):
+@app.cell(hide_code=True)
+def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
     rv_dict = dict(riscv_op_counter.ops)
     sn_dict = dict(snitch_op_counter.ops)
 
@@ -663,65 +666,6 @@ def __(k, m, mo, n, riscv_op_counter, snitch_op_counter):
         sn_val,
         total_diff,
     )
-
-
-@app.cell
-def __(ModuleOp, mo):
-    import html as htmllib
-
-    def module_html(module: ModuleOp) -> str:
-        return f"""\
-        <div style="overflow-y: scroll; height:400px;"><small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small></div>
-        """
-
-    def asm_html(asm: str) -> str:
-        return f"""\
-        <div style="overflow-y: scroll; height:400px;">{mo.as_html(mo.ui.code_editor(
-                asm, language="python", disabled=True
-            ))}</div>
-        """
-    return asm_html, htmllib, module_html
-
-
-@app.cell
-def __():
-    from collections import Counter
-    return (Counter,)
-
-
-@app.cell
-def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, module_html):
-    def spec_str(p: ModulePass) -> str:
-        if isinstance(p, PipelinePass):
-            return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
-        else:
-            return str(p.pipeline_pass_spec())
-
-    def pipeline_accordion(
-        passes: tuple[tuple[mo.Html, ModulePass], ...], module: ModuleOp
-    ) -> tuple[ModuleOp, mo.Html]:
-        res = module.clone()
-        d = []
-        total_key_count = Counter(spec_str(p) for _, p in passes)
-        d_key_count = Counter()
-        for text, p in passes:
-            p.apply(ctx, res)
-            spec = spec_str(p)
-            d_key_count[spec] += 1
-            if total_key_count[spec] != 1:
-                header = f"{spec} ({d_key_count[spec]})"
-            else:
-                header = spec
-            html_res = module_html(res)
-            d.append(mo.vstack(
-                (
-                    header,
-                    text,
-                    mo.md(html_res),
-                )
-            ))
-        return (res, mo.carousel(d))
-    return pipeline_accordion, spec_str
 
 
 if __name__ == "__main__":

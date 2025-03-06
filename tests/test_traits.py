@@ -7,21 +7,29 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
+    DYNAMIC_INDEX,
+    AnyTensorTypeConstr,
+    AnyUnrankedMemRefTypeConstr,
+    AnyUnrankedTensorTypeConstr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
+    NoneAttr,
     StringAttr,
     SymbolRefAttr,
+    TensorType,
+    UnrankedTensorType,
     i1,
     i32,
     i64,
 )
-from xdsl.ir import Operation, OpTrait, OpTraits
+from xdsl.ir import Attribute, Operation, OpTrait, OpTraits, SSAValue
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -36,6 +44,8 @@ from xdsl.irdl import (
     region_def,
     result_def,
     traits_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.traits import (
     AlwaysSpeculatable,
@@ -44,6 +54,7 @@ from xdsl.traits import (
     HasParent,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
+    SameOperandsAndResultType,
     SymbolOpInterface,
     SymbolTable,
     is_speculatable,
@@ -104,7 +115,7 @@ class BitwidthSumLessThanTrait(OpTrait):
 
         if sum_bitwidth >= self.max_sum:
             raise VerifyException(
-                "Operation has a bitwidth sum " f"greater or equal to {self.max_sum}."
+                f"Operation has a bitwidth sum greater or equal to {self.max_sum}."
             )
 
 
@@ -240,7 +251,7 @@ class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
 
 
 @irdl_op_definition
-class OpWithInterface(IRDLOperation):
+class HasInterfaceOp(IRDLOperation):
     name = "test.op_with_interface"
     traits = traits_def(GetNumResultsTraitForOpWithOneResult())
 
@@ -251,8 +262,8 @@ def test_interface():
     """
     Test the features of a trait with methods (An MLIR interface).
     """
-    op = OpWithInterface.create(result_types=(i32,))
-    trait = OpWithInterface.get_trait(GetNumResultsTrait)
+    op = HasInterfaceOp.create(result_types=(i32,))
+    trait = HasInterfaceOp.get_trait(GetNumResultsTrait)
     assert trait is not None
     assert 1 == trait.get_num_results(op)
 
@@ -262,13 +273,13 @@ def test_get_trait_specialized():
     Test get_trait and has_trait in the case where the trait is a child class of the
     trait we want.
     """
-    assert OpWithInterface.has_trait(GetNumResultsTrait)
-    assert OpWithInterface.has_trait(GetNumResultsTraitForOpWithOneResult)
+    assert HasInterfaceOp.has_trait(GetNumResultsTrait)
+    assert HasInterfaceOp.has_trait(GetNumResultsTraitForOpWithOneResult)
     assert (
-        OpWithInterface.get_trait(GetNumResultsTrait)
+        HasInterfaceOp.get_trait(GetNumResultsTrait)
         == GetNumResultsTraitForOpWithOneResult()
     )
-    assert OpWithInterface.get_traits_of_type(GetNumResultsTrait) == [
+    assert HasInterfaceOp.get_traits_of_type(GetNumResultsTrait) == [
         GetNumResultsTraitForOpWithOneResult()
     ]
 
@@ -294,7 +305,7 @@ def test_symbol_op_interface():
     class SymNameWrongTypeOp(IRDLOperation):
         name = "wrong_sym_name_type"
 
-        sym_name = attr_def(AnyIntegerAttr)
+        sym_name = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
     op1 = SymNameWrongTypeOp(
@@ -547,6 +558,428 @@ def test_speculability(
         assert optrait is None
 
     assert is_speculatable(op) is speculatability
+
+
+@pytest.mark.parametrize(
+    ("operands", "result_types"),
+    [
+        ([()], [()]),
+        ([()], (test.TestType("foo"),)),
+        ((TestSSAValue(test.TestType("foo")),), [()]),
+    ],
+)
+def test_same_operands_and_result_type_trait_for_scalar_types(
+    operands: tuple[SSAValue] | tuple[()],
+    result_types: tuple[test.TestType] | tuple[()],
+):
+    @irdl_op_definition
+    class SameOperandsAndResultTypeOp(IRDLOperation):
+        name = "test.same_operand_and_result_type"
+
+        ops = var_operand_def(test.TestType("foo"))
+        res = var_result_def(test.TestType("foo"))
+
+        traits = traits_def(SameOperandsAndResultType())
+
+    op = SameOperandsAndResultTypeOp(operands=operands, result_types=result_types)
+
+    with pytest.raises(
+        VerifyException, match="requires at least one result or operand"
+    ):
+        op.verify()
+
+
+@irdl_op_definition
+class SameOperandsAndResultTypeOp(IRDLOperation):
+    name = "test.same_operand_and_result_type"
+
+    ops = var_operand_def(
+        MemRefType.constr()
+        | AnyUnrankedMemRefTypeConstr
+        | AnyUnrankedTensorTypeConstr
+        | AnyTensorTypeConstr
+    )
+
+    res = var_result_def(
+        MemRefType.constr()
+        | AnyUnrankedMemRefTypeConstr
+        | AnyUnrankedTensorTypeConstr
+        | AnyTensorTypeConstr
+    )
+
+    traits = traits_def(SameOperandsAndResultType())
+
+
+@pytest.mark.parametrize(
+    (
+        "operand1_and_result_element_type",
+        "operand_and_result_shape1",
+        "result_element_type2",
+        "result_shape2",
+    ),
+    [
+        (
+            test.TestType("foo"),
+            [2, 3],
+            test.TestType("qux"),
+            [2, 3],
+        ),
+        (
+            test.TestType("foo"),
+            [2, 3],
+            test.TestType("foo"),
+            [2, 4],
+        ),
+        (
+            test.TestType("qux"),
+            [2, 3],
+            test.TestType("foo"),
+            [2, 3],
+        ),
+        (
+            test.TestType("foo"),
+            [2, 4],
+            test.TestType("foo"),
+            [2, 3],
+        ),
+    ],
+)
+def test_same_operands_and_result_type_trait_for_result_element_type_of_shaped_types(
+    operand1_and_result_element_type: Attribute,
+    operand_and_result_shape1: tuple[int],
+    result_element_type2: Attribute,
+    result_shape2: tuple[int],
+):
+    op = SameOperandsAndResultTypeOp(
+        operands=[
+            TestSSAValue(
+                TensorType(operand1_and_result_element_type, operand_and_result_shape1)
+            )
+        ],
+        result_types=[
+            [
+                TensorType(operand1_and_result_element_type, operand_and_result_shape1),
+                TensorType(result_element_type2, result_shape2),
+            ],
+        ],
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match="requires the same type for all operands and results",
+    ):
+        op.verify()
+
+
+@pytest.mark.parametrize(
+    "operands_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    "results_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    (
+        "operand_type",
+        "result_type",
+    ),
+    [
+        (
+            TensorType(test.TestType("foo"), [2, 3]),
+            TensorType(test.TestType("qux"), [2, 3]),
+        ),
+        (
+            TensorType(test.TestType("foo"), [2, 3]),
+            TensorType(test.TestType("foo"), [2, 4]),
+        ),
+        (
+            TensorType(test.TestType("qux"), [2, 3]),
+            TensorType(test.TestType("foo"), [2, 3]),
+        ),
+        (
+            TensorType(test.TestType("foo"), [2, 4]),
+            TensorType(test.TestType("foo"), [2, 3]),
+        ),
+        (
+            MemRefType(test.TestType("foo"), [2, 3]),
+            MemRefType(test.TestType("qux"), [2, 3]),
+        ),
+        (
+            MemRefType(test.TestType("foo"), [2, 3]),
+            MemRefType(test.TestType("foo"), [2, 4]),
+        ),
+        (
+            MemRefType(test.TestType("qux"), [2, 3]),
+            MemRefType(test.TestType("foo"), [2, 3]),
+        ),
+        (
+            MemRefType(test.TestType("foo"), [2, 4]),
+            MemRefType(test.TestType("foo"), [2, 3]),
+        ),
+    ],
+)
+def test_same_operands_and_result_type_trait_for_element_type_of_shaped_types(
+    operand_type: TensorType[Any],
+    result_type: TensorType[Any],
+    operands_num: int,
+    results_num: int,
+):
+    op = SameOperandsAndResultTypeOp(
+        operands=[
+            [
+                TestSSAValue(operand_type),
+            ]
+            * operands_num,
+        ],
+        result_types=[[result_type] * results_num],
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match="requires the same type for all operands and results",
+    ):
+        op.verify()
+
+
+@pytest.mark.parametrize(
+    (
+        "element_type",
+        "shape",
+        "operand1_and_result_encoding",
+        "result_encoding2",
+    ),
+    [
+        (
+            test.TestType("foo"),
+            [2, 3],
+            StringAttr("bar"),
+            StringAttr("baz"),
+        ),
+        (
+            test.TestType("foo"),
+            [2, 3],
+            StringAttr("baz"),
+            StringAttr("bar"),
+        ),
+        (
+            test.TestType("foo"),
+            [2, 3],
+            StringAttr("bar"),
+            NoneAttr(),
+        ),
+        (
+            test.TestType("foo"),
+            [2, 3],
+            NoneAttr(),
+            StringAttr("bar"),
+        ),
+    ],
+)
+def test_same_operands_and_result_type_trait_for_result_encoding_of_shaped_types(
+    element_type: Attribute,
+    shape: tuple[int],
+    operand1_and_result_encoding: Attribute,
+    result_encoding2: Attribute,
+):
+    op = SameOperandsAndResultTypeOp(
+        operands=[
+            [
+                TestSSAValue(
+                    TensorType(
+                        element_type,
+                        shape,
+                        operand1_and_result_encoding,
+                    )
+                ),
+            ],
+        ],
+        result_types=[
+            [
+                TensorType(element_type, shape, operand1_and_result_encoding),
+                TensorType(element_type, shape, result_encoding2),
+            ]
+        ],
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match="requires the same encoding for all operands and results",
+    ):
+        op.verify()
+
+
+@pytest.mark.parametrize(
+    "operands_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    "results_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    (
+        "element_type",
+        "shape",
+        "operand_encoding",
+        "result_encoding",
+    ),
+    [
+        (
+            test.TestType("foo"),
+            [2, 3],
+            StringAttr("bar"),
+            StringAttr("baz"),
+        ),
+        (
+            test.TestType("foo"),
+            [2, 3],
+            StringAttr("baz"),
+            StringAttr("bar"),
+        ),
+        (
+            test.TestType("foo"),
+            [2, 3],
+            StringAttr("bar"),
+            NoneAttr(),
+        ),
+        (
+            test.TestType("foo"),
+            [2, 3],
+            NoneAttr(),
+            StringAttr("bar"),
+        ),
+    ],
+)
+def test_same_operands_and_result_type_trait_for_encoding_of_shaped_types(
+    element_type: Attribute,
+    shape: tuple[int],
+    operand_encoding: Attribute,
+    result_encoding: Attribute,
+    operands_num: int,
+    results_num: int,
+):
+    op = SameOperandsAndResultTypeOp(
+        operands=[
+            [
+                TestSSAValue(
+                    TensorType(
+                        element_type,
+                        shape,
+                        operand_encoding,
+                    )
+                ),
+            ]
+            * operands_num,
+        ],
+        result_types=[[TensorType(element_type, shape, result_encoding)] * results_num],
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match="requires the same encoding for all operands and results",
+    ):
+        op.verify()
+
+
+@pytest.mark.parametrize(
+    "operands_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    "results_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    (
+        "operand1_and_result_shape",
+        "operand2_shape",
+    ),
+    [
+        (
+            [1],
+            [1],
+        ),
+        (
+            [2, 3],
+            [2, 3],
+        ),
+        (
+            [2, 3],
+            [2, DYNAMIC_INDEX],
+        ),
+        (
+            [2, 4],
+            [2, DYNAMIC_INDEX],
+        ),
+        (
+            [2, DYNAMIC_INDEX],
+            [2, DYNAMIC_INDEX],
+        ),
+    ],
+)
+def test_same_operands_and_result_type_trait_for_ranked_mixed_shapes(
+    operand1_and_result_shape: tuple[int],
+    operand2_shape: tuple[int],
+    operands_num: int,
+    results_num: int,
+):
+    op = SameOperandsAndResultTypeOp(
+        operands=[
+            [
+                TestSSAValue(
+                    TensorType(test.TestType("foo"), operand1_and_result_shape)
+                ),
+                TestSSAValue(TensorType(test.TestType("foo"), operand2_shape)),
+            ]
+            * operands_num,
+        ],
+        result_types=[
+            [TensorType(test.TestType("foo"), operand1_and_result_shape)] * results_num
+        ],
+    )
+
+    op.verify()
+
+
+@pytest.mark.parametrize(
+    "operands_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    "results_num",
+    [1, 2, 3],
+)
+@pytest.mark.parametrize(
+    ("operand1_and_result_shape",),
+    [
+        ([1],),
+        ([2, 3],),
+        ([2, DYNAMIC_INDEX],),
+        ([DYNAMIC_INDEX, DYNAMIC_INDEX],),
+    ],
+)
+def test_same_operands_and_result_type_trait_for_mixed_rank_and_mixed_shapes(
+    operand1_and_result_shape: tuple[int],
+    operands_num: int,
+    results_num: int,
+):
+    op = SameOperandsAndResultTypeOp(
+        operands=[
+            [
+                TestSSAValue(
+                    TensorType(test.TestType("foo"), operand1_and_result_shape)
+                ),
+                TestSSAValue(UnrankedTensorType(test.TestType("foo"))),
+            ]
+            * operands_num,
+        ],
+        result_types=[
+            [TensorType(test.TestType("foo"), operand1_and_result_shape)] * results_num
+        ],
+    )
+
+    op.verify()
 
 
 @irdl_op_definition

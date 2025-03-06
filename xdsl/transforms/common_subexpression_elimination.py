@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 from typing import TypeVar
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import Rewriter
 from xdsl.traits import (
     IsolatedFromAbove,
@@ -115,19 +116,15 @@ def has_other_side_effecting_op_in_between(
     return False
 
 
+@dataclass
 class CSEDriver:
     """
     Boilerplate class to handle and carry the state for CSE.
     """
 
-    _rewriter: Rewriter
+    _rewriter: Rewriter | PatternRewriter = field(default_factory=Rewriter)
     _to_erase: set[Operation] = field(default_factory=set)
-    _known_ops: KnownOps = KnownOps()
-
-    def __init__(self):
-        self._rewriter = Rewriter()
-        self._to_erase = set()
-        self._known_ops = KnownOps()
+    _known_ops: KnownOps = field(default_factory=KnownOps)
 
     def _mark_erasure(self, op: Operation):
         self._to_erase.add(op)
@@ -250,12 +247,18 @@ class CSEDriver:
         self._commit_erasures()
 
 
-def cse(thing: Operation | Block | Region):
-    CSEDriver().simplify(thing)
+def cse(
+    thing: Operation | Block | Region,
+    rewriter: Rewriter | PatternRewriter | None = None,
+):
+    if rewriter is not None:
+        CSEDriver(_rewriter=rewriter).simplify(thing)
+    else:
+        CSEDriver().simplify(thing)
 
 
 class CommonSubexpressionElimination(ModulePass):
     name = "cse"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         cse(op)

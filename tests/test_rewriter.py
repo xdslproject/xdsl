@@ -1,21 +1,22 @@
 from collections.abc import Callable
+from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
-from xdsl.dialects.arith import Addi, Arith, Constant
+from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.printer import Printer
+from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
 def rewrite_and_compare(
     prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]
 ):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
@@ -26,7 +27,11 @@ def rewrite_and_compare(
     rewriter = Rewriter()
     transformation(module, rewriter)
 
-    assert_print_op(module, expected_prog, None)
+    file = StringIO()
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print(module)
+
+    assert file.getvalue().strip() == expected_prog.strip()
 
 
 def test_operation_deletion():
@@ -34,7 +39,7 @@ def test_operation_deletion():
 
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
 }) : () -> ()
 """
 
@@ -55,22 +60,22 @@ def test_operation_deletion():
 def test_replace_op_one_op():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant_op = Constant.from_int_and_width(43, i32)
+        new_constant_op = ConstantOp.from_int_and_width(43, i32)
         rewriter.replace_op(constant_op, new_constant_op)
 
     rewrite_and_compare(prog, expected, transformation)
@@ -80,24 +85,24 @@ def test_replace_op_one_op():
 def test_replace_op_multiple_op():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
-  %2 = "arith.addi"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  %2 = "arith.addi"(%1, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant = Constant.from_int_and_width(1, i32)
-        new_add = Addi(new_constant, new_constant)
+        new_constant = ConstantOp.from_int_and_width(1, i32)
+        new_add = AddiOp(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
 
@@ -108,16 +113,16 @@ def test_replace_op_multiple_op():
 def test_replace_op_new_results():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
-  %2 = "arith.muli"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  %2 = "arith.muli"(%1, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %1 = "arith.muli"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %1 = "arith.muli"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -125,7 +130,7 @@ def test_replace_op_new_results():
         ops_iter = iter(module.ops)
         next(ops_iter)
         add_op = next(ops_iter)
-        assert isinstance(add_op, Addi)
+        assert isinstance(add_op, AddiOp)
 
         rewriter.replace_op(add_op, [], [add_op.lhs])
 
@@ -233,7 +238,7 @@ def test_insert_block():
     """Test the insertion of a block in a region."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
 
@@ -241,7 +246,7 @@ def test_insert_block():
 "builtin.module"() ({
 ^0:
 ^1:
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
 
@@ -255,13 +260,13 @@ def test_insert_block2():
     """Test the insertion of a block in a region."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 ^0:
 }) : () -> ()
 """
@@ -276,7 +281,7 @@ def test_insert_block_before():
     """Test the insertion of a block before another block."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
 
@@ -284,12 +289,14 @@ def test_insert_block_before():
 "builtin.module"() ({
 ^0:
 ^1:
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
 
     def insert_empty_block_before(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block_before(Block(), module.regions[0].blocks[0])
+        rewriter.insert_block(
+            Block(), BlockInsertPoint.before(module.regions[0].blocks[0])
+        )
 
     rewrite_and_compare(prog, expected, insert_empty_block_before)
 
@@ -298,7 +305,7 @@ def test_insert_block_after():
     """Test the insertion of a block after another block."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 
 
@@ -306,13 +313,15 @@ def test_insert_block_after():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = true}> : () -> i1
+  %0 = "arith.constant"() <{value = true}> : () -> i1
 ^0:
 }) : () -> ()
 """
 
     def insert_empty_block_after(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
+        rewriter.insert_block(
+            Block(), BlockInsertPoint.after(module.regions[0].blocks[0])
+        )
 
     rewrite_and_compare(prog, expected, insert_empty_block_after)
 
@@ -321,19 +330,19 @@ def test_insert_op_before():
     """Test the insertion of an operation before another operation."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 34 : i64}> : () -> i64
-  %1 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 34 : i64}> : () -> i64
+  %1 = "arith.constant"() <{value = 43 : i32}> : () -> i32
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant = Constant.from_int_and_width(34, i64)
+        constant = ConstantOp.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
         rewriter.insert_op(constant, InsertPoint.before(first_op))
@@ -345,19 +354,19 @@ def test_insert_op_after():
     """Test the insertion of an operation after another operation."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
+  %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
-  %1 = "arith.constant"() <{"value" = 34 : i64}> : () -> i64
+  %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
+  %1 = "arith.constant"() <{value = 34 : i64}> : () -> i64
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant = Constant.from_int_and_width(34, i64)
+        constant = ConstantOp.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
         rewriter.insert_op(constant, InsertPoint.after(first_op))
@@ -369,22 +378,22 @@ def test_preserve_naming_single_op():
     """Test the preservation of names of SSAValues"""
     prog = """\
 "builtin.module"() ({
-  %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %i = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %i = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %0 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %i = "arith.constant"() <{value = 1 : i32}> : () -> i32
+  %0 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant = Constant.from_int_and_width(1, i32)
+        new_constant = ConstantOp.from_int_and_width(1, i32)
 
         rewriter.replace_op(constant_op, [new_constant])
 
@@ -395,24 +404,24 @@ def test_preserve_naming_multiple_ops():
     """Test the preservation of names of SSAValues for transformations to multiple ops"""
     prog = """\
 "builtin.module"() ({
-  %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %i = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %i = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %i_1 = "arith.addi"(%i, %i) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
-  %0 = "arith.addi"(%i_1, %i_1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %i = "arith.constant"() <{value = 1 : i32}> : () -> i32
+  %i_1 = "arith.addi"(%i, %i) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.addi"(%i_1, %i_1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops.first
         assert constant_op is not None
-        new_constant = Constant.from_int_and_width(1, i32)
-        new_add = Addi(new_constant, new_constant)
+        new_constant = ConstantOp.from_int_and_width(1, i32)
+        new_add = AddiOp(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
 
@@ -447,14 +456,14 @@ def test_no_result_rewriter():
 def test_erase_op():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
-  %1 = "arith.addi"(%0, %0) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.addi"(%1, %1) <{"overflowFlags" = #arith.overflow<none>}> : (i32, i32) -> i32
+  %0 = "arith.addi"(%1, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 }) : () -> ()
 """
 
@@ -472,6 +481,13 @@ def test_erase_op():
 
     with pytest.raises(Exception):
         rewrite_and_compare(prog, expected, transformation_safe)
+
+
+def test_erase_orphan_op():
+    """Test that we can erase an orphan operation."""
+    module = ModuleOp([])
+    rewriter = Rewriter()
+    rewriter.erase_op(module)
 
 
 def test_inline_region_before():
@@ -503,7 +519,7 @@ def test_inline_region_before():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_before(region, module.body.blocks[1])
+        rewriter.inline_region(region, BlockInsertPoint.before(module.body.blocks[1]))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -537,7 +553,7 @@ def test_inline_region_after():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_after(region, module.body.blocks[0])
+        rewriter.inline_region(region, BlockInsertPoint.after(module.body.blocks[0]))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -571,7 +587,7 @@ def test_inline_region_at_start():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_at_start(region, module.body)
+        rewriter.inline_region(region, BlockInsertPoint.at_start(module.body))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -605,33 +621,22 @@ def test_inline_region_at_end():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_at_end(region, module.body)
+        rewriter.inline_region(region, BlockInsertPoint.at_end(module.body))
 
     rewrite_and_compare(prog, expected, transformation)
 
 
 def test_verify_inline_region():
-    block = Block()
     region = Region(Block())
 
-    with pytest.raises(
-        ValueError, match="Cannot inline region before a block with no parent"
-    ):
-        Rewriter.inline_region_before(region, block)
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region(region, BlockInsertPoint.before(region.block))
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_before(region, region.block)
-
-    with pytest.raises(
-        ValueError, match="Cannot inline region before a block with no parent"
-    ):
-        Rewriter.inline_region_after(region, block)
+        Rewriter.inline_region(region, BlockInsertPoint.after(region.block))
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_after(region, region.block)
+        Rewriter.inline_region(region, BlockInsertPoint.at_start(region))
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_at_start(region, region)
-
-    with pytest.raises(ValueError, match="Cannot move region into itself."):
-        Rewriter.inline_region_at_end(region, region)
+        Rewriter.inline_region(region, BlockInsertPoint.at_end(region))

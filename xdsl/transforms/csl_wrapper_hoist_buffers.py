@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.csl import csl, csl_wrapper
@@ -21,10 +21,9 @@ class HoistBuffers(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         # always attempt to set name hints
-        if op.memref.name_hint is None:
-            self._set_name_hint(op)
+        self._set_name_hint(op)
 
         wrapper = op.parent_op()
         while wrapper and not isinstance(wrapper, csl_wrapper.ModuleOp):
@@ -43,7 +42,7 @@ class HoistBuffers(RewritePattern):
         rewriter.replace_matched_op([], new_results=[alloc.memref])
 
     @staticmethod
-    def _set_name_hint(op: memref.Alloc):
+    def _set_name_hint(op: memref.AllocOp):
         """
         Attempts to find a chain of:
           %0 = memref.alloc
@@ -72,6 +71,6 @@ class CslWrapperHoistBuffers(ModulePass):
 
     name = "csl-wrapper-hoist-buffers"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(HoistBuffers())
         module_pass.rewrite_module(op)

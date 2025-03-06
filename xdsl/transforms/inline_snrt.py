@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Operation, SSAValue
@@ -109,7 +109,7 @@ class LowerDMAStart1D(RewritePattern):
             return snrt_dma_start_1d_wideptr((size_t)dst, (size_t)src, size);
         }
         """
-        reg_t = riscv.IntRegisterType.unallocated()
+        reg_t = riscv.Registers.UNALLOCATED_INT
         rewriter.replace_matched_op(
             [
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
@@ -197,7 +197,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
         P.S. We only implement taking the top branch for now.
         """
-        reg_t = riscv.IntRegisterType.unallocated()
+        reg_t = riscv.Registers.UNALLOCATED_INT
         rewriter.replace_matched_op(
             [
                 # "Take an ui64 and split it in two 32 bit-wide RISC-V registers"
@@ -231,7 +231,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 
 
 class LowerDMAStart2DBase(RewritePattern, ABC):
-    any_reg = riscv.IntRegisterType.unallocated()
+    any_reg = riscv.Registers.UNALLOCATED_INT
 
     def generate_dma_instructions(
         self,
@@ -433,7 +433,11 @@ class LowerGlobalCoreBaseHartid(RewritePattern):
         self, op: snitch_runtime.GlobalCoreBaseHartidOp, rewriter: PatternRewriter, /
     ):
         rewriter.replace_matched_op(
-            [arith.Constant.from_int_and_width(self.constants.base_hartid, builtin.i32)]
+            [
+                arith.ConstantOp.from_int_and_width(
+                    self.constants.base_hartid, builtin.i32
+                )
+            ]
         )
 
 
@@ -447,7 +451,7 @@ class LowerGlobalCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                arith.Constant.from_int_and_width(
+                arith.ConstantOp.from_int_and_width(
                     self.constants.cluster_num * self.constants.cluster_core_num,
                     builtin.i32,
                 )
@@ -465,7 +469,7 @@ class LowerClusterCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                arith.Constant.from_int_and_width(
+                arith.ConstantOp.from_int_and_width(
                     self.constants.cluster_core_num, builtin.i32
                 )
             ]
@@ -481,7 +485,11 @@ class LowerClusterNum(RewritePattern):
         self, op: snitch_runtime.ClusterNumOp, rewriter: PatternRewriter, /
     ):
         rewriter.replace_matched_op(
-            [arith.Constant.from_int_and_width(self.constants.cluster_num, builtin.i32)]
+            [
+                arith.ConstantOp.from_int_and_width(
+                    self.constants.cluster_num, builtin.i32
+                )
+            ]
         )
 
 
@@ -495,7 +503,7 @@ class LowerClusterDmCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                arith.Constant.from_int_and_width(
+                arith.ConstantOp.from_int_and_width(
                     self.constants.cluster_dm_core_num, builtin.i32
                 )
             ]
@@ -516,7 +524,7 @@ class LowerIsComputeCore(RewritePattern):
             [
                 cluster_core_idx := snitch_runtime.ClusterCoreIdxOp(),
                 compute_core_num := snitch_runtime.ClusterComputeCoreNumOp(),
-                arith.Cmpi(cluster_core_idx, compute_core_num, "slt"),
+                arith.CmpiOp(cluster_core_idx, compute_core_num, "slt"),
             ]
         )
 
@@ -539,7 +547,7 @@ class LowerIsDmCore(RewritePattern):
             [
                 cluster_core_idx := snitch_runtime.ClusterCoreIdxOp(),
                 compute_core_num := snitch_runtime.ClusterComputeCoreNumOp(),
-                arith.Cmpi(cluster_core_idx, compute_core_num, "sge"),
+                arith.CmpiOp(cluster_core_idx, compute_core_num, "sge"),
             ]
         )
 
@@ -558,7 +566,7 @@ class LowerClusterCoreIdx(RewritePattern):
             [
                 global_core_idx := snitch_runtime.GlobalCoreIdxOp(),
                 cluster_core_num := snitch_runtime.ClusterCoreNumOp(),
-                arith.RemSI(global_core_idx, cluster_core_num),
+                arith.RemSIOp(global_core_idx, cluster_core_num),
             ]
         )
 
@@ -588,7 +596,7 @@ class LowerClusterComputeCoreNum(RewritePattern):
         """
         rewriter.replace_matched_op(
             [
-                arith.Constant.from_int_and_width(
+                arith.ConstantOp.from_int_and_width(
                     self.constants.cluster_core_num
                     - self.constants.cluster_dm_core_num,
                     builtin.i32,
@@ -625,10 +633,10 @@ class LowerGlobalCoreIdx(RewritePattern):
                 hartid_i32 := builtin.UnrealizedConversionCastOp.get(
                     [hartid], [builtin.i32]
                 ),
-                base_hartid := arith.Constant.from_int_and_width(
+                base_hartid := arith.ConstantOp.from_int_and_width(
                     self.constants.base_hartid, builtin.i32
                 ),
-                arith.Subi(hartid_i32, base_hartid),
+                arith.SubiOp(hartid_i32, base_hartid),
             ]
         )
 
@@ -649,7 +657,7 @@ class LowerClusterIdx(RewritePattern):
             [
                 cluster_core_num := snitch_runtime.ClusterCoreNumOp(),
                 core_idx := snitch_runtime.GlobalCoreIdxOp(),
-                arith.DivSI(
+                arith.DivSIOp(
                     core_idx,
                     cluster_core_num,
                 ),
@@ -667,7 +675,7 @@ class InlineSnrtPass(SnrtConstants, ModulePass):
 
     name = "inline-snrt"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

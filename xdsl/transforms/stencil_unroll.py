@@ -4,7 +4,7 @@ from itertools import product
 from math import prod
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -42,10 +42,10 @@ def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
                     offset_mapping = list(range(0, len(op.offset)))
                 else:
                     offset_mapping = op.offset_mapping
-
-                new_offset = [o for o in op.offset]
-                for i in offset_mapping:
-                    new_offset[i] += unroll_offset[i]
+                new_offset = [
+                    o + unroll_offset[m]
+                    for o, m in zip(op.offset, offset_mapping, strict=True)
+                ]
 
                 op.offset = IndexAttr.get(*new_offset)
             case DynAccessOp():
@@ -127,7 +127,7 @@ class StencilUnrollPass(ModulePass):
 
     unroll_factor: tuple[int, ...]
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier([StencilUnrollPattern(self.unroll_factor)])
         )

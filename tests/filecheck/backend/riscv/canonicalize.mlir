@@ -9,8 +9,8 @@ builtin.module {
 
   %i3 = riscv.li 100 : !riscv.reg
   %i4 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg
-  %i5 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg<j0>
-  "test.op"(%i3, %i4, %i5) : (!riscv.reg, !riscv.reg, !riscv.reg<j0>) -> ()
+  %i5 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg<j_0>
+  "test.op"(%i3, %i4, %i5) : (!riscv.reg, !riscv.reg, !riscv.reg<j_0>) -> ()
 
   %f0, %f1, %f2 = "test.op"() : () -> (!riscv.freg<fa0>, !riscv.freg<fa1>, !riscv.freg)
   %fo0 = riscv.fmv.s %f0 : (!riscv.freg<fa0>) -> !riscv.freg<fa0>
@@ -136,8 +136,8 @@ builtin.module {
 
 // CHECK-NEXT:   %i3 = riscv.li 100 : !riscv.reg
 // CHECK-NEXT:   %i4 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg
-// CHECK-NEXT:   %i5 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg<j0>
-// CHECK-NEXT:   "test.op"(%i3, %i4, %i5) : (!riscv.reg, !riscv.reg, !riscv.reg<j0>) -> ()
+// CHECK-NEXT:   %i5 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg<j_0>
+// CHECK-NEXT:   "test.op"(%i3, %i4, %i5) : (!riscv.reg, !riscv.reg, !riscv.reg<j_0>) -> ()
 
 // CHECK-NEXT:   %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!riscv.freg<fa0>, !riscv.freg<fa1>, !riscv.freg)
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<fa1>) -> !riscv.freg<fa2>

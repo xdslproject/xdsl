@@ -1,53 +1,82 @@
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.dialects.arith import Constant
+from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, i32, i64
-from xdsl.dialects.scf import If
+from xdsl.dialects.scf import IfOp
 from xdsl.ir import Block, BlockArgument, Operation, Region
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
 def test_insertion_point_constructors():
     target = Block(
         [
-            (op1 := Constant.from_int_and_width(0, 1)),
-            (op2 := Constant.from_int_and_width(1, 1)),
+            (op1 := ConstantOp.from_int_and_width(0, 1)),
+            (op2 := ConstantOp.from_int_and_width(1, 1)),
         ]
     )
 
     assert InsertPoint.at_start(target) == InsertPoint(target, op1)
-    assert Builder.at_start(target).insertion_point == InsertPoint(target, op1)
-
     assert InsertPoint.at_end(target) == InsertPoint(target, None)
-    assert Builder.at_end(target).insertion_point == InsertPoint(target, None)
-
     assert InsertPoint.before(op1) == InsertPoint(target, op1)
-    assert Builder.before(op1).insertion_point == InsertPoint(target, op1)
-
     assert InsertPoint.after(op1) == InsertPoint(target, op2)
-    assert Builder.after(op1).insertion_point == InsertPoint(target, op2)
-
     assert InsertPoint.before(op2) == InsertPoint(target, op2)
-    assert Builder.before(op2).insertion_point == InsertPoint(target, op2)
-
     assert InsertPoint.after(op2) == InsertPoint(target, None)
-    assert Builder.after(op2).insertion_point == InsertPoint(target, None)
+
+
+def test_block_insertion_point_constructors():
+    target = Region(
+        [
+            (block1 := Block()),
+            (block2 := Block()),
+        ]
+    )
+
+    assert BlockInsertPoint.at_start(target) == BlockInsertPoint(target, block1)
+    assert BlockInsertPoint.at_end(target) == BlockInsertPoint(target, None)
+    assert BlockInsertPoint.before(block1) == BlockInsertPoint(target, block1)
+    assert BlockInsertPoint.after(block1) == BlockInsertPoint(target, block2)
+    assert BlockInsertPoint.before(block2) == BlockInsertPoint(target, block2)
+    assert BlockInsertPoint.after(block2) == BlockInsertPoint(target, None)
+
+    assert BlockInsertPoint.at_start(target) != BlockInsertPoint.at_end(target)
+
+
+def test_block_insertion_init_incorrect():
+    region = Region()
+    block = Block()
+    with pytest.raises(
+        ValueError, match="Insertion point must be in the builder's `region`"
+    ):
+        BlockInsertPoint(region, block)
+
+
+def test_block_insertion_point_orphan():
+    block = Block()
+    with pytest.raises(
+        ValueError, match="Block insertion point must have a parent region"
+    ):
+        BlockInsertPoint.before(block)
+
+    with pytest.raises(
+        ValueError, match="Block insertion point must have a parent region"
+    ):
+        BlockInsertPoint.after(block)
 
 
 def test_builder():
     target = Block(
         [
-            Constant.from_int_and_width(0, 1),
-            Constant.from_int_and_width(1, 1),
+            ConstantOp.from_int_and_width(0, 1),
+            ConstantOp.from_int_and_width(1, 1),
         ]
     )
 
     block = Block()
-    b = Builder.at_end(block)
+    b = Builder(InsertPoint.at_end(block))
 
-    x = Constant.from_int_and_width(0, 1)
-    y = Constant.from_int_and_width(1, 1)
+    x = ConstantOp.from_int_and_width(0, 1)
+    y = ConstantOp.from_int_and_width(1, 1)
 
     b.insert(x)
     b.insert(y)
@@ -58,18 +87,18 @@ def test_builder():
 def test_builder_insertion_point():
     target = Block(
         [
-            Constant.from_int_and_width(1, 8),
-            Constant.from_int_and_width(2, 8),
-            Constant.from_int_and_width(3, 8),
+            ConstantOp.from_int_and_width(1, 8),
+            ConstantOp.from_int_and_width(2, 8),
+            ConstantOp.from_int_and_width(3, 8),
         ]
     )
 
     block = Block()
-    b = Builder.at_end(block)
+    b = Builder(InsertPoint.at_end(block))
 
-    x = Constant.from_int_and_width(1, 8)
-    y = Constant.from_int_and_width(2, 8)
-    z = Constant.from_int_and_width(3, 8)
+    x = ConstantOp.from_int_and_width(1, 8)
+    y = ConstantOp.from_int_and_width(2, 8)
+    z = ConstantOp.from_int_and_width(3, 8)
 
     b.insert(x)
     b.insert(z)
@@ -85,23 +114,23 @@ def test_builder_create_block():
     block1 = Block()
     block2 = Block()
     target = Region([block1, block2])
-    builder = Builder.at_start(block1)
+    builder = Builder(InsertPoint.at_start(block1))
 
-    new_block1 = builder.create_block_at_start(target, (i32,))
+    new_block1 = builder.create_block(BlockInsertPoint.at_start(target), (i32,))
     assert len(new_block1.args) == 1
     assert new_block1.args[0].type == i32
     assert len(target.blocks) == 3
     assert target.blocks[0] == new_block1
     assert builder.insertion_point == InsertPoint.at_start(new_block1)
 
-    new_block2 = builder.create_block_at_end(target, (i64,))
+    new_block2 = builder.create_block(BlockInsertPoint.at_end(target), (i64,))
     assert len(new_block2.args) == 1
     assert new_block2.args[0].type == i64
     assert len(target.blocks) == 4
     assert target.blocks[3] == new_block2
     assert builder.insertion_point == InsertPoint.at_start(new_block2)
 
-    new_block3 = builder.create_block_before(block2, (i32, i64))
+    new_block3 = builder.create_block(BlockInsertPoint.before(block2), (i32, i64))
     assert len(new_block3.args) == 2
     assert new_block3.args[0].type == i32
     assert new_block3.args[1].type == i64
@@ -109,7 +138,7 @@ def test_builder_create_block():
     assert target.blocks[2] == new_block3
     assert builder.insertion_point == InsertPoint.at_start(new_block3)
 
-    new_block4 = builder.create_block_after(block2, (i64, i32))
+    new_block4 = builder.create_block(BlockInsertPoint.after(block2), (i64, i32))
     assert len(new_block4.args) == 2
     assert new_block4.args[0].type == i64
     assert new_block4.args[1].type == i32
@@ -120,11 +149,11 @@ def test_builder_create_block():
 
 def test_builder_listener_op_insert():
     block = Block()
-    b = Builder.at_end(block)
+    b = Builder(InsertPoint.at_end(block))
 
-    x = Constant.from_int_and_width(1, 32)
-    y = Constant.from_int_and_width(2, 32)
-    z = Constant.from_int_and_width(3, 32)
+    x = ConstantOp.from_int_and_width(1, 32)
+    y = ConstantOp.from_int_and_width(2, 32)
+    z = ConstantOp.from_int_and_width(3, 32)
 
     added_ops: list[Operation] = []
 
@@ -144,7 +173,7 @@ def test_builder_listener_op_insert():
 def test_builder_listener_block_created():
     block = Block()
     region = Region([block])
-    b = Builder.at_start(block)
+    b = Builder(InsertPoint.at_start(block))
 
     created_blocks: list[Block] = []
 
@@ -153,10 +182,10 @@ def test_builder_listener_block_created():
 
     b.block_creation_handler = [add_block_on_create]
 
-    b1 = b.create_block_at_start(region)
-    b2 = b.create_block_at_end(region)
-    b3 = b.create_block_before(block)
-    b4 = b.create_block_after(block)
+    b1 = b.create_block(BlockInsertPoint.at_start(region))
+    b2 = b.create_block(BlockInsertPoint.at_end(region))
+    b3 = b.create_block(BlockInsertPoint.before(block))
+    b4 = b.create_block(BlockInsertPoint.after(block))
 
     assert created_blocks == [b1, b2, b3, b4]
 
@@ -168,16 +197,16 @@ def test_build_region():
     target = Region(
         Block(
             [
-                Constant.from_int_and_width(one, i32),
-                Constant.from_int_and_width(two, i32),
+                ConstantOp.from_int_and_width(one, i32),
+                ConstantOp.from_int_and_width(two, i32),
             ]
         )
     )
 
     @Builder.region
     def region(b: Builder):
-        x = Constant.from_int_and_width(one, i32)
-        y = Constant.from_int_and_width(two, i32)
+        x = ConstantOp.from_int_and_width(one, i32)
+        y = ConstantOp.from_int_and_width(two, i32)
 
         b.insert(x)
         b.insert(y)
@@ -192,8 +221,8 @@ def test_build_callable_region():
     target = Region(
         Block(
             [
-                Constant.from_int_and_width(one, i32),
-                Constant.from_int_and_width(two, i32),
+                ConstantOp.from_int_and_width(one, i32),
+                ConstantOp.from_int_and_width(two, i32),
             ],
             arg_types=(i32,),
         )
@@ -203,8 +232,8 @@ def test_build_callable_region():
     def region(b: Builder, args: tuple[BlockArgument, ...]):
         assert len(args) == 1
 
-        x = Constant.from_int_and_width(one, i32)
-        y = Constant.from_int_and_width(two, i32)
+        x = ConstantOp.from_int_and_width(one, i32)
+        y = ConstantOp.from_int_and_width(two, i32)
 
         b.insert(x)
         b.insert(y)
@@ -219,16 +248,16 @@ def test_build_implicit_region():
     target = Region(
         Block(
             [
-                Constant.from_int_and_width(one, i32),
-                Constant.from_int_and_width(two, i32),
+                ConstantOp.from_int_and_width(one, i32),
+                ConstantOp.from_int_and_width(two, i32),
             ]
         )
     )
 
     @Builder.implicit_region
     def region():
-        Constant.from_int_and_width(one, i32)
-        Constant.from_int_and_width(two, i32)
+        ConstantOp.from_int_and_width(one, i32)
+        ConstantOp.from_int_and_width(two, i32)
 
     assert target.is_structurally_equivalent(region)
 
@@ -240,8 +269,8 @@ def test_build_implicit_callable_region():
     target = Region(
         Block(
             [
-                Constant.from_int_and_width(one, i32),
-                Constant.from_int_and_width(two, i32),
+                ConstantOp.from_int_and_width(one, i32),
+                ConstantOp.from_int_and_width(two, i32),
             ],
             arg_types=(i32,),
         )
@@ -251,8 +280,8 @@ def test_build_implicit_callable_region():
     def region(args: tuple[BlockArgument, ...]):
         assert len(args) == 1
 
-        Constant.from_int_and_width(one, i32)
-        Constant.from_int_and_width(two, i32)
+        ConstantOp.from_int_and_width(one, i32)
+        ConstantOp.from_int_and_width(two, i32)
 
     assert target.is_structurally_equivalent(region)
 
@@ -261,14 +290,14 @@ def test_build_nested_implicit_region():
     target = Region(
         Block(
             [
-                cond := Constant.from_int_and_width(1, 1),
-                If(
+                cond := ConstantOp.from_int_and_width(1, 1),
+                IfOp(
                     cond,
                     (),
                     Region(
                         Block(
                             [
-                                Constant.from_int_and_width(2, i32),
+                                ConstantOp.from_int_and_width(2, i32),
                             ]
                         )
                     ),
@@ -279,13 +308,13 @@ def test_build_nested_implicit_region():
 
     @Builder.implicit_region
     def region():
-        cond = Constant.from_int_and_width(1, 1).result
+        cond = ConstantOp.from_int_and_width(1, 1).result
 
         @Builder.implicit_region
         def then():
-            _y = Constant.from_int_and_width(2, i32)
+            _y = ConstantOp.from_int_and_width(2, i32)
 
-        If(cond, (), then)
+        IfOp(cond, (), then)
 
     assert target.is_structurally_equivalent(region)
 
@@ -298,23 +327,23 @@ def test_build_implicit_region_fail():
 
         @Builder.implicit_region
         def region():
-            cond = Constant.from_int_and_width(1, 1).result
+            cond = ConstantOp.from_int_and_width(1, 1).result
 
-            _x = Constant.from_int_and_width(one, i32)
+            _x = ConstantOp.from_int_and_width(one, i32)
 
             @Builder.implicit_region
             def then_0():
-                _y = Constant.from_int_and_width(two, i32)
+                _y = ConstantOp.from_int_and_width(two, i32)
 
                 @Builder.region
                 def then_1(b: Builder):
-                    b.insert(Constant.from_int_and_width(three, i32))
+                    b.insert(ConstantOp.from_int_and_width(three, i32))
 
-                If(cond, (), then_1)
+                IfOp(cond, (), then_1)
 
-            If(cond, (), then_0)
+            IfOp(cond, (), then_0)
 
         _ = region
     assert e.value.args[0] == (
-        "Cannot insert operation explicitly when an implicit" " builder exists."
+        "Cannot insert operation explicitly when an implicit builder exists."
     )

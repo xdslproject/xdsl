@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
-from xdsl.context import MLContext
-from xdsl.dialects import arith, memref, memref_stream, stream
+from xdsl.context import Context
+from xdsl.dialects import arith, memref, memref_stream
 from xdsl.dialects.builtin import AffineMapAttr, IntegerAttr, ModuleOp, UnitAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -32,8 +32,8 @@ def _insert_load(
         indices = indices_for_map(
             rewriter, insertion_point, affine_map_attr.data, ind_vars
         )
-        op = memref.Load.get(source, indices)
-    elif isinstance(source.type, stream.ReadableStreamType):
+        op = memref.LoadOp.get(source, indices)
+    elif isinstance(source.type, memref_stream.ReadableStreamType):
         op = memref_stream.ReadOp(source)
     else:
         return source
@@ -50,7 +50,7 @@ class LowerGenericOpPattern(RewritePattern):
             interleave_factor = op.bounds.data[-1].value.data
             rewriter.insert_op_before_matched_op(
                 interleaved_index_ops := tuple(
-                    arith.Constant(IntegerAttr.from_index_int_value(i))
+                    arith.ConstantOp(IntegerAttr.from_index_int_value(i))
                     for i in range(interleave_factor)
                 )
             )
@@ -161,7 +161,7 @@ class LowerGenericOpPattern(RewritePattern):
                     affine_map,
                     tuple(ind_vars) + extra_dim(source_index),
                 )
-                store_op = memref.Store.get(value, destination, indices)
+                store_op = memref.StoreOp.get(value, destination, indices)
             else:
                 store_op = memref_stream.WriteOp(value, destination)
             rewriter.insert_op(store_op, insertion_point)
@@ -202,14 +202,14 @@ class LowerGenericOpPattern(RewritePattern):
             )
 
 
-class ConvertMemrefStreamToLoopsPass(ModulePass):
+class ConvertMemRefStreamToLoopsPass(ModulePass):
     """
     Converts a memref_stream generic to loop.
     """
 
     name = "convert-memref-stream-to-loops"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([LowerGenericOpPattern()]),
             apply_recursively=False,

@@ -55,6 +55,8 @@ from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
+IntegerTensorType: TypeAlias = TensorType[IntegerType]
+
 # region Abstract Base Classes
 
 
@@ -73,6 +75,36 @@ class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
+    # TODO: Remove this constraint for complex types.
+    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    result = result_def(T)
+
+    def __init__(
+        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
+    ):
+        if result_type is None:
+            result_type = lhs.type
+        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+class IntegerTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
+    # TODO: Remove this constraint for complex types.
+    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
+
+    operand = operand_def(T)
+    result = result_def(T)
+
+    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
+        if result_type is None:
+            result_type = operand.type
+        super().__init__(operands=(operand,), result_types=(result_type,))
 
 
 # endregion
@@ -271,13 +303,48 @@ class AfterAllOp(IRDLOperation):
         super().__init__(operands=[inputs], result_types=(TokenType(),))
 
 
-IntegerTensorType: TypeAlias = TensorType[IntegerType]
+@irdl_op_definition
+class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
+    """
+    Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#count_leading_zeros
+    """
+
+    name = "stablehlo.count_leading_zeros"
 
 
 @irdl_op_definition
-class AndOp(IRDLOperation):
+class PopcntOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
-    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor. Depending on the element type, does the following:
+    Performs element-wise count of the number of bits set in the operand tensor and produces a result tensor.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#popcnt
+    """
+
+    name = "stablehlo.popcnt"
+
+
+@irdl_op_definition
+class NotOp(IntegerTensorLikeElementwiseUnaryOperation):
+    """
+    Performs element-wise NOT of tensor operand and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For booleans: logical NOT.
+    For integers: bitwise NOT.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#not
+    """
+
+    name = "stablehlo.not"
+
+
+@irdl_op_definition
+class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
 
     For booleans: logical AND.
     For integers: bitwise AND.
@@ -287,19 +354,68 @@ class AndOp(IRDLOperation):
 
     name = "stablehlo.and"
 
-    T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
-    lhs = operand_def(T)
-    rhs = operand_def(T)
+@irdl_op_definition
+class OrOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise Or of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
 
-    result = result_def(T)
+    For booleans: logical OR.
+    For integers: bitwise OR.
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
-        if result_type is None:
-            result_type = lhs.type
-        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#or
+    """
+
+    name = "stablehlo.or"
+
+
+@irdl_op_definition
+class XorOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise XOR of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For booleans: logical XOR.
+    For integers: bitwise XOR.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor
+    """
+
+    name = "stablehlo.xor"
+
+
+@irdl_op_definition
+class ShiftLeftOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise left-shift operation on the lhs tensor by rhs number of bits and produces a result tensor.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_left
+    """
+
+    name = "stablehlo.shift_left"
+
+
+@irdl_op_definition
+class ShiftRightArithmeticOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise arithmetic right-shift operation on the lhs tensor by rhs number of bits and produces a result tensor.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_right_arithmetic
+    """
+
+    name = "stablehlo.shift_right_arithmetic"
+
+
+@irdl_op_definition
+class ShiftRightLogicalOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise logical right-shift operation on the lhs tensor by rhs number of bits and produces a result tensor.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#shift_right_logical
+    """
+
+    name = "stablehlo.shift_right_logical"
 
 
 # TODO: Change to SI32 once StableHLO adopts signful integer semantics
@@ -448,7 +564,7 @@ class TransposeOp(IRDLOperation):
         )
 
     def get_permutation(self) -> tuple[int, ...]:
-        return cast(tuple[int, ...], self.permutation.as_tuple())
+        return cast(tuple[int, ...], self.permutation.get_values())
 
     def verify_(self) -> None:
         # Operand and result types are checked before the custom `verify_`
@@ -481,7 +597,15 @@ StableHLO = Dialect(
         AbsOp,
         AddOp,
         AfterAllOp,
+        CountLeadingZerosOp,
+        PopcntOp,
+        NotOp,
         AndOp,
+        OrOp,
+        XorOp,
+        ShiftLeftOp,
+        ShiftRightArithmeticOp,
+        ShiftRightLogicalOp,
         BitcastConvertOp,
         CaseOp,
         MultiplyOp,

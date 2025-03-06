@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     FunctionType,
     IntegerAttr,
     IntegerType,
@@ -13,9 +11,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
 )
 from xdsl.dialects.utils import (
-    parse_call_op_like,
     parse_func_op_like,
-    print_call_op_like,
     print_func_op_like,
 )
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
@@ -51,7 +47,7 @@ class SyscallOp(IRDLOperation):
 
     def __init__(
         self,
-        num: int | AnyIntegerAttr,
+        num: int | IntegerAttr,
         has_result: bool = False,
         operands: list[SSAValue | Operation] = [],
     ):
@@ -60,7 +56,7 @@ class SyscallOp(IRDLOperation):
         super().__init__(
             operands=[operands],
             attributes={"syscall_num": num},
-            result_types=[riscv.IntRegisterType.unallocated() if has_result else None],
+            result_types=[riscv.Registers.UNALLOCATED_INT if has_result else None],
         )
 
     def verify_(self):
@@ -82,6 +78,10 @@ class CallOp(riscv.RISCVInstruction):
     args = var_operand_def(riscv.RISCVRegisterType)
     callee = attr_def(SymbolRefAttr)
     ress = var_result_def(riscv.RISCVRegisterType)
+
+    assembly_format = (
+        "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
+    )
 
     def __init__(
         self,
@@ -109,27 +109,6 @@ class CallOp(riscv.RISCVInstruction):
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
-
-    def print(self, printer: Printer):
-        print_call_op_like(
-            printer,
-            self,
-            self.callee,
-            self.args,
-            self.attributes,
-            reserved_attr_names=("callee",),
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> CallOp:
-        callee, arguments, results, extra_attributes = parse_call_op_like(
-            parser, reserved_attr_names=("callee",)
-        )
-        ress = cast(tuple[riscv.RISCVRegisterType, ...], results)
-        call = CallOp(callee, arguments, ress)
-        if extra_attributes is not None:
-            call.attributes |= extra_attributes.data
-        return call
 
     def assembly_instruction_name(self) -> str:
         return "jal"
@@ -194,18 +173,16 @@ class FuncOp(riscv.RISCVAsmOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (
-            name,
-            input_types,
-            return_types,
-            region,
-            extra_attrs,
-            arg_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
+            parse_func_op_like(
+                parser,
+                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            )
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in riscv_func")
+        if res_attrs:
+            raise NotImplementedError("res_attrs not implemented in riscv_func")
         func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data

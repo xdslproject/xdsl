@@ -315,7 +315,7 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
 
 
 @irdl_op_definition
-class HasSingleBlockImplicitTerminatorWrongCreationOp2(IRDLOperation):
+class HasSingleBlockImplicitTerminatorWrongCreation2Op(IRDLOperation):
     """
     An operation that expects a single-block region and an implicit terminator trait for
     that block, but ensure_terminator() has not been called during construction.
@@ -420,7 +420,7 @@ def test_single_block_implicit_terminator_with_wrong_construction_fail():
     ):
         op1.verify()
 
-    op2 = HasSingleBlockImplicitTerminatorWrongCreationOp2(
+    op2 = HasSingleBlockImplicitTerminatorWrongCreation2Op(
         regions=[Region(Block()), Region()]
     )
     # test single-block region op with wrong terminator
@@ -450,28 +450,28 @@ def test_isolated_from_above():
     op.verify()
 
     block = Block(arg_types=[builtin.i32])
-    block.add_op(arith.Addi(block.args[0], block.args[0]))
+    block.add_op(arith.AddiOp(block.args[0], block.args[0]))
 
     # Test a simple, properly Isolated
     op = IsolatedFromAboveOp(regions=[Region([block])])
     op.verify()
 
     # Check a simple isolation violation
-    out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
+    out_cst = arith.ConstantOp.from_int_and_width(0, builtin.i32)
     out_block = Block(
         [
             out_cst,
             IsolatedFromAboveOp(
-                regions=[Region(Block([arith.Addi(out_cst, out_cst)]))]
+                regions=[Region(Block([arith.AddiOp(out_cst, out_cst)]))]
             ),
         ]
     )
-    message = r"Operation using value defined out of its IsolatedFromAbove parent: Addi\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
+    message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
     with pytest.raises(VerifyException, match=message):
         out_block.verify()
 
     # Check a nested isolation violation
-    out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
+    out_cst = arith.ConstantOp.from_int_and_width(0, builtin.i32)
     out_block = Block(
         [
             # This one is fine
@@ -484,7 +484,7 @@ def test_isolated_from_above():
                                 # This one is not!
                                 in_isolated := IsolatedFromAboveOp(
                                     regions=[
-                                        Region(Block([arith.Addi(out_cst, out_cst)]))
+                                        Region(Block([arith.AddiOp(out_cst, out_cst)]))
                                     ]
                                 ),
                             ],
@@ -495,7 +495,7 @@ def test_isolated_from_above():
         ]
     )
     # Check that the IR as a whole is wrong
-    message = r"Operation using value defined out of its IsolatedFromAbove parent: Addi\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
+    message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
     with pytest.raises(VerifyException, match=message):
         out_block.verify()
     # Check that the outer one in itself is fine
