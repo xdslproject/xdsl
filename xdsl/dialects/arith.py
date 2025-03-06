@@ -145,33 +145,13 @@ class ConstantOp(IRDLOperation):
 
     assembly_format = "attr-dict $value"
 
-    @overload
     def __init__(
         self,
         value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
-        value_type: None = None,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        value: Attribute,
-        value_type: Attribute,
-    ) -> None: ...
-
-    def __init__(
-        self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr | Attribute,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
-            if isinstance(value, IntegerAttr | FloatAttr):
-                value = cast(
-                    IntegerAttr[IntegerType | IndexType] | FloatAttr[AnyFloat], value
-                )
-                value_type = value.get_type()
-            elif isinstance(value, DenseIntOrFPElementsAttr):
-                value_type = value.get_type()
+            value_type = value.get_type()
 
         super().__init__(
             operands=[], result_types=[value_type], properties={"value": value}
