@@ -461,7 +461,11 @@ def _(mo):
         ...
     """
 
-    mo.md(f"{mo.ui.code_editor(example_code_text1, language="python", disabled=True)}")
+    mo.md(
+        rf"""
+    {mo.ui.code_editor(example_code_text1, language="python", disabled=True)}
+    """
+    )
     return (example_code_text1,)
 
 
@@ -792,7 +796,9 @@ def _(ConstantFolding, filtered, printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""the above introduced some variables which are no longer used (e.g. `%3` and `%4`), therefore can be safely removed from the code.""")
+    mo.md(
+        r"""the above introduced some variables which are no longer used (e.g. `%3` and `%4`), therefore can be safely removed from the code."""
+    )
     return
 
 
