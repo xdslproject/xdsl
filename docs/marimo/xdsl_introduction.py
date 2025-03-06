@@ -47,10 +47,11 @@ def _(mo):
 
         LLVM is also not necessarily the ideal layer to perform optimisations on - thus many compilers will also implement their own implementations on custom IRs before they reach LLVM.
 
-        xDSL is a framework that makes it easy to:  
-        1. Define custom abstraction layers for compilers  
-        2. Reuse abstractions from other compilers  
-        3. Encode domain-specific knowledge (i.e. optimisations) within these abstraction layers  
+        xDSL is a framework that makes it easy to:
+
+        1. Define custom abstraction layers for compilers
+        2. Reuse abstractions from other compilers
+        3. Encode domain-specific knowledge (i.e. optimisations) within these abstraction layers
 
         xDSL takes inspiration from MLIR, which is a framework based upon similar ideas, and is implemented in C++.
         """
@@ -115,7 +116,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## Programming language syntax
+        ## Programming Language Syntax
         All programming languages will have a set of "language constructs", or, the _vocabulary_ available within the programming language.
 
         These constructs can be composed together, forming "expressions" - which are sentences that _could_ be evaluated to a value. 
@@ -141,7 +142,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## Programming language semantics
+        ## Programming Language Semantics
         In English, a sentence being grammatically correct is not enough for it to have _meaning_. The meaning of sentences is embedded in the intuition of English speakers, and speakers need to generally agree on the meaning (semantics) of sentences in order to communicate.
 
         Similarly, for programming languages, the grammar is not enough to convey meaning. There needs to be some semantics of the language which is generally agreed across the users of the programming language and the compiler implementations.
@@ -160,7 +161,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## Programming language
+        ## Programming Language
 
         With the above two definitions, a programming language's definition simply consists of two parts:  
 
@@ -175,7 +176,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## xDSL: A tool for designing and implementing languages for compilers
+        ## xDSL: A Tool for Designing and Implementing Languages for Compilers
 
         Following from the previous definition of a programming language, the corresponding parts of a compiler IR consists of:  
 
@@ -199,7 +200,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ### Operations: Modelling general language constructs
+        ### Operations: Modelling General Language Constructs
 
         Operations are units used within xDSL to model a "language construct", i.e. a vocabulary available within the language. 
 
@@ -269,7 +270,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ### Block arguments
+        ### Block Arguments
 
         Instead of using [$\phi$ nodes](https://www.cs.princeton.edu/~appel/papers/ssafun.pdf), xDSL uses _block arguments_ to decide the value to use for computation when input values could come from several different branches.
 
