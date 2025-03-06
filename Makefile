@@ -177,7 +177,7 @@ asv-preview: uv-installed .asv/html
 	uv run asv preview
 
 .PHONY: asv-clean
-asv-clean: .asv
+asv-clean:
 	rm -rf .asv/
 
 # docs
