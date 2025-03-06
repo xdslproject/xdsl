@@ -53,4 +53,3 @@
 "test.op"() : () -> (!riscv.freg<fj_bla>)
 
 //      CHECK:  Invalid register name fj_bla for register set RV32F.
-
