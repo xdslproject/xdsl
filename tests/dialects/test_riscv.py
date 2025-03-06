@@ -38,6 +38,23 @@ def test_add_op():
     assert isinstance(riscv.IntRegisterType.infinite_register(1).index, NoneAttr)
 
 
+def test_is_non_zero():
+    # Test zero register
+    x0_reg = riscv.IntRegisterType.from_name("x0")
+    assert not riscv.is_non_zero(riscv.Registers.ZERO)
+    assert not riscv.is_non_zero(x0_reg)
+
+    # Test non-zero registers
+    a0_reg = riscv.Registers.A0
+    t0_reg = riscv.Registers.T0
+    assert riscv.is_non_zero(a0_reg)
+    assert riscv.is_non_zero(t0_reg)
+
+    # Test unallocated register
+    unalloc_reg = riscv.IntRegisterType.unallocated()
+    assert not riscv.is_non_zero(unalloc_reg)
+
+
 def test_csr_op():
     a1 = TestSSAValue(riscv.Registers.A1)
     zero = TestSSAValue(riscv.Registers.ZERO)

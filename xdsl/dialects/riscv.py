@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    NoneAttr,
     Signedness,
     StringAttr,
     UnitAttr,
@@ -65,6 +66,15 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+
+def is_non_zero(reg: IntRegisterType) -> bool:
+    """
+    Returns True if the register is allocated, and is not the x0/ZERO register.
+    """
+    return (
+        reg.is_allocated and not isinstance(reg.index, NoneAttr) and reg.index.data != 0
+    )
 
 
 @irdl_attr_definition
@@ -1181,9 +1191,8 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.type, IntRegisterType):
-            return
-        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
+        assert isinstance(self.rd.type, IntRegisterType)
+        if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rd.type.register_name.data}'"
@@ -1255,9 +1264,8 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.type, IntRegisterType):
-            return
-        if self.rs1.type.is_allocated and self.rs1.type != Registers.ZERO:
+        assert isinstance(self.rs1.type, IntRegisterType)
+        if is_non_zero(self.rs1.type):
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rs1.type.register_name.data}'"
@@ -1327,9 +1335,8 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.type, IntRegisterType):
-            return
-        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
+        assert isinstance(self.rd.type, IntRegisterType)
+        if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rd.type.register_name.data}'"
