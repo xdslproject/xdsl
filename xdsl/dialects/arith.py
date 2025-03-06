@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, Literal, TypeVar, cast, overload
+from typing import ClassVar, Literal, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -146,24 +146,14 @@ class ConstantOp(IRDLOperation):
 
     assembly_format = "attr-dict $value"
 
-    @overload
     def __init__(
         self,
         value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
-        value_type: None = None,
-    ) -> None: ...
-
-    @overload
-    def __init__(self, value: Attribute, value_type: Attribute) -> None: ...
-
-    def __init__(
-        self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | Attribute,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
-            value = cast(IntegerAttr | FloatAttr[AnyFloat], value)
-            value_type = value.type
+            value_type = value.get_type()
+
         super().__init__(
             operands=[], result_types=[value_type], properties={"value": value}
         )

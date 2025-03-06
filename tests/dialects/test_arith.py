@@ -52,6 +52,7 @@ from xdsl.dialects.arith import (
 from xdsl.dialects.builtin import (
     AnyTensorType,
     AnyVectorType,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -126,6 +127,18 @@ class Test_integer_arith_construction:
     )
     def test_Cmpi_from_mnemonic(self, input: str):
         _ = CmpiOp(self.a, self.b, input)
+
+
+def test_constant_construction():
+    c1 = ConstantOp(IntegerAttr(1, i32))
+    assert c1.value.type == i32
+
+    c3 = ConstantOp(FloatAttr(1.0, f32))
+    assert c3.value.type == f32
+
+    value_type = TensorType(i32, [2, 2])
+    c5 = ConstantOp(DenseIntOrFPElementsAttr.create_dense_int(value_type, [1, 2, 3, 4]))
+    assert c5.value.type == value_type
 
 
 @pytest.mark.parametrize(
