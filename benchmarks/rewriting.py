@@ -16,7 +16,7 @@ CTX.load_dialect(Builtin)
 CANONICALIZE_PASS = CanonicalizePass()
 
 
-class PatternRewrite:
+class PatternRewriter:
     """Benchmark rewriting in xDSL."""
 
     WORKLOAD_CONSTANT_20 = parse_module(CTX, WorkloadBuilder.constant_folding(20))
@@ -35,7 +35,7 @@ class PatternRewrite:
 
     def setup_constant_folding_20(self) -> None:
         """Setup the constant folding 20 items benchmark."""
-        self.workload_constant_20 = PatternRewrite.WORKLOAD_CONSTANT_20.clone()
+        self.workload_constant_20 = PatternRewriter.WORKLOAD_CONSTANT_20.clone()
 
     def time_constant_folding_20(self) -> None:
         """Time canonicalizing constant folding for 20 items."""
@@ -43,7 +43,7 @@ class PatternRewrite:
 
     def setup_constant_folding_100(self) -> None:
         """Setup the constant folding 100 items benchmark."""
-        self.workload_constant_100 = PatternRewrite.WORKLOAD_CONSTANT_100.clone()
+        self.workload_constant_100 = PatternRewriter.WORKLOAD_CONSTANT_100.clone()
 
     def time_constant_folding_100(self) -> None:
         """Time canonicalizing constant folding for 100 items."""
@@ -51,7 +51,7 @@ class PatternRewrite:
 
     def setup_constant_folding_1000(self) -> None:
         """Setup the constant folding 1000 items benchmark."""
-        self.workload_constant_1000 = PatternRewrite.WORKLOAD_CONSTANT_1000.clone()
+        self.workload_constant_1000 = PatternRewriter.WORKLOAD_CONSTANT_1000.clone()
 
     def time_constant_folding_1000(self) -> None:
         """Time canonicalizing constant folding for 1000 items."""
@@ -59,6 +59,8 @@ class PatternRewrite:
 
 
 class RewritingMicrobenchmarks:
+    """Microbenchmark rewriting in xDSL."""
+
     def time_get_variadic_sizes(self) -> None:
         """Time getting the variadic size of an operation."""
         pass
@@ -74,8 +76,6 @@ class RewritingMicrobenchmarks:
 
     def time_pattern_rewriter_creation(self) -> None:
         """Time ."""
-
-    # extend_from_listener
 
     def time_insert_point_before(self) -> None:
         """Time getting the insertion point before an operation."""
@@ -98,8 +98,6 @@ class RewritingMicrobenchmarks:
     def time_parameterised_attribute_init(self) -> None:
         """Time ."""
 
-    # Operation create
-
     def time_pattern_rewriter_insert_op(self) -> None:
         """Time `PatternRewriter.insert_op`."""
 
@@ -111,7 +109,6 @@ class RewritingMicrobenchmarks:
 
     def time_result_only_effects(self) -> None:
         """Time `result_only_effects`."""
-        # `get_effects` or `Operation.get_traits_of_type`
 
     def time_liveset_propagate_region_liveness(self) -> None:
         """Time `LiveSet.propagate_region_liveness`."""
@@ -123,6 +120,9 @@ class RewritingMicrobenchmarks:
         """Time `LiveSet.delete_dead`."""
 
     # TODO: milli-benchmark of top-level rewrites
+    # TODO: Operation create from other ubenches
+    # TODO: extend_from_listener
+    # TODO: `result_only_effects` > `get_effects` or `Operation.get_traits_of_type`
     # def time_(self) -> None:
     #     """Time ."""
 
@@ -132,7 +132,8 @@ if __name__ == "__main__":
 
     from bench_utils import profile
 
-    PATTERN_REWRITER = PatternRewrite()
+    PATTERN_REWRITER = PatternRewriter()
+    REWRITER_UBENCHMARKS = RewritingMicrobenchmarks()
     BENCHMARKS: dict[
         str, Callable[[], None] | tuple[Callable[[], None], Callable[[], Any]]
     ] = {

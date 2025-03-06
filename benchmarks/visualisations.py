@@ -6,7 +6,7 @@ from benchmarks.bench_utils import warmed_timeit
 from benchmarks.lexer import Lexer
 from benchmarks.parser import Parser
 from benchmarks.printer import Printer
-from benchmarks.rewriting import PatternRewrite
+from benchmarks.rewriting import PatternRewriter
 from benchmarks.verifier import Verifier
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.context import Context
@@ -17,7 +17,7 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 
 LEXER = Lexer()
 PARSER = Parser()
-PATTERN_REWRITER = PatternRewrite()
+PATTERN_REWRITER = PatternRewriter()
 VERIFIER = Verifier()
 PRINTER = Printer()
 
