@@ -60,49 +60,71 @@ class PatternRewrite:
 
 class RewritingMicrobenchmarks:
     def time_get_variadic_sizes(self) -> None:
-        """Time getting the variadic size of an operation.
-
-        (1/60th)
-        """
+        """Time getting the variadic size of an operation."""
         pass
 
-    def time_populate_worklist(self) -> None:
-        """."""
-        # Walk region
-        # Push to worklist
+    def time_region_walk(self) -> None:
+        """Time walking a region."""
 
-    def time_remove_unused_operation(self) -> None:
-        """."""
-        # is_trivially_dead
+    def time_worklist_push(self) -> None:
+        """Time pushing to a worklist."""
 
-    def time_canonicalisation_pattern_rewrite(self) -> None:
-        """."""
-        # operation get_trait (other ubenchmark?)
+    def time_worklist_pop(self) -> None:
+        """Time popping from a worklist."""
 
-    # pattern_rewriter_init
+    def time_pattern_rewriter_creation(self) -> None:
+        """Time ."""
 
-    # worklist pop
+    # extend_from_listener
 
-    # insertpoint before
+    def time_insert_point_before(self) -> None:
+        """Time getting the insertion point before an operation."""
 
-    # ParameterisedAttributeInit
+    def time_is_trivially_dead(self) -> None:
+        """Time checking if an operation is trivially dead."""
 
-    # const_evaluate_operand
+    def time_get_trait(self) -> None:
+        """Time getting a trait from an operation."""
 
-    # PatternRewriter.insert_op
+    def time_get_op_constructs(self) -> None:
+        """Time getting the list of arguments of the type in an operation."""
 
-    # SSAValue.replace_by
+    def time_const_evaluate_operand(self) -> None:
+        """Time trying constant evaluate an SSA value."""
 
-    # PatternRewriter.erase_op
+    def time_integer_type_normalized_value(self) -> None:
+        """Time `IntegerType.normalized_value`."""
 
-    # result_only_effects
+    def time_parameterised_attribute_init(self) -> None:
+        """Time ."""
 
-    # LiveSet.propagate_region_liveness
+    # Operation create
 
-    # LiveSet.delete_dead
+    def time_pattern_rewriter_insert_op(self) -> None:
+        """Time `PatternRewriter.insert_op`."""
 
+    def time_ssa_value_replace_by(self) -> None:
+        """Time `SSAValue.replace_by`."""
+
+    def time_patter_rewriter_erase_op(self) -> None:
+        """Time `PatternRewriter.erase_op`."""
+
+    def time_result_only_effects(self) -> None:
+        """Time `result_only_effects`."""
+        # `get_effects` or `Operation.get_traits_of_type`
+
+    def time_liveset_propagate_region_liveness(self) -> None:
+        """Time `LiveSet.propagate_region_liveness`."""
+
+    def time_liveset_propagate_op_liveness(self) -> None:
+        """Time `LiveSet.propagate_op_liveness`."""
+
+    def time_liveset_delete_dead(self) -> None:
+        """Time `LiveSet.delete_dead`."""
+
+    # TODO: milli-benchmark of top-level rewrites
     # def time_(self) -> None:
-    #     """."""
+    #     """Time ."""
 
 
 if __name__ == "__main__":
