@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     Float64Type,
     FloatAttr,
     IndexType,
+    IndexTypeConstr,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -134,7 +135,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(_T)
     value = prop_def(
         TypedAttributeConstraint(
-            IntegerAttr.constr()
+            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
             | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
             | BaseAttr(DenseIntOrFPElementsAttr),
             _T,
@@ -439,7 +440,7 @@ class AddUIExtendedOp(IRDLOperation):
             return IntegerType(1)
         if isinstance(input_type, VectorType):
             return VectorType(
-                IntegerType(1), input_type.shape, input_type.num_scalable_dims
+                IntegerType(1), input_type.shape, input_type.scalable_dims
             )
         if isinstance(input_type, UnrankedTensorType):
             return UnrankedTensorType(IntegerType(1))

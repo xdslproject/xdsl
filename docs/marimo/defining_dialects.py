@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.11.2"
+__generated_with = "0.11.10"
 app = marimo.App(width="medium")
 
 
@@ -1065,13 +1065,7 @@ def _(Expr, cse, dce, emit_ir, lower_complex, optimize):
 
 
 @app.cell
-def _(
-    GreedyRewritePatternApplier,
-    Operation,
-    PatternRewriteWalker,
-    cse,
-    dce,
-):
+def _(GreedyRewritePatternApplier, Operation, PatternRewriteWalker, cse, dce):
     # Optimize the `complex` and `arith` dialects
     def optimize(op: Operation):
         # Hint: Add rewrite patterns in this list

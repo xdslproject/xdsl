@@ -29,3 +29,8 @@ def test_register_clashes():
         match="Invalid 'infinite' register name: x0 clashes with finite register set",
     ):
         TestRegister.infinite_register(0)
+
+
+def test_unallocated_register():
+    assert not TestRegister.unallocated().is_allocated
+    assert TestRegister.from_spelling("x0").is_allocated

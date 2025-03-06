@@ -28,19 +28,32 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     index: ParameterDef[IntAttr | NoneAttr]
     spelling: ParameterDef[StringAttr]
 
-    def __init__(self, spelling: str = ""):
-        super().__init__(self._parameters_from_spelling(spelling))
+    def __init__(self, index: IntAttr | NoneAttr, spelling: StringAttr):
+        super().__init__((index, spelling))
+
+    @classmethod
+    def unallocated(cls) -> Self:
+        """
+        Returns an unallocated register of this type.
+        """
+        return cls(NoneAttr(), StringAttr(""))
 
     @classmethod
     def _parameters_from_spelling(
-        cls, spelling: str
+        cls, spelling: StringAttr
     ) -> tuple[IntAttr | NoneAttr, StringAttr]:
         """
         Returns the parameter list required to construct a register instance from the given spelling.
         """
-        index = cls.abi_index_by_name().get(spelling)
+        index = cls.abi_index_by_name().get(spelling.data)
         index_attr = NoneAttr() if index is None else IntAttr(index)
-        return index_attr, StringAttr(spelling)
+        return index_attr, spelling
+
+    @classmethod
+    def from_spelling(cls, spelling: StringAttr | str) -> Self:
+        if not isinstance(spelling, StringAttr):
+            spelling = StringAttr(spelling)
+        return cls(*cls._parameters_from_spelling(spelling))
 
     @property
     def register_name(self) -> str:
@@ -61,7 +74,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
             parser.parse_punctuation(">")
         else:
             name = ""
-        return cls._parameters_from_spelling(name)
+        return cls._parameters_from_spelling(StringAttr(name))
 
     def print_parameters(self, printer: Printer) -> None:
         if self.spelling.data:
@@ -97,7 +110,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         Provide the register at the given index in the "infinite" register set.
         """
         spelling = cls.infinite_register_prefix() + str(index)
-        res = cls(spelling)
+        res = cls.from_spelling(spelling)
         assert isinstance(res.index, NoneAttr), (
             f"Invalid 'infinite' register name: {spelling} clashes with finite register set"
         )

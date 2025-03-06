@@ -55,7 +55,7 @@
 // CHECK-NEXT: or rax, [rdx+8]
 %rm_xor = x86.rm.xor %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: xor rax, [rdx+8]
-%rm_mov = x86.rm.mov %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
+%rm_mov = x86.rm.mov %1, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: mov rax, [rdx+8]
 %rm_cmp = x86.rm.cmp %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
 // CHECK-NEXT: cmp rax, [rdx+8]
@@ -338,9 +338,9 @@ x86.mr.vmovapd %0, %xmm1, 0 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
 // CHECK-NEXT: vmovapd [rax], xmm1
 x86.mr.vmovapd %0, %xmm1, 8 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
 // CHECK-NEXT: vmovapd [rax+8], xmm1
-%rm_vbroadcastsd_sse0 = x86.rm.vbroadcastsd %xmm0, %1, 0 : (!x86.ssereg<xmm0>, !x86.reg<rdx>) -> !x86.ssereg<xmm0>
+%rm_vbroadcastsd_sse0 = x86.rm.vbroadcastsd %1, 0 : (!x86.reg<rdx>) -> !x86.ssereg<xmm0>
 // CHECK-NEXT: vbroadcastsd xmm0, [rdx]
-%rm_vbroadcastsd_sse = x86.rm.vbroadcastsd %xmm0, %1, 8 : (!x86.ssereg<xmm0>, !x86.reg<rdx>) -> !x86.ssereg<xmm0>
+%rm_vbroadcastsd_sse = x86.rm.vbroadcastsd %1, 8 : (!x86.reg<rdx>) -> !x86.ssereg<xmm0>
 // CHECK-NEXT: vbroadcastsd xmm0, [rdx+8]
 
 %ymm0 = x86.get_avx_register : () -> !x86.avx2reg<ymm0>
@@ -353,9 +353,9 @@ x86.mr.vmovapd %0, %xmm1, 8 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
 // CHECK-NEXT: vmovapd ymm0, ymm1
 x86.mr.vmovapd %0, %ymm1, 8 : (!x86.reg<rax>, !x86.avx2reg<ymm1>) -> ()
 // CHECK-NEXT: vmovapd [rax+8], ymm1
-%rm_vbroadcastsd_avx20 = x86.rm.vbroadcastsd %ymm0, %1, 0 : (!x86.avx2reg<ymm0>, !x86.reg<rdx>) -> !x86.avx2reg<ymm0>
+%rm_vbroadcastsd_avx20 = x86.rm.vbroadcastsd %1, 0 : (!x86.reg<rdx>) -> !x86.avx2reg<ymm0>
 // CHECK-NEXT: vbroadcastsd ymm0, [rdx]
-%rm_vbroadcastsd_avx2 = x86.rm.vbroadcastsd %ymm0, %1, 8 : (!x86.avx2reg<ymm0>, !x86.reg<rdx>) -> !x86.avx2reg<ymm0>
+%rm_vbroadcastsd_avx2 = x86.rm.vbroadcastsd %1, 8 : (!x86.reg<rdx>) -> !x86.avx2reg<ymm0>
 // CHECK-NEXT: vbroadcastsd ymm0, [rdx+8]
 
 %zmm0 = x86.get_avx_register : () -> !x86.avx512reg<zmm0>
@@ -370,23 +370,23 @@ x86.mr.vmovapd %0, %zmm1, 0 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()
 // CHECK-NEXT: vmovapd [rax], zmm1
 x86.mr.vmovapd %0, %zmm1, 8 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()
 // CHECK-NEXT: vmovapd [rax+8], zmm1
-%rm_vbroadcastsd_avx5120 = x86.rm.vbroadcastsd %zmm0, %1, 0 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> !x86.avx512reg<zmm0>
+%rm_vbroadcastsd_avx5120 = x86.rm.vbroadcastsd %1, 0 : (!x86.reg<rdx>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vbroadcastsd zmm0, [rdx]
-%rm_vbroadcastsd_avx512 = x86.rm.vbroadcastsd %zmm0, %1, 8 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> !x86.avx512reg<zmm0>
+%rm_vbroadcastsd_avx512 = x86.rm.vbroadcastsd %1, 8 : (!x86.reg<rdx>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vbroadcastsd zmm0, [rdx+8]
 
-%rm_vmovups_avx512 = x86.rm.vmovups %zmm0, %1 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> (!x86.avx512reg<zmm0>)
+%rm_vmovups_avx512 = x86.rm.vmovups %1 : (!x86.reg<rdx>) -> (!x86.avx512reg<zmm0>)
 // CHECK: vmovups zmm0, [rdx]
-%rm_vmovups_avx2 = x86.rm.vmovups %ymm0, %1 : (!x86.avx2reg<ymm0>, !x86.reg<rdx>) -> (!x86.avx2reg<ymm0>)
+%rm_vmovups_avx2 = x86.rm.vmovups %1 : (!x86.reg<rdx>) -> (!x86.avx2reg<ymm0>)
 // CHECK-NEXT: vmovups ymm0, [rdx]
-%rm_vmovups_sse = x86.rm.vmovups %xmm0, %1 : (!x86.ssereg<xmm0>, !x86.reg<rdx>) -> (!x86.ssereg<xmm0>)
+%rm_vmovups_sse = x86.rm.vmovups %1 : (!x86.reg<rdx>) -> (!x86.ssereg<xmm0>)
 // CHECK-NEXT: vmovups xmm0, [rdx]
 
-%rm_vbroadcastss_avx512 = x86.rm.vbroadcastss %zmm0, %1 : (!x86.avx512reg<zmm0>, !x86.reg<rdx>) -> (!x86.avx512reg<zmm0>)
+%rm_vbroadcastss_avx512 = x86.rm.vbroadcastss %1 : (!x86.reg<rdx>) -> (!x86.avx512reg<zmm0>)
 // CHECK: vbroadcastss zmm0, [rdx]
-%rm_vbroadcastss_avx2 = x86.rm.vbroadcastss %ymm0, %1 : (!x86.avx2reg<ymm0>, !x86.reg<rdx>) -> (!x86.avx2reg<ymm0>)
+%rm_vbroadcastss_avx2 = x86.rm.vbroadcastss %1 : (!x86.reg<rdx>) -> (!x86.avx2reg<ymm0>)
 // CHECK-NEXT: vbroadcastss ymm0, [rdx]
-%rm_vbroadcastss_sse = x86.rm.vbroadcastss %xmm0, %1 : (!x86.ssereg<xmm0>, !x86.reg<rdx>) -> (!x86.ssereg<xmm0>)
+%rm_vbroadcastss_sse = x86.rm.vbroadcastss %1 : (!x86.reg<rdx>) -> (!x86.ssereg<xmm0>)
 // CHECK-NEXT: vbroadcastss xmm0, [rdx]
 
 x86.mr.vmovups %0, %zmm1, 0 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()

@@ -56,8 +56,8 @@
 // CHECK-NEXT: %{{.*}} = x86.rm.or %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 %rm_xor = x86.rm.xor %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.rm.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
-%rm_mov = x86.rm.mov %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
-// CHECK-NEXT: %{{.*}} = x86.rm.mov %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
+%rm_mov = x86.rm.mov %1, 8 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT: %{{.*}} = x86.rm.mov %{{.*}}, 8 : (!x86.reg) -> !x86.reg
 %rm_cmp = x86.rm.cmp %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
 // CHECK-NEXT: %{{.*}} = x86.rm.cmp %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.rflags
 %rm_lea = x86.rm.lea %0, %1, 8 : (!x86.reg, !x86.reg) -> !x86.reg
@@ -355,8 +355,8 @@ func.func @funcyasm() {
 // CHECK-NEXT: x86.rr.vmovapd %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg) -> !x86.ssereg
 x86.mr.vmovapd %0, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.mr.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.ssereg) -> ()
-%rm_vbroadcastsd_sse = x86.rm.vbroadcastsd %xmm1, %0, 8 : (!x86.ssereg, !x86.reg) -> !x86.ssereg
-// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastsd %{{.*}}, %{{.*}}, 8 : (!x86.ssereg, !x86.reg) -> !x86.ssereg
+%rm_vbroadcastsd_sse = x86.rm.vbroadcastsd %0, 8 : (!x86.reg) -> !x86.ssereg
+// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastsd %{{.*}}, 8 : (!x86.reg) -> !x86.ssereg
 
 %ymm0, %ymm1, %ymm2 = "test.op"() : () -> (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg)
 
@@ -366,8 +366,8 @@ x86.mr.vmovapd %0, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.rr.vmovapd %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 x86.mr.vmovapd %0, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK-NEXT: x86.mr.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.avx2reg) -> ()
-%rm_vbroadcastsd_avx2 = x86.rm.vbroadcastsd %ymm1, %0, 8 : (!x86.avx2reg, !x86.reg) -> !x86.avx2reg
-// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastsd %{{.*}}, %{{.*}}, 8 : (!x86.avx2reg, !x86.reg) -> !x86.avx2reg
+%rm_vbroadcastsd_avx2 = x86.rm.vbroadcastsd %0, 8 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastsd %{{.*}}, 8 : (!x86.reg) -> !x86.avx2reg
 
 %zmm0, %zmm1, %zmm2 = "test.op"() : () -> (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg)
 
@@ -377,22 +377,22 @@ x86.mr.vmovapd %0, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK-NEXT: x86.rr.vmovapd %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 x86.mr.vmovapd %0, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 // CHECK-NEXT: x86.mr.vmovapd %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.avx512reg) -> ()
-%rm_vbroadcastsd_avx512 = x86.rm.vbroadcastsd %zmm1, %0, 8 : (!x86.avx512reg, !x86.reg) -> !x86.avx512reg
-// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastsd %{{.*}}, %{{.*}}, 8 : (!x86.avx512reg, !x86.reg) -> !x86.avx512reg
+%rm_vbroadcastsd_avx512 = x86.rm.vbroadcastsd %0, 8 : (!x86.reg) -> !x86.avx512reg
+// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastsd %{{.*}}, 8 : (!x86.reg) -> !x86.avx512reg
 
-%rm_vmovups_avx512 = x86.rm.vmovups %zmm0, %1, 8 : (!x86.avx512reg, !x86.reg) -> (!x86.avx512reg)
-// CHECK: %{{.*}} = x86.rm.vmovups %{{.*}}, %{{.*}}, 8 : (!x86.avx512reg, !x86.reg) -> !x86.avx512reg
-%rm_vmovups_avx2 = x86.rm.vmovups %ymm0, %1, 8 : (!x86.avx2reg, !x86.reg) -> (!x86.avx2reg)
-// CHECK-NEXT: %{{.*}} = x86.rm.vmovups %{{.*}}, %{{.*}}, 8 : (!x86.avx2reg, !x86.reg) -> !x86.avx2reg
-%rm_vmovups_sse = x86.rm.vmovups %xmm0, %1, 8 : (!x86.ssereg, !x86.reg) -> (!x86.ssereg)
-// CHECK-NEXT: %{{.*}} = x86.rm.vmovups %{{.*}}, %{{.*}}, 8 : (!x86.ssereg, !x86.reg) -> !x86.ssereg
+%rm_vmovups_avx512 = x86.rm.vmovups %1, 8 : (!x86.reg) -> (!x86.avx512reg)
+// CHECK: %{{.*}} = x86.rm.vmovups %{{.*}}, 8 : (!x86.reg) -> !x86.avx512reg
+%rm_vmovups_avx2 = x86.rm.vmovups %1, 8 : (!x86.reg) -> (!x86.avx2reg)
+// CHECK-NEXT: %{{.*}} = x86.rm.vmovups %{{.*}}, 8 : (!x86.reg) -> !x86.avx2reg
+%rm_vmovups_sse = x86.rm.vmovups %1, 8 : (!x86.reg) -> (!x86.ssereg)
+// CHECK-NEXT: %{{.*}} = x86.rm.vmovups %{{.*}}, 8 : (!x86.reg) -> !x86.ssereg
 
-%rm_vbroadcastss_avx512 = x86.rm.vbroadcastss %zmm0, %1, 8 : (!x86.avx512reg, !x86.reg) -> (!x86.avx512reg)
-// CHECK: %{{.*}} = x86.rm.vbroadcastss %{{.*}}, %{{.*}}, 8 : (!x86.avx512reg, !x86.reg) -> !x86.avx512reg
-%rm_vbroadcastss_avx2 = x86.rm.vbroadcastss %ymm0, %1, 8 : (!x86.avx2reg, !x86.reg) -> (!x86.avx2reg)
-// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastss %{{.*}}, %{{.*}}, 8 : (!x86.avx2reg, !x86.reg) -> !x86.avx2reg
-%rm_vbroadcastss_sse = x86.rm.vbroadcastss %xmm0, %1, 8 : (!x86.ssereg, !x86.reg) -> (!x86.ssereg)
-// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastss %{{.*}}, %{{.*}}, 8 : (!x86.ssereg, !x86.reg) -> !x86.ssereg
+%rm_vbroadcastss_avx512 = x86.rm.vbroadcastss %1, 8 : (!x86.reg) -> (!x86.avx512reg)
+// CHECK: %{{.*}} = x86.rm.vbroadcastss %{{.*}}, 8 : (!x86.reg) -> !x86.avx512reg
+%rm_vbroadcastss_avx2 = x86.rm.vbroadcastss %1, 8 : (!x86.reg) -> (!x86.avx2reg)
+// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastss %{{.*}}, 8 : (!x86.reg) -> !x86.avx2reg
+%rm_vbroadcastss_sse = x86.rm.vbroadcastss %1, 8 : (!x86.reg) -> (!x86.ssereg)
+// CHECK-NEXT: %{{.*}} = x86.rm.vbroadcastss %{{.*}}, 8 : (!x86.reg) -> !x86.ssereg
 
 x86.mr.vmovups %0, %zmm1, 0 : (!x86.reg, !x86.avx512reg) -> ()
 // CHECK: x86.mr.vmovups %{{.*}}, %{{.*}} : (!x86.reg, !x86.avx512reg) -> ()

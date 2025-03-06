@@ -5,25 +5,25 @@ from xdsl.dialects.builtin import IntegerAttr
 
 
 def test_unallocated_register():
-    unallocated = x86.register.GeneralRegisterType("")
+    unallocated = x86.register.GeneralRegisterType.from_spelling("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.GeneralRegisterType()
+    assert unallocated == x86.register.UNALLOCATED_GENERAL
 
-    unallocated = x86.register.RFLAGSRegisterType("")
+    unallocated = x86.register.RFLAGSRegisterType.from_spelling("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.RFLAGSRegisterType()
+    assert unallocated == x86.register.UNALLOCATED_RFLAGS
 
-    unallocated = x86.register.AVX2RegisterType("")
+    unallocated = x86.register.AVX2RegisterType.from_spelling("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX2RegisterType()
+    assert unallocated == x86.register.UNALLOCATED_AVX2
 
-    unallocated = x86.register.AVX512RegisterType("")
+    unallocated = x86.register.AVX512RegisterType.from_spelling("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.AVX512RegisterType()
+    assert unallocated == x86.register.UNALLOCATED_AVX512
 
-    unallocated = x86.register.SSERegisterType("")
+    unallocated = x86.register.SSERegisterType.from_spelling("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.register.SSERegisterType()
+    assert unallocated == x86.register.UNALLOCATED_SSE
 
 
 @pytest.mark.parametrize(
@@ -255,15 +255,14 @@ def test_mr_vops(
 )
 def test_rm_vops(
     OpClass: type[
-        x86.ops.R_RM_Operation[
-            x86.register.X86VectorRegisterType, x86.register.GeneralRegisterType
+        x86.ops.R_M_Operation[
+            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
         ]
     ],
     dest: x86.register.X86VectorRegisterType,
     src: x86.register.GeneralRegisterType,
 ):
     input = x86.ops.GetRegisterOp(src)
-    output = x86.ops.GetAVXRegisterOp(dest)
-    op = OpClass(r1=output, r2=input, result=dest, offset=IntegerAttr(0, 64))
-    assert op.r1.type == dest
-    assert op.r2.type == src
+    op = OpClass(r1=input, result=dest, offset=IntegerAttr(0, 64))
+    assert op.r1.type == src
+    assert op.result.type == dest
