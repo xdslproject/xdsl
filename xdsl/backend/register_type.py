@@ -108,7 +108,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
         if expected_index != self.index.data:
             raise VerifyException(
-                f"Invalid index for register {name} {self.index.data}, expected {expected_index}."
+                f"Invalid index {self.index.data} for register {name}, expected {expected_index}."
             )
 
     @classmethod

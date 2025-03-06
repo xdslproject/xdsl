@@ -60,6 +60,6 @@ def test_invalid_index():
         TestRegister(NoneAttr(), StringAttr("y0"))
 
     with pytest.raises(
-        VerifyException, match="Invalid index for register y0 2, expected 1."
+        VerifyException, match="Invalid index 2 for register y0, expected 1."
     ):
         TestRegister(IntAttr(2), StringAttr("y0"))
