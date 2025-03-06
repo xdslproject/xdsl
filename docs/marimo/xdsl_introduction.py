@@ -9,15 +9,25 @@
 
 import marimo
 
-__generated_with = "0.11.8"
+__generated_with = "0.11.16"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
 
-    from xdsl.irdl import irdl_op_definition, irdl_attr_definition, ParametrizedAttribute, IRDLOperation, attr_def, result_def, operand_def, region_def, traits_def
+    from xdsl.irdl import (
+        irdl_op_definition,
+        irdl_attr_definition,
+        ParametrizedAttribute,
+        IRDLOperation,
+        attr_def,
+        result_def,
+        operand_def,
+        region_def,
+        traits_def,
+    )
     return (
         IRDLOperation,
         ParametrizedAttribute,
@@ -398,7 +408,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## 1. A SQL dialect (adapted from & also see database_example.ipynb)
+        ## 1. An SQL Dialect
 
         As a first example, we'll describe an SSA IR for describing SQL queries, with ability to query and filter on tables. This will be a simple IR which covers two things: 
         * reading from tables (queries like `%table = select(table_name)`)
@@ -434,7 +444,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ### xDSL modelling
+        ### xDSL Modelling
 
         Now let's consider how we would model the IR with xDSL.
 
@@ -594,7 +604,7 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Sample code in our SQL language""")
+    mo.md(r"""### Sample Code in our SQL Language""")
     return
 
 
@@ -733,49 +743,30 @@ def _(mo):
 
 
 @app.cell
-def _():
-    from xdsl.utils.constant_folding import ConstantFolding
-    return (ConstantFolding,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    file_path = "../../xdsl/utils/constant_folding.py"  # Fix path as this is fragile
-    with open(file_path, "r") as file:
-        code_content = file.read()
-
-    mo.md(f"{mo.ui.code_editor(code_content, language="python", disabled=True)}")
-    return code_content, file, file_path
-
-
-@app.cell
 def _(arith):
     from xdsl.pattern_rewriter import (
-        RewritePattern,
         PatternRewriter,
-        PatternRewriteWalker,
-        GreedyRewritePatternApplier,
+        RewritePattern,
         op_type_rewrite_pattern,
     )
 
 
-    class ConstantFoldingOriginal(RewritePattern):
+    class ConstantFolding(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter):
-            if (
-                isinstance(op.lhs.op, arith.ConstantOp)
-                and isinstance(op.rhs.op, arith.ConstantOp)
-            ):  # pattern: if both arguments to the Addi operation are from `Constant` operations
-                rewriter.replace_matched_op(  # transform: replace the operation by calculating the sum of the constants at compile time
+            # pattern: if both arguments to the Addi operation are from `Constant` operations
+            if isinstance(op.lhs.op, arith.ConstantOp) and isinstance(
+                op.rhs.op, arith.ConstantOp
+            ):
+                # transform: replace the operation by calculating the sum of the constants at compile time
+                return rewriter.replace_matched_op(
                     arith.ConstantOp.from_int_and_width(
                         op.lhs.op.value.value.data + op.rhs.op.value.value.data,
                         op.lhs.op.value.type.width.data,
                     )
                 )
     return (
-        ConstantFoldingOriginal,
-        GreedyRewritePatternApplier,
-        PatternRewriteWalker,
+        ConstantFolding,
         PatternRewriter,
         RewritePattern,
         op_type_rewrite_pattern,
@@ -789,13 +780,13 @@ def _(mo):
 
 
 @app.cell
-def _(
-    ConstantFolding,
-    GreedyRewritePatternApplier,
-    PatternRewriteWalker,
-    filtered,
-    printer,
-):
+def _(ConstantFolding, filtered, printer):
+    from xdsl.pattern_rewriter import (
+        PatternRewriteWalker,
+        GreedyRewritePatternApplier,
+    )
+
+
     walker1 = PatternRewriteWalker(
         GreedyRewritePatternApplier([ConstantFolding()]),
         walk_regions_first=True,
@@ -804,7 +795,7 @@ def _(
     )
     walker1.rewrite_region(filtered.filter)
     printer.print_op(filtered)
-    return (walker1,)
+    return GreedyRewritePatternApplier, PatternRewriteWalker, walker1
 
 
 @app.cell(hide_code=True)
@@ -831,15 +822,15 @@ def _(
                 rewriter.erase_matched_op()
 
 
-    walker = PatternRewriteWalker(
+    walker2 = PatternRewriteWalker(
         GreedyRewritePatternApplier([DeadConstantElim()]),
         walk_regions_first=True,
         apply_recursively=True,
         walk_reverse=False,
     )
-    walker.rewrite_region(filtered.filter)
+    walker2.rewrite_region(filtered.filter)
     printer.print_op(filtered)
-    return DeadConstantElim, walker
+    return DeadConstantElim, walker2
 
 
 @app.cell(hide_code=True)
