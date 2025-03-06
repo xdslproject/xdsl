@@ -29,7 +29,6 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.ptr import PtrType
 from xdsl.dialects.utils import (
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
@@ -1081,16 +1080,6 @@ class CopyOp(IRDLOperation):
             raise VerifyException(
                 "Expected source and destination to have the same element type."
             )
-
-
-@irdl_op_definition
-class ToPtrOp(IRDLOperation):
-    name = "memref.to_ptr"
-
-    source = operand_def(MemRefType)
-    res = result_def(PtrType)
-
-    assembly_format = "$source attr-dict `:` type($source) `->` type($res)"
 
 
 MemRef = Dialect(
