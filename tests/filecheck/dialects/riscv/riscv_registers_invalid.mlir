@@ -1,16 +1,20 @@
-// RUN: xdsl-opt --split-input-file --verify-diagnostics %s | filecheck %s --match-full-lines
+// RUN: xdsl-opt --split-input-file --verify-diagnostics %s | filecheck %s
 
 // Valid register names as sanity check
 
 "test.op"() : () -> (!riscv.reg<a0>)
+"test.op"() : () -> (!riscv.reg<x0>)
 "test.op"() : () -> (!riscv.reg<j_0>)
 "test.op"() : () -> (!riscv.freg<ft0>)
+"test.op"() : () -> (!riscv.freg<f0>)
 "test.op"() : () -> (!riscv.freg<fj_0>)
 
-//      CHECK:  %0 = "test.op"() : () -> !riscv.reg<a0>
-// CHECK-NEXT:  %1 = "test.op"() : () -> !riscv.reg<j_0>
-// CHECK-NEXT:  %2 = "test.op"() : () -> !riscv.freg<ft0>
-// CHECK-NEXT:  %3 = "test.op"() : () -> !riscv.freg<fj_0>
+//      CHECK:  "test.op"() : () -> !riscv.reg<a0>
+// CHECK-NEXT:  "test.op"() : () -> !riscv.reg<x0>
+// CHECK-NEXT:  "test.op"() : () -> !riscv.reg<j_0>
+// CHECK-NEXT:  "test.op"() : () -> !riscv.freg<ft0>
+// CHECK-NEXT:  "test.op"() : () -> !riscv.freg<f0>
+// CHECK-NEXT:  "test.op"() : () -> !riscv.freg<fj_0>
 
 // -----
 
