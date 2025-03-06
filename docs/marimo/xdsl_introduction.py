@@ -354,8 +354,25 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    _snippet = '''\
+    class RewritePattern(ABC):
+        \"""
+        A side-effect free rewrite pattern matching on a DAG.
+        \"""
+
+        @abstractmethod
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+            \"""
+            Match an operation, and optionally perform a rewrite using the rewriter.
+            \"""
+            # here, determine if the operation matches our pattern
+            # and define a transformation to be applied on the IR making use of the
+            # `rewrite` as an API for changing the IR.
+            ...
+    '''
+
     mo.md(
-        r"""
+        fr"""
         ### Rewrite Patterns
 
         Rewrite pattern is a tool to transform IRs defined using xDSL.
@@ -369,22 +386,7 @@ def _(mo):
 
         A function signature is worth a thousand words... :)
 
-        ```py
-        class RewritePattern(ABC):
-            \"""
-            A side-effect free rewrite pattern matching on a DAG.
-            \"""
-
-            @abstractmethod
-            def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-                \"""
-                Match an operation, and optionally perform a rewrite using the rewriter.
-                \"""
-                # here, determine if the operation matches our pattern
-                # and define a transformation to be applied on the IR making use of the
-                # `rewrite` as an API for changing the IR.
-                ...
-        ```
+        {mo.ui.code_editor(_snippet, disabled=True)}
         """
     )
     return
