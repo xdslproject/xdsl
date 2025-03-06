@@ -508,14 +508,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    Bag,
-    IRDLOperation,
-    attr_def,
-    irdl_op_definition,
-    operand_def,
-    result_def,
-):
+def _(Bag, IRDLOperation, attr_def, irdl_op_definition, result_def):
     from xdsl.dialects.builtin import StringAttr  # (1)
 
 
@@ -524,18 +517,6 @@ def _(
         name = "sql.select"
         table_name = attr_def(StringAttr)  # (1)
         result_bag = result_def(Bag)  # (3)
-
-    def _():
-        @irdl_op_definition
-        class FilterOp(IRDLOperation):
-            name = "sql.filter"
-            input_bag = operand_def(Bag)  # (2)
-            result_bag = result_def(Bag)  # (3)
-            ...
-
-        return
-
-    _()
     return SelectOp, StringAttr
 
 
