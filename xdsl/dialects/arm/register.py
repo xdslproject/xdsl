@@ -11,10 +11,6 @@ class ARMRegisterType(RegisterType, abc.ABC):
     The abstract class for all ARM register types.
     """
 
-    def verify(self):
-        # No verification for now
-        ...
-
 
 ARM_INDEX_BY_NAME = {f"x{i}": i for i in range(0, 31)}
 
