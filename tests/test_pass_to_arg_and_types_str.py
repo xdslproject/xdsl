@@ -5,7 +5,7 @@ import pytest
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
-from xdsl.passes import ModulePass, get_pass_argument_names_and_types
+from xdsl.passes import ModulePass, PassArgOption, get_pass_argument_names_and_types
 
 
 @dataclass(frozen=True)
@@ -53,17 +53,37 @@ class SimplePass(ModulePass):
 
 
 @pytest.mark.parametrize(
-    "str_arg, pass_arg",
+    "arg_options, pass_arg",
     [
         (
-            "number=int|float single_number=int int_list=tuple[int, ...] "
-            "non_init_thing=int str_thing=str nullable_str=str|None literal=no "
-            "optional_bool=false",
+            (
+                PassArgOption("number", "int|float"),
+                PassArgOption("single_number", "int"),
+                PassArgOption("int_list", "tuple[int, ...]"),
+                PassArgOption("non_init_thing", "int"),
+                PassArgOption("str_thing", "str"),
+                PassArgOption("nullable_str", "str|None"),
+                PassArgOption(
+                    "literal",
+                    "typing.Literal['yes', 'no', 'maybe']",
+                    "no",
+                ),
+                PassArgOption("optional_bool", "bool", "false"),
+            ),
             CustomPass,
         ),
-        ("", EmptyPass),
-        ("""a=int|float b=int|None c=5""", SimplePass),
+        ((), EmptyPass),
+        (
+            (
+                PassArgOption("a", "int|float"),
+                PassArgOption("b", "int|None"),
+                PassArgOption("c", "int", "5"),
+            ),
+            SimplePass,
+        ),
     ],
 )
-def test_pass_to_arg_and_type_str(str_arg: str, pass_arg: type[ModulePass]):
-    assert get_pass_argument_names_and_types(pass_arg) == str_arg
+def test_pass_to_arg_and_type_str(
+    arg_options: tuple[PassArgOption, ...], pass_arg: type[ModulePass]
+):
+    assert get_pass_argument_names_and_types(pass_arg) == arg_options
