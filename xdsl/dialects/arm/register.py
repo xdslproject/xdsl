@@ -44,7 +44,7 @@ class FPSIMDRegisterType(ARMRegisterType):
     A floating-point/SIMD ARM register type.
     """
 
-    name = "arm.fpsimdreg"
+    name = "arm_simd.fpsimdreg"
 
     @classmethod
     def instruction_set_name(cls) -> str:
