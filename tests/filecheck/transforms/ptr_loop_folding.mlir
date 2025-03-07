@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p xdsl-opt -p convert-memref-to-ptr,convert-ptr-type-offsets,canonicalize,scf-for-loop-range-folding,canonicalize,scf-for-loop-flatten,canonicalize,scf-for-loop-range-folding,canonicalize %s
+// RUN: xdsl-opt -p convert-memref-to-ptr,convert-ptr-type-offsets,canonicalize,scf-for-loop-range-folding,canonicalize,scf-for-loop-flatten,canonicalize,scf-for-loop-range-folding,canonicalize %s
 
 func.func @fill(%m: memref<10xi32>) {
     %c0 = arith.constant 0 : index
