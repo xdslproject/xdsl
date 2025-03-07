@@ -142,6 +142,21 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
 
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ABI_NAME_BY_INDEX: ClassVar[dict[int, str]] | None = None
+
+    @classmethod
+    def abi_name_by_index(cls) -> dict[int, str]:
+        """
+        Returns a mapping from ABI register indices to their names.
+        """
+        if hasattr(cls, "_ABI_NAME_BY_INDEX"):
+            return cls._ABI_NAME_BY_INDEX
+
+        result = {i: n for n, i in cls.abi_index_by_name().items()}
+        cls._ABI_NAME_BY_INDEX = result
+        return result
+
     @classmethod
     @abstractmethod
     def infinite_register_prefix(cls) -> str:
