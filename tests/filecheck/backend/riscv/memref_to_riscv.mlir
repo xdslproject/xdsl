@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-to-ptr,convert-ptr-to-riscv,convert-arith-to-riscv,convert-memref-to-riscv,reconcile-unrealized-casts  --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-to-ptr,convert-ptr-to-riscv,convert-ptr-type-offsets,convert-arith-to-riscv,convert-memref-to-riscv,reconcile-unrealized-casts  --split-input-file --verify-diagnostics %s | filecheck %s
 
 // CHECK:      builtin.module {
 

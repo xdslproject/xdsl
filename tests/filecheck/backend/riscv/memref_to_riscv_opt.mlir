@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file -p convert-memref-to-ptr,convert-ptr-to-riscv,convert-arith-to-riscv,convert-memref-to-riscv,reconcile-unrealized-casts,canonicalize %s | filecheck %s
+// RUN: xdsl-opt --split-input-file -p convert-memref-to-ptr,convert-ptr-to-riscv,convert-ptr-type-offsets,convert-arith-to-riscv,convert-memref-to-riscv,reconcile-unrealized-casts,canonicalize %s | filecheck %s
 
 // Test that a memref float store and load with constant indices optimise to a single operation
 
@@ -28,15 +28,15 @@ builtin.module {
     "test.op"(%xi_reg) : (!riscv.reg) -> ()
 }
 
-// CHECK:      builtin.module {
-// CHECK-NEXT:   %vf_reg, %vd_reg, %vi_reg, %mf_reg, %md_reg, %mi_reg = "test.op"() : () -> (!riscv.freg, !riscv.freg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg)
-// CHECK-NEXT:   riscv.fsw %mf_reg, %vf_reg, 12 {comment = "store float value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.freg) -> ()
-// CHECK-NEXT:   %xf = riscv.flw %mf_reg, 12 {comment = "load float from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
-// CHECK-NEXT:   riscv.fsd %md_reg, %vd_reg, 24 {comment = "store double value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.freg) -> ()
-// CHECK-NEXT:   %xd = riscv.fld %md_reg, 24 {comment = "load double from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.freg
-// CHECK-NEXT:   riscv.sw %mi_reg, %vi_reg, 12 {comment = "store int value to memref of shape (3, 2)"} : (!riscv.reg, !riscv.reg) -> ()
-// CHECK-NEXT:   %xi = riscv.lw %mi_reg, 12 {comment = "load word from memref of shape (3, 2)"} : (!riscv.reg) -> !riscv.reg
-// CHECK-NEXT:   "test.op"(%xf) : (!riscv.freg) -> ()
-// CHECK-NEXT:   "test.op"(%xd) : (!riscv.freg) -> ()
-// CHECK-NEXT:   "test.op"(%xi) : (!riscv.reg) -> ()
-// CHECK-NEXT: }
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %vf_reg, %vd_reg, %vi_reg, %mf_reg, %md_reg, %mi_reg = "test.op"() : () -> (!riscv.freg, !riscv.freg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg)
+// CHECK-NEXT:    riscv.fsw %mf_reg, %vf_reg, 12 {comment = "store float value to pointer"} : (!riscv.reg, !riscv.freg) -> ()
+// CHECK-NEXT:    %xf = riscv.flw %mf_reg, 12 {comment = "load float from pointer"} : (!riscv.reg) -> !riscv.freg
+// CHECK-NEXT:    riscv.fsd %md_reg, %vd_reg, 24 {comment = "store double value to pointer"} : (!riscv.reg, !riscv.freg) -> ()
+// CHECK-NEXT:    %xd = riscv.fld %md_reg, 24 {comment = "load double from pointer"} : (!riscv.reg) -> !riscv.freg
+// CHECK-NEXT:    riscv.sw %mi_reg, %vi_reg, 12 {comment = "store int value to pointer"} : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-NEXT:    %xi = riscv.lw %mi_reg, 12 {comment = "load word from pointer"} : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    "test.op"(%xf) : (!riscv.freg) -> ()
+// CHECK-NEXT:    "test.op"(%xd) : (!riscv.freg) -> ()
+// CHECK-NEXT:    "test.op"(%xi) : (!riscv.reg) -> ()
+// CHECK-NEXT:  }
