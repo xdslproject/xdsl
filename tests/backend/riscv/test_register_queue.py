@@ -4,6 +4,7 @@ import pytest
 
 from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
 from xdsl.dialects import riscv
+from xdsl.dialects.builtin import IntAttr
 
 
 def test_default_reserved_registers():
@@ -51,39 +52,21 @@ def test_push_register():
 def test_reserve_register():
     register_queue = RiscvRegisterQueue()
 
-    register_queue.reserve_register(riscv.IntRegisterType.infinite_register(0))
-    assert (
-        register_queue.reserved_int_registers[
-            riscv.IntRegisterType.infinite_register(0)
-        ]
-        == 1
-    )
+    j0 = riscv.IntRegisterType.infinite_register(0)
+    assert isinstance(j0.index, IntAttr)
 
-    register_queue.reserve_register(riscv.IntRegisterType.infinite_register(0))
-    assert (
-        register_queue.reserved_int_registers[
-            riscv.IntRegisterType.infinite_register(0)
-        ]
-        == 2
-    )
+    register_queue.reserve_register(j0)
+    assert register_queue.reserved_int_registers[j0.index.data] == 1
 
-    register_queue.unreserve_register(riscv.IntRegisterType.infinite_register(0))
-    assert (
-        register_queue.reserved_int_registers[
-            riscv.IntRegisterType.infinite_register(0)
-        ]
-        == 1
-    )
+    register_queue.reserve_register(j0)
+    assert register_queue.reserved_int_registers[j0.index.data] == 2
 
-    register_queue.unreserve_register(riscv.IntRegisterType.infinite_register(0))
-    assert (
-        riscv.IntRegisterType.infinite_register(0)
-        not in register_queue.reserved_int_registers
-    )
-    assert (
-        riscv.IntRegisterType.infinite_register(0)
-        not in register_queue.available_int_registers
-    )
+    register_queue.unreserve_register(j0)
+    assert register_queue.reserved_int_registers[j0.index.data] == 1
+
+    register_queue.unreserve_register(j0)
+    assert j0 not in register_queue.reserved_int_registers
+    assert j0 not in register_queue.available_int_registers
 
     # Check assertion error when reserving an available register
     reg = register_queue.pop(riscv.IntRegisterType)
