@@ -215,8 +215,10 @@ def dis_benchmark(
 ):
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
-        raise ValueError("Cannot profile multiple benchmarks together")
-    _name, test, _ = benchmark_runs[0]
+        raise ValueError("Cannot disassemble multiple benchmarks together")
+    _name, test, setup = benchmark_runs[0]
+    if setup is not None:
+        setup()
     print_bytecode(test)
 
 
