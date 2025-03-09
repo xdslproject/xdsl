@@ -5,7 +5,7 @@ import pytest
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
-from xdsl.passes import ModulePass, PassArgOption, get_pass_argument_names_and_types
+from xdsl.passes import ModulePass, PassOptionInfo, get_pass_option_infos
 
 
 @dataclass(frozen=True)
@@ -57,33 +57,33 @@ class SimplePass(ModulePass):
     [
         (
             (
-                PassArgOption("number", "int|float"),
-                PassArgOption("single_number", "int"),
-                PassArgOption("int_list", "tuple[int, ...]"),
-                PassArgOption("non_init_thing", "int"),
-                PassArgOption("str_thing", "str"),
-                PassArgOption("nullable_str", "str|None"),
-                PassArgOption(
+                PassOptionInfo("number", "int|float"),
+                PassOptionInfo("single_number", "int"),
+                PassOptionInfo("int_list", "tuple[int, ...]"),
+                PassOptionInfo("non_init_thing", "int"),
+                PassOptionInfo("str_thing", "str"),
+                PassOptionInfo("nullable_str", "str|None"),
+                PassOptionInfo(
                     "literal",
                     "typing.Literal['yes', 'no', 'maybe']",
                     "no",
                 ),
-                PassArgOption("optional_bool", "bool", "false"),
+                PassOptionInfo("optional_bool", "bool", "false"),
             ),
             CustomPass,
         ),
         ((), EmptyPass),
         (
             (
-                PassArgOption("a", "int|float"),
-                PassArgOption("b", "int|None"),
-                PassArgOption("c", "int", "5"),
+                PassOptionInfo("a", "int|float"),
+                PassOptionInfo("b", "int|None"),
+                PassOptionInfo("c", "int", "5"),
             ),
             SimplePass,
         ),
     ],
 )
 def test_pass_to_arg_and_type_str(
-    arg_options: tuple[PassArgOption, ...], pass_arg: type[ModulePass]
+    arg_options: tuple[PassOptionInfo, ...], pass_arg: type[ModulePass]
 ):
-    assert get_pass_argument_names_and_types(pass_arg) == arg_options
+    assert get_pass_option_infos(pass_arg) == arg_options

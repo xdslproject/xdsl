@@ -5,7 +5,7 @@ from textual.reactive import Reactive
 from textual.screen import Screen
 from textual.widgets import Button, TextArea
 
-from xdsl.passes import ModulePass, get_pass_argument_names_and_types
+from xdsl.passes import ModulePass, get_pass_option_infos
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import parse_pipeline
 
@@ -26,7 +26,7 @@ class AddArguments(Screen[ModulePass | None]):
         self.argument_text_area = TextArea(
             " ".join(
                 f"{n}={t if d is None else d}"
-                for n, t, d in get_pass_argument_names_and_types(selected_pass_type)
+                for n, t, d in get_pass_option_infos(selected_pass_type)
             ),
             id="argument_text_area",
         )

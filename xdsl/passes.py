@@ -159,25 +159,24 @@ class ModulePass(ABC):
         return PipelinePassSpec(self.name, args)
 
 
-class PassArgOption(NamedTuple):
-    """ """
+class PassOptionInfo(NamedTuple):
+    """The name, expected type, and default value for one option of a module pass."""
 
     name: str
-    type_str: str
-    default_value_str: str | None = None
+    expected_type: str
+    default_value: str | None = None
 
 
-def get_pass_argument_names_and_types(
+def get_pass_option_infos(
     arg: type[ModulePassT],
-) -> tuple[PassArgOption, ...]:
+) -> tuple[PassOptionInfo, ...]:
     """
-    This method takes a type[ModulePassT] and outputs a string containing the names of
-    the pass arguments and their types. If an argument has a default value, it is not
-    added to the string.
+    Returns the expected argument names, types, and optional expected values for options
+    for the given pass.
     """
 
     return tuple(
-        PassArgOption(
+        PassOptionInfo(
             field.name,
             type_repr(field.type),
             str(getattr(arg, field.name)).lower() if hasattr(arg, field.name) else None,
