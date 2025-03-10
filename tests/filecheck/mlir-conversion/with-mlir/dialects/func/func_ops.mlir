@@ -27,7 +27,7 @@ builtin.module {
   }
 
    // CHECK: func.func @call_void_attributes() {
-   // CHECK-NEXT:   func.call @call_void_attributes() {"hello" = "world"} : () -> ()
+   // CHECK-NEXT:   func.call @call_void_attributes() {hello = "world"} : () -> ()
    // CHECK-NEXT:   func.return
    // CHECK-NEXT: }
 
@@ -69,7 +69,17 @@ builtin.module {
       func.return %X : tensor<8x8xf64>
   }
 
-  // CHECK:       func.func public @arg_attrs(%{{.*}}: tensor<8x8xf64> {"llvm.noalias"}, %{{.*}}: tensor<8x8xf64> {"llvm.noalias"}, %{{.*}}: tensor<8x8xf64> {"llvm.noalias"}) -> tensor<8x8xf64> {
+  // CHECK:       func.func public @arg_attrs(%{{.*}}: tensor<8x8xf64> {llvm.noalias}, %{{.*}}: tensor<8x8xf64> {llvm.noalias}, %{{.*}}: tensor<8x8xf64> {llvm.noalias}) -> tensor<8x8xf64> {
   // CHECK-NEXT:      func.return %{{.*}} : tensor<8x8xf64>
+  // CHECK-NEXT:  }
+
+  func.func @output_attributes() -> (f32 {dialect.a = 0 : i32}, f32 {dialect.b = 0 : i32, dialect.c = 1 : i64}) {
+    %r1, %r2 = "test.op"() : () -> (f32, f32)
+    return %r1, %r2 : f32, f32
+  }
+
+  // CHECK:       func.func @output_attributes() -> (f32 {dialect.a = 0 : i32}, f32 {dialect.b = 0 : i32, dialect.c = 1 : i64}) {
+  // CHECK-NEXT:    %0, %1 = "test.op"() : () -> (f32, f32)
+  // CHECK-NEXT:    func.return %0, %1 : f32, f32
   // CHECK-NEXT:  }
 }

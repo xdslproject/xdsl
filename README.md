@@ -49,11 +49,11 @@ MLIR version is commit `d401987fe349a87c53fe25829215b080b70c0c1a`.
 ### Subprojects With Extra Dependencies
 
 xDSL has a number of subprojects, some of which require extra dependencies.
-In order to keep the set of dependencies ot a minimum, these extra dependencies have to be
+In order to keep the set of dependencies to a minimum, these extra dependencies have to be
 specified explicitly. To install these, use:
 
 ``` bash
-pip install xdsl[gui,jax,riscv,wgpu,onnx]
+pip install xdsl[gui,jax,riscv]
 ```
 
 To install the testing/development dependencies, use:
@@ -78,7 +78,7 @@ for users interested in that use case.
 - [A Database example](https://xdsl.dev/xdsl/lab/index.html?path=database_example.ipynb)
 - [A simple introduction](https://xdsl.dev/xdsl/lab/index.html?path=tutorial.ipynb)
 - [A DSL for defining new IRs](https://xdsl.dev/xdsl/lab/index.html?path=irdl.ipynb)
-- [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
+- [Connecting xDSL with MLIR](docs/guides/mlir_interoperation.md)
 
 We provide a Makefile containing a lot of common tasks, which might provide
 an overview of common actions.
@@ -89,30 +89,70 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ### Developer Installation
 
+We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
+Getting started documentation can be found [here](https://docs.astral.sh/uv/getting-started/),
+and is also printed by the `make uv-installed` and `make venv` targets if it
+is not already installed on your system.
+
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
 cd xdsl
 # set up the venv and install everything
 make venv
-# activate the venv
-source venv/bin/activate
 ```
 
-### Testing
+To make a custom mlir-opt available in the virtual environment, set the `XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
+
+``` bash
+XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
+```
+
+#### If you can't use `uv`
+
+For some systems and workflows, changing to a new dependency management system
+may be inconvenient, impractical, or impossible. If this is the case for you,
+xDSL can still be installed using `pip`.
+
+To create the required virtual environment (the equivalent of `make venv`):
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+```
+
+The following commands can then be run using this virtual environment rather
+than `uv` by running `source venv/bin/activate` when starting a new shell, then
+eliding the `uv run` prefix from the commands. For example, to run the commands
+in the following testing section:
+
+```bash
+source venv/bin/activate
+pytest
+lit tests/filecheck
+```
+
+### Testing and benchmarking
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
 
 ```bash
 # Executes pytests which are located in tests/
-pytest
+uv run pytest
 
 # Executes filecheck tests
-lit tests/filecheck
+uv run lit tests/filecheck
 
 # run all tests using makefile
 make tests
 ```
+
+Benchmarks for the project are tracked in the <https://github.com/xdslproject/xdsl-bench>
+repository. These run automatically every day on the main branch, reporting
+their results to <https://xdsl.dev/xdsl-bench/>. However, they can also be run
+manually by cloning the repository and pointing the submodule at your
+feature branch to benchmark.
 
 ### Formatting and Typechecking
 
@@ -128,7 +168,7 @@ make precommit-install
 # to run the hooks:
 make precommit
 # alternatively, run ruff directly:
-ruff format
+uv run ruff format
 ```
 
 Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)

@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import MaximumfOp
 from xdsl.dialects.builtin import f64
-from xdsl.dialects.experimental.math import AbsFOp, CopySignOp
 from xdsl.dialects.func import CallOp, FuncOp
+from xdsl.dialects.math import AbsFOp, CopySignOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -74,7 +74,7 @@ class ReplaceAbsOpByXilinxMath(RewritePattern):
 class ReplaceIncompatibleFPGA(ModulePass):
     name = "replace-incompatible-fpga"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         def gen_greedy_walkers(
             passes: list[RewritePattern],
         ) -> list[PatternRewriteWalker]:

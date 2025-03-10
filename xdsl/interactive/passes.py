@@ -1,12 +1,11 @@
 from collections.abc import Callable
 from typing import NamedTuple
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
 from xdsl.ir import Dialect
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.mlir_opt import MLIROptPass
-from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 class AvailablePass(NamedTuple):
@@ -16,17 +15,16 @@ class AvailablePass(NamedTuple):
     """
 
     display_name: str
-    module_pass: type[ModulePass]
-    pass_spec: PipelinePassSpec | None
+    module_pass: type[ModulePass] | ModulePass
 
 
 def get_new_registered_context(
     all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
-) -> MLContext:
+) -> Context:
     """
-    Generates a new MLContext, registers it and returns it.
+    Generates a new Context, registers it and returns it.
     """
-    ctx = MLContext(True)
+    ctx = Context(True)
     for dialect_name, dialect_factory in all_dialects:
         ctx.register_dialect(dialect_name, dialect_factory)
     return ctx
@@ -34,18 +32,14 @@ def get_new_registered_context(
 
 def apply_passes_to_module(
     module: builtin.ModuleOp,
-    ctx: MLContext,
-    pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
+    ctx: Context,
+    passes: tuple[ModulePass, ...],
 ) -> builtin.ModuleOp:
     """
-    Function that takes a ModuleOp, an MLContext and a pass_pipeline (consisting of a type[ModulePass] and PipelinePassSpec), applies the pass(es) to the ModuleOp and returns the new ModuleOp.
+    Function that takes a ModuleOp, an Context and a pass_pipeline, applies the
+    passes to the ModuleOp and returns the modified ModuleOp.
     """
-    pipeline = PipelinePass(
-        passes=tuple(
-            module_pass.from_pass_spec(pipeline_pass_spec)
-            for module_pass, pipeline_pass_spec in pass_pipeline
-        )
-    )
+    pipeline = PipelinePass(passes=passes)
     pipeline.apply(ctx, module)
     return module
 
@@ -54,26 +48,26 @@ def iter_condensed_passes(
     input: builtin.ModuleOp,
     all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ):
-    ctx = MLContext(True)
+    ctx = Context(True)
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    selections: list[AvailablePass] = []
-    for _, value in all_passes:
-        if value is MLIROptPass:
+    for _, pass_type in all_passes:
+        if pass_type is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            selections.append(AvailablePass(value.name, value, None))
+            yield AvailablePass(pass_type.name, pass_type), None
             continue
+        cloned_module = input.clone()
+        cloned_ctx = ctx.clone()
         try:
-            cloned_module = input.clone()
-            cloned_ctx = ctx.clone()
-            value().apply(cloned_ctx, cloned_module)
+            pass_instance = pass_type()
+            pass_instance.apply(cloned_ctx, cloned_module)
             if input.is_structurally_equivalent(cloned_module):
                 continue
-            yield AvailablePass(value.name, value, None), cloned_module
         except Exception:
-            pass
+            continue
+        yield AvailablePass(pass_type.name, pass_instance), cloned_module
 
 
 def get_condensed_pass_list(

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, StringAttr
 from xdsl.ir import Region
@@ -29,8 +29,8 @@ class ArgNamesToArgAttrsPass(RewritePattern):
 
         new_arg_attrs = ArrayAttr(
             DictionaryAttr(
-                {"llvm.name": StringAttr(arg.name_hint), **arg_attr.data}
-                if arg.name_hint
+                arg_attr.data.set("llvm.name", StringAttr(arg.name_hint))
+                if arg.name_hint and "llvm.name" not in arg_attr.data
                 else arg_attr.data
             )
             for arg, arg_attr in zip(op.args, arg_attrs, strict=True)
@@ -87,7 +87,7 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
 
     name = "test-add-timers-to-top-level-funcs"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if SymbolTable.lookup_symbol(op, TIMER_START) or SymbolTable.lookup_symbol(
             op, TIMER_END
         ):
@@ -120,7 +120,7 @@ class FunctionPersistArgNamesPass(ModulePass):
 
     name = "function-persist-arg-names"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             ArgNamesToArgAttrsPass(), apply_recursively=False
         ).rewrite_module(op)

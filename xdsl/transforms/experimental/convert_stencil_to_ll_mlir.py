@@ -4,7 +4,7 @@ from math import prod
 from typing import TypeVar, cast
 from warnings import warn
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
@@ -69,7 +69,7 @@ def StencilToMemRefType(
 
 
 @dataclass
-class CastOpToMemref(RewritePattern):
+class CastOpToMemRef(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
         assert isa(op.result.type, FieldType[Attribute])
@@ -133,7 +133,7 @@ def _find_result_store(result: SSAValue) -> tuple[StoreResultOp, ...]:
 
 
 @dataclass
-class ReturnOpToMemref(RewritePattern):
+class ReturnOpToMemRef(RewritePattern):
     return_target: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
@@ -228,7 +228,7 @@ def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
         )
 
 
-class LoadOpToMemref(RewritePattern):
+class LoadOpToMemRef(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
         for use in op.field.uses:
@@ -277,7 +277,7 @@ def prepare_apply_body(op: ApplyOp):
 
 
 @dataclass
-class BufferOpToMemref(RewritePattern):
+class BufferOpToMemRef(RewritePattern):
     return_targets: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
@@ -338,7 +338,7 @@ def field_subview(field: SSAValue):
     )
 
 
-class AllocOpToMemref(RewritePattern):
+class AllocOpToMemRef(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AllocOp, rewriter: PatternRewriter, /):
         alloc = memref.AllocOp(
@@ -456,7 +456,7 @@ class ApplyOpToParallel(RewritePattern):
 
 
 @dataclass
-class AccessOpToMemref(RewritePattern):
+class AccessOpToMemRef(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
@@ -513,11 +513,13 @@ class StencilStoreToSubview(RewritePattern):
         for use in op.field.uses:
             if isa(use.operation, LoadOp):
                 raise VerifyException(
-                    "Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before."
+                    "Cannot lower directly if loading and storing the same field! "
+                    "Try running `stencil-bufferize` before."
                 )
             if isa(use.operation, StoreOp) and use.operation is not op:
                 raise VerifyException(
-                    "Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before."
+                    "Cannot lower directly if storing to the same field multiple "
+                    "times! Try running `stencil-bufferize` before."
                 )
         field = op.field
         assert isa(field.type, FieldType[Attribute])
@@ -666,7 +668,7 @@ class ResultTypeConversion(TypeConversionPattern):
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         return_targets: dict[ApplyOp, list[SSAValue | None]] = return_target_analysis(
             op
         )
@@ -676,15 +678,15 @@ class ConvertStencilToLLMLIRPass(ModulePass):
                 [
                     ApplyOpFieldSubviews(),
                     ApplyOpToParallel(return_targets),
-                    BufferOpToMemref(return_targets),
+                    BufferOpToMemRef(return_targets),
                     StencilStoreToSubview(return_targets),
-                    CastOpToMemref(),
-                    LoadOpToMemref(),
-                    AccessOpToMemref(),
-                    ReturnOpToMemref(return_targets),
+                    CastOpToMemRef(),
+                    LoadOpToMemRef(),
+                    AccessOpToMemRef(),
+                    ReturnOpToMemRef(return_targets),
                     TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
-                    AllocOpToMemref(),
+                    AllocOpToMemRef(),
                 ]
             ),
             apply_recursively=True,

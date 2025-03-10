@@ -2,23 +2,22 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, TypeVar, cast
 
-from typing_extensions import deprecated
-
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
-    AnyFloatAttr,
-    AnyUnrankedMemrefType,
+    AnyFloat,
+    AnyUnrankedMemRefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BoolAttr,
     BytesAttr,
     ComplexType,
     DenseArrayBase,
@@ -29,6 +28,7 @@ from xdsl.dialects.builtin import (
     Float64Type,
     Float80Type,
     Float128Type,
+    FloatAttr,
     FunctionType,
     IndexType,
     IntAttr,
@@ -45,7 +45,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
@@ -67,43 +67,35 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.bitwise_casts import (
     convert_f16_to_u16,
     convert_f32_to_u32,
     convert_f64_to_u64,
 )
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.lexer import Lexer
-
-indentNumSpaces = 2
+from xdsl.utils.mlir_lexer import MLIRLexer
 
 
 @dataclass(eq=False, repr=False)
-class Printer:
-    stream: Any | None = field(default=None)
+class Printer(BasePrinter):
     print_generic_format: bool = field(default=False)
     print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
-    _indent: int = field(default=0, init=False)
     _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
     """
     maps SSA Values to their "allocated" names
     """
     _ssa_names: list[dict[str, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=lambda: [dict[str, int]()], init=False
     )
     _block_names: list[dict[Block, int]] = field(
-        default_factory=lambda: [dict()], init=False
+        default_factory=lambda: [dict[Block, int]()], init=False
     )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
-    _current_line: int = field(default=0, init=False)
-    _current_column: int = field(default=0, init=False)
-    _next_line_callback: list[Callable[[], None]] = field(
-        default_factory=list, init=False
-    )
 
     @property
     def ssa_names(self):
@@ -147,113 +139,8 @@ class Printer:
             text = str(arg)
             self.print_string(text)
 
-    @deprecated("Please use `printer.print_strint(text, indent=0)`")
-    def print_string_raw(self, text: str) -> None:
-        """
-        Prints a string to the printer's output, without taking
-        indentation into account.
-        """
-        self.print_string(text, indent=0)
-
-    def print_string(self, text: str, *, indent: int | None = None) -> None:
-        """
-        Prints a string to the printer's output.
-
-        This function takes into account indentation level when
-        printing new lines.
-        If the indentation level is specified as 0, the string is printed as-is, if `None`
-        then the `Printer` instance's indentation level is used.
-        """
-
-        num_newlines = text.count("\n")
-
-        if not num_newlines:
-            self._current_column += len(text)
-            print(text, end="", file=self.stream)
-            return
-
-        indent = self._indent if indent is None else indent
-        lines = text.split("\n")
-
-        if indent == 0 and not self._next_line_callback:
-            # No indent and no callback to print after the next newline, the text
-            # can be printed directly.
-            self._current_line += num_newlines
-            self._current_column = len(lines[-1])
-            print(text, end="", file=self.stream)
-            return
-
-        # Line and column information is not computed ahead of time
-        # as indent-aware newline printing may use it as part of
-        # callbacks.
-        print(lines[0], end="", file=self.stream)
-        self._current_column += len(lines[0])
-        for line in lines[1:]:
-            self._print_new_line(indent=indent)
-            print(line, end="", file=self.stream)
-            self._current_column += len(line)
-
-    @contextmanager
-    def indented(self, amount: int = 1):
-        """
-        Increases the indentation level by the provided amount
-        for the duration of the context.
-
-        Only affects new lines printed within the context.
-        """
-
-        self._indent += amount
-        try:
-            yield
-        finally:
-            self._indent -= amount
-
-    def _add_message_on_next_line(self, message: str, begin_pos: int, end_pos: int):
-        """Add a message that will be displayed on the next line."""
-
-        def callback(indent: int = self._indent):
-            self._print_message(message, begin_pos, end_pos, indent)
-
-        self._next_line_callback.append(callback)
-
-    def _print_message(
-        self, message: str, begin_pos: int, end_pos: int, indent: int | None = None
-    ):
-        """
-        Print a message.
-        This is expected to be called at the beginning of a new line and to create a new
-        line at the end.
-        The span of the message to be underlined is represented as [begin_pos, end_pos).
-        """
-        indent = self._indent if indent is None else indent
-        indent_size = indent * indentNumSpaces
-        self.print_string(" " * indent_size)
-        message_end_pos = max(map(len, message.split("\n"))) + indent_size + 2
-        first_line = (
-            (begin_pos - indent_size) * "-"
-            + (end_pos - begin_pos) * "^"
-            + (max(message_end_pos, end_pos) - end_pos) * "-"
-        )
-        self.print_string(first_line)
-        self._print_new_line(indent=indent, print_message=False)
-        for message_line in message.split("\n"):
-            self.print_string("| ")
-            self.print_string(message_line)
-            self._print_new_line(indent=indent, print_message=False)
-        self.print_string("-" * (max(message_end_pos, end_pos) - indent_size))
-        self._print_new_line(indent=0, print_message=False)
-
-    T = TypeVar("T")
     K = TypeVar("K")
     V = TypeVar("V")
-
-    def print_list(
-        self, elems: Iterable[T], print_fn: Callable[[T], Any], delimiter: str = ", "
-    ) -> None:
-        for i, elem in enumerate(elems):
-            if i:
-                self.print_string(delimiter)
-            print_fn(elem)
 
     def print_dictionary(
         self,
@@ -268,22 +155,6 @@ class Printer:
             print_key(key)
             self.print_string("=")
             print_value(value)
-
-    def _print_new_line(
-        self, indent: int | None = None, print_message: bool = True
-    ) -> None:
-        indent = self._indent if indent is None else indent
-        # Prints a newline, bypassing the `print_string` method
-        print(file=self.stream)
-        self._current_line += 1
-        if print_message:
-            for callback in self._next_line_callback:
-                callback()
-            self._next_line_callback = []
-        num_spaces = indent * indentNumSpaces
-        # Prints indentation, bypassing the `print_string` method
-        print(" " * num_spaces, end="", file=self.stream)
-        self._current_column = num_spaces
 
     def _get_new_valid_name_id(self) -> str:
         self._next_valid_name_id[-1] += 1
@@ -446,7 +317,7 @@ class Printer:
         Prints the provided string as an identifier if it is one,
         and as a string literal otherwise.
         """
-        if Lexer.bare_identifier_regex.fullmatch(string) is None:
+        if MLIRLexer.bare_identifier_regex.fullmatch(string) is None:
             self.print_string_literal(string)
             return
         self.print_string(string)
@@ -463,26 +334,49 @@ class Printer:
                     self.print_string(chr(byte))
         self.print_string('"')
 
-    def print_float(self, attribute: AnyFloatAttr):
-        value = attribute.value
-        if math.isnan(value.data) or math.isinf(value.data):
-            if isinstance(attribute.type, Float16Type):
-                self.print_string(f"{hex(convert_f16_to_u16(value.data))}")
-            elif isinstance(attribute.type, Float32Type):
-                self.print_string(f"{hex(convert_f32_to_u32(value.data))}")
-            elif isinstance(attribute.type, Float64Type):
-                self.print_string(f"{hex(convert_f64_to_u64(value.data))}")
+    def print_float_attr(self, attribute: FloatAttr):
+        self.print_float(attribute.value.data, attribute.type)
+
+    def print_float(self, value: float, type: AnyFloat):
+        if math.isnan(value) or math.isinf(value):
+            if isinstance(type, Float16Type):
+                self.print_string(f"{hex(convert_f16_to_u16(value))}")
+            elif isinstance(type, Float32Type):
+                self.print_string(f"{hex(convert_f32_to_u32(value))}")
+            elif isinstance(type, Float64Type):
+                self.print_string(f"{hex(convert_f64_to_u64(value))}")
             else:
                 raise NotImplementedError(
-                    f"Cannot print '{value.data}' value for float type {str(attribute.type)}"
+                    f"Cannot print '{value}' value for float type {str(type)}"
                 )
         else:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
-            float_str = f"{value.data:.6e}"
-            if float(float_str) == value.data:
+            float_str = f"{value:.5e}"
+            index = float_str.find("e")
+            float_str = float_str[:index] + "0" + float_str[index:]
+
+            parsed_value = type.unpack(type.pack([float(float_str)]), 1)[0]
+
+            if parsed_value == value:
                 self.print_string(float_str)
             else:
-                self.print_string(f"{repr(value.data)}")
+                if isinstance(type, Float32Type):
+                    # f32 is printed with 9 significant digits
+                    float_str = f"{value:.9g}"
+                    if "." in float_str:
+                        self.print_string(float_str)
+                    else:
+                        self.print_string(f"0x{convert_f32_to_u32(value):X}")
+                elif isinstance(type, Float64Type):
+                    # f64 is printed with 17 significant digits
+                    float_str = f"{value:.17g}"
+                    if "." in float_str:
+                        self.print_string(float_str)
+                    else:
+                        self.print_string(f"0x{convert_f64_to_u64(value):X}")
+                else:
+                    # default to full python precision
+                    self.print_string(f"{repr(value)}")
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
@@ -637,29 +531,15 @@ class Printer:
 
         if isinstance(attribute, VectorType):
             attribute = cast(AnyVectorType, attribute)
-            shape = attribute.get_shape()
-
-            # Separate the dimensions between the static and the scalable ones
-            if attribute.get_num_scalable_dims() == 0:
-                static_dimensions = shape
-                scalable_dimensions = ()
-            else:
-                static_dimensions = shape[: -attribute.get_num_scalable_dims()]
-                scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
 
             self.print_string("vector<")
-            if len(static_dimensions) != 0:
-                self.print_list(
-                    static_dimensions, lambda x: self.print_string(f"{x}"), "x"
-                )
-                self.print_string("x")
 
-            if len(scalable_dimensions) != 0:
-                self.print_string("[")
-                self.print_list(
-                    scalable_dimensions, lambda x: self.print_string(f"{x}"), "x"
-                )
-                self.print_string("]")
+            self.print_list(
+                zip(attribute.shape, attribute.scalable_dims, strict=True),
+                self._print_vector_dim,
+                delimiter="x",
+            )
+            if attribute.shape.data:
                 self.print_string("x")
 
             self.print_attribute(attribute.element_type)
@@ -715,8 +595,8 @@ class Printer:
             self.print_string(">")
             return
 
-        if isinstance(attribute, UnrankedMemrefType):
-            attribute = cast(AnyUnrankedMemrefType, attribute)
+        if isinstance(attribute, UnrankedMemRefType):
+            attribute = cast(AnyUnrankedMemRefType, attribute)
             self.print_string("memref<*x")
             self.print_attribute(attribute.element_type)
             if not isinstance(attribute.memory_space, NoneAttr):
@@ -787,6 +667,17 @@ class Printer:
 
         return
 
+    def _print_vector_dim(self, pair: tuple[IntAttr, BoolAttr]):
+        """
+        Helper method to print a vector dimension either as static (`4`) or scalable
+        (`[4]`).
+        """
+        dim, scalable = pair
+        if scalable:
+            self.print_string(f"[{dim.data}]")
+        else:
+            self.print_string(f"{dim.data}")
+
     def print_successors(self, successors: Sequence[Block]):
         if len(successors) == 0:
             return
@@ -795,13 +686,17 @@ class Printer:
         self.print_string("]")
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
-        if isinstance(attr_tuple[1], UnitAttr):
-            self.print_string(f'"{attr_tuple[0]}"')
+        # Print the name without quotes if it is a bare identifier
+        if MLIRLexer.bare_identifier_regex.fullmatch(attr_tuple[0]):
+            self.print_string(attr_tuple[0])
         else:
-            self.print_string(f'"{attr_tuple[0]}" = ')
+            self.print_string(f'"{attr_tuple[0]}"')
+
+        if not isinstance(attr_tuple[1], UnitAttr):
+            self.print_string(" = ")
             self.print_attribute(attr_tuple[1])
 
-    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+    def print_attr_dict(self, attr_dict: Mapping[str, Attribute]) -> None:
         self.print_string("{")
         self.print_list(attr_dict.items(), self._print_attr_string)
         self.print_string("}")
@@ -816,7 +711,7 @@ class Printer:
 
     def print_op_attributes(
         self,
-        attributes: dict[str, Attribute],
+        attributes: Mapping[str, Attribute],
         *,
         reserved_attr_names: Iterable[str] = (),
         print_keyword: bool = False,

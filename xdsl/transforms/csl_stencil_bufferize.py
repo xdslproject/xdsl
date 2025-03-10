@@ -1,15 +1,15 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
-    AnyMemRefType,
     AnyTensorType,
     AnyTensorTypeConstr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FunctionType,
+    MemRefType,
     ModuleOp,
     TensorType,
     i64,
@@ -44,20 +44,20 @@ def tensor_to_memref_type(t: TensorType[Attribute]) -> memref.MemRefType[Attribu
     return memref.MemRefType(t.get_element_type(), t.get_shape())
 
 
-def to_memref_op(op: SSAValue) -> bufferization.ToMemrefOp:
+def to_memref_op(op: SSAValue) -> bufferization.ToMemRefOp:
     """Creates a `bufferization.to_memref` operation."""
     assert isa(op.type, AnyTensorType)
     r_type = memref.MemRefType(
         op.type.get_element_type(), op.type.get_shape()
     )  # todo set strided+offset here?
-    return bufferization.ToMemrefOp(operands=[op], result_types=[r_type])
+    return bufferization.ToMemRefOp(operands=[op], result_types=[r_type])
 
 
 def to_tensor_op(
     op: SSAValue, writable: bool = False, restrict: bool = True
 ) -> bufferization.ToTensorOp:
     """Creates a `bufferization.to_tensor` operation."""
-    assert isa(op.type, AnyMemRefType)
+    assert isa(op.type, MemRefType)
     return bufferization.ToTensorOp(op, restrict, writable)
 
 
@@ -94,6 +94,10 @@ class ApplyOpBufferize(RewritePattern):
         # convert args
         buf_args: list[SSAValue] = []
         to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
+        # in case of subsequent apply ops accessing this accumulator, replace uses with `bufferization.to_memref`
+        op.accumulator.replace_by_if(
+            buf_iter_arg.memref, lambda use: use.operation != buf_iter_arg
+        )
         for arg in [*op.args_rchunk, *op.args_dexchng]:
             if isa(arg.type, TensorType[Attribute]):
                 to_memrefs.append(new_arg := to_memref_op(arg))
@@ -285,10 +289,18 @@ class AccessOpBufferize(RewritePattern):
             rewriter.replace_matched_op(to_tensor_op(op.op))
             return
 
+        # accesses to buffers passed in additional args can read directly from memref underlying `to_tensor`
+        source = (
+            op.op.op.memref
+            if isinstance(op.op, OpResult)
+            and isinstance(op.op.op, bufferization.ToTensorOp)
+            else op.op
+        )
+
         rewriter.replace_matched_op(
             [
                 access := csl_stencil.AccessOp(
-                    op.op,
+                    source,
                     op.offset,
                     r_type,
                     op.offset_mapping,
@@ -385,6 +397,11 @@ class ArithConstBufferize(RewritePattern):
 class InjectApplyOutsIntoLinalgOuts(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
+        # require bufferized apply (with op.dest specified)
+        # zero-output apply ops may be used for communicate-only, to which this pattern does not apply
+        if not op.dest:
+            return
+
         yld = op.done_exchange.block.last_op
         assert isinstance(yld, csl_stencil.YieldOp)
         new_dest: list[SSAValue] = []
@@ -395,14 +412,14 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
         for arg, yld_arg in zip(op.dest, yld.arguments, strict=True):
             if (
                 not isinstance(yld_arg, OpResult)
-                or not isinstance(yld_arg.op, bufferization.ToMemrefOp)
+                or not isinstance(yld_arg.op, bufferization.ToMemRefOp)
                 or not isinstance(yld_arg.op.tensor, OpResult)
                 or not isinstance(
                     linalg_op := yld_arg.op.tensor.op,
                     linalg.NamedOpBase | linalg.GenericOp,
                 )
-                or not isa(arg_t := arg.type, AnyMemRefType)
-                or not isa(yld_arg.type, AnyMemRefType)
+                or not isa(arg_t := arg.type, MemRefType)
+                or not isa(yld_arg.type, MemRefType)
             ):
                 new_dest.append(arg)
                 new_yield_args.append(yld_arg)
@@ -544,7 +561,7 @@ class CslStencilBufferize(ModulePass):
 
     name = "csl-stencil-bufferize"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

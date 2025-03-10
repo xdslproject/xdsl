@@ -23,9 +23,9 @@ class EqsatPDLMatcher(PDLMatcher):
     ):
         owner = xdsl_val.owner
         assert isinstance(owner, eqsat.EClassOp)
-        assert (
-            len(owner.operands) == 1
-        ), "newly converted eqsat always has 1 element in eclass"
+        assert len(owner.operands) == 1, (
+            "newly converted eqsat always has 1 element in eclass"
+        )
         arg = owner.operands[0]
         res = super().match_operand(ssa_val, pdl_op, arg)
         # self.value_to_eclass[arg] = owner

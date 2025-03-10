@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
 from xdsl.ir import Block, Operation, OpResult
 from xdsl.passes import ModulePass
@@ -26,9 +26,9 @@ def eqsat_extract(block: Block):
                         if isinstance(operand, OpResult)
                     )
                 if isinstance(min_cost_operand, OpResult):
-                    assert (
-                        eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes
-                    ), min_cost_operand.op
+                    assert eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes, (
+                        min_cost_operand.op
+                    )
                     del min_cost_operand.op.attributes[eqsat.EQSAT_COST_LABEL]
                 Rewriter.replace_op(op, (), new_results=(min_cost_operand,))
             continue
@@ -47,7 +47,7 @@ class EqsatExtractPass(ModulePass):
 
     name = "eqsat-extract"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         eclass_parent_blocks = set(
             o.parent
             for o in op.walk()

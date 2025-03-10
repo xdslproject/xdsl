@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -27,15 +27,32 @@ def test_add_op():
     assert isinstance(a0.type, riscv.IntRegisterType)
     assert isinstance(a1.type, riscv.IntRegisterType)
     assert isinstance(a2.type, riscv.IntRegisterType)
-    assert a0.type.spelling.data == "a0"
+    assert a0.type.register_name.data == "a0"
     assert a0.type.index == IntAttr(10)
-    assert a1.type.spelling.data == "a1"
+    assert a1.type.register_name.data == "a1"
     assert a1.type.index == IntAttr(11)
-    assert a2.type.spelling.data == "a2"
+    assert a2.type.register_name.data == "a2"
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
-    assert isinstance(riscv.IntRegisterType("j1").index, NoneAttr)
+    assert isinstance(riscv.IntRegisterType.infinite_register(1).index, NoneAttr)
+
+
+def test_is_non_zero():
+    # Test zero register
+    x0_reg = riscv.IntRegisterType.from_name("x0")
+    assert not riscv.is_non_zero(riscv.Registers.ZERO)
+    assert not riscv.is_non_zero(x0_reg)
+
+    # Test non-zero registers
+    a0_reg = riscv.Registers.A0
+    t0_reg = riscv.Registers.T0
+    assert riscv.is_non_zero(a0_reg)
+    assert riscv.is_non_zero(t0_reg)
+
+    # Test unallocated register
+    unalloc_reg = riscv.IntRegisterType.unallocated()
+    assert not riscv.is_non_zero(unalloc_reg)
 
 
 def test_csr_op():
@@ -223,23 +240,27 @@ def test_immediate_shift_inst():
 
 
 def test_float_register():
-    with pytest.raises(VerifyException, match="not in"):
-        riscv.IntRegisterType("ft9")
-    with pytest.raises(VerifyException, match="not in"):
-        riscv.FloatRegisterType("a0")
+    with pytest.raises(
+        VerifyException, match="Invalid register name ft9 for register set RV32I."
+    ):
+        riscv.IntRegisterType.from_name("ft9")
+    with pytest.raises(
+        VerifyException, match="Invalid register name a0 for register set RV32F."
+    ):
+        riscv.FloatRegisterType.from_name("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
     with pytest.raises(VerifyException, match="Operation does not verify"):
-        riscv.FAddSOp(a1, a2, rd=riscv.FloatRegisterType.unallocated()).verify()
+        riscv.FAddSOp(a1, a2).verify()
 
     f1 = TestSSAValue(riscv.Registers.FT0)
     f2 = TestSSAValue(riscv.Registers.FT1)
-    riscv.FAddSOp(f1, f2, rd=riscv.FloatRegisterType.unallocated()).verify()
+    riscv.FAddSOp(f1, f2).verify()
 
 
 def test_riscv_parse_immediate_value():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(riscv.RISCV)
 
     prog = """riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""

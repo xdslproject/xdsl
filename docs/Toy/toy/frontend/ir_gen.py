@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import NoReturn
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.builtin import ModuleOp, TensorType, UnrankedTensorType, f64
 from xdsl.ir import Block, Region, SSAValue
 from xdsl.utils.scoped_dict import ScopedDict
@@ -74,7 +74,7 @@ class IRGen:
         # We create an empty MLIR module and codegen functions one at a time and
         # add them to the module.
         self.module = ModuleOp([])
-        self.builder = Builder.at_end(self.module.body.blocks[0])
+        self.builder = Builder(InsertPoint.at_end(self.module.body.blocks[0]))
 
     def ir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:
         """
@@ -147,7 +147,7 @@ class IRGen:
         block = Block(
             arg_types=[UnrankedTensorType(f64) for _ in range(len(proto_args))]
         )
-        self.builder = Builder.at_end(block)
+        self.builder = Builder(InsertPoint.at_end(block))
 
         # Declare all the function arguments in the symbol table.
         for name, value in zip(proto_args, block.args):

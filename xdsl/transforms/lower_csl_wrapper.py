@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.csl import csl, csl_wrapper
 from xdsl.ir import Block, Operation, Region, SSAValue
@@ -55,7 +55,7 @@ class ExtractCslModules(RewritePattern):
 
         params = list[SSAValue]()
         for param in op.params:
-            if isattr(param.value, builtin.AnyIntegerAttrConstr):
+            if isattr(param.value, builtin.IntegerAttr):
                 value = arith.ConstantOp(param.value)
             else:
                 value = None
@@ -335,7 +335,7 @@ class LowerCslWrapperPass(ModulePass):
     (hint: consider removing default values in cases where this is desired).
     """
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

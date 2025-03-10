@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat, func
 from xdsl.ir import Block
 from xdsl.passes import ModulePass
@@ -77,7 +77,7 @@ class EqsatCreateEclassesPass(ModulePass):
 
     name = "eqsat-create-eclasses"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([InsertEclassOps()]),
             apply_recursively=False,

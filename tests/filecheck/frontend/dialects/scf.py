@@ -1,15 +1,15 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import f32, i1, i32, index
-from xdsl.frontend.exception import CodeGenerationException
-from xdsl.frontend.program import FrontendProgram
+from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.dialects.builtin import f32, i1, i32, index
+from xdsl.frontend.pyast.exception import CodeGenerationException
+from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):
     # CHECK:      func.func @test_for_I(%{{.*}} : index) {
     # CHECK:        %{{.*}} = arith.constant 0 : index
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @end : index
     # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:   }
@@ -24,8 +24,8 @@ with CodeContext(p):
         return
 
     # CHECK:      func.func @test_for_II(%{{.*}} : index, %{{.*}} : index) {
-    # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
+    # CHECK:        %{{.*}} = symref.fetch @start : index
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @end : index
     # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:   }
@@ -40,9 +40,9 @@ with CodeContext(p):
         return
 
     # CHECK:      func.func @test_for_III(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
-    # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @step} : () -> index
+    # CHECK:        %{{.*}} = symref.fetch @start : index
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @end : index
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @step : index
     # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
@@ -58,15 +58,15 @@ with CodeContext(p):
 
     # CHECK:        func.func @test_for_IV(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
     # CHECK:          %{{.*}} = arith.constant 0 : index
-    # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> index
+    # CHECK-NEXT:     %{{.*}} = symref.fetch @a : index
     # CHECK-NEXT:     %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:     scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:       %{{.*}} = arith.constant 0 : index
-    # CHECK-NEXT:       %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> index
+    # CHECK-NEXT:       %{{.*}} = symref.fetch @b : index
     # CHECK-NEXT:       %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:       scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:         %{{.*}} = arith.constant 0 : index
-    # CHECK-NEXT:         %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> index
+    # CHECK-NEXT:         %{{.*}} = symref.fetch @c : index
     # CHECK-NEXT:         %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:         scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:         }
@@ -134,10 +134,10 @@ except CodeGenerationException as e:
 p = FrontendProgram()
 with CodeContext(p):
     # CHECK:      %{{.*}} = scf.if %{{.*}} -> (i32) {
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @x} : () -> i32
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @x : i32
     # CHECK-NEXT:   scf.yield %{{.*}} : i32
     # CHECK-NEXT: } else {
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @y} : () -> i32
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @y : i32
     # CHECK-NEXT:   scf.yield %{{.*}} : i32
     # CHECK-NEXT: }
     def test_if_expr(cond: i1, x: i32, y: i32) -> i32:
@@ -152,13 +152,13 @@ with CodeContext(p):
             pass
         return
 
-    # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> i1
+    # CHECK:      %{{.*}} = symref.fetch @a : i1
     # CHECK-NEXT: scf.if %{{.*}} {
     # CHECK-NEXT: } else {
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> i1
+    # CHECK-NEXT:   %{{.*}} = symref.fetch @b : i1
     # CHECK-NEXT:   scf.if %{{.*}} {
     # CHECK-NEXT:   } else {
-    # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> i1
+    # CHECK-NEXT:     %{{.*}} = symref.fetch @c : i1
     # CHECK-NEXT:     scf.if %{{.*}} {
     # CHECK-NEXT:     }
     # CHECK-NEXT:   }
@@ -172,7 +172,7 @@ with CodeContext(p):
             pass
         return
 
-    # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @cond} : () -> i1
+    # CHECK:      %{{.*}} = symref.fetch @cond : i1
     # CHECK-NEXT: scf.if %{{.*}} {
     # CHECK-NEXT: }
     def test_if_III(cond: i1):

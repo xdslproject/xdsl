@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import IO, Any, ClassVar
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
@@ -133,9 +133,9 @@ class PDLMatcher:
             assert isinstance(pdl_op.value_type, OpResult)
             assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
-            assert isa(
-                xdsl_attr, IntegerAttr[IntegerType]
-            ), "Only handle integer types for now"
+            assert isa(xdsl_attr, IntegerAttr[IntegerType]), (
+                "Only handle integer types for now"
+            )
 
             if not self.match_type(
                 pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.type
@@ -219,7 +219,7 @@ class PDLRewritePattern(RewritePattern):
     interpreter: Interpreter
 
     def __init__(
-        self, pdl_rewrite_op: pdl.RewriteOp, ctx: MLContext, file: IO[str] | None = None
+        self, pdl_rewrite_op: pdl.RewriteOp, ctx: Context, file: IO[str] | None = None
     ):
         pdl_pattern = pdl_rewrite_op.parent_op()
         assert isinstance(pdl_pattern, pdl.PatternOp)
@@ -233,9 +233,9 @@ class PDLRewritePattern(RewritePattern):
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         pdl_op_val = self.pdl_rewrite_op.root
         assert pdl_op_val is not None, "TODO: handle None root op in pdl.RewriteOp"
-        assert (
-            self.pdl_rewrite_op.body is not None
-        ), "TODO: handle None body op in pdl.RewriteOp"
+        assert self.pdl_rewrite_op.body is not None, (
+            "TODO: handle None body op in pdl.RewriteOp"
+        )
 
         assert isinstance(pdl_op_val, OpResult)
         pdl_op = pdl_op_val.op
@@ -271,7 +271,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
     values.
     """
 
-    ctx: MLContext
+    ctx: Context
     _rewriter: PatternRewriter | None = field(default=None)
 
     @property
@@ -341,6 +341,9 @@ class PDLRewriteFunctions(InterpreterFunctions):
             properties=properties,
         )
 
+        # Insert the new operation before the root operation
+        self.rewriter.insert_op_before_matched_op(result_op)
+
         return (result_op,)
 
     @impl(pdl.ResultOp)
@@ -368,7 +371,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         if op.repl_operation is not None:
             (new_op,) = interpreter.get_values((op.repl_operation,))
-            rewriter.replace_op(old, new_op)
+            rewriter.replace_op(old, new_ops=[], new_results=new_op.results)
         elif len(op.repl_values):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))

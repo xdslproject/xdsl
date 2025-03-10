@@ -7,9 +7,11 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import ClassVar, TypeAlias, overload
 
+from typing_extensions import deprecated
+
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
 @dataclass(eq=False)
@@ -54,26 +56,6 @@ class Builder(BuilderListener):
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
-    @staticmethod
-    def before(op: Operation) -> Builder:
-        """Creates a builder with the insertion point before an operation."""
-        return Builder(InsertPoint.before(op))
-
-    @staticmethod
-    def after(op: Operation) -> Builder:
-        """Creates a builder with the insertion point after an operation."""
-        return Builder(InsertPoint.after(op))
-
-    @staticmethod
-    def at_start(block: Block) -> Builder:
-        """Creates a builder with the insertion point at the start of a block."""
-        return Builder(InsertPoint.at_start(block))
-
-    @staticmethod
-    def at_end(block: Block) -> Builder:
-        """Creates a builder with the insertion point at the end of a block."""
-        return Builder(InsertPoint.at_end(block))
-
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
 
@@ -81,7 +63,7 @@ class Builder(BuilderListener):
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
-                "Cannot insert operation explicitly when an implicit " "builder exists."
+                "Cannot insert operation explicitly when an implicit builder exists."
             )
 
         block = self.insertion_point.block
@@ -94,6 +76,24 @@ class Builder(BuilderListener):
 
         return op
 
+    def create_block(
+        self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
+    ) -> Block:
+        """
+        Create a block at the given location, and set the operation insertion point
+        at the end of the inserted block.
+        """
+        block = Block(arg_types=arg_types)
+        Rewriter.insert_block(block, insert_point)
+
+        self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+        return block
+
+    @deprecated(
+        "Use create_block(BlockInsertPoint.before(insert_before), arg_types) instead"
+    )
     def create_block_before(
         self, insert_before: Block, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -101,14 +101,11 @@ class Builder(BuilderListener):
         Create a block before `insert_before`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        Rewriter.insert_block_before(block, insert_before)
-        self.insertion_point = InsertPoint.at_end(block)
+        return self.create_block(BlockInsertPoint.before(insert_before), arg_types)
 
-        self.handle_block_creation(block)
-
-        return block
-
+    @deprecated(
+        "Use create_block(BlockInsertPoint.after(insert_after), arg_types) instead"
+    )
     def create_block_after(
         self, insert_after: Block, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -116,15 +113,11 @@ class Builder(BuilderListener):
         Create a block after `insert_after`, and set
         the insertion point at the end of the inserted block.
         """
+        return self.create_block(BlockInsertPoint.after(insert_after), arg_types)
 
-        block = Block(arg_types=arg_types)
-        Rewriter.insert_block_after(block, insert_after)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
-
+    @deprecated(
+        "Use create_block(BlockInsertPoint.at_start(region), arg_types) instead"
+    )
     def create_block_at_start(
         self, region: Region, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -132,14 +125,9 @@ class Builder(BuilderListener):
         Create a block at the start of `region`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        region.insert_block(block, 0)
-        self.insertion_point = InsertPoint.at_end(block)
+        return self.create_block(BlockInsertPoint.at_start(region), arg_types)
 
-        self.handle_block_creation(block)
-
-        return block
-
+    @deprecated("Use create_block(BlockInsertPoint.at_end(region), arg_types) instead")
     def create_block_at_end(
         self, region: Region, arg_types: Iterable[Attribute] = ()
     ) -> Block:
@@ -147,13 +135,7 @@ class Builder(BuilderListener):
         Create a block at the end of `region`, and set
         the insertion point at the end of the inserted block.
         """
-        block = Block(arg_types=arg_types)
-        region.add_block(block)
-        self.insertion_point = InsertPoint.at_end(block)
-
-        self.handle_block_creation(block)
-
-        return block
+        return self.create_block(BlockInsertPoint.at_end(region), arg_types)
 
     @staticmethod
     def _region_no_args(func: Callable[[Builder], None]) -> Region:
@@ -161,7 +143,7 @@ class Builder(BuilderListener):
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder.at_end(block)
+        builder = Builder(InsertPoint.at_end(block))
         func(builder)
         return Region(block)
 
@@ -179,7 +161,7 @@ class Builder(BuilderListener):
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
             block = Block(arg_types=input_types)
-            builder = Builder.at_start(block)
+            builder = Builder(InsertPoint.at_start(block))
 
             func(builder, block.args)
 
@@ -349,10 +331,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
     ``` python
     from xdsl.dialects import arith
 
-    block = Block()
-    builder = Builder(block)
-
-    with builder.implicit():
+    with ImplicitBuilder(block):
         arith.Constant.from_int_and_width(5, 32)
 
     assert len(block.ops) == 1
@@ -372,7 +351,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
         if isinstance(arg, Region):
             arg = arg.block
         if isinstance(arg, Block):
-            arg = Builder.at_end(arg)
+            arg = Builder(InsertPoint.at_end(arg))
         self._builder = arg
 
     def __enter__(self) -> tuple[BlockArgument, ...]:

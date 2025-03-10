@@ -18,7 +18,6 @@ from enum import Enum
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
-    AnyIntegerAttr,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -203,7 +202,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.llvm_ptr"
 
-    type: ParameterDef[AnyIntegerAttr | AnyFloat]
+    type: ParameterDef[IntegerAttr | AnyFloat]
 
 
 @irdl_attr_definition
@@ -227,7 +226,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.array"
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr | DeferredAttr | NoneType]]
+    shape: ParameterDef[ArrayAttr[IntegerAttr | DeferredAttr | NoneType]]
     type: ParameterDef[IntegerType | AnyFloat | ReferenceType]
     type2: ParameterDef[IntegerType | AnyFloat | ReferenceType | NoneType]
 
@@ -522,6 +521,7 @@ class AllocaOp(IRDLOperation):
     an optional name.  The allocation may have a dynamic repetition count
     for allocating a sequence of locations for the specified type.
 
+    ```
     %c = ... : i64
     %x = fir.alloca i32
     %y = fir.alloca !fir.array<8 x i64>
@@ -530,6 +530,7 @@ class AllocaOp(IRDLOperation):
     %i = ... : i16
     %j = ... : i32
     %w = fir.alloca !fir.type<PT(len1:i16, len2:i32)> (%i, %j : i16, i32)
+    ```
 
     Note that in the case of '%z', a contiguous block of memory is allocated
     and its size is a runtime multiple of a 32-bit REAL value.
@@ -1257,7 +1258,7 @@ class DispatchOp(IRDLOperation):
     """
 
     name = "fir.dispatch"
-    pass_arg_pos = opt_prop_def(AnyIntegerAttr)
+    pass_arg_pos = opt_prop_def(IntegerAttr)
     object = operand_def()
     args = operand_def()
     result_0 = result_def()
@@ -2093,8 +2094,10 @@ class StringLitOp(IRDLOperation):
     to Fortran's CHARACTER type, including a LEN.  We support CHARACTER values
     of different KINDs (different constant sizes).
 
+    ```mlir
     %1 = fir.string_lit "Hello, World!"(13) : !fir.char<1> // ASCII
     %2 = fir.string_lit [158, 2345](2) : !fir.char<2>      // Wide chars
+    ```
     """
 
     name = "fir.string_lit"

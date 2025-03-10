@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -19,7 +19,7 @@ class UnknownOp(IRDLOperation):
 
 
 def check_error(prog: str, line: int, column: int, message: str):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(UnknownOp)
 
     parser = Parser(ctx, prog)
@@ -31,7 +31,7 @@ def check_error(prog: str, line: int, column: int, message: str):
 
 def test_parser_missing_equal():
     """Test a missing equal sign error."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(UnknownOp)
 
     prog = """
@@ -44,7 +44,7 @@ def test_parser_missing_equal():
 
 def test_parser_redefined_value():
     """Test an SSA value redefinition error."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(UnknownOp)
 
     prog = """
@@ -58,7 +58,7 @@ def test_parser_redefined_value():
 
 def test_parser_missing_operation_name():
     """Test a missing operation name error."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(UnknownOp)
 
     prog = """
