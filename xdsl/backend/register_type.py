@@ -143,7 +143,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         raise NotImplementedError()
 
     # This class variable is created and exclusively accessed in `abi_name_by_index`.
-    # _ABI_NAME_BY_INDEX: ClassVar[dict[int, str]] | None = None
+    # _ABI_NAME_BY_INDEX: ClassVar[dict[int, str]]
 
     @classmethod
     def abi_name_by_index(cls) -> dict[int, str]:
