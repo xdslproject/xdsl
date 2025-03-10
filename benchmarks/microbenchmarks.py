@@ -45,8 +45,7 @@ class IRTraversal:
     def time_iterate_ops(self) -> None:
         """Time directly iterating over a python list of operations.
 
-        Comparison with `for (Operation *op : /*std::vector*/ops) {` at
-        0.35ns/op.
+        Comparison with `for (Operation *op : /*std::vector*/ops) {`.
         """
         for op in IRTraversal.EXAMPLE_OPS:
             assert op
@@ -54,7 +53,7 @@ class IRTraversal:
     def time_iterate_block_ops(self) -> None:
         """Time directly iterating over the linked list of a block's operations.
 
-        Comparison with `for (Operation &op : *block) {` at 2.15ns/op.
+        Comparison with `for (Operation &op : *block) {`.
         """
         for op in IRTraversal.EXAMPLE_BLOCK.ops:
             assert op
@@ -63,7 +62,7 @@ class IRTraversal:
         """Time walking a block's operations.
 
         Comparison with `block->walk([](Operation *op) {});` with no region in
-        the IR at 6.11ns/op.
+        the IR.
         """
         for op in IRTraversal.EXAMPLE_BLOCK.walk():
             assert op
@@ -77,8 +76,7 @@ class Extensibility:
     def time_interface_check(self) -> None:
         """Time checking the class hierarchy of an operation.
 
-        Indirect comparison with `assert( dyn_cast<OpT>(op) )` at
-        9.68ns/op.
+        Indirect comparison with `assert( dyn_cast<OpT>(op) )`.
 
         This is not a direct comparison as xDSL does not use the
         class hierarchy to express interface functionality, but is interesting
@@ -89,14 +87,14 @@ class Extensibility:
     def time_trait_check(self) -> None:
         """Time checking the trait of an operation.
 
-        Comparison with `assert( op->hasTrait<TraitT>(op) )` at 18.1ns/op.
+        Comparison with `assert( op->hasTrait<TraitT>(op) )`.
         """
         assert Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
 
     def time_trait_check_neg(self) -> None:
         """Time checking the trait of an operation.
 
-        Comparison with `assert( ! op->hasTrait<TraitT>(op) )` at 13.4ns/op.
+        Comparison with `assert( ! op->hasTrait<TraitT>(op) )`.
         """
         assert not Extensibility.HAS_TRAIT_A_OP.has_trait(TraitB)
 
@@ -110,21 +108,21 @@ class OpCreation:
         """Time creating an empty operation.
 
         Comparison with `OperationState opState(unknownLoc, "testbench.empty");
-        Operation::create(opState)` at 118ns/op.
+        Operation::create(opState)`.
         """
         EmptyOp()
 
     def time_operation_clone(self) -> None:
         """Time cloning an empty operation.
 
-        Comparison with `OwningOpRef<ModuleOp> moduleClone = moduleOp->clone();`
-        at 631ns/op.
+        Comparison with `OwningOpRef<ModuleOp> moduleClone = moduleOp->clone();`.
         """
         OpCreation.CONSTANT_OPERATION.clone()
 
 
 if __name__ == "__main__":
     from collections.abc import Callable
+    from typing import Any
 
     from bench_utils import profile
 
@@ -132,7 +130,9 @@ if __name__ == "__main__":
     IR_TRAVERSAL = IRTraversal()
     OP_CREATION = OpCreation()
 
-    BENCHMARKS: dict[str, Callable[[], None]] = {
+    BENCHMARKS: dict[
+        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+    ] = {
         "IRTraversal.iterate_ops": IR_TRAVERSAL.time_iterate_ops,
         "IRTraversal.iterate_block_ops": IR_TRAVERSAL.time_iterate_block_ops,
         "IRTraversal.walk_block_ops": IR_TRAVERSAL.time_walk_block_ops,

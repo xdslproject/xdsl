@@ -5,9 +5,12 @@ from typing import Any
 
 from benchmarks.helpers import get_context, parse_module
 from benchmarks.workloads import WorkloadBuilder
-from xdsl.dialects.arith import Arith
-from xdsl.dialects.builtin import Builtin, ModuleOp
+from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
+from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp
+from xdsl.pattern_rewriter import Worklist
+from xdsl.traits import HasCanonicalizationPatternsTrait
 from xdsl.transforms.canonicalize import CanonicalizePass
+from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
 CTX = get_context()
 CTX.load_dialect(Arith)
@@ -61,33 +64,60 @@ class PatternRewriter:
 class RewritingMicrobenchmarks:
     """Microbenchmark rewriting in xDSL."""
 
+    WORKLOAD_CONSTANT_20 = parse_module(CTX, WorkloadBuilder.constant_folding(20))
+    workload_constant_20: ModuleOp
+    const_0: ConstantOp
+    const_1: ConstantOp
+    add_op: AddiOp
+    sub_op: SubiOp
+
+    def setup(self) -> None:
+        """Setup the benchmarks."""
+        self.setup_operations()
+        self.setup_constant_folding_20()
+
+    def setup_operations(self) -> None:
+        """Setup example operations"""
+        self.const_0 = ConstantOp(IntegerAttr(0, 64))
+        self.const_1 = ConstantOp(IntegerAttr(1, 64))
+        self.add_op = AddiOp(self.const_1, self.const_0)
+        self.sub_op = SubiOp(self.const_1, self.const_0)
+
+    def setup_constant_folding_20(self) -> None:
+        """Setup the constant folding 20 items benchmark."""
+        self.workload_constant_20 = PatternRewriter.WORKLOAD_CONSTANT_20.clone()
+
     def time_get_variadic_sizes(self) -> None:
         """Time getting the variadic size of an operation."""
-        pass
 
     def time_region_walk(self) -> None:
         """Time walking a region."""
+        for block in self.workload_constant_20.body.walk():
+            assert block
+
+    def setup_worklist(self) -> None:
+        """Setup a worklist"""
+        self.worklist = Worklist()
+        self.worklist.push(self.sub_op)
 
     def time_worklist_push(self) -> None:
         """Time pushing to a worklist."""
+        self.worklist.push(self.add_op)
 
     def time_worklist_pop(self) -> None:
         """Time popping from a worklist."""
-
-    def time_pattern_rewriter_creation(self) -> None:
-        """Time ."""
+        self.worklist.pop()
 
     def time_insert_point_before(self) -> None:
         """Time getting the insertion point before an operation."""
 
     def time_is_trivially_dead(self) -> None:
         """Time checking if an operation is trivially dead."""
+        is_trivially_dead(self.add_op)
 
     def time_get_trait(self) -> None:
         """Time getting a trait from an operation."""
-
-    def time_get_op_constructs(self) -> None:
-        """Time getting the list of arguments of the type in an operation."""
+        self.add_op.get_trait(HasCanonicalizationPatternsTrait)
 
     def time_const_evaluate_operand(self) -> None:
         """Time trying constant evaluate an SSA value."""
@@ -120,7 +150,6 @@ class RewritingMicrobenchmarks:
         """Time `LiveSet.delete_dead`."""
 
     # TODO: milli-benchmark of top-level rewrites
-    # TODO: Operation create from other ubenches
     # TODO: extend_from_listener
     # TODO: `result_only_effects` > `get_effects` or `Operation.get_traits_of_type`
     # def time_(self) -> None:
