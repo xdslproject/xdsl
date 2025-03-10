@@ -51,9 +51,9 @@ class SwapInputs(RewritePattern):
         assert len(op.result.uses) == 1, "Each op result must be in a single eclass"
 
         eclass = tuple(op.result.uses)[0].operation
-        assert isinstance(
-            eclass, eqsat.EClassOp
-        ), "Each op result must be in a single eclass"
+        assert isinstance(eclass, eqsat.EClassOp), (
+            "Each op result must be in a single eclass"
+        )
 
         # # Check if the rewrite is already applied
         # for arg in eclass.operands:

@@ -1,7 +1,7 @@
 from io import StringIO
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, eqsat, func, pdl
 from xdsl.dialects.builtin import (
     ModuleOp,
@@ -75,7 +75,7 @@ def test_rewrite_swap_inputs_pdl():
 
     stream = StringIO()
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(
@@ -166,7 +166,7 @@ def test_hello():
         op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
     )
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(

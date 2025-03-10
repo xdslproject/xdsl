@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, pdl
 from xdsl.interpreters.eqsat_pdl import EqsatPDLRewritePattern
 from xdsl.parser import Parser
@@ -19,7 +19,7 @@ class ApplyEqsatPDLPass(ModulePass):
 
     pdl_file: str | None = None
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         payload_module = op
         if self.pdl_file is not None:
             assert os.path.exists(self.pdl_file)

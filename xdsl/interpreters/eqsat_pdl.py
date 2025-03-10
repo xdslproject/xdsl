@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import IO, Any, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import eqsat, pdl
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, impl, register_impls
@@ -12,7 +12,6 @@ from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.convert_onnx_to_linalg import get_root_op
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -40,7 +39,7 @@ class EqsatPDLMatcher(PDLMatcher):
         # return res
 
 
-def _get_root_op(op: Operation | None) -> Operation | None:
+def get_root_op(op: Operation | None) -> Operation | None:
     """
     Recursively finds and returns the root operation associated with the given operation.
     """
@@ -54,7 +53,7 @@ class EqsatPDLRewritePattern(RewritePattern):
     interpreter: Interpreter
 
     def __init__(
-        self, pdl_rewrite_op: pdl.RewriteOp, ctx: MLContext, file: IO[str] | None = None
+        self, pdl_rewrite_op: pdl.RewriteOp, ctx: Context, file: IO[str] | None = None
     ):
         pdl_pattern = pdl_rewrite_op.parent_op()
         assert isinstance(pdl_pattern, pdl.PatternOp)
@@ -67,13 +66,13 @@ class EqsatPDLRewritePattern(RewritePattern):
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         if not self.functions.did_populate:
-            self.functions.populate_maps(cast(ModuleOp, _get_root_op(xdsl_op)))
+            self.functions.populate_maps(cast(ModuleOp, get_root_op(xdsl_op)))
 
         pdl_op_val = self.pdl_rewrite_op.root
         assert pdl_op_val is not None, "TODO: handle None root op in pdl.RewriteOp"
-        assert (
-            self.pdl_rewrite_op.body is not None
-        ), "TODO: handle None body op in pdl.RewriteOp"
+        assert self.pdl_rewrite_op.body is not None, (
+            "TODO: handle None body op in pdl.RewriteOp"
+        )
 
         assert isinstance(pdl_op_val, OpResult)
         pdl_op = pdl_op_val.op
