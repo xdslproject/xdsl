@@ -22,3 +22,16 @@ class LoadDialects:
     def time_builtin_load(self) -> None:
         """Time loading the `builtin` dialect."""
         importlib.reload(xdsl.dialects.builtin)
+
+
+if __name__ == "__main__":
+    from bench_utils import Benchmark, profile
+
+    LOAD_DIALECTS = LoadDialects()
+
+    profile(
+        {
+            "LoadDialects.arith_load": Benchmark(LOAD_DIALECTS.time_arith_load),
+            "LoadDialects.builtin_load": Benchmark(LOAD_DIALECTS.time_builtin_load),
+        }
+    )
