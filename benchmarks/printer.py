@@ -34,14 +34,13 @@ class Printer:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-
-    from bench_utils import profile
+    from bench_utils import Benchmark, profile
 
     PRINTER = Printer()
-    BENCHMARKS: dict[str, Callable[[], None]] = {
-        "Printer.constant_100_input": PRINTER.time_constant_100,
-        "Printer.constant_1000_input": PRINTER.time_constant_1000,
-        "Printer.dense_attr_hex_input": PRINTER.time_dense_attr_hex,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "Printer.constant_100_input": Benchmark(PRINTER.time_constant_100),
+            "Printer.constant_1000_input": Benchmark(PRINTER.time_constant_1000),
+            "Printer.dense_attr_hex_input": Benchmark(PRINTER.time_dense_attr_hex),
+        }
+    )

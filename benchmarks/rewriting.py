@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Benchmarks for the pattern rewriter of the xDSL implementation."""
 
-from typing import Any
-
 from benchmarks.helpers import get_context, parse_module
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
@@ -157,26 +155,23 @@ class RewritingMicrobenchmarks:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-
-    from bench_utils import profile
+    from bench_utils import Benchmark, profile
 
     PATTERN_REWRITER = PatternRewriter()
     REWRITER_UBENCHMARKS = RewritingMicrobenchmarks()
-    BENCHMARKS: dict[
-        str, Callable[[], None] | tuple[Callable[[], None], Callable[[], Any]]
-    ] = {
-        "PatternRewriter.constant_folding_20": (
-            PATTERN_REWRITER.time_constant_folding_20,
-            PATTERN_REWRITER.setup_constant_folding_20,
-        ),
-        "PatternRewriter.constant_folding_100": (
-            PATTERN_REWRITER.time_constant_folding_100,
-            PATTERN_REWRITER.setup_constant_folding_100,
-        ),
-        "PatternRewriter.constant_folding_1000": (
-            PATTERN_REWRITER.time_constant_folding_1000,
-            PATTERN_REWRITER.setup_constant_folding_1000,
-        ),
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "PatternRewriter.constant_folding_20": Benchmark(
+                PATTERN_REWRITER.time_constant_folding_20,
+                PATTERN_REWRITER.setup_constant_folding_20,
+            ),
+            "PatternRewriter.constant_folding_100": Benchmark(
+                PATTERN_REWRITER.time_constant_folding_100,
+                PATTERN_REWRITER.setup_constant_folding_100,
+            ),
+            "PatternRewriter.constant_folding_1000": Benchmark(
+                PATTERN_REWRITER.time_constant_folding_1000,
+                PATTERN_REWRITER.setup_constant_folding_1000,
+            ),
+        }
+    )

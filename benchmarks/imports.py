@@ -107,22 +107,22 @@ class ImportInterpreters:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-
-    from bench_utils import profile
+    from bench_utils import Benchmark, profile
 
     XDSL = ImportXDSL()
     DIALECTS = ImportDialects()
     INTERPRETERS = ImportInterpreters()
-
-    BENCHMARKS: dict[str, Callable[[], None]] = {
-        "xDSL": XDSL.time_import_xdsl,
-        "Dialects.affine_load": DIALECTS.ignore_time_affine_load,
-        "Dialects.arith_load": DIALECTS.ignore_time_arith_load,
-        "Dialects.builtin_load": DIALECTS.ignore_time_builtin_load,
-        "Dialects.cf_load": DIALECTS.ignore_time_cf_load,
-        "Dialects.test_load": DIALECTS.ignore_time_test_load,
-        "Dialects.all_constant_load": DIALECTS.time_all_constant_load,
-        "Interpreters.all_constant_load": INTERPRETERS.time_all_constant_load,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "xDSL": Benchmark(XDSL.time_import_xdsl),
+            "Dialects.affine_load": Benchmark(DIALECTS.ignore_time_affine_load),
+            "Dialects.arith_load": Benchmark(DIALECTS.ignore_time_arith_load),
+            "Dialects.builtin_load": Benchmark(DIALECTS.ignore_time_builtin_load),
+            "Dialects.cf_load": Benchmark(DIALECTS.ignore_time_cf_load),
+            "Dialects.test_load": Benchmark(DIALECTS.ignore_time_test_load),
+            "Dialects.all_constant_load": Benchmark(DIALECTS.time_all_constant_load),
+            "Interpreters.all_constant_load": Benchmark(
+                INTERPRETERS.time_all_constant_load
+            ),
+        }
+    )

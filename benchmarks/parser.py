@@ -34,15 +34,14 @@ class Parser:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-
-    from bench_utils import profile
+    from bench_utils import Benchmark, profile
 
     PARSER = Parser()
-    BENCHMARKS: dict[str, Callable[[], None]] = {
-        "Parser.constant_100": PARSER.time_constant_100,
-        "Parser.constant_1000": PARSER.time_constant_1000,
-        # "Parser.dense_attr": PARSER.ignore_time_dense_attr,
-        "Parser.dense_attr_hex": PARSER.time_dense_attr_hex,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "Parser.constant_100": Benchmark(PARSER.time_constant_100),
+            "Parser.constant_1000": Benchmark(PARSER.time_constant_1000),
+            # "Parser.dense_attr": Benchmark(PARSER.ignore_time_dense_attr),
+            "Parser.dense_attr_hex": Benchmark(PARSER.time_dense_attr_hex),
+        }
+    )

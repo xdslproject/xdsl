@@ -140,21 +140,28 @@ class ASL:
 
 
 if __name__ == "__main__":
-    from bench_utils import profile  # type: ignore
+    from bench_utils import Benchmark, profile  # type: ignore
 
     CONSTANT_FOLDING = ConstantFolding()
     MISCELLANEOUS = Miscellaneous()
 
-    BENCHMARKS = {
-        "ConstantFolding.100": CONSTANT_FOLDING.time_100,
-        "ConstantFolding.100_unverified": CONSTANT_FOLDING.time_100_unverified,
-        "ConstantFolding.100_constant_fold_interp": CONSTANT_FOLDING.time_100_constant_fold_interp,
-        "ConstantFolding.100_none": CONSTANT_FOLDING.time_100_none,
-        "ConstantFolding.4": CONSTANT_FOLDING.ignore_time_4,
-        "ConstantFolding.20": CONSTANT_FOLDING.ignore_time_20,
-        "ConstantFolding.1000": CONSTANT_FOLDING.ignore_time_1000,
-        "Miscellaneous.empty_program": MISCELLANEOUS.time_empty_program,
-        "Miscellaneous.dense_attr": MISCELLANEOUS.ignore_time_dense_attr,
-        "Miscellaneous.dense_attr_hex": MISCELLANEOUS.time_dense_attr_hex,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "ConstantFolding.100": Benchmark(CONSTANT_FOLDING.time_100),
+            "ConstantFolding.100_unverified": Benchmark(
+                CONSTANT_FOLDING.time_100_unverified
+            ),
+            "ConstantFolding.100_constant_fold_interp": Benchmark(
+                CONSTANT_FOLDING.time_100_constant_fold_interp
+            ),
+            "ConstantFolding.100_none": Benchmark(CONSTANT_FOLDING.time_100_none),
+            "ConstantFolding.4": Benchmark(CONSTANT_FOLDING.ignore_time_4),
+            "ConstantFolding.20": Benchmark(CONSTANT_FOLDING.ignore_time_20),
+            "ConstantFolding.1000": Benchmark(CONSTANT_FOLDING.ignore_time_1000),
+            "Miscellaneous.empty_program": Benchmark(MISCELLANEOUS.time_empty_program),
+            "Miscellaneous.dense_attr": Benchmark(MISCELLANEOUS.ignore_time_dense_attr),
+            "Miscellaneous.dense_attr_hex": Benchmark(
+                MISCELLANEOUS.time_dense_attr_hex
+            ),
+        }
+    )

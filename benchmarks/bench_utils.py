@@ -9,12 +9,19 @@ from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
 from statistics import mean, median, stdev
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 from benchmarks.bytecode.visualise import print_bytecode
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof", "dis")
+
+
+class Benchmark(NamedTuple):
+    """A wrapper for a benchmark function with optional setup funtion."""
+
+    body: Callable[[], Any]
+    setup: Callable[[], Any] | None = None
 
 
 def warmed_timeit(
@@ -23,48 +30,59 @@ def warmed_timeit(
     number: int = 100,
     warmup: int = 3,
 ) -> tuple[float, float, float]:
-    """Time the contents of a class method with setup and warmup.
+    """
+    Time the contents of a class method with setup and warmup.
 
     Derived from <https://github.com/python/cpython/blob/3.13/Lib/timeit.py>.
     """
 
     class EmptyBenchmarkClass:
-        """A benchmark class for the empty function."""
+        """A class with an empty method call as a baseline for timing."""
 
         def empty(self) -> None:
-            """An empty function call."""
+            """An empty method call."""
             pass
 
     benchmark_class_empty = EmptyBenchmarkClass().empty
 
+    # Inspired by timeit, we disable garbage collection for less noise in
+    # measurements
     gcold = gc.isenabled()
     gc.disable()
-
+    # Pre-populate the arrays to avoid costs of re-sizing them
     times = [0.0 for _ in range(number)]
     offset = [0.0 for _ in range(number)]
 
+    # Run the interleaved setup and function calls to warm up
     for _ in range(warmup):
         if setup is not None:
             setup()
         func()
 
     for i in range(number):
+        # Optionally run setup code (for example resetting mutable state) before
+        # each measurement iteration
         if setup is not None:
             setup()
-
+        # Calculate the base cost of method invocation and timing overhead, so
+        # we can offset our final measurements by it
         offset_start = time.perf_counter()
         benchmark_class_empty()
         offset_end = time.perf_counter()
         offset[i] = offset_end - offset_start
-
+        # Time the actual function we want to measure
         func_start = time.perf_counter()
         func()
         func_end = time.perf_counter()
         times[i] = func_end - func_start
 
+    # Re-enable the garbage collector if it was initially on
     if gcold:
         gc.enable()
 
+    # Return the mean, median, and standard deviations of the measured times.
+    # The mean offset is subtracted from the median time for the best
+    # approximation given the data we can record
     return (
         mean(times) - mean(offset),
         median(times) - mean(offset),
@@ -104,32 +122,25 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
 
 def get_benchmark_runs(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
-) -> list[tuple[str, Callable[[], None], Callable[[], None] | None]]:
+    benchmarks: dict[str, Benchmark],
+) -> list[tuple[str, Benchmark]]:
     """Get the benchmark to profile."""
     if args.test == "all":
-        return [
-            (name, test[0], test[1]) if isinstance(test, tuple) else (name, test, None)
-            for name, test in benchmarks.items()
-        ]
+        return list(benchmarks.items())
 
     name = args.test
     test = benchmarks[name]
-    return [(name, test[0], test[1]) if isinstance(test, tuple) else (name, test, None)]
+    return [(name, test)]
 
 
 def run_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: dict[str, Benchmark],
     warmup: bool = False,
 ) -> None:
     """Directly run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
-    for name, test, setup in benchmark_runs:
+    for name, (test, setup) in benchmark_runs:
         if warmup:
             if setup is not None:
                 setup()
@@ -143,29 +154,25 @@ def run_benchmark(
 
 def timeit_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: dict[str, Benchmark],
 ) -> None:
     """Use a custom function based on timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
-    for name, test, setup in benchmark_runs:
+    for name, (test, setup) in benchmark_runs:
         me, _, std = warmed_timeit(test, setup=setup)
         print(f"Test {name} ran in: {me:.3g} ± {std:.3g}s")
 
 
 def cprofile_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: dict[str, Benchmark],
     warmup: bool = False,
 ) -> Path:
     """Use cProfile to profile a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot profile multiple benchmarks together")
-    name, test, setup = benchmark_runs[0]
+    name, (test, setup) = benchmark_runs[0]
     output_prof = args.output / f"{name}.prof"
     if warmup:
         if setup is not None:
@@ -183,9 +190,7 @@ def cprofile_benchmark(
 
 def viztracer_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: dict[str, Benchmark],
     warmup: bool = True,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
@@ -194,7 +199,7 @@ def viztracer_benchmark(
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot profile multiple benchmarks together")
-    name, test, setup = benchmark_runs[0]
+    name, (test, setup) = benchmark_runs[0]
     output_prof = args.output / f"{name}.json"
     if warmup:
         if setup is not None:
@@ -209,14 +214,13 @@ def viztracer_benchmark(
 
 def dis_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: dict[str, Benchmark],
 ):
+    """Use dis to disassemble a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot disassemble multiple benchmarks together")
-    _name, test, setup = benchmark_runs[0]
+    _, (test, setup) = benchmark_runs[0]
     if setup is not None:
         setup()
     print_bytecode(test)
@@ -238,9 +242,7 @@ def show(
 
 
 def profile(
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: dict[str, Benchmark],
     argv: list[str] | None = None,
 ) -> None:
     """Run the selected profiler."""

@@ -46,7 +46,6 @@ bench = [
     "snakeviz>=2.2.2",
     "viztracer>=1.0.1",
     "flameprof>=0.4",
-    "functiontrace>=0.3.7",
     "orjson>=3.10.15",
 ]
 

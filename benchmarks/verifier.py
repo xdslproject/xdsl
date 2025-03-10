@@ -39,14 +39,13 @@ class Verifier:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-
-    from bench_utils import profile
+    from bench_utils import Benchmark, profile
 
     VERIFIER = Verifier()
-    BENCHMARKS: dict[str, Callable[[], None]] = {
-        "Verifier.constant_100": VERIFIER.time_constant_100,
-        "Verifier.constant_1000": VERIFIER.time_constant_1000,
-        "Verifier.dense_attr_hex": VERIFIER.time_dense_attr_hex,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "Verifier.constant_100": Benchmark(VERIFIER.time_constant_100),
+            "Verifier.constant_1000": Benchmark(VERIFIER.time_constant_1000),
+            "Verifier.dense_attr_hex": Benchmark(VERIFIER.time_dense_attr_hex),
+        }
+    )

@@ -121,25 +121,26 @@ class OpCreation:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-    from typing import Any
-
-    from bench_utils import profile
+    from bench_utils import Benchmark, profile
 
     EXTENSIBILITY = Extensibility()
     IR_TRAVERSAL = IRTraversal()
     OP_CREATION = OpCreation()
-
-    BENCHMARKS: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ] = {
-        "IRTraversal.iterate_ops": IR_TRAVERSAL.time_iterate_ops,
-        "IRTraversal.iterate_block_ops": IR_TRAVERSAL.time_iterate_block_ops,
-        "IRTraversal.walk_block_ops": IR_TRAVERSAL.time_walk_block_ops,
-        "Extensibility.interface_check": EXTENSIBILITY.time_interface_check,
-        "Extensibility.trait_check": EXTENSIBILITY.time_trait_check,
-        "Extensibility.trait_check_neg": EXTENSIBILITY.time_trait_check_neg,
-        "OpCreation.operation_create": OP_CREATION.time_operation_create,
-        "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
+            "IRTraversal.iterate_block_ops": Benchmark(
+                IR_TRAVERSAL.time_iterate_block_ops
+            ),
+            "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
+            "Extensibility.interface_check": Benchmark(
+                EXTENSIBILITY.time_interface_check
+            ),
+            "Extensibility.trait_check": Benchmark(EXTENSIBILITY.time_trait_check),
+            "Extensibility.trait_check_neg": Benchmark(
+                EXTENSIBILITY.time_trait_check_neg
+            ),
+            "OpCreation.operation_create": Benchmark(OP_CREATION.time_operation_create),
+            "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),
+        }
+    )

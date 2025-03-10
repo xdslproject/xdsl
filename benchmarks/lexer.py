@@ -52,16 +52,15 @@ class Lexer:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-
-    from bench_utils import profile
+    from bench_utils import Benchmark, profile
 
     LEXER = Lexer()
-    BENCHMARKS: dict[str, Callable[[], None]] = {
-        "Lexer.empty_program": LEXER.time_empty_program,
-        "Lexer.constant_100": LEXER.time_constant_100,
-        "Lexer.constant_1000": LEXER.time_constant_1000,
-        # "Lexer.dense_attr": LEXER.ignore_time_dense_attr,
-        "Lexer.dense_attr_hex": LEXER.time_dense_attr_hex,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "Lexer.empty_program": Benchmark(LEXER.time_empty_program),
+            "Lexer.constant_100": Benchmark(LEXER.time_constant_100),
+            "Lexer.constant_1000": Benchmark(LEXER.time_constant_1000),
+            # "Lexer.dense_attr": Benchmark(LEXER.ignore_time_dense_attr),
+            "Lexer.dense_attr_hex": Benchmark(LEXER.time_dense_attr_hex),
+        }
+    )
