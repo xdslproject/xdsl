@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    ClassVar,
     Generic,
     TypeAlias,
     TypeVar,
@@ -94,6 +95,13 @@ def irdl_param_attr_get_param_type_hints(cls: type[_A]) -> list[tuple[str, Any]]
         if field_name == "name" or field_name == "parameters":
             continue
 
+        if is_classvar(field_type):
+            if field_name.isupper():
+                continue
+            raise PyRDLAttrDefinitionError(
+                f'Invalid ClassVar name "{field_name}", must be uppercase.'
+            )
+
         origin: Any | None = cast(Any | None, get_origin(field_type))
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
@@ -150,6 +158,8 @@ class ParamAttrDef:
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
                     continue
+            if is_classvar(value):
+                continue
             raise PyRDLAttrDefinitionError(
                 f"{field_name} is not a parameter definition."
             )
@@ -466,3 +476,17 @@ def eq(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
     Converts an attribute instance into the equivalent constraint.
     """
     return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
+
+
+def is_classvar(annotation: Any) -> bool:
+    """
+    The type annotation can be one of
+     * `ClassVar[MyType]`,
+     * `ClassVar`, or
+     * `"ClassVar[MyType]"`.
+    """
+    return (
+        get_origin(annotation) is ClassVar
+        or annotation is ClassVar
+        or (isinstance(annotation, str) and annotation.startswith("ClassVar"))
+    )

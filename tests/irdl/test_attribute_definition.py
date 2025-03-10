@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, Any, ClassVar, Generic, TypeAlias, TypeVar, cast
 
 import pytest
 
@@ -870,3 +870,32 @@ def test_constraint_var_fail_not_satisfy_constraint():
         ConstraintVarAttr.new(
             [IntegerAttr(42, IndexType()), IntegerAttr(17, IndexType())]
         )
+
+
+################################################################################
+# Constant ClassVar
+################################################################################
+
+
+def test_class_var_pass():
+    """Test that ClassVar constants are allowed in attribute definitions."""
+
+    @irdl_attr_definition
+    class ClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+        name = "test.class_var"
+        CONSTANT: ClassVar[int]
+        param: ParameterDef[IntData]
+
+
+def test_class_var_fail():
+    """Test that lowercase ClassVar fields are not allowed."""
+    with pytest.raises(
+        PyRDLAttrDefinitionError,
+        match='Invalid ClassVar name "constant", must be uppercase.',
+    ):
+
+        @irdl_attr_definition
+        class InvalidClassVarAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
+            name = "test.invalid_class_var"
+            constant: ClassVar[int]  # Should be uppercase
+            param: ParameterDef[IntData]
