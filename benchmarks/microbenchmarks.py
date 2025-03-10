@@ -25,16 +25,11 @@ class LoadDialects:
 
 
 if __name__ == "__main__":
-    from collections.abc import Callable
-    from typing import Any
-
-    from bench_utils import profile
+    from bench_utils import Benchmarks, profile
 
     LOAD_DIALECTS = LoadDialects()
 
-    BENCHMARKS: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ] = {
+    BENCHMARKS: Benchmarks = {
         "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
         "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
     }

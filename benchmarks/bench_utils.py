@@ -9,10 +9,14 @@ from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
 from statistics import mean, median, stdev
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
+
+Benchmarks: TypeAlias = dict[
+    str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
+]
 
 
 def warmed_timeit(
@@ -113,9 +117,7 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
 
 def get_benchmark_runs(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: Benchmarks,
 ) -> list[tuple[str, Callable[[], None], Callable[[], None] | None]]:
     """Get the benchmark to profile."""
     if args.test == "all":
@@ -131,9 +133,7 @@ def get_benchmark_runs(
 
 def run_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: Benchmarks,
     warmup: bool = False,
 ) -> None:
     """Directly run a benchmark."""
@@ -152,9 +152,7 @@ def run_benchmark(
 
 def timeit_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: Benchmarks,
 ) -> None:
     """Use a custom function based on timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
@@ -165,9 +163,7 @@ def timeit_benchmark(
 
 def cprofile_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: Benchmarks,
     warmup: bool = False,
 ) -> Path:
     """Use cProfile to profile a benchmark."""
@@ -192,9 +188,7 @@ def cprofile_benchmark(
 
 def viztracer_benchmark(
     args: Namespace,
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: Benchmarks,
     warmup: bool = True,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
@@ -232,9 +226,7 @@ def show(
 
 
 def profile(
-    benchmarks: dict[
-        str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-    ],
+    benchmarks: Benchmarks,
     argv: list[str] | None = None,
 ) -> None:
     """Run the selected profiler."""
