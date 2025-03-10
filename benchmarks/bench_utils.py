@@ -21,7 +21,8 @@ def warmed_timeit(
     number: int = 100,
     warmup: int = 3,
 ) -> tuple[float, float, float]:
-    """Time the contents of a class method with setup and warmup.
+    """
+    Time the contents of a class method with setup and warmup.
 
     Derived from <https://github.com/python/cpython/blob/3.13/Lib/timeit.py>.
     """
