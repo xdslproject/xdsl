@@ -25,12 +25,13 @@ class LoadDialects:
 
 
 if __name__ == "__main__":
-    from bench_utils import Benchmarks, profile
+    from bench_utils import Benchmark, profile
 
     LOAD_DIALECTS = LoadDialects()
 
-    BENCHMARKS: Benchmarks = {
-        "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
-        "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
-    }
-    profile(BENCHMARKS)
+    profile(
+        {
+            "LoadDialects.arith_load": Benchmark(LOAD_DIALECTS.time_arith_load),
+            "LoadDialects.builtin_load": Benchmark(LOAD_DIALECTS.time_builtin_load),
+        }
+    )

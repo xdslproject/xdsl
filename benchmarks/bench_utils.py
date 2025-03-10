@@ -9,14 +9,17 @@ from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
 from statistics import mean, median, stdev
-from typing import Any, TypeAlias, cast
+from typing import Any, NamedTuple, cast
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
 
-Benchmarks: TypeAlias = dict[
-    str, Callable[[], Any] | tuple[Callable[[], Any], Callable[[], Any]]
-]
+
+class Benchmark(NamedTuple):
+    """A wrapper for a benchmark function with optional setup funtion."""
+
+    body: Callable[[], Any]
+    setup: Callable[[], Any] | None = None
 
 
 def warmed_timeit(
@@ -117,28 +120,25 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
 
 def get_benchmark_runs(
     args: Namespace,
-    benchmarks: Benchmarks,
-) -> list[tuple[str, Callable[[], None], Callable[[], None] | None]]:
+    benchmarks: dict[str, Benchmark],
+) -> list[tuple[str, Benchmark]]:
     """Get the benchmark to profile."""
     if args.test == "all":
-        return [
-            (name, test[0], test[1]) if isinstance(test, tuple) else (name, test, None)
-            for name, test in benchmarks.items()
-        ]
+        return list(benchmarks.items())
 
     name = args.test
     test = benchmarks[name]
-    return [(name, test[0], test[1]) if isinstance(test, tuple) else (name, test, None)]
+    return [(name, test)]
 
 
 def run_benchmark(
     args: Namespace,
-    benchmarks: Benchmarks,
+    benchmarks: dict[str, Benchmark],
     warmup: bool = False,
 ) -> None:
     """Directly run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
-    for name, test, setup in benchmark_runs:
+    for name, (test, setup) in benchmark_runs:
         if warmup:
             if setup is not None:
                 setup()
@@ -152,25 +152,25 @@ def run_benchmark(
 
 def timeit_benchmark(
     args: Namespace,
-    benchmarks: Benchmarks,
+    benchmarks: dict[str, Benchmark],
 ) -> None:
     """Use a custom function based on timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
-    for name, test, setup in benchmark_runs:
+    for name, (test, setup) in benchmark_runs:
         me, _, std = warmed_timeit(test, setup=setup)
         print(f"Test {name} ran in: {me:.3g} ± {std:.3g}s")
 
 
 def cprofile_benchmark(
     args: Namespace,
-    benchmarks: Benchmarks,
+    benchmarks: dict[str, Benchmark],
     warmup: bool = False,
 ) -> Path:
     """Use cProfile to profile a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot profile multiple benchmarks together")
-    name, test, setup = benchmark_runs[0]
+    name, (test, setup) = benchmark_runs[0]
     output_prof = args.output / f"{name}.prof"
     if warmup:
         if setup is not None:
@@ -188,7 +188,7 @@ def cprofile_benchmark(
 
 def viztracer_benchmark(
     args: Namespace,
-    benchmarks: Benchmarks,
+    benchmarks: dict[str, Benchmark],
     warmup: bool = True,
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
@@ -197,7 +197,7 @@ def viztracer_benchmark(
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     if len(benchmark_runs) != 1:
         raise ValueError("Cannot profile multiple benchmarks together")
-    name, test, setup = benchmark_runs[0]
+    name, (test, setup) = benchmark_runs[0]
     output_prof = args.output / f"{name}.json"
     if warmup:
         if setup is not None:
@@ -226,7 +226,7 @@ def show(
 
 
 def profile(
-    benchmarks: Benchmarks,
+    benchmarks: dict[str, Benchmark],
     argv: list[str] | None = None,
 ) -> None:
     """Run the selected profiler."""
