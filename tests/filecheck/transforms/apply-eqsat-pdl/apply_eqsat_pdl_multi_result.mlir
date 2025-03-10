@@ -9,9 +9,9 @@
 // CHECK-NEXT:        %c_1 = eqsat.eclass %c : i32
 // CHECK-NEXT:        %d = arith.addi %a_1, %b_1 : i32
 // CHECK-NEXT:        %d_1 = eqsat.eclass %d : i32
-// CHECK-NEXT:        %0 = arith.subi %b, %c : i32
+// CHECK-NEXT:        %0 = arith.subi %b_1, %c_1 : i32
 // CHECK-NEXT:        %1 = eqsat.eclass %0 : i32
-// CHECK-NEXT:        %e = arith.addi %a, %1 : i32
+// CHECK-NEXT:        %e = arith.addi %a_1, %1 : i32
 // CHECK-NEXT:        %e_1 = arith.subi %d_1, %c_1 : i32
 // CHECK-NEXT:        %e_2 = eqsat.eclass %e_1, %e : i32
 // CHECK-NEXT:        func.return %e_2 : i32
