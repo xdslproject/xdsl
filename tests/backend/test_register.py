@@ -42,7 +42,7 @@ class TestRegister(RegisterType):
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return {"x0": 0, "x1": 1}
+        return {"x0": 0, "x1": 1, "a0": 0, "a1": 1}
 
     @classmethod
     def infinite_register_prefix(cls):
@@ -108,3 +108,7 @@ def test_invalid_index():
         VerifyException, match="Invalid index 2 for register x1, expected 1."
     ):
         TestRegister(IntAttr(2), StringAttr("x1"))
+
+
+def test_name_by_index():
+    assert TestRegister.abi_name_by_index() == {0: "a0", 1: "a1"}
