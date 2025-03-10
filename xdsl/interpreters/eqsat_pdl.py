@@ -38,6 +38,19 @@ class EqsatPDLMatcher(PDLMatcher):
         # self.value_to_eclass[ssa_val] = only_use.operation
         # return res
 
+    def match_result(
+        self, ssa_val: SSAValue, pdl_op: pdl.ResultOp, xdsl_operand: SSAValue
+    ):
+        if not isinstance(xdsl_operand.owner, eqsat.EClassOp):
+            print("Operand isn't an e-class -> skipping")
+            return False
+        # TODO: if the operand owner is not an eclass, we could register a new eclass if the match finally succeeds?
+        #       another approach could be to keep the operation "outside" of the e-graph.
+        if len(xdsl_operand.owner.operands) > 1:
+            print("TODO: e-class with multiple e-nodes")
+
+        return super().match_result(ssa_val, pdl_op, xdsl_operand.owner.operands[0])
+
 
 def get_root_op(op: Operation | None) -> Operation | None:
     """
@@ -208,6 +221,17 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
             properties=properties,
         )
 
+        self.rewriter.insert_op_before_matched_op(result_op)
+
+        eclass_op = eqsat.EClassOp.create(
+            operands=[result_op.results[0]], result_types=[result_op.results[0].type]
+        )
+
+        self.rewriter.insert_op(eclass_op, InsertPoint.after(result_op))
+
+        # Register the new operation's result with its e-class
+        self.value_to_eclass[result_op.results[0]] = eclass_op
+
         self.op_components_to_op[key] = result_op
 
         return (result_op,)
@@ -233,18 +257,18 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
             assert len(new_results) == 1
             new_eclass_op = self.value_to_eclass.get(new_results[0])
 
-            if new_eclass_op is None:
-                # Add new op to eclass
-                new_results[0].name_hint = old_op.results[0].name_hint
-                rewriter.insert_op(new_op, InsertPoint.before(old_op))
-                old_eclass_op.operands = old_eclass_op.arguments + new_results
-                self.value_to_eclass[new_results[0]] = old_eclass_op
-            else:
-                if old_eclass_op is new_eclass_op:
-                    # Class already exists and is in the same eclass, nothing to do
-                    ...
-                else:
-                    raise NotImplementedError()
+            if old_eclass_op is new_eclass_op:
+                return ()
+
+            assert new_eclass_op is not None
+
+            old_eclass_op.operands = old_eclass_op.arguments + new_results
+
+            rewriter.replace_op(new_eclass_op, [], [old_eclass_op.results[0]])
+
+            assert new_eclass_op is not None
+
+            self.value_to_eclass[new_op.results[0]] = old_eclass_op
 
         elif op.repl_values:
             raise NotImplementedError()
