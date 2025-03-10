@@ -39,8 +39,8 @@ def warmed_timeit(
     gcold = gc.isenabled()
     gc.disable()
 
-    times = [0.0 for _ in range(number)]
-    offset = [0.0 for _ in range(number)]
+    times = [0.0] * number
+    offset = [0.0] * number
 
     for _ in range(warmup):
         if setup is not None:
