@@ -268,6 +268,9 @@ class EqsatPDLRewriteFunctions(PDLRewriteFunctions):
 
             assert new_eclass_op is not None
 
+            if new_op.results[0].name_hint is None:
+                new_op.results[0].name_hint = old_op.results[0].name_hint
+
             self.value_to_eclass[new_op.results[0]] = old_eclass_op
 
         elif op.repl_values:
