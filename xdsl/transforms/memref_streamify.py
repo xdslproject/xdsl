@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import Block, Region
@@ -41,15 +41,17 @@ class StreamifyGenericOpPattern(RewritePattern):
             for index, (i, arg) in enumerate(
                 zip(op.inputs, op.body.block.args[:input_count])
             )
-            if isinstance(i.type, memref.MemRefType) and arg.uses
+            if isinstance(i_type := i.type, memref.MemRefType) and arg.uses
+            if i_type.get_shape()
         )
         streamable_output_indices = tuple(
             (index, arg.type)
             for index, (o, arg) in enumerate(
                 zip(op.outputs, op.body.block.args[input_count:])
             )
-            if isinstance(o.type, memref.MemRefType)
+            if isinstance(o_type := o.type, memref.MemRefType)
             if index in init_indices or not arg.uses
+            if o_type.get_shape()
         )
         if not streamable_input_indices and not streamable_output_indices:
             # No memrefs to convert to streams
@@ -131,17 +133,17 @@ class StreamifyGenericOpPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamifyPass(ModulePass):
+class MemRefStreamifyPass(ModulePass):
     """
-    Converts a memref generic on memrefs to a memref generic on streams, by moving it into
-    a streaming region.
+    Converts a memref generic on memrefs to a memref generic on streams, by moving it
+    into a streaming region.
     """
 
     name = "memref-streamify"
 
     streams: int = field(default=3)
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             StreamifyGenericOpPattern(self.streams),
             apply_recursively=False,

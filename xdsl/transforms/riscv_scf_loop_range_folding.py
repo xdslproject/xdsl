@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -42,12 +42,8 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     rewriter.insert_op_before_matched_op(
                         [
                             shift := riscv.LiOp(constant),
-                            new_lb := riscv.AddOp(
-                                op.lb, shift, rd=riscv.IntRegisterType.unallocated()
-                            ),
-                            new_ub := riscv.AddOp(
-                                op.ub, shift, rd=riscv.IntRegisterType.unallocated()
-                            ),
+                            new_lb := riscv.AddOp(op.lb, shift),
+                            new_ub := riscv.AddOp(op.ub, shift),
                         ]
                     )
                 case riscv.MulOp():
@@ -55,15 +51,9 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     rewriter.insert_op_before_matched_op(
                         [
                             factor := riscv.LiOp(constant),
-                            new_lb := riscv.MulOp(
-                                op.lb, factor, rd=riscv.IntRegisterType.unallocated()
-                            ),
-                            new_ub := riscv.MulOp(
-                                op.ub, factor, rd=riscv.IntRegisterType.unallocated()
-                            ),
-                            new_step := riscv.MulOp(
-                                op.step, factor, rd=riscv.IntRegisterType.unallocated()
-                            ),
+                            new_lb := riscv.MulOp(op.lb, factor),
+                            new_ub := riscv.MulOp(op.ub, factor),
+                            new_step := riscv.MulOp(op.step, factor),
                         ]
                     )
 
@@ -82,7 +72,7 @@ class RiscvScfLoopRangeFoldingPass(ModulePass):
 
     name = "riscv-scf-loop-range-folding"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             HoistIndexTimesConstantOp(),
             apply_recursively=False,

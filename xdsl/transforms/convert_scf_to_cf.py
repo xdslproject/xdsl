@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import AddiOp, CmpiOp, IndexCastOp
 from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, i32
@@ -16,7 +16,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.rewriter import BlockInsertPoint, InsertPoint
 from xdsl.traits import IsTerminator
 
 
@@ -60,7 +60,7 @@ class IfLowering(RewritePattern):
         )
 
         rewriter.erase_op(then_terminator)
-        rewriter.inline_region_before(then_region, continue_block)
+        rewriter.inline_region(then_region, BlockInsertPoint.before(continue_block))
 
         # Move blocks from the "else" region (if present) to the region containing
         # 'scf.if', place it before the continuation block and branch to it.  It
@@ -78,7 +78,7 @@ class IfLowering(RewritePattern):
             )
 
             rewriter.erase_op(else_terminator)
-            rewriter.inline_region_before(else_region, continue_block)
+            rewriter.inline_region(else_region, BlockInsertPoint.before(continue_block))
         else:
             else_block = continue_block
 
@@ -116,7 +116,7 @@ class ForLowering(RewritePattern):
         first_body_block = condition_block.split_before(first_op)
         last_body_block = for_op.body.last_block
         assert last_body_block is not None
-        rewriter.inline_region_before(for_op.body, end_block)
+        rewriter.inline_region(for_op.body, BlockInsertPoint.before(end_block))
         iv = condition_block.args[0]
 
         # Append the induction variable stepping logic to the last body block and
@@ -169,7 +169,7 @@ class SwitchLowering(RewritePattern):
         rewriter.replace_op(yield_op, BranchOp(continue_block, *yield_op.operands))
 
         # Inline the region
-        rewriter.inline_region_before(region, continue_block)
+        rewriter.inline_region(region, BlockInsertPoint.before(continue_block))
         return block
 
     @op_type_rewrite_pattern
@@ -228,7 +228,7 @@ class ConvertScfToCf(ModulePass):
 
     name = "convert-scf-to-cf"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

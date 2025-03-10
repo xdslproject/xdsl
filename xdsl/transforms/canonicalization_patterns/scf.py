@@ -9,13 +9,16 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import ConstantLike
-from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
+from xdsl.transforms.canonicalization_patterns.utils import (
+    const_evaluate_operand,
+)
 
 
 class RehoistConstInLoops(RewritePattern):
     """
     Carry out const definitions from the loops.
-    In the future this will probably be done by the pattern rewriter itself, like it's done in the MLIR's applyPatternsAndFoldGreedily.
+    In the future this will probably be done by the pattern rewriter itself, like it's
+    done in the MLIR's applyPatternsAndFoldGreedily.
     """
 
     @op_type_rewrite_pattern

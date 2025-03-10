@@ -2,11 +2,12 @@ from typing import Any, Literal, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
-    AnyFloatAttr,
-    AnyIntegerAttr,
     Float32Type,
     Float64Type,
+    FloatAttr,
+    IntegerAttr,
     IntegerType,
+    PackableType,
     UnrealizedConversionCastOp,
 )
 from xdsl.interpreter import (
@@ -24,7 +25,7 @@ from xdsl.utils.hints import isa
 
 def xtype_for_el_type(
     el_type: Attribute, index_bitwidth: Literal[32, 64]
-) -> ptr.XType[Any]:
+) -> PackableType[Any]:
     match el_type:
         case builtin.i32:
             return ptr.int32
@@ -58,24 +59,24 @@ class BuiltinFunctions(InterpreterFunctions):
     def float64_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: Float64Type
     ) -> float:
-        interpreter.interpreter_assert(isa(attr, AnyFloatAttr))
-        attr = cast(AnyFloatAttr, attr)
+        interpreter.interpreter_assert(isa(attr, FloatAttr))
+        attr = cast(FloatAttr, attr)
         return attr.value.data
 
     @impl_attr(Float32Type)
     def float32_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: Float32Type
     ) -> float:
-        interpreter.interpreter_assert(isa(attr, AnyFloatAttr))
-        attr = cast(AnyFloatAttr, attr)
+        interpreter.interpreter_assert(isa(attr, FloatAttr))
+        attr = cast(FloatAttr, attr)
         return attr.value.data
 
     @impl_attr(IntegerType)
     def integer_attr_value(
         self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
     ) -> float:
-        interpreter.interpreter_assert(isa(attr, AnyIntegerAttr))
-        attr = cast(AnyIntegerAttr, attr)
+        interpreter.interpreter_assert(isa(attr, IntegerAttr))
+        attr = cast(IntegerAttr, attr)
         return attr.value.data
 
     @impl_attr(builtin.MemRefType)

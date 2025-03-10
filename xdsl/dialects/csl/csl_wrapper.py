@@ -6,7 +6,6 @@ from typing import cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
@@ -73,7 +72,7 @@ class ParamAttribute(ParametrizedAttribute):
             if parser.parse_optional_keyword("default"):
                 parser.parse_punctuation("=")
                 val = parser.parse_attribute()
-                assert isa(val, AnyIntegerAttr)
+                assert isa(val, IntegerAttr)
                 assert isinstance(val.type, IntegerType)
                 type = val.type
             else:
@@ -228,7 +227,9 @@ class ModuleOp(IRDLOperation):
             len(self.program_module.block.args)
             == len(self.layout_module.block.args) - 2
             # minus two as layout_module has additional x and y args
-        ), "program_module block args should only contain args from properties when calling this function"
+        ), (
+            "program_module block args should only contain args from properties when calling this function"
+        )
 
         if yield_args is None:
             yield_args = self.layout_yield_op.items()

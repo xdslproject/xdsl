@@ -18,6 +18,7 @@ from xdsl.ir import (
 from xdsl.irdl import ParameterDef
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
@@ -26,53 +27,89 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
 
     index: ParameterDef[IntAttr | NoneAttr]
-    spelling: ParameterDef[StringAttr]
+    register_name: ParameterDef[StringAttr]
 
-    def __init__(self, spelling: str):
-        super().__init__(self._parameters_from_spelling(spelling))
+    def __init__(self, index: IntAttr | NoneAttr, register_name: StringAttr):
+        super().__init__((index, register_name))
 
     @classmethod
-    def _parameters_from_spelling(
-        cls, spelling: str
+    def unallocated(cls) -> Self:
+        """
+        Returns an unallocated register of this type.
+        """
+        return cls(NoneAttr(), StringAttr(""))
+
+    @classmethod
+    def _parameters_from_name(
+        cls, register_name: StringAttr
     ) -> tuple[IntAttr | NoneAttr, StringAttr]:
         """
-        Returns the parameter list required to construct a register instance from the given spelling.
+        Returns the parameter list required to construct a register instance from the given register_name.
         """
-        index_attr = NoneAttr()
-        index = cls.abi_index_by_name().get(spelling)
-        if index is not None:
-            index_attr = IntAttr(index)
-        return index_attr, StringAttr(spelling)
+        index = cls.abi_index_by_name().get(register_name.data)
+        index_attr = NoneAttr() if index is None else IntAttr(index)
+        return index_attr, register_name
 
     @classmethod
-    @abstractmethod
-    def unallocated(cls) -> Self:
-        raise NotImplementedError()
-
-    @property
-    def register_name(self) -> str:
-        """Returns name if allocated, raises ValueError if not"""
-        if not self.is_allocated:
-            raise ValueError("Cannot get name for unallocated register")
-        return self.spelling.data
+    def from_name(cls, register_name: StringAttr | str) -> Self:
+        if not isinstance(register_name, StringAttr):
+            register_name = StringAttr(register_name)
+        return cls(*cls._parameters_from_name(register_name))
 
     @property
     def is_allocated(self) -> bool:
         """Returns true if the register is allocated, otherwise false"""
-        return bool(self.spelling.data)
+        return bool(self.register_name.data)
 
     @classmethod
-    @abstractmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        raise NotImplementedError()
+        if parser.parse_optional_punctuation("<"):
+            name = parser.parse_identifier()
+            parser.parse_punctuation(">")
+        else:
+            name = ""
+        return cls._parameters_from_name(StringAttr(name))
 
     def print_parameters(self, printer: Printer) -> None:
-        if self.spelling.data:
+        if self.register_name.data:
             with printer.in_angle_brackets():
-                printer.print_string(self.spelling.data)
+                printer.print_string(self.register_name.data)
 
     def verify(self) -> None:
-        raise NotImplementedError()
+        name = self.register_name.data
+
+        if not name:
+            # Unallocated, expect NoneAttr
+            if isinstance(self.index, NoneAttr):
+                return
+            raise VerifyException(
+                f"Invalid index {self.index.data} for unallocated register."
+            )
+
+        expected_index = type(self).abi_index_by_name().get(name)
+        is_infinite = name.startswith(self.infinite_register_prefix())
+
+        if expected_index is None:
+            if is_infinite:
+                return
+
+            raise VerifyException(
+                f"Invalid register name {name} for register set "
+                f"{self.instruction_set_name()}."
+            )
+
+        if isinstance(self.index, NoneAttr):
+            if is_infinite:
+                return
+
+            raise VerifyException(
+                f"Missing index for register {name}, expected {expected_index}."
+            )
+
+        if expected_index != self.index.data:
+            raise VerifyException(
+                f"Invalid index {self.index.data} for register {name}, expected {expected_index}."
+            )
 
     @classmethod
     @abstractmethod
@@ -83,3 +120,27 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     @abstractmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def infinite_register_prefix(cls) -> str:
+        """
+        Provide the prefix for the name for a register at the given index in the
+        "infinite" register set.
+        For a prefix `x`, the name of the first infinite register will be `x0`.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def infinite_register(cls, index: int) -> Self:
+        """
+        Provide the register at the given index in the "infinite" register set.
+        Index must be positive.
+        """
+        assert index >= 0, f"Infinite index must be positive, got {index}."
+        register_name = cls.infinite_register_prefix() + str(index)
+        res = cls.from_name(register_name)
+        assert isinstance(res.index, NoneAttr), (
+            f"Invalid 'infinite' register name: {register_name} clashes with finite register set"
+        )
+        return res

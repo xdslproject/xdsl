@@ -123,7 +123,7 @@ builtin.module {
   // CHECK-NEXT:    %{{.*}}, %{{.*}} = scf.while (%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) : (i32, f32) -> (i32, f32) {
   // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
   // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
-  // CHECK-NEXT:      scf.condition(%{{.*}}) {"hello" = "world"} %{{.*}}, %{{.*}} : i32, f32
+  // CHECK-NEXT:      scf.condition(%{{.*}}) {hello = "world"} %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    } do {
   // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32

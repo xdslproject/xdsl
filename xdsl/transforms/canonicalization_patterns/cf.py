@@ -3,7 +3,6 @@ from typing import cast
 
 from xdsl.dialects import arith, cf
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     BoolAttr,
     DenseIntOrFPElementsAttr,
     IntegerAttr,
@@ -15,7 +14,9 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
+from xdsl.transforms.canonicalization_patterns.utils import (
+    const_evaluate_operand,
+)
 
 
 class AssertTrue(RewritePattern):
@@ -287,7 +288,7 @@ class SimplifySwitchWithOnlyDefault(RewritePattern):
 def drop_case_helper(
     rewriter: PatternRewriter,
     op: cf.SwitchOp,
-    predicate: Callable[[AnyIntegerAttr, Block, Sequence[Operation | SSAValue]], bool],
+    predicate: Callable[[IntegerAttr, Block, Sequence[Operation | SSAValue]], bool],
 ):
     case_values = op.case_values
     if case_values is None:
@@ -304,11 +305,11 @@ def drop_case_helper(
         op.case_operand,
         strict=True,
     ):
-        int_switch_case = cast(AnyIntegerAttr, switch_case)
+        int_switch_case = cast(IntegerAttr, switch_case)
         if predicate(int_switch_case, block, operands):
             requires_change = True
             continue
-        new_case_values.append(cast(AnyIntegerAttr, switch_case).value.data)
+        new_case_values.append(cast(IntegerAttr, switch_case).value.data)
         new_case_blocks.append(block)
         new_case_operands.append(operands)
 
@@ -344,7 +345,7 @@ class DropSwitchCasesThatMatchDefault(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         def predicate(
-            switch_case: AnyIntegerAttr,
+            switch_case: IntegerAttr,
             block: Block,
             operands: Sequence[Operation | SSAValue],
         ) -> bool:
@@ -537,7 +538,7 @@ class SimplifySwitchFromSwitchOnSameCondition(RewritePattern):
         else:
 
             def predicate(
-                switch_case: AnyIntegerAttr,
+                switch_case: IntegerAttr,
                 block: Block,
                 operands: Sequence[Operation | SSAValue],
             ) -> bool:

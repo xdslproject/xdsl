@@ -6,7 +6,7 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
     HW,
@@ -261,16 +261,16 @@ def test_inner_symbol_table_collection():
 
     sym_table1 = inner_sym_tables.get_inner_symbol_table(mod1)
     sym_table2 = inner_sym_tables.get_inner_symbol_table(mod2)
-    assert (
-        sym_table1 is not sym_table2
-    ), "Different InnerSymbolTableTrait objects must return different instances of inner symbol tables"
+    assert sym_table1 is not sym_table2, (
+        "Different InnerSymbolTableTrait objects must return different instances of inner symbol tables"
+    )
 
     unpopulated_inner_sym_tables = InnerSymbolTableCollection()
     sym_table3 = unpopulated_inner_sym_tables.get_inner_symbol_table(mod1)
     sym_table4 = unpopulated_inner_sym_tables.get_inner_symbol_table(mod2)
-    assert (
-        sym_table3 is not sym_table4
-    ), "InnerSymbolTableTrait still behave as expected when created on the fly"
+    assert sym_table3 is not sym_table4, (
+        "InnerSymbolTableTrait still behave as expected when created on the fly"
+    )
 
 
 def test_inner_ref_attr():
@@ -288,9 +288,9 @@ def test_inner_ref_attr():
     CircuitOp(attributes={"sym_name": StringAttr("circuit")}, regions=[[mod1, mod2]])
 
     ref = InnerRefAttr("mod2", "wire2")
-    assert (
-        ref.get_module().data == "mod2"
-    ), "Name of the referenced module should be returned correctly"
+    assert ref.get_module().data == "mod2", (
+        "Name of the referenced module should be returned correctly"
+    )
 
 
 def test_inner_sym_attr():
@@ -298,14 +298,14 @@ def test_inner_sym_attr():
     Test inner symbol attributes
     """
     invalid_sym_attr = InnerSymAttr()
-    assert (
-        invalid_sym_attr.get_sym_name() is None
-    ), "Invalid InnerSymAttr should return no name"
+    assert invalid_sym_attr.get_sym_name() is None, (
+        "Invalid InnerSymAttr should return no name"
+    )
 
     sym_attr = InnerSymAttr("sym")
-    assert sym_attr.get_sym_name() == StringAttr(
-        "sym"
-    ), "InnerSymAttr for “ground” type should return name"
+    assert sym_attr.get_sym_name() == StringAttr("sym"), (
+        "InnerSymAttr for “ground” type should return name"
+    )
 
     with pytest.raises(VerifyException, match=r"inner symbol cannot have empty name"):
         InnerSymAttr("")
@@ -318,22 +318,22 @@ def test_inner_sym_attr():
         ]
     )
 
-    assert aggregate_sym_attr.get_sym_name() == StringAttr(
-        "sym"
-    ), "InnerSymAttr for aggregate types should return name with field ID 0"
+    assert aggregate_sym_attr.get_sym_name() == StringAttr("sym"), (
+        "InnerSymAttr for aggregate types should return name with field ID 0"
+    )
 
     for inner, expected_field_id in zip(aggregate_sym_attr, [0, 1, 2]):
-        assert (
-            inner.field_id.data == expected_field_id
-        ), "InnerSymAttr should allow iterating its properties in order"
+        assert inner.field_id.data == expected_field_id, (
+            "InnerSymAttr should allow iterating its properties in order"
+        )
 
     aggregate_without_nested = aggregate_sym_attr.erase(2)
-    assert (
-        aggregate_without_nested.get_sym_if_exists(2) is None
-    ), "InnerSymAttr removal should work"
-    assert (
-        len(aggregate_without_nested) == 2
-    ), "InnerSymAttr removal should correctly change length"
+    assert aggregate_without_nested.get_sym_if_exists(2) is None, (
+        "InnerSymAttr removal should work"
+    )
+    assert len(aggregate_without_nested) == 2, (
+        "InnerSymAttr removal should correctly change length"
+    )
 
 
 def test_instance_builder():
@@ -343,7 +343,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
 }
 """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(HW)
 
     module_op = Parser(ctx, MODULE_CTX).parse_module()

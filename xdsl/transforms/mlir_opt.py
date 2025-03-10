@@ -3,13 +3,13 @@ import subprocess
 from dataclasses import dataclass, field
 from io import StringIO
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 from xdsl.rewriter import Rewriter
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, ParseError
 
 
 @dataclass(frozen=True)
@@ -25,7 +25,7 @@ class MLIROptPass(ModulePass):
     generic: bool = field(default=True)
     arguments: tuple[str, ...] = field(default=())
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         if not shutil.which(self.executable):
             raise ValueError(f"{self.executable} is not available")
 
@@ -44,20 +44,18 @@ class MLIROptPass(ModulePass):
 
         try:
             completed_process.check_returncode()
+        except subprocess.CalledProcessError as e:
+            raise DiagnosticException("Error executing mlir-opt pass") from e
 
-            # Get the stdout output
-            stdout_output = completed_process.stdout
+        # Get the stdout output
+        stdout_output = completed_process.stdout
+        parser = Parser(ctx, stdout_output)
 
-            parser = Parser(ctx, stdout_output)
-
+        try:
             new_module = parser.parse_module()
+        except ParseError as e:
+            raise DiagnosticException("Error parsing mlir-opt pass output") from e
 
-            op.detach_region(op.body)
-            op.add_region(
-                Rewriter().move_region_contents_to_new_regions(new_module.body)
-            )
-            op.attributes = new_module.attributes
-        except Exception as e:
-            raise DiagnosticException(
-                "Error executing mlir-opt pass:", completed_process.stderr
-            ) from e
+        op.detach_region(op.body)
+        op.add_region(Rewriter().move_region_contents_to_new_regions(new_module.body))
+        op.attributes = new_module.attributes

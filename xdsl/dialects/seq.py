@@ -8,7 +8,6 @@ from enum import Enum
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     IntegerAttr,
     IntegerType,
     TypeAttribute,
@@ -53,11 +52,11 @@ class ClockDividerOp(IRDLOperation):
 
     name = "seq.clock_div"
 
-    pow2 = attr_def(AnyIntegerAttr)
+    pow2 = attr_def(IntegerAttr)
     clockIn = operand_def(ClockType)
     clockOut = result_def(ClockType)
 
-    def __init__(self, clockIn: SSAValue | Operation, pow2: int | AnyIntegerAttr):
+    def __init__(self, clockIn: SSAValue | Operation, pow2: int | IntegerAttr):
         if isinstance(pow2, int):
             pow2 = IntegerAttr(pow2, IntegerType(8))
         super().__init__(
@@ -193,7 +192,7 @@ class ConstClockOp(IRDLOperation):
     def parse(cls, parser: Parser) -> "ConstClockOp":
         value = ClockConstAttr(ClockConstAttr.parse_parameter_free_standing(parser))
         attrs = parser.parse_optional_attr_dict_with_reserved_attr_names(("value",))
-        attrs_data = attrs.data if attrs is not None else {}
+        attrs_data = dict(attrs.data) if attrs is not None else {}
         attrs_data["value"] = value
         return ConstClockOp.create(attributes=attrs_data, result_types=[clock])
 

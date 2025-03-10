@@ -471,16 +471,16 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
         )
 
     def _verify(self):
-        assert (
-            len(self.topology.as_tuple()) >= 2
-        ), "GridSlice2d requires at least two dimensions"
+        assert len(self.topology.as_tuple()) >= 2, (
+            "GridSlice2d requires at least two dimensions"
+        )
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 2, "GridSlice2d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology.as_tuple()):
-            assert (
-                size % node_count == 0
-            ), "GridSlice2d requires domain be neatly divisible by shape"
+            assert size % node_count == 0, (
+                "GridSlice2d requires domain be neatly divisible by shape"
+            )
         return (
             *(
                 size // node_count
@@ -519,16 +519,16 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
         )
 
     def _verify(self):
-        assert (
-            len(self.topology.as_tuple()) >= 3
-        ), "GridSlice3d requires at least three dimensions"
+        assert len(self.topology.as_tuple()) >= 3, (
+            "GridSlice3d requires at least three dimensions"
+        )
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 3, "GridSlice3d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology.as_tuple()):
-            assert (
-                size % node_count == 0
-            ), "GridSlice3d requires domain be neatly divisible by shape"
+            assert size % node_count == 0, (
+                "GridSlice3d requires domain be neatly divisible by shape"
+            )
         return (
             *(
                 size // node_count

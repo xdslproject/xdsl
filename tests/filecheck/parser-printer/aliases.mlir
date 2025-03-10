@@ -9,11 +9,11 @@
 "test.op"() {"attr" = #attr} : () -> ()
 "test.op"() {"attr" = [#attr]} : () -> ()
 
-// CHECK:      "test.op"() {"attr" = 1 : i32} : () -> ()
-// CHECK-NEXT: "test.op"() {"attr" = i32} : () -> ()
-// CHECK-NEXT: "test.op"() {"attr" = vector<1xi32>} : () -> ()
-// CHECK-NEXT: "test.op"() {"attr" = 0 : i32} : () -> ()
-// CHECK-NEXT: "test.op"() {"attr" = [0 : i32]} : () -> ()
+// CHECK:      "test.op"() {attr = 1 : i32} : () -> ()
+// CHECK-NEXT: "test.op"() {attr = i32} : () -> ()
+// CHECK-NEXT: "test.op"() {attr = vector<1xi32>} : () -> ()
+// CHECK-NEXT: "test.op"() {attr = 0 : i32} : () -> ()
+// CHECK-NEXT: "test.op"() {attr = [0 : i32]} : () -> ()
 
 
 // -----
@@ -21,7 +21,7 @@
 #attr = 0
 
 "test.op"() {"attr" = #attr : i32} : () -> ()
-// CHECK: Expected '}'
+// CHECK: '}' expected
 
 // -----
 

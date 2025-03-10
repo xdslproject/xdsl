@@ -19,6 +19,6 @@ builtin.module {
 // CHECK-NEXT:  %byte = "test.op"() : () -> i8
 // CHECK-NEXT:  printf.print_format "Uses vals twice {} {} {} {}", %1 : i32, %0 : i32, %1 : i32, %0 : i32
 // CHECK-NEXT:  printf.print_format "{}", %0 : i32
-// CHECK-NEXT:  printf.print_format "{}", %0 : i32 {"unit"}
+// CHECK-NEXT:  printf.print_format "{}", %0 : i32 {unit}
 // CHECK-NEXT:  "printf.print_char"(%{{.*}}) : (i8) -> ()
 // CHECK-NEXT:  "printf.print_int"(%{{.*}}) : (i32) -> ()

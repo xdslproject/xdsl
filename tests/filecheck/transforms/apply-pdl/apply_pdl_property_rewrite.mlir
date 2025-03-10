@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s -p apply-pdl | filecheck %s
 
-// CHECK: "test.op"() <{"prop1" = i64}> : () -> ()
+// CHECK: "test.op"() <{prop1 = i64}> : () -> ()
 "test.op"() <{"prop1" = i32}> : () -> ()
 
 pdl.pattern : benefit(42) {

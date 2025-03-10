@@ -21,18 +21,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip' # caching pip dependencies
-        cache-dependency-path: |
-          setup.py
-          requirements.txt
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
 
-    - name: Upgrade pip
-      run: |
-        pip install --upgrade pip
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
 
     - name: Run code formatting checks with pre-commit
       uses: pre-commit/action@v3.0.0

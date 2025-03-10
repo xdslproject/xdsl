@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Sequence
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
@@ -69,15 +69,15 @@ class LowerRiscvScfToLabels(RewritePattern):
         yield_op = body.last_op
         assert isinstance(yield_op, riscv_scf.YieldOp)
 
-        body.insert_ops_after(
+        rewriter.insert_op(
             [
                 riscv.AddOp(get_loop_var, op.step, rd=loop_var_reg),
                 riscv.BltOp(get_loop_var, op.ub, scf_body),
                 riscv.LabelOp(scf_body_end),
             ],
-            yield_op,
+            InsertPoint.after(yield_op),
         )
-        body.erase_op(yield_op)
+        rewriter.erase_op(yield_op)
 
         # We know that the body is not empty now.
         assert body.first_op is not None
@@ -102,5 +102,5 @@ class LowerRiscvScfToLabels(RewritePattern):
 class LowerRiscvScfForToLabelsPass(ModulePass):
     name = "lower-riscv-scf-to-labels"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(LowerRiscvScfToLabels()).rewrite_module(op)

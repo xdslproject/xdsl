@@ -11,10 +11,10 @@
 }) : () -> ()
 
 // CHECK-NEXT: "builtin.module"() ({
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 0 : index}> : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 1000 : index}> : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 3 : index}> : () -> index
-// CHECK-NEXT:   "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{value = 0 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{value = 1000 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{value = 3 : index}> : () -> index
+// CHECK-NEXT:   "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-NEXT:   ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:     scf.reduce
 // CHECK-NEXT:   }) : (index, index, index) -> ()
