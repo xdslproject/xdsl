@@ -28,42 +28,52 @@ def warmed_timeit(
     """
 
     class EmptyBenchmarkClass:
-        """A benchmark class for the empty function."""
+        """A class with an empty method call as a baseline for timing."""
 
         def empty(self) -> None:
-            """An empty function call."""
+            """An empty method call."""
             pass
 
     benchmark_class_empty = EmptyBenchmarkClass().empty
 
+    # Inspired by timeit, we disable garbage collection for less noise in
+    # measurements
     gcold = gc.isenabled()
     gc.disable()
+    # Pre-populate the arrays to avoid costs of re-sizing them
+    times = [0.0 for _ in range(number)]
+    offset = [0.0 for _ in range(number)]
 
-    times = [0.0] * number
-    offset = [0.0] * number
-
+    # Run the interleaved setup and function calls to warm up
     for _ in range(warmup):
         if setup is not None:
             setup()
         func()
 
     for i in range(number):
+        # Optionally run setup code (for example resetting mutable state) before
+        # each measurement iteration
         if setup is not None:
             setup()
-
+        # Calculate the base cost of method invocation and timing overhead, so
+        # we can offset our final measurements by it
         offset_start = time.perf_counter()
         benchmark_class_empty()
         offset_end = time.perf_counter()
         offset[i] = offset_end - offset_start
-
+        # Time the actual function we want to measure
         func_start = time.perf_counter()
         func()
         func_end = time.perf_counter()
         times[i] = func_end - func_start
 
+    # Re-enable the garbage collector if it was initially on
     if gcold:
         gc.enable()
 
+    # Return the mean, median, and standard deviations of the measured times.
+    # The mean offset is subtracted from the median time for the best
+    # approximation given the data we can record
     return (
         mean(times) - mean(offset),
         median(times) - mean(offset),
