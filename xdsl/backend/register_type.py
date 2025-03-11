@@ -46,7 +46,23 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         Returns the parameter list required to construct a register instance from the given register_name.
         """
-        index = cls.abi_index_by_name().get(register_name.data)
+        if not register_name.data:
+            return NoneAttr(), register_name
+        index = cls.index_by_name().get(register_name.data)
+        if index is None:
+            # Try to decode as infinite register
+            prefix = cls.infinite_register_prefix()
+            if register_name.data.startswith(prefix):
+                suffix = register_name.data[len(prefix) :]
+                # infinite registers go from -1 to -inf
+                try:
+                    index = ~int(suffix)
+                except ValueError:
+                    index = None
+            else:
+                index = None
+
+        # Raise verification error instead
         index_attr = NoneAttr() if index is None else IntAttr(index)
         return index_attr, register_name
 
@@ -66,9 +82,11 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         if parser.parse_optional_punctuation("<"):
             name = parser.parse_identifier()
             parser.parse_punctuation(">")
+            params = cls._parameters_from_name(StringAttr(name))
         else:
-            name = ""
-        return cls._parameters_from_name(StringAttr(name))
+            params = (NoneAttr(), StringAttr(""))
+
+        return params
 
     def print_parameters(self, printer: Printer) -> None:
         if self.register_name.data:
@@ -77,39 +95,42 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
     def verify(self) -> None:
         name = self.register_name.data
+        expected_index = type(self).index_by_name().get(name)
+
+        if isinstance(self.index, NoneAttr):
+            if not name:
+                # Unallocated, expect NoneAttr
+                return
+
+            if expected_index is None:
+                raise VerifyException(
+                    f"Invalid register name {name} for register set "
+                    f"{self.instruction_set_name()}."
+                )
+            else:
+                raise VerifyException(
+                    f"Missing index for register {name}, expected {expected_index}."
+                )
 
         if not name:
-            # Unallocated, expect NoneAttr
-            if isinstance(self.index, NoneAttr):
-                return
             raise VerifyException(
                 f"Invalid index {self.index.data} for unallocated register."
             )
 
-        expected_index = type(self).abi_index_by_name().get(name)
-        is_infinite = name.startswith(self.infinite_register_prefix())
-
-        if expected_index is None:
-            if is_infinite:
+        if expected_index is not None:
+            # Normal registers
+            if expected_index == self.index.data:
                 return
 
-            raise VerifyException(
-                f"Invalid register name {name} for register set "
-                f"{self.instruction_set_name()}."
-            )
-
-        if isinstance(self.index, NoneAttr):
-            if is_infinite:
-                return
-
-            raise VerifyException(
-                f"Missing index for register {name}, expected {expected_index}."
-            )
-
-        if expected_index != self.index.data:
             raise VerifyException(
                 f"Invalid index {self.index.data} for register {name}, expected {expected_index}."
             )
+
+        infinite_register_name = self.infinite_register_prefix() + str(~self.index.data)
+        if name == infinite_register_name:
+            return
+
+        raise VerifyException(f"Invalid index {self.index.data} for register {name}.")
 
     @classmethod
     @abstractmethod
@@ -118,8 +139,23 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
     @classmethod
     @abstractmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
+
+    # This class variable is created and exclusively accessed in `abi_name_by_index`.
+    # _ABI_NAME_BY_INDEX: ClassVar[dict[int, str]]
+
+    @classmethod
+    def abi_name_by_index(cls) -> dict[int, str]:
+        """
+        Returns a mapping from ABI register indices to their names.
+        """
+        if hasattr(cls, "_ABI_NAME_BY_INDEX"):
+            return cls._ABI_NAME_BY_INDEX
+
+        result = {i: n for n, i in cls.index_by_name().items()}
+        cls._ABI_NAME_BY_INDEX = result
+        return result
 
     @classmethod
     @abstractmethod
@@ -139,8 +175,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         assert index >= 0, f"Infinite index must be positive, got {index}."
         register_name = cls.infinite_register_prefix() + str(index)
-        res = cls.from_name(register_name)
-        assert isinstance(res.index, NoneAttr), (
+        assert register_name not in cls.index_by_name(), (
             f"Invalid 'infinite' register name: {register_name} clashes with finite register set"
         )
+        index_attr = IntAttr(~index)
+        res = cls(index_attr, StringAttr(register_name))
         return res

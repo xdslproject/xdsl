@@ -43,3 +43,17 @@
 "test.op"() : () -> (!riscv.freg<ft99>)
 
 //      CHECK:  Invalid register name ft99 for register set RV32F.
+
+// -----
+
+// Integer register with non-integer suffix
+"test.op"() : () -> (!riscv.reg<j_j>)
+
+//      CHECK:  Invalid register name j_j for register set RV32I.
+
+// -----
+
+// Float register with non-integer suffix
+"test.op"() : () -> (!riscv.freg<fj_bla>)
+
+//      CHECK:  Invalid register name fj_bla for register set RV32F.
