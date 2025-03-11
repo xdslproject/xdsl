@@ -247,6 +247,13 @@ def test_affine_expr_affine_expr_binary_simplification():
     assert AffineExpr.binary(AffineBinaryOpKind.CeilDiv, five, two) == three
 
 
+def test_affine_expr_used_dims():
+    assert AffineExpr.dimension(1).used_dims() == {1}
+    assert (AffineExpr.dimension(2) + AffineExpr.dimension(3)).used_dims() == {2, 3}
+    assert AffineExpr.symbol(4).used_dims() == set()
+    assert AffineExpr.constant(5).used_dims() == set()
+
+
 def test_affine_map_used_dims():
     assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims() == {0, 1}
     assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims() == {0, 1}
