@@ -13,6 +13,7 @@
       - asdf install uv latest
       - asdf global uv latest
       - VENV_EXTRAS="--all-extras" make venv
+      - source .venv/bin/activate
     install:
       - "true"
 
