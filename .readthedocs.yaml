@@ -12,8 +12,7 @@
       - asdf plugin add uv
       - asdf install uv latest
       - asdf global uv latest
-      - VENV_EXTRAS="--all-extras" make venv
-      - source .venv/bin/activate
+      - VENV_EXTRAS="--all-extras" VENV_DIR="$READTHEDOCS_VIRTUALENV_PATH" make venv
     install:
       - "true"
 
