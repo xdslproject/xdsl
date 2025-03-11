@@ -245,5 +245,3 @@ def test_affine_expr_binary_simplification():
     assert AffineExpr.binary(AffineBinaryOpKind.Mod, five, two) == one
     assert AffineExpr.binary(AffineBinaryOpKind.FloorDiv, five, two) == two
     assert AffineExpr.binary(AffineBinaryOpKind.CeilDiv, five, two) == three
-
-    # TODO test other simplifications like dim + const + const = dim + const

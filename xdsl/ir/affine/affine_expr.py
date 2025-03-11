@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from typing_extensions import assert_never
+
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
     from xdsl.ir.affine import AffineMap
@@ -49,18 +51,19 @@ class AffineExpr:
         is that simplifications are automatically applied in this function.
         """
 
-        if kind == AffineBinaryOpKind.Add:
-            return lhs + rhs
-        elif kind == AffineBinaryOpKind.Mul:
-            return lhs * rhs
-        elif kind == AffineBinaryOpKind.Mod:
-            return lhs % rhs
-        elif kind == AffineBinaryOpKind.FloorDiv:
-            return lhs // rhs
-        elif kind == AffineBinaryOpKind.CeilDiv:
-            return lhs.ceil_div(rhs)
-
-        raise ValueError("Unreachable")
+        match kind:
+            case AffineBinaryOpKind.Add:
+                return lhs + rhs
+            case AffineBinaryOpKind.Mul:
+                return lhs * rhs
+            case AffineBinaryOpKind.Mod:
+                return lhs % rhs
+            case AffineBinaryOpKind.FloorDiv:
+                return lhs // rhs
+            case AffineBinaryOpKind.CeilDiv:
+                return lhs.ceil_div(rhs)
+            case _:
+                assert_never(kind)
 
     def compose(self, map: AffineMap) -> AffineExpr:
         """
