@@ -282,7 +282,7 @@ def test_get_constant_value():
     assert zero_val == IntegerAttr.from_int_and_width(0, 32)
 
 
-def test_int_name_by_index():
+def test_int_abi_name_by_index():
     assert riscv.IntRegisterType.abi_name_by_index() == {
         0: "zero",
         1: "ra",
@@ -319,7 +319,7 @@ def test_int_name_by_index():
     }
 
 
-def test_float_name_by_index():
+def test_float_abi_name_by_index():
     assert riscv.FloatRegisterType.abi_name_by_index() == {
         0: "ft0",
         1: "ft1",
