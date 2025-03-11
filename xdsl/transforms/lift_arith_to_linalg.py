@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import ModuleOp, TensorType
 from xdsl.ir import Attribute
@@ -50,7 +50,7 @@ class LiftArithToLinalg(ModulePass):
 
     name = "lift-arith-to-linalg"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

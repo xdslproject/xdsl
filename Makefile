@@ -11,13 +11,16 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs
+VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs --extra bench
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
 
 # make tasks run all commands in a single shell
 .ONESHELL:
+
+# use bash as the shell
+SHELL := /bin/bash
 
 .PHONY: uv-installed
 uv-installed:
@@ -39,7 +42,7 @@ venv: ${VENV_DIR}/
 
 # remove all caches
 .PHONY: clean-caches
-clean-caches: coverage-clean
+clean-caches: coverage-clean asv-clean
 	rm -rf .pytest_cache *.egg-info
 
 # remove all caches and the venv
@@ -63,7 +66,6 @@ pytest-nb: uv-installed
 	uv run pytest -W error --nbval -vv docs \
 		--ignore=docs/mlir_interoperation.ipynb \
 		--ignore=docs/Toy \
-		--ignore-glob=**/__marimo__/*.ipynb \
 		--nbval-current-env
 
 # run tests for Toy tutorial
@@ -86,17 +88,25 @@ pytest-toy-nb:
 .PHONY: tests-toy
 tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
+
 .PHONY: tests-marimo
 tests-marimo: uv-installed
+	@ERROR_LOG=$(shell mktemp)
+	@declare -a FAILED_MARIMO_TESTS
 	@for file in docs/marimo/*.py; do \
 		echo "Running $$file"; \
-		error_message=$$(uv run python3 "$$file" 2>&1) || { \
-			echo "Error running $$file"; \
-			echo "$$error_message"; \
-			exit 1; \
-		}; \
-	done
-	@echo "All marimo tests passed successfully."
+		uv run python3 "$$file" 2>> "$${ERROR_LOG}"; \
+		if [ $$? -ne 0 ]; then \
+			FAILED_MARIMO_TESTS+=($$file); \
+		fi; \
+	done;
+	@if [[ ! -z $${FAILED_MARIMO_TESTS[@]} ]]; then \
+		cat "$${ERROR_LOG}"; \
+		echo -e "\n\nThe following marimo tests failed: $${FAILED_MARIMO_TESTS[@]}"; \
+		exit 1; \ 
+	else \
+		echo -e "\n\nAll marimo tests passed successfully."; \
+	fi
 
 
 # run all tests
@@ -143,7 +153,7 @@ coverage: coverage-tests coverage-filecheck-tests
 # use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
 coverage-tests: uv-installed
-	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov --cov-config=.coveragerc
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov
 
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
@@ -164,8 +174,24 @@ coverage-report: uv-installed
 coverage-clean: uv-installed
 	uv run coverage erase
 
-# docs
+# generate asv benchmark regression website
+.PHONY: asv
+asv: uv-installed
+	uv run asv run
 
+.PHONY: asv-html
+asv-html: uv-installed
+	uv run asv publish
+
+.PHONY: asv-preview
+asv-preview: uv-installed .asv/html
+	uv run asv preview
+
+.PHONY: asv-clean
+asv-clean:
+	rm -rf .asv/
+
+# docs
 .PHONY: docs-serve
 docs-serve: uv-installed
 	uv run mkdocs serve

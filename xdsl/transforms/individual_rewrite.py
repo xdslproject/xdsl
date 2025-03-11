@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Operation
@@ -83,7 +83,7 @@ class ApplyIndividualRewritePass(ModulePass):
     operation_name: str = field()
     pattern_name: str = field()
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         all_ops = list(op.walk())
         if self.matched_operation_index >= len(all_ops):
             raise ValueError("Matched operation index out of range.")
@@ -116,5 +116,6 @@ class ApplyIndividualRewritePass(ModulePass):
         pattern.match_and_rewrite(matched_operation, rewriter)
         if not rewriter.has_done_action:
             raise ValueError(
-                f"Invalid rewrite ({self.pattern_name}) for operation ({matched_operation}) at location {self.matched_operation_index}."
+                f"Invalid rewrite ({self.pattern_name}) for operation "
+                f"({matched_operation}) at location {self.matched_operation_index}."
             )

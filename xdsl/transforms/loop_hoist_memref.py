@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from xdsl.dialects import builtin, memref, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import Operand
-from xdsl.passes import MLContext, ModulePass
+from xdsl.passes import Context, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
@@ -69,7 +69,7 @@ def is_loop_dependent(val: SSAValue, loop: scf.ForOp):
 
 
 @dataclass
-class LoopHoistMemref(RewritePattern):
+class LoopHoistMemRef(RewritePattern):
     """
     Hoist pairs of memref.loads and memref.stores out of a loop.
 
@@ -190,14 +190,14 @@ class LoopHoistMemref(RewritePattern):
 
 
 @dataclass(frozen=True)
-class LoopHoistMemrefPass(ModulePass):
+class LoopHoistMemRefPass(ModulePass):
     name = "loop-hoist-memref"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LoopHoistMemref(),
+                    LoopHoistMemRef(),
                 ]
             ),
             walk_regions_first=True,

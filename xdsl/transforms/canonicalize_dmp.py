@@ -1,6 +1,6 @@
 from xdsl.dialects import builtin, stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.passes import MLContext, ModulePass
+from xdsl.passes import Context, ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
@@ -30,5 +30,5 @@ class CanonicalizeDmpSwap(RewritePattern):
 class CanonicalizeDmpPass(ModulePass):
     name = "canonicalize-dmp"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(CanonicalizeDmpSwap()).rewrite_module(op)

@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     Builtin,
     StringAttr,
@@ -33,7 +33,7 @@ def test_get_all_possible_rewrite():
     }
     """
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Test)
 

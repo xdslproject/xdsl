@@ -2,7 +2,7 @@ import typing
 from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, llvm, memref, scf, stencil
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
@@ -63,9 +63,9 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
-    AccessOpToMemref,
-    CastOpToMemref,
-    LoadOpToMemref,
+    AccessOpToMemRef,
+    CastOpToMemRef,
+    LoadOpToMemRef,
     StencilToMemRefType,
     TrivialExternalLoadOpCleanup,
     TrivialExternalStoreOpCleanup,
@@ -531,7 +531,10 @@ class ApplyOpToHLS(RewritePattern):
 
         # We replace the temp arguments by HLS streams. Only for the 3D temps
         for k in range(len(apply_clones_lst)):
-            # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing # to external memory # We replace by streams only the 3D temps. The rest should be left as is operand_stream = dict()
+            # Insert the HLS stream operands and their corresponding block arguments for
+            # reading from the shift buffer and writing to external memory.
+            # We replace by streams only the 3D temps.
+            # The rest should be left as is operand_stream = dict()
             current_stream = 0
 
             new_operands_lst: list[OpResult] = []
@@ -1051,7 +1054,8 @@ class PackData(RewritePattern):
         if op.attributes["inout"].data == OUT or (
             op.attributes["inout"].data == IN and ndims == 3
         ):
-            # TODO: this should be generalised by packaging the original type instead of f64. We would need intrinsics to deal with the different types
+            # TODO: this should be generalised by packaging the original type instead of
+            # f64. We would need intrinsics to deal with the different types
             packed_type = LLVMPointerType.typed(
                 LLVMStructType.from_type_list(
                     [LLVMArrayType.from_size_and_type(8, f64)]
@@ -1066,8 +1070,9 @@ class PackData(RewritePattern):
                     assert isinstance(insertvalue.container, OpResult)
                     container_op = insertvalue.container.op
                     if isinstance(container_op, UndefOp):
-                        # We mark the UndefOp to update its type in the next pass and also update the type returned by the insertvalue
-                        # operation that uses it
+                        # We mark the UndefOp to update its type in the next pass and
+                        # also update the type returned by the insertvalue operation
+                        # that uses it
 
                         container_op.attributes["replace"] = IntAttr(0)
 
@@ -1266,7 +1271,7 @@ class QualifyInterfacesPass(RewritePattern):
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         module: builtin.ModuleOp = op
         shift_streams: list[list[HLSStreamOp]] = []
         out_data_streams: list[HLSStreamOp] = []
@@ -1317,9 +1322,9 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
                     ),
                     StencilAccessOpToReadBlockOp(),
                     StencilStoreToSubview(),
-                    CastOpToMemref(),
-                    LoadOpToMemref(),
-                    AccessOpToMemref(),
+                    CastOpToMemRef(),
+                    LoadOpToMemRef(),
+                    AccessOpToMemRef(),
                 ]
             ),
             apply_recursively=False,

@@ -99,7 +99,7 @@
 // CHECK-NEXT:     "csl.export"(%36) <{var_name = "arg1", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT:     "csl.export"() <{var_name = @gauss_seidel_func, type = () -> ()}> : () -> ()
 // CHECK-NEXT:     %37 = memref.alloc() {alignment = 64 : i64} : memref<510xf32>
-// CHECK-NEXT:     %iteration = "csl.variable"() <{default = 0 : ui32}> : () -> !csl.var<ui32>
+// CHECK-NEXT:     %iteration = "csl.variable"() <{default = 0 : i32}> : () -> !csl.var<i32>
 // CHECK-NEXT:     %var0 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
 // CHECK-NEXT:     %var1 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
 // CHECK-NEXT:     csl.func @gauss_seidel_func() {
@@ -112,9 +112,9 @@
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.task @for_cond0()  attributes {kind = #csl<task_kind local>, id = 1 : ui5}{
-// CHECK-NEXT:       %41 = arith.constant 1000 : ui32
-// CHECK-NEXT:       %iteration_cond = "csl.load_var"(%iteration) : (!csl.var<ui32>) -> ui32
-// CHECK-NEXT:       %42 = arith.cmpi slt, %iteration_cond, %41 : ui32
+// CHECK-NEXT:       %41 = arith.constant 1000 : i32
+// CHECK-NEXT:       %iteration_cond = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %42 = arith.cmpi slt, %iteration_cond, %41 : i32
 // CHECK-NEXT:       scf.if %42 {
 // CHECK-NEXT:         "csl.call"() <{callee = @for_body0}> : () -> ()
 // CHECK-NEXT:       } else {
@@ -123,7 +123,7 @@
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @for_body0() {
-// CHECK-NEXT:       %iteration_bdy = "csl.load_var"(%iteration) : (!csl.var<ui32>) -> ui32
+// CHECK-NEXT:       %iteration_bdy = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
 // CHECK-NEXT:       %var0_bdy = "csl.load_var"(%var0) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
 // CHECK-NEXT:       %var1_bdy = "csl.load_var"(%var1) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
 // CHECK-NEXT:       csl_stencil.apply(%var0_bdy : memref<512xf32>, %37 : memref<510xf32>) outs (%var1_bdy : memref<512xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 2 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>, swaps = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], topo = #dmp.topo<1022x510>}> ({
@@ -151,10 +151,10 @@
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @for_inc0() {
-// CHECK-NEXT:       %43 = arith.constant 1 : ui32
-// CHECK-NEXT:       %iteration_inc = "csl.load_var"(%iteration) : (!csl.var<ui32>) -> ui32
-// CHECK-NEXT:       %44 = arith.addi %iteration_inc, %43 : ui32
-// CHECK-NEXT:       "csl.store_var"(%iteration, %44) : (!csl.var<ui32>, ui32) -> ()
+// CHECK-NEXT:       %43 = arith.constant 1 : i32
+// CHECK-NEXT:       %iteration_inc = "csl.load_var"(%iteration) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %44 = arith.addi %iteration_inc, %43 : i32
+// CHECK-NEXT:       "csl.store_var"(%iteration, %44) : (!csl.var<i32>, i32) -> ()
 // CHECK-NEXT:       %var0_inc = "csl.load_var"(%var0) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
 // CHECK-NEXT:       %var1_inc = "csl.load_var"(%var1) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
 // CHECK-NEXT:       "csl.store_var"(%var0, %var1_inc) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()

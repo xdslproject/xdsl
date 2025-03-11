@@ -3,20 +3,22 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeVar
+from typing import Annotated, ClassVar, Generic
 
 import pytest
+from typing_extensions import TypeVar
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     I32,
-    AnyIntegerAttrConstr,
     BoolAttr,
     Float64Type,
     FloatAttr,
     IndexType,
+    IntAttrConstraint,
     IntegerAttr,
+    IntegerType,
     MemRefType,
     ModuleOp,
     UnitAttr,
@@ -31,12 +33,14 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
     EqAttrConstraint,
     GenericAttrConstraint,
+    IntVarConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     ParameterDef,
@@ -48,6 +52,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -83,7 +88,7 @@ from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError, VerifyExce
 ################################################################################
 
 
-def check_roundtrip(program: str, ctx: MLContext):
+def check_roundtrip(program: str, ctx: Context):
     """Check that the given program roundtrips exactly (including whitespaces)."""
     parser = Parser(ctx, program)
     ops: list[Operation] = []
@@ -100,7 +105,7 @@ def check_roundtrip(program: str, ctx: MLContext):
     assert program == res_io.getvalue()
 
 
-def check_equivalence(program1: str, program2: str, ctx: MLContext):
+def check_equivalence(program1: str, program2: str, ctx: Context):
     """Check that the given programs are structurally equivalent."""
 
     parser = Parser(ctx, program1)
@@ -253,7 +258,7 @@ class AttrDictWithKeywordOp(IRDLOperation):
 )
 def test_attr_dict(program: str, generic_program: str):
     """Test the 'attr-dict' and 'attr-dict-with-keyword' directives."""
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(AttrDictOp)
     ctx.load_op(AttrDictWithKeywordOp)
 
@@ -279,7 +284,7 @@ def test_attr_dict_prop_fallack(program: str, generic_program: str):
         irdl_options = [ParsePropInAttrDict()]
         assembly_format = "attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(PropOp)
 
     check_roundtrip(program, ctx)
@@ -310,7 +315,7 @@ class OpWithAttrOp(IRDLOperation):
     ],
 )
 def test_standard_attr_directive(program: str, generic_program: str):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OpWithAttrOp)
 
     check_equivalence(program, generic_program, ctx)
@@ -318,7 +323,7 @@ def test_standard_attr_directive(program: str, generic_program: str):
 
 
 def test_attr_variable_shadowed():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OpWithAttrOp)
 
     parser = Parser(ctx, "test.one_attr i32 {attr = i64}")
@@ -347,7 +352,7 @@ def test_attr_name(program: str, generic_program: str):
         python = attr_def(Attribute, attr_name="irdl")
         assembly_format = "$irdl attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(RenamedAttrOp)
 
     check_equivalence(program, generic_program, ctx)
@@ -384,7 +389,7 @@ def test_unqualified_attr(program: str, generic_program: str):
         attr = attr_def(ParamOne)
         assembly_format = "$attr attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_attr(ParamOne)
     ctx.load_op(UnqualifiedAttrOp)
 
@@ -425,7 +430,7 @@ def test_standard_prop_directive(program: str, generic_program: str):
         prop = prop_def(Attribute)
         assembly_format = "$prop attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(PropOp)
 
     check_equivalence(program, generic_program, ctx)
@@ -450,7 +455,7 @@ def test_prop_name(program: str, generic_program: str):
         python = prop_def(Attribute, prop_name="irdl")
         assembly_format = "$irdl attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(RenamedPropOp)
 
     check_equivalence(program, generic_program, ctx)
@@ -480,7 +485,7 @@ def test_optional_property(program: str, generic_program: str):
 
         assembly_format = "(`prop` $prop^)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalPropertyOp)
     ctx.load_dialect(Test)
 
@@ -511,7 +516,7 @@ def test_optional_property_with_whitespace(program: str, generic_program: str):
 
         assembly_format = "`(` (` ` `prop` $prop^ ` `)? `)` attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalPropertyOp)
     ctx.load_dialect(Test)
 
@@ -542,7 +547,7 @@ def test_optional_unit_attr_property(program: str, generic_program: str):
 
         assembly_format = "(`unit_attr` $unit_attr^)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalUnitAttrPropertyOp)
     ctx.load_dialect(Test)
 
@@ -573,7 +578,7 @@ def test_optional_unit_attr_attribute(program: str, generic_program: str):
 
         assembly_format = "(`unit_attr` $unit_attr^)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalUnitAttrOp)
     ctx.load_dialect(Test)
 
@@ -604,7 +609,7 @@ def test_optional_attribute(program: str, generic_program: str):
 
         assembly_format = "(`attr` $attr^)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalAttributeOp)
     ctx.load_dialect(Test)
 
@@ -632,7 +637,7 @@ def test_typed_attribute_variable(program: str, generic_program: str):
 
         assembly_format = "$attr $float_attr attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TypedAttributeOp)
     ctx.load_dialect(Test)
 
@@ -691,7 +696,7 @@ def test_punctuations_and_keywords(format: str, program: str):
         name = "test.punctuation"
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(PunctuationOp)
 
     check_roundtrip(program, ctx)
@@ -799,7 +804,7 @@ def test_operands(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoOperandsOp)
     ctx.load_dialect(Test)
 
@@ -846,7 +851,7 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(VariadicOperandOp)
     ctx.load_dialect(Test)
 
@@ -879,7 +884,7 @@ def test_optional_operand(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalOperandOp)
     ctx.load_dialect(Test)
 
@@ -935,7 +940,7 @@ def test_multiple_variadic_operands(
             "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
         )
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(VariadicOperandsOp)
     ctx.load_dialect(Test)
 
@@ -972,7 +977,7 @@ def test_multiple_optional_operands(program: str, generic_program: str):
             "`(` $arg1 `:` type($arg1) `)` `[` $arg2 `:` type($arg2) `]` attr-dict"
         )
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalOperandsOp)
     ctx.load_dialect(Test)
 
@@ -1001,7 +1006,7 @@ def test_operands_graph_region(format: str, program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoOperandsOp)
     ctx.load_dialect(Test)
 
@@ -1028,7 +1033,7 @@ def test_operands_directive_with_variadic(program: str):
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OperandsDirectiveOp)
     ctx.load_dialect(Test)
 
@@ -1054,7 +1059,7 @@ def test_operands_directive_with_optional(program: str):
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OperandsDirectiveOp)
     ctx.load_dialect(Test)
 
@@ -1073,7 +1078,7 @@ def test_operands_directive_with_no_variadic():
 
         assembly_format = "operands `:` type(operands) attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OperandsDirectiveOp)
     ctx.load_dialect(Test)
 
@@ -1176,7 +1181,7 @@ def test_operands_directive_bounds(program: str, error: str):
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoOperandsOp)
 
     with pytest.raises(ParseError, match=error):
@@ -1216,7 +1221,7 @@ def test_operands_directive_bounds_with_opt(program: str, error: str):
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(ThreeOperandsOp)
 
     with pytest.raises(ParseError, match=error):
@@ -1248,7 +1253,7 @@ def test_operands_directive_bound_with_var(program: str, error: str):
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(ThreeOperandsOp)
 
     with pytest.raises(ParseError, match=error):
@@ -1284,7 +1289,7 @@ def test_operands_directive_with_non_variadic_type_directive():
         def print(self, printer: Printer):
             format_program.print(printer, self)
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OneOperandOp)
 
     check_roundtrip("test.one_operand %0 : i32", ctx)
@@ -1321,7 +1326,7 @@ def test_operands_directive_with_variadic_type_directive():
         def print(self, printer: Printer):
             format_program.print(printer, self)
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoOperandOp)
 
     check_roundtrip("test.two_operand %0 : i32", ctx)
@@ -1393,7 +1398,7 @@ def test_results(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoResultOp)
     ctx.load_dialect(Test)
 
@@ -1436,7 +1441,7 @@ def test_variadic_result(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(VariadicResultOp)
     ctx.load_dialect(Test)
 
@@ -1488,7 +1493,7 @@ def test_optional_result(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalResultOp)
     ctx.load_dialect(Test)
 
@@ -1516,7 +1521,7 @@ def test_results_directive_with_variadic(program: str):
 
         assembly_format = "attr-dict `:` type(results)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(ResultsDirectiveOp)
     ctx.load_dialect(Test)
 
@@ -1542,7 +1547,7 @@ def test_results_directive_with_optional(program: str):
 
         assembly_format = "attr-dict `:` type(results)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(ResultsDirectiveOp)
     ctx.load_dialect(Test)
 
@@ -1561,7 +1566,7 @@ def test_results_directive_with_no_variadic():
 
         assembly_format = "attr-dict `:` type(results)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(ResultsDirectiveOp)
     ctx.load_dialect(Test)
 
@@ -1641,7 +1646,7 @@ def test_results_directive_bounds(program: str, error: str):
 
         assembly_format = "attr-dict `:` type(results)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoResultsOp)
 
     with pytest.raises(ParseError, match=error):
@@ -1673,7 +1678,7 @@ def test_results_directive_bounds_with_opt(program: str, error: str):
 
         assembly_format = "attr-dict `:` type(results)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(ThreeResultsOp)
 
     with pytest.raises(ParseError, match=error):
@@ -1692,7 +1697,7 @@ def test_results_directive_bound_with_var():
 
         assembly_format = "attr-dict `:` type(results)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(ThreeResultsOp)
 
     with pytest.raises(
@@ -1729,7 +1734,7 @@ def test_results_directive_with_non_variadic_type_directive():
         def print(self, printer: Printer):
             format_program.print(printer, self)
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OneResultOp)
 
     check_roundtrip("%0 = test.one_result : i32", ctx)
@@ -1765,7 +1770,7 @@ def test_results_directive_with_variadic_type_directive():
         def print(self, printer: Printer):
             format_program.print(printer, self)
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoResultsOp)
 
     check_roundtrip("%0 = test.two_results : i32", ctx)
@@ -1798,7 +1803,7 @@ def test_functional_type(program: str):
 
         assembly_format = "$ops attr-dict `:` functional-type($ops, $res)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(FunctionalTypeOp)
 
     check_roundtrip(program, ctx)
@@ -1829,7 +1834,7 @@ def test_functional_type_with_operands_and_results(program: str):
 
         assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(FunctionalTypeOp)
 
     check_roundtrip(program, ctx)
@@ -1892,7 +1897,7 @@ def test_regions_with_attr_dict(format: str, program: str, generic_program: str)
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(RegionsOp)
     ctx.load_dialect(Test)
 
@@ -1931,7 +1936,7 @@ def test_regions(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoRegionsOp)
     ctx.load_dialect(Test)
 
@@ -1974,7 +1979,7 @@ def test_variadic_region(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(VariadicRegionOp)
     ctx.load_dialect(Test)
 
@@ -2007,7 +2012,7 @@ def test_optional_region(format: str, program: str, generic_program: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalRegionOp)
     ctx.load_dialect(Test)
 
@@ -2019,7 +2024,7 @@ def test_multiple_optional_regions():
     """Test that a variadic region variable cannot directly follow another variadic region variable."""
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic region variable cannot be followed by another variadic region variable.",
+        match="An optional/variadic region variable cannot be followed by another region variable.",
     ):
 
         @irdl_op_definition
@@ -2068,7 +2073,7 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalRegionOp)
     ctx.load_dialect(Test)
 
@@ -2122,7 +2127,7 @@ def test_successors():
 
         assembly_format = "$fst $snd attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoSuccessorsOp)
     ctx.load_dialect(Test)
 
@@ -2192,7 +2197,7 @@ def test_variadic_successor(program: str, generic_program: str):
 
         assembly_format = "$succ attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(VarSuccessorOp)
     ctx.load_dialect(Test)
 
@@ -2244,7 +2249,7 @@ def test_optional_successor(program: str, generic_program: str):
 
         assembly_format = "$succ attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptSuccessorOp)
     ctx.load_dialect(Test)
 
@@ -2256,7 +2261,7 @@ def test_optional_successor(program: str, generic_program: str):
 # Inference                                                                   #
 ################################################################################
 
-_T = TypeVar("_T", bound=Attribute, covariant=True)
+_T = TypeVar("_T", bound=Attribute, covariant=True, default=Attribute)
 _ConstrT = TypeVar("_ConstrT", bound=Attribute, covariant=True)
 
 
@@ -2282,7 +2287,7 @@ def test_basic_inference(format: str):
 
         assembly_format = format
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoOperandsOneResultWithVarOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
@@ -2309,7 +2314,7 @@ def test_eq_attr_inference():
 
         assembly_format = "attr-dict $index"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_attr(UnitType)
     ctx.load_op(OneOperandEqTypeOp)
     ctx.load_dialect(Test)
@@ -2336,7 +2341,7 @@ def test_all_of_attr_inference():
 
         assembly_format = "attr-dict $index"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_attr(UnitType)
     ctx.load_op(OneOperandEqTypeAllOfNestedOp)
     ctx.load_dialect(Test)
@@ -2359,16 +2364,17 @@ def test_nested_inference():
         p: ParameterDef[_T]
         q: ParameterDef[Attribute]
 
-        @staticmethod
+        @classmethod
         def constr(
+            cls,
             *,
             n: GenericAttrConstraint[Attribute] | None = None,
-            p: GenericAttrConstraint[_ConstrT] | None = None,
+            p: GenericAttrConstraint[_T] | None = None,
             q: GenericAttrConstraint[Attribute] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+        ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if n is None and p is None and q is None:
-                return BaseAttr[ParamOne[Attribute]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (n, p, q))
+                return BaseAttr[ParamOne[_T]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (n, p, q))
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):
@@ -2381,7 +2387,7 @@ def test_nested_inference():
 
         assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(TwoOperandsNestedVarOp)
     ctx.load_attr(ParamOne)
     ctx.load_dialect(Test)
@@ -2389,6 +2395,44 @@ def test_nested_inference():
         """\
     %0, %1 = "test.op"() : () -> (!test.param_one<f16, i32, i1>, i32)
     %2 = test.two_operands_one_result_with_var %0 %1 : !test.param_one<f16, i32, i1>"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_nested_inference_variable():
+    """Check that Param<T> infers correctly T when Param<T> is nested in a variable."""
+
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+
+        p: ParameterDef[_T]
+
+        @classmethod
+        def constr(
+            cls, *, p: GenericAttrConstraint[_T] | None = None
+        ) -> ParamAttrConstraint[ParamOne[_T]]:
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
+
+    @irdl_op_definition
+    class ResultTypeIsOperandParamOp(IRDLOperation):
+        T: ClassVar = VarConstraint("T", AnyAttr())
+        U: ClassVar = VarConstraint("U", ParamOne.constr(p=T))
+
+        name = "test.result_type_is_operand_param"
+        res = result_def(T)
+        arg = operand_def(U)
+
+        assembly_format = "$arg attr-dict `:` type($arg)"
+
+    ctx = Context()
+    ctx.load_op(ResultTypeIsOperandParamOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> !test.param_one<i32>
+    %1 = test.result_type_is_operand_param %0 : !test.param_one<i32>"""
     )
     check_roundtrip(program, ctx)
 
@@ -2404,14 +2448,15 @@ def test_non_verifying_inference():
         name = "test.param_one"
         p: ParameterDef[_T]
 
-        @staticmethod
+        @classmethod
         def constr(
+            cls,
             *,
-            p: GenericAttrConstraint[_ConstrT] | None = None,
-        ) -> BaseAttr[ParamOne[Attribute]] | ParamAttrConstraint[ParamOne[_ConstrT]]:
+            p: GenericAttrConstraint[_T] | None = None,
+        ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
             if p is None:
-                return BaseAttr[ParamOne[Attribute]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_ConstrT]](ParamOne, (p,))
+                return BaseAttr[ParamOne[_T]](ParamOne)
+            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
 
     @irdl_op_definition
     class OneOperandOneResultNestedOp(IRDLOperation):
@@ -2423,7 +2468,7 @@ def test_non_verifying_inference():
 
         assembly_format = "$lhs attr-dict `:` type($lhs)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OneOperandOneResultNestedOp)
     ctx.load_attr(ParamOne)
     ctx.load_dialect(Test)
@@ -2451,7 +2496,7 @@ def test_variadic_length_inference():
 
         assembly_format = "$ins attr-dict `:` type($ins)"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(RangeVarOp)
     ctx.load_dialect(Test)
     program = textwrap.dedent("""\
@@ -2466,6 +2511,32 @@ def test_variadic_length_inference():
     assert isinstance(my_op, RangeVarOp)
 
 
+def test_int_var_inference():
+    @irdl_op_definition
+    class IntVarOp(IRDLOperation):
+        name = "test.int_var"
+        T: ClassVar = IntVarConstraint("T", AnyInt())
+        ins = var_operand_def(RangeOf(eq(IndexType()), length=T))
+        outs = var_result_def(RangeOf(eq(IntegerType(64)), length=T))
+
+        assembly_format = "$ins attr-dict"
+
+    ctx = Context()
+    ctx.load_op(IntVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent("""\
+    %in0, %in1 = "test.op"() : () -> (index, index)
+    %out0, %out1 = test.int_var %in0, %in1
+    """)
+
+    parser = Parser(ctx, program)
+    test_op = parser.parse_optional_operation()
+    assert isinstance(test_op, test.Operation)
+    my_op = parser.parse_optional_operation()
+    assert isinstance(my_op, IntVarOp)
+    assert my_op.result_types == (IntegerType(64), IntegerType(64))
+
+
 ################################################################################
 # Declarative Format Verification                                              #
 ################################################################################
@@ -2475,11 +2546,8 @@ def test_variadic_length_inference():
     "variadic_def, format",
     [
         (var_operand_def, "$variadic `,` type($variadic) attr-dict"),
-        (var_operand_def, "type($variadic) `,` attr-dict"),
+        (var_operand_def, "$variadic `:` type($variadic) `,` attr-dict"),
         (var_result_def, "type($variadic) `,` attr-dict"),
-        (opt_operand_def, "$variadic `,` type($variadic) attr-dict"),
-        (opt_operand_def, "type($variadic) `,` attr-dict"),
-        (opt_result_def, "type($variadic) `,` attr-dict"),
     ],
 )
 def test_variadic_comma_safeguard(
@@ -2499,20 +2567,38 @@ def test_variadic_comma_safeguard(
 
 
 @pytest.mark.parametrize(
-    "variadic_def_one",
-    [var_operand_def, var_result_def, opt_operand_def, opt_result_def],
-)
-@pytest.mark.parametrize(
-    "variadic_def_two",
-    [var_operand_def, var_result_def, opt_operand_def, opt_result_def],
+    "variadic_def_one, variadic_def_two, format",
+    [
+        (
+            var_operand_def,
+            var_operand_def,
+            "$variadic_one `and` $variadic_two `:` type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            var_result_def,
+            var_result_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            opt_operand_def,
+            opt_operand_def,
+            "$variadic_one `and` $variadic_two `:` type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            opt_result_def,
+            opt_result_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+    ],
 )
 def test_chained_variadic_types_safeguard(
     variadic_def_one: Callable[[], VarOperand | VarOpResult],
     variadic_def_two: Callable[[], VarOperand | VarOpResult],
+    format: str,
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic type directive cannot be followed by another variadic type directive.",
+        match="An optional/variadic type directive cannot be followed by another type directive.",
     ):
 
         @irdl_op_definition
@@ -2521,7 +2607,7 @@ def test_chained_variadic_types_safeguard(
 
             variadic_one = variadic_def_one()
             variadic_two = variadic_def_two()
-            assembly_format = "type($variadic_one) type($variadic_two) attr-dict"
+            assembly_format = format
 
             irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
 
@@ -2534,7 +2620,7 @@ def test_chained_variadic_operands_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic operand variable cannot be followed by another variadic operand variable.",
+        match="An optional/variadic operand variable cannot be followed by another operand variable.",
     ):
 
         @irdl_op_definition
@@ -2573,7 +2659,7 @@ def test_optional_group_optional_operand_anchor(
 
         assembly_format = "(`(` $args^ `:` type($args) `)`)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalGroupOp)
     ctx.load_dialect(Test)
 
@@ -2612,7 +2698,7 @@ def test_optional_group_variadic_operand_anchor(
 
         assembly_format = "($args^ `:` type($args))? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalGroupOp)
     ctx.load_dialect(Test)
 
@@ -2645,7 +2731,7 @@ def test_optional_group_optional_result_anchor(
 
         assembly_format = "(`(` type($res)^ `)`)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalGroupOp)
     ctx.load_dialect(Test)
 
@@ -2682,7 +2768,7 @@ def test_optional_group_variadic_result_anchor(
 
         assembly_format = "(`(` type($res)^ `)`)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptionalGroupOp)
     ctx.load_dialect(Test)
 
@@ -2755,7 +2841,7 @@ def test_variadic_and_single_mixed(program: str, generic_program: str):
 
         assembly_format = "$sin `(` $var `)` attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(MixedOp)
     ctx.load_dialect(Test)
 
@@ -2827,7 +2913,7 @@ class DefaultOp(IRDLOperation):
     ],
 )
 def test_default_properties(program: str, output: str, generic: str):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(DefaultOp)
 
     parsed = Parser(ctx, program).parse_operation()
@@ -2879,7 +2965,7 @@ class RenamedPropOp(IRDLOperation):
     ],
 )
 def test_renamed_optional_prop(program: str, output: str, generic: str):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(RenamedPropOp)
 
     parsed = Parser(ctx, program).parse_operation()
@@ -2917,13 +3003,13 @@ def test_optional_property_with_extractor(program: str, generic: str):
         name = "test.opt_constant"
         T: ClassVar = VarConstraint("T", AnyAttr())
 
-        value = opt_prop_def(TypedAttributeConstraint(AnyIntegerAttrConstr, T))
+        value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))
 
         res = opt_result_def(T)
 
         assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(OptConstantOp)
 
     check_roundtrip(program, ctx)
@@ -2950,7 +3036,7 @@ def test_default_property_with_extractor(program: str, generic: str):
         T: ClassVar = VarConstraint("T", AnyAttr())
 
         value = prop_def(
-            TypedAttributeConstraint(AnyIntegerAttrConstr, T),
+            TypedAttributeConstraint(IntegerAttr.constr(), T),
             default_value=BoolAttr.from_bool(True),
         )
 
@@ -2958,8 +3044,70 @@ def test_default_property_with_extractor(program: str, generic: str):
 
         assembly_format = "(`value` $value^)? attr-dict"
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(DefaultConstantOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() <{prop = false}> {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true, prop = true}",
+            '"test.default_attr_dict"() <{prop = true}> {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_property_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        prop = prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        irdl_options = [ParsePropInAttrDict()]
+
+        assembly_format = "attr-dict"
+
+    ctx = Context()
+    ctx.load_op(DefaultAttrDictOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic",
+    [
+        (
+            "test.default_attr_dict",
+            '"test.default_attr_dict"() {attr = false} : () -> ()',
+        ),
+        (
+            "test.default_attr_dict {attr = true}",
+            '"test.default_attr_dict"() {attr = true} : () -> ()',
+        ),
+    ],
+)
+def test_default_attr_in_attr_dict(program: str, generic: str):
+    @irdl_op_definition
+    class DefaultAttrDictOp(IRDLOperation):
+        name = "test.default_attr_dict"
+
+        attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
+
+        assembly_format = "attr-dict"
+
+    ctx = Context()
+    ctx.load_op(DefaultAttrDictOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic, ctx)
@@ -2982,7 +3130,7 @@ class AllOfExtractorOp(IRDLOperation):
 
 
 def test_all_of_extraction_fails():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(AllOfExtractorOp)
     ctx.load_dialect(Test)
     parser = Parser(
@@ -3020,7 +3168,7 @@ class ParamExtractorOp(IRDLOperation):
 
 
 def test_param_extraction_fails():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_attr(DoubleParamAttr)
     ctx.load_op(ParamExtractorOp)
     ctx.load_dialect(Test)
@@ -3049,7 +3197,7 @@ class MultipleOperandExtractorOp(IRDLOperation):
 
 
 def test_multiple_operand_extraction_fails():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(MultipleOperandExtractorOp)
     ctx.load_dialect(Test)
     parser = Parser(
@@ -3063,3 +3211,125 @@ def test_multiple_operand_extraction_fails():
         "Possible values are: {i32, index}",
     ):
         parser.parse_operation()
+
+
+################################################################################
+#                                  IntAttr                                     #
+################################################################################
+
+
+@irdl_op_definition
+class IntAttrExtractOp(IRDLOperation):
+    name = "test.int_attr_extract"
+
+    _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+    prop = prop_def(
+        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+    )
+
+    outs = var_result_def(RangeOf(eq(IndexType()), length=_I))
+
+    assembly_format = "$prop attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program",
+    ["%0 = test.int_attr_extract 1", "%0, %1 = test.int_attr_extract 2"],
+)
+def test_int_attr_extraction(program: str):
+    ctx = Context()
+    ctx.load_op(IntAttrExtractOp)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, error",
+    [
+        (
+            "%0 = test.int_attr_extract 2",
+            "Operation has 2 results, but was given 1 to bind",
+        ),
+        (
+            "%0, %1 = test.int_attr_extract 1",
+            "Operation has 1 results, but was given 2 to bind",
+        ),
+    ],
+)
+def test_int_attr_extraction_errors(program: str, error: str):
+    ctx = Context()
+    ctx.load_op(IntAttrExtractOp)
+    parser = Parser(ctx, program)
+    with pytest.raises(ParseError, match=error):
+        parser.parse_optional_operation()
+
+
+@irdl_op_definition
+class IntAttrVerifyOp(IRDLOperation):
+    name = "test.int_attr_verify"
+
+    _I: ClassVar = IntVarConstraint("I", AnyInt())
+
+    prop = prop_def(
+        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+    )
+
+    prop2 = opt_prop_def(
+        IntegerAttr.constr(value=IntAttrConstraint(_I), type=eq(IndexType()))
+    )
+
+    ins = var_operand_def(RangeOf(eq(IndexType()), length=_I))
+
+    assembly_format = "$prop (`and` $prop2^)? `,` $ins attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.int_attr_verify 1, %0",
+        "test.int_attr_verify 2, %0, %1",
+        "test.int_attr_verify 1 and 1, %0",
+        "test.int_attr_verify 2 and 2, %0, %1",
+    ],
+)
+def test_int_attr_verify(program: str):
+    ctx = Context()
+    ctx.load_op(IntAttrVerifyOp)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, error_type, error",
+    [
+        (
+            "test.int_attr_verify 1, %0, %1",
+            ValueError,
+            "Value of variable I could not be uniquely extracted",
+        ),
+        (
+            "test.int_attr_verify 1 and 2, %0",
+            VerifyException,
+            "integer 1 expected from int variable 'I', but got 2",
+        ),
+        (
+            "test.int_attr_verify 2, %0",
+            ValueError,
+            "Value of variable I could not be uniquely extracted",
+        ),
+        (
+            "test.int_attr_verify 2 and 1, %0, %1",
+            VerifyException,
+            "integer 2 expected from int variable 'I', but got 1",
+        ),
+    ],
+)
+def test_int_attr_verify_errors(program: str, error_type: type[Exception], error: str):
+    ctx = Context()
+    ctx.load_op(IntAttrVerifyOp)
+
+    parser = Parser(ctx, program)
+    with pytest.raises(error_type, match=error):
+        op = parser.parse_operation()
+        op.verify()

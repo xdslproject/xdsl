@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from itertools import repeat
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -142,7 +142,7 @@ class PipelineGenericPattern(RewritePattern):
 
 
 @dataclass(frozen=True)
-class MemrefStreamInterleavePass(ModulePass):
+class MemRefStreamInterleavePass(ModulePass):
     """
     Tiles the innermost parallel dimension of a `memref_stream.generic`.
     If specified, the `pipeline-depth` parameter specifies the number of operations in the
@@ -160,7 +160,7 @@ class MemrefStreamInterleavePass(ModulePass):
 
     pipeline_depth: int = field(default=4)
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             PipelineGenericPattern(self.pipeline_depth),
             apply_recursively=False,

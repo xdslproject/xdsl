@@ -14,10 +14,8 @@ import pytest
 from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
-    AnyIntegerAttr,
-    AnyMemRefTypeConstr,
     AnyTensorTypeConstr,
-    AnyUnrankedMemrefTypeConstr,
+    AnyUnrankedMemRefTypeConstr,
     AnyUnrankedTensorTypeConstr,
     IntegerAttr,
     IntegerType,
@@ -307,7 +305,7 @@ def test_symbol_op_interface():
     class SymNameWrongTypeOp(IRDLOperation):
         name = "wrong_sym_name_type"
 
-        sym_name = attr_def(AnyIntegerAttr)
+        sym_name = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
     op1 = SymNameWrongTypeOp(
@@ -596,15 +594,15 @@ class SameOperandsAndResultTypeOp(IRDLOperation):
     name = "test.same_operand_and_result_type"
 
     ops = var_operand_def(
-        AnyMemRefTypeConstr
-        | AnyUnrankedMemrefTypeConstr
+        MemRefType.constr()
+        | AnyUnrankedMemRefTypeConstr
         | AnyUnrankedTensorTypeConstr
         | AnyTensorTypeConstr
     )
 
     res = var_result_def(
-        AnyMemRefTypeConstr
-        | AnyUnrankedMemrefTypeConstr
+        MemRefType.constr()
+        | AnyUnrankedMemRefTypeConstr
         | AnyUnrankedTensorTypeConstr
         | AnyTensorTypeConstr
     )

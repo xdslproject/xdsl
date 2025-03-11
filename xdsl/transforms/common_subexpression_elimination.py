@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import TypeVar
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
@@ -260,5 +260,5 @@ def cse(
 class CommonSubexpressionElimination(ModulePass):
     name = "cse"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         cse(op)

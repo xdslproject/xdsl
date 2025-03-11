@@ -1,6 +1,6 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.irdl.irdl import DialectOp
 from xdsl.interpreters.irdl import make_dialect
@@ -12,7 +12,7 @@ from xdsl.utils.dialect_stub import DialectStubGenerator
 
 if __name__ == "__main__":
     # Register all dialects for lazy-loading
-    ctx = MLContext()
+    ctx = Context()
     for n, f in get_all_dialects().items():
         # Except cmath to avoid conflict with the one we're going to load from its IRDL description
         if n == "cmath":

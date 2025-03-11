@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.ir.post_order import PostOrderIterator
@@ -162,5 +162,5 @@ def region_dce(region: Region, listener: PatternRewriterListener | None = None) 
 class DeadCodeElimination(ModulePass):
     name = "dce"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         region_dce(op.body)

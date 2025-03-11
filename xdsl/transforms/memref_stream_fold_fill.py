@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
 from xdsl.ir import SSAValue
@@ -55,7 +55,7 @@ def fold_fills_in_module(module_op: ModuleOp):
 
 
 @dataclass(frozen=True)
-class MemrefStreamFoldFillPass(ModulePass):
+class MemRefStreamFoldFillPass(ModulePass):
     """
     Folds `memref_stream.fill` operations that run immediately before a
     `memref_stream.generic` operation into the init value.
@@ -64,5 +64,5 @@ class MemrefStreamFoldFillPass(ModulePass):
 
     name = "memref-stream-fold-fill"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         fold_fills_in_module(op)

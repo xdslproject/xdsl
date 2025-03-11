@@ -7,7 +7,7 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -38,7 +38,7 @@ from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
 
 
-class ConvertMemrefAllocOp(RewritePattern):
+class ConvertMemRefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter) -> None:
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
@@ -61,7 +61,7 @@ class ConvertMemrefAllocOp(RewritePattern):
         )
 
 
-class ConvertMemrefDeallocOp(RewritePattern):
+class ConvertMemRefDeallocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref.DeallocOp, rewriter: PatternRewriter
@@ -124,11 +124,7 @@ def get_strided_pointer(
                 ops.extend(
                     (
                         stride_op := riscv.LiOp(stride),
-                        offset_op := riscv.MulOp(
-                            increment,
-                            stride_op.rd,
-                            rd=riscv.IntRegisterType.unallocated(),
-                        ),
+                        offset_op := riscv.MulOp(increment, stride_op.rd),
                     )
                 )
                 stride_op.rd.name_hint = "pointer_dim_stride"
@@ -141,11 +137,7 @@ def get_strided_pointer(
             continue
 
         # Otherwise sum up the products.
-        ops.append(
-            add_op := riscv.AddOp(
-                head, increment, rd=riscv.IntRegisterType.unallocated()
-            )
-        )
+        ops.append(add_op := riscv.AddOp(head, increment))
         add_op.rd.name_hint = "pointer_offset"
         head = add_op.rd
 
@@ -158,12 +150,9 @@ def get_strided_pointer(
             offset_bytes := riscv.MulOp(
                 head,
                 bytes_per_element_op.rd,
-                rd=riscv.IntRegisterType.unallocated(),
                 comment="multiply by element size",
             ),
-            ptr := riscv.AddOp(
-                src_ptr, offset_bytes, rd=riscv.IntRegisterType.unallocated()
-            ),
+            ptr := riscv.AddOp(src_ptr, offset_bytes),
         ]
     )
 
@@ -174,7 +163,7 @@ def get_strided_pointer(
     return ops, ptr.rd
 
 
-class ConvertMemrefStoreOp(RewritePattern):
+class ConvertMemRefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
@@ -217,7 +206,7 @@ class ConvertMemrefStoreOp(RewritePattern):
         rewriter.replace_matched_op(new_op)
 
 
-class ConvertMemrefLoadOp(RewritePattern):
+class ConvertMemRefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
@@ -263,7 +252,7 @@ class ConvertMemrefLoadOp(RewritePattern):
         )
 
 
-class ConvertMemrefGlobalOp(RewritePattern):
+class ConvertMemRefGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.GlobalOp, rewriter: PatternRewriter):
         initial_value = op.initial_value
@@ -311,7 +300,7 @@ class ConvertMemrefGlobalOp(RewritePattern):
         rewriter.replace_matched_op(section)
 
 
-class ConvertMemrefGetGlobalOp(RewritePattern):
+class ConvertMemRefGetGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.GetGlobalOp, rewriter: PatternRewriter):
         rewriter.replace_matched_op(
@@ -322,7 +311,7 @@ class ConvertMemrefGetGlobalOp(RewritePattern):
         )
 
 
-class ConvertMemrefSubviewOp(RewritePattern):
+class ConvertMemRefSubviewOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter):
         # Assumes that the operation is valid, meaning that the subview is indeed a
@@ -378,7 +367,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
             return
 
         src = UnrealizedConversionCastOp.get(
-            (source,), (riscv.IntRegisterType.unallocated(),)
+            (source,), (riscv.Registers.UNALLOCATED_INT,)
         )
         src_rd = src.results[0]
 
@@ -393,7 +382,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),
-                            (riscv.IntRegisterType.unallocated(),),
+                            (riscv.Registers.UNALLOCATED_INT,),
                         )
                     )
                     index_val = cast_index_op.results[0]
@@ -425,25 +414,25 @@ class ConvertMemrefSubviewOp(RewritePattern):
         )
 
 
-class ConvertMemrefToRiscvPass(ModulePass):
+class ConvertMemRefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        contains_malloc = PatternRewriteWalker(ConvertMemrefAllocOp()).rewrite_module(
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
+        contains_malloc = PatternRewriteWalker(ConvertMemRefAllocOp()).rewrite_module(
             op
         )
         contains_dealloc = PatternRewriteWalker(
-            ConvertMemrefDeallocOp()
+            ConvertMemRefDeallocOp()
         ).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertMemrefDeallocOp(),
-                    ConvertMemrefStoreOp(),
-                    ConvertMemrefLoadOp(),
-                    ConvertMemrefGlobalOp(),
-                    ConvertMemrefGetGlobalOp(),
-                    ConvertMemrefSubviewOp(),
+                    ConvertMemRefDeallocOp(),
+                    ConvertMemRefStoreOp(),
+                    ConvertMemRefLoadOp(),
+                    ConvertMemRefGlobalOp(),
+                    ConvertMemRefGetGlobalOp(),
+                    ConvertMemRefSubviewOp(),
                 ]
             )
         ).rewrite_module(op)
