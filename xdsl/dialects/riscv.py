@@ -154,7 +154,7 @@ class IntRegisterType(RISCVRegisterType):
         return "RV32I"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return RV32I_INDEX_BY_NAME
 
     @classmethod
@@ -217,7 +217,7 @@ class FloatRegisterType(RISCVRegisterType):
         return "RV32F"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return RV32F_INDEX_BY_NAME
 
     @classmethod

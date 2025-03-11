@@ -48,7 +48,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         if not register_name.data:
             return NoneAttr(), register_name
-        index = cls.abi_index_by_name().get(register_name.data)
+        index = cls.index_by_name().get(register_name.data)
         if index is None:
             # Try to decode as infinite register
             prefix = cls.infinite_register_prefix()
@@ -95,7 +95,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
     def verify(self) -> None:
         name = self.register_name.data
-        expected_index = type(self).abi_index_by_name().get(name)
+        expected_index = type(self).index_by_name().get(name)
 
         if isinstance(self.index, NoneAttr):
             if not name:
@@ -139,7 +139,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
 
     @classmethod
     @abstractmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
 
     # This class variable is created and exclusively accessed in `abi_name_by_index`.
@@ -153,7 +153,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         if hasattr(cls, "_ABI_NAME_BY_INDEX"):
             return cls._ABI_NAME_BY_INDEX
 
-        result = {i: n for n, i in cls.abi_index_by_name().items()}
+        result = {i: n for n, i in cls.index_by_name().items()}
         cls._ABI_NAME_BY_INDEX = result
         return result
 
@@ -175,7 +175,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         assert index >= 0, f"Infinite index must be positive, got {index}."
         register_name = cls.infinite_register_prefix() + str(index)
-        assert register_name not in cls.abi_index_by_name(), (
+        assert register_name not in cls.index_by_name(), (
             f"Invalid 'infinite' register name: {register_name} clashes with finite register set"
         )
         index_attr = IntAttr(~index)

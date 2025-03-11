@@ -28,7 +28,7 @@ class IntRegisterType(ARMRegisterType):
         return "arm"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return ARM_INDEX_BY_NAME
 
     @classmethod
