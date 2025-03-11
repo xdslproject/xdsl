@@ -232,7 +232,7 @@ def test_compress_dims():
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
 
 
-def test_affine_expr_binary_simplification():
+def test_affine_expr_affine_expr_binary_simplification():
     one = AffineExpr.constant(1)
     two = AffineExpr.constant(2)
     three = AffineExpr.constant(3)
@@ -245,3 +245,26 @@ def test_affine_expr_binary_simplification():
     assert AffineExpr.binary(AffineBinaryOpKind.Mod, five, two) == one
     assert AffineExpr.binary(AffineBinaryOpKind.FloorDiv, five, two) == two
     assert AffineExpr.binary(AffineBinaryOpKind.CeilDiv, five, two) == three
+
+
+def test_affine_map_used_dims():
+    assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims() == {0, 1}
+    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims() == {0, 1}
+    assert AffineMap.from_callable(lambda i, _, k: (i, k)).used_dims() == {0, 2}
+
+
+def test_affine_map_used_dims_bit_vector():
+    assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims_bit_vector() == (
+        True,
+        True,
+    )
+    assert AffineMap.from_callable(lambda i, j, _: (i + j,)).used_dims_bit_vector() == (
+        True,
+        True,
+        False,
+    )
+    assert AffineMap.from_callable(lambda i, _, k: (i, k)).used_dims_bit_vector() == (
+        True,
+        False,
+        True,
+    )

@@ -19,6 +19,9 @@ LIT_OPTIONS ?= -v --order=smart
 # make tasks run all commands in a single shell
 .ONESHELL:
 
+# use bash as the shell
+SHELL := /bin/bash
+
 .PHONY: uv-installed
 uv-installed:
 	@command -v uv &> /dev/null ||\
@@ -85,17 +88,25 @@ pytest-toy-nb:
 .PHONY: tests-toy
 tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
+
 .PHONY: tests-marimo
 tests-marimo: uv-installed
+	@ERROR_LOG=$(shell mktemp)
+	@declare -a FAILED_MARIMO_TESTS
 	@for file in docs/marimo/*.py; do \
 		echo "Running $$file"; \
-		error_message=$$(uv run python3 "$$file" 2>&1) || { \
-			echo "Error running $$file"; \
-			echo "$$error_message"; \
-			exit 1; \
-		}; \
-	done
-	@echo "All marimo tests passed successfully."
+		uv run python3 "$$file" 2>> "$${ERROR_LOG}"; \
+		if [ $$? -ne 0 ]; then \
+			FAILED_MARIMO_TESTS+=($$file); \
+		fi; \
+	done;
+	@if [[ ! -z $${FAILED_MARIMO_TESTS[@]} ]]; then \
+		cat "$${ERROR_LOG}"; \
+		echo -e "\n\nThe following marimo tests failed: $${FAILED_MARIMO_TESTS[@]}"; \
+		exit 1; \ 
+	else \
+		echo -e "\n\nAll marimo tests passed successfully."; \
+	fi
 
 
 # run all tests
@@ -177,7 +188,7 @@ asv-preview: uv-installed .asv/html
 	uv run asv preview
 
 .PHONY: asv-clean
-asv-clean: .asv
+asv-clean:
 	rm -rf .asv/
 
 # docs

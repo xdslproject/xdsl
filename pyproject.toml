@@ -23,13 +23,13 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.11.11",
+    "marimo==0.11.17",
     "pre-commit==4.1.0",
-    "ruff==0.9.8",
+    "ruff==0.9.10",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
     "pytest-asyncio==0.25.3",
-    "pyright==1.1.395",
+    "pyright==1.1.396",
     "sympy==1.13.3",
 ]
 docs = [
@@ -39,7 +39,7 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
 ]
 gui = ["textual==2.1.2", "pyclip==0.7"]
-jax = ["jax==0.5.1", "numpy==2.2.3"]
+jax = ["jax==0.5.2", "numpy==2.2.3"]
 riscv = ["riscemu==2.2.7"]
 bench = ["asv>=0.6.4", "viztracer>=1.0.2", "orjson>=3.10.15"]
 

@@ -54,3 +54,23 @@ scf.for %j = %lb to %ub step %step {
         "test.op"(%mult_idx) : (index) -> ()
     }
 }
+
+// CHECK-NEXT:   %15 = arith.muli %lb, %mul_shift : index
+// CHECK-NEXT:   %16 = arith.muli %ub, %mul_shift : index
+// CHECK-NEXT:   %17 = arith.muli %step, %mul_shift : index
+// CHECK-NEXT:   scf.for %i_3 = %15 to %16 step %17 {
+// CHECK-NEXT:     scf.for %j_1 = %lb to %ub step %step {
+// CHECK-NEXT:       %b = arith.addi %i_3, %j_1 : index
+// CHECK-NEXT:       %c = arith.muli %b, %mul_shift : index
+// CHECK-NEXT:       "test.op"(%c) : (index) -> ()
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+
+scf.for %i = %lb to %ub step %step {
+    scf.for %j = %lb to %ub step %step {
+        %a = arith.muli %i, %mul_shift : index
+        %b = arith.addi %a, %j : index
+        %c = arith.muli %b, %mul_shift : index
+        "test.op"(%c) : (index) -> ()
+    }
+}

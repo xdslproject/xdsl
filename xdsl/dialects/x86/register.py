@@ -6,20 +6,12 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.irdl import (
     irdl_attr_definition,
 )
-from xdsl.utils.exceptions import VerifyException
 
 
 class X86RegisterType(RegisterType, ABC):
     """
     The abstract class for all x86 register types.
     """
-
-    def verify(self) -> None:
-        name = self.spelling.data
-        if not self.is_allocated:
-            return
-        if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
 
 
 # See https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers
@@ -72,33 +64,33 @@ class GeneralRegisterType(X86RegisterType):
         return "inf_reg_"
 
 
-UNALLOCATED_GENERAL = GeneralRegisterType("")
-RAX = GeneralRegisterType("rax")
-RCX = GeneralRegisterType("rcx")
-RDX = GeneralRegisterType("rdx")
-RBX = GeneralRegisterType("rbx")
-RSP = GeneralRegisterType("rsp")
-RBP = GeneralRegisterType("rbp")
-RSI = GeneralRegisterType("rsi")
-RDI = GeneralRegisterType("rdi")
+UNALLOCATED_GENERAL = GeneralRegisterType.unallocated()
+RAX = GeneralRegisterType.from_name("rax")
+RCX = GeneralRegisterType.from_name("rcx")
+RDX = GeneralRegisterType.from_name("rdx")
+RBX = GeneralRegisterType.from_name("rbx")
+RSP = GeneralRegisterType.from_name("rsp")
+RBP = GeneralRegisterType.from_name("rbp")
+RSI = GeneralRegisterType.from_name("rsi")
+RDI = GeneralRegisterType.from_name("rdi")
 
-EAX = GeneralRegisterType("eax")
-ECX = GeneralRegisterType("ecx")
-EDX = GeneralRegisterType("edx")
-EBX = GeneralRegisterType("ebx")
-ESP = GeneralRegisterType("esp")
-EBP = GeneralRegisterType("ebp")
-ESI = GeneralRegisterType("esi")
-EDI = GeneralRegisterType("edi")
+EAX = GeneralRegisterType.from_name("eax")
+ECX = GeneralRegisterType.from_name("ecx")
+EDX = GeneralRegisterType.from_name("edx")
+EBX = GeneralRegisterType.from_name("ebx")
+ESP = GeneralRegisterType.from_name("esp")
+EBP = GeneralRegisterType.from_name("ebp")
+ESI = GeneralRegisterType.from_name("esi")
+EDI = GeneralRegisterType.from_name("edi")
 
-R8 = GeneralRegisterType("r8")
-R9 = GeneralRegisterType("r9")
-R10 = GeneralRegisterType("r10")
-R11 = GeneralRegisterType("r11")
-R12 = GeneralRegisterType("r12")
-R13 = GeneralRegisterType("r13")
-R14 = GeneralRegisterType("r14")
-R15 = GeneralRegisterType("r15")
+R8 = GeneralRegisterType.from_name("r8")
+R9 = GeneralRegisterType.from_name("r9")
+R10 = GeneralRegisterType.from_name("r10")
+R11 = GeneralRegisterType.from_name("r11")
+R12 = GeneralRegisterType.from_name("r12")
+R13 = GeneralRegisterType.from_name("r13")
+R14 = GeneralRegisterType.from_name("r14")
+R15 = GeneralRegisterType.from_name("r15")
 
 RFLAGS_INDEX_BY_NAME = {
     "rflags": 0,
@@ -126,16 +118,14 @@ class RFLAGSRegisterType(X86RegisterType):
         return "inf_rflags_"
 
 
-UNALLOCATED_RFLAGS = RFLAGSRegisterType("")
-RFLAGS = RFLAGSRegisterType("rflags")
+UNALLOCATED_RFLAGS = RFLAGSRegisterType.unallocated()
+RFLAGS = RFLAGSRegisterType.from_name("rflags")
 
 
 class X86VectorRegisterType(X86RegisterType):
     """
     The abstract class for all x86 vector register types.
     """
-
-    pass
 
 
 @irdl_attr_definition
@@ -179,23 +169,23 @@ SSE_INDEX_BY_NAME = {
     "xmm15": 15,
 }
 
-UNALLOCATED_SSE = SSERegisterType("")
-XMM0 = SSERegisterType("xmm0")
-XMM1 = SSERegisterType("xmm1")
-XMM2 = SSERegisterType("xmm2")
-XMM3 = SSERegisterType("xmm3")
-XMM4 = SSERegisterType("xmm4")
-XMM5 = SSERegisterType("xmm5")
-XMM6 = SSERegisterType("xmm6")
-XMM7 = SSERegisterType("xmm7")
-XMM8 = SSERegisterType("xmm8")
-XMM9 = SSERegisterType("xmm9")
-XMM10 = SSERegisterType("xmm10")
-XMM11 = SSERegisterType("xmm11")
-XMM12 = SSERegisterType("xmm12")
-XMM13 = SSERegisterType("xmm13")
-XMM14 = SSERegisterType("xmm14")
-XMM15 = SSERegisterType("xmm15")
+UNALLOCATED_SSE = SSERegisterType.unallocated()
+XMM0 = SSERegisterType.from_name("xmm0")
+XMM1 = SSERegisterType.from_name("xmm1")
+XMM2 = SSERegisterType.from_name("xmm2")
+XMM3 = SSERegisterType.from_name("xmm3")
+XMM4 = SSERegisterType.from_name("xmm4")
+XMM5 = SSERegisterType.from_name("xmm5")
+XMM6 = SSERegisterType.from_name("xmm6")
+XMM7 = SSERegisterType.from_name("xmm7")
+XMM8 = SSERegisterType.from_name("xmm8")
+XMM9 = SSERegisterType.from_name("xmm9")
+XMM10 = SSERegisterType.from_name("xmm10")
+XMM11 = SSERegisterType.from_name("xmm11")
+XMM12 = SSERegisterType.from_name("xmm12")
+XMM13 = SSERegisterType.from_name("xmm13")
+XMM14 = SSERegisterType.from_name("xmm14")
+XMM15 = SSERegisterType.from_name("xmm15")
 
 
 @irdl_attr_definition
@@ -239,23 +229,23 @@ AVX2_INDEX_BY_NAME = {
     "ymm15": 15,
 }
 
-UNALLOCATED_AVX2 = AVX2RegisterType("")
-YMM0 = AVX2RegisterType("ymm0")
-YMM1 = AVX2RegisterType("ymm1")
-YMM2 = AVX2RegisterType("ymm2")
-YMM3 = AVX2RegisterType("ymm3")
-YMM4 = AVX2RegisterType("ymm4")
-YMM5 = AVX2RegisterType("ymm5")
-YMM6 = AVX2RegisterType("ymm6")
-YMM7 = AVX2RegisterType("ymm7")
-YMM8 = AVX2RegisterType("ymm8")
-YMM9 = AVX2RegisterType("ymm9")
-YMM10 = AVX2RegisterType("ymm10")
-YMM11 = AVX2RegisterType("ymm11")
-YMM12 = AVX2RegisterType("ymm12")
-YMM13 = AVX2RegisterType("ymm13")
-YMM14 = AVX2RegisterType("ymm14")
-YMM15 = AVX2RegisterType("ymm15")
+UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
+YMM0 = AVX2RegisterType.from_name("ymm0")
+YMM1 = AVX2RegisterType.from_name("ymm1")
+YMM2 = AVX2RegisterType.from_name("ymm2")
+YMM3 = AVX2RegisterType.from_name("ymm3")
+YMM4 = AVX2RegisterType.from_name("ymm4")
+YMM5 = AVX2RegisterType.from_name("ymm5")
+YMM6 = AVX2RegisterType.from_name("ymm6")
+YMM7 = AVX2RegisterType.from_name("ymm7")
+YMM8 = AVX2RegisterType.from_name("ymm8")
+YMM9 = AVX2RegisterType.from_name("ymm9")
+YMM10 = AVX2RegisterType.from_name("ymm10")
+YMM11 = AVX2RegisterType.from_name("ymm11")
+YMM12 = AVX2RegisterType.from_name("ymm12")
+YMM13 = AVX2RegisterType.from_name("ymm13")
+YMM14 = AVX2RegisterType.from_name("ymm14")
+YMM15 = AVX2RegisterType.from_name("ymm15")
 
 
 @irdl_attr_definition
@@ -315,36 +305,36 @@ X86AVX512_INDEX_BY_NAME = {
     "zmm31": 31,
 }
 
-UNALLOCATED_AVX512 = AVX512RegisterType("")
-ZMM0 = AVX512RegisterType("zmm0")
-ZMM1 = AVX512RegisterType("zmm1")
-ZMM2 = AVX512RegisterType("zmm2")
-ZMM3 = AVX512RegisterType("zmm3")
-ZMM4 = AVX512RegisterType("zmm4")
-ZMM5 = AVX512RegisterType("zmm5")
-ZMM6 = AVX512RegisterType("zmm6")
-ZMM7 = AVX512RegisterType("zmm7")
-ZMM8 = AVX512RegisterType("zmm8")
-ZMM9 = AVX512RegisterType("zmm9")
-ZMM10 = AVX512RegisterType("zmm10")
-ZMM11 = AVX512RegisterType("zmm11")
-ZMM12 = AVX512RegisterType("zmm12")
-ZMM13 = AVX512RegisterType("zmm13")
-ZMM14 = AVX512RegisterType("zmm14")
-ZMM15 = AVX512RegisterType("zmm15")
-ZMM16 = AVX512RegisterType("zmm16")
-ZMM17 = AVX512RegisterType("zmm17")
-ZMM18 = AVX512RegisterType("zmm18")
-ZMM19 = AVX512RegisterType("zmm19")
-ZMM20 = AVX512RegisterType("zmm20")
-ZMM21 = AVX512RegisterType("zmm21")
-ZMM22 = AVX512RegisterType("zmm22")
-ZMM23 = AVX512RegisterType("zmm23")
-ZMM24 = AVX512RegisterType("zmm24")
-ZMM25 = AVX512RegisterType("zmm25")
-ZMM26 = AVX512RegisterType("zmm26")
-ZMM27 = AVX512RegisterType("zmm27")
-ZMM28 = AVX512RegisterType("zmm28")
-ZMM29 = AVX512RegisterType("zmm29")
-ZMM30 = AVX512RegisterType("zmm30")
-ZMM31 = AVX512RegisterType("zmm31")
+UNALLOCATED_AVX512 = AVX512RegisterType.unallocated()
+ZMM0 = AVX512RegisterType.from_name("zmm0")
+ZMM1 = AVX512RegisterType.from_name("zmm1")
+ZMM2 = AVX512RegisterType.from_name("zmm2")
+ZMM3 = AVX512RegisterType.from_name("zmm3")
+ZMM4 = AVX512RegisterType.from_name("zmm4")
+ZMM5 = AVX512RegisterType.from_name("zmm5")
+ZMM6 = AVX512RegisterType.from_name("zmm6")
+ZMM7 = AVX512RegisterType.from_name("zmm7")
+ZMM8 = AVX512RegisterType.from_name("zmm8")
+ZMM9 = AVX512RegisterType.from_name("zmm9")
+ZMM10 = AVX512RegisterType.from_name("zmm10")
+ZMM11 = AVX512RegisterType.from_name("zmm11")
+ZMM12 = AVX512RegisterType.from_name("zmm12")
+ZMM13 = AVX512RegisterType.from_name("zmm13")
+ZMM14 = AVX512RegisterType.from_name("zmm14")
+ZMM15 = AVX512RegisterType.from_name("zmm15")
+ZMM16 = AVX512RegisterType.from_name("zmm16")
+ZMM17 = AVX512RegisterType.from_name("zmm17")
+ZMM18 = AVX512RegisterType.from_name("zmm18")
+ZMM19 = AVX512RegisterType.from_name("zmm19")
+ZMM20 = AVX512RegisterType.from_name("zmm20")
+ZMM21 = AVX512RegisterType.from_name("zmm21")
+ZMM22 = AVX512RegisterType.from_name("zmm22")
+ZMM23 = AVX512RegisterType.from_name("zmm23")
+ZMM24 = AVX512RegisterType.from_name("zmm24")
+ZMM25 = AVX512RegisterType.from_name("zmm25")
+ZMM26 = AVX512RegisterType.from_name("zmm26")
+ZMM27 = AVX512RegisterType.from_name("zmm27")
+ZMM28 = AVX512RegisterType.from_name("zmm28")
+ZMM29 = AVX512RegisterType.from_name("zmm29")
+ZMM30 = AVX512RegisterType.from_name("zmm30")
+ZMM31 = AVX512RegisterType.from_name("zmm31")

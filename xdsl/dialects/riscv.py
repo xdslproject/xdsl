@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    NoneAttr,
     Signedness,
     StringAttr,
     UnitAttr,
@@ -67,6 +68,15 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
+def is_non_zero(reg: IntRegisterType) -> bool:
+    """
+    Returns True if the register is allocated, and is not the x0/ZERO register.
+    """
+    return (
+        reg.is_allocated and not isinstance(reg.index, NoneAttr) and reg.index.data != 0
+    )
+
+
 @irdl_attr_definition
 class FastMathFlagsAttr(FastMathAttrBase):
     """
@@ -86,20 +96,13 @@ class RISCVRegisterType(RegisterType):
     A RISC-V register type.
     """
 
-    def verify(self) -> None:
-        name = self.spelling.data
-        if not self.is_allocated or name.startswith("j") or name.startswith("fj"):
-            return
-        if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
-
     @classmethod
     @abstractmethod
     def a_register(cls, index: int) -> Self:
         raise NotImplementedError()
 
 
-RV32I_INDEX_BY_NAME = {
+_RV32I_ABI_INDEX_BY_NAME = {
     "zero": 0,
     "ra": 1,
     "sp": 2,
@@ -134,6 +137,8 @@ RV32I_INDEX_BY_NAME = {
     "t5": 30,
     "t6": 31,
 }
+_RV32I_X_INDEX_BY_NAME = {f"x{i}": i for i in range(32)}
+RV32I_INDEX_BY_NAME = _RV32I_ABI_INDEX_BY_NAME | _RV32I_X_INDEX_BY_NAME
 
 
 @irdl_attr_definition
@@ -161,7 +166,7 @@ class IntRegisterType(RISCVRegisterType):
         return "j_"
 
 
-RV32F_INDEX_BY_NAME = {
+_RV32F_ABI_INDEX_BY_NAME = {
     "ft0": 0,
     "ft1": 1,
     "ft2": 2,
@@ -195,6 +200,8 @@ RV32F_INDEX_BY_NAME = {
     "ft10": 30,
     "ft11": 31,
 }
+_RV32F_F_INDEX_BY_NAME = {f"f{i}": i for i in range(32)}
+RV32F_INDEX_BY_NAME = _RV32F_ABI_INDEX_BY_NAME | _RV32F_F_INDEX_BY_NAME
 
 
 @irdl_attr_definition
@@ -231,74 +238,74 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
-    UNALLOCATED_INT = IntRegisterType("")
-    ZERO = IntRegisterType("zero")
-    RA = IntRegisterType("ra")
-    SP = IntRegisterType("sp")
-    GP = IntRegisterType("gp")
-    TP = IntRegisterType("tp")
-    T0 = IntRegisterType("t0")
-    T1 = IntRegisterType("t1")
-    T2 = IntRegisterType("t2")
-    FP = IntRegisterType("fp")
-    S0 = IntRegisterType("s0")
-    S1 = IntRegisterType("s1")
-    A0 = IntRegisterType("a0")
-    A1 = IntRegisterType("a1")
-    A2 = IntRegisterType("a2")
-    A3 = IntRegisterType("a3")
-    A4 = IntRegisterType("a4")
-    A5 = IntRegisterType("a5")
-    A6 = IntRegisterType("a6")
-    A7 = IntRegisterType("a7")
-    S2 = IntRegisterType("s2")
-    S3 = IntRegisterType("s3")
-    S4 = IntRegisterType("s4")
-    S5 = IntRegisterType("s5")
-    S6 = IntRegisterType("s6")
-    S7 = IntRegisterType("s7")
-    S8 = IntRegisterType("s8")
-    S9 = IntRegisterType("s9")
-    S10 = IntRegisterType("s10")
-    S11 = IntRegisterType("s11")
-    T3 = IntRegisterType("t3")
-    T4 = IntRegisterType("t4")
-    T5 = IntRegisterType("t5")
-    T6 = IntRegisterType("t6")
+    UNALLOCATED_INT = IntRegisterType.unallocated()
+    ZERO = IntRegisterType.from_name("zero")
+    RA = IntRegisterType.from_name("ra")
+    SP = IntRegisterType.from_name("sp")
+    GP = IntRegisterType.from_name("gp")
+    TP = IntRegisterType.from_name("tp")
+    T0 = IntRegisterType.from_name("t0")
+    T1 = IntRegisterType.from_name("t1")
+    T2 = IntRegisterType.from_name("t2")
+    FP = IntRegisterType.from_name("fp")
+    S0 = IntRegisterType.from_name("s0")
+    S1 = IntRegisterType.from_name("s1")
+    A0 = IntRegisterType.from_name("a0")
+    A1 = IntRegisterType.from_name("a1")
+    A2 = IntRegisterType.from_name("a2")
+    A3 = IntRegisterType.from_name("a3")
+    A4 = IntRegisterType.from_name("a4")
+    A5 = IntRegisterType.from_name("a5")
+    A6 = IntRegisterType.from_name("a6")
+    A7 = IntRegisterType.from_name("a7")
+    S2 = IntRegisterType.from_name("s2")
+    S3 = IntRegisterType.from_name("s3")
+    S4 = IntRegisterType.from_name("s4")
+    S5 = IntRegisterType.from_name("s5")
+    S6 = IntRegisterType.from_name("s6")
+    S7 = IntRegisterType.from_name("s7")
+    S8 = IntRegisterType.from_name("s8")
+    S9 = IntRegisterType.from_name("s9")
+    S10 = IntRegisterType.from_name("s10")
+    S11 = IntRegisterType.from_name("s11")
+    T3 = IntRegisterType.from_name("t3")
+    T4 = IntRegisterType.from_name("t4")
+    T5 = IntRegisterType.from_name("t5")
+    T6 = IntRegisterType.from_name("t6")
 
-    UNALLOCATED_FLOAT = FloatRegisterType("")
-    FT0 = FloatRegisterType("ft0")
-    FT1 = FloatRegisterType("ft1")
-    FT2 = FloatRegisterType("ft2")
-    FT3 = FloatRegisterType("ft3")
-    FT4 = FloatRegisterType("ft4")
-    FT5 = FloatRegisterType("ft5")
-    FT6 = FloatRegisterType("ft6")
-    FT7 = FloatRegisterType("ft7")
-    FS0 = FloatRegisterType("fs0")
-    FS1 = FloatRegisterType("fs1")
-    FA0 = FloatRegisterType("fa0")
-    FA1 = FloatRegisterType("fa1")
-    FA2 = FloatRegisterType("fa2")
-    FA3 = FloatRegisterType("fa3")
-    FA4 = FloatRegisterType("fa4")
-    FA5 = FloatRegisterType("fa5")
-    FA6 = FloatRegisterType("fa6")
-    FA7 = FloatRegisterType("fa7")
-    FS2 = FloatRegisterType("fs2")
-    FS3 = FloatRegisterType("fs3")
-    FS4 = FloatRegisterType("fs4")
-    FS5 = FloatRegisterType("fs5")
-    FS6 = FloatRegisterType("fs6")
-    FS7 = FloatRegisterType("fs7")
-    FS8 = FloatRegisterType("fs8")
-    FS9 = FloatRegisterType("fs9")
-    FS10 = FloatRegisterType("fs10")
-    FS11 = FloatRegisterType("fs11")
-    FT8 = FloatRegisterType("ft8")
-    FT9 = FloatRegisterType("ft9")
-    FT10 = FloatRegisterType("ft10")
-    FT11 = FloatRegisterType("ft11")
+    UNALLOCATED_FLOAT = FloatRegisterType.unallocated()
+    FT0 = FloatRegisterType.from_name("ft0")
+    FT1 = FloatRegisterType.from_name("ft1")
+    FT2 = FloatRegisterType.from_name("ft2")
+    FT3 = FloatRegisterType.from_name("ft3")
+    FT4 = FloatRegisterType.from_name("ft4")
+    FT5 = FloatRegisterType.from_name("ft5")
+    FT6 = FloatRegisterType.from_name("ft6")
+    FT7 = FloatRegisterType.from_name("ft7")
+    FS0 = FloatRegisterType.from_name("fs0")
+    FS1 = FloatRegisterType.from_name("fs1")
+    FA0 = FloatRegisterType.from_name("fa0")
+    FA1 = FloatRegisterType.from_name("fa1")
+    FA2 = FloatRegisterType.from_name("fa2")
+    FA3 = FloatRegisterType.from_name("fa3")
+    FA4 = FloatRegisterType.from_name("fa4")
+    FA5 = FloatRegisterType.from_name("fa5")
+    FA6 = FloatRegisterType.from_name("fa6")
+    FA7 = FloatRegisterType.from_name("fa7")
+    FS2 = FloatRegisterType.from_name("fs2")
+    FS3 = FloatRegisterType.from_name("fs3")
+    FS4 = FloatRegisterType.from_name("fs4")
+    FS5 = FloatRegisterType.from_name("fs5")
+    FS6 = FloatRegisterType.from_name("fs6")
+    FS7 = FloatRegisterType.from_name("fs7")
+    FS8 = FloatRegisterType.from_name("fs8")
+    FS9 = FloatRegisterType.from_name("fs9")
+    FS10 = FloatRegisterType.from_name("fs10")
+    FS11 = FloatRegisterType.from_name("fs11")
+    FT8 = FloatRegisterType.from_name("ft8")
+    FT9 = FloatRegisterType.from_name("ft9")
+    FT10 = FloatRegisterType.from_name("ft10")
+    FT11 = FloatRegisterType.from_name("ft11")
 
     # register classes:
 
@@ -488,15 +495,15 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     elif isinstance(arg, str):
         return arg
     elif isinstance(arg, IntRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     elif isinstance(arg, FloatRegisterType):
-        return arg.register_name
+        return arg.register_name.data
     else:
         if isinstance(arg.type, IntRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         elif isinstance(arg.type, FloatRegisterType):
-            reg = arg.type.register_name
+            reg = arg.type.register_name.data
             return reg
         else:
             raise ValueError(f"Unexpected register type {arg.type}")
@@ -538,7 +545,7 @@ class RdRsRsOperation(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RDInvT,
+        rd: RDInvT = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -1184,12 +1191,11 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.type, IntRegisterType):
-            return
-        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
+        assert isinstance(self.rd.type, IntRegisterType)
+        if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1258,12 +1264,11 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.type, IntRegisterType):
-            return
-        if self.rs1.type.is_allocated and self.rs1.type != Registers.ZERO:
+        assert isinstance(self.rs1.type, IntRegisterType)
+        if is_non_zero(self.rs1.type):
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.type.spelling.data}'"
+                f"not '{self.rs1.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1330,12 +1335,11 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.type, IntRegisterType):
-            return
-        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
+        assert isinstance(self.rd.type, IntRegisterType)
+        if is_non_zero(self.rd.type):
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.spelling.data}'"
+                f"not '{self.rd.type.register_name.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -2517,17 +2521,13 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         self,
         immediate: int | Imm32Attr | str | LabelAttr,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2998,45 +2998,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
-class RdRsRsFloatFloatIntegerOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
-    """
-    A base class for RV32F operations that take
-    two floating-point input registers and an integer destination register.
-    """
-
-    rd = result_def(IntRegisterType)
-    rs1 = operand_def(FloatRegisterType)
-    rs2 = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        *,
-        rd: IntRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rs1, rs2],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[rd],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs1, self.rs2
-
-
 class RdRsRsFloatFloatIntegerOperationWithFastMath(
     RISCVCustomFormatOperation, RISCVInstruction, ABC
 ):
@@ -3057,14 +3018,10 @@ class RdRsRsFloatFloatIntegerOperationWithFastMath(
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
         fastmath: FastMathFlagsAttr = FastMathFlagsAttr("none"),
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = Registers.UNALLOCATED_INT
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
