@@ -161,7 +161,7 @@ coverage-tests: uv-installed
 # run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
 coverage-filecheck-tests: uv-installed
-	COVERAGE_FILE="${COVERAGE_FILE}.filecheck" uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
+	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
 .PHONY: coverage-report-html
