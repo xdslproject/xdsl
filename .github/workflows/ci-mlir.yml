@@ -116,9 +116,11 @@ jobs:
         pwd
         cd xdsl
         pwd
+        ls
         uv run coverage combine --append
         uv run coverage report
         uv run coverage xml
+        ls
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
