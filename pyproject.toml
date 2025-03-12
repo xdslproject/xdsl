@@ -184,7 +184,6 @@ omit = [
 ]
 concurrency = ["multiprocessing"]
 parallel = true
-source = ["xdsl/", "docs/"]
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration
