@@ -126,6 +126,5 @@ jobs:
         with: |
           fail_ci_if_error: true
           verbose: true
-          root_dir: xdsl
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
