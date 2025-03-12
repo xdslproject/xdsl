@@ -91,6 +91,7 @@ jobs:
 
     - name: Test with pytest and generate code coverage
       run: |
+        cd xdsl
         pwd
         ls
         uv run pytest -W error --cov
