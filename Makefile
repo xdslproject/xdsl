@@ -91,22 +91,25 @@ tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
 .PHONY: tests-marimo
 tests-marimo: uv-installed
-	@ERROR_LOG=$(shell mktemp)
-	@declare -a FAILED_MARIMO_TESTS
-	@for file in docs/marimo/*.py; do \
-		echo "Running $$file"; \
-		uv run python3 "$$file" 2>> "$${ERROR_LOG}"; \
-		if [ $$? -ne 0 ]; then \
-			FAILED_MARIMO_TESTS+=($$file); \
-		fi; \
-	done;
-	@if [[ ! -z $${FAILED_MARIMO_TESTS[@]} ]]; then \
-		cat "$${ERROR_LOG}"; \
-		echo -e "\n\nThe following marimo tests failed: $${FAILED_MARIMO_TESTS[@]}"; \
-		exit 1; \ 
-	else \
-		echo -e "\n\nAll marimo tests passed successfully."; \
-	fi
+	@bash -c '\
+		error_log="/tmp/marimo_test_$$$$.log"; \
+		failed_tests=""; \
+		for file in docs/marimo/*.py; do \
+			echo "Running $$file"; \
+			if ! output=$$(uv run python3 "$$file" 2>&1); then \
+				echo "$$output" >> "$$error_log"; \
+				failed_tests="$$failed_tests $$file"; \
+			fi; \
+		done; \
+		if [ ! -z "$$failed_tests" ]; then \
+			cat "$$error_log"; \
+			echo -e "\n\nThe following marimo tests failed: $$failed_tests"; \
+			rm -f "$$error_log"; \
+			exit 1; \
+		else \
+			rm -f "$$error_log"; \
+			echo -e "\n\nAll marimo tests passed successfully."; \
+		fi'
 
 
 # run all tests
