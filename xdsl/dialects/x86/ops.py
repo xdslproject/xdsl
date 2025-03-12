@@ -50,6 +50,9 @@ from .assembly import (
 )
 from .attributes import LabelAttr
 from .register import (
+    RAX,
+    RDX,
+    RSP,
     GeneralRegisterType,
     RFLAGSRegisterType,
     X86RegisterType,
@@ -326,9 +329,9 @@ class R_PushOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.r.push"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     source = operand_def(R1InvT)
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -362,9 +365,9 @@ class R_PopOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.r.pop"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     destination = result_def(R1InvT)
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -481,11 +484,11 @@ class R_IDivOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.r.idiv"
 
     r1 = operand_def(R1InvT)
-    rdx_input = operand_def(GeneralRegisterType("rdx"))
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rdx_input = operand_def(RDX)
+    rax_input = operand_def(RAX)
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,
@@ -525,10 +528,10 @@ class R_ImulOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.r.imul"
 
     r1 = operand_def(GeneralRegisterType)
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rax_input = operand_def(RAX)
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,
@@ -593,6 +596,59 @@ class R_RM_Operation(
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.r2, self.offset)
         destination = assembly_arg_str(self.r1)
+        return (destination, memory_access)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class R_M_Operation(
+    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
+):
+    """
+    A base class for x86 operations that have one register and one memory access with an optional offset.
+    """
+
+    r1 = operand_def(R1InvT)
+    offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+
+    result = result_def(R2InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        offset: int | IntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R2InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.r1, self.offset)
+        destination = assembly_arg_str(self.result)
         return (destination, memory_access)
 
     @classmethod
@@ -688,11 +744,11 @@ class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_MovOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RM_MovOp(R_M_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
-    Copies the value from the memory location pointed to by r2 into r1.
+    Copies the value from the memory location pointed to by source register r1 into destination register r2.
     ```C
-    x[r1] = [x[r2]]
+    x[r2] = [x[r1]]
     ```
     https://www.felixcloutier.com/x86/mov
     """
@@ -1244,11 +1300,11 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.m.push"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     source = operand_def(R1InvT)
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -1302,12 +1358,12 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
 
     name = "x86.m.pop"
 
-    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    rsp_input = operand_def(RSP)
     destination = operand_def(
         GeneralRegisterType
     )  # the destination is a pointer to the memory location and the register itself is not modified
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-    rsp_output = result_def(GeneralRegisterType("rsp"))
+    rsp_output = result_def(RSP)
 
     def __init__(
         self,
@@ -1458,12 +1514,12 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.m.idiv"
 
     r1 = operand_def(R1InvT)
-    rdx_input = operand_def(GeneralRegisterType("rdx"))
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rdx_input = operand_def(RDX)
+    rax_input = operand_def(RAX)
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,
@@ -1519,11 +1575,11 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.m.imul"
 
     r1 = operand_def(GeneralRegisterType)
-    rax_input = operand_def(GeneralRegisterType("rax"))
+    rax_input = operand_def(RAX)
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    rdx_output = result_def(GeneralRegisterType("rdx"))
-    rax_output = result_def(GeneralRegisterType("rax"))
+    rdx_output = result_def(RDX)
+    rax_output = result_def(RAX)
 
     def __init__(
         self,
@@ -2559,7 +2615,7 @@ class MR_VmovupsOp(M_MR_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
-class RM_VmovupsOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class RM_VmovupsOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed single precision floating-point values from memory to vector register
     https://www.felixcloutier.com/x86/movups
@@ -2569,7 +2625,7 @@ class RM_VmovupsOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class RM_VbroadcastsdOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
     https://www.felixcloutier.com/x86/vbroadcast
@@ -2579,7 +2635,7 @@ class RM_VbroadcastsdOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterTyp
 
 
 @irdl_op_definition
-class RM_VbroadcastssOp(R_RM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class RM_VbroadcastssOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Broadcast single precision floating-point element to eight locations in memory
     https://www.felixcloutier.com/x86/vbroadcast

@@ -475,9 +475,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             and subview.source == op.receive_chunk.block.args[2]
         ):
             assert isa(subview.source.type, memref.MemRefType[Attribute])
-            new_ops.append(
-                cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value)
-            )
+            new_ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))
             new_ops.append(
                 new_acc := csl.IncrementDsdOffsetOp.build(
                     operands=[acc_dsd, cast_op],

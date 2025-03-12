@@ -1912,6 +1912,60 @@ def irdl_op_arg_definition(
         )
 
 
+def _optional_attribute_field(attribute_name: str, default_value: Attribute | None):
+    """Returns the getter and setter for an optional operation attribute."""
+
+    def field_getter(self: IRDLOperation):
+        return self.attributes.get(attribute_name, default_value)
+
+    def field_setter(self: IRDLOperation, value: Attribute | None):
+        if value is None:
+            self.attributes.pop(attribute_name, None)
+        else:
+            self.attributes[attribute_name] = value
+
+    return property(field_getter, field_setter)
+
+
+def _attribute_field(attribute_name: str):
+    """Returns the getter and setter for an operation attribute."""
+
+    def field_getter(self: IRDLOperation):
+        return self.attributes[attribute_name]
+
+    def field_setter(self: IRDLOperation, value: Attribute):
+        self.attributes[attribute_name] = value
+
+    return property(field_getter, field_setter)
+
+
+def _optional_property_field(property_name: str, default_value: Attribute | None):
+    """Returns the getter and setter for an optional operation property."""
+
+    def field_getter(self: IRDLOperation):
+        return self.properties.get(property_name, default_value)
+
+    def field_setter(self: IRDLOperation, value: Attribute | None):
+        if value is None:
+            self.properties.pop(property_name, None)
+        else:
+            self.properties[property_name] = value
+
+    return property(field_getter, field_setter)
+
+
+def _property_field(property_name: str):
+    """Returns the getter and setter for an operation property."""
+
+    def field_getter(self: IRDLOperation):
+        return self.properties[property_name]
+
+    def field_setter(self: IRDLOperation, value: Attribute):
+        self.properties[property_name] = value
+
+    return property(field_getter, field_setter)
+
+
 def get_accessors_from_op_def(
     op_def: OpDef, custom_verify: Any | None
 ) -> dict[str, Any]:
@@ -1930,52 +1984,6 @@ def get_accessors_from_op_def(
     # Add successor access fields
     irdl_op_arg_definition(new_attrs, VarIRConstruct.SUCCESSOR, op_def)
 
-    def optional_attribute_field(attribute_name: str):
-        def field_getter(self: IRDLOperation):
-            return self.attributes.get(
-                attribute_name, op_def.attributes[attribute_name].default_value
-            )
-
-        def field_setter(self: IRDLOperation, value: Attribute | None):
-            if value is None:
-                self.attributes.pop(attribute_name, None)
-            else:
-                self.attributes[attribute_name] = value
-
-        return property(field_getter, field_setter)
-
-    def attribute_field(attribute_name: str):
-        def field_getter(self: IRDLOperation):
-            return self.attributes[attribute_name]
-
-        def field_setter(self: IRDLOperation, value: Attribute):
-            self.attributes[attribute_name] = value
-
-        return property(field_getter, field_setter)
-
-    def optional_property_field(property_name: str):
-        def field_getter(self: IRDLOperation):
-            return self.properties.get(
-                property_name, op_def.properties[property_name].default_value
-            )
-
-        def field_setter(self: IRDLOperation, value: Attribute | None):
-            if value is None:
-                self.properties.pop(property_name, None)
-            else:
-                self.properties[property_name] = value
-
-        return property(field_getter, field_setter)
-
-    def property_field(property_name: str):
-        def field_getter(self: IRDLOperation):
-            return self.properties[property_name]
-
-        def field_setter(self: IRDLOperation, value: Attribute):
-            self.properties[property_name] = value
-
-        return property(field_getter, field_setter)
-
     for accessor_name, (
         attribute_name,
         attribute_type,
@@ -1983,15 +1991,19 @@ def get_accessors_from_op_def(
         if attribute_type == "attribute":
             attr_def = op_def.attributes[attribute_name]
             if isinstance(attr_def, OptAttributeDef):
-                new_attrs[accessor_name] = optional_attribute_field(attribute_name)
+                new_attrs[accessor_name] = _optional_attribute_field(
+                    attribute_name, op_def.attributes[attribute_name].default_value
+                )
             else:
-                new_attrs[accessor_name] = attribute_field(attribute_name)
+                new_attrs[accessor_name] = _attribute_field(attribute_name)
         else:
             prop_def = op_def.properties[attribute_name]
             if isinstance(prop_def, OptPropertyDef):
-                new_attrs[accessor_name] = optional_property_field(attribute_name)
+                new_attrs[accessor_name] = _optional_property_field(
+                    attribute_name, op_def.properties[attribute_name].default_value
+                )
             else:
-                new_attrs[accessor_name] = property_field(attribute_name)
+                new_attrs[accessor_name] = _property_field(attribute_name)
 
     # If the traits are already defined then this is a no-op, as the new attrs are
     # passed after the existing attrs, otherwise this sets an empty OpTraits.

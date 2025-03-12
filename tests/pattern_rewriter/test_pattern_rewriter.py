@@ -1,8 +1,8 @@
 import re
 from collections.abc import Sequence
+from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
@@ -33,6 +33,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.printer import Printer
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
@@ -92,7 +93,11 @@ def rewrite_and_compare(
     walker.listener = listener
     did_rewrite = walker.rewrite_module(module)
 
-    assert_print_op(module, expected_prog, None)
+    file = StringIO()
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print(module)
+
+    assert file.getvalue().strip() == expected_prog.strip()
 
     assert num_op_inserted == op_inserted
     assert num_op_removed == op_removed

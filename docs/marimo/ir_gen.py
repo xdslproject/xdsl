@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.11.0"
+__generated_with = "0.11.10"
 app = marimo.App()
 
 
@@ -20,7 +20,7 @@ def _():
     from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function, UnevaluatedExpr
     from sympy.core.symbol import Symbol
 
-    from xdsl.ir import Operation, SSAValue, Region, Block, ParametrizedAttribute
+    from xdsl.ir import Attribute, Operation, SSAValue, Region, Block, ParametrizedAttribute
     from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern, PatternRewriteWalker, GreedyRewritePatternApplier
     from xdsl.transforms.dead_code_elimination import region_dce
     from xdsl.traits import Pure
@@ -36,6 +36,7 @@ def _():
         Add,
         AddfOp,
         AddiOp,
+        Attribute,
         Block,
         Builder,
         CmpfOp,

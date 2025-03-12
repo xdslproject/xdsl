@@ -118,16 +118,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ptr_type_offsets.ConvertPtrTypeOffsetsPass
 
-    def get_convert_qref_to_qssa():
-        from xdsl.transforms import convert_qref_to_qssa
-
-        return convert_qref_to_qssa.ConvertQRefToQssa
-
-    def get_convert_qssa_to_qref():
-        from xdsl.transforms import convert_qssa_to_qref
-
-        return convert_qssa_to_qref.ConvertQssaToQRef
-
     def get_convert_riscv_scf_for_to_frep():
         from xdsl.transforms import convert_riscv_scf_for_to_frep
 
@@ -522,8 +512,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
-        "convert-qref-to-qssa": get_convert_qref_to_qssa,
-        "convert-qssa-to-qref": get_convert_qssa_to_qref,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-riscv-to-llvm": get_convert_riscv_to_llvm,

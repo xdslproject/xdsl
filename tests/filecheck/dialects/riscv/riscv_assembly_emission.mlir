@@ -193,103 +193,103 @@
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
-    %f0 = riscv.fcvt.s.w %0 : (!riscv.reg<zero>) -> !riscv.freg<j_5>
-    // CHECK-NEXT: fcvt.s.w j_5, zero
-    %f1 = riscv.fcvt.s.wu %1 : (!riscv.reg<j_1>) -> !riscv.freg<j_6>
-    // CHECK-NEXT: fcvt.s.wu j_6, j_1
-    %f2 = riscv.fcvt.s.wu %1 : (!riscv.reg<j_1>) -> !riscv.freg<j_7>
-    // CHECK-NEXT: fcvt.s.wu j_7, j_1
-    %fmadd = riscv.fmadd.s %f0, %f1, %f2 : (!riscv.freg<j_5>, !riscv.freg<j_6>, !riscv.freg<j_7>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmadd.s j_8, j_5, j_6, j_7
-    %fmsub = riscv.fmsub.s %f0, %f1, %f2 : (!riscv.freg<j_5>, !riscv.freg<j_6>, !riscv.freg<j_7>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmsub.s j_8, j_5, j_6, j_7
-    %fnmsub = riscv.fnmsub.s %f0, %f1, %f2 : (!riscv.freg<j_5>, !riscv.freg<j_6>, !riscv.freg<j_7>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fnmsub.s j_8, j_5, j_6, j_7
-    %fnmadd = riscv.fnmadd.s %f0, %f1, %f2 : (!riscv.freg<j_5>, !riscv.freg<j_6>, !riscv.freg<j_7>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fnmadd.s j_8, j_5, j_6, j_7
-    %fadd_s = riscv.fadd.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fadd.s j_8, j_5, j_6
-    %fsub_s = riscv.fsub.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fsub.s j_8, j_5, j_6
-    %fmul_s = riscv.fmul.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmul.s j_8, j_5, j_6
-    %fdiv_s = riscv.fdiv.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fdiv.s j_8, j_5, j_6
-    %fsqrt = riscv.fsqrt.s %f0 : (!riscv.freg<j_5>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fsqrt.s j_8, j_5
-    %fsgnj = riscv.fsgnj.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fsgnj.s j_8, j_5, j_6
-    %fsgnjn = riscv.fsgnjn.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fsgnjn.s j_8, j_5, j_6
-    %fsgnjx = riscv.fsgnjx.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fsgnjx.s j_8, j_5, j_6
-    %fmin = riscv.fmin.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmin.s j_8, j_5, j_6
-    %fmax = riscv.fmax.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmax.s j_8, j_5, j_6
-    %fcvtws = riscv.fcvt.w.s %f0 : (!riscv.freg<j_5>) -> !riscv.reg<j_8>
-    // CHECK-NEXT: fcvt.w.s j_8, j_5
-    %fcvtwus = riscv.fcvt.wu.s %f0 : (!riscv.freg<j_5>) -> !riscv.reg<j_8>
-    // CHECK-NEXT: fcvt.wu.s j_8, j_5
-    %fmvxw = riscv.fmv.x.w %f0 : (!riscv.freg<j_5>) -> !riscv.reg<j_8>
-    // CHECK-NEXT: fmv.x.w j_8, j_5
-    %feq = riscv.feq.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.reg<j_8>
-    // CHECK-NEXT: feq.s j_8, j_5, j_6
-    %flt = riscv.flt.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.reg<j_8>
-    // CHECK-NEXT: flt.s j_8, j_5, j_6
-    %fle = riscv.fle.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.reg<j_8>
-    // CHECK-NEXT: fle.s j_8, j_5, j_6
-    %fclass = riscv.fclass.s %f0 : (!riscv.freg<j_5>) -> !riscv.reg<j_8>
-    // CHECK-NEXT: fclass.s j_8, j_5
-    %fcvtsw = riscv.fcvt.s.w %0 : (!riscv.reg<zero>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fcvt.s.w j_8, zero
-    %fcvtswu = riscv.fcvt.s.wu %0 : (!riscv.reg<zero>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fcvt.s.wu j_8, zero
-    %fmvwx = riscv.fmv.w.x %0 : (!riscv.reg<zero>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmv.w.x j_8, zero
-    %flw = riscv.flw %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: flw j_8, 1(zero)
-    riscv.fsw %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j_5>) -> ()
-    // CHECK-NEXT: fsw j_5, 1(zero)
+    %f0 = riscv.fcvt.s.w %0 : (!riscv.reg<zero>) -> !riscv.freg<fj_0>
+    // CHECK-NEXT: fcvt.s.w fj_0, zero
+    %f1 = riscv.fcvt.s.wu %1 : (!riscv.reg<j_1>) -> !riscv.freg<fj_1>
+    // CHECK-NEXT: fcvt.s.wu fj_1, j_1
+    %f2 = riscv.fcvt.s.wu %1 : (!riscv.reg<j_1>) -> !riscv.freg<fj_2>
+    // CHECK-NEXT: fcvt.s.wu fj_2, j_1
+    %fmadd = riscv.fmadd.s %f0, %f1, %f2 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>, !riscv.freg<fj_2>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmadd.s fj_3, fj_0, fj_1, fj_2
+    %fmsub = riscv.fmsub.s %f0, %f1, %f2 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>, !riscv.freg<fj_2>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmsub.s fj_3, fj_0, fj_1, fj_2
+    %fnmsub = riscv.fnmsub.s %f0, %f1, %f2 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>, !riscv.freg<fj_2>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fnmsub.s fj_3, fj_0, fj_1, fj_2
+    %fnmadd = riscv.fnmadd.s %f0, %f1, %f2 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>, !riscv.freg<fj_2>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fnmadd.s fj_3, fj_0, fj_1, fj_2
+    %fadd_s = riscv.fadd.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fadd.s fj_3, fj_0, fj_1
+    %fsub_s = riscv.fsub.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fsub.s fj_3, fj_0, fj_1
+    %fmul_s = riscv.fmul.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmul.s fj_3, fj_0, fj_1
+    %fdiv_s = riscv.fdiv.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fdiv.s fj_3, fj_0, fj_1
+    %fsqrt = riscv.fsqrt.s %f0 : (!riscv.freg<fj_0>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fsqrt.s fj_3, fj_0
+    %fsgnj = riscv.fsgnj.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fsgnj.s fj_3, fj_0, fj_1
+    %fsgnjn = riscv.fsgnjn.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fsgnjn.s fj_3, fj_0, fj_1
+    %fsgnjx = riscv.fsgnjx.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fsgnjx.s fj_3, fj_0, fj_1
+    %fmin = riscv.fmin.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmin.s fj_3, fj_0, fj_1
+    %fmax = riscv.fmax.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmax.s fj_3, fj_0, fj_1
+    %fcvtws = riscv.fcvt.w.s %f0 : (!riscv.freg<fj_0>) -> !riscv.reg<j_3>
+    // CHECK-NEXT: fcvt.w.s j_3, fj_0
+    %fcvtwus = riscv.fcvt.wu.s %f0 : (!riscv.freg<fj_0>) -> !riscv.reg<j_3>
+    // CHECK-NEXT: fcvt.wu.s j_3, fj_0
+    %fmvxw = riscv.fmv.x.w %f0 : (!riscv.freg<fj_0>) -> !riscv.reg<j_3>
+    // CHECK-NEXT: fmv.x.w j_3, fj_0
+    %feq = riscv.feq.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.reg<j_3>
+    // CHECK-NEXT: feq.s j_3, fj_0, fj_1
+    %flt = riscv.flt.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.reg<j_3>
+    // CHECK-NEXT: flt.s j_3, fj_0, fj_1
+    %fle = riscv.fle.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.reg<j_3>
+    // CHECK-NEXT: fle.s j_3, fj_0, fj_1
+    %fclass = riscv.fclass.s %f0 : (!riscv.freg<fj_0>) -> !riscv.reg<j_3>
+    // CHECK-NEXT: fclass.s j_3, fj_0
+    %fcvtsw = riscv.fcvt.s.w %0 : (!riscv.reg<zero>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fcvt.s.w fj_3, zero
+    %fcvtswu = riscv.fcvt.s.wu %0 : (!riscv.reg<zero>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fcvt.s.wu fj_3, zero
+    %fmvwx = riscv.fmv.w.x %0 : (!riscv.reg<zero>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmv.w.x fj_3, zero
+    %flw = riscv.flw %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: flw fj_3, 1(zero)
+    riscv.fsw %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<fj_0>) -> ()
+    // CHECK-NEXT: fsw fj_0, 1(zero)
 
-    // RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
+    // RV32F: 9 "D" Standard Extension for Double-Precision Floating-Point, Version 2.0
 
-    %fld = riscv.fld %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fld j_8, 1(zero)
+    %fld = riscv.fld %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fld fj_3, 1(zero)
 
-    %min_val = riscv.fld %0, "hello" : (!riscv.reg<zero>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fld j_8, hello, zero
+    %min_val = riscv.fld %0, "hello" : (!riscv.reg<zero>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fld fj_3, hello, zero
 
-    riscv.fsd %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j_5>) -> ()
-    // CHECK-NEXT: fsd j_5, 1(zero)
+    riscv.fsd %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<fj_0>) -> ()
+    // CHECK-NEXT: fsd fj_0, 1(zero)
 
-    %fmadd_d = riscv.fmadd.d %f0, %f1, %f2 : (!riscv.freg<j_5>, !riscv.freg<j_6>, !riscv.freg<j_7>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmadd.d j_8, j_5, j_6, j_7
-    %fmsub_d = riscv.fmsub.d %f0, %f1, %f2 : (!riscv.freg<j_5>, !riscv.freg<j_6>, !riscv.freg<j_7>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmsub.d j_8, j_5, j_6, j_7
-    %fadd_d= riscv.fadd.d %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fadd.d j_8, j_5, j_6
-    %fsub_d = riscv.fsub.d %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fsub.d j_8, j_5, j_6
-    %fmul_d = riscv.fmul.d %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmul.d j_8, j_5, j_6
-    %fdiv_d = riscv.fdiv.d %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fdiv.d j_8, j_5, j_6
-    %fmin_d = riscv.fmin.d %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmin.d j_8, j_5, j_6
-    %fmax_d = riscv.fmax.d %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: fmax.d j_8, j_5, j_6
+    %fmadd_d = riscv.fmadd.d %f0, %f1, %f2 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>, !riscv.freg<fj_2>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmadd.d fj_3, fj_0, fj_1, fj_2
+    %fmsub_d = riscv.fmsub.d %f0, %f1, %f2 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>, !riscv.freg<fj_2>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmsub.d fj_3, fj_0, fj_1, fj_2
+    %fadd_d= riscv.fadd.d %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fadd.d fj_3, fj_0, fj_1
+    %fsub_d = riscv.fsub.d %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fsub.d fj_3, fj_0, fj_1
+    %fmul_d = riscv.fmul.d %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmul.d fj_3, fj_0, fj_1
+    %fdiv_d = riscv.fdiv.d %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fdiv.d fj_3, fj_0, fj_1
+    %fmin_d = riscv.fmin.d %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmin.d fj_3, fj_0, fj_1
+    %fmax_d = riscv.fmax.d %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: fmax.d fj_3, fj_0, fj_1
 
-    %fcvt_d_w = riscv.fcvt.d.w %1 : (!riscv.reg<j_1>) -> !riscv.freg<j_5>
-    // CHECK-NEXT: fcvt.d.w j_5, j_1
-    %fcvt_d_wu = riscv.fcvt.d.wu %1 : (!riscv.reg<j_1>) -> !riscv.freg<j_5>
-    // CHECK-NEXT: fcvt.d.wu j_5, j_1
+    %fcvt_d_w = riscv.fcvt.d.w %1 : (!riscv.reg<j_1>) -> !riscv.freg<fj_0>
+    // CHECK-NEXT: fcvt.d.w fj_0, j_1
+    %fcvt_d_wu = riscv.fcvt.d.wu %1 : (!riscv.reg<j_1>) -> !riscv.freg<fj_0>
+    // CHECK-NEXT: fcvt.d.wu fj_0, j_1
 
     // Vector Ops
-    %vfadd_s = riscv.vfadd.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: vfadd.s j_8, j_5, j_6
-    %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<j_5>, !riscv.freg<j_6>) -> !riscv.freg<j_8>
-    // CHECK-NEXT: vfmul.s j_8, j_5, j_6
+    %vfadd_s = riscv.vfadd.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: vfadd.s fj_3, fj_0, fj_1
+    %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
+    // CHECK-NEXT: vfmul.s fj_3, fj_0, fj_1
 
     // Terminate block
     riscv_func.return

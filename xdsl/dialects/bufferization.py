@@ -20,7 +20,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintContext,
     GenericAttrConstraint,
-    InferenceContext,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -53,7 +52,7 @@ class TensorFromMemRefConstraint(
         return self.memref_constraint.can_infer(var_constraint_names)
 
     def infer(
-        self, context: InferenceContext
+        self, context: ConstraintContext
     ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
         memref_type = self.memref_constraint.infer(context)
         if isinstance(memref_type, MemRefType):

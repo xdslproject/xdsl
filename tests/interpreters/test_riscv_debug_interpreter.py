@@ -10,8 +10,6 @@ from xdsl.utils.test_value import TestSSAValue
 
 def test_riscv_interpreter():
     module_op = ModuleOp([])
-    register = riscv.IntRegisterType()
-    fregister = riscv.FloatRegisterType()
 
     riscv_functions = RiscvFunctions()
     riscv_debug_functions = RiscvDebugFunctions()
@@ -25,10 +23,10 @@ def test_riscv_interpreter():
             riscv_debug.PrintfOp(
                 "{} {} {} {}",
                 (
-                    TestSSAValue(register),
-                    TestSSAValue(register),
-                    TestSSAValue(fregister),
-                    TestSSAValue(fregister),
+                    TestSSAValue(riscv.Registers.UNALLOCATED_INT),
+                    TestSSAValue(riscv.Registers.UNALLOCATED_INT),
+                    TestSSAValue(riscv.Registers.UNALLOCATED_FLOAT),
+                    TestSSAValue(riscv.Registers.UNALLOCATED_FLOAT),
                 ),
             ),
             (1, -1, 2.0, -2.0),

@@ -98,7 +98,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         )
 
         assert reg not in reserved_registers, (
-            f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
+            f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."
         )
         return reg
 
@@ -122,13 +122,13 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         """
         if isinstance(reg, IntRegisterType):
             if reg not in self.reserved_int_registers:
-                raise ValueError(f"Cannot unreserve register {reg.spelling}")
+                raise ValueError(f"Cannot unreserve register {reg.register_name}")
             self.reserved_int_registers[reg] -= 1
             if not self.reserved_int_registers[reg]:
                 del self.reserved_int_registers[reg]
         if isinstance(reg, FloatRegisterType):
             if reg not in self.reserved_float_registers:
-                raise ValueError(f"Cannot unreserve register {reg.spelling}")
+                raise ValueError(f"Cannot unreserve register {reg.register_name}")
             self.reserved_float_registers[reg] -= 1
             if not self.reserved_float_registers[reg]:
                 del self.reserved_float_registers[reg]

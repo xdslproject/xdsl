@@ -33,6 +33,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     TensorType,
+    i8,
+    i16,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
@@ -360,6 +362,7 @@ f16_pointer = PtrType(
 f32_pointer = PtrType(
     [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
 )
+i8_value = IntegerType(8, Signedness.SIGNED)
 u16_value = IntegerType(16, Signedness.UNSIGNED)
 i16_value = IntegerType(16, Signedness.SIGNED)
 u32_value = IntegerType(32, Signedness.UNSIGNED)
@@ -1255,7 +1258,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(i16_value)
+    offset = operand_def(eq(i16) | eq(i16_value))
     elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
@@ -1283,7 +1286,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(u16_value)
+    length = operand_def(eq(i16) | eq(u16_value))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
@@ -1311,7 +1314,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
-    stride = operand_def(IntegerType(8, Signedness.SIGNED))
+    stride = operand_def(eq(i8) | eq(i8_value))
     result = result_def(DsdType)
 
     traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())
@@ -1890,15 +1893,18 @@ class AddressOfOp(IRDLOperation):
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
         """
         Verify that if the address of a memref is taken, the resulting pointer is either:
-            A single pointer to the array type or
-            A many pointer to the array element type
+        - A single pointer to the array type or
+        - A many pointer to the array element type
+
         E.g.
+        ```zig
             const x: [10]f32;
             const arr_ptr: *[10]f32 = &x;
             const elem_ptr: [*]f32 = &x;
             // const invalid: [*]i32 = &x;
             // const invalid: *f32 = &x;
             // const invalid: [*][10]f32 = &x;
+        ```
         """
 
         # GetDsdOp(DsdType(DsdKind("mem4d_dsd")), self.prev_op.prev_op.results[0],

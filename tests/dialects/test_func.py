@@ -1,5 +1,4 @@
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects.arith import AddiOp, ConstantOp
@@ -180,101 +179,7 @@ def test_callable_interface():
     assert trait.get_result_types(func) == (i64, i32)
 
 
-def test_call():
-    """
-    Pass two integers to a function and return their sum
-    """
-    # Create two constants and add them, then return
-    a = ConstantOp.from_int_and_width(1, i32)
-    b = ConstantOp.from_int_and_width(2, i32)
-
-    # Create a block using the types of a, b
-    block0 = Block(arg_types=[a.result.type, b.result.type])
-    # Create a Addi operation to use the args of the block
-    c = AddiOp(block0.args[0], block0.args[1])
-    # Create a return operation and add it in the block
-    ret0 = ReturnOp(c)
-    block0.add_ops([c, ret0])
-    # Create a region with the block
-    region = Region(block0)
-
-    # Create a func0 that gets the block args as arguments, returns the resulting
-    # type of c and has the region as body
-    func0 = FuncOp.from_region(
-        "func0", [block0.args[0].type, block0.args[1].type], [c.result.type], region
-    )
-
-    # Create a call for this function, passing a, b as args
-    # and returning the type of the return
-    call0 = CallOp(func0.sym_name.data, [a, b], [ret0.arguments[0].type])
-
-    # Wrap all in a ModuleOp
-    mod = ModuleOp([func0, a, b, call0])
-
-    expected = """
-"builtin.module"() ({
-  "func.func"() <{sym_name = "func0", function_type = (i32, i32) -> i32}> ({
-  ^0(%0 : i32, %1 : i32):
-    %2 = "arith.addi"(%0, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
-    "func.return"(%2) : (i32) -> ()
-  }) : () -> ()
-  %0 = "arith.constant"() <{value = 1 : i32}> : () -> i32
-  %1 = "arith.constant"() <{value = 2 : i32}> : () -> i32
-  %2 = "func.call"(%0, %1) <{callee = @func0}> : (i32, i32) -> i32
-}) : () -> ()
-"""  # noqa
-    assert len(call0.operands) == 2
-    assert len(func0.operands) == 0
-
-    assert_print_op(mod, expected, None)
-
-
-def test_call_II():
-    """
-    Pass an integer a to a function and return a + a
-    """
-    # Create two constants and add them, then return
-    a = ConstantOp.from_int_and_width(1, i32)
-
-    # Create a block using the type of a
-    block0 = Block(arg_types=[a.result.type])
-    # Create a Addi operation to use the args of the block
-    c = AddiOp(block0.args[0], block0.args[0])
-    # Create a return operation and add it in the block
-    ret0 = ReturnOp(c)
-    block0.add_ops([c, ret0])
-    # Create a region with the block
-    region = Region(block0)
-
-    # Create a func0 that gets the block args as arguments, returns the resulting
-    # type of c and has the region as body
-    func0 = FuncOp.from_region("func1", [block0.args[0].type], [c.result.type], region)
-
-    # Create a call for this function, passing a, b as args
-    # and returning the type of the return
-    call0 = CallOp(func0.sym_name.data, [a], [ret0.arguments[0].type])
-
-    # Wrap all in a ModuleOp
-    mod = ModuleOp([func0, a, call0])
-
-    expected = """
-"builtin.module"() ({
-  "func.func"() <{sym_name = "func1", function_type = (i32) -> i32}> ({
-  ^0(%0 : i32):
-    %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
-    "func.return"(%1) : (i32) -> ()
-  }) : () -> ()
-  %0 = "arith.constant"() <{value = 1 : i32}> : () -> i32
-  %1 = "func.call"(%0) <{callee = @func1}> : (i32) -> i32
-}) : () -> ()
-"""  # noqa
-    assert len(call0.operands) == 1
-    assert len(func0.operands) == 0
-
-    assert_print_op(mod, expected, None)
-
-
-def test_call_III():
+def test_call_not_function():
     """Call a symbol that is not func.func"""
 
     @irdl_op_definition

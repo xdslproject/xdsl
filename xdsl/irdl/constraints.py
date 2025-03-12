@@ -57,16 +57,16 @@ class ConstraintContext:
         self._int_variables[key] = i
 
     @property
-    def variables(self) -> Sequence[str]:
-        return tuple(self._variables.keys())
+    def variables(self) -> Set[str]:
+        return self._variables.keys()
 
     @property
-    def range_variables(self) -> Sequence[str]:
-        return tuple(self._range_variables.keys())
+    def range_variables(self) -> Set[str]:
+        return self._range_variables.keys()
 
     @property
-    def int_variables(self) -> Sequence[str]:
-        return tuple(self._int_variables.keys())
+    def int_variables(self) -> Set[str]:
+        return self._int_variables.keys()
 
     def copy(self):
         return ConstraintContext(
@@ -87,14 +87,6 @@ ConstraintVariableType: TypeAlias = Attribute | Sequence[Attribute] | int
 """
 Possible types that a constraint variable can have.
 """
-
-
-@dataclass
-class InferenceContext:
-    variables: dict[str, ConstraintVariableType] = field(default_factory=dict)
-    """
-    A mapping from variable names to the inferred attribute or attribute sequence.
-    """
 
 
 _T = TypeVar("_T")
@@ -192,7 +184,7 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         # By default, we cannot infer anything.
         return False
 
-    def infer(self, context: InferenceContext) -> AttributeCovT:
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
         """
         Infer the attribute given the the values for all variables.
 
@@ -272,7 +264,7 @@ class TypedAttributeConstraint(GenericAttrConstraint[TypedAttributeCovT]):
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.attr_constraint.can_infer(var_constraint_names)
 
-    def infer(self, context: InferenceContext) -> TypedAttributeCovT:
+    def infer(self, context: ConstraintContext) -> TypedAttributeCovT:
         return self.attr_constraint.infer(context)
 
 
@@ -310,8 +302,8 @@ class VarConstraint(GenericAttrConstraint[AttributeCovT]):
             {self.name: IdExtractor()}, self.constraint.get_variable_extractors()
         )
 
-    def infer(self, context: InferenceContext) -> AttributeCovT:
-        v = context.variables[self.name]
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
+        v = context.get_variable(self.name)
         return cast(AttributeCovT, v)
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
@@ -354,7 +346,7 @@ class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCo
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return True
 
-    def infer(self, context: InferenceContext) -> AttributeCovT:
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
         return self.attr
 
     def get_unique_base(self) -> type[Attribute] | None:
@@ -385,7 +377,7 @@ class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
             and not self.attr.get_irdl_definition().parameters
         )
 
-    def infer(self, context: InferenceContext) -> AttributeCovT:
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
         assert issubclass(self.attr, ParametrizedAttribute)
         attr = self.attr.new(())
         return attr
@@ -521,9 +513,9 @@ class AllOf(GenericAttrConstraint[AttributeCovT]):
             constr.can_infer(var_constraint_names) for constr in self.attr_constrs
         )
 
-    def infer(self, context: InferenceContext) -> AttributeCovT:
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
         for constr in self.attr_constrs:
-            if constr.can_infer(context.variables.keys()):
+            if constr.can_infer(context.variables):
                 return constr.infer(context)
         raise ValueError("Cannot infer attribute from constraint")
 
@@ -619,7 +611,7 @@ class ParamAttrConstraint(
             constr.can_infer(var_constraint_names) for constr in self.param_constrs
         )
 
-    def infer(self, context: InferenceContext) -> ParametrizedAttributeCovT:
+    def infer(self, context: ConstraintContext) -> ParametrizedAttributeCovT:
         params = tuple(constr.infer(context) for constr in self.param_constrs)
         attr = self.base_attr.new(params)
         return attr
@@ -672,7 +664,7 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.constr.can_infer(var_constraint_names)
 
-    def infer(self, context: InferenceContext) -> AttributeCovT:
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
         return self.constr.infer(context)
 
 
@@ -707,7 +699,7 @@ class IntConstraint(ABC):
         # By default, we cannot infer anything.
         return False
 
-    def infer(self, context: InferenceContext) -> int:
+    def infer(self, context: ConstraintContext) -> int:
         """
         Infer the attribute given the the values for all variables.
 
@@ -765,9 +757,9 @@ class IntVarConstraint(IntConstraint):
 
     def infer(
         self,
-        context: InferenceContext,
+        context: ConstraintContext,
     ) -> int:
-        v = context.variables[self.name]
+        v = context.get_int_variable(self.name)
         assert isinstance(v, int)
         return v
 
@@ -816,7 +808,7 @@ class GenericRangeConstraint(Generic[AttributeCovT], ABC):
         return False
 
     def infer(
-        self, context: InferenceContext, *, length: int | None
+        self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         """
         Infer the attribute given the the values for all variables, and possibly
@@ -870,9 +862,9 @@ class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
         return self.name in var_constraint_names
 
     def infer(
-        self, context: InferenceContext, *, length: int | None
+        self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
-        v = context.variables[self.name]
+        v = context.get_range_variable(self.name)
         return cast(Sequence[AttributeCovT], v)
 
 
@@ -905,7 +897,7 @@ class RangeOf(GenericRangeConstraint[AttributeCovT]):
 
     def infer(
         self,
-        context: InferenceContext,
+        context: ConstraintContext,
         *,
         length: int | None,
     ) -> Sequence[AttributeCovT]:
@@ -953,7 +945,7 @@ class SingleOf(GenericRangeConstraint[AttributeCovT]):
         return self.constr.can_infer(var_constraint_names)
 
     def infer(
-        self, context: InferenceContext, *, length: int | None
+        self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         return (self.constr.infer(context),)
 

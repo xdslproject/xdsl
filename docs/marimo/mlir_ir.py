@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.5"
+__generated_with = "0.11.10"
 app = marimo.App(width="medium")
 
 
@@ -614,8 +614,8 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(ModuleOp, Printer, StringIO):
-    def print_generic(module: ModuleOp) -> str:
+def _(Printer, StringIO, builtin):
+    def print_generic(module: builtin.ModuleOp) -> str:
         io = StringIO()
         Printer(io, print_generic_format=True).print(module)
         return io.getvalue()
@@ -663,8 +663,8 @@ def _(ctx, triangle_text):
 
 
 @app.cell(hide_code=True)
-def _(Any, ModuleOp):
-    def run_func(module: ModuleOp, name: str, args: tuple[Any, ...]):
+def _(Any, builtin):
+    def run_func(module: builtin.ModuleOp, name: str, args: tuple[Any, ...]):
         from xdsl.interpreter import Interpreter
         from xdsl.interpreters import scf, arith, func
 
