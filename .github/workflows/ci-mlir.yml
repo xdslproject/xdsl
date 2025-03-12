@@ -92,7 +92,7 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        uv run pytest -W error --cov .
+        uv run pytest -W error --cov
 
     - name: Execute lit tests
       run: |
@@ -128,4 +128,5 @@ jobs:
           verbose: true
           root_dir: xdsl
           files: coverage.xml
+          codecov_yml_path: codecov.yml
           token: ${{ secrets.CODECOV_TOKEN }}
