@@ -111,7 +111,9 @@ jobs:
 
     - name: Combine coverage data
       run: |
+        pwd
         cd xdsl
+        pwd
         uv run coverage combine --append
         uv run coverage report
         uv run coverage xml
