@@ -319,6 +319,20 @@ def test_int_abi_name_by_index():
     }
 
 
+def test_int_from_index():
+    assert riscv.IntRegisterType.from_index(0) == riscv.Registers.ZERO
+    assert riscv.IntRegisterType.from_index(10) == riscv.Registers.A0
+    assert riscv.IntRegisterType.from_index(20) == riscv.Registers.S4
+    assert riscv.IntRegisterType.from_index(30) == riscv.Registers.T5
+
+    with pytest.raises(KeyError):
+        riscv.IntRegisterType.from_index(40)
+
+    assert riscv.IntRegisterType.from_index(
+        -10
+    ) == riscv.IntRegisterType.infinite_register(9)
+
+
 def test_float_abi_name_by_index():
     assert riscv.FloatRegisterType.abi_name_by_index() == {
         0: "ft0",
@@ -354,3 +368,17 @@ def test_float_abi_name_by_index():
         30: "ft10",
         31: "ft11",
     }
+
+
+def test_float_from_index():
+    assert riscv.FloatRegisterType.from_index(0) == riscv.Registers.FT0
+    assert riscv.FloatRegisterType.from_index(10) == riscv.Registers.FA0
+    assert riscv.FloatRegisterType.from_index(20) == riscv.Registers.FS4
+    assert riscv.FloatRegisterType.from_index(30) == riscv.Registers.FT10
+
+    with pytest.raises(KeyError):
+        riscv.FloatRegisterType.from_index(40)
+
+    assert riscv.FloatRegisterType.from_index(
+        -10
+    ) == riscv.FloatRegisterType.infinite_register(9)

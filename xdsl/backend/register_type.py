@@ -72,6 +72,13 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
             register_name = StringAttr(register_name)
         return cls(*cls._parameters_from_name(register_name))
 
+    @classmethod
+    def from_index(cls, index: int) -> Self:
+        if index < 0:
+            return cls.infinite_register(~index)
+        name = cls.abi_name_by_index()[index]
+        return cls(IntAttr(index), StringAttr(name))
+
     @property
     def is_allocated(self) -> bool:
         """Returns true if the register is allocated, otherwise false"""
