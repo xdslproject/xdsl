@@ -188,10 +188,11 @@ omit = [
     "xdsl/_version.py",
     "tests/*",
     "benchmarks/*",
+    "versioneer.py",
+    "setup.py",
 ]
 concurrency = ["multiprocessing"]
 parallel = true
-source = ["."]
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration
