@@ -188,6 +188,8 @@ omit = [
     "xdsl/_version.py",
     "tests/*",
     "benchmarks/*",
+    "versioneer.py",
+    "setup.py",
 ]
 concurrency = ["multiprocessing"]
 parallel = true
