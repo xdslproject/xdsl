@@ -513,12 +513,10 @@ def _(my_i32):
     return
 
 
-app._unparsable_cell(
-    r"""
-    Our attribute definition also defines accessors for each parameter based on the name given in the `ParameterDef` field:
-    """,
-    name="_"
-)
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Our attribute definition also defines accessors for each parameter based on the name given in the `ParameterDef` field:""")
+    return
 
 
 @app.cell
@@ -675,7 +673,7 @@ def _(mo):
         r"""
         #### Constraint Variables
 
-        Constraint variables can directly be used in Operation and Attribute definitions by using a `TypeAlias` annotated with a `ConstraintVar`. 
+        Constraint variables can directly be used in Operation and Attribute definitions by using a `TypeAlias` annotated with a `ConstraintVar`.
         """
     )
     return
