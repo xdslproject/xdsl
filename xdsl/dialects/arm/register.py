@@ -51,7 +51,7 @@ class NEONRegisterType(ARMRegisterType):
         return "arm_neon"
 
     @classmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
+    def index_by_name(cls) -> dict[str, int]:
         return ARM_NEON_INDEX_BY_NAME
 
     @classmethod
