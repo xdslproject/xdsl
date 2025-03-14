@@ -20,7 +20,6 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: cd708029e0b2869e80abe31ddb175f7c35361f90
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
     steps:
     - uses: actions/checkout@v4
