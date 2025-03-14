@@ -16,9 +16,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def test_default_reserved_registers():
-    register_queue = RiscvRegisterQueue(
-        available_int_registers=[], available_float_registers=[]
-    )
+    register_queue = RiscvRegisterQueue()
 
     unallocated = riscv.Registers.UNALLOCATED_INT
 
@@ -107,9 +105,7 @@ def test_allocate_with_inout_constraints():
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
 
-    register_queue = RiscvRegisterQueue(
-        available_int_registers=[], available_float_registers=[]
-    )
+    register_queue = RiscvRegisterQueue()
     register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
 
     # All new registers. The result register is reused by the allocator for the operand.
