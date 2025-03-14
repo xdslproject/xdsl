@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
 
 
 %t = bufferization.alloc_tensor() : tensor<10x20x30xf64>

@@ -1,5 +1,5 @@
 // RUN: xdsl-opt %s | filecheck %s
-// RUN: mlir-opt %s | filecheck %s
+// RUN: mlir-opt %s --allow-unregistered-dialect | filecheck %s
 
 // CHECK: module
 
