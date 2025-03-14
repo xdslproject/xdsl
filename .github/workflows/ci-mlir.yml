@@ -40,24 +40,24 @@ jobs:
         cd xdsl
         uv python install ${{ matrix.python-version }}
 
-    # - name: Install LLVM
-    #   run: |
-    #     wget https://apt.llvm.org/llvm.sh
-    #     chmod +x llvm.sh
-    #     sudo ./llvm.sh 19
-    #     sudo apt-get install -y llvm-19 llvm-19-dev llvm-19-tools
+    - name: Cache MLIR installation
+      id: cache-mlir
+      uses: actions/cache@v3
+      with:
+        path: /usr/bin/mlir-opt-19
+        key: mlir-19-tools-${{ runner.os }}
 
     - name: Install MLIR
+      if: steps.cache-mlir.outputs.cache-hit != 'true'
       run: |
         sudo apt-get install -y mlir-19-tools
-        # Create symbolic link to mlir-opt
-        # sudo ln -s /usr/bin/mlir-opt-19 /usr/local/bin/mlir-opt
-        # sudo ln -s /usr/bin/mlir-cpu-runner-19 /usr/local/bin/mlir-cpu-runner
 
     - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
+        which mlir-opt-19
+        which mlir-opt
         MLIR_OPT_PATH="/usr/bin/mlir-opt-19" VENV_EXTRAS="--all-extras" make venv
 
 
