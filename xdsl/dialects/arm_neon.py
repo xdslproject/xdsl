@@ -77,15 +77,18 @@ V31 = NEONRegisterType.from_name("v31")
 
 class ARMNEONInstruction(ARMInstruction, ABC):
     """
-    Base class for operations that can be a part of x86 assembly printing. Must
-    represent an instruction in the x86 instruction set.
-    The name of the operation will be used as the x86 assembly instruction name.
+    Base class for operations in the NEON instruction set.
+    The name of the operation will be used as the NEON assembly instruction name.
+
+    The arrangement specifier for NEON instructions determines element size and count:
+      - "4H"  → 4 half-precision floats
+      - "8H"  → 8 half-precision floats
+      - "2S"  → 2 single-precision floats
+      - "4S"  → 4 single-precision floats
+      - "2D"  → 2 double-precision floats
     """
 
     arrangement = attr_def(StringAttr)
-    """
-    An optional comment that will be printed along with the instruction.
-    """
 
     def assembly_line(self) -> str | None:
         # default assembly code generator
@@ -123,14 +126,7 @@ class DSSFMulVecOp(ARMNEONInstruction):
     This instruction multiplies corresponding floating-point values in the vectors in the two source SIMD&FP
     registers, places the result in a vector, and writes the vector to the destination SIMD&FP register.
     Encoding: FMUL <Vd>.<T>, <Vn>.<T>, <Vm>.<T>.
-    Vd, Vn, Vm specify the SIMD&FP regs.
-
-    The <T> specifier determines element arrangement (size and count):
-      - "4H"  → 4 half-precision floats
-      - "8H"  → 8 half-precision floats
-      - "2S"  → 2 single-precision floats
-      - "4S"  → 4 single-precision floats
-      - "2D"  → 2 double-precision floats
+    Vd, Vn, Vm specify the SIMD&FP regs. The <T> specifier determines element arrangement (size and count).
     https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4
     """
 
@@ -138,7 +134,6 @@ class DSSFMulVecOp(ARMNEONInstruction):
     d = result_def(NEONRegisterType)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
-    arrangement = attr_def(StringAttr)
 
     assembly_format = (
         "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
