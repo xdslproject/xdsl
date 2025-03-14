@@ -133,13 +133,14 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         assert isa(op.step.op.value, IntegerAttr[IndexType])
 
         # limitation: all iter_args must be memrefs (stencil buffers) and have the same data type
-        assert isa(op.iter_args[0].type, MemRefType[Attribute])
-        element_type = op.iter_args[0].type.get_element_type()
-        assert all(
-            isa(a.type, MemRefType[Attribute])
-            and element_type == a.type.get_element_type()
-            for a in op.iter_args
-        )
+        if op.iter_args:
+            assert isa(op.iter_args[0].type, MemRefType[Attribute])
+            element_type = op.iter_args[0].type.get_element_type()
+            assert all(
+                isa(a.type, MemRefType[Attribute])
+                and element_type == a.type.get_element_type()
+                for a in op.iter_args
+            )
 
         no_params = FunctionType.from_lists([], [])
         cond_task_id = self.counter + 1
