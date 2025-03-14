@@ -56,13 +56,14 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        mlir-opt-19 --version
         MLIR_OPT_PATH="/usr/bin/mlir-opt-19" VENV_EXTRAS="--all-extras" make venv
 
 
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
+        uv run mlir-opt --version
+        echo "bla"
         if [ "$COLLECT_COVERAGE" = "true" ]; then
           uv run pytest -W error --cov
         else
