@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC
+from typing import Annotated
 
 from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.arm.assembly import assembly_arg_str
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, StringAttr, i8
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -17,6 +19,8 @@ from xdsl.irdl import (
 )
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
+
+Imm8Attr = IntegerAttr[Annotated[IntegerType, i8]]
 
 
 @irdl_attr_definition
@@ -120,13 +124,17 @@ class GetRegisterOp(ARMOperation):
 
 
 @irdl_op_definition
-class DSSFMulVecOp(ARMNEONInstruction):
+class DSSFMulVecScalarOp(ARMNEONInstruction):
     """
-    Floating-point multiply (vector)
-    This instruction multiplies corresponding floating-point values in the vectors in the two source SIMD&FP
-    registers, places the result in a vector, and writes the vector to the destination SIMD&FP register.
-    Encoding: FMUL <Vd>.<T>, <Vn>.<T>, <Vm>.<T>.
-    Vd, Vn, Vm specify the SIMD&FP regs. The <T> specifier determines element arrangement (size and count).
+    Floating-point multiply (mixed: first source operand is a vector, second is a scalar. Destination is a vector)
+    This instruction multiplies each of the floating-point values in the first source operand by the
+    second source operand and writes the resulting values to the corresponding lanes of the destination.
+
+    Encoding: FMUL <Vd>.<T>, <Vn>.<T>, <Vm>.<idx>.
+    Vd, Vn, Vm specify the regs. The <T> specifier determines element arrangement (size and count).
+    The <idx> specifier determines the index of Vm at which the second source operand (scalar) can be found,
+    preceded by a size specifier.
+
     https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4
     """
 
@@ -134,6 +142,7 @@ class DSSFMulVecOp(ARMNEONInstruction):
     d = result_def(NEONRegisterType)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
+    scalar_idx = attr_def(base(Imm8Attr))
 
     assembly_format = (
         "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
@@ -175,16 +184,17 @@ class DSSFMulVecOp(ARMNEONInstruction):
         instruction_name = self.assembly_instruction_name()
         arg_str = ", ".join(
             f"{assembly_arg_str(arg)}.{self.arrangement.data}"
-            for arg in self.assembly_line_args()
+            for arg in self.assembly_line_args()[:2]
             if arg is not None
         )
+        arg_str += f", {assembly_arg_str(self.assembly_line_args()[2])}.{self.arrangement.data[1]}[{self.scalar_idx.value.data}]"
         return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 ARM_NEON = Dialect(
     "arm_neon",
     [
-        DSSFMulVecOp,
+        DSSFMulVecScalarOp,
         GetRegisterOp,
     ],
     [
