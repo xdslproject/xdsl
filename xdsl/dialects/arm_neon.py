@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Annotated
 
 from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.arm.assembly import assembly_arg_str
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, StringAttr, i8
+from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     attr_def,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -19,8 +17,6 @@ from xdsl.irdl import (
 )
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
-
-Imm8Attr = IntegerAttr[Annotated[IntegerType, i8]]
 
 
 @irdl_attr_definition
@@ -142,7 +138,7 @@ class DSSFMulVecScalarOp(ARMNEONInstruction):
     d = result_def(NEONRegisterType)
     s1 = operand_def(NEONRegisterType)
     s2 = operand_def(NEONRegisterType)
-    scalar_idx = attr_def(base(Imm8Attr))
+    scalar_idx = attr_def(IntegerAttr[i8])
 
     assembly_format = (
         "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
