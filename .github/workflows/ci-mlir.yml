@@ -56,10 +56,7 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        which mlir-opt-19
-        echo "hello"
-        which mlir-opt
-        echo "world"
+        mlir-opt-19 --version
         MLIR_OPT_PATH="/usr/bin/mlir-opt-19" VENV_EXTRAS="--all-extras" make venv
 
 
