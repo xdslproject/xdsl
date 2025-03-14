@@ -618,7 +618,7 @@ def test_is_spelling_of_punctuation_false(punctuation: str):
 )
 def test_get_punctuation_kind(punctuation: MLIRTokenKind):
     value = cast(PunctuationSpelling, punctuation.value)
-    assert punctuation.get_punctuation_kind_from_spelling(value) == punctuation
+    assert punctuation.get_punctuation_kind_from_name(value) == punctuation
 
 
 @pytest.mark.parametrize(

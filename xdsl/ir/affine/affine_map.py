@@ -261,12 +261,12 @@ class AffineMap:
         (d0, d1, d2) -> (d0, d2) gives {d0, d2}
         ```
         """
-        result: set[int] = set()
-
-        for expr in self.results:
-            result = result.union(expr.used_dims())
-
-        return result
+        return {
+            expr.position
+            for res_expr in self.results
+            for expr in res_expr.dfs()
+            if isinstance(expr, AffineDimExpr)
+        }
 
     def used_dims_bit_vector(self) -> tuple[bool, ...]:
         """
@@ -274,16 +274,17 @@ class AffineMap:
 
         Example:
         ```
-        (d0, d1) -> (d0) gives (False, True)
-        (d0, d1, d2) -> (d0, d2) gives (False, True, False)
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
         ```
         """
 
-        used_dims = self.used_dims()
-        return tuple(
-            True if position in used_dims else False
-            for position in range(self.num_dims)
-        )
+        used_dims = [False] * self.num_dims
+        for res_expr in self.results:
+            for expr in res_expr.dfs():
+                if isinstance(expr, AffineDimExpr):
+                    used_dims[expr.position] = True
+        return tuple(used_dims)
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

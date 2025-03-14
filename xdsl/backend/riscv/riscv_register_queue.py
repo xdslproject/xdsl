@@ -1,8 +1,9 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import overload
+from typing import cast, overload
 
 from xdsl.backend.register_queue import RegisterQueue
+from xdsl.dialects.builtin import IntAttr
 from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, Registers
 
 
@@ -30,14 +31,17 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     _fj_idx: int = 0
     """Next `fj` register index."""
 
-    reserved_int_registers: defaultdict[IntRegisterType, int] = field(
-        default_factory=lambda: defaultdict[IntRegisterType, int](lambda: 0)
-        | {r: 1 for r in RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS}
+    reserved_int_registers: defaultdict[int, int] = field(
+        default_factory=lambda: defaultdict[int, int](lambda: 0)
+        | {
+            cast(IntAttr, r.index).data: 1
+            for r in RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
+        }
     )
     "Integer registers unavailable to be used by the register allocator."
 
-    reserved_float_registers: defaultdict[FloatRegisterType, int] = field(
-        default_factory=lambda: defaultdict[FloatRegisterType, int](lambda: 0)
+    reserved_float_registers: defaultdict[int, int] = field(
+        default_factory=lambda: defaultdict[int, int](lambda: 0)
     )
     "Floating-point registers unavailable to be used by the register allocator."
 
@@ -55,13 +59,16 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         """
         Return a register to be made available for allocation.
         """
-        if reg in self.reserved_int_registers or reg in self.reserved_float_registers:
-            return
-        if not reg.is_allocated:
+        if not isinstance(reg.index, IntAttr):
             raise ValueError("Cannot push an unallocated register")
+
         if isinstance(reg, IntRegisterType):
+            if reg.index.data in self.reserved_int_registers:
+                return
             self.available_int_registers.append(reg)
         else:
+            if reg.index.data in self.reserved_float_registers:
+                return
             self.available_float_registers.append(reg)
 
     @overload
@@ -97,8 +104,9 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
             else self.reserved_float_registers
         )
 
-        assert reg not in reserved_registers, (
-            f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
+        assert isinstance(reg.index, IntAttr)
+        assert reg.index.data not in reserved_registers, (
+            f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."
         )
         return reg
 
@@ -110,28 +118,30 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         It is invalid to reserve a register that is available, and popping it before
         unreserving a register will result in an AssertionError.
         """
+        assert isinstance(reg.index, IntAttr)
         if isinstance(reg, IntRegisterType):
-            self.reserved_int_registers[reg] += 1
+            self.reserved_int_registers[reg.index.data] += 1
         if isinstance(reg, FloatRegisterType):
-            self.reserved_float_registers[reg] += 1
+            self.reserved_float_registers[reg.index.data] += 1
 
     def unreserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
         """
         Decrease the reservation count for a register. If the reservation count is 0, make
         the register available for allocation.
         """
+        assert isinstance(reg.index, IntAttr)
         if isinstance(reg, IntRegisterType):
-            if reg not in self.reserved_int_registers:
-                raise ValueError(f"Cannot unreserve register {reg.spelling}")
-            self.reserved_int_registers[reg] -= 1
-            if not self.reserved_int_registers[reg]:
-                del self.reserved_int_registers[reg]
+            if reg.index.data not in self.reserved_int_registers:
+                raise ValueError(f"Cannot unreserve register {reg.register_name}")
+            self.reserved_int_registers[reg.index.data] -= 1
+            if not self.reserved_int_registers[reg.index.data]:
+                del self.reserved_int_registers[reg.index.data]
         if isinstance(reg, FloatRegisterType):
-            if reg not in self.reserved_float_registers:
-                raise ValueError(f"Cannot unreserve register {reg.spelling}")
-            self.reserved_float_registers[reg] -= 1
-            if not self.reserved_float_registers[reg]:
-                del self.reserved_float_registers[reg]
+            if reg.index.data not in self.reserved_float_registers:
+                raise ValueError(f"Cannot unreserve register {reg.register_name}")
+            self.reserved_float_registers[reg.index.data] -= 1
+            if not self.reserved_float_registers[reg.index.data]:
+                del self.reserved_float_registers[reg.index.data]
 
     def limit_registers(self, limit: int) -> None:
         """

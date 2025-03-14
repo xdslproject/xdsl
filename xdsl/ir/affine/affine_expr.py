@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from typing_extensions import assert_never
+
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
     from xdsl.ir.affine import AffineMap
@@ -44,23 +46,30 @@ class AffineExpr:
         rhs: AffineExpr,
     ) -> AffineExpr:
         """
-        The difference between creating an `AffineBinaryOpExpr` with this function
-        and creating an `AffineBinaryOpExpr` using its constructor
-        is that simplifications are automatically applied in this function.
+        Builds a binary expression of the given kind using the operator function associated with that kind.
+        As a consequence, binary expressions are simplified during construction.
+        This may lead to the resulting expression not being of the type `AffineBinaryOpExpr`, but of the type that binary op is
+        simplified to.
+        This simplification does not occur when an `AffineBinaryOpExpr` is directly created using its constructor.
+
+        Example:
+        An expression of kind `AffineBinaryKind.Add` is built using the `AffineExpr.__add__` function.
+        If both `rhs` and `lhs` are `AffineConstantExprs` this function returns an `AffineConstantExpr` of value `rhs` + `lhs`.
         """
 
-        if kind == AffineBinaryOpKind.Add:
-            return lhs + rhs
-        elif kind == AffineBinaryOpKind.Mul:
-            return lhs * rhs
-        elif kind == AffineBinaryOpKind.Mod:
-            return lhs % rhs
-        elif kind == AffineBinaryOpKind.FloorDiv:
-            return lhs // rhs
-        elif kind == AffineBinaryOpKind.CeilDiv:
-            return lhs.ceil_div(rhs)
-
-        raise ValueError("Unreachable")
+        match kind:
+            case AffineBinaryOpKind.Add:
+                return lhs + rhs
+            case AffineBinaryOpKind.Mul:
+                return lhs * rhs
+            case AffineBinaryOpKind.Mod:
+                return lhs % rhs
+            case AffineBinaryOpKind.FloorDiv:
+                return lhs // rhs
+            case AffineBinaryOpKind.CeilDiv:
+                return lhs.ceil_div(rhs)
+            case _:
+                assert_never(kind)
 
     def compose(self, map: AffineMap) -> AffineExpr:
         """

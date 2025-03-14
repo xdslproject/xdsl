@@ -246,24 +246,12 @@ def test_affine_expr_affine_expr_binary_simplification():
     assert AffineExpr.binary(AffineBinaryOpKind.FloorDiv, five, two) == two
     assert AffineExpr.binary(AffineBinaryOpKind.CeilDiv, five, two) == three
 
-    # TODO test other simplifications like dim + const + const = dim + const
 
-
-def test_affine_expr_is_function_of_dim():
-    assert AffineExpr.dimension(0).is_function_of_dim(0)
-    assert not AffineExpr.dimension(1).is_function_of_dim(0)
-    assert not AffineExpr.constant(0).is_function_of_dim(0)
-    assert not AffineExpr.symbol(0).is_function_of_dim(0)
-    assert AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(0)
-    assert not (
-        AffineMap(2, 0, (AffineExpr.dimension(0),)).results[0].is_function_of_dim(1)
-    )
-    assert (
-        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(0)
-    )
-    assert (
-        AffineMap.from_callable(lambda i, j: (i + j,)).results[0].is_function_of_dim(1)
-    )
+def test_affine_expr_used_dims():
+    assert AffineExpr.dimension(1).used_dims() == {1}
+    assert (AffineExpr.dimension(2) + AffineExpr.dimension(3)).used_dims() == {2, 3}
+    assert AffineExpr.symbol(4).used_dims() == set()
+    assert AffineExpr.constant(5).used_dims() == set()
 
 
 def test_affine_map_used_dims():
@@ -272,7 +260,7 @@ def test_affine_map_used_dims():
     assert AffineMap.from_callable(lambda i, _, k: (i, k)).used_dims() == {0, 2}
 
 
-def test_used_dims_bit_vector():
+def test_affine_map_used_dims_bit_vector():
     assert AffineMap.from_callable(lambda i, j: (i, j)).used_dims_bit_vector() == (
         True,
         True,
