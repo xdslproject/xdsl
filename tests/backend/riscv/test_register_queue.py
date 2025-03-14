@@ -26,27 +26,23 @@ def test_default_reserved_registers():
 def test_push_j_register():
     register_queue = RiscvRegisterQueue()
 
-    register_queue.push(riscv.IntRegisterType.infinite_register(0))
-    assert (
-        riscv.IntRegisterType.infinite_register(0)
-        == register_queue.available_int_registers[-1]
-    )
+    j0 = riscv.IntRegisterType.infinite_register(0)
+    register_queue.push(j0)
+    assert register_queue.pop(riscv.IntRegisterType) == j0
 
-    register_queue.push(riscv.FloatRegisterType.infinite_register(0))
-    assert (
-        riscv.FloatRegisterType.infinite_register(0)
-        == register_queue.available_float_registers[-1]
-    )
+    fj0 = riscv.FloatRegisterType.infinite_register(0)
+    register_queue.push(fj0)
+    assert register_queue.pop(riscv.FloatRegisterType) == fj0
 
 
 def test_push_register():
     register_queue = RiscvRegisterQueue()
 
     register_queue.push(riscv.Registers.A0)
-    assert riscv.Registers.A0 == register_queue.available_int_registers[-1]
+    assert register_queue.pop(riscv.IntRegisterType) == riscv.Registers.A0
 
     register_queue.push(riscv.Registers.FA0)
-    assert riscv.Registers.FA0 == register_queue.available_float_registers[-1]
+    assert register_queue.pop(riscv.FloatRegisterType) == riscv.Registers.FA0
 
 
 def test_reserve_register():

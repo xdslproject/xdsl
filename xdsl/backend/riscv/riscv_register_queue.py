@@ -42,10 +42,10 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     )
     "Floating-point registers unavailable to be used by the register allocator."
 
-    available_int_registers: list[IntRegisterType] = field(default_factory=list)
+    available_int_registers: list[int] = field(default_factory=list)
     "Registers that integer values can be allocated to in the current context."
 
-    available_float_registers: list[FloatRegisterType] = field(default_factory=list)
+    available_float_registers: list[int] = field(default_factory=list)
     "Registers that floating-point values can be allocated to in the current context."
 
     @classmethod
@@ -79,11 +79,11 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         if isinstance(reg, IntRegisterType):
             if reg.index.data in self.reserved_int_registers:
                 return
-            self.available_int_registers.append(reg)
+            self.available_int_registers.append(reg.index.data)
         else:
             if reg.index.data in self.reserved_float_registers:
                 return
-            self.available_float_registers.append(reg)
+            self.available_float_registers.append(reg.index.data)
 
     @overload
     def pop(self, reg_type: type[IntRegisterType]) -> IntRegisterType: ...
@@ -103,7 +103,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
             available_registers = self.available_float_registers
 
         if available_registers:
-            reg = available_registers.pop()
+            reg = reg_type.from_index(available_registers.pop())
         else:
             if issubclass(reg_type, IntRegisterType):
                 reg = reg_type.infinite_register(self._j_idx)
@@ -174,7 +174,14 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         """
         Removes register from available set, if present.
         """
-        if isinstance(reg, IntRegisterType) and reg in self.available_int_registers:
-            self.available_int_registers.remove(reg)
-        if isinstance(reg, FloatRegisterType) and reg in self.available_float_registers:
-            self.available_float_registers.remove(reg)
+        assert isinstance(reg.index, IntAttr)
+        if (
+            isinstance(reg, IntRegisterType)
+            and reg.index.data in self.available_int_registers
+        ):
+            self.available_int_registers.remove(reg.index.data)
+        if (
+            isinstance(reg, FloatRegisterType)
+            and reg.index.data in self.available_float_registers
+        ):
+            self.available_float_registers.remove(reg.index.data)
