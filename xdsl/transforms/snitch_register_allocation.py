@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_snitch, snitch, snitch_stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
@@ -86,7 +86,7 @@ class SnitchRegisterAllocation(ModulePass):
 
     name = "snitch-allocate-registers"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             AllocateSnitchStreamingRegionRegisters(),
             apply_recursively=False,

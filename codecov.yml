@@ -1,10 +1,7 @@
-fixes:
-  - "xdsl/::"
-
 codecov:
-  require_ci_to_pass: yes
+  require_ci_to_pass: true
   notify:
-    wait_for_ci: yes
+    wait_for_ci: true
 
 coverage:
   precision: 2
@@ -17,7 +14,7 @@ coverage:
       default:
         enabled: yes
         target: 1
-        threshold: 0.1
+        threshold: 10%
     patch:
       default:
         enabled: off

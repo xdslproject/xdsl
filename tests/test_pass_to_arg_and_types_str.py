@@ -3,9 +3,9 @@ from typing import Literal
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
-from xdsl.passes import ModulePass, get_pass_argument_names_and_types
+from xdsl.passes import ModulePass, PassOptionInfo, get_pass_option_infos
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ class CustomPass(ModulePass):
 
     optional_bool: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -36,7 +36,7 @@ class CustomPass(ModulePass):
 class EmptyPass(ModulePass):
     name = "empty"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
@@ -48,20 +48,42 @@ class SimplePass(ModulePass):
     b: int | None
     c: int = 5
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
 
 @pytest.mark.parametrize(
-    "str_arg, pass_arg",
+    "arg_options, pass_arg",
     [
         (
-            """number=int|float single_number=int int_list=tuple[int, ...] non_init_thing=int str_thing=str nullable_str=str|None literal=no optional_bool=false""",
+            (
+                PassOptionInfo("number", "int|float"),
+                PassOptionInfo("single_number", "int"),
+                PassOptionInfo("int_list", "tuple[int, ...]"),
+                PassOptionInfo("non_init_thing", "int"),
+                PassOptionInfo("str_thing", "str"),
+                PassOptionInfo("nullable_str", "str|None"),
+                PassOptionInfo(
+                    "literal",
+                    "typing.Literal['yes', 'no', 'maybe']",
+                    "no",
+                ),
+                PassOptionInfo("optional_bool", "bool", "false"),
+            ),
             CustomPass,
         ),
-        ("", EmptyPass),
-        ("""a=int|float b=int|None c=5""", SimplePass),
+        ((), EmptyPass),
+        (
+            (
+                PassOptionInfo("a", "int|float"),
+                PassOptionInfo("b", "int|None"),
+                PassOptionInfo("c", "int", "5"),
+            ),
+            SimplePass,
+        ),
     ],
 )
-def test_pass_to_arg_and_type_str(str_arg: str, pass_arg: type[ModulePass]):
-    assert get_pass_argument_names_and_types(pass_arg) == str_arg
+def test_pass_to_arg_and_type_str(
+    arg_options: tuple[PassOptionInfo, ...], pass_arg: type[ModulePass]
+):
+    assert get_pass_option_infos(pass_arg) == arg_options

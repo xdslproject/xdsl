@@ -6,7 +6,7 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Sequence, Set
+from collections.abc import Sequence, Set
 from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import cast
@@ -17,8 +17,8 @@ from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
     AttrSizedSegments,
+    ConstraintContext,
     ConstraintVariableType,
-    InferenceContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
@@ -38,20 +38,19 @@ from xdsl.irdl import (
     merge_extractor_dicts,
 )
 from xdsl.irdl.declarative_assembly_format import (
-    AnchorableDirective,
     AttrDictDirective,
     AttributeVariable,
     DefaultValuedAttributeVariable,
+    Directive,
     FormatDirective,
     FormatProgram,
     FunctionalTypeDirective,
     KeywordDirective,
-    OperandOrResult,
+    OperandDirective,
     OperandsDirective,
     OperandVariable,
     OptionalAttributeVariable,
     OptionalGroupDirective,
-    OptionallyParsableDirective,
     OptionalOperandVariable,
     OptionalRegionVariable,
     OptionalResultVariable,
@@ -63,19 +62,14 @@ from xdsl.irdl.declarative_assembly_format import (
     RegionVariable,
     ResultsDirective,
     ResultVariable,
+    SuccessorDirective,
     SuccessorVariable,
     TypeableDirective,
     TypeDirective,
-    VariadicLikeFormatDirective,
-    VariadicOperandDirective,
     VariadicOperandVariable,
-    VariadicRegionDirective,
     VariadicRegionVariable,
     VariadicResultVariable,
-    VariadicSuccessorDirective,
     VariadicSuccessorVariable,
-    VariadicTypeableDirective,
-    VariadicTypeDirective,
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -142,11 +136,6 @@ class FormatParser(BaseParser):
     """The successor variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
-    type_resolutions: dict[
-        tuple[OperandOrResult, int],
-        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
-    ]
-    """Map a variable to a way to infer its type"""
 
     def __init__(self, input: str, op_def: OpDef):
         super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
@@ -158,7 +147,6 @@ class FormatParser(BaseParser):
         self.seen_properties = set[str]()
         self.seen_regions = [False] * len(op_def.regions)
         self.seen_successors = [False] * len(op_def.successors)
-        self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
         """
@@ -188,30 +176,37 @@ class FormatParser(BaseParser):
         directives leads to ambiguous parsing, and should raise an error here.
         """
         for a, b in pairwise(elements):
+            if not a.is_optional_like():
+                continue
             match a, b:
-                case VariadicLikeFormatDirective(), PunctuationDirective(","):
+                case _, PunctuationDirective(",") if a.is_variadic_like():
                     self.raise_error(
                         "A variadic directive cannot be followed by a comma literal."
                     )
-                case VariadicTypeDirective(), VariadicTypeDirective():
+                case TypeDirective(), TypeDirective():
                     self.raise_error(
-                        "A variadic type directive cannot be followed by another variadic type directive."
+                        "An optional/variadic type directive cannot be followed by another "
+                        "type directive."
                     )
-                case VariadicOperandDirective(), VariadicOperandDirective():
+                case OperandDirective(), OperandDirective():
                     self.raise_error(
-                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                        "An optional/variadic operand variable cannot be followed by another "
+                        "operand variable."
                     )
-                case VariadicRegionDirective(), VariadicRegionDirective():
+                case RegionDirective(), RegionDirective():
                     self.raise_error(
-                        "A variadic region variable cannot be followed by another variadic region variable."
+                        "An optional/variadic region variable cannot be followed by another "
+                        "region variable."
                     )
-                case VariadicSuccessorDirective(), VariadicSuccessorDirective():
+                case SuccessorDirective(), SuccessorDirective():
                     self.raise_error(
-                        "A variadic successor variable cannot be followed by another variadic successor variable."
+                        "A variadic successor variable cannot be followed by another "
+                        "variadic successor variable."
                     )
                 case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
                     self.raise_error(
-                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
+                        "An `attr-dict' directive without keyword cannot be directly "
+                        "followed by a region variable as it is ambiguous."
                     )
                 case _:
                     pass
@@ -591,7 +586,7 @@ class FormatParser(BaseParser):
                             unique_base.get_type_index()
                         ]
                         if type_constraint.can_infer(set()):
-                            unique_type = type_constraint.infer(InferenceContext())
+                            unique_type = type_constraint.infer(ConstraintContext())
                 if (
                     unique_base is not None
                     and unique_base in Builtin.attributes
@@ -633,8 +628,6 @@ class FormatParser(BaseParser):
         self.parse_punctuation("(")
         inner = self.parse_typeable_directive()
         self.parse_punctuation(")")
-        if isinstance(inner, VariadicTypeableDirective):
-            return VariadicTypeDirective(inner)
         return TypeDirective(inner)
 
     def parse_functional_type_directive(self) -> FormatDirective:
@@ -656,7 +649,7 @@ class FormatParser(BaseParser):
           group ::= `(` then-elements `)` `?`
         """
         then_elements = tuple[FormatDirective, ...]()
-        anchor: FormatDirective | None = None
+        anchor: Directive | None = None
 
         while not self.parse_optional_punctuation(")"):
             then_elements += (self.parse_format_directive(),)
@@ -677,14 +670,11 @@ class FormatParser(BaseParser):
             self.raise_error("An optional group must have a non-whitespace directive")
         if anchor is None:
             self.raise_error("Every optional group must have an anchor.")
-        # TODO: allow attribute and region variables when implemented.
-        if not isinstance(
-            then_elements[first_non_whitespace_index], OptionallyParsableDirective
-        ):
+        if not then_elements[first_non_whitespace_index].is_optional_like():
             self.raise_error(
                 "First element of an optional group must be optionally parsable."
             )
-        if not isinstance(anchor, AnchorableDirective):
+        if not anchor.is_anchorable():
             self.raise_error(
                 "An optional group's anchor must be an anchorable directive."
             )
@@ -695,9 +685,7 @@ class FormatParser(BaseParser):
                 tuple[WhitespaceDirective, ...],
                 then_elements[:first_non_whitespace_index],
             ),
-            cast(
-                OptionallyParsableDirective, then_elements[first_non_whitespace_index]
-            ),
+            then_elements[first_non_whitespace_index],
             then_elements[first_non_whitespace_index + 1 :],
         )
 

@@ -17,13 +17,13 @@ from typing_extensions import Self, TypeVar
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyMemRefTypeConstr,
     ArrayAttr,
     ContainerType,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     StringAttr,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -463,7 +463,7 @@ class GenericOp(IRDLOperation):
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
     """
-    outputs = var_operand_def(AnyMemRefTypeConstr | WritableStreamType.constr())
+    outputs = var_operand_def(MemRefType.constr() | WritableStreamType.constr())
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be written
@@ -471,18 +471,19 @@ class GenericOp(IRDLOperation):
     """
     inits = var_operand_def()
     """
-    Initial values for outputs. The outputs are at corresponding `init_indices`. The inits
-    may be set only for the imperfectly nested form.
+    Initial values for outputs. The outputs are at corresponding `init_indices`. The
+    inits may be set only for the imperfectly nested form.
     """
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
     """
     Stride patterns that define the order of the input and output streams.
-    Like in linalg.generic, the indexing maps corresponding to inputs are followed by the
-    indexing maps for the outputs.
+    Like in linalg.generic, the indexing maps corresponding to inputs are followed by
+    the indexing maps for the outputs.
     """
     bounds = prop_def(ArrayAttr[IntegerAttr[IndexType]])
     """
-    The bounds of the iteration space, from the outermost loop inwards. All indexing maps must have the same number of dimensions as the length of `bounds`.
+    The bounds of the iteration space, from the outermost loop inwards.
+    All indexing maps must have the same number of dimensions as the length of `bounds`.
     """
 
     iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
@@ -953,7 +954,7 @@ class FillOp(IRDLOperation):
         super().__init__(operands=(memref, value))
 
 
-MemrefStream = Dialect(
+MemRefStream = Dialect(
     "memref_stream",
     [
         ReadOp,

@@ -28,6 +28,7 @@ from .ops import (
     MR_OrOp,
     MR_SubOp,
     MR_VmovapdOp,
+    MR_VmovupsOp,
     MR_XorOp,
     R_DecOp,
     R_IDivOp,
@@ -53,6 +54,8 @@ from .ops import (
     RM_OrOp,
     RM_SubOp,
     RM_VbroadcastsdOp,
+    RM_VbroadcastssOp,
+    RM_VmovupsOp,
     RM_XorOp,
     RMI_ImulOp,
     RR_AddOp,
@@ -66,6 +69,7 @@ from .ops import (
     RR_XorOp,
     RRI_ImulOp,
     RRR_Vfmadd231pdOp,
+    RRR_Vfmadd231psOp,
     S_JaeOp,
     S_JaOp,
     S_JbeOp,
@@ -98,7 +102,13 @@ from .ops import (
     S_JsOp,
     S_JzOp,
 )
-from .register import AVXRegisterType, GeneralRegisterType, RFLAGSRegisterType
+from .register import (
+    AVX2RegisterType,
+    AVX512RegisterType,
+    GeneralRegisterType,
+    RFLAGSRegisterType,
+    SSERegisterType,
+)
 
 X86 = Dialect(
     "x86",
@@ -191,7 +201,11 @@ X86 = Dialect(
         S_JsOp,
         S_JzOp,
         RRR_Vfmadd231pdOp,
+        RRR_Vfmadd231psOp,
+        RM_VmovupsOp,
+        MR_VmovupsOp,
         RM_VbroadcastsdOp,
+        RM_VbroadcastssOp,
         RR_VmovapdOp,
         MR_VmovapdOp,
         GetRegisterOp,
@@ -202,7 +216,9 @@ X86 = Dialect(
     [
         GeneralRegisterType,
         RFLAGSRegisterType,
-        AVXRegisterType,
+        SSERegisterType,
+        AVX2RegisterType,
+        AVX512RegisterType,
         LabelAttr,
     ],
 )

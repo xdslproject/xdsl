@@ -38,7 +38,7 @@ class IRDLDialectLoader(importlib.abc.Loader):
         self.get_all_dialects = get_all_dialects
 
     def exec_module(self, module: ModuleType):
-        from xdsl.context import MLContext
+        from xdsl.context import Context
         from xdsl.dialects.irdl import DialectOp
         from xdsl.interpreters.irdl import make_dialect
         from xdsl.parser import Parser
@@ -46,7 +46,7 @@ class IRDLDialectLoader(importlib.abc.Loader):
         # Open the irdl file
         with open(self.path) as file:
             # Parse it
-            ctx = MLContext()
+            ctx = Context()
             for dialect_name, dialect_factory in self.get_all_dialects().items():
                 ctx.register_dialect(dialect_name, dialect_factory)
             irdl_module = Parser(ctx, file.read(), self.path).parse_module()

@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, func, memref, stencil
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyFloatAttr,
-    AnyMemRefType,
     DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
@@ -14,6 +12,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
     i16,
@@ -265,7 +264,7 @@ class GenerateCoeffAPICalls(RewritePattern):
         pattern = wrapper.get_param_value("pattern").value.data
         neighbours = pattern - 1
         empty = [FloatAttr(f, elem_t) for f in [0] + neighbours * [1]]
-        cmap: dict[csl.Direction, list[AnyFloatAttr]] = {
+        cmap: dict[csl.Direction, list[FloatAttr]] = {
             csl.Direction.NORTH: empty,
             csl.Direction.SOUTH: empty.copy(),
             csl.Direction.EAST: empty.copy(),
@@ -445,7 +444,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             return
 
         if (
-            not isattr(accumulator.type, AnyMemRefType)
+            not isattr(accumulator.type, MemRefType)
             or not isinstance(op.accumulator, OpResult)
             or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
         ):
@@ -476,9 +475,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             and subview.source == op.receive_chunk.block.args[2]
         ):
             assert isa(subview.source.type, memref.MemRefType[Attribute])
-            new_ops.append(
-                cast_op := arith.IndexCastOp(subview.offsets[0], csl.i16_value)
-            )
+            new_ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))
             new_ops.append(
                 new_acc := csl.IncrementDsdOffsetOp.build(
                     operands=[acc_dsd, cast_op],
@@ -504,10 +501,9 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             rewriter.erase_op(e, safe_erase=False)
 
         # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
-        assert (elem_t := accumulator.type.get_element_type()) in [
-            Float16Type(),
-            Float32Type(),
-        ]
+        assert isinstance(
+            (elem_t := accumulator.type.get_element_type()), Float16Type | Float32Type
+        )
         zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
         mov_op = csl.FmovsOp if elem_t == Float32Type() else csl.FmovhOp
         rewriter.insert_op(
@@ -540,7 +536,7 @@ class LowerCslStencil(ModulePass):
 
     name = "lower-csl-stencil"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

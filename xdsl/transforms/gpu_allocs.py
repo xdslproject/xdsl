@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import gpu, memref
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
@@ -28,10 +28,10 @@ class GpuDellocPattern(RewritePattern):
         rewriter.replace_matched_op(gpu.DeallocOp(op.memref))
 
 
-class MemrefToGPUPass(ModulePass):
+class MemRefToGPUPass(ModulePass):
     name = "memref-to-gpu"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

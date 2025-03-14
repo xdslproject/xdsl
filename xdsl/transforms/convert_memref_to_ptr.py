@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, ptr
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
@@ -21,7 +21,10 @@ from xdsl.utils.exceptions import DiagnosticException
 def offset_calculations(
     memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
 ) -> tuple[list[Operation], SSAValue]:
-    """Get operations calculating an offset which needs to be added to memref's base pointer to access an element referenced by indices."""
+    """
+    Get operations calculating an offset which needs to be added to memref's base
+    pointer to access an element referenced by indices.
+    """
 
     assert isinstance(memref_type.element_type, builtin.FixedBitwidthType)
 
@@ -155,7 +158,7 @@ class ConvertLoadOp(RewritePattern):
 
 
 @dataclass
-class LowerMemrefFuncOpPattern(RewritePattern):
+class LowerMemRefFuncOpPattern(RewritePattern):
     """
     Rewrites function arguments of MemRefType to PtrType.
     """
@@ -200,7 +203,7 @@ class LowerMemrefFuncOpPattern(RewritePattern):
 
 
 @dataclass
-class LowerMemrefFuncReturnPattern(RewritePattern):
+class LowerMemRefFuncReturnPattern(RewritePattern):
     """
     Rewrites all `memref` arguments to `func.return` into `ptr.PtrType`
     """
@@ -230,7 +233,7 @@ class LowerMemrefFuncReturnPattern(RewritePattern):
 
 
 @dataclass
-class LowerMemrefFuncCallPattern(RewritePattern):
+class LowerMemRefFuncCallPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter, /):
         if not any(
@@ -327,12 +330,12 @@ class ReconcileUnrealizedPtrCasts(RewritePattern):
 
 
 @dataclass(frozen=True)
-class ConvertMemrefToPtr(ModulePass):
+class ConvertMemRefToPtr(ModulePass):
     name = "convert-memref-to-ptr"
 
     lower_func: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
         ).rewrite_module(op)
@@ -341,9 +344,9 @@ class ConvertMemrefToPtr(ModulePass):
             PatternRewriteWalker(
                 GreedyRewritePatternApplier(
                     [
-                        LowerMemrefFuncOpPattern(),
-                        LowerMemrefFuncCallPattern(),
-                        LowerMemrefFuncReturnPattern(),
+                        LowerMemRefFuncOpPattern(),
+                        LowerMemRefFuncCallPattern(),
+                        LowerMemRefFuncReturnPattern(),
                         ReconcileUnrealizedPtrCasts(),
                     ]
                 )

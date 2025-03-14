@@ -1,6 +1,6 @@
 import pytest
 
-import xdsl.frontend.dialects.builtin as builtin
+import xdsl.frontend.pyast.dialects.builtin as builtin
 from xdsl.dialects.arith import AddiOp, ConstantOp, MulfOp
 from xdsl.dialects.builtin import (
     Float32Type,
@@ -12,16 +12,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.op_resolver import OpResolver
+from xdsl.frontend.pyast.exception import FrontendProgramException
+from xdsl.frontend.pyast.op_resolver import OpResolver
 
 
 def test_raises_exception_on_unknown_op():
     with pytest.raises(FrontendProgramException) as err:
-        _ = OpResolver.resolve_op("xdsl.frontend.dialects.arith", "unknown")
+        _ = OpResolver.resolve_op("xdsl.frontend.pyast.dialects.arith", "unknown")
     assert (
         err.value.msg
-        == "Internal failure: operation 'unknown' does not exist in module 'xdsl.frontend.dialects.arith'."
+        == "Internal failure: operation 'unknown' does not exist in module 'xdsl.frontend.pyast.dialects.arith'."
     )
 
 
@@ -37,7 +37,7 @@ def test_resolves_ops():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i32)
 
-    addi = OpResolver.resolve_op("xdsl.frontend.dialects.arith", "addi")
+    addi = OpResolver.resolve_op("xdsl.frontend.pyast.dialects.arith", "addi")
     addi_op = addi(a, b)
 
     assert isinstance(addi_op, AddiOp)
@@ -47,7 +47,7 @@ def test_resolves_ops():
     assert addi_op.results[0].type.width.data == 32
 
     c = ConstantOp(FloatAttr(5.0, f32))
-    mulf = OpResolver.resolve_op("xdsl.frontend.dialects.arith", "mulf")
+    mulf = OpResolver.resolve_op("xdsl.frontend.pyast.dialects.arith", "mulf")
     mulf_op = mulf(c, c)
 
     assert isinstance(mulf_op, MulfOp)

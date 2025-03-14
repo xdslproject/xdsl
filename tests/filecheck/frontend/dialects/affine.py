@@ -1,8 +1,8 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.context import CodeContext
-from xdsl.frontend.exception import CodeGenerationException
-from xdsl.frontend.program import FrontendProgram
+from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.exception import CodeGenerationException
+from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):

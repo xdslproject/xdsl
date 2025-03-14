@@ -15,7 +15,7 @@ from xdsl.interpreters.shaped_array import ShapedArray
 
 
 @register_impls
-class MemrefStreamFunctions(InterpreterFunctions):
+class MemRefStreamFunctions(InterpreterFunctions):
     @impl(memref_stream.GenericOp)
     def run_generic(
         self,

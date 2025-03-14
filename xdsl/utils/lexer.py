@@ -69,7 +69,8 @@ class Input:
 @dataclass(frozen=True)
 class Span:
     """
-    Parts of the input are always passed around as spans, so we know where they originated.
+    Parts of the input are always passed around as spans, so we know where they
+    originated.
     """
 
     start: Position

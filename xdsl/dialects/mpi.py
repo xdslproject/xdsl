@@ -3,7 +3,9 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (
@@ -110,7 +112,7 @@ class DataType(ParametrizedAttribute, TypeAttribute):
 
 VectorWrappable = RequestType | StatusType | DataType
 VectorWrappableConstr = base(RequestType) | base(StatusType) | base(DataType)
-_VectorT = TypeVar("_VectorT", bound=VectorWrappable)
+_VectorT = TypeVar("_VectorT", bound=VectorWrappable, default=VectorWrappable)
 
 
 @irdl_attr_definition
@@ -651,7 +653,7 @@ class FinalizeOp(MPIBaseOp):
 
 
 @irdl_op_definition
-class UnwrapMemrefOp(MPIBaseOp):
+class UnwrapMemRefOp(MPIBaseOp):
     """
     This Op can be used as a helper to get memrefs into MPI calls.
 
@@ -848,7 +850,7 @@ MPI = Dialect(
         InitOp,
         FinalizeOp,
         CommRankOp,
-        UnwrapMemrefOp,
+        UnwrapMemRefOp,
         GetDtypeOp,
         AllocateTypeOp,
         VectorGetOp,

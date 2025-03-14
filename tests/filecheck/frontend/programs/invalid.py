@@ -1,11 +1,11 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.block import block
-from xdsl.frontend.const import Const
-from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i32
-from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.program import FrontendProgram
+from xdsl.frontend.pyast.block import block
+from xdsl.frontend.pyast.const import Const
+from xdsl.frontend.pyast.context import CodeContext
+from xdsl.frontend.pyast.dialects.builtin import i32
+from xdsl.frontend.pyast.exception import FrontendProgramException
+from xdsl.frontend.pyast.program import FrontendProgram
 
 p = FrontendProgram()
 

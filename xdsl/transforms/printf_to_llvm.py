@@ -2,7 +2,7 @@ import hashlib
 import re
 from collections.abc import Iterable
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, printf
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -145,7 +145,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
 class PrintfToLLVM(ModulePass):
     name = "printf-to-llvm"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         add_printf_call = PrintlnOpToPrintfCall()
 
         PatternRewriteWalker(add_printf_call).rewrite_module(op)

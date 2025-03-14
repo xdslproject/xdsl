@@ -3,9 +3,17 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
-from typing import Any, ClassVar, TypeVar, Union, get_args, get_origin
+from typing import (
+    Any,
+    ClassVar,
+    NamedTuple,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+)
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.utils.hints import isa, type_repr
 from xdsl.utils.parse_pipeline import (
@@ -49,7 +57,7 @@ class ModulePass(ABC):
     name: ClassVar[str]
 
     @abstractmethod
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None: ...
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None: ...
 
     @classmethod
     def from_pass_spec(cls: type[ModulePassT], spec: PipelinePassSpec) -> ModulePassT:
@@ -151,23 +159,29 @@ class ModulePass(ABC):
         return PipelinePassSpec(self.name, args)
 
 
-# Git Issue: https://github.com/xdslproject/xdsl/issues/1845
-def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
+class PassOptionInfo(NamedTuple):
+    """The name, expected type, and default value for one option of a module pass."""
+
+    name: str
+    expected_type: str
+    default_value: str | None = None
+
+
+def get_pass_option_infos(
+    arg: type[ModulePassT],
+) -> tuple[PassOptionInfo, ...]:
     """
-    This method takes a type[ModulePassT] and outputs a string containing the names of the
-    pass arguments and their types. If an argument has a default value, it is not
-    added to the string.
+    Returns the expected argument names, types, and optional expected values for options
+    for the given pass.
     """
 
-    return " ".join(
-        [
-            (
-                f"{field.name}={type_repr(field.type)}"
-                if not hasattr(arg, field.name)
-                else f"{field.name}={str(getattr(arg, field.name)).lower()}"
-            )
-            for field in dataclasses.fields(arg)
-        ]
+    return tuple(
+        PassOptionInfo(
+            field.name,
+            type_repr(field.type),
+            str(getattr(arg, field.name)).lower() if hasattr(arg, field.name) else None,
+        )
+        for field in dataclasses.fields(arg)
     )
 
 
@@ -182,7 +196,7 @@ class PipelinePass(ModulePass):
     the next pass.
     """
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if not self.passes:
             # Early exit to avoid fetching a non-existing last pass.
             return
