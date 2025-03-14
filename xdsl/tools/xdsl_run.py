@@ -4,7 +4,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
     register_implementations,
@@ -24,7 +24,7 @@ class xDSLRunMain(CommandLineTool):
     ):
         self.available_frontends = {}
 
-        self.ctx = MLContext()
+        self.ctx = Context()
         self.register_all_dialects()
         self.register_all_frontends()
         # arg handling
@@ -60,7 +60,8 @@ class xDSLRunMain(CommandLineTool):
             "--args",
             default="",
             type=str,
-            help="Arguments to pass to entry function. Comma-separated list of xDSL Attributes, that will be parsed and converted by the interpreter.",
+            help="Arguments to pass to entry function. Comma-separated list of xDSL "
+            "Attributes, that will be parsed and converted by the interpreter.",
         )
         return super().register_all_arguments(arg_parser)
 

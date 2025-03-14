@@ -462,7 +462,7 @@ class HostRegisterOp(IRDLOperation):
 
     name = "gpu.host_register"
 
-    value = operand_def(memref.UnrankedMemrefType)
+    value = operand_def(memref.UnrankedMemRefType)
 
     def __init__(self, memref: SSAValue | Operation):
         super().__init__(operands=[SSAValue.get(memref)])
@@ -476,7 +476,7 @@ class HostUnregisterOp(IRDLOperation):
 
     name = "gpu.host_unregister"
 
-    value = operand_def(memref.UnrankedMemrefType)
+    value = operand_def(memref.UnrankedMemRefType)
 
     def __init__(self, memref: SSAValue | Operation):
         super().__init__(operands=[SSAValue.get(memref)])

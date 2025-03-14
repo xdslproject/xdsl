@@ -156,7 +156,8 @@ class DisjointSet(Generic[_T]):
         """
         Merge the sets containing the two given values if they are different.
 
-        Returns `True` if the sets were merged, `False` if they were already the same set.
+        Returns `True` if the sets were merged, `False` if they were already the same
+        set.
 
         Raises:
             KeyError: If either value is not in the disjoint set

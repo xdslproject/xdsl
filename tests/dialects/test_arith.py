@@ -7,6 +7,7 @@ from xdsl.dialects.arith import (
     AddiOp,
     AddUIExtendedOp,
     AndIOp,
+    BitcastOp,
     CeilDivSIOp,
     CeilDivUIOp,
     CmpfOp,
@@ -51,10 +52,13 @@ from xdsl.dialects.arith import (
 from xdsl.dialects.builtin import (
     AnyTensorType,
     AnyVectorType,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
+    Signedness,
     TensorType,
     VectorType,
     f32,
@@ -123,6 +127,18 @@ class Test_integer_arith_construction:
     )
     def test_Cmpi_from_mnemonic(self, input: str):
         _ = CmpiOp(self.a, self.b, input)
+
+
+def test_constant_construction():
+    c1 = ConstantOp(IntegerAttr(1, i32))
+    assert c1.value.type == i32
+
+    c3 = ConstantOp(FloatAttr(1.0, f32))
+    assert c3.value.type == f32
+
+    value_type = TensorType(i32, [2, 2])
+    c5 = ConstantOp(DenseIntOrFPElementsAttr.create_dense_int(value_type, [1, 2, 3, 4]))
+    assert c5.value.type == value_type
 
 
 @pytest.mark.parametrize(
@@ -247,6 +263,58 @@ def test_select_op():
     # wanting to verify it actually selected the correct operand, but not sure if in correct scope
     assert select_t_op.result.type == t.result.type
     assert select_f_op.result.type == f.result.type
+
+
+@pytest.mark.parametrize(
+    "in_type, out_type",
+    [
+        (i1, IntegerType(1, signedness=Signedness.UNSIGNED)),
+        (i32, f32),
+        (i64, f64),
+        (i32, i32),
+        (IndexType(), i1),
+        (i1, IndexType()),
+        (f32, IndexType()),
+        (IndexType(), f64),
+        (VectorType(i64, [3]), VectorType(f64, [3])),
+        (VectorType(f32, [3]), VectorType(i32, [3])),
+        (MemRefType(i32, [5]), MemRefType(f32, [5])),
+    ],
+)
+def test_bitcast_op(in_type: Attribute, out_type: Attribute):
+    in_arg = TestSSAValue(in_type)
+    cast = BitcastOp(in_arg, out_type)
+
+    cast.verify_()
+    assert cast.result.type == out_type
+
+
+SHAPE_MISMATCH = "operand and result type must have compatible shape"
+BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be IndexType"
+
+
+@pytest.mark.parametrize(
+    "in_type, out_type, err_msg",
+    [
+        (i1, i32, BITWIDTH_MISMATCH),
+        (i32, i64, BITWIDTH_MISMATCH),
+        (i64, i32, BITWIDTH_MISMATCH),
+        (f32, i64, BITWIDTH_MISMATCH),
+        (f32, f64, BITWIDTH_MISMATCH),
+        (VectorType(i32, [5]), i32, SHAPE_MISMATCH),
+        (i64, VectorType(i64, [5]), SHAPE_MISMATCH),
+        (VectorType(i32, [5]), VectorType(f32, [6]), SHAPE_MISMATCH),
+        (VectorType(i32, [5]), VectorType(f64, [5]), BITWIDTH_MISMATCH),
+        (MemRefType(i32, [5]), MemRefType(f32, [6]), SHAPE_MISMATCH),
+        (MemRefType(i32, [5]), f32, SHAPE_MISMATCH),
+    ],
+)
+def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
+    in_arg = TestSSAValue(in_type)
+    cast = BitcastOp(in_arg, out_type)
+
+    with pytest.raises(VerifyException, match=err_msg):
+        cast.verify_()
 
 
 def test_index_cast_op():

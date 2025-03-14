@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import bufferization, memref, ml_program
 from xdsl.dialects.builtin import (
     ModuleOp,
@@ -58,7 +58,7 @@ class ConvertGlobalLoadConst(RewritePattern):
         )
 
 
-class ConvertMlProgramToMemrefPass(ModulePass):
+class ConvertMlProgramToMemRefPass(ModulePass):
     """
     Converts operations in the `ml_program` dialect to `memref`.
     `ml_program` operations are at the `tensor` level of abstraction, so some of the
@@ -68,7 +68,7 @@ class ConvertMlProgramToMemrefPass(ModulePass):
 
     name = "convert-ml-program-to-memref"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

@@ -5,7 +5,7 @@ Rewrite patterns for lowering snitch → riscv.
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_snitch, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.ir import Operation
@@ -253,7 +253,7 @@ class LowerSsrDisable(RewritePattern):
 class LowerSnitchPass(ModulePass):
     name = "lower-snitch"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

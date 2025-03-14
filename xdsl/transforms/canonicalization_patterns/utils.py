@@ -1,9 +1,9 @@
 from xdsl.dialects import arith
-from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import SSAValue
 
 
-def const_evaluate_operand_attribute(operand: SSAValue) -> AnyIntegerAttr | None:
+def const_evaluate_operand_attribute(operand: SSAValue) -> IntegerAttr | None:
     """
     Try to constant evaluate an SSA value, returning None on failure.
     """

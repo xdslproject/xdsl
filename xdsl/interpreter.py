@@ -251,11 +251,14 @@ def impl_cast(
     return annot
 
 
+AttributeInvNoDefaultT = TypeVar("AttributeInvNoDefaultT", bound=Attribute)
+
+
 def impl_attr(
-    input_type: type[AttributeInvT],
+    input_type: type[AttributeInvNoDefaultT],
 ) -> Callable[
-    [AttrImpl[_FT, AttributeInvT]],
-    AttrImpl[_FT, AttributeInvT],
+    [AttrImpl[_FT, AttributeInvNoDefaultT]],
+    AttrImpl[_FT, AttributeInvNoDefaultT],
 ]:
     """
     Marks the conversion from an attribute to a Python value. The
@@ -545,7 +548,7 @@ class Interpreter:
     """
     _impls: _InterpreterFunctionImpls = field(default_factory=_InterpreterFunctionImpls)
     _ctx: ScopedDict[SSAValue, Any] = field(
-        default_factory=lambda: ScopedDict(name="root")
+        default_factory=lambda: ScopedDict[SSAValue, Any](name="root")
     )
     """
     Object holding the Python values associated with SSAValues during an
@@ -629,7 +632,8 @@ class Interpreter:
             actual_result_count := len(result.values)
         ):
             raise InterpretationError(
-                f"Number of operation results ({results_count}) doesn't match the number of implementation results ({actual_result_count})."
+                f"Number of operation results ({results_count}) doesn't match the "
+                f"number of implementation results ({actual_result_count})."
             )
         for listener in self.listeners:
             listener.did_interpret_op(op, result.values)

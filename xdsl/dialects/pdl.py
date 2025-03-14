@@ -6,7 +6,6 @@ from typing import Generic, TypeVar
 from xdsl.dialects.builtin import (
     I16,
     I32,
-    AnyArrayAttr,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
@@ -970,7 +969,7 @@ class TypesOp(IRDLOperation):
     """
 
     name = "pdl.types"
-    constantTypes = opt_prop_def(AnyArrayAttr)
+    constantTypes = opt_prop_def(ArrayAttr)
     result = result_def(RangeType[TypeType])
 
     def __init__(self, constant_types: Iterable[Attribute] | None = None) -> None:
@@ -992,7 +991,7 @@ class TypesOp(IRDLOperation):
             return TypesOp()
         begin_attr_pos = parser.pos
         constant_types = parser.parse_attribute()
-        if not isa(constant_types, AnyArrayAttr):
+        if not isa(constant_types, ArrayAttr):
             parser.raise_error("Array attribute expected", begin_attr_pos, parser.pos)
         return TypesOp(constant_types)
 

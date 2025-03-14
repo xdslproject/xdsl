@@ -114,7 +114,10 @@ class AffineMap:
         result_num_symbols: int,
     ) -> AffineMap:
         """
-        This method substitutes any uses of dimensions and symbols (e.g. dim#0 with dimReplacements[0]) in subexpressions and returns the modified expression mapping.  Because this can be used to eliminate dims and symbols, the client needs to specify the number of dims and symbols in the result.
+        This method substitutes any uses of dimensions and symbols (e.g. dim#0 with
+        dimReplacements[0]) in subexpressions and returns the modified expression
+        mapping.  Because this can be used to eliminate dims and symbols, the client
+        needs to specify the number of dims and symbols in the result.
 
         The returned map always has the same number of results.
         """
@@ -132,9 +135,12 @@ class AffineMap:
         """
         Returns the `AffineMap` resulting from composing `self` with `other`.
 
-        The resulting `AffineMap` has as many dimensions as `other` and as many symbols as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
+        The resulting `AffineMap` has as many dimensions as `other` and as many symbols
+        as the concatenation of `self` and `other` (in which case the symbols of `self`
+        come first).
 
-        Prerequisites: The maps are composable, i.e. that the number of dimensions of `self` matches the number of results of `other`.
+        Prerequisites: The maps are composable, i.e. that the number of dimensions of
+        `self` matches the number of results of `other`.
 
         Example:
         ```
@@ -244,6 +250,41 @@ class AffineMap:
         return self.replace_dims_and_symbols(
             new_dims, new_symbols, result_num_dims, self.num_symbols
         )
+
+    def used_dims(self) -> set[int]:
+        """
+        Return all dimensions used in the map as a set
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives {d0}
+        (d0, d1, d2) -> (d0, d2) gives {d0, d2}
+        ```
+        """
+        return {
+            expr.position
+            for res_expr in self.results
+            for expr in res_expr.dfs()
+            if isinstance(expr, AffineDimExpr)
+        }
+
+    def used_dims_bit_vector(self) -> tuple[bool, ...]:
+        """
+        Return a tuple of bools with the i-th entry being True if the i-th dimension is used in the map, otherwise it is False.
+
+        Example:
+        ```
+        (d0, d1) -> (d0) gives (True, False)
+        (d0, d1, d2) -> (d0, d2) gives (True, False, True)
+        ```
+        """
+
+        used_dims = [False] * self.num_dims
+        for res_expr in self.results:
+            for expr in res_expr.dfs():
+                if isinstance(expr, AffineDimExpr):
+                    used_dims[expr.position] = True
+        return tuple(used_dims)
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

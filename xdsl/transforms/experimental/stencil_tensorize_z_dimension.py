@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeGuard, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, varith
 from xdsl.dialects.arith import (
     AddfOp,
@@ -452,7 +452,7 @@ class BackpropagateStencilShapes(ModulePass):
 
     name = "backpropagate-stencil-shapes"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         backpropagate_stencil_shapes = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -475,7 +475,7 @@ class BackpropagateStencilShapes(ModulePass):
 class StencilTensorizeZDimension(ModulePass):
     name = "stencil-tensorize-z-dimension"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

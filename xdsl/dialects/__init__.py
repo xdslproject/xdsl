@@ -154,9 +154,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return MemRef
 
     def get_memref_stream():
-        from xdsl.dialects.memref_stream import MemrefStream
+        from xdsl.dialects.memref_stream import MemRefStream
 
-        return MemrefStream
+        return MemRefStream
 
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
@@ -192,21 +192,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.ptr import Ptr
 
         return Ptr
-
-    def get_quantum():
-        from xdsl.dialects.quantum import QUANTUM
-
-        return QUANTUM
-
-    def get_qref():
-        from xdsl.dialects.qref import QREF
-
-        return QREF
-
-    def get_qssa():
-        from xdsl.dialects.qssa import QSSA
-
-        return QSSA
 
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
@@ -279,7 +264,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Stim
 
     def get_symref():
-        from xdsl.frontend.symref import Symref
+        from xdsl.frontend.pyast.symref import Symref
 
         return Symref
 
@@ -317,6 +302,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.x86 import X86
 
         return X86
+
+    def get_x86_func():
+        from xdsl.dialects.x86_func import X86_FUNC
+
+        return X86_FUNC
 
     def get_transform():
         from xdsl.dialects.transform import Transform
@@ -361,9 +351,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "pdl": get_pdl,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
-        "quantum": get_quantum,
-        "qref": get_qref,
-        "qssa": get_qssa,
         "riscv": get_riscv,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
@@ -386,6 +373,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "vector": get_vector,
         "wasm": get_wasm,
         "x86": get_x86,
+        "x86_func": get_x86_func,
         "transform": get_transform,
     }
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import prod
 from typing import ClassVar, TypeVar, cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.builtin import ContainerType
 from xdsl.dialects.experimental import dmp
@@ -285,7 +285,7 @@ def generate_mpi_calls_for(
             # copy source area to outbound buffer
             yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
-            unwrap_out = mpi.UnwrapMemrefOp(alloc_outbound)
+            unwrap_out = mpi.UnwrapMemRefOp(alloc_outbound)
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
@@ -305,7 +305,7 @@ def generate_mpi_calls_for(
             )
 
             # get ptr for receive buffer
-            unwrap_in = mpi.UnwrapMemrefOp(alloc_inbound)
+            unwrap_in = mpi.UnwrapMemRefOp(alloc_inbound)
             unwrap_in.ptr.name_hint = f"recv_buff_ex{i}_ptr"
             yield unwrap_in
             # Irecv call
@@ -439,7 +439,7 @@ class MpiLoopInvariantCodeMotion:
             memref.AllocOp
             | mpi.CommRankOp
             | mpi.AllocateTypeOp
-            | mpi.UnwrapMemrefOp
+            | mpi.UnwrapMemRefOp
             | mpi.InitOp
         ),
         rewriter: Rewriter,
@@ -450,7 +450,7 @@ class MpiLoopInvariantCodeMotion:
         self.seen_ops.add(op)
 
         # memref unwraps can always be moved to their allocation
-        if isinstance(op, mpi.UnwrapMemrefOp) and isinstance(
+        if isinstance(op, mpi.UnwrapMemRefOp) and isinstance(
             op.ref.owner, memref.AllocOp
         ):
             op.detach()
@@ -499,7 +499,7 @@ class MpiLoopInvariantCodeMotion:
             memref.AllocOp
             | mpi.CommRankOp
             | mpi.AllocateTypeOp
-            | mpi.UnwrapMemrefOp
+            | mpi.UnwrapMemRefOp
             | mpi.InitOp
         ],
     ) -> Callable[[Operation], None]:
@@ -514,7 +514,7 @@ class MpiLoopInvariantCodeMotion:
                 memref.AllocOp
                 | mpi.CommRankOp
                 | mpi.AllocateTypeOp
-                | mpi.UnwrapMemrefOp
+                | mpi.UnwrapMemRefOp
                 | mpi.InitOp,
             ):
                 worklist.append(op)
@@ -533,7 +533,7 @@ class MpiLoopInvariantCodeMotion:
             memref.AllocOp
             | mpi.CommRankOp
             | mpi.AllocateTypeOp
-            | mpi.UnwrapMemrefOp
+            | mpi.UnwrapMemRefOp
             | mpi.InitOp
         ] = list()
         matcher = self.get_matcher(worklist)
@@ -618,7 +618,7 @@ class DistributeStencilPass(DmpDecompositionPass):
     local domain. If false, it assumes that the generated code is already local)
     """
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if self.strategy not in self.STRATEGIES:
             raise ValueError(f"Unknown strategy: {self.strategy}")
         strategy = self.STRATEGIES[self.strategy](self.slices)
@@ -644,7 +644,7 @@ class DmpToMpiPass(ModulePass):
 
     generate_debug_prints: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

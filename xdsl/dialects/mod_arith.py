@@ -7,7 +7,7 @@ from abc import ABC
 from typing import ClassVar
 
 from xdsl.dialects.arith import signlessIntegerLike
-from xdsl.dialects.builtin import AnyIntegerAttr
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
@@ -32,7 +32,7 @@ class BinaryOp(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     output = result_def(T)
-    modulus = prop_def(AnyIntegerAttr)
+    modulus = prop_def(IntegerAttr)
 
     irdl_options = [ParsePropInAttrDict()]
 

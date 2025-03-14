@@ -4,7 +4,7 @@ from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     BoolAttr,
     DenseArrayBase,
@@ -852,7 +852,9 @@ class OptionlessMultipleVarOp(IRDLOperation):
 def test_no_multiple_var_option():
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
+        match="Operation test.multiple_var_op defines more than two variadic operands, "
+        "but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments "
+        "PyRDL options.",
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
 
@@ -871,7 +873,7 @@ class DefaultOp(IRDLOperation):
 
 
 def test_default_accessors():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(DefaultOp)
 
     parsed = Parser(ctx, "test.default").parse_operation()
@@ -892,7 +894,7 @@ def test_default_accessors():
 
 
 def test_generic_accessors():
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_op(DefaultOp)
 
     parsed = Parser(

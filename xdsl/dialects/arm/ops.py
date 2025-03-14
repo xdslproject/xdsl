@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.irdl import (
@@ -11,23 +12,14 @@ from xdsl.irdl import (
     result_def,
 )
 
-from .assembly import (
-    AssemblyInstructionArg,
-    append_comment,
-    assembly_arg_str,
-    assembly_line,
-)
+from .assembly import AssemblyInstructionArg, assembly_arg_str
 from .register import IntRegisterType
 
 
-class ARMOperation(IRDLOperation, ABC):
+class ARMOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of ARM assembly printing.
     """
-
-    @abstractmethod
-    def assembly_line(self) -> str | None:
-        raise NotImplementedError()
 
 
 class ARMInstruction(ARMOperation, ABC):
@@ -65,7 +57,7 @@ class ARMInstruction(ARMOperation, ABC):
             for arg in self.assembly_line_args()
             if arg is not None
         )
-        return assembly_line(instruction_name, arg_str, self.comment)
+        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 @irdl_op_definition
@@ -195,7 +187,7 @@ class LabelOp(ARMOperation):
         )
 
     def assembly_line(self) -> str | None:
-        return append_comment(f"{self.label.data}:", self.comment)
+        return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
 
 
 @irdl_op_definition

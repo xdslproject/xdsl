@@ -2,7 +2,7 @@ from io import StringIO
 
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import DYNAMIC_INDEX, IndexType, IntegerType, i32
 from xdsl.dialects.utils import (
     parse_dynamic_index_list_with_types,
@@ -16,7 +16,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.test_value import TestSSAValue
 
-ctx = MLContext()
+ctx = Context()
 index = IndexType()
 
 

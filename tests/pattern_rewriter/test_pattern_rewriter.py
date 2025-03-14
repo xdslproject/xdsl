@@ -1,11 +1,11 @@
 import re
 from collections.abc import Sequence
+from io import StringIO
 
 import pytest
-from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
 from xdsl.dialects.builtin import (
@@ -33,6 +33,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.printer import Printer
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
@@ -48,7 +49,7 @@ def rewrite_and_compare(
     block_created: int = 0,
     expect_rewrite: bool = True,
 ):
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
@@ -92,7 +93,11 @@ def rewrite_and_compare(
     walker.listener = listener
     did_rewrite = walker.rewrite_module(module)
 
-    assert_print_op(module, expected_prog, None)
+    file = StringIO()
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print(module)
+
+    assert file.getvalue().strip() == expected_prog.strip()
 
     assert num_op_inserted == op_inserted
     assert num_op_removed == op_removed
@@ -577,7 +582,7 @@ def test_operation_deletion_reversed():
 def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
 
@@ -1776,7 +1781,7 @@ Error while applying pattern: Expected operation to not be erroneous!
                 raise ValueError("Expected operation to not be erroneous!")
             return
 
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)

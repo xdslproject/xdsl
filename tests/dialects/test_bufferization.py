@@ -5,26 +5,25 @@ import pytest
 from xdsl.dialects.bufferization import (
     AllocTensorOp,
     CloneOp,
-    TensorFromMemrefConstraint,
+    TensorFromMemRefConstraint,
     ToTensorOp,
 )
 from xdsl.dialects.builtin import (
-    AnyMemRefTypeConstr,
-    AnyUnrankedMemrefTypeConstr,
+    AnyUnrankedMemRefTypeConstr,
     IndexType,
     IntegerType,
     MemRefType,
     TensorType,
     UnitAttr,
-    UnrankedMemrefType,
+    UnrankedMemRefType,
     UnrankedTensorType,
     f64,
 )
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute
 from xdsl.irdl import (
+    ConstraintContext,
     EqAttrConstraint,
-    InferenceContext,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -34,36 +33,36 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_tensor_from_memref_inference():
-    constr = TensorFromMemrefConstraint(AnyMemRefTypeConstr)
+    constr = TensorFromMemRefConstraint(MemRefType.constr())
     assert not constr.can_infer(set())
 
-    constr2 = TensorFromMemrefConstraint(
+    constr2 = TensorFromMemRefConstraint(
         EqAttrConstraint(MemRefType(f64, [10, 20, 30]))
     )
     assert constr2.can_infer(set())
-    assert constr2.infer(InferenceContext()) == TensorType(f64, [10, 20, 30])
+    assert constr2.infer(ConstraintContext()) == TensorType(f64, [10, 20, 30])
 
-    constr3 = TensorFromMemrefConstraint(
-        EqAttrConstraint(UnrankedMemrefType.from_type(f64))
+    constr3 = TensorFromMemRefConstraint(
+        EqAttrConstraint(UnrankedMemRefType.from_type(f64))
     )
     assert constr3.can_infer(set())
-    assert constr3.infer(InferenceContext()) == UnrankedTensorType(f64)
+    assert constr3.infer(ConstraintContext()) == UnrankedTensorType(f64)
 
 
 @irdl_op_definition
-class TensorFromMemrefOp(IRDLOperation):
+class TensorFromMemRefOp(IRDLOperation):
     name = "test.tensor_from_memref"
-    T: ClassVar = VarConstraint("T", AnyMemRefTypeConstr | AnyUnrankedMemrefTypeConstr)
+    T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
 
     in_tensor = operand_def(
-        TensorFromMemrefConstraint(
+        TensorFromMemRefConstraint(
             MemRefType.constr(element_type=EqAttrConstraint(IndexType()))
         )
     )
 
     in_var_memref = operand_def(T)
 
-    in_var_tensor = operand_def(TensorFromMemrefConstraint(T))
+    in_var_tensor = operand_def(TensorFromMemRefConstraint(T))
 
 
 def test_tensor_from_memref_constraint():
@@ -73,16 +72,16 @@ def test_tensor_from_memref_constraint():
             TensorType(IndexType(), [10, 20, 30]),
         ]
     ).res
-    op1 = TensorFromMemrefOp(operands=(v_tensor, v_memref, v_tensor))
+    op1 = TensorFromMemRefOp(operands=(v_tensor, v_memref, v_tensor))
     op1.verify()
 
     [v_unranked_memref, v_unranked_tensor] = TestOp(
         result_types=[
-            UnrankedMemrefType.from_type(IndexType()),
+            UnrankedMemRefType.from_type(IndexType()),
             UnrankedTensorType(IndexType()),
         ]
     ).res
-    op2 = TensorFromMemrefOp(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
+    op2 = TensorFromMemRefOp(operands=(v_tensor, v_unranked_memref, v_unranked_tensor))
     op2.verify()
 
 
@@ -132,7 +131,7 @@ def test_tensor_from_memref_constraint_failure(
         ]
     ).res
 
-    op1 = TensorFromMemrefOp(operands=(v1, v2, v3))
+    op1 = TensorFromMemRefOp(operands=(v1, v2, v3))
     with pytest.raises(VerifyException, match=error):
         op1.verify()
 

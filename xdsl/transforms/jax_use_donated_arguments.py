@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.bufferization import MaterializeInDestinationOp
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, TensorType
@@ -127,7 +127,7 @@ class JaxUseDonatedArguments(ModulePass):
 
     remove_matched_outputs: bool = False
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             SubstituteDonatedTensors(self.remove_matched_outputs),
             apply_recursively=False,

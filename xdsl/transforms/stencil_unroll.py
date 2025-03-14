@@ -4,7 +4,7 @@ from itertools import product
 from math import prod
 from typing import cast
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -127,7 +127,7 @@ class StencilUnrollPass(ModulePass):
 
     unroll_factor: tuple[int, ...]
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier([StencilUnrollPattern(self.unroll_factor)])
         )

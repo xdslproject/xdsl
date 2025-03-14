@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
     affine,
@@ -25,15 +25,15 @@ from xdsl.interpreters import (
 )
 
 
-def register_implementations(interpreter: Interpreter, ctx: MLContext):
+def register_implementations(interpreter: Interpreter, ctx: Context):
     interpreter.register_implementations(affine.AffineFunctions())
     interpreter.register_implementations(arith.ArithFunctions())
     interpreter.register_implementations(builtin.BuiltinFunctions())
     interpreter.register_implementations(cf.CfFunctions())
     interpreter.register_implementations(func.FuncFunctions())
     interpreter.register_implementations(linalg.LinalgFunctions())
-    interpreter.register_implementations(memref_stream.MemrefStreamFunctions())
-    interpreter.register_implementations(memref.MemrefFunctions())
+    interpreter.register_implementations(memref_stream.MemRefStreamFunctions())
+    interpreter.register_implementations(memref.MemRefFunctions())
     interpreter.register_implementations(ml_program.MLProgramFunctions())
     interpreter.register_implementations(pdl.PDLRewriteFunctions(ctx))
     interpreter.register_implementations(printf.PrintfFunctions())

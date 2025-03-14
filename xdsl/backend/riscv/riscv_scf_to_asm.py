@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Sequence
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
@@ -102,5 +102,5 @@ class LowerRiscvScfToLabels(RewritePattern):
 class LowerRiscvScfForToLabelsPass(ModulePass):
     name = "lower-riscv-scf-to-labels"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(LowerRiscvScfToLabels()).rewrite_module(op)

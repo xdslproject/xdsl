@@ -1,7 +1,5 @@
 // RUN: xdsl-opt --print-op-generic %s | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
 
-builtin.module{
-
 %vector0, %vector1, %i0 = "test.op"() : () -> (vector<index>, vector<3xindex>, index)
 // CHECK:      %0, %1, %2 = "test.op"() : () -> (vector<index>, vector<3xindex>, index)
 
@@ -16,4 +14,3 @@ builtin.module{
 
 %3 = "vector.extractelement"(%vector0) : (vector<index>) -> index
 // CHECK-NEXT: %6 = "vector.extractelement"(%0) : (vector<index>) -> index
-}

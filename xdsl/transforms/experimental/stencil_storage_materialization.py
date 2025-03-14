@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import ApplyOp, BufferOp, CombineOp, StoreOp
 from xdsl.ir import OpResult, SSAValue
@@ -55,7 +55,7 @@ class StencilStorageMaterializationPass(ModulePass):
 
     name = "stencil-storage-materialization"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

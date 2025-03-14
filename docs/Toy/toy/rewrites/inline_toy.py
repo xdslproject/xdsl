@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -104,7 +104,7 @@ class InlineToyPass(ModulePass):
 
     name = "inline-toy-functions"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(InlineFunctions()).rewrite_module(op)
         PatternRewriteWalker(RemoveUnusedPrivateFunctions()).rewrite_module(op)
         dce(op)

@@ -1,6 +1,7 @@
+import warnings
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from xdsl.ir import Dialect
 
@@ -9,7 +10,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class MLContext:
+class Context:
     """Contains structures for operations/attributes registration."""
 
     allow_unregistered: bool = field(default=False)
@@ -25,8 +26,8 @@ class MLContext:
     only load the respective Python files when the dialect is actually used.
     """
 
-    def clone(self) -> "MLContext":
-        return MLContext(
+    def clone(self) -> "Context":
+        return Context(
             self.allow_unregistered,
             self._loaded_dialects.copy(),
             self._loaded_ops.copy(),
@@ -229,3 +230,9 @@ class MLContext:
         if name in self._loaded_dialects:
             return self._loaded_dialects[name]
         return None
+
+
+class MLContext(Context):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        warnings.warn("MLContext is deprecated, please use Context instead")

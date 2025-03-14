@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
 from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
@@ -502,7 +502,7 @@ def test_region_clone_into_circular_blocks():
         "test.op"() [^0] : () -> ()
     }
     """
-    ctx = MLContext(allow_unregistered=True)
+    ctx = Context(allow_unregistered=True)
     region = Parser(ctx, region_str).parse_region()
 
     region2 = Region()
@@ -716,7 +716,7 @@ program_successors = """
     ],
 )
 def test_is_structurally_equivalent(args: list[str], expected_result: bool):
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
     ctx.load_dialect(Arith)
@@ -768,7 +768,7 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
 """
-    ctx = MLContext()
+    ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Func)
     ctx.load_dialect(Arith)

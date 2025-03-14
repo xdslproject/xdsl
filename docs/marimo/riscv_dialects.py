@@ -13,13 +13,13 @@ def _():
     from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func
     from xdsl.printer import Printer
     from xdsl.parser import Parser
-    from xdsl.context import MLContext
+    from xdsl.context import Context
     import difflib
     return (
         Block,
         Builder,
         InsertPoint,
-        MLContext,
+        Context,
         Parser,
         Printer,
         Region,
@@ -145,7 +145,7 @@ def _(mo):
 def _(riscv):
     # Explictly constructing registers
 
-    riscv.IntRegisterType("zero"), riscv.IntRegisterType("a1"), riscv.IntRegisterType("s2"), riscv.IntRegisterType("t3")
+    riscv.IntRegisterType.from_name("zero"), riscv.IntRegisterType.from_name("a1"), riscv.IntRegisterType.from_name("s2"), riscv.IntRegisterType.from_name("t3")
     return
 
 
@@ -527,8 +527,8 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(MLContext, builtin, riscv, riscv_cf, riscv_func):
-    ctx = MLContext()
+def _(Context, builtin, riscv, riscv_cf, riscv_func):
+    ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(riscv.RISCV)
     ctx.load_dialect(riscv_cf.RISCV_Cf)

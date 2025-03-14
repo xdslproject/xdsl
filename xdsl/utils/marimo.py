@@ -3,7 +3,7 @@ from collections.abc import Sequence
 
 import marimo as mo
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 
@@ -33,13 +33,13 @@ def _spec_str(p: ModulePass) -> str:
 
 
 def pipeline_html(
-    ctx: MLContext, module: ModuleOp, passes: Sequence[tuple[mo.Html, ModulePass]]
-) -> tuple[MLContext, ModuleOp, mo.Html]:
+    ctx: Context, module: ModuleOp, passes: Sequence[tuple[mo.Html, ModulePass]]
+) -> tuple[Context, ModuleOp, mo.Html]:
     """
-    Returns a tuple of the resulting context and module after applying the passes, and the
-    Marimo-optimised representation of the modules throughout compilation.
+    Returns a tuple of the resulting context and module after applying the passes, and
+    the Marimo-optimised representation of the modules throughout compilation.
 
-    The input is the input MLContext, a sequence of tuples of
+    The input is the input Context, a sequence of tuples of
     (pass description, module pass).
 
     Marimo's reactive mechanism relies on a graph of values defined in one cell and used

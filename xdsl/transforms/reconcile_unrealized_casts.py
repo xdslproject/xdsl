@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from warnings import warn
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Use
@@ -124,5 +124,5 @@ def reconcile_unrealized_casts(module: ModuleOp, *, warn_on_failure: bool = True
 class ReconcileUnrealizedCastsPass(ModulePass):
     name = "reconcile-unrealized-casts"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         reconcile_unrealized_casts(op)

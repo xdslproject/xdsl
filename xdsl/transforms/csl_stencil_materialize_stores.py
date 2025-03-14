@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import memref, scf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.csl import csl_stencil, csl_wrapper
@@ -149,7 +149,7 @@ class CslStencilMaterializeStores(ModulePass):
 
     name = "csl-stencil-materialize-stores"
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

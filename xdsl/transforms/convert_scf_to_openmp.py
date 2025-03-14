@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import arith, memref, omp, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.ir import Block, Region
@@ -145,7 +145,7 @@ class ConvertScfToOpenMPPass(ModulePass):
     schedule: Literal["static", "dynamic", "auto"] | None = None
     chunk: int | None = None
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

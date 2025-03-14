@@ -10,13 +10,13 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.interpreters.memref import MemrefFunctions
+from xdsl.interpreters.memref import MemRefFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 
 interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
 interpreter.register_implementations(ArithFunctions())
-interpreter.register_implementations(MemrefFunctions())
+interpreter.register_implementations(MemRefFunctions())
 
 index = IndexType()
 
@@ -63,7 +63,7 @@ def test_memref_get_global():
             fetch = memref.GetGlobalOp("my_global", memref_type)
 
     interpreter = Interpreter(module, index_bitwidth=32)
-    interpreter.register_implementations(MemrefFunctions())
+    interpreter.register_implementations(MemRefFunctions())
 
     (result,) = interpreter.run_op(fetch, ())
     assert result == ShapedArray(

@@ -3,8 +3,8 @@ import pytest
 from xdsl.dialects.affine import ForOp
 from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import i32
-from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.op_inserter import OpInserter
+from xdsl.frontend.pyast.op_inserter import OpInserter
+from xdsl.frontend.pyast.program import FrontendProgramException
 from xdsl.ir import Block, Region
 
 

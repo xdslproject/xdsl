@@ -436,12 +436,12 @@ async def test_passes():
                     ((riscv.Registers.A0,), (riscv.Registers.A0,)),
                 )
                 with ImplicitBuilder(function.body) as (n,):
-                    zero = riscv.MVOp(n, rd=riscv.IntRegisterType(""))
+                    zero = riscv.MVOp(n)
                     n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
                     two = arith.ConstantOp(IntegerAttr(2, index)).result
                     res = arith.MuliOp(n_one, two)
                     one = UnrealizedConversionCastOp.get(
-                        [res.result], [riscv.IntRegisterType("")]
+                        [res.result], [riscv.Registers.UNALLOCATED_INT]
                     )
                     two_two = riscv.MVOp(one, rd=riscv.Registers.A0)
                     riscv_func.ReturnOp(two_two)

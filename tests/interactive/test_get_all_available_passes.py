@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
@@ -33,7 +33,7 @@ class ReplacePass(ModulePass):
     before: ClassVar[str]
     after: ClassVar[str]
 
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(ReplacePattern(self.before, self.after)).rewrite_module(op)
 
 

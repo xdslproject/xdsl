@@ -1,4 +1,4 @@
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
 from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Block, OpResult, SSAValue
@@ -33,7 +33,8 @@ def add_eqsat_costs(block: Block):
 
         if len(op.results) != 1:
             raise DiagnosticException(
-                f"Cannot compute cost of one result of operation with multiple results: {op}"
+                "Cannot compute cost of one result of operation with multiple "
+                f"results: {op}"
             )
 
         costs = tuple(get_eqsat_cost(value) for value in op.operands)
@@ -63,7 +64,7 @@ class EqsatAddCostsPass(ModulePass):
 
     name = "eqsat-add-costs"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         eclass_parent_blocks = set(
             o.parent
             for o in op.walk()

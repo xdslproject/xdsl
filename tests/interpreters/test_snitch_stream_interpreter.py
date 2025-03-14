@@ -57,7 +57,7 @@ def test_simplify_stride_pattern(
 
 
 def test_snitch_stream_interpreter():
-    register = riscv.IntRegisterType.unallocated()
+    register = riscv.Registers.UNALLOCATED_INT
 
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(RiscvFunctions())

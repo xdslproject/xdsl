@@ -39,17 +39,17 @@ riscv_func.func @main() {
 
 //   CHECK-LIVENESS-BLOCK-NAIVE-J:       builtin.module {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    riscv_func.func @main() {
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : !riscv.reg<j1>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : !riscv.reg<j_1>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 5 : !riscv.reg<s0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j1>) -> !riscv.freg<j2>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<j3>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j2>, !riscv.freg<j3>) -> !riscv.freg<j2>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j1>, !riscv.reg<s0>) -> !riscv.reg<j0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j_1>) -> !riscv.freg<fj_0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<fj_1>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j_1>, !riscv.reg<s0>) -> !riscv.reg<j_0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_snitch.frep_outer %{{\d+}} {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv_snitch.frep_outer %{{\d+}} iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.reg<j0>) {
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        %{{\d+}} = riscv.mv %{{\d+}} : (!riscv.reg<j0>) -> !riscv.reg<j0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        riscv_snitch.frep_yield %{{\d+}} : !riscv.reg<j0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv_snitch.frep_outer %{{\d+}} iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.reg<j_0>) {
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        %{{\d+}} = riscv.mv %{{\d+}} : (!riscv.reg<j_0>) -> !riscv.reg<j_0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        riscv_snitch.frep_yield %{{\d+}} : !riscv.reg<j_0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_func.return
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    }
