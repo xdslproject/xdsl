@@ -40,6 +40,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicResultSize,
+    SameVariadicOperandSize,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -971,6 +972,8 @@ class ReinterpretCastOp(IRDLOperation):
 
     result = result_def(MemRefType[Attribute])
 
+    irdl_options = [SameVariadicOperandSize()]
+
     @staticmethod
     def get(
         src: SSAValue | Operation,
@@ -985,11 +988,6 @@ class ReinterpretCastOp(IRDLOperation):
     def verify_(self):
         assert isa(self.src.type, MemRefType[Attribute])
         assert isa(self.result.type, MemRefType[Attribute])
-
-        if len(self.sizes) != len(self.strides):
-            raise VerifyException(
-                f"Expected sizes rank to match strides rank ({len(self.sizes)} vs {len(self.strides)})"
-            )
 
         if len(self.result.type.shape) != len(self.sizes):
             raise VerifyException(
