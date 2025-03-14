@@ -1,18 +1,11 @@
-from typing import TypeAlias
-
-from xdsl.dialects.arm.register import ARMRegisterType
-from xdsl.ir import SSAValue
-
-AssemblyInstructionArg: TypeAlias = ARMRegisterType | SSAValue
+import abc
 
 
-def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isinstance(arg, ARMRegisterType):
-        reg = arg.register_name.data
-        return reg
-    else:  # SSAValue
-        if isinstance(arg.type, ARMRegisterType):
-            reg = arg.type.register_name.data
-            return reg
-        else:
-            raise ValueError(f"Unexpected argument type {type(arg)}")
+class AssemblyInstructionArg(abc.ABC):
+    """
+    Abstract base class for arguments to one line of assembly.
+    """
+
+    @abc.abstractmethod
+    def assembly_str(self) -> str:
+        raise NotImplementedError()
