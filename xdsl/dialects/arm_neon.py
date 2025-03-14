@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+from abc import ABC
+
+from xdsl.backend.assembly_printer import AssemblyPrinter
+from xdsl.dialects.arm.assembly import assembly_arg_str
+from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType
-from xdsl.ir import Dialect
-from xdsl.irdl import irdl_attr_definition
+from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
+from xdsl.ir import Dialect, Operation, SSAValue
+from xdsl.irdl import (
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+)
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
 
@@ -62,9 +74,125 @@ V29 = NEONRegisterType.from_name("v29")
 V30 = NEONRegisterType.from_name("v30")
 V31 = NEONRegisterType.from_name("v31")
 
+
+class ARMNEONInstruction(ARMInstruction, ABC):
+    """
+    Base class for operations in the NEON instruction set.
+    The name of the operation will be used as the NEON assembly instruction name.
+
+    The arrangement specifier for NEON instructions determines element size and count:
+      - "4H"  → 4 half-precision floats
+      - "8H"  → 8 half-precision floats
+      - "2S"  → 2 single-precision floats
+      - "4S"  → 4 single-precision floats
+      - "2D"  → 2 double-precision floats
+    """
+
+    arrangement = attr_def(StringAttr)
+
+    def assembly_line(self) -> str | None:
+        # default assembly code generator
+        instruction_name = self.assembly_instruction_name()
+        arg_str = ", ".join(
+            f"{assembly_arg_str(arg)}.{self.arrangement.data}"
+            for arg in self.assembly_line_args()
+            if arg is not None
+        )
+        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
+
+
+@irdl_op_definition
+class GetRegisterOp(ARMOperation):
+    """
+    This instruction allows us to create an SSAValue for a given register name.
+    """
+
+    name = "arm_neon.get_register"
+
+    result = result_def(NEONRegisterType)
+    assembly_format = "attr-dict `:` type($result)"
+
+    def __init__(self, register_type: NEONRegisterType):
+        super().__init__(result_types=[register_type])
+
+    def assembly_line(self):
+        return None
+
+
+@irdl_op_definition
+class DSSFMulVecScalarOp(ARMNEONInstruction):
+    """
+    Floating-point multiply (mixed: first source operand is a vector, second is a scalar. Destination is a vector)
+    This instruction multiplies each of the floating-point values in the first source operand by the
+    second source operand and writes the resulting values to the corresponding lanes of the destination.
+
+    Encoding: FMUL <Vd>.<T>, <Vn>.<T>, <Vm>.<idx>.
+    Vd, Vn, Vm specify the regs. The <T> specifier determines element arrangement (size and count).
+    The <idx> specifier determines the index of Vm at which the second source operand (scalar) can be found,
+    preceded by a size specifier.
+
+    https://developer.arm.com/documentation/ddi0602/2024-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-multiply--vector--?lang=en#T_option__4
+    """
+
+    name = "arm_neon.dss.fmulvec"
+    d = result_def(NEONRegisterType)
+    s1 = operand_def(NEONRegisterType)
+    s2 = operand_def(NEONRegisterType)
+    scalar_idx = attr_def(IntegerAttr[i8])
+
+    assembly_format = (
+        "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
+    )
+
+    def __init__(
+        self,
+        s1: Operation | SSAValue,
+        s2: Operation | SSAValue,
+        *,
+        d: NEONRegisterType,
+        arrangement: str | StringAttr,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(arrangement, str):
+            valid_arrangements = {"4H", "8H", "2S", "4S", "2D"}
+            if arrangement in valid_arrangements:
+                arrangement = StringAttr(arrangement)
+            else:
+                raise ValueError(f"Invalid FMUL arrangement: {arrangement}")
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=(s1, s2),
+            attributes={
+                "arrangement": arrangement,
+                "comment": comment,
+            },
+            result_types=(d,),
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return "fmul"
+
+    def assembly_line_args(self):
+        return (self.d, self.s1, self.s2)
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        arg_str = ", ".join(
+            f"{assembly_arg_str(arg)}.{self.arrangement.data}"
+            for arg in self.assembly_line_args()[:2]
+            if arg is not None
+        )
+        arg_str += f", {assembly_arg_str(self.assembly_line_args()[2])}.{self.arrangement.data[1]}[{self.scalar_idx.value.data}]"
+        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
+
+
 ARM_NEON = Dialect(
     "arm_neon",
-    [],
+    [
+        DSSFMulVecScalarOp,
+        GetRegisterOp,
+    ],
     [
         NEONRegisterType,
     ],
