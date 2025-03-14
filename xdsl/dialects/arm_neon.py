@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from xdsl.dialects.arm.register import ARMRegisterType
-from xdsl.ir import Dialect
-from xdsl.irdl import irdl_attr_definition
 from abc import ABC
+
 from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.arm.assembly import assembly_arg_str
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
+from xdsl.dialects.arm.register import ARMRegisterType
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Dialect, Operation, SSAValue
-from xdsl.irdl import attr_def, irdl_op_definition, operand_def, result_def
+from xdsl.irdl import (
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+)
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
+
 
 @irdl_attr_definition
 class NEONRegisterType(ARMRegisterType):
