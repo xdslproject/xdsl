@@ -40,55 +40,26 @@ jobs:
         cd xdsl
         uv python install ${{ matrix.python-version }}
 
+    # - name: Install LLVM
+    #   run: |
+    #     wget https://apt.llvm.org/llvm.sh
+    #     chmod +x llvm.sh
+    #     sudo ./llvm.sh 19
+    #     sudo apt-get install -y llvm-19 llvm-19-dev llvm-19-tools
+
+    - name: Install MLIR
+      run: |
+        sudo apt-get install -y mlir-19-tools
+        # Create symbolic link to mlir-opt
+        # sudo ln -s /usr/bin/mlir-opt-19 /usr/local/bin/mlir-opt
+        # sudo ln -s /usr/bin/mlir-cpu-runner-19 /usr/local/bin/mlir-cpu-runner
+
     - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        VENV_EXTRAS="--all-extras" make venv
+        MLIR_OPT_PATH="/usr/bin/mlir-opt-19" VENV_EXTRAS="--all-extras" make venv
 
-    - name: Cache binaries
-      id: cache-binary
-      uses: actions/cache@v4
-      with:
-        path: llvm-project/build
-        key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-        restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-
-    - name: Checkout MLIR
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-      with:
-        repository: llvm/llvm-project.git
-        path: llvm-project
-        ref: ${{ env.MLIR-Version }}
-
-    - name: Clang Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: egor-tensin/setup-clang@v1
-
-    - name: Ninja Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: lukka/get-cmake@aa1df13cce8c30d2cb58efa871271c5a764623f8
-
-    - name: MLIR Build Setup
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      run: |
-        mkdir llvm-project/build
-        cd llvm-project/build
-        cmake -G Ninja ../llvm \
-          -DLLVM_ENABLE_PROJECTS=mlir \
-          -DLLVM_TARGETS_TO_BUILD="X86" \
-          -DLLVM_ENABLE_LLD=ON \
-          -DCMAKE_C_COMPILER=clang \
-          -DCMAKE_CXX_COMPILER=clang++ \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DLLVM_ENABLE_ASSERTIONS=ON
-
-    - name: MLIR Build
-      if: steps.cache-binary.outputs.cache-hit != 'true'
-      run: |
-        cd llvm-project/build
-        cmake --build . --target mlir-opt mlir-cpu-runner
 
     - name: Test with pytest and generate code coverage
       run: |
