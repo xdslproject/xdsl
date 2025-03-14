@@ -28,6 +28,7 @@ from xdsl.dialects.memref import (
     ExtractStridedMetaDataOp,
     LoadOp,
     MemorySpaceCastOp,
+    ReinterpretCastOp,
     StoreOp,
     SubviewOp,
 )
@@ -372,6 +373,21 @@ def test_memref_memory_space_cast():
     assert memory_space_cast.source is memref_ssa_value
     assert isinstance(memory_space_cast.dest.type, MemRefType)
     assert memory_space_cast.dest.type.memory_space is dest_memory_space
+
+
+def test_memref_reinterpret_cast():
+    src_type = MemRefType(i64, [4, 512])
+
+    src = TestSSAValue(src_type)
+
+    reinterpret_cast = ReinterpretCastOp.get(
+        src,
+        [TestSSAValue(IntAttr(0))],
+        [TestSSAValue(IntAttr(8)), TestSSAValue(IntAttr(256))],
+        [TestSSAValue(IntAttr(1)), TestSSAValue(IntAttr(1))],
+    )
+
+    reinterpret_cast.verify()
 
 
 def test_dma_start():

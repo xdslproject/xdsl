@@ -60,7 +60,6 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
-    MemoryFreeEffect,
     NoMemoryEffect,
     SymbolOpInterface,
 )
@@ -979,7 +978,9 @@ class ReinterpretCastOp(IRDLOperation):
         sizes: Sequence[SSAValue | Operation],
         strides: Sequence[SSAValue | Operation],
     ):
-        return ReinterpretCastOp.build(operands=[src, offsets, sizes, strides])
+        return ReinterpretCastOp.build(
+            operands=[src, offsets, sizes, strides],
+        )
 
     def verify_(self):
         assert isa(self.src.type, MemRefType[Attribute])
@@ -993,6 +994,11 @@ class ReinterpretCastOp(IRDLOperation):
         if len(self.result.type.shape) != len(self.sizes):
             raise VerifyException(
                 f"Expected {len(self.src.type.shape)} size values but got {len(self.sizes)}"
+            )
+
+        if (self.result.type.shape) != len(self.sizes):
+            raise VerifyException(
+                f"Expected output shape to have {len(self.sizes)} size values but got {len(self.result.type.shape)}"
             )
 
 
@@ -1141,6 +1147,7 @@ MemRef = Dialect(
         SubviewOp,
         CastOp,
         MemorySpaceCastOp,
+        ReinterpretCastOp,
         DmaStartOp,
         DmaWaitOp,
         RankOp,
