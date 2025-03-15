@@ -183,6 +183,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return PDL
 
+    def get_pdl_interp():
+        from xdsl.dialects.pdl_interp import PDLInterp
+
+        return PDLInterp
+
     def get_printf():
         from xdsl.dialects.printf import Printf
 
@@ -349,6 +354,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "mpi": get_mpi,
         "omp": get_omp,
         "pdl": get_pdl,
+        "pdl_interp": get_pdl_interp,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
         "riscv": get_riscv,
