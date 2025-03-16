@@ -27,6 +27,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -36,6 +37,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import (
     IsolatedFromAbove,
+    IsTerminator,
     SymbolOpInterface,
 )
 
@@ -70,6 +72,7 @@ class FinalizeOp(IRDLOperation):
     """
 
     name = "pdl_interp.finalize"
+    traits = traits_def(IsTerminator())
 
     def __init__(self):
         super().__init__()
@@ -82,7 +85,8 @@ class CheckOperationNameOp(IRDLOperation):
     """
 
     name = "pdl_interp.check_operation_name"
-    operation_name = prop_def(StringAttr)
+    traits = traits_def(IsTerminator())
+    operation_name = prop_def(StringAttr, prop_name="name")
     input_op = operand_def(OperationType)
     true_dest = successor_def()
     false_dest = successor_def()
@@ -110,9 +114,10 @@ class CheckOperandCountOp(IRDLOperation):
     """
 
     name = "pdl_interp.check_operand_count"
+    traits = traits_def(IsTerminator())
     input_op = operand_def(OperationType)
     count = prop_def(IntegerAttr[I32])
-    compareAtLeast = prop_def(UnitAttr)
+    compareAtLeast = opt_prop_def(UnitAttr)
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -120,15 +125,18 @@ class CheckOperandCountOp(IRDLOperation):
         self,
         input_op: SSAValue,
         count: int | IntegerAttr[I32],
-        compareAtLeast: UnitAttr,
         trueDest: Block,
         falseDest: Block,
+        compareAtLeast: bool = False,
     ) -> None:
         if isinstance(count, int):
             count = IntegerAttr.from_int_and_width(count, 32)
+        properties = dict[str, Attribute](count=count)
+        if compareAtLeast:
+            properties["compareAtLeast"] = UnitAttr()
         super().__init__(
             operands=[input_op],
-            properties={"count": count, "compareAtLeast": compareAtLeast},
+            properties=properties,
             successors=[trueDest, falseDest],
         )
 
@@ -140,9 +148,10 @@ class CheckResultCountOp(IRDLOperation):
     """
 
     name = "pdl_interp.check_result_count"
+    traits = traits_def(IsTerminator())
     input_op = operand_def(OperationType)
     count = prop_def(IntegerAttr[I32])
-    compareAtLeast = prop_def(UnitAttr)
+    compareAtLeast = opt_prop_def(UnitAttr)
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -150,15 +159,18 @@ class CheckResultCountOp(IRDLOperation):
         self,
         input_op: SSAValue,
         count: int | IntegerAttr[I32],
-        compareAtLeast: UnitAttr,
         trueDest: Block,
         falseDest: Block,
+        compareAtLeast: bool = False,
     ) -> None:
         if isinstance(count, int):
             count = IntegerAttr.from_int_and_width(count, 32)
+        properties = dict[str, Attribute](count=count)
+        if compareAtLeast:
+            properties["compareAtLeast"] = UnitAttr()
         super().__init__(
             operands=[input_op],
-            properties={"count": count, "compareAtLeast": compareAtLeast},
+            properties=properties,
             successors=[trueDest, falseDest],
         )
 
@@ -170,7 +182,8 @@ class IsNotNullOp(IRDLOperation):
     """
 
     name = "pdl_interp.is_not_null"
-    value = operand_def(OperationType)
+    traits = traits_def(IsTerminator())
+    value = operand_def(AnyPDLTypeConstr)
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -223,21 +236,22 @@ class CheckAttributeOp(IRDLOperation):
     """
 
     name = "pdl_interp.check_attribute"
-    constant_value = prop_def(Attribute)
-    attribute = operand_def(OperationType)
+    traits = traits_def(IsTerminator())
+    constantValue = prop_def(Attribute)
+    attribute = operand_def(Attribute)
     true_dest = successor_def()
     false_dest = successor_def()
 
     def __init__(
         self,
-        constant_value: Attribute,
+        constantValue: Attribute,
         attribute: SSAValue,
         trueDest: Block,
         falseDest: Block,
     ) -> None:
         super().__init__(
             operands=[attribute],
-            properties={"constant_value": constant_value},
+            properties={"constantValue": constantValue},
             successors=[trueDest, falseDest],
         )
 
@@ -249,6 +263,7 @@ class AreEqualOp(IRDLOperation):
     """
 
     name = "pdl_interp.are_equal"
+    traits = traits_def(IsTerminator())
     lhs = operand_def(AnyPDLTypeConstr)
     rhs = operand_def(AnyPDLTypeConstr)
     true_dest = successor_def()
@@ -267,9 +282,10 @@ class RecordMatchOp(IRDLOperation):
     """
 
     name = "pdl_interp.record_match"
+    traits = traits_def(IsTerminator())
     rewriter = prop_def(SymbolRefAttr)
-    root_kind = prop_def(StringAttr)
-    generated_ops = prop_def(ArrayAttr)
+    rootKind = prop_def(StringAttr)
+    generatedOps = opt_prop_def(ArrayAttr)
     benefit = prop_def(IntegerAttr[I16])
 
     inputs = var_operand_def(AnyPDLTypeConstr)
@@ -277,22 +293,38 @@ class RecordMatchOp(IRDLOperation):
 
     dest = successor_def()
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def __init__(
         self,
         rewriter: str | SymbolRefAttr,
         root_kind: str | StringAttr,
-        generated_ops: list[OperationType],
+        generated_ops: list[OperationType] | None,
         benefit: int | IntegerAttr[I16],
-        inputs: list[SSAValue],
-        matched_ops: list[SSAValue],
+        inputs: Sequence[SSAValue],
+        matched_ops: Sequence[SSAValue],
         dest: Block,
     ) -> None:
         if isinstance(rewriter, str):
             rewriter = SymbolRefAttr(rewriter)
         if isinstance(root_kind, str):
             root_kind = StringAttr(root_kind)
+        if (
+            generated_ops is None
+        ):  # TODO: if generatedOps is actually optional (check this), we shouldn't even pass an empty list
+            generated_ops = []
         if isinstance(benefit, int):
             benefit = IntegerAttr.from_int_and_width(benefit, 16)
+        super().__init__(
+            operands=[inputs, matched_ops],
+            properties={
+                "rewriter": rewriter,
+                "rootKind": root_kind,
+                "generatedOps": ArrayAttr(generated_ops),
+                "benefit": benefit,
+            },
+            successors=[dest],
+        )
 
 
 @irdl_op_definition
@@ -321,8 +353,6 @@ class ReplaceOp(IRDLOperation):
     name = "pdl_interp.replace"
     input_op = operand_def(OperationType)
     repl_values = var_operand_def(ValueType | ArrayAttr[ValueType])
-
-    irdl_options = [AttrSizedOperandSegments()]
 
     def __init__(self, input_op: SSAValue, repl_values: list[SSAValue]) -> None:
         super().__init__(operands=[input_op, repl_values])
@@ -396,6 +426,20 @@ class CreateOperationOp(IRDLOperation):
 
 
 @irdl_op_definition
+class GetDefiningOpOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_defining_op-pdl_interpgetdefiningopop
+    """
+
+    name = "pdl_interp.get_defining_op"
+    value = operand_def(ValueType | ArrayAttr[ValueType])
+    input_op = result_def(OperationType)
+
+    def __init__(self, value: SSAValue) -> None:
+        super().__init__(operands=[value], result_types=[OperationType()])
+
+
+@irdl_op_definition
 class FuncOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpfunc-pdl_interpfuncop
@@ -404,8 +448,8 @@ class FuncOp(IRDLOperation):
     name = "pdl_interp.func"
     sym_name = prop_def(StringAttr)
     function_type = prop_def(FunctionType)
-    arg_attrs = prop_def(ArrayAttr)
-    res_attrs = prop_def(ArrayAttr)
+    arg_attrs = opt_prop_def(ArrayAttr)
+    res_attrs = opt_prop_def(ArrayAttr)
 
     body = region_def()
 
@@ -459,5 +503,6 @@ PDLInterp = Dialect(
         CreateAttributeOp,
         CreateOperationOp,
         FuncOp,
+        GetDefiningOpOp,
     ],
 )
