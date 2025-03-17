@@ -74,15 +74,15 @@ class WorkloadBuilder:
 
     @classmethod
     def extra_mlir_file(cls, name: str) -> str:
-        """."""
+        """Get the contents of a named MLIR file."""
         return (EXTRA_MLIR_DIR / name).read_text()
 
     @classmethod
     def large_dense_attr(cls) -> str:
-        """."""
+        """Get the MLIR text representation of a large dense attr."""
         return WorkloadBuilder.extra_mlir_file("large_dense_attr.mlir")
 
     @classmethod
     def large_dense_attr_hex(cls) -> str:
-        """."""
+        """Get the MLIR hex representation of a large dense attr."""
         return WorkloadBuilder.extra_mlir_file("large_dense_attr_hex.mlir")
