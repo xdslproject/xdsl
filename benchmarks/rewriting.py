@@ -14,14 +14,25 @@ from xdsl.dialects.arith import (
     SubiOp,
 )
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp
-from xdsl.ir import ParametrizedAttribute, Region
+from xdsl.ir import Region
+from xdsl.ir.post_order import PostOrderIterator
 from xdsl.irdl import OpDef, VarIRConstruct, get_variadic_sizes, traits_def
 from xdsl.pattern_rewriter import Worklist
 from xdsl.rewriter import InsertPoint
-from xdsl.traits import Commutative, HasCanonicalizationPatternsTrait, Pure
+from xdsl.traits import (
+    Commutative,
+    HasCanonicalizationPatternsTrait,
+    MemoryEffect,
+    Pure,
+)
 from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl.transforms.dead_code_elimination import is_trivially_dead
+from xdsl.transforms.dead_code_elimination import (
+    LiveSet,
+    is_trivially_dead,
+    result_only_effects,
+    would_be_trivially_dead,
+)
 
 CTX = get_context()
 CTX.load_dialect(Arith)
@@ -108,6 +119,8 @@ class RewritingMicrobenchmarks:
         """Setup the benchmarks."""
         # Region
         self.region = PatternRewriter.WORKLOAD_CONSTANT_20.clone().body
+        assert self.region._first_block is not None
+        self.first_block = self.region._first_block
         # Operations
         ops = self.region.walk()
         self.const_0 = cast(ConstantOp, next(ops))
@@ -115,93 +128,155 @@ class RewritingMicrobenchmarks:
         self.add_op = cast(AddiOp, next(ops))
         self.add_op_def = OpDef.from_pyrdl(AddiOpUnwrapped)
         self.add_op_construct = VarIRConstruct.OPERAND
+        self.add_op_result = self.add_op.result
+        self.add_op_result_use = list(self.add_op_result.uses)[0]
         self.sub_op = SubiOp(self.const_1, self.const_0)
+        self.sub_op_result = self.sub_op.result
         # Worklist
         self.worklist = Worklist()
         self.worklist.push(self.sub_op)
         # Types
         self.integer_type = IntegerType(64)
+        self.integer_attr = IntegerAttr(0, 64)
         # LiveSet
+        self.live_set = LiveSet()
 
-    # ======================================================================== #
-
-    def time_get_variadic_sizes(self) -> None:
-        """Time getting the variadic size of an operation."""
-        get_variadic_sizes(self.add_op, self.add_op_def, self.add_op_construct)
+    # =================== #
+    # Worklist operations #
+    # =================== #
 
     def time_region_walk(self) -> None:
-        """Time walking a region."""
+        """Time `Region.walk`."""
         for block in self.region.walk():
             assert block
 
     def time_worklist_push(self) -> None:
-        """Time pushing to a worklist."""
+        """Time `Worklist.push`."""
         self.worklist.push(self.add_op)
 
     def time_worklist_pop(self) -> None:
-        """Time popping from a worklist."""
+        """Time `Worklist.pop`."""
         self.worklist.pop()
 
-    def time_is_trivially_dead(self) -> None:
-        """Time checking if an operation is trivially dead."""
-        is_trivially_dead(self.add_op)
+    # TODO: Split into separate classes
+    # ================================================== #
+    # `CanonicalizationRewritePattern.match_and_rewrite` #
+    # ================================================== #
 
     def time_get_trait(self) -> None:
-        """Time getting a trait from an operation."""
+        """Time `Operation.get_trait`."""
         self.add_op.get_trait(HasCanonicalizationPatternsTrait)
 
-    def time_const_evaluate_operand(self) -> None:
-        """Time trying constant evaluate an SSA value."""
-        const_evaluate_operand(self.add_op.lhs)
+    # ===== #
+
+    def time_insert_point_before(self) -> None:
+        """Time `InsertPoint.before`."""
+        InsertPoint.before(self.add_op)
+
+    def time_pattern_rewriter_insert_op(self) -> None:
+        """Time `PatternRewriter.insert_op`."""
+        # `insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)`
+        raise NotImplementedError()
+
+    def time_operation_drop_all_references(self) -> None:
+        """Time `Operation.drop_all_references`."""
+        self.add_op.drop_all_references()
+
+    def time_ssavalue_replace_by(self) -> None:
+        """Time `SSAValue.replace_by`."""
+        self.add_op_result.replace_by(self.sub_op_result)
+
+    def time_irwithuses_remove_use(self) -> None:
+        """Time `IRWithUses.remove_use`."""
+        self.add_op_result.remove_use(self.add_op_result_use)
+
+    def time_irwithuses_add_use(self) -> None:
+        """Time `IRWithUses.add_use`."""
+        self.sub_op_result.add_use(self.add_op_result_use)
+
+    def time_ssavalue_name_hint(self) -> None:
+        """Time `SSAValue.namehint`."""
+        self.add_op_result.name_hint = "valid_name"
+
+    def time_handle_operation_removal(self) -> None:
+        """Time `PatternRewriteWalker._handle_operation_removal`."""
+        raise NotImplementedError()
+
+    def time_block_detach_op(self) -> None:
+        """Time `Block.detach_op`."""
+        raise NotImplementedError()
+        # self.region.block.detach_op(self.add_op)
+
+    def time_ssavalue_erase(self) -> None:
+        """Time `SSAValue.erase()`."""
+        raise NotImplementedError()
+        # self.add_op_result.erase()
+
+    # ===== #
+
+    def time_get_variadic_sizes(self) -> None:
+        """Time `get_variadic_sizes`."""
+        get_variadic_sizes(self.add_op, self.add_op_def, self.add_op_construct)
+
+    # ===== #
+
+    def time_integer_attr_creation(self) -> None:
+        """Time `IntegerAttr.__init__`."""
+        IntegerAttr(0, 64)
 
     def time_integer_type_normalized_value(self) -> None:
         """Time `IntegerType.normalized_value`."""
         self.integer_type.normalized_value(0)
 
-    def time_parameterised_attribute_init(self) -> None:
-        """Time instantiating a parameterised attribute."""
-        ParametrizedAttribute(parameters=[IntegerAttr(0, 64), IntegerAttr(0, 64)])
+    def time_integer_attr_verify(self) -> None:
+        """Time `IntegerAttr._verify`."""
+        self.integer_attr._verify()
 
     def time_operation_create(self) -> None:
-        """Time creating an operation."""
+        """Time `AddiOp.__init__`."""
         AddiOp(self.const_1, self.const_0)
 
-    def time_insert_point_before(self) -> None:
-        """Time getting the insertion point before an operation."""
-        InsertPoint.before(self.add_op)
+    # ===== #
 
-    # def time_pattern_rewriter_insert_op(self) -> None:
-    #     """Time `PatternRewriter.insert_op`."""
-    #     # `insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)`
-    #     raise NotImplementedError()
+    def time_const_evaluate_operand(self) -> None:
+        """Time `const_evaluate_operand`."""
+        const_evaluate_operand(self.add_op.lhs)
 
-    def time_block_detach_op(self) -> None:
-        """Time detaching an operation from a block."""
-        self.region.block.detach_op(self.add_op)
+    # ========================================== #
+    # `RemoveUnusedOperations.match_and_rewrite` #
+    # ========================================== #
 
-    def time_operation_drop_all_references(self) -> None:
-        """Time dropping all references to an operation."""
-        self.add_op.drop_all_references()
+    def time_is_trivially_dead(self) -> None:
+        """Time `is_trivially_dead`."""
+        is_trivially_dead(self.add_op)
 
-    def time_ssavalue_erase(self) -> None:
-        """Time erasing an SSA value."""
-        self.add_op.result.erase()
+    def time_would_be_trivially_dead(self) -> None:
+        """Time `would_be_trivially_dead`."""
+        would_be_trivially_dead(self.add_op)
 
     def time_result_only_effects(self) -> None:
         """Time `result_only_effects`."""
-        raise NotImplementedError()
+        result_only_effects(self.add_op)
 
-    def time_set_live(self) -> None:
+    def time_operation_get_traits_of_type(self) -> None:
+        """Time `Operation.get_traits_of_type`."""
+        self.add_op.get_traits_of_type(MemoryEffect)
+
+    # ============ #
+    # `region_dce` #
+    # ============ #
+
+    def time_post_order_iterator(self) -> None:
+        """Time `PostOrderIterator`."""
+        PostOrderIterator(self.first_block)
+
+    def time_liveset_set_live(self) -> None:
         """Time `LiveSet.set_live`."""
-        raise NotImplementedError()
+        self.live_set.set_live(self.add_op)
 
     def time_liveset_delete_dead(self) -> None:
         """Time `LiveSet.delete_dead`."""
-        raise NotImplementedError()
-
-    # TODO: `result_only_effects` > `get_effects` or `Operation.get_traits_of_type`
-    # def time_(self) -> None:
-    #     """Time ."""
+        self.live_set.delete_dead(self.region, None)
 
 
 if __name__ == "__main__":
@@ -215,18 +290,15 @@ if __name__ == "__main__":
                 PATTERN_REWRITER.time_constant_folding_20,
                 PATTERN_REWRITER.setup,
             ),
-            # "PatternRewriter.constant_folding_100": Benchmark(
-            #     PATTERN_REWRITER.time_constant_folding_100,
-            #     PATTERN_REWRITER.setup_constant_folding_100,
-            # ),
-            # "PatternRewriter.constant_folding_1000": Benchmark(
-            #     PATTERN_REWRITER.time_constant_folding_1000,
-            #     PATTERN_REWRITER.setup_constant_folding_1000,
-            # ),
-            # ================================================================ #
-            "RewritingMicrobenchmarks.get_variadic_sizes": Benchmark(
-                REWRITER_UBENCHMARKS.time_get_variadic_sizes, REWRITER_UBENCHMARKS.setup
+            "PatternRewriter.constant_folding_100": Benchmark(
+                PATTERN_REWRITER.time_constant_folding_100,
+                PATTERN_REWRITER.setup_constant_folding_100,
             ),
+            "PatternRewriter.constant_folding_1000": Benchmark(
+                PATTERN_REWRITER.time_constant_folding_1000,
+                PATTERN_REWRITER.setup_constant_folding_1000,
+            ),
+            # ================================================================ #
             "RewritingMicrobenchmarks.region_walk": Benchmark(
                 REWRITER_UBENCHMARKS.time_region_walk, REWRITER_UBENCHMARKS.setup
             ),
@@ -238,57 +310,100 @@ if __name__ == "__main__":
                 REWRITER_UBENCHMARKS.time_worklist_pop,
                 REWRITER_UBENCHMARKS.setup,
             ),
-            "RewritingMicrobenchmarks.is_trivially_dead": Benchmark(
-                REWRITER_UBENCHMARKS.time_is_trivially_dead,
-                REWRITER_UBENCHMARKS.setup,
-            ),
             "RewritingMicrobenchmarks.get_trait": Benchmark(
                 REWRITER_UBENCHMARKS.time_get_trait,
-                REWRITER_UBENCHMARKS.setup,
-            ),
-            "RewritingMicrobenchmarks.const_evaluate_operand": Benchmark(
-                REWRITER_UBENCHMARKS.time_const_evaluate_operand,
-                REWRITER_UBENCHMARKS.setup,
-            ),
-            "RewritingMicrobenchmarks.integer_type_normalized_value": Benchmark(
-                REWRITER_UBENCHMARKS.time_integer_type_normalized_value,
-                REWRITER_UBENCHMARKS.setup,
-            ),
-            # "RewritingMicrobenchmarks.parameterised_attribute_init": Benchmark(
-            #     REWRITER_UBENCHMARKS.time_parameterised_attribute_init,
-            #     REWRITER_UBENCHMARKS.setup,
-            # ),
-            "RewritingMicrobenchmarks.operation_create": Benchmark(
-                REWRITER_UBENCHMARKS.time_operation_create,
                 REWRITER_UBENCHMARKS.setup,
             ),
             "RewritingMicrobenchmarks.insert_point_before": Benchmark(
                 REWRITER_UBENCHMARKS.time_insert_point_before,
                 REWRITER_UBENCHMARKS.setup,
             ),
-            "RewritingMicrobenchmarks.block_detach_op": Benchmark(
-                REWRITER_UBENCHMARKS.time_block_detach_op,
+            "RewritingMicrobenchmarks.pattern_rewriter_insert_op": Benchmark(
+                REWRITER_UBENCHMARKS.time_pattern_rewriter_insert_op,
                 REWRITER_UBENCHMARKS.setup,
             ),
             "RewritingMicrobenchmarks.operation_drop_all_references": Benchmark(
                 REWRITER_UBENCHMARKS.time_operation_drop_all_references,
                 REWRITER_UBENCHMARKS.setup,
             ),
-            # "RewritingMicrobenchmarks.ssavalue_erase": Benchmark(
-            #     REWRITER_UBENCHMARKS.time_ssavalue_erase,
-            #     REWRITER_UBENCHMARKS.setup,
-            # ),
-            # "RewritingMicrobenchmarks.result_only_effects": Benchmark(
-            #     REWRITER_UBENCHMARKS.time_result_only_effects,
-            #     REWRITER_UBENCHMARKS.setup,
-            # ),
-            # "RewritingMicrobenchmarks.set_live": Benchmark(
-            #     REWRITER_UBENCHMARKS.time_set_live,
-            #     REWRITER_UBENCHMARKS.setup,
-            # ),
-            # "RewritingMicrobenchmarks.liveset_delete_dead": Benchmark(
-            #     REWRITER_UBENCHMARKS.time_liveset_delete_dead,
-            #     REWRITER_UBENCHMARKS.setup,
-            # ),
+            "RewritingMicrobenchmarks.ssavalue_replace_by": Benchmark(
+                REWRITER_UBENCHMARKS.time_ssavalue_replace_by,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.irwithuses_remove_use": Benchmark(
+                REWRITER_UBENCHMARKS.time_irwithuses_remove_use,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.irwithuses_add_use": Benchmark(
+                REWRITER_UBENCHMARKS.time_irwithuses_add_use,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.ssavalue_name_hint": Benchmark(
+                REWRITER_UBENCHMARKS.time_ssavalue_name_hint,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.handle_operation_removal": Benchmark(
+                REWRITER_UBENCHMARKS.time_handle_operation_removal,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.block_detach_op": Benchmark(
+                REWRITER_UBENCHMARKS.time_block_detach_op,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.ssavalue_erase": Benchmark(
+                REWRITER_UBENCHMARKS.time_ssavalue_erase,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.get_variadic_sizes": Benchmark(
+                REWRITER_UBENCHMARKS.time_get_variadic_sizes, REWRITER_UBENCHMARKS.setup
+            ),
+            "RewritingMicrobenchmarks.integer_attr_creation": Benchmark(
+                REWRITER_UBENCHMARKS.time_integer_attr_creation,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.integer_type_normalized_value": Benchmark(
+                REWRITER_UBENCHMARKS.time_integer_type_normalized_value,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.integer_attr_verify": Benchmark(
+                REWRITER_UBENCHMARKS.time_integer_attr_verify,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.operation_create": Benchmark(
+                REWRITER_UBENCHMARKS.time_operation_create,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.const_evaluate_operand": Benchmark(
+                REWRITER_UBENCHMARKS.time_const_evaluate_operand,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.is_trivially_dead": Benchmark(
+                REWRITER_UBENCHMARKS.time_is_trivially_dead,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.would_be_trivially_dead": Benchmark(
+                REWRITER_UBENCHMARKS.time_would_be_trivially_dead,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.result_only_effects": Benchmark(
+                REWRITER_UBENCHMARKS.time_result_only_effects,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.operation_get_traits_of_type": Benchmark(
+                REWRITER_UBENCHMARKS.time_operation_get_traits_of_type,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.post_order_iterator": Benchmark(
+                REWRITER_UBENCHMARKS.time_post_order_iterator,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.liveset_set_live": Benchmark(
+                REWRITER_UBENCHMARKS.time_liveset_set_live,
+                REWRITER_UBENCHMARKS.setup,
+            ),
+            "RewritingMicrobenchmarks.liveset_delete_dead": Benchmark(
+                REWRITER_UBENCHMARKS.time_liveset_delete_dead,
+                REWRITER_UBENCHMARKS.setup,
+            ),
         }
     )
