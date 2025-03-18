@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.irdl import OpDef, VarIRConstruct, get_variadic_sizes, traits_def
-from xdsl.pattern_rewriter import Worklist
+from xdsl.pattern_rewriter import PatternRewriter, Worklist
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import (
     Commutative,
@@ -41,7 +41,7 @@ CTX.load_dialect(Builtin)
 CANONICALIZE_PASS = CanonicalizePass()
 
 
-class PatternRewriter:
+class PatternRewriterBench:
     """Benchmark rewriting in xDSL."""
 
     WORKLOAD_CONSTANT_20 = parse_module(CTX, WorkloadBuilder.constant_folding(20))
@@ -60,7 +60,7 @@ class PatternRewriter:
 
     def setup_constant_folding_20(self) -> None:
         """Setup the constant folding 20 items benchmark."""
-        self.workload_constant_20 = PatternRewriter.WORKLOAD_CONSTANT_20.clone()
+        self.workload_constant_20 = PatternRewriterBench.WORKLOAD_CONSTANT_20.clone()
 
     def time_constant_folding_20(self) -> None:
         """Time canonicalizing constant folding for 20 items."""
@@ -68,7 +68,7 @@ class PatternRewriter:
 
     def setup_constant_folding_100(self) -> None:
         """Setup the constant folding 100 items benchmark."""
-        self.workload_constant_100 = PatternRewriter.WORKLOAD_CONSTANT_100.clone()
+        self.workload_constant_100 = PatternRewriterBench.WORKLOAD_CONSTANT_100.clone()
 
     def time_constant_folding_100(self) -> None:
         """Time canonicalizing constant folding for 100 items."""
@@ -76,7 +76,9 @@ class PatternRewriter:
 
     def setup_constant_folding_1000(self) -> None:
         """Setup the constant folding 1000 items benchmark."""
-        self.workload_constant_1000 = PatternRewriter.WORKLOAD_CONSTANT_1000.clone()
+        self.workload_constant_1000 = (
+            PatternRewriterBench.WORKLOAD_CONSTANT_1000.clone()
+        )
 
     def time_constant_folding_1000(self) -> None:
         """Time canonicalizing constant folding for 1000 items."""
@@ -118,7 +120,7 @@ class RewritingMicrobenchmarks:
     def setup(self) -> None:
         """Setup the benchmarks."""
         # Region
-        self.region = PatternRewriter.WORKLOAD_CONSTANT_20.clone().body
+        self.region = PatternRewriterBench.WORKLOAD_CONSTANT_20.clone().body
         assert self.region._first_block is not None
         self.first_block = self.region._first_block
         # Operations
@@ -132,6 +134,8 @@ class RewritingMicrobenchmarks:
         self.add_op_result_use = list(self.add_op_result.uses)[0]
         self.sub_op = SubiOp(self.const_1, self.const_0)
         self.sub_op_result = self.sub_op.result
+        # Insert point
+        self.insert_point = InsertPoint.before(self.add_op)
         # Worklist
         self.worklist = Worklist()
         self.worklist.push(self.sub_op)
@@ -140,6 +144,8 @@ class RewritingMicrobenchmarks:
         self.integer_attr = IntegerAttr(0, 64)
         # LiveSet
         self.live_set = LiveSet()
+        # Patter rewriter
+        self.pattern_rewriter = PatternRewriter(self.add_op)
 
     # =================== #
     # Worklist operations #
@@ -175,8 +181,7 @@ class RewritingMicrobenchmarks:
 
     def time_pattern_rewriter_insert_op(self) -> None:
         """Time `PatternRewriter.insert_op`."""
-        # `insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)`
-        raise NotImplementedError()
+        self.pattern_rewriter.insert_op((self.sub_op,), self.insert_point)
 
     def time_operation_drop_all_references(self) -> None:
         """Time `Operation.drop_all_references`."""
@@ -199,18 +204,16 @@ class RewritingMicrobenchmarks:
         self.add_op_result.name_hint = "valid_name"
 
     def time_handle_operation_removal(self) -> None:
-        """Time `PatternRewriteWalker._handle_operation_removal`."""
-        raise NotImplementedError()
+        """Time `PatternRewriter.handle_operation_removal`."""
+        self.pattern_rewriter.handle_operation_removal(self.add_op)
 
     def time_block_detach_op(self) -> None:
         """Time `Block.detach_op`."""
-        raise NotImplementedError()
-        # self.region.block.detach_op(self.add_op)
+        self.region.block.detach_op(self.add_op)
 
     def time_ssavalue_erase(self) -> None:
-        """Time `SSAValue.erase()`."""
-        raise NotImplementedError()
-        # self.add_op_result.erase()
+        """Time `SSAValue.erase`."""
+        self.add_op_result.erase(safe_erase=False)
 
     # ===== #
 
@@ -282,7 +285,7 @@ class RewritingMicrobenchmarks:
 if __name__ == "__main__":
     from bench_utils import Benchmark, profile
 
-    PATTERN_REWRITER = PatternRewriter()
+    PATTERN_REWRITER = PatternRewriterBench()
     REWRITER_UBENCHMARKS = RewritingMicrobenchmarks()
     profile(
         {
