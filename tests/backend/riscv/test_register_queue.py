@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import IntAttr
 
 
 def test_default_reserved_registers():
-    register_queue = RiscvRegisterQueue()
+    register_queue = RiscvRegisterQueue.default()
 
     for reg in (
         riscv.Registers.ZERO,
@@ -82,7 +82,7 @@ def test_reserve_register():
 
 
 def test_limit():
-    register_queue = RiscvRegisterQueue()
+    register_queue = RiscvRegisterQueue.default()
     register_queue.limit_registers(1)
 
     assert not register_queue.pop(riscv.IntRegisterType).register_name.data.startswith(

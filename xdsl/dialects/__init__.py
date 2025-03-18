@@ -38,6 +38,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return ARM_FUNC
 
+    def get_arm_neon():
+        from xdsl.dialects.arm_neon import ARM_NEON
+
+        return ARM_NEON
+
     def get_bufferization():
         from xdsl.dialects.bufferization import Bufferization
 
@@ -320,6 +325,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "arith": get_arith,
         "arm": get_arm,
         "arm_func": get_arm_func,
+        "arm_neon": get_arm_neon,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,

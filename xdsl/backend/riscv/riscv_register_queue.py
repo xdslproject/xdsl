@@ -1,6 +1,7 @@
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import cast, overload
+from typing import overload
 
 from xdsl.backend.register_queue import RegisterQueue
 from xdsl.dialects.builtin import IntAttr
@@ -33,10 +34,6 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
 
     reserved_int_registers: defaultdict[int, int] = field(
         default_factory=lambda: defaultdict[int, int](lambda: 0)
-        | {
-            cast(IntAttr, r.index).data: 1
-            for r in RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
-        }
     )
     "Integer registers unavailable to be used by the register allocator."
 
@@ -45,15 +42,32 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     )
     "Floating-point registers unavailable to be used by the register allocator."
 
-    available_int_registers: list[IntRegisterType] = field(
-        default_factory=lambda: list(RiscvRegisterQueue.DEFAULT_INT_REGISTERS)
-    )
+    available_int_registers: list[IntRegisterType] = field(default_factory=list)
     "Registers that integer values can be allocated to in the current context."
 
-    available_float_registers: list[FloatRegisterType] = field(
-        default_factory=lambda: list(RiscvRegisterQueue.DEFAULT_FLOAT_REGISTERS)
-    )
+    available_float_registers: list[FloatRegisterType] = field(default_factory=list)
     "Registers that floating-point values can be allocated to in the current context."
+
+    @classmethod
+    def default(
+        cls,
+        reserved_registers: Iterable[IntRegisterType | FloatRegisterType] | None = None,
+        available_registers: Iterable[IntRegisterType | FloatRegisterType]
+        | None = None,
+    ):
+        if reserved_registers is None:
+            reserved_registers = RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
+        if available_registers is None:
+            available_registers = (
+                RiscvRegisterQueue.DEFAULT_INT_REGISTERS
+                + RiscvRegisterQueue.DEFAULT_FLOAT_REGISTERS
+            )
+        res = cls()
+        for reg in reserved_registers:
+            res.reserve_register(reg)
+        for reg in available_registers:
+            res.push(reg)
+        return res
 
     def push(self, reg: IntRegisterType | FloatRegisterType) -> None:
         """
