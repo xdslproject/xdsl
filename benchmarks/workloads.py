@@ -66,7 +66,7 @@ class WorkloadBuilder:
         assert x >= 0
         assert y >= 0
         random.seed(RANDOM_SEED)
-        dense_attr_hex = "".join([random.choice(HEX_CHARS) for _ in range(x * y * 2)])
+        dense_attr_hex = "".join(random.choice(HEX_CHARS) for _ in range(x * y * 2))
         ops = [
             (
                 '%0 = "arith.constant"() '
