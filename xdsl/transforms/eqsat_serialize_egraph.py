@@ -26,13 +26,13 @@ def serialize_func_to_egraph(f_op: func.FuncOp):
                 eclass_to_id[op] = (
                     i_enode  # pick the first e-node as the representative
                 )
-                assert len(op.operands) > 0, "EClassOp must have operands"
+                assert op.operands, "EClassOp must have operands"
                 for operand in op.operands:
                     node = operand.owner
                     children: list[str] = []
                     if isinstance(node, Operation):
                         op_to_id[node] = i_enode
-                        if len(node.operands) > 0:
+                        if node.operands:
                             name = node.name
                         else:
                             name = str(node).split("=")[1].split(":")[0].strip()
