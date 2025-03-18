@@ -43,7 +43,7 @@ class Lexer:
         while lexer.lex().kind is not MLIRTokenKind.EOF:
             pass
 
-    def time_dense_attr_hex(self) -> None:
+    def ignore_time_dense_attr_hex(self) -> None:
         """Time lexing a 1024x1024xi8 dense attribute given as a hex string."""
         lexer_input = Input(Lexer.WORKLOAD_LARGE_DENSE_ATTR_HEX, "dense_attr_hex")
         lexer = MLIRLexer(lexer_input)
@@ -61,6 +61,6 @@ if __name__ == "__main__":
             "Lexer.constant_100": Benchmark(LEXER.time_constant_100),
             "Lexer.constant_1000": Benchmark(LEXER.time_constant_1000),
             "Lexer.dense_attr": Benchmark(LEXER.ignore_time_dense_attr),
-            "Lexer.dense_attr_hex": Benchmark(LEXER.time_dense_attr_hex),
+            "Lexer.dense_attr_hex": Benchmark(LEXER.ignore_time_dense_attr_hex),
         }
     )

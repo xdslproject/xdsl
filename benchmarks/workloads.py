@@ -2,10 +2,9 @@
 """Workloads for benchmarking xDSL."""
 
 import random
-from pathlib import Path
 
-BENCHMARKS_DIR = Path(__file__).parent
-EXTRA_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
+RANDOM_SEED = 0
+HEX_CHARS = "0123456789ABCDEF"
 
 
 class WorkloadBuilder:
@@ -26,7 +25,7 @@ class WorkloadBuilder:
     def constant_folding(cls, size: int = 100) -> str:
         """Generate a constant folding workload of a given size."""
         assert size >= 0
-        random.seed(0)
+        random.seed(RANDOM_SEED)
         ops: list[str] = []
         ops.append(
             '%0 = "arith.constant"() {"value" = '
@@ -46,16 +45,33 @@ class WorkloadBuilder:
         return WorkloadBuilder.wrap_module(ops)
 
     @classmethod
-    def extra_mlir_file(cls, name: str) -> str:
-        """Get the contents of a named MLIR file."""
-        return (EXTRA_MLIR_DIR / name).read_text()
-
-    @classmethod
-    def large_dense_attr(cls) -> str:
+    def large_dense_attr(cls, x: int = 1024, y: int = 1024) -> str:
         """Get the MLIR text representation of a large dense attr."""
-        return WorkloadBuilder.extra_mlir_file("large_dense_attr.mlir")
+        assert x >= 0
+        assert y >= 0
+        random.seed(RANDOM_SEED)
+        dense_attr = [[random.randint(-128, 128) for _ in range(x)] for _ in range(y)]
+        ops = [
+            (
+                '%0 = "arith.constant"() '
+                f"<{{value = dense<{dense_attr}> "
+                f": tensor<{x}x{y}xi8>}}> : () -> tensor<{x}x{y}xi8>"
+            )
+        ]
+        return WorkloadBuilder.wrap_module(ops)
 
     @classmethod
-    def large_dense_attr_hex(cls) -> str:
+    def large_dense_attr_hex(cls, x: int = 1024, y: int = 1024) -> str:
         """Get the MLIR hex representation of a large dense attr."""
-        return WorkloadBuilder.extra_mlir_file("large_dense_attr_hex.mlir")
+        assert x >= 0
+        assert y >= 0
+        random.seed(RANDOM_SEED)
+        dense_attr_hex = "".join([random.choice(HEX_CHARS) for _ in range(x * y * 2)])
+        ops = [
+            (
+                '%0 = "arith.constant"() '
+                f"<{{value = dense<0x{dense_attr_hex}> "
+                f": tensor<{x}x{y}xi8>}}> : () -> tensor<{x}x{y}xi8>"
+            )
+        ]
+        return WorkloadBuilder.wrap_module(ops)
