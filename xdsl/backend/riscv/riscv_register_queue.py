@@ -1,6 +1,7 @@
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import cast, overload
+from typing import overload
 
 from xdsl.backend.register_queue import RegisterQueue
 from xdsl.dialects.builtin import IntAttr
@@ -33,10 +34,6 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
 
     reserved_int_registers: defaultdict[int, int] = field(
         default_factory=lambda: defaultdict[int, int](lambda: 0)
-        | {
-            cast(IntAttr, r.index).data: 1
-            for r in RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
-        }
     )
     "Integer registers unavailable to be used by the register allocator."
 
@@ -45,15 +42,32 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
     )
     "Floating-point registers unavailable to be used by the register allocator."
 
-    available_int_registers: list[IntRegisterType] = field(
-        default_factory=lambda: list(RiscvRegisterQueue.DEFAULT_INT_REGISTERS)
-    )
+    available_int_registers: list[int] = field(default_factory=list)
     "Registers that integer values can be allocated to in the current context."
 
-    available_float_registers: list[FloatRegisterType] = field(
-        default_factory=lambda: list(RiscvRegisterQueue.DEFAULT_FLOAT_REGISTERS)
-    )
+    available_float_registers: list[int] = field(default_factory=list)
     "Registers that floating-point values can be allocated to in the current context."
+
+    @classmethod
+    def default(
+        cls,
+        reserved_registers: Iterable[IntRegisterType | FloatRegisterType] | None = None,
+        available_registers: Iterable[IntRegisterType | FloatRegisterType]
+        | None = None,
+    ):
+        if reserved_registers is None:
+            reserved_registers = RiscvRegisterQueue.DEFAULT_RESERVED_REGISTERS
+        if available_registers is None:
+            available_registers = (
+                RiscvRegisterQueue.DEFAULT_INT_REGISTERS
+                + RiscvRegisterQueue.DEFAULT_FLOAT_REGISTERS
+            )
+        res = cls()
+        for reg in reserved_registers:
+            res.reserve_register(reg)
+        for reg in available_registers:
+            res.push(reg)
+        return res
 
     def push(self, reg: IntRegisterType | FloatRegisterType) -> None:
         """
@@ -65,11 +79,11 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         if isinstance(reg, IntRegisterType):
             if reg.index.data in self.reserved_int_registers:
                 return
-            self.available_int_registers.append(reg)
+            self.available_int_registers.append(reg.index.data)
         else:
             if reg.index.data in self.reserved_float_registers:
                 return
-            self.available_float_registers.append(reg)
+            self.available_float_registers.append(reg.index.data)
 
     @overload
     def pop(self, reg_type: type[IntRegisterType]) -> IntRegisterType: ...
@@ -89,7 +103,7 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
             available_registers = self.available_float_registers
 
         if available_registers:
-            reg = available_registers.pop()
+            reg = reg_type.from_index(available_registers.pop())
         else:
             if issubclass(reg_type, IntRegisterType):
                 reg = reg_type.infinite_register(self._j_idx)
@@ -160,7 +174,14 @@ class RiscvRegisterQueue(RegisterQueue[IntRegisterType | FloatRegisterType]):
         """
         Removes register from available set, if present.
         """
-        if isinstance(reg, IntRegisterType) and reg in self.available_int_registers:
-            self.available_int_registers.remove(reg)
-        if isinstance(reg, FloatRegisterType) and reg in self.available_float_registers:
-            self.available_float_registers.remove(reg)
+        assert isinstance(reg.index, IntAttr)
+        if (
+            isinstance(reg, IntRegisterType)
+            and reg.index.data in self.available_int_registers
+        ):
+            self.available_int_registers.remove(reg.index.data)
+        if (
+            isinstance(reg, FloatRegisterType)
+            and reg.index.data in self.available_float_registers
+        ):
+            self.available_float_registers.remove(reg.index.data)
