@@ -9,22 +9,18 @@ from xdsl.dialects.arith import (
     AddiOp,
     Arith,
     ConstantOp,
-    SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait,
-    SignlessIntegerBinaryOperationWithOverflow,
     SubiOp,
 )
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
-from xdsl.irdl import OpDef, VarIRConstruct, get_variadic_sizes, traits_def
+from xdsl.irdl import VarIRConstruct, get_variadic_sizes
 from xdsl.parser import Parser as XdslParser
 from xdsl.pattern_rewriter import PatternRewriter, Worklist
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import (
-    Commutative,
     HasCanonicalizationPatternsTrait,
     MemoryEffect,
-    Pure,
 )
 from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 from xdsl.transforms.canonicalize import CanonicalizePass
@@ -90,26 +86,6 @@ class ConstantFolding:
         CANONICALIZE_PASS.apply(CTX, self.workload_constant_1000)
 
 
-class AddiOpUnwrapped(SignlessIntegerBinaryOperationWithOverflow):
-    """Unwrapped version of `AddiOp` to allow `OpDef.from_pyrdl(...)`."""
-
-    name = "arith.addi"
-
-    traits = traits_def(
-        Pure(),
-        Commutative(),
-        SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
-    )
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int | None:
-        return lhs + rhs
-
-    @staticmethod
-    def is_right_unit(attr: IntegerAttr) -> bool:
-        return attr.value.data == 0
-
-
 class RewritingMicrobenchmarks:
     """Microbenchmarks for rewriting of constant folding."""
 
@@ -124,13 +100,12 @@ class RewritingMicrobenchmarks:
     def setup(self) -> None:
         """Setup the benchmarks."""
         self.region = ConstantFolding.WORKLOAD_CONSTANT_20.clone().body
-        assert self.region._first_block is not None
-        self.first_block = self.region._first_block
+        self.first_block = self.region.block
         ops = self.region.walk()
         self.const_0 = cast(ConstantOp, next(ops))
         self.const_1 = cast(ConstantOp, next(ops))
         self.add_op = cast(AddiOp, next(ops))
-        self.add_op_def = OpDef.from_pyrdl(AddiOpUnwrapped)
+        self.add_op_def = AddiOp.get_irdl_definition()
         self.add_op_construct = VarIRConstruct.OPERAND
         self.add_op_result = self.add_op.result
         self.add_op_result_use = list(self.add_op_result.uses)[0]
