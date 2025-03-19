@@ -292,8 +292,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         # fill layout module wrapper block with ops
         with ImplicitBuilder(module_op.layout_module.block):
             # set up LAUNCH
-            zero = arith.ConstantOp(IntegerAttr(0, 16))
-            launch = csl.GetColorOp(zero)
+            # zero = arith.ConstantOp(IntegerAttr(0, 16))
+            # launch = csl.GetColorOp(zero)
 
             # import memcpy/get_params and routes
             memcpy = csl_wrapper.ImportOp(
@@ -301,7 +301,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 {
                     "width": param_width,
                     "height": param_height,
-                    "LAUNCH": launch.res,
+                    # "LAUNCH": launch.res,
                 },
             )
             routes = csl_wrapper.ImportOp(
