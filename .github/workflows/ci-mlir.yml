@@ -14,6 +14,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: ghcr.io/xdslproject/llvm:19.1.7
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -26,11 +27,6 @@ jobs:
       with:
         path: xdsl
         fetch-depth: 2
-
-    - name: Install LLVM and Clang
-      uses: KyleMayes/install-llvm-action@v2
-      with:
-        version: "19.1.7"
 
     - name: Install uv
       uses: astral-sh/setup-uv@v5
