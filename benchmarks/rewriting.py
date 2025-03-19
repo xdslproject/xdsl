@@ -234,7 +234,9 @@ class RegionDCE(RewritingMicrobenchmarks):
 
     def time_post_order_iterator(self) -> None:
         """Time `PostOrderIterator`."""
-        PostOrderIterator(self.first_block)
+        post_order_iterator = PostOrderIterator(self.first_block)
+        for block in post_order_iterator:
+            assert block
 
     def time_liveset_set_live(self) -> None:
         """Time `LiveSet.set_live`."""
