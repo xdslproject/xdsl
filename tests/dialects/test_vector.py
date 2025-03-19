@@ -104,7 +104,7 @@ def test_vector_store_i32():
 
     store = StoreOp.get(vector_ssa_value, memref_ssa_value, [])
 
-    assert store.memref is memref_ssa_value
+    assert store.base is memref_ssa_value
     assert store.vector is vector_ssa_value
     assert store.indices == ()
 
@@ -117,7 +117,7 @@ def test_vector_store_i32_with_dimensions():
     index2 = TestSSAValue(IndexType())
     store = StoreOp.get(vector_ssa_value, memref_ssa_value, [index1, index2])
 
-    assert store.memref is memref_ssa_value
+    assert store.base is memref_ssa_value
     assert store.vector is vector_ssa_value
     assert store.indices[0] is index1
     assert store.indices[1] is index2
@@ -197,122 +197,6 @@ def test_vector_fma_with_dimensions():
     assert fma.lhs is lhs_vector_ssa_value
     assert fma.rhs is rhs_vector_ssa_value
     assert fma.acc is acc_vector_ssa_value
-
-
-def test_vector_fma_verify_res_lhs_type_matching():
-    i64_vector_type = VectorType(i64, [1])
-
-    i32_vector_ssa_value = get_Vector_SSAVal(i32, [1])
-    i64_vector_ssa_value = get_Vector_SSAVal(i64, [1])
-
-    fma = FMAOp.build(
-        operands=[i32_vector_ssa_value, i64_vector_ssa_value, i64_vector_ssa_value],
-        result_types=[i64_vector_type],
-    )
-
-    message = (
-        "Result vector type must match with all source vectors. Found "
-        "different types for result vector and lhs vector."
-    )
-    with pytest.raises(Exception, match=message):
-        fma.verify()
-
-
-def test_vector_fma_verify_res_rhs_type_matching():
-    i64_vector_type = VectorType(i64, [1])
-
-    i32_vector_ssa_value = get_Vector_SSAVal(i32, [1])
-    i64_vector_ssa_value = get_Vector_SSAVal(i64, [1])
-
-    fma = FMAOp.build(
-        operands=[i64_vector_ssa_value, i32_vector_ssa_value, i64_vector_ssa_value],
-        result_types=[i64_vector_type],
-    )
-
-    message = (
-        "Result vector type must match with all source vectors. "
-        "Found different types for result vector and rhs vector."
-    )
-
-    with pytest.raises(Exception, match=message):
-        fma.verify()
-
-
-def test_vector_fma_verify_res_acc_type_matching():
-    i64_vector_type = VectorType(i64, [1])
-
-    i32_vector_ssa_value = get_Vector_SSAVal(i32, [1])
-    i64_vector_ssa_value = get_Vector_SSAVal(i64, [1])
-
-    fma = FMAOp.build(
-        operands=[i64_vector_ssa_value, i64_vector_ssa_value, i32_vector_ssa_value],
-        result_types=[i64_vector_type],
-    )
-
-    message = (
-        "Result vector type must match with all source vectors. "
-        "Found different types for result vector and acc vector."
-    )
-
-    with pytest.raises(Exception, match=message):
-        fma.verify()
-
-
-def test_vector_fma_verify_res_lhs_shape_matching():
-    i32_vector_type2 = VectorType(i32, [4, 5])
-
-    vector_ssa_value1 = get_Vector_SSAVal(i32, [2, 3])
-    vector_ssa_value2 = get_Vector_SSAVal(i32, [4, 5])
-
-    fma = FMAOp.build(
-        operands=[vector_ssa_value1, vector_ssa_value2, vector_ssa_value2],
-        result_types=[i32_vector_type2],
-    )
-
-    message = (
-        "Result vector shape must match with all source vector shapes. "
-        "Found different shapes for result vector and lhs vector."
-    )
-    with pytest.raises(Exception, match=message):
-        fma.verify()
-
-
-def test_vector_fma_verify_res_rhs_shape_matching():
-    i32_vector_type2 = VectorType(i32, [4, 5])
-
-    vector_ssa_value1 = get_Vector_SSAVal(i32, [2, 3])
-    vector_ssa_value2 = get_Vector_SSAVal(i32, [4, 5])
-
-    fma = FMAOp.build(
-        operands=[vector_ssa_value2, vector_ssa_value1, vector_ssa_value2],
-        result_types=[i32_vector_type2],
-    )
-
-    message = (
-        "Result vector shape must match with all source vector shapes. "
-        "Found different shapes for result vector and rhs vector."
-    )
-    with pytest.raises(Exception, match=message):
-        fma.verify()
-
-
-def test_vector_fma_verify_res_acc_shape_matching():
-    i32_vector_type2 = VectorType(i32, [4, 5])
-
-    vector_ssa_value1 = get_Vector_SSAVal(i32, [2, 3])
-    vector_ssa_value2 = get_Vector_SSAVal(i32, [4, 5])
-
-    fma = FMAOp.build(
-        operands=[vector_ssa_value2, vector_ssa_value2, vector_ssa_value1],
-        result_types=[i32_vector_type2],
-    )
-
-    message = (
-        "Result vector shape must match with all source vector shapes. "
-        "Found different shapes for result vector and acc vector."
-    )
-    with pytest.raises(Exception, match=message):
-        fma.verify()
 
 
 def test_vector_masked_load():
@@ -423,7 +307,7 @@ def test_vector_masked_store():
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
-    assert maskedstore.memref is memref_ssa_value
+    assert maskedstore.base is memref_ssa_value
     assert maskedstore.mask is mask_vector_ssa_value
     assert maskedstore.value_to_store is value_to_store_vector_ssa_value
     assert maskedstore.indices == ()
@@ -444,7 +328,7 @@ def test_vector_masked_store_with_dimensions():
         value_to_store_vector_ssa_value,
     )
 
-    assert maskedstore.memref is memref_ssa_value
+    assert maskedstore.base is memref_ssa_value
     assert maskedstore.mask is mask_vector_ssa_value
     assert maskedstore.value_to_store is value_to_store_vector_ssa_value
     assert maskedstore.indices[0] is index1
@@ -494,7 +378,7 @@ def test_vector_create_mask():
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].type) is VectorType
-    assert create_mask.mask_operands == ()
+    assert create_mask.mask_dim_sizes == ()
 
 
 def test_vector_create_mask_with_dimensions():
@@ -505,8 +389,8 @@ def test_vector_create_mask_with_dimensions():
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].type) is VectorType
-    assert create_mask.mask_operands[0] is index1
-    assert create_mask.mask_operands[1] is index2
+    assert create_mask.mask_dim_sizes[0] is index1
+    assert create_mask.mask_dim_sizes[1] is index2
 
 
 def test_vector_create_mask_verify_indexing_exception():

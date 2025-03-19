@@ -5,6 +5,6 @@
   %0, %1 = "test.op"() : () -> (vector<2xindex>, vector<3xindex>)
 
   %2 = "vector.fma"(%0, %0, %1) : (vector<2xindex>, vector<2xindex>, vector<3xindex>) -> vector<2xindex>
-  // CHECK: Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector.
+  // CHECK: attribute vector<2xindex> expected from variable 'T', but got vector<3xindex>
 
 }) : () -> ()
