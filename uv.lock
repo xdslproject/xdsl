@@ -3085,7 +3085,7 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.4" },
     { name = "ordered-set", specifier = "==4.1.0" },
     { name = "orjson", marker = "extra == 'bench'", specifier = ">=3.10.15" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = "==4.1.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0,<5.0.0" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.396" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8.4" },
