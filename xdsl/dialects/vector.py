@@ -138,49 +138,6 @@ class FMAOp(IRDLOperation):
 
     assembly_format = "$lhs `,` $rhs `,` $acc attr-dict `:` type($lhs)"
 
-    def verify_(self):
-        assert isa(self.lhs.type, VectorType[Attribute])
-        assert isa(self.rhs.type, VectorType[Attribute])
-        assert isa(self.acc.type, VectorType[Attribute])
-        assert isa(self.res.type, VectorType[Attribute])
-
-        lhs_shape = self.lhs.type.get_shape()
-        rhs_shape = self.rhs.type.get_shape()
-        acc_shape = self.acc.type.get_shape()
-        res_shape = self.res.type.get_shape()
-
-        if self.res.type.element_type != self.lhs.type.element_type:
-            raise VerifyException(
-                "Result vector type must match with all source vectors. Found "
-                "different types for result vector and lhs vector."
-            )
-        elif self.res.type.element_type != self.rhs.type.element_type:
-            raise VerifyException(
-                "Result vector type must match with all source vectors. Found "
-                "different types for result vector and rhs vector."
-            )
-        elif self.res.type.element_type != self.acc.type.element_type:
-            raise VerifyException(
-                "Result vector type must match with all source vectors. Found "
-                "different types for result vector and acc vector."
-            )
-
-        if res_shape != lhs_shape:
-            raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found "
-                "different shapes for result vector and lhs vector."
-            )
-        elif res_shape != rhs_shape:
-            raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found "
-                "different shapes for result vector and rhs vector."
-            )
-        elif res_shape != acc_shape:
-            raise VerifyException(
-                "Result vector shape must match with all source vector shapes. Found "
-                "different shapes for result vector and acc vector."
-            )
-
     @staticmethod
     def get(
         lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
