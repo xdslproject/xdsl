@@ -12,6 +12,7 @@ export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
 VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs --extra bench
+# VENV_EXTRAS ?= --extra dev --extra bench
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -180,7 +181,7 @@ coverage-clean: uv-installed
 # generate asv benchmark regression website
 .PHONY: asv
 asv: uv-installed
-	uv run asv run
+	uv run asv run --show-stderr
 
 .PHONY: asv-html
 asv-html: uv-installed
