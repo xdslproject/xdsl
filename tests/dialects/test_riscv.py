@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     ModuleOp,
-    NoneAttr,
     Signedness,
     i32,
 )
@@ -27,15 +26,32 @@ def test_add_op():
     assert isinstance(a0.type, riscv.IntRegisterType)
     assert isinstance(a1.type, riscv.IntRegisterType)
     assert isinstance(a2.type, riscv.IntRegisterType)
-    assert a0.type.spelling.data == "a0"
+    assert a0.type.register_name.data == "a0"
     assert a0.type.index == IntAttr(10)
-    assert a1.type.spelling.data == "a1"
+    assert a1.type.register_name.data == "a1"
     assert a1.type.index == IntAttr(11)
-    assert a2.type.spelling.data == "a2"
+    assert a2.type.register_name.data == "a2"
     assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
-    assert isinstance(riscv.IntRegisterType("j_1").index, NoneAttr)
+    assert riscv.IntRegisterType.infinite_register(1).index == IntAttr(-2)
+
+
+def test_is_non_zero():
+    # Test zero register
+    x0_reg = riscv.IntRegisterType.from_name("x0")
+    assert not riscv.is_non_zero(riscv.Registers.ZERO)
+    assert not riscv.is_non_zero(x0_reg)
+
+    # Test non-zero registers
+    a0_reg = riscv.Registers.A0
+    t0_reg = riscv.Registers.T0
+    assert riscv.is_non_zero(a0_reg)
+    assert riscv.is_non_zero(t0_reg)
+
+    # Test unallocated register
+    unalloc_reg = riscv.IntRegisterType.unallocated()
+    assert not riscv.is_non_zero(unalloc_reg)
 
 
 def test_csr_op():
@@ -223,10 +239,14 @@ def test_immediate_shift_inst():
 
 
 def test_float_register():
-    with pytest.raises(VerifyException, match="not in"):
-        riscv.IntRegisterType("ft9")
-    with pytest.raises(VerifyException, match="not in"):
-        riscv.FloatRegisterType("a0")
+    with pytest.raises(
+        VerifyException, match="Invalid register name ft9 for register set RV32I."
+    ):
+        riscv.IntRegisterType.from_name("ft9")
+    with pytest.raises(
+        VerifyException, match="Invalid register name a0 for register set RV32F."
+    ):
+        riscv.FloatRegisterType.from_name("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
@@ -260,3 +280,105 @@ def test_get_constant_value():
     zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
     assert zero_val == IntegerAttr.from_int_and_width(0, 32)
+
+
+def test_int_abi_name_by_index():
+    assert riscv.IntRegisterType.abi_name_by_index() == {
+        0: "zero",
+        1: "ra",
+        2: "sp",
+        3: "gp",
+        4: "tp",
+        5: "t0",
+        6: "t1",
+        7: "t2",
+        8: "s0",
+        9: "s1",
+        10: "a0",
+        11: "a1",
+        12: "a2",
+        13: "a3",
+        14: "a4",
+        15: "a5",
+        16: "a6",
+        17: "a7",
+        18: "s2",
+        19: "s3",
+        20: "s4",
+        21: "s5",
+        22: "s6",
+        23: "s7",
+        24: "s8",
+        25: "s9",
+        26: "s10",
+        27: "s11",
+        28: "t3",
+        29: "t4",
+        30: "t5",
+        31: "t6",
+    }
+
+
+def test_int_from_index():
+    assert riscv.IntRegisterType.from_index(0) == riscv.Registers.ZERO
+    assert riscv.IntRegisterType.from_index(10) == riscv.Registers.A0
+    assert riscv.IntRegisterType.from_index(20) == riscv.Registers.S4
+    assert riscv.IntRegisterType.from_index(30) == riscv.Registers.T5
+
+    with pytest.raises(KeyError):
+        riscv.IntRegisterType.from_index(40)
+
+    assert riscv.IntRegisterType.from_index(
+        -10
+    ) == riscv.IntRegisterType.infinite_register(9)
+
+
+def test_float_abi_name_by_index():
+    assert riscv.FloatRegisterType.abi_name_by_index() == {
+        0: "ft0",
+        1: "ft1",
+        2: "ft2",
+        3: "ft3",
+        4: "ft4",
+        5: "ft5",
+        6: "ft6",
+        7: "ft7",
+        8: "fs0",
+        9: "fs1",
+        10: "fa0",
+        11: "fa1",
+        12: "fa2",
+        13: "fa3",
+        14: "fa4",
+        15: "fa5",
+        16: "fa6",
+        17: "fa7",
+        18: "fs2",
+        19: "fs3",
+        20: "fs4",
+        21: "fs5",
+        22: "fs6",
+        23: "fs7",
+        24: "fs8",
+        25: "fs9",
+        26: "fs10",
+        27: "fs11",
+        28: "ft8",
+        29: "ft9",
+        30: "ft10",
+        31: "ft11",
+    }
+
+
+def test_float_from_index():
+    assert riscv.FloatRegisterType.from_index(0) == riscv.Registers.FT0
+    assert riscv.FloatRegisterType.from_index(10) == riscv.Registers.FA0
+    assert riscv.FloatRegisterType.from_index(20) == riscv.Registers.FS4
+    assert riscv.FloatRegisterType.from_index(30) == riscv.Registers.FT10
+
+    with pytest.raises(KeyError):
+        riscv.FloatRegisterType.from_index(40)
+
+    assert riscv.FloatRegisterType.from_index(
+        -10
+    ) == riscv.FloatRegisterType.infinite_register(9)

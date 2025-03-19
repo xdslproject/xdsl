@@ -94,7 +94,7 @@ class LowerFuncOp(RewritePattern):
             mov_op = x86.RM_MovOp(
                 r1=sp,
                 offset=STACK_SLOT_SIZE_BYTES * (i + 1),
-                result=x86.register.GeneralRegisterType(""),
+                result=x86.register.UNALLOCATED_GENERAL,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
             cast_op = builtin.UnrealizedConversionCastOp.get(
@@ -143,7 +143,7 @@ class LowerReturnOp(RewritePattern):
             )
 
         cast_op = builtin.UnrealizedConversionCastOp.get(
-            (return_value,), (x86.register.GeneralRegisterType(""),)
+            (return_value,), (x86.register.UNALLOCATED_GENERAL,)
         )
         get_reg_op = x86.ops.GetRegisterOp(return_passing_register)
         mov_op = x86.ops.RR_MovOp(cast_op, get_reg_op, result=return_passing_register)

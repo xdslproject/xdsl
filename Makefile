@@ -12,13 +12,16 @@ export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow overriding which extras are installed
 VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv --extra docs --extra bench
-VENV_EXTRAS ?= --extra dev =--extra bench
+# VENV_EXTRAS ?= --extra dev --extra bench
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
 
 # make tasks run all commands in a single shell
 .ONESHELL:
+
+# use bash as the shell
+SHELL := /bin/bash
 
 .PHONY: uv-installed
 uv-installed:
@@ -86,17 +89,28 @@ pytest-toy-nb:
 .PHONY: tests-toy
 tests-toy: filecheck-toy pytest-toy pytest-toy-nb
 
+
 .PHONY: tests-marimo
 tests-marimo: uv-installed
-	@for file in docs/marimo/*.py; do \
-		echo "Running $$file"; \
-		error_message=$$(uv run python3 "$$file" 2>&1) || { \
-			echo "Error running $$file"; \
-			echo "$$error_message"; \
+	@bash -c '\
+		error_log="/tmp/marimo_test_$$$$.log"; \
+		failed_tests=""; \
+		for file in docs/marimo/*.py; do \
+			echo "Running $$file"; \
+			if ! output=$$(uv run python3 "$$file" 2>&1); then \
+				echo "$$output" >> "$$error_log"; \
+				failed_tests="$$failed_tests $$file"; \
+			fi; \
+		done; \
+		if [ ! -z "$$failed_tests" ]; then \
+			cat "$$error_log"; \
+			echo -e "\n\nThe following marimo tests failed: $$failed_tests"; \
+			rm -f "$$error_log"; \
 			exit 1; \
-		}; \
-	done
-	@echo "All marimo tests passed successfully."
+		else \
+			rm -f "$$error_log"; \
+			echo -e "\n\nAll marimo tests passed successfully."; \
+		fi'
 
 
 # run all tests
@@ -178,8 +192,8 @@ asv-preview: uv-installed .asv/html
 	uv run asv preview
 
 .PHONY: asv-clean
-asv-clean: .asv
-	rm -rf .asv/html .asv/results/$(shell hostname)
+asv-clean:
+	rm -rf .asv/
 
 # docs
 .PHONY: docs-serve

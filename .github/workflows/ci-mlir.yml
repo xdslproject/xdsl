@@ -13,14 +13,15 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: d401987fe349a87c53fe25829215b080b70c0c1a
+      MLIR-Version: cd708029e0b2869e80abe31ddb175f7c35361f90
+      COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -92,15 +93,24 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        uv run pytest -W error --cov .
+        if [ "$COLLECT_COVERAGE" = "true" ]; then
+          uv run pytest -W error --cov
+        else
+          uv run pytest -W error
+        fi
 
     - name: Execute lit tests
       run: |
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        uv run lit -v tests/filecheck/ -DCOVERAGE
-        uv run lit -v docs/Toy/examples/ -DCOVERAGE
+        if [ "$COLLECT_COVERAGE" = "true" ]; then
+          uv run lit -v tests/filecheck/ -DCOVERAGE
+          uv run lit -v docs/Toy/examples/ -DCOVERAGE
+        else
+          uv run lit -v tests/filecheck/
+          uv run lit -v docs/Toy/examples/
+        fi
 
     - name: Test MLIR dependent examples/tutorials
       run: |
@@ -110,6 +120,7 @@ jobs:
         uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
     - name: Combine coverage data
+      if: matrix.python-version == '3.10'
       run: |
         cd xdsl
         uv run coverage combine --append
@@ -128,4 +139,5 @@ jobs:
           verbose: true
           root_dir: xdsl
           files: coverage.xml
+          codecov_yml_path: codecov.yml
           token: ${{ secrets.CODECOV_TOKEN }}

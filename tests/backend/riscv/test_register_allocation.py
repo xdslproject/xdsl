@@ -16,14 +16,11 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def test_default_reserved_registers():
-    register_queue = RiscvRegisterQueue(
-        available_int_registers=[], available_float_registers=[]
-    )
+    register_queue = RiscvRegisterQueue()
 
     unallocated = riscv.Registers.UNALLOCATED_INT
 
-    def j(index: int):
-        return riscv.IntRegisterType(f"j_{index}")
+    j = riscv.IntRegisterType.infinite_register
 
     assert register_queue.pop(riscv.IntRegisterType) == j(0)
 
@@ -94,12 +91,12 @@ def test_allocate_with_inout_constraints():
         def get(cls, rs0: str, rs1: str, rd0: str, rd1: str) -> Self:
             return cls.build(
                 operands=(
-                    TestSSAValue(riscv.IntRegisterType(rs0)),
-                    TestSSAValue(riscv.IntRegisterType(rs1)),
+                    TestSSAValue(riscv.IntRegisterType.from_name(rs0)),
+                    TestSSAValue(riscv.IntRegisterType.from_name(rs1)),
                 ),
                 result_types=(
-                    riscv.IntRegisterType(rd0),
-                    riscv.IntRegisterType(rd1),
+                    riscv.IntRegisterType.from_name(rd0),
+                    riscv.IntRegisterType.from_name(rd1),
                 ),
             )
 
@@ -108,27 +105,25 @@ def test_allocate_with_inout_constraints():
                 (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
             )
 
-    register_queue = RiscvRegisterQueue(
-        available_int_registers=[], available_float_registers=[]
-    )
+    register_queue = RiscvRegisterQueue()
     register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
 
     # All new registers. The result register is reused by the allocator for the operand.
     op0 = MyInstructionOp.get("", "", "", "")
     register_allocator.process_riscv_op(op0)
-    assert op0.rs0.type == riscv.IntRegisterType("j_1")
-    assert op0.rs1.type == riscv.IntRegisterType("j_0")
-    assert op0.rd0.type == riscv.IntRegisterType("j_1")
-    assert op0.rd1.type == riscv.IntRegisterType("j_0")
+    assert op0.rs0.type == riscv.IntRegisterType.infinite_register(1)
+    assert op0.rs1.type == riscv.IntRegisterType.infinite_register(0)
+    assert op0.rd0.type == riscv.IntRegisterType.infinite_register(1)
+    assert op0.rd1.type == riscv.IntRegisterType.infinite_register(0)
 
     # One register reserved for inout parameter, the allocator should allocate the output
     # to the same register.
     op1 = MyInstructionOp.get("", "", "", "a0")
     register_allocator.process_riscv_op(op1)
-    assert op1.rs0.type == riscv.IntRegisterType("j_2")
-    assert op1.rs1.type == riscv.IntRegisterType("a0")
-    assert op1.rd0.type == riscv.IntRegisterType("j_2")
-    assert op1.rd1.type == riscv.IntRegisterType("a0")
+    assert op1.rs0.type == riscv.IntRegisterType.infinite_register(2)
+    assert op1.rs1.type == riscv.IntRegisterType.from_name("a0")
+    assert op1.rd0.type == riscv.IntRegisterType.infinite_register(2)
+    assert op1.rd1.type == riscv.IntRegisterType.from_name("a0")
 
 
 def test_count_reg_types():

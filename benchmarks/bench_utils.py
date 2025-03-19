@@ -105,7 +105,7 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
     parser.add_argument(
         "test",
         choices=benchmark_names + ["all"],
-        help="the name of the benchmark to run",
+        help="the name of the benchmark to run, `all` to run all benchmarks",
     )
     parser.add_argument(
         "profiler",
