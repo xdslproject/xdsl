@@ -14,6 +14,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: ghcr.io/xdslproject/llvm:19.1.7
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -38,18 +39,6 @@ jobs:
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
         uv python install ${{ matrix.python-version }}
-
-    - name: Cache MLIR installation
-      id: cache-mlir
-      uses: actions/cache@v3
-      with:
-        path: /usr/bin/mlir-opt-19
-        key: mlir-19-tools-${{ runner.os }}
-
-    - name: Install MLIR
-      if: steps.cache-mlir.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get install -y mlir-19-tools
 
     - name: Install the package locally and nbval
       run: |
