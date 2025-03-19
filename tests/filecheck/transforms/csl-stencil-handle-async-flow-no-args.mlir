@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "csl-stencil-handle-async-flow{task_ids=1}" | filecheck %s
+// RUN: xdsl-opt %s -p "csl-stencil-handle-async-flow{task_ids=1}" --split-input-file --verify-diagnostics | filecheck %s
 
 builtin.module {
   "csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16}> ({
@@ -86,3 +86,48 @@ builtin.module {
 // CHECK-NEXT:     "csl_wrapper.yield"() <{fields = []}> : () -> ()
 // CHECK-NEXT:   }) : () -> ()
 // CHECK-NEXT: }
+
+// -----
+
+"csl_wrapper.module"() <{height = 4 : i16, params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=2 : i16>, #csl_wrapper.param<"padded_z_dim" default=2 : i16>], program_name = "loop_kernel", width = 4 : i16}> ({
+  ^0(%arg35 : i16, %arg36 : i16, %arg37 : i16, %arg38 : i16, %arg39 : i16, %arg40 : i16, %arg41 : i16, %arg42 : i16, %arg43 : i16):
+    %0 = arith.constant true
+    %1 = "test.op"() : () -> !csl.comptime_struct
+    "csl_wrapper.yield"(%1, %1, %0) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
+  }, {
+  ^1(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : !csl.comptime_struct, %arg8 : !csl.comptime_struct, %arg9 : i1):
+    %2 = memref.alloc() : memref<4xf32>
+    %3 = memref.alloc() : memref<4xf32>
+    csl.func @loop_kernel() {
+      %4 = arith.constant 1 : index
+      %5 = arith.constant 10 : index
+      %6 = arith.constant 0 : index
+      scf.for %arg10 = %6 to %5 step %4 {
+        %7 = memref.alloc() : memref<2xf32>
+        csl_stencil.apply(%2 : memref<4xf32>, %7 : memref<2xf32>) outs (%3 : memref<4xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 1 : i64, swaps = [#csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>], topo = #dmp.topo<2>, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>}> ({
+        ^2(%arg23 : memref<4x2xf32>, %arg24 : index, %arg25 : memref<2xf32>):
+          csl_stencil.yield %arg25 : memref<2xf32>
+        }, {
+        ^3(%arg11 : memref<4xf32>, %arg12 : memref<2xf32>):
+          csl_stencil.yield
+        }) to <[0, 0], [1, 1]>
+      }
+      scf.for %arg10 = %6 to %5 step %4 {
+        %7 = memref.alloc() : memref<2xf32>
+        csl_stencil.apply(%2 : memref<4xf32>, %7 : memref<2xf32>) outs (%3 : memref<4xf32>) <{bounds = #stencil.bounds<[0, 0], [1, 1]>, num_chunks = 1 : i64, swaps = [#csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>, #csl_stencil.exchange<to []>], topo = #dmp.topo<2>, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>}> ({
+        ^2(%arg23 : memref<4x2xf32>, %arg24 : index, %arg25 : memref<2xf32>):
+          csl_stencil.yield %arg25 : memref<2xf32>
+        }, {
+        ^3(%arg11 : memref<4xf32>, %arg12 : memref<2xf32>):
+          csl_stencil.yield
+        }) to <[0, 0], [1, 1]>
+      }
+      csl.return
+    }
+    "csl_wrapper.yield"() <{fields = []}> : () -> ()
+  }) : () -> ()
+
+// CHECK:           "scf.for"(%6, %5, %4) ({
+// CHECK-NEXT:      ^^^^^^^^^-------------------------------------------------------------------------------------------------------
+// CHECK-NEXT:      | Error while applying pattern: Insufficient number of task IDs supplied, please provide further IDs to be used.
+// CHECK-NEXT:      ----------------------------------------------------------------------------------------------------------------

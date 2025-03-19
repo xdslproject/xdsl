@@ -29,6 +29,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
 
@@ -148,7 +149,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         if self.task_ids:
             cond_task_id = self.task_ids.pop(0)
         else:
-            raise ValueError(
+            raise PassFailedException(
                 "Insufficient number of task IDs supplied, please provide further IDs to be used."
             )
 
