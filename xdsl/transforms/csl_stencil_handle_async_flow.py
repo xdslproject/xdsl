@@ -148,7 +148,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         if self.task_ids:
             cond_task_id = self.task_ids.pop(0)
         else:
-            raise RuntimeError(
+            raise ValueError(
                 "Insufficient number of task IDs supplied, please provide further IDs to be used."
             )
 
