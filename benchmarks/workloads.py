@@ -66,6 +66,7 @@ class WorkloadBuilder:
         assert x >= 0
         assert y >= 0
         random.seed(RANDOM_SEED)
+        # Each dense attr item is a byte = 2 hex chars
         dense_attr_hex = "".join(random.choice(HEX_CHARS) for _ in range(x * y * 2))
         ops = [
             (
