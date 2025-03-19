@@ -66,8 +66,6 @@ builtin.module {
 // CHECK-NEXT:     "test.op"() : () -> ()
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
-// CHECK-NEXT:   %5 = "csl.member_access"(%memcpy) <{field = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
-// CHECK-NEXT:   "csl.rpc"(%5) : (!csl.color) -> ()
 // CHECK-NEXT: }) {sym_name = "params_as_consts_func_program"} : () -> ()
 
 // CONST:      "csl.module"() <{kind = #csl<module_kind layout>}> ({
@@ -102,8 +100,6 @@ builtin.module {
 // CONST-NEXT:     "test.op"() : () -> ()
 // CONST-NEXT:     csl.return
 // CONST-NEXT:   }
-// CONST-NEXT:   %2 = "csl.member_access"(%memcpy) <{field = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
-// CONST-NEXT:   "csl.rpc"(%2) : (!csl.color) -> ()
 // CONST-NEXT: }) {sym_name = "params_as_consts_func_program"} : () -> ()
 
 
@@ -120,9 +116,7 @@ builtin.module {
     "program_name" = "gauss_seidel_func"
   }> ({
   ^0(%xDim : i16, %yDim : i16, %width : i16, %height : i16, %zDim : i16, %pattern : i16, %num_chunks : i16, %chunk_size : i16, %padded_z_dim : i16):
-    %const0 = arith.constant 0 : i16
-    %color0 = "csl.get_color"(%const0) : (i16) -> !csl.color
-    %getParamsMod = "csl_wrapper.import"(%width, %height, %color0) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
+    %getParamsMod = "csl_wrapper.import"(%width, %height) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height"]}> : (i16, i16) -> !csl.imported_module
     %routesMod = "csl_wrapper.import"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
     %computeAllRoutesRes = "csl.member_call"(%routesMod, %xDim, %yDim, %width, %height, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
     %getParamsRes = "csl.member_call"(%getParamsMod, %xDim) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
@@ -186,9 +180,7 @@ builtin.module {
 // CHECK-NEXT:     %height = "csl.param"(%2) <{param_name = "height"}> : (i16) -> i16
 // CHECK-NEXT:     %3 = "csl.const_struct"(%pattern, %width, %height) <{ssa_fields = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %routes = "csl.import_module"(%3) <{module = "routes.csl"}> : (!csl.comptime_struct) -> !csl.imported_module
-// CHECK-NEXT:     %const0 = arith.constant 0 : i16
-// CHECK-NEXT:     %color0 = "csl.get_color"(%const0) : (i16) -> !csl.color
-// CHECK-NEXT:     %4 = "csl.const_struct"(%width, %height, %color0) <{ssa_fields = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.comptime_struct
+// CHECK-NEXT:     %4 = "csl.const_struct"(%width, %height) <{ssa_fields = ["width", "height"]}> : (i16, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %get_params = "csl.import_module"(%4) <{module = "<memcpy/get_params>"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %5 = arith.constant 0 : i16
 // CHECK-NEXT:     %6 = arith.constant 1 : i16
@@ -279,8 +271,6 @@ builtin.module {
 // CHECK-NEXT:       }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %11 = "csl.member_access"(%memcpy) <{field = "LAUNCH"}> : (!csl.imported_module) -> !csl.color
-// CHECK-NEXT:     "csl.rpc"(%11) : (!csl.color) -> ()
 // CHECK-NEXT:   }) {sym_name = "gauss_seidel_func_program"} : () -> ()
 
 }
