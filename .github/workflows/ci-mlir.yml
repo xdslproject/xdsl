@@ -74,7 +74,7 @@ jobs:
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        uv run pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
+        uv run python3 docs/marimo/mlir_interoperation.py
 
     - name: Combine coverage data
       if: matrix.python-version == '3.10'
