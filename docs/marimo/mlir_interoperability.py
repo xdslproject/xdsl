@@ -163,13 +163,10 @@ def _(mo):
 
 
 @app.cell
-def _(is_mlir_opt_available, mlir_opt_tool, source_file, subprocess):
-    if not is_mlir_opt_available:
-        print(f"{mlir_opt_tool} is not available.")
-    else:
-      # mlir-opt --cse --mlir-print-op-generic
-      ps1 = subprocess.run([mlir_opt_tool, source_file, "--cse", "--mlir-print-op-generic"], capture_output=True)
-      print(ps1.stdout.decode('utf-8').strip())
+def _(mlir_opt_tool, source_file, subprocess):
+    # mlir-opt --cse --mlir-print-op-generic
+    ps1 = subprocess.run([mlir_opt_tool, source_file, "--cse", "--mlir-print-op-generic"], capture_output=True)
+    print(ps1.stdout.decode('utf-8').strip())
     return (ps1,)
 
 
@@ -192,11 +189,8 @@ def _(mo):
 
 
 @app.cell
-def _(is_mlir_opt_available, mlir_opt_tool, ps1, subprocess):
-    if not is_mlir_opt_available:
-        print(f"{mlir_opt_tool} is not available.")
-    else:
-        subprocess.run(["xdsl-opt"], input=ps1.stdout)
+def _(ps1, subprocess):
+    subprocess.run(["xdsl-opt"], input=ps1.stdout)
     return
 
 
