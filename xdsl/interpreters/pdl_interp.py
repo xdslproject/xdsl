@@ -90,3 +90,65 @@ class PDLInterpFunctions(InterpreterFunctions):
         cond = args[0].name == op.operation_name.data
         successor = op.true_dest if cond else op.false_dest
         return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckOperandCountOp)
+    def run_checkoperandcount(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckOperandCountOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        assert isinstance(args[0], Operation)
+
+        operand_count = len(args[0].operands)
+        expected_count = op.count.value.data
+
+        # If compareAtLeast is set, check if operand count is >= expected
+        # Otherwise check for exact match
+        if "compareAtLeast" in op.properties:
+            cond = operand_count >= expected_count
+        else:
+            cond = operand_count == expected_count
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckResultCountOp)
+    def run_checkresultcount(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckResultCountOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        assert isinstance(args[0], Operation)
+
+        result_count = len(args[0].results)
+        expected_count = op.count.value.data
+
+        # If compareAtLeast is set, check if result count is >= expected
+        # Otherwise check for exact match
+        if "compareAtLeast" in op.properties:
+            cond = result_count >= expected_count
+        else:
+            cond = result_count == expected_count
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.CheckAttributeOp)
+    def run_checkattribute(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckAttributeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        # args[0] should be the attribute value to check
+        attribute = args[0]
+        # Compare with the constant value from properties
+        cond = attribute == op.constantValue
+
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
