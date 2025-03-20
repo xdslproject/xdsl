@@ -3,7 +3,14 @@ from typing import Any
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
-from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    Successor,
+    impl,
+    impl_terminator,
+    register_impls,
+)
 from xdsl.ir import Operation, SSAValue
 
 
@@ -70,3 +77,16 @@ class PDLInterpFunctions(InterpreterFunctions):
             "Cannot get defining op of a Block argument"
         )
         return (args[0].owner,)
+
+    @impl_terminator(pdl_interp.CheckOperationNameOp)
+    def run_checkoperationname(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CheckOperationNameOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        assert isinstance(args[0], Operation)
+        cond = args[0].name == op.operation_name.data
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
