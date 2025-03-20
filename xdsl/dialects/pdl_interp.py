@@ -102,7 +102,7 @@ class CheckOperationNameOp(IRDLOperation):
             operation_name = StringAttr(operation_name)
         super().__init__(
             operands=[input_op],
-            properties={"operation_name": operation_name},
+            properties={"name": operation_name},
             successors=[trueDest, falseDest],
         )
 
