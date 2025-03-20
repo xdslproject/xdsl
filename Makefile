@@ -64,7 +64,6 @@ pytest: uv-installed
 .PHONY: pytest-nb
 pytest-nb: uv-installed
 	uv run pytest -W error --nbval -vv docs \
-		--ignore=docs/mlir_interoperation.ipynb \
 		--ignore=docs/Toy \
 		--nbval-current-env
 
@@ -94,7 +93,7 @@ tests-marimo: uv-installed
 	@bash -c '\
 		error_log="/tmp/marimo_test_$$$$.log"; \
 		failed_tests=""; \
-		skip_files=("docs/marimo/mlir_interoperability.py"); \
+		skip_files=("docs/marimo/mlir_interoperation.py"); \
 		for file in docs/marimo/*.py; do \
 			if [[ " $${skip_files[@]} " =~ " $$file " ]]; then \
 				if ! command -v mlir-opt &> /dev/null; then \
