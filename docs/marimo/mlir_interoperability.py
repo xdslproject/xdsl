@@ -15,7 +15,7 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # xDSL-MLIR interoperation tutorial
+        # xDSL-MLIR Interoperation Tutorial
 
         This tutorial aims to showcase a simple pipeline of actions to unlock MLIR optimisations when lowering from xDSL.
         This tutorial can help users getting familiar with the xDSL-MLIR interoperation. We will start from a higher level of xDSL abstraction, lower to MLIR generic format, apply an optimisation and the return to xDSL-land.
@@ -174,35 +174,13 @@ def _(is_mlir_opt_available, mlir_opt_tool, source_file, subprocess):
 
 
 @app.cell(hide_code=True)
-def _(is_mlir_opt_available, mlir_opt_tool, mo):
-
-    markdown_content = """
-    We can see in the optimized output that after CSE we do not need to calculate:
-
-    ```
-    "arith.addi"(%0, %1) : (i32, i32) -> i32
-    ```
-
-    twice!
-
-    Now can we go back to xDSL? Yes, we can!
-    """
-
-    if not is_mlir_opt_available:
-        markdown_content=f"""{mlir_opt_tool} is not available."""
-
-    mo.md(markdown_content)  # Show a message if the switch is off
-    return (markdown_content,)
-
-
-@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
         We can clearly see in the optimized output that after CSE we do not need to calculate:
 
         ```
-        "arith.addi"(%0, %1) : (i32, i32) -> i32
+        arith.addi"(%0, %1) : (i32, i32) -> i32
         ```
 
         twice!
