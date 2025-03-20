@@ -225,7 +225,7 @@ class GetAttributeOp(IRDLOperation):
         if isinstance(name, str):
             name = StringAttr(name)
         super().__init__(
-            operands=[input_op], properties={"name": name}, result_types=[Attribute()]
+            operands=[input_op], properties={"name": name}, result_types=[Attribute]
         )
 
 
