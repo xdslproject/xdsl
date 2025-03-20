@@ -30,7 +30,7 @@ def _(mo):
         r"""
         ## Problem Setup
 
-        We start by writing a simple example consisting of adding integers. 
+        We start by writing a simple example consisting of adding integers.
         We are writing this example using constructs that are supported in xDSL.
 
         Furthermore, we create 4 integers, namely a, b, c, d.
