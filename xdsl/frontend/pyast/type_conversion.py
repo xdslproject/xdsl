@@ -8,6 +8,7 @@ from typing import (
 
 import xdsl.dialects.builtin as xdsl_builtin
 import xdsl.frontend.pyast.dialects.builtin as frontend_builtin
+from xdsl.dialects.bigint import BigIntegerType
 from xdsl.frontend.pyast.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]
 )
@@ -36,9 +37,9 @@ class TypeConverter:
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
-    xdsl_to_frontend_type_map: dict[type[Attribute], type[_FrontendType]] = field(
-        default_factory=dict
-    )
+    xdsl_to_frontend_type_map: dict[
+        type[Attribute], type[_FrontendType | BigIntegerType]
+    ] = field(default_factory=dict)
     """
     Map to lookup frontend types based on xDSL type. Useful if we want to see
     what overloaded Python operations does this xDSL type support.
@@ -54,7 +55,7 @@ class TypeConverter:
 
     def _cache_type(
         self,
-        frontend_type: type[_FrontendType],
+        frontend_type: type[_FrontendType | BigIntegerType],
         xdsl_type: Attribute,
         type_name: TypeName,
     ) -> None:
@@ -70,9 +71,16 @@ class TypeConverter:
         if type_name in self.name_to_xdsl_type_map:
             return self.name_to_xdsl_type_map[type_name]
 
+        # Individually handle the bigint dialect
+        if type_name == "int":
+            type_class = BigIntegerType
+            xdsl_type = type_class.to_xdsl()()
+            self._cache_type(type_class, xdsl_type, type_name)
+            return xdsl_type
+
         # Otherwise, it must be some frontend type, and we can look up its class
         # using the imports.
-        if type_name not in self.globals:
+        elif type_name not in self.globals:
             raise CodeGenerationException(
                 self.file,
                 type_hint.lineno,

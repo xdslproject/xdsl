@@ -15,8 +15,8 @@ def test_bigint_identity() -> None:
 
     expected_result = dedent("""
     builtin.module {
-      func.func @foo(%0 : bigint.bigint) -> bigint.bigint {
-        func.return %0 : bigint.bigint
+      func.func @foo(%0 : !bigint.bigint) -> !bigint.bigint {
+        func.return %0 : !bigint.bigint
       }
     }
     """).strip()
