@@ -40,6 +40,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
     SameVariadicResultSize,
+    SameVariadicOperandSize,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -960,6 +961,46 @@ class MemorySpaceCastOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ReinterpretCastOp(IRDLOperation):
+    name = "memref.reinterpret_cast"
+
+    src = operand_def(MemRefType[Attribute])
+
+    offsets = var_operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+    strides = var_operand_def(IndexType)
+
+    result = result_def(MemRefType[Attribute])
+
+    irdl_options = [SameVariadicOperandSize()]
+
+    @staticmethod
+    def get(
+        src: SSAValue | Operation,
+        offsets: Sequence[SSAValue | Operation],
+        sizes: Sequence[SSAValue | Operation],
+        strides: Sequence[SSAValue | Operation],
+    ):
+        return ReinterpretCastOp.build(
+            operands=[src, offsets, sizes, strides],
+        )
+
+    def verify_(self):
+        assert isa(self.src.type, MemRefType[Attribute])
+        assert isa(self.result.type, MemRefType[Attribute])
+
+        if len(self.result.type.shape) != len(self.sizes):
+            raise VerifyException(
+                f"Expected {len(self.src.type.shape)} size values but got {len(self.sizes)}"
+            )
+
+        if (self.result.type.shape) != len(self.sizes):
+            raise VerifyException(
+                f"Expected output shape to have {len(self.sizes)} size values but got {len(self.result.type.shape)}"
+            )
+
+
+@irdl_op_definition
 class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
@@ -1104,6 +1145,7 @@ MemRef = Dialect(
         SubviewOp,
         CastOp,
         MemorySpaceCastOp,
+        ReinterpretCastOp,
         DmaStartOp,
         DmaWaitOp,
         RankOp,
