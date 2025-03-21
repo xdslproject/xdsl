@@ -11,13 +11,13 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.vector import (
     BroadcastOp,
-    CreatemaskOp,
+    CreateMaskOp,
     ExtractElementOp,
     FMAOp,
     InsertElementOp,
     LoadOp,
-    MaskedloadOp,
-    MaskedstoreOp,
+    MaskedLoadOp,
+    MaskedStoreOp,
     PrintOp,
     StoreOp,
 )
@@ -204,7 +204,7 @@ def test_vector_masked_load():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedload = MaskedloadOp.get(
+    maskedload = MaskedLoadOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
     )
 
@@ -221,7 +221,7 @@ def test_vector_masked_load_with_dimensions():
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    maskedload = MaskedloadOp.get(
+    maskedload = MaskedLoadOp.get(
         memref_ssa_value,
         [index1, index2],
         mask_vector_ssa_value,
@@ -241,7 +241,7 @@ def test_vector_masked_load_verify_memref_res_type_matching():
 
     i64_res_vector_type = VectorType(i64, [1])
 
-    maskedload = MaskedloadOp.build(
+    maskedload = MaskedLoadOp.build(
         operands=[
             memref_ssa_value,
             [],
@@ -266,7 +266,7 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
 
     i64_res_vector_type = VectorType(i32, [1])
 
-    maskedload = MaskedloadOp.build(
+    maskedload = MaskedLoadOp.build(
         operands=[
             memref_ssa_value,
             [],
@@ -290,7 +290,7 @@ def test_vector_masked_load_verify_indexing_exception():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [2])
     passthrough_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedload = MaskedloadOp.get(
+    maskedload = MaskedLoadOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
     )
 
@@ -303,7 +303,7 @@ def test_vector_masked_store():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedstore = MaskedstoreOp.get(
+    maskedstore = MaskedStoreOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
@@ -321,7 +321,7 @@ def test_vector_masked_store_with_dimensions():
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    maskedstore = MaskedstoreOp.get(
+    maskedstore = MaskedStoreOp.get(
         memref_ssa_value,
         [index1, index2],
         mask_vector_ssa_value,
@@ -340,7 +340,7 @@ def test_vector_masked_store_verify_memref_value_to_store_type_matching():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i64, [1])
 
-    maskedstore = MaskedstoreOp.get(
+    maskedstore = MaskedStoreOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
@@ -357,7 +357,7 @@ def test_vector_masked_store_verify_indexing_exception():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [2])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedstore = MaskedstoreOp.get(
+    maskedstore = MaskedStoreOp.get(
         memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
     )
 
@@ -374,7 +374,7 @@ def test_vector_print():
 
 
 def test_vector_create_mask():
-    create_mask = CreatemaskOp.get([])
+    create_mask = CreateMaskOp.get([])
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].type) is VectorType
@@ -385,7 +385,7 @@ def test_vector_create_mask_with_dimensions():
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    create_mask = CreatemaskOp.get([index1, index2])
+    create_mask = CreateMaskOp.get([index1, index2])
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].type) is VectorType
@@ -396,7 +396,7 @@ def test_vector_create_mask_with_dimensions():
 def test_vector_create_mask_verify_indexing_exception():
     mask_vector_type = VectorType(i1, [2, 3])
 
-    create_mask = CreatemaskOp.build(operands=[[]], result_types=[mask_vector_type])
+    create_mask = CreateMaskOp.build(operands=[[]], result_types=[mask_vector_type])
 
     with pytest.raises(
         Exception,
