@@ -17,7 +17,7 @@ class BigIntegerType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def to_xdsl(cls) -> Callable[[], Any]:
-        return lambda: BigIntegerType()
+        return cls.__call__
 
 
 bigint = BigIntegerType()
