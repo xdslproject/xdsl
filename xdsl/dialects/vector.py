@@ -152,7 +152,7 @@ class FMAOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MaskedloadOp(IRDLOperation):
+class MaskedLoadOp(IRDLOperation):
     name = "vector.maskedload"
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
@@ -195,18 +195,18 @@ class MaskedloadOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         passthrough: SSAValue | Operation,
-    ) -> MaskedloadOp:
+    ) -> MaskedLoadOp:
         memref = SSAValue.get(memref)
         assert assert_isa(memref.type, MemRefType[Attribute])
 
-        return MaskedloadOp.build(
+        return MaskedLoadOp.build(
             operands=[memref, indices, mask, passthrough],
             result_types=[VectorType(memref.type.element_type, [1])],
         )
 
 
 @irdl_op_definition
-class MaskedstoreOp(IRDLOperation):
+class MaskedStoreOp(IRDLOperation):
     name = "vector.maskedstore"
     base = operand_def(MemRefType)
     indices = var_operand_def(IndexType)
@@ -245,8 +245,8 @@ class MaskedstoreOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         value_to_store: SSAValue | Operation,
-    ) -> MaskedstoreOp:
-        return MaskedstoreOp.build(operands=[memref, indices, mask, value_to_store])
+    ) -> MaskedStoreOp:
+        return MaskedStoreOp.build(operands=[memref, indices, mask, value_to_store])
 
 
 @irdl_op_definition
@@ -260,7 +260,7 @@ class PrintOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CreatemaskOp(IRDLOperation):
+class CreateMaskOp(IRDLOperation):
     name = "vector.create_mask"
     mask_dim_sizes = var_operand_def(IndexType)
     mask_vector = result_def(VectorBaseTypeConstraint(i1))
@@ -275,8 +275,8 @@ class CreatemaskOp(IRDLOperation):
             )
 
     @staticmethod
-    def get(mask_operands: list[Operation | SSAValue]) -> CreatemaskOp:
-        return CreatemaskOp.build(
+    def get(mask_operands: list[Operation | SSAValue]) -> CreateMaskOp:
+        return CreateMaskOp.build(
             operands=[mask_operands],
             result_types=[VectorType(i1, [1])],
         )
@@ -377,10 +377,10 @@ Vector = Dialect(
         StoreOp,
         BroadcastOp,
         FMAOp,
-        MaskedloadOp,
-        MaskedstoreOp,
+        MaskedLoadOp,
+        MaskedStoreOp,
         PrintOp,
-        CreatemaskOp,
+        CreateMaskOp,
         ExtractElementOp,
         InsertElementOp,
     ],
