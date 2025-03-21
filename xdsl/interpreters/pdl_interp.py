@@ -1,8 +1,9 @@
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
+from xdsl.dialects.builtin import StringAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -11,13 +12,26 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
+from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
 @dataclass
 class PDLInterpFunctions(InterpreterFunctions):
     ctx: Context
+
+    _rewriter: PatternRewriter | None = field(default=None)
+
+    @property
+    def rewriter(self) -> PatternRewriter:
+        assert self._rewriter is not None
+        return self._rewriter
+
+    @rewriter.setter
+    def rewriter(self, rewriter: PatternRewriter):
+        self._rewriter = rewriter
 
     @impl(pdl_interp.GetOperandOp)
     def run_getoperand(
@@ -152,3 +166,117 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         successor = op.true_dest if cond else op.false_dest
         return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.IsNotNullOp)
+    def run_isnotnull(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.IsNotNullOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) > 0
+        # Check if the value is not None
+        cond = args[0] is not None
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl_terminator(pdl_interp.AreEqualOp)
+    def run_areequal(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.AreEqualOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) >= 2
+        # Compare the two values for equality
+        cond = args[0] == args[1]
+        successor = op.true_dest if cond else op.false_dest
+        return Successor(successor, ()), ()
+
+    @impl(pdl_interp.ReplaceOp)
+    def run_replace(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.ReplaceOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) >= 1
+        input_op = args[0]
+        assert isinstance(input_op, Operation)
+
+        # Get replacement values (if any)
+        repl_values: list[SSAValue] = list(args[1:]) if len(args) > 1 else []
+        for val in repl_values:
+            assert isinstance(val, SSAValue)
+
+        assert len(input_op.results) == len(repl_values), (
+            "Number of replacement values should match number of results"
+        )
+
+        # Replace the operation with the replacement values
+        self.rewriter.replace_op(input_op, new_ops=[], new_results=repl_values)
+        return ()
+
+    @impl(pdl_interp.CreateAttributeOp)
+    def run_createattribute(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateAttributeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        value = args[0]
+        assert isinstance(value, Attribute)
+        # Simply return the attribute value
+        return (value,)
+
+    @impl(pdl_interp.CreateOperationOp)
+    def run_createoperation(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateOperationOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        # Get operation name
+        op_name = op.constraint_name.data
+        op_type = self.ctx.get_optional_op(op_name)
+        if op_type is None:
+            raise InterpretationError(
+                f"Could not find op type for name {op_name} in context"
+            )
+
+        # Split args into operands, attributes and result types based on operand segments
+        operands = list(args[0 : len(op.input_operands)])
+        attributes = list(
+            args[
+                len(op.input_operands) : len(op.input_operands)
+                + len(op.input_attributes)
+            ]
+        )
+        result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
+
+        # Verify all arguments have correct types
+        for operand in operands:
+            assert isinstance(operand, SSAValue)
+        for attr in attributes:
+            assert isinstance(attr, Attribute)
+        for res_type in result_types:
+            assert isinstance(res_type, TypeAttribute)
+
+        # Create attribute dictionary using input_attribute_names
+        attr_names: list[str] = [
+            cast(StringAttr, name).data for name in op.input_attribute_names.data
+        ]
+        attr_dict = dict(zip(attr_names, attributes))
+
+        # Create the new operation
+        result_op = op_type.create(
+            operands=operands,
+            result_types=result_types,
+            attributes=attr_dict,
+        )
+
+        self.rewriter.insert_op_before_matched_op(result_op)
+
+        # Return the created operation
+        return (result_op,)

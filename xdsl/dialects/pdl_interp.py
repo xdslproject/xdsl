@@ -19,7 +19,13 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
 )
-from xdsl.dialects.pdl import AnyPDLTypeConstr, OperationType, TypeType, ValueType
+from xdsl.dialects.pdl import (
+    AnyPDLTypeConstr,
+    AttributeType,
+    OperationType,
+    TypeType,
+    ValueType,
+)
 from xdsl.ir import Attribute, Block, Dialect, Region, SSAValue
 from xdsl.irdl import (
     AnyOf,
@@ -225,7 +231,9 @@ class GetAttributeOp(IRDLOperation):
         if isinstance(name, str):
             name = StringAttr(name)
         super().__init__(
-            operands=[input_op], properties={"name": name}, result_types=[Attribute]
+            operands=[input_op],
+            properties={"name": name},
+            result_types=[AttributeType()],
         )
 
 
@@ -369,7 +377,7 @@ class CreateAttributeOp(IRDLOperation):
     attribute = result_def(Attribute)
 
     def __init__(self, value: SSAValue) -> None:
-        super().__init__(operands=[value], result_types=[Attribute()])
+        super().__init__(operands=[value], result_types=[AttributeType()])
 
 
 @irdl_op_definition
@@ -380,7 +388,7 @@ class CreateOperationOp(IRDLOperation):
 
     name = "pdl_interp.create_operation"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    input_attribute_names = prop_def(ArrayAttr)
+    input_attribute_names = prop_def(ArrayAttr, prop_name="inputAttributeNames")
     inferred_result_types = prop_def(UnitAttr)
 
     input_operands = var_operand_def(ValueType)
