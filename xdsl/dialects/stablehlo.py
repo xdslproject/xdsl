@@ -414,6 +414,20 @@ class CaseOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CbrtOp(FloatOrComplexTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise cubic root operation on operand tensor and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For floats: rootn(x, 3) from IEEE-754.
+    For complex numbers: complex cubic root.
+    For quantized types: dequantize_op_quantize(cbrt, operand, type(result))
+    """
+
+    name = "stablehlo.cbrt"
+
+
+@irdl_op_definition
 class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
@@ -635,6 +649,7 @@ StableHLO = Dialect(
         Atan2,
         BitcastConvertOp,
         CaseOp,
+        CbrtOp,
         CountLeadingZerosOp,
         MultiplyOp,
         NotOp,
