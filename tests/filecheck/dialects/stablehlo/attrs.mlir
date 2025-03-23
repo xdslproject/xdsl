@@ -27,4 +27,21 @@
     >
 } : () -> ()
 
+// CHECK-NEXT:    "test.op"() {
+// CHECK-SAME:      eq = #stablehlo<comparison_direction EQ>,
+// CHECK-SAME:      ne = #stablehlo<comparison_direction NE>,
+// CHECK-SAME:      ge = #stablehlo<comparison_direction GE>,
+// CHECK-SAME:      gt = #stablehlo<comparison_direction GT>,
+// CHECK-SAME:      le = #stablehlo<comparison_direction LE>,
+// CHECK-SAME:      lt = #stablehlo<comparison_direction LT>
+// CHECK-SAME:     } : () -> ()
+"test.op"() {
+  eq = #stablehlo<comparison_direction EQ>,
+  ne = #stablehlo<comparison_direction NE>,
+  ge = #stablehlo<comparison_direction GE>,
+  gt = #stablehlo<comparison_direction GT>,
+  le = #stablehlo<comparison_direction LE>,
+  lt = #stablehlo<comparison_direction LT>
+} : () -> ()
+
 // CHECK-NEXT:  }
