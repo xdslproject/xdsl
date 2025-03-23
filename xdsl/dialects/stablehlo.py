@@ -149,6 +149,54 @@ class FloatTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
 # region Attributes
 
 
+class ComparisonDirection(StrEnum):
+    """
+    Comparison direction for stablehlo.
+    """
+
+    EQ = "EQ"
+    NE = "NE"
+    GE = "GE"
+    GT = "GT"
+    LE = "LE"
+    LT = "LT"
+
+
+@irdl_attr_definition
+class ComparisonDirectionAttr(
+    EnumAttribute[ComparisonDirection], SpacedOpaqueSyntaxAttribute
+):
+    """
+    The values of comparison_direction and compare_type have the following semantics:
+
+    For boolean and integer element types:
+    * EQ: lhs = rhs.
+    * NE: lhs != rhs.
+    * GE: lhs >= rhs.
+    * GT: lhs > rhs.
+    * LE: lhs <= rhs
+    * LT: lhs < rhs.
+
+    For floating-point element types with compare_type = FLOAT, the op implements the following IEEE-754 operations:
+    * EQ: compareQuietEqual.
+    * NE: compareQuietNotEqual.
+    * GE: compareQuietGreaterEqual.
+    * GT: compareQuietGreater.
+    * LE: compareQuietLessEqual.
+    * LT: compareQuietLess.
+
+    For floating-point element types with compare_type = TOTALORDER, the op uses the combination of totalOrder and compareQuietEqual operations from IEEE-754.
+    For complex element types, lexicographic comparison of (real, imag) pairs is performed using the provided comparison_direction and compare_type.
+    Imposing an ordering on complex numbers involves surprising semantics, so in the future we are planning to remove support for complex numbers when comparison_direction is GE, GT, LE or LT.
+
+    For quantized types. performs dequantize_compare(lhs, rhs, comparison_direction)
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare
+    """
+
+    name = "stablehlo.comparison_direction"
+
+
 class Precision(StrEnum):
     """
     XLA precision for an operand. Has backend specific meaning.
@@ -689,6 +737,7 @@ StableHLO = Dialect(
         XorOp,
     ],
     [
+        ComparisonDirectionAttr,
         DotAttr,
         PrecisionAttr,
         TokenType,
