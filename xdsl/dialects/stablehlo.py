@@ -60,6 +60,7 @@ from xdsl.utils.exceptions import VerifyException
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
 FloatOrComplexType: TypeAlias = AnyFloat | ComplexType
 FloatOrComplexTensorType: TypeAlias = TensorType[FloatOrComplexType]
+FloatTensorType: TypeAlias = TensorType[AnyFloat]
 
 # TODO: Change to SI32 once StableHLO adopts signful integer semantics
 # See: https://github.com/openxla/stablehlo/issues/22
@@ -129,6 +130,18 @@ class FloatOrComplexTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC)
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
+
+
+class FloatTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
+    T: ClassVar = VarConstraint("T", base(FloatTensorType))
+
+    operand = operand_def(T)
+    result = result_def(T)
+
+    def __init__(self, operand: SSAValue, result_type: Attribute | None = None):
+        if result_type is None:
+            result_type = operand.type
+        super().__init__(operands=(operand,), result_types=(result_type,))
 
 
 # endregion
@@ -428,6 +441,17 @@ class CbrtOp(FloatOrComplexTensorLikeElementwiseBinaryOperation):
 
 
 @irdl_op_definition
+class CeilOp(FloatTensorLikeElementwiseUnaryOperation):
+    """
+    Performs element-wise ceil of operand tensor and produces a result tensor.
+    Implements the roundToIntegralTowardPositive operation from the IEEE-754 specification.
+    For quantized types, performs dequantize_op_quantize(ceil, operand, type(result)).
+    """
+
+    name = "stablehlo.ceil"
+
+
+@irdl_op_definition
 class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
@@ -650,6 +674,7 @@ StableHLO = Dialect(
         BitcastConvertOp,
         CaseOp,
         CbrtOp,
+        CeilOp,
         CountLeadingZerosOp,
         MultiplyOp,
         NotOp,
