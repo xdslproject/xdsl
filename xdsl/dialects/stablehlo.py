@@ -319,6 +319,31 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
 
 
 @irdl_op_definition
+class BitcastConvertOp(IRDLOperation):
+    """
+    Performs a bitcast operation on operand tensor and produces a result tensor
+    where the bits of the entire operand tensor are reinterpreted using the type of the result tensor.
+
+    More formally, given E = element_type(operand), E' = element_type(result), and R = rank(operand):
+
+    If num_bits(E') < num_bits(E), bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1]).
+    If num_bits(E') > num_bits(E), bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :]).
+    If num_bits(E') = num_bits(E), bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1]).
+
+    bits returns in-memory representation of a given value,
+    and its behavior is implementation-defined because the exact representation of tensors is implementation-defined,
+    and the exact representation of element types is implementation-defined as well.
+    """
+
+    name = "stablehlo.bitcast_convert"
+    input = operand_def(AnyTensorType)
+    result = result_def(AnyTensorType)
+
+    def __init__(self, input: SSAValue, result: Attribute):
+        super().__init__(operands=(input,), result_types=(result,))
+
+
+@irdl_op_definition
 class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
@@ -452,31 +477,6 @@ class CaseOp(IRDLOperation):
         super().__init__(
             operands=(index,), result_types=(result_types,), regions=(branches,)
         )
-
-
-@irdl_op_definition
-class BitcastConvertOp(IRDLOperation):
-    """
-    Performs a bitcast operation on operand tensor and produces a result tensor
-    where the bits of the entire operand tensor are reinterpreted using the type of the result tensor.
-
-    More formally, given E = element_type(operand), E' = element_type(result), and R = rank(operand):
-
-    If num_bits(E') < num_bits(E), bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1]).
-    If num_bits(E') > num_bits(E), bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :]).
-    If num_bits(E') = num_bits(E), bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1]).
-
-    bits returns in-memory representation of a given value,
-    and its behavior is implementation-defined because the exact representation of tensors is implementation-defined,
-    and the exact representation of element types is implementation-defined as well.
-    """
-
-    name = "stablehlo.bitcast_convert"
-    input = operand_def(AnyTensorType)
-    result = result_def(AnyTensorType)
-
-    def __init__(self, input: SSAValue, result: Attribute):
-        super().__init__(operands=(input,), result_types=(result,))
 
 
 @irdl_op_definition
