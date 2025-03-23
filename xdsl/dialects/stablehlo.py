@@ -304,6 +304,21 @@ class AfterAllOp(IRDLOperation):
 
 
 @irdl_op_definition
+class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For booleans: logical AND.
+    For integers: bitwise AND.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and
+    """
+
+    name = "stablehlo.and"
+
+
+@irdl_op_definition
 class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
@@ -338,21 +353,6 @@ class NotOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
 
     name = "stablehlo.not"
-
-
-@irdl_op_definition
-class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
-    """
-    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
-    Depending on the element type, does the following:
-
-    For booleans: logical AND.
-    For integers: bitwise AND.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and
-    """
-
-    name = "stablehlo.and"
 
 
 @irdl_op_definition
