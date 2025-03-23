@@ -17,3 +17,11 @@
 } : (tensor<2x3x2xi32>) -> tensor<4x3x2xi32>
 
 // CHECK: Operation does not verify: Permutation mismatch at dimension 0, expected 2
+
+// -----
+
+%operand = "test.op"() : () -> tensor<i32>
+
+// CHECK: Operation does not verify: operand at position 0 does not verify:
+// CHECK: Unexpected attribute i32
+%result = "stablehlo.atan2"(%operand, %operand) : (tensor<i32>, tensor<i32>) -> tensor<i32>
