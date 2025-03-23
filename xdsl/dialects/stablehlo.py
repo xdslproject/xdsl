@@ -344,6 +344,36 @@ class BitcastConvertOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CaseOp(IRDLOperation):
+    """
+    Semantics
+
+    Produces the output from executing exactly one function from branches depending on the value of index.
+    More formally, result = selected_branch() where:
+
+    selected_branch = branches[index] if 0 <= index < size(branches).
+    selected_branch = branches[-1] otherwise.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
+    """
+
+    name = "stablehlo.case"
+    index = operand_def(SI32TensorType)
+    branches = var_region_def("single_block")
+    _results = var_result_def(AnyTensorTypeConstr | BaseAttr(TokenType))
+
+    def __init__(
+        self,
+        index: SSAValue,
+        branches: Sequence[Region],
+        result_types: Sequence[AnyTensorType | TokenType],
+    ):
+        super().__init__(
+            operands=(index,), result_types=(result_types,), regions=(branches,)
+        )
+
+
+@irdl_op_definition
 class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
@@ -447,36 +477,6 @@ class ShiftRightLogicalOp(IntegerTensorLikeElementwiseBinaryOperation):
 # See: https://github.com/openxla/stablehlo/issues/22
 # https://github.com/openxla/stablehlo/issues/2489
 SI32TensorType: TypeAlias = TensorType[I32]
-
-
-@irdl_op_definition
-class CaseOp(IRDLOperation):
-    """
-    Semantics
-
-    Produces the output from executing exactly one function from branches depending on the value of index.
-    More formally, result = selected_branch() where:
-
-    selected_branch = branches[index] if 0 <= index < size(branches).
-    selected_branch = branches[-1] otherwise.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
-    """
-
-    name = "stablehlo.case"
-    index = operand_def(SI32TensorType)
-    branches = var_region_def("single_block")
-    _results = var_result_def(AnyTensorTypeConstr | BaseAttr(TokenType))
-
-    def __init__(
-        self,
-        index: SSAValue,
-        branches: Sequence[Region],
-        result_types: Sequence[AnyTensorType | TokenType],
-    ):
-        super().__init__(
-            operands=(index,), result_types=(result_types,), regions=(branches,)
-        )
 
 
 @irdl_op_definition
