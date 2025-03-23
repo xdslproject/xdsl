@@ -325,6 +325,22 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
 
 
 @irdl_op_definition
+class Atan2(ElementwiseBinaryOperation):
+    """
+    Performs element-wise atan2 operation on lhs and rhs tensor and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For floats: atan2 from IEEE-754.
+    For complex numbers: complex atan2.
+    For quantized types: dequantize_op_quantize(atan2, lhs, rhs, type(result)).
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#atan2
+    """
+
+    name = "stablehlo.atan2"
+
+
+@irdl_op_definition
 class BitcastConvertOp(IRDLOperation):
     """
     Performs a bitcast operation on operand tensor and produces a result tensor
@@ -598,6 +614,7 @@ StableHLO = Dialect(
         AddOp,
         AfterAllOp,
         AndOp,
+        Atan2,
         BitcastConvertOp,
         CaseOp,
         CountLeadingZerosOp,
