@@ -57,6 +57,13 @@ from xdsl.utils.exceptions import VerifyException
 
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
 
+# TODO: Change to SI32 once StableHLO adopts signful integer semantics
+# See: https://github.com/openxla/stablehlo/issues/22
+# https://github.com/openxla/stablehlo/issues/2489
+SI32TensorType: TypeAlias = TensorType[I32]
+
+
+
 # region Abstract Base Classes
 
 
@@ -495,12 +502,6 @@ class ShiftRightLogicalOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
 
     name = "stablehlo.shift_right_logical"
-
-
-# TODO: Change to SI32 once StableHLO adopts signful integer semantics
-# See: https://github.com/openxla/stablehlo/issues/22
-# https://github.com/openxla/stablehlo/issues/2489
-SI32TensorType: TypeAlias = TensorType[I32]
 
 
 @irdl_op_definition
