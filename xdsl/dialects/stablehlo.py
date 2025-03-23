@@ -63,7 +63,6 @@ IntegerTensorType: TypeAlias = TensorType[IntegerType]
 SI32TensorType: TypeAlias = TensorType[I32]
 
 
-
 # region Abstract Base Classes
 
 
