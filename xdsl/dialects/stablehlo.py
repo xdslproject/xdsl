@@ -385,6 +385,25 @@ class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
 
 
 @irdl_op_definition
+class MultiplyOp(ElementwiseBinaryOperation):
+    """
+    Performs element-wise product of two tensors `lhs` and `rhs` and produces a
+    `result` tensor. Depending on the element type, does the following:
+
+    * For booleans: logical AND.
+    * For integers: integer multiplication.
+    * For floats: `multiplication` from IEEE-754.
+    * For complex numbers: complex multiplication.
+    * For quantized types:
+    * `dequantize_op_quantize(multiply, lhs, rhs, type(result))`.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#multiply
+    """
+
+    name = "stablehlo.multiply"
+
+
+@irdl_op_definition
 class PopcntOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise count of the number of bits set in the operand tensor and produces a result tensor.
@@ -477,25 +496,6 @@ class ShiftRightLogicalOp(IntegerTensorLikeElementwiseBinaryOperation):
 # See: https://github.com/openxla/stablehlo/issues/22
 # https://github.com/openxla/stablehlo/issues/2489
 SI32TensorType: TypeAlias = TensorType[I32]
-
-
-@irdl_op_definition
-class MultiplyOp(ElementwiseBinaryOperation):
-    """
-    Performs element-wise product of two tensors `lhs` and `rhs` and produces a
-    `result` tensor. Depending on the element type, does the following:
-
-    * For booleans: logical AND.
-    * For integers: integer multiplication.
-    * For floats: `multiplication` from IEEE-754.
-    * For complex numbers: complex multiplication.
-    * For quantized types:
-    * `dequantize_op_quantize(multiply, lhs, rhs, type(result))`.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#multiply
-    """
-
-    name = "stablehlo.multiply"
 
 
 @irdl_op_definition
