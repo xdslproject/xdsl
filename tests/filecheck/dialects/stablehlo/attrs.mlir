@@ -44,4 +44,19 @@
   lt = #stablehlo<comparison_direction LT>
 } : () -> ()
 
+// CHECK-NEXT:    "test.op"() {
+// CHECK-SAME:      notype = #stablehlo<comparison_type NOTYPE>,
+// CHECK-SAME:      float = #stablehlo<comparison_type FLOAT>,
+// CHECK-SAME:      totalorder = #stablehlo<comparison_type TOTALORDER>,
+// CHECK-SAME:      signed = #stablehlo<comparison_type SIGNED>,
+// CHECK-SAME:      unsigned = #stablehlo<comparison_type UNSIGNED>
+// CHECK-SAME:    } : () -> ()
+"test.op"() {
+  notype = #stablehlo<comparison_type NOTYPE>,
+  float = #stablehlo<comparison_type FLOAT>,
+  totalorder = #stablehlo<comparison_type TOTALORDER>,
+  signed = #stablehlo<comparison_type SIGNED>,
+  unsigned = #stablehlo<comparison_type UNSIGNED>
+} : () -> ()
+
 // CHECK-NEXT:  }

@@ -185,9 +185,12 @@ class ComparisonDirectionAttr(
     * LE: compareQuietLessEqual.
     * LT: compareQuietLess.
 
-    For floating-point element types with compare_type = TOTALORDER, the op uses the combination of totalOrder and compareQuietEqual operations from IEEE-754.
-    For complex element types, lexicographic comparison of (real, imag) pairs is performed using the provided comparison_direction and compare_type.
-    Imposing an ordering on complex numbers involves surprising semantics, so in the future we are planning to remove support for complex numbers when comparison_direction is GE, GT, LE or LT.
+    For floating-point element types with compare_type = TOTALORDER,
+    the op uses the combination of totalOrder and compareQuietEqual operations from IEEE-754.
+    For complex element types,
+    lexicographic comparison of (real, imag) pairs is performed using the provided comparison_direction and compare_type.
+    Imposing an ordering on complex numbers involves surprising semantics,
+    so in the future we are planning to remove support for complex numbers when comparison_direction is GE, GT, LE or LT.
 
     For quantized types. performs dequantize_compare(lhs, rhs, comparison_direction)
 
@@ -195,6 +198,31 @@ class ComparisonDirectionAttr(
     """
 
     name = "stablehlo.comparison_direction"
+
+
+class ComparisonType(StrEnum):
+    """
+    Together with comparison_direction determines the semantics of comparison.
+
+    https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156
+    """
+
+    NOTYPE = "NOTYPE"
+    FLOAT = "FLOAT"
+    TOTALORDER = "TOTALORDER"
+    SIGNED = "SIGNED"
+    UNSIGNED = "UNSIGNED"
+
+
+@irdl_attr_definition
+class ComparisonTypeAttr(EnumAttribute[ComparisonType], SpacedOpaqueSyntaxAttribute):
+    """
+    Together with comparison_direction determines the semantics of comparison.
+
+    https://github.com/openxla/stablehlo/blob/main/stablehlo/dialect/StablehloEnums.td#L152-L156
+    """
+
+    name = "stablehlo.comparison_type"
 
 
 class Precision(StrEnum):
@@ -738,6 +766,7 @@ StableHLO = Dialect(
     ],
     [
         ComparisonDirectionAttr,
+        ComparisonTypeAttr,
         DotAttr,
         PrecisionAttr,
         TokenType,
