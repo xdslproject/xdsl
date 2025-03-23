@@ -57,6 +57,12 @@ from xdsl.utils.exceptions import VerifyException
 
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
 
+# TODO: Change to SI32 once StableHLO adopts signful integer semantics
+# See: https://github.com/openxla/stablehlo/issues/22
+# https://github.com/openxla/stablehlo/issues/2489
+SI32TensorType: TypeAlias = TensorType[I32]
+
+
 # region Abstract Base Classes
 
 
@@ -304,6 +310,76 @@ class AfterAllOp(IRDLOperation):
 
 
 @irdl_op_definition
+class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For booleans: logical AND.
+    For integers: bitwise AND.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and
+    """
+
+    name = "stablehlo.and"
+
+
+@irdl_op_definition
+class BitcastConvertOp(IRDLOperation):
+    """
+    Performs a bitcast operation on operand tensor and produces a result tensor
+    where the bits of the entire operand tensor are reinterpreted using the type of the result tensor.
+
+    More formally, given E = element_type(operand), E' = element_type(result), and R = rank(operand):
+
+    If num_bits(E') < num_bits(E), bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1]).
+    If num_bits(E') > num_bits(E), bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :]).
+    If num_bits(E') = num_bits(E), bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1]).
+
+    bits returns in-memory representation of a given value,
+    and its behavior is implementation-defined because the exact representation of tensors is implementation-defined,
+    and the exact representation of element types is implementation-defined as well.
+    """
+
+    name = "stablehlo.bitcast_convert"
+    input = operand_def(AnyTensorType)
+    result = result_def(AnyTensorType)
+
+    def __init__(self, input: SSAValue, result: Attribute):
+        super().__init__(operands=(input,), result_types=(result,))
+
+
+@irdl_op_definition
+class CaseOp(IRDLOperation):
+    """
+    Semantics
+
+    Produces the output from executing exactly one function from branches depending on the value of index.
+    More formally, result = selected_branch() where:
+
+    selected_branch = branches[index] if 0 <= index < size(branches).
+    selected_branch = branches[-1] otherwise.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
+    """
+
+    name = "stablehlo.case"
+    index = operand_def(SI32TensorType)
+    branches = var_region_def("single_block")
+    _results = var_result_def(AnyTensorTypeConstr | BaseAttr(TokenType))
+
+    def __init__(
+        self,
+        index: SSAValue,
+        branches: Sequence[Region],
+        result_types: Sequence[AnyTensorType | TokenType],
+    ):
+        super().__init__(
+            operands=(index,), result_types=(result_types,), regions=(branches,)
+        )
+
+
+@irdl_op_definition
 class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise count of the number of leading zero bits in the operand tensor and produces a result tensor.
@@ -315,14 +391,22 @@ class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
 
 
 @irdl_op_definition
-class PopcntOp(IntegerTensorLikeElementwiseUnaryOperation):
+class MultiplyOp(ElementwiseBinaryOperation):
     """
-    Performs element-wise count of the number of bits set in the operand tensor and produces a result tensor.
+    Performs element-wise product of two tensors `lhs` and `rhs` and produces a
+    `result` tensor. Depending on the element type, does the following:
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#popcnt
+    * For booleans: logical AND.
+    * For integers: integer multiplication.
+    * For floats: `multiplication` from IEEE-754.
+    * For complex numbers: complex multiplication.
+    * For quantized types:
+    * `dequantize_op_quantize(multiply, lhs, rhs, type(result))`.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#multiply
     """
 
-    name = "stablehlo.popcnt"
+    name = "stablehlo.multiply"
 
 
 @irdl_op_definition
@@ -341,21 +425,6 @@ class NotOp(IntegerTensorLikeElementwiseUnaryOperation):
 
 
 @irdl_op_definition
-class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
-    """
-    Performs element-wise AND of two tensors lhs and rhs and produces a result tensor.
-    Depending on the element type, does the following:
-
-    For booleans: logical AND.
-    For integers: bitwise AND.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#and
-    """
-
-    name = "stablehlo.and"
-
-
-@irdl_op_definition
 class OrOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
     Performs element-wise Or of two tensors lhs and rhs and produces a result tensor.
@@ -371,18 +440,34 @@ class OrOp(IntegerTensorLikeElementwiseBinaryOperation):
 
 
 @irdl_op_definition
-class XorOp(IntegerTensorLikeElementwiseBinaryOperation):
+class PopcntOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
-    Performs element-wise XOR of two tensors lhs and rhs and produces a result tensor.
-    Depending on the element type, does the following:
+    Performs element-wise count of the number of bits set in the operand tensor and produces a result tensor.
 
-    For booleans: logical XOR.
-    For integers: bitwise XOR.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#popcnt
     """
 
-    name = "stablehlo.xor"
+    name = "stablehlo.popcnt"
+
+
+@irdl_op_definition
+class ReturnOp(IRDLOperation):
+    """This op is un-documented.
+
+    StableHLO's return is used inside of the bodies of StableHLO ops.
+    It behaves like func.return but for StableHLO ops.
+    The func.return op is used inside of func.func op.
+
+    https://discord.com/channels/999073994483433573/1259494021269688360/1259992088565645312
+    """
+
+    name = "stablehlo.return"
+
+    input = var_operand_def(AnyTensorType)
+    traits = traits_def(IsTerminator())
+
+    def __init__(self, input: list[SSAValue]):
+        super().__init__(operands=(input,))
 
 
 @irdl_op_definition
@@ -418,86 +503,6 @@ class ShiftRightLogicalOp(IntegerTensorLikeElementwiseBinaryOperation):
     name = "stablehlo.shift_right_logical"
 
 
-# TODO: Change to SI32 once StableHLO adopts signful integer semantics
-# See: https://github.com/openxla/stablehlo/issues/22
-# https://github.com/openxla/stablehlo/issues/2489
-SI32TensorType: TypeAlias = TensorType[I32]
-
-
-@irdl_op_definition
-class CaseOp(IRDLOperation):
-    """
-    Semantics
-
-    Produces the output from executing exactly one function from branches depending on the value of index.
-    More formally, result = selected_branch() where:
-
-    selected_branch = branches[index] if 0 <= index < size(branches).
-    selected_branch = branches[-1] otherwise.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
-    """
-
-    name = "stablehlo.case"
-    index = operand_def(SI32TensorType)
-    branches = var_region_def("single_block")
-    _results = var_result_def(AnyTensorTypeConstr | BaseAttr(TokenType))
-
-    def __init__(
-        self,
-        index: SSAValue,
-        branches: Sequence[Region],
-        result_types: Sequence[AnyTensorType | TokenType],
-    ):
-        super().__init__(
-            operands=(index,), result_types=(result_types,), regions=(branches,)
-        )
-
-
-@irdl_op_definition
-class BitcastConvertOp(IRDLOperation):
-    """
-    Performs a bitcast operation on operand tensor and produces a result tensor
-    where the bits of the entire operand tensor are reinterpreted using the type of the result tensor.
-
-    More formally, given E = element_type(operand), E' = element_type(result), and R = rank(operand):
-
-    If num_bits(E') < num_bits(E), bits(result[i0, ..., iR-1, :]) = bits(operand[i0, ..., iR-1]).
-    If num_bits(E') > num_bits(E), bits(result[i0, ..., iR-2]) = bits(operand[i0, ..., iR-2, :]).
-    If num_bits(E') = num_bits(E), bits(result[i0, ..., iR-1]) = bits(operand[i0, ..., iR-1]).
-
-    bits returns in-memory representation of a given value,
-    and its behavior is implementation-defined because the exact representation of tensors is implementation-defined,
-    and the exact representation of element types is implementation-defined as well.
-    """
-
-    name = "stablehlo.bitcast_convert"
-    input = operand_def(AnyTensorType)
-    result = result_def(AnyTensorType)
-
-    def __init__(self, input: SSAValue, result: Attribute):
-        super().__init__(operands=(input,), result_types=(result,))
-
-
-@irdl_op_definition
-class MultiplyOp(ElementwiseBinaryOperation):
-    """
-    Performs element-wise product of two tensors `lhs` and `rhs` and produces a
-    `result` tensor. Depending on the element type, does the following:
-
-    * For booleans: logical AND.
-    * For integers: integer multiplication.
-    * For floats: `multiplication` from IEEE-754.
-    * For complex numbers: complex multiplication.
-    * For quantized types:
-    * `dequantize_op_quantize(multiply, lhs, rhs, type(result))`.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#multiply
-    """
-
-    name = "stablehlo.multiply"
-
-
 @irdl_op_definition
 class SubtractOp(ElementwiseBinaryOperation):
     """
@@ -514,26 +519,6 @@ class SubtractOp(ElementwiseBinaryOperation):
     """
 
     name = "stablehlo.subtract"
-
-
-@irdl_op_definition
-class ReturnOp(IRDLOperation):
-    """This op is un-documented.
-
-    StableHLO's return is used inside of the bodies of StableHLO ops.
-    It behaves like func.return but for StableHLO ops.
-    The func.return op is used inside of func.func op.
-
-    https://discord.com/channels/999073994483433573/1259494021269688360/1259992088565645312
-    """
-
-    name = "stablehlo.return"
-
-    input = var_operand_def(AnyTensorType)
-    traits = traits_def(IsTerminator())
-
-    def __init__(self, input: list[SSAValue]):
-        super().__init__(operands=(input,))
 
 
 @irdl_op_definition
@@ -591,27 +576,42 @@ class TransposeOp(IRDLOperation):
                 )
 
 
+@irdl_op_definition
+class XorOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise XOR of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For booleans: logical XOR.
+    For integers: bitwise XOR.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor
+    """
+
+    name = "stablehlo.xor"
+
+
 StableHLO = Dialect(
     "stablehlo",
     [
         AbsOp,
         AddOp,
         AfterAllOp,
-        CountLeadingZerosOp,
-        PopcntOp,
-        NotOp,
         AndOp,
+        BitcastConvertOp,
+        CaseOp,
+        CountLeadingZerosOp,
+        MultiplyOp,
+        NotOp,
         OrOp,
-        XorOp,
+        PopcntOp,
+        ReturnOp,
         ShiftLeftOp,
         ShiftRightArithmeticOp,
         ShiftRightLogicalOp,
-        BitcastConvertOp,
-        CaseOp,
-        MultiplyOp,
-        ReturnOp,
         SubtractOp,
         TransposeOp,
+        XorOp,
     ],
     [
         DotAttr,
