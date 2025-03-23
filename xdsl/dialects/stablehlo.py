@@ -13,9 +13,11 @@ from typing import Annotated, ClassVar, TypeAlias, cast
 from xdsl.dialects.builtin import (
     I32,
     I64,
+    AnyFloat,
     AnyTensorType,
     AnyTensorTypeConstr,
     ArrayAttr,
+    ComplexType,
     DenseArrayBase,
     IntegerAttr,
     IntegerType,
@@ -56,6 +58,8 @@ from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 IntegerTensorType: TypeAlias = TensorType[IntegerType]
+FloatOrComplexType: TypeAlias = AnyFloat | ComplexType
+FloatOrComplexTensorType: TypeAlias = TensorType[FloatOrComplexType]
 
 # TODO: Change to SI32 once StableHLO adopts signful integer semantics
 # See: https://github.com/openxla/stablehlo/issues/22
@@ -84,7 +88,6 @@ class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
 
 
 class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
-    # TODO: Remove this constraint for complex types.
     T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
     lhs = operand_def(T)
@@ -101,7 +104,6 @@ class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
 
 
 class IntegerTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
-    # TODO: Remove this constraint for complex types.
     T: ClassVar = VarConstraint("T", base(IntegerTensorType))
 
     operand = operand_def(T)
@@ -111,6 +113,22 @@ class IntegerTensorLikeElementwiseUnaryOperation(IRDLOperation, abc.ABC):
         if result_type is None:
             result_type = operand.type
         super().__init__(operands=(operand,), result_types=(result_type,))
+
+
+class FloatOrComplexTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
+    T: ClassVar = VarConstraint("T", base(FloatOrComplexTensorType))
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+
+    result = result_def(T)
+
+    def __init__(
+        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
+    ):
+        if result_type is None:
+            result_type = lhs.type
+        super().__init__(operands=(lhs, rhs), result_types=(result_type,))
 
 
 # endregion
@@ -325,7 +343,7 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
 
 
 @irdl_op_definition
-class Atan2(ElementwiseBinaryOperation):
+class Atan2(FloatOrComplexTensorLikeElementwiseBinaryOperation):
     """
     Performs element-wise atan2 operation on lhs and rhs tensor and produces a result tensor.
     Depending on the element type, does the following:
