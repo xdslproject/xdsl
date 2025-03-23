@@ -404,17 +404,6 @@ class MultiplyOp(ElementwiseBinaryOperation):
 
 
 @irdl_op_definition
-class PopcntOp(IntegerTensorLikeElementwiseUnaryOperation):
-    """
-    Performs element-wise count of the number of bits set in the operand tensor and produces a result tensor.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#popcnt
-    """
-
-    name = "stablehlo.popcnt"
-
-
-@irdl_op_definition
 class NotOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
     Performs element-wise NOT of tensor operand and produces a result tensor.
@@ -427,6 +416,17 @@ class NotOp(IntegerTensorLikeElementwiseUnaryOperation):
     """
 
     name = "stablehlo.not"
+
+
+@irdl_op_definition
+class PopcntOp(IntegerTensorLikeElementwiseUnaryOperation):
+    """
+    Performs element-wise count of the number of bits set in the operand tensor and produces a result tensor.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#popcnt
+    """
+
+    name = "stablehlo.popcnt"
 
 
 @irdl_op_definition
