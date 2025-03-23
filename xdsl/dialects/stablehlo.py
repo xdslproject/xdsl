@@ -465,21 +465,6 @@ class ReturnOp(IRDLOperation):
 
 
 @irdl_op_definition
-class XorOp(IntegerTensorLikeElementwiseBinaryOperation):
-    """
-    Performs element-wise XOR of two tensors lhs and rhs and produces a result tensor.
-    Depending on the element type, does the following:
-
-    For booleans: logical XOR.
-    For integers: bitwise XOR.
-
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor
-    """
-
-    name = "stablehlo.xor"
-
-
-@irdl_op_definition
 class ShiftLeftOp(IntegerTensorLikeElementwiseBinaryOperation):
     """
     Performs element-wise left-shift operation on the lhs tensor by rhs number of bits and produces a result tensor.
@@ -589,6 +574,21 @@ class TransposeOp(IRDLOperation):
                 raise VerifyException(
                     f"Permutation mismatch at dimension {i}, expected {o_shape[dim]}"
                 )
+
+
+@irdl_op_definition
+class XorOp(IntegerTensorLikeElementwiseBinaryOperation):
+    """
+    Performs element-wise XOR of two tensors lhs and rhs and produces a result tensor.
+    Depending on the element type, does the following:
+
+    For booleans: logical XOR.
+    For integers: bitwise XOR.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#xor
+    """
+
+    name = "stablehlo.xor"
 
 
 StableHLO = Dialect(
