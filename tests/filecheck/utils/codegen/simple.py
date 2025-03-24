@@ -221,7 +221,7 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      name = "test.single"
 # CHECK-NEXT:      arg = operand_def(BaseAttr(TensorType))
 # CHECK-NEXT:      res = result_def(BaseAttr(TensorType))
-# CHECK-NEXT:
+# CHECK-EMPTY:
 # CHECK-NEXT:      assembly_format = "$arg attr-dict : type($arg) -> type($res)"
 
 

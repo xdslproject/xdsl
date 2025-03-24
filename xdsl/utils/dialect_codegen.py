@@ -24,6 +24,10 @@ from xdsl.irdl import (
 def generate_dynamic_attr_class(
     class_name: str, attr: ParamAttrDef, is_type: bool = True
 ) -> type[Attribute]:
+    """
+    Dynamically define a type based on ParamAttrDef.
+    This is needed to reference dynamically created attributes in operations.
+    """
     return type(
         class_name,
         (ParametrizedAttribute,) + ((TypeAttribute,) if is_type else ()),
@@ -35,6 +39,10 @@ def get_constraint_from_range(
     constr: GenericRangeConstraint[Attribute],
     operand_or_result: Literal["operand_def", "result_def"],
 ) -> tuple[str, GenericAttrConstraint[Attribute]]:
+    """
+    Get a constraint from the GenericRangeConstraint wrapper.
+    Build the correct definition function based on the wrapper's type.
+    """
     match constr:
         case SingleOf():
             def_prefix = ""
@@ -49,6 +57,9 @@ def get_constraint_from_range(
 
 
 def typedef_to_class_string(class_name: str, typedef: ParamAttrDef) -> str:
+    """
+    Generate class definition for a type.
+    """
     if typedef.parameters:
         raise NotImplementedError("Attribute parameters not yet implemented")
 
@@ -60,6 +71,9 @@ class {class_name}(ParametrizedAttribute, TypeAttribute):
 
 
 def attrdef_to_class_string(class_name: str, attr: ParamAttrDef) -> str:
+    """
+    Generate class definition for an attribute.
+    """
     if attr.parameters:
         raise NotImplementedError("Attribute parameters not yet implemented")
     return f"""
@@ -70,6 +84,9 @@ class {class_name}(ParametrizedAttribute):
 
 
 def opdef_to_class_string(class_name: str, op: OpDef) -> str:
+    """
+    Generate class definition for an operation.
+    """
     if op.accessor_names:
         raise NotImplementedError("Operation accessor_names not yet implemented")
 
@@ -128,6 +145,9 @@ def dump_dialect_pyfile(
     out: StringIO | None = None,
     dialect_obj_name: str = "",
 ):
+    """
+    Generate a python file with a dialect comprised of given ops, attributes and types.
+    """
     if not dialect_obj_name:
         dialect_obj_name = dialect_name.capitalize() + "Dialect"
 
