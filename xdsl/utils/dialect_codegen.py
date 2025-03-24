@@ -7,8 +7,45 @@ import itertools
 import subprocess
 from collections.abc import Iterable
 from io import StringIO
+from typing import Literal
 
-from xdsl.irdl import OpDef, ParamAttrDef
+from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
+from xdsl.irdl import (
+    AnyInt,
+    GenericAttrConstraint,
+    GenericRangeConstraint,
+    OpDef,
+    ParamAttrDef,
+    RangeOf,
+    SingleOf,
+)
+
+
+def generate_dynamic_attr_class(
+    class_name: str, attr: ParamAttrDef, is_type: bool = True
+) -> type[Attribute]:
+    return type(
+        class_name,
+        (ParametrizedAttribute,) + ((TypeAttribute,) if is_type else ()),
+        dict(ParametrizedAttribute.__dict__) | {"name": attr.name},
+    )
+
+
+def get_constraint_from_range(
+    constr: GenericRangeConstraint[Attribute],
+    operand_or_result: Literal["operand_def", "result_def"],
+) -> tuple[str, GenericAttrConstraint[Attribute]]:
+    match constr:
+        case SingleOf():
+            def_prefix = ""
+            inner_constr = constr.constr
+        case RangeOf(length=AnyInt()):
+            def_prefix = "var_"
+            inner_constr = constr.constr
+        case _:
+            raise Exception(f"Constraint type {constr} not supported")
+
+    return def_prefix + operand_or_result, inner_constr
 
 
 def typedef_to_class_string(class_name: str, typedef: ParamAttrDef) -> str:
@@ -36,10 +73,32 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
     if op.accessor_names:
         raise NotImplementedError("Operation accessor_names not yet implemented")
 
-    if op.operands:
-        raise NotImplementedError("Operation operands not yet implemented")
-    if op.results:
-        raise NotImplementedError("Operation results not yet implemented")
+    fields_description = ""
+
+    fields_description += (
+        "\n\t".join(
+            [
+                "{} = {}({})".format(
+                    name, *get_constraint_from_range(oper.constr, "operand_def")
+                )
+                for name, oper in op.operands
+            ]
+        )
+        + "\n\t"
+    )
+
+    fields_description += (
+        "\n\t".join(
+            [
+                "{} = {}({})".format(
+                    name, *get_constraint_from_range(oper.constr, "result_def")
+                )
+                for name, oper in op.results
+            ]
+        )
+        + "\n\t"
+    )
+
     if op.attributes:
         raise NotImplementedError("Operation attributes not yet implemented")
     if op.regions:
@@ -55,6 +114,7 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
 @irdl_op_definition
 class {class_name}(IRDLOperation):
 \tname = "{op.name}"
+\t{fields_description}
 \t{f'assembly_format = "{op.assembly_format}"' if op.assembly_format else ""}
     """
 
