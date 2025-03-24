@@ -23,4 +23,5 @@ subtitle: Work-In-Progress Introductory Notebooks
 
 /// marimo-embed-file
     filepath: docs/marimo/linalg_snitch.py
+    show_source: false
 ///
