@@ -450,12 +450,12 @@ class AndOp(IntegerTensorLikeElementwiseBinaryOperation):
 @irdl_op_definition
 class Atan2Op(FloatOrComplexTensorLikeElementwiseBinaryOperation):
     """
-    Performs element-wise atan2 operation on lhs and rhs tensor and produces a result tensor.
-    Depending on the element type, does the following:
+    Performs element-wise atan2 operation on `lhs` and `rhs` tensor and produces a
+    `result` tensor. Depending on the element type, does the following:
 
-    For floats: atan2 from IEEE-754.
-    For complex numbers: complex atan2.
-    For quantized types: dequantize_op_quantize(atan2, lhs, rhs, type(result)).
+    * For floats: `atan2` from IEEE-754.
+    * For complex numbers: complex atan2.
+    * For quantized types: `dequantize_op_quantize(atan2, lhs, rhs, type(result))`.
 
     [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#atan2)
     """
@@ -501,7 +501,7 @@ class CaseOp(IRDLOperation):
     * `selected_branch = branches[index]` if `0 <= index < size(branches)`.
     * `selected_branch = branches[-1]` otherwise.
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#case)
     """
 
     name = "stablehlo.case"
