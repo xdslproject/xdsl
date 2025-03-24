@@ -454,7 +454,7 @@ class Atan2Op(FloatOrComplexTensorLikeElementwiseBinaryOperation):
     For complex numbers: complex atan2.
     For quantized types: dequantize_op_quantize(atan2, lhs, rhs, type(result)).
 
-    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#atan2
+    [See StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#atan2)
     """
 
     name = "stablehlo.atan2"
@@ -524,6 +524,8 @@ class CbrtOp(FloatOrComplexTensorLikeElementwiseUnaryOperation):
     For floats: rootn(x, 3) from IEEE-754.
     For complex numbers: complex cubic root.
     For quantized types: dequantize_op_quantize(cbrt, operand, type(result))
+
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#cbrt)
     """
 
     name = "stablehlo.cbrt"
@@ -535,6 +537,8 @@ class CeilOp(FloatTensorLikeElementwiseUnaryOperation):
     Performs element-wise ceil of operand tensor and produces a result tensor.
     Implements the roundToIntegralTowardPositive operation from the IEEE-754 specification.
     For quantized types, performs dequantize_op_quantize(ceil, operand, type(result)).
+
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#ceil)
     """
 
     name = "stablehlo.ceil"
