@@ -71,6 +71,7 @@ SI32TensorType: TypeAlias = TensorType[I32]
 # region Abstract Base Classes
 
 
+# TODO: Abstract the constraint
 class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
     # TODO: Remove this constraint for complex types.
     T: ClassVar = VarConstraint("T", base(AnyTensorType))
