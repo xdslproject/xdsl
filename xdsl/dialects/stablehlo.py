@@ -71,7 +71,7 @@ SI32TensorType: TypeAlias = TensorType[I32]
 # region Abstract Base Classes
 
 
-def _abstract_operation_class_factory(prefix, type_constraint):
+def _abstract_operation_class_factory(prefix: str, type_constraint: VarConstraint):
     """
     Creates elementwise unary and binary operations for a given constraint.
     """
