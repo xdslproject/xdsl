@@ -36,14 +36,13 @@ for path in sorted(src.rglob("*.py")):
 
     nav[parts] = doc_path.as_posix()
 
-    # with mkdocs_gen_files.open(full_doc_path, "w") as fd:
-    #     fd.write(f"::: xdsl.{ident}")
+    with mkdocs_gen_files.open(full_doc_path, "w") as fd:
+        fd.write(f"::: xdsl.{ident}")
 
-    # mkdocs_gen_files.set_edit_path(full_doc_path, path.relative_to(root))
+    mkdocs_gen_files.set_edit_path(full_doc_path, path.relative_to(root))
 
 with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
-    nav_file.write("")
-# nav_file.writelines(nav.build_literate_nav())
+    nav_file.writelines(nav.build_literate_nav())
 
 docs_root = root / "docs"
 
