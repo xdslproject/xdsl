@@ -53,6 +53,5 @@ for path in sorted((docs_root / "marimo").rglob("*.py")):
         fd.write(f"""
 /// marimo-embed-file
     filepath: {path.relative_to(root)}
-    show_source: false
 ///
 """)
